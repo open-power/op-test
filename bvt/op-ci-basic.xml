@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- IBM_PROLOG_BEGIN_TAG                                                   -->
+<!-- This is an automatically generated prolog.                             -->
+<!--                                                                        -->
+<!-- $Source: op-auto-test/bvt/op-ci-basic.xml $                            -->
+<!--                                                                        -->
+<!-- OpenPOWER Automated Test Project                                       -->
+<!--                                                                        -->
+<!-- Contributors Listed Below - COPYRIGHT 2015                             -->
+<!-- [+] International Business Machines Corp.                              -->
+<!--                                                                        -->
+<!--                                                                        -->
+<!-- Licensed under the Apache License, Version 2.0 (the "License");        -->
+<!-- you may not use this file except in compliance with the License.       -->
+<!-- You may obtain a copy of the License at                                -->
+<!--                                                                        -->
+<!--     http://www.apache.org/licenses/LICENSE-2.0                         -->
+<!--                                                                        -->
+<!-- Unless required by applicable law or agreed to in writing, software    -->
+<!-- distributed under the License is distributed on an "AS IS" BASIS,      -->
+<!-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or        -->
+<!-- implied. See the License for the specific language governing           -->
+<!-- permissions and limitations under the License.                         -->
+<!--                                                                        -->
+<!-- IBM_PROLOG_END_TAG                                                     -->
+
+<integrationtest>
+    <platform>
+
+        <include>op-ci-setup.xml</include>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.test_init()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_off()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.bmc_reboot()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sdr_clear()"</cmd>
+            </testcase>
+        </test>
+<!-- Rsync not available on BMC
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.pnor_img_transfer()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.pnor_img_flash()"</cmd>
+            </testcase>
+        </test>
+-->
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_on()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipl_wait_for_working_state()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sel_check()"</cmd>
+            </testcase>
+        </test>
+
+    </platform>
+</integrationtest>

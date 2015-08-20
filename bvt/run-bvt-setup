@@ -1,0 +1,216 @@
+#!/usr/bin/perl
+# IBM_PROLOG_BEGIN_TAG
+# This is an automatically generated prolog.
+#
+# $Source: op-auto-test/bvt/run-bvt-setup $
+#
+# OpenPOWER Automated Test Project
+#
+# Contributors Listed Below - COPYRIGHT 2015
+# [+] International Business Machines Corp.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# IBM_PROLOG_END_TAG
+################################################################################
+# Setup an OP CI BVT test config file per the passed arguments
+#
+# Author: Alan Hlava
+################################################################################
+use strict;
+
+my $version = "1.1";
+my @argv = @ARGV;
+my $arg;
+my $cmd;
+my $tmp;
+my @flds;
+my $verbose = 0;
+my $vp_indent = "";
+my $x;
+my $bmcip = "";
+my $bmcuser = "";
+my $bmcpwd = "";
+my $usernameipmi = "";
+my $passwordipmi = "";
+my $imagedir = "";
+my $ffdcdir = "ffdc/";
+my $imagename = "habanero.pnor";
+my $cfgfiledir = ".";
+
+my $usage = "Setup an OP CI BVT test config file per the passed arguments (v${version})
+
+Syntax: run-bvt-setup --bmcip x.x.x.x --bmcpwd xxx --usernameipmi xxx --passwordipmi xxx [OPTIONS]
+
+Where OPTIONS is zero or more of:
+   --bmcuser [xxx] : BMC user name
+   --bmcpwd [xxx] : BMC password
+   --usernameipmi [xxx] : IPMI user name
+   --passwordipmi [xxx] : IPMI password
+   --ffdcdir [xxx] : Directory for FFDC data (default=$ffdcdir)
+   --imagedir [xxx] : Directory containing flash image
+   --imagename [xxx] : Flash image file name (default=$imagename)
+   --cfgfiledir [xxx] : Directory to store the generated config file (default=$cfgfiledir)
+   --verbose : Display extra debug statements during execution
+\n";
+
+my $cfgfile = "op_ci_tools.cfg";
+my $cfgfile_fmt = "[bmc]
+ip = %s
+username = %s
+password = %s
+usernameipmi = %s
+passwordipmi = %s
+prompt = \#
+
+[test]
+ffdcdir = %s
+imagedir = %s
+imagename = %s
+
+";
+
+################################################################################
+# syntax
+################################################################################
+sub syntax()
+{
+        print "$usage";
+        exit(1);
+}
+
+################################################################################
+# vprint
+################################################################################
+sub vprint
+{
+        my ($str) = @_;
+        if ($verbose)
+        {
+                if ($str =~ /^\</)
+                {
+                        $vp_indent = substr($vp_indent, 3);
+                }
+                print STDERR "${vp_indent}${str}";
+                if ($str =~ /^\>/)
+                {
+                        $vp_indent .= "   ";
+                }
+        }
+}
+
+################################################################################
+# setArg
+################################################################################
+sub setArg
+{
+        my ($argname, $argval_ref) = @_;
+        my $rc = 0;
+        if ($arg eq "$argname")
+        {
+                if (($argv[0] !~ /^\-\-/) &&
+                    ($argv[0] !~ /^\%\%/))
+                {
+                        $$argval_ref = shift(@argv);
+                        $rc = 1;
+                }
+                if ($argv[0] =~ /^\%\%/) { shift(@argv); $rc = 1; }
+        }
+        return($rc);
+}
+
+################################################################################
+#                            main
+################################################################################
+sub main() { }
+$| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
+
+#-------------------------------------------------------------------------------
+# Get arguments
+#-------------------------------------------------------------------------------
+
+# Parse the arguments
+while(@argv)
+{
+        $arg = shift(@argv);
+
+        if ($arg eq "-?") { syntax(); }
+        if ($arg eq "--help") { syntax(); }
+        if ($arg eq "-h") { syntax(); }
+
+        if ($arg eq "--verbose") { $verbose = 1; next; }
+
+        if (setArg("--bmcip", \$bmcip)) { next; }
+        if (setArg("--bmcuser", \$bmcuser)) { next; }
+        if (setArg("--bmcpwd", \$bmcpwd)) { next; }
+        if (setArg("--usernameipmi", \$usernameipmi)) { next; }
+        if (setArg("--passwordipmi", \$passwordipmi)) { next; }
+        if (setArg("--ffdcdir", \$ffdcdir)) { next; }
+        if (setArg("--cfgfiledir", \$cfgfiledir)) { next; }
+        if (setArg("--imagedir", \$imagedir)) { next; }
+        if (setArg("--imagename", \$imagename)) { next; }
+
+        if ($arg =~ /^\-/) { print STDERR "ERROR: unrecognized option: $arg\n"; exit(1); }
+
+        print STDERR "ERROR: unrecognized option: $arg\n";
+        exit(1);
+}
+
+vprint "Starting run-bvt-setup (v${version})\n";
+
+if ($bmcip eq "")
+{
+        print STDERR "ERROR: missing required argument --bmcip\n";
+        exit(1);
+}
+if ($bmcpwd eq "")
+{
+        print STDERR "ERROR: missing required argument --bmcpwd\n";
+        exit(1);
+}
+if ($usernameipmi eq "")
+{
+        print STDERR "ERROR: missing required argument --usernameipmi\n";
+        exit(1);
+}
+if ($passwordipmi eq "")
+{
+        print STDERR "ERROR: missing required argument --passwordipmi\n";
+        exit(1);
+}
+
+# The OP CI tools want dirs to end in slash...
+if ($ffdcdir !~ /\/$/) { $ffdcdir .= "/"; }
+if ($imagedir !~ /\/$/) { $imagedir .= "/"; }
+
+#-------------------------------------------------------------------------------
+# Write the config file
+#-------------------------------------------------------------------------------
+open(OUTF, ">${cfgfiledir}/${cfgfile}") || die "ERROR: unable to open ${cfgfiledir}/${cfgfile} for output: $!";
+printf OUTF $cfgfile_fmt,
+        $bmcip,
+        $bmcuser,
+        $bmcpwd,
+        $usernameipmi,
+        $passwordipmi,
+        $ffdcdir,
+        $imagedir,
+        $imagename;
+close(OUTF);
+if ($verbose)
+{
+        $tmp = `cat ${cfgfiledir}/${cfgfile}`;
+        vprint "Config file ${cfgfiledir}/${cfgfile} written:\n";
+        vprint $tmp;
+}

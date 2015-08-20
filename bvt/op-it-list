@@ -1,0 +1,354 @@
+#!/usr/bin/perl
+# IBM_PROLOG_BEGIN_TAG
+# This is an automatically generated prolog.
+#
+# $Source: op-auto-test/bvt/op-it-list $
+#
+# OpenPOWER Automated Test Project
+#
+# Contributors Listed Below - COPYRIGHT 2015
+# [+] International Business Machines Corp.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# IBM_PROLOG_END_TAG
+                                                                                
+# Syntax-check and list major elements in a OpenPower IT/BVT XML file.
+#
+# Author: Alan Hlava
+                                                                                
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin";
+use OpTestInfra;
+use XML::LibXML;
+
+my $version = "1.1";
+my $cmd;
+my $tmp;
+my @flds;
+my $verbose_str = "";
+my $fvfile = "";
+my $x;
+
+my $usage = "Syntax-check and list major elements in a OpenPower IT/BVT XML file ($version).
+
+Syntax: op-it-list [OPTIONS] filename.xml
+
+Where OPTIONS is zero or more of:
+   --q : (quiet) Do validation only but do not list the contents
+   --verbose : Display extra debug statements during execution
+   --fverbose xxxx : Store additional diagnostic and informational messages
+         when setting up and running the test in the specified file (default=none)
+\n";
+
+my $schemafn = "op-it.xsd";
+my $schemafile = "";
+my $test_type = "list";
+my $xmlfile_arg = "";
+my $xmlfile = "";
+my $test_indent = "";
+my $xml;
+my $test_id;
+my $test_name;
+my $machine;
+#my $parser;
+my $xmldata;
+my $tmperrfile = "/tmp/fips-it-test-$$.err";
+my $tmpxmlfile = "/tmp/fips-it-test-$$.xml";
+my $tmpbvtfile = "/tmp/fips-it-test-bvt-$$.xml";
+my @tmpfiles;
+
+                                                                                
+# syntax
+                                                                                
+sub syntax()
+{
+    print "$usage";
+    exit(1);
+}
+
+                                                                                
+# cleanTempFiles
+                                                                                
+sub cleanTempFiles
+{
+    unlink @tmpfiles;
+}
+
+my @cmdelmts =
+(
+    "cmd",
+);
+                                                                                
+# printTestcase
+                                                                                
+sub printTestcase
+{
+    vprint ">printTestcase()\n";
+    my ($tc) = @_;
+    my $found_cmd = "";
+    my $cmd;
+    my $cmdstr = "";
+    foreach $cmd (@cmdelmts)
+    {
+        $cmdstr = ($tc->findnodes("./${cmd}"))->to_literal;
+        if ($cmdstr ne "")
+        {
+            $found_cmd = $cmd;
+            last;
+        }
+    }
+    if ($cmdstr ne "")
+    {
+        print "${test_indent}$cmdstr [${found_cmd}]\n";
+    }
+    else
+    {
+        print "${test_indent}? [no command found]\n";
+    }
+    vprint "<printTestcase()\n";
+}
+
+                                                                                
+# getNameOrTitle
+                                                                                
+sub getNameOrTitle
+{
+    my ($node) = @_;
+    my    $name = ($node->findnodes('./name'))->to_literal;
+    if ($name eq "")
+    {
+        $name = ($node->findnodes('./title'))->to_literal;
+    }
+    if ($name eq "")
+    {
+        $name = "[no name]";
+    }
+    return $name;
+}
+
+                                                                                
+# printIntegrationTest
+                                                                                
+sub printIntegrationTest
+{
+    vprint ">printIntegraionTest()\n";
+    my ($it) = @_;
+    my @plats = $it->findnodes('./platform');
+    my @tests;
+    my @testcases;
+    my $test_count;
+    foreach my $plat ( @plats )
+    {
+        $machine = ($plat->findnodes('./machine'))->to_literal;
+        print "${test_indent}integrationtest: platform tests for $machine:\n";
+        $test_indent .= "   ";
+        @tests = $plat->findnodes('./test');
+        $test_count = @tests;
+        vprint "test_count=$test_count\n";
+        foreach my $test ( @tests )
+        {
+            vprint "processing next test...\n";
+            $test_id = ($test->findnodes('./id'))->to_literal;
+            $test_name = getNameOrTitle($test);
+            if ($test_id eq "")
+            {
+                print "${test_indent}$test_name\n";
+            }
+            else
+            {
+                print "${test_indent}$test_name ($test_id)\n";
+            }
+            @testcases = $test->findnodes("./testcase");
+            $test_indent .= "   ";
+            foreach my $tc ( @testcases )
+            {
+                printTestcase($tc);
+            }
+            $test_indent = substr($test_indent, 3);
+        }
+        $test_indent = substr($test_indent, 3);
+    }
+    vprint "<printIntegraionTest()\n";
+}
+
+                                                                                
+# printBVT
+                                                                                
+sub printBVT
+{
+    vprint ">printBVT()\n";
+    my ($bvt) = @_;
+    my $bvtname = getNameOrTitle($bvt);
+    my $bvtmachine = ($bvt->findnodes('./machine'))->to_literal;
+
+    print "${test_indent}BVT: \"${bvtname}\" for machine ${bvtmachine}:\n";
+    $test_indent .= "   ";
+    my @its = $bvt->findnodes('./integrationtest');
+    foreach my $it (@its)
+    {
+        printIntegrationTest($it);    
+    }
+    $test_indent = substr($test_indent, 3);
+    
+    vprint "<printBVT()\n";
+}
+    
+                                                                                
+#                            main
+                                                                                
+sub main() { }
+$| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
+
+#-------------------------------------------------------------------------------
+# Get arguments
+#-------------------------------------------------------------------------------
+
+# Parse the arguments
+my @argv = @ARGV;
+my $arg;
+while(@argv)
+{
+    $arg = shift(@argv);
+
+    if ($arg eq "-?") { syntax(); }
+    if ($arg eq "--help") { syntax(); }
+    if ($arg eq "-h") { syntax(); }
+    
+    if ($arg eq "--list") { $test_type = "list"; next; }
+    if ($arg eq "--q") { $test_type = "q"; next; }
+    if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
+    if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
+    
+    if ($arg =~ /^\-/) { print STDERR "ERROR: unrecognized option: $arg\n"; exit(1); }
+
+    $xmlfile_arg = $arg;
+}
+
+push(@tmpfiles, $tmperrfile);
+push(@tmpfiles, $tmpxmlfile);
+push(@tmpfiles, $tmpbvtfile);
+
+vprint "Running op-it-list ($version)...\n";
+
+if ($xmlfile_arg eq "")
+{
+    print STDERR "ERROR: you must specify an XML file to test\n";
+    cleanTempFiles();    
+    exit(1);
+}
+
+vprint("xmlfile_arg: $xmlfile_arg\n");
+# Check if the xmlfile is found as absolute or relative to current dir.  If not,
+# use the ODE search path to try to find it
+if (-e "$xmlfile_arg")
+{
+    $xmlfile = $xmlfile_arg;
+}
+else
+{
+    $xmlfile = findRelFile($xmlfile_arg);
+    if ($xmlfile eq "")
+    {
+        print STDERR "ERROR: could not find $xmlfile_arg relative to op-it-list dir\n";
+        cleanTempFiles();    
+        exit(1);
+    }
+}
+
+#-------------------------------------------------------------------------------
+# Do the test
+#-------------------------------------------------------------------------------
+# Pre-process: treat all <bvt-xml> tags like <include> tags for complete checking/listing
+$cmd = "cat $xmlfile | sed 's/bvt-xml/include/g' >$tmpbvtfile";
+vprint "cmd: $cmd\n";
+if (system($cmd))
+{
+    print STDERR "ERROR: BVT preprocessing failure\n";
+    cleanTempFiles();    
+    exit(1);
+}
+
+# Pre-process: expand all <include> tags and do %% variable substitution
+$cmd = "./read-op-xml-it ${verbose_str} $tmpbvtfile >$tmpxmlfile";
+vprint "cmd: $cmd\n";
+if (system($cmd))
+{
+    print STDERR "ERROR: read-op-xml-it failure\n";
+    cleanTempFiles();    
+    exit(1);
+}
+unlink $tmpbvtfile;
+
+# Validate the resulting XML
+$cmd = "which op-it-list";
+vprint "cmd: $cmd\n";
+$tmp = `which op-it-list`;
+$x = rindex($tmp, "/");
+$tmp = substr($tmp, 0, $x);
+$schemafile = "${tmp}/${schemafn}";
+if (! -e $schemafile)
+{
+    print STDERR "ERROR: could not find $schemafn in op-it-list dir ($schemafile).  Unable to do validation.\n";
+    cleanTempFiles();    
+    exit(1);
+}
+
+$cmd = "xmllint --schema $schemafile --xinclude --noout $tmpxmlfile 2>$tmperrfile";
+vprint "cmd: $cmd\n";
+if (system($cmd) != 0)
+{
+    system("cat $tmperrfile >&2");
+    print STDERR "ERROR: $xmlfile contains XML errors.  See previous messages for details (expanded XML file: $tmpxmlfile)\n";
+    cleanTempFiles();    
+    exit(1);
+}
+
+if ($test_type eq "q")
+{
+    cleanTempFiles();    
+    exit(0);
+}
+system("cat $tmperrfile");
+unlink $tmperrfile;
+
+# Parse and process the XML
+vprint "Instantiating LibXML object...\n";
+$xml =  XML::LibXML->new();
+vprint "Doing parse_file()...\n";
+$xmldata = $xml->parse_file("${tmpxmlfile}");
+#vprint "Doing process_xincludes()...\n";
+#$xml->process_xincludes($xmldata);
+unlink $tmpxmlfile;
+    
+my @bvts = $xmldata->findnodes('/bvts/bvt');
+my $bvtcount = @bvts;
+if ($bvtcount == 0)
+{
+    my @its = $xmldata->findnodes('/integrationtest');
+    foreach my $it (@its)
+    {
+        printIntegrationTest($it);    
+    }
+}
+else
+{
+    foreach my $bvt (@bvts)
+    {
+        printBVT($bvt);
+    }
+}
+cleanTempFiles();    

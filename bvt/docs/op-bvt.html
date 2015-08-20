@@ -1,0 +1,232 @@
+<html>
+<title>OpenPower BVT Tools</title>
+<body>
+<h1>OpenPower Build Verification Test (BVT) Tools</h1>
+
+<p><b>Contents:</b>
+<ul>
+<li><a href="#bvtreq">BVT Requirements and Goals</a></li>
+<li><a href="#bvtstruct">BVT Structure Overview</a></li>
+<li><a href="#prereqs">Prerequisites</a></li>
+<li><a href="#usage">Usage Instructions</a></li>
+<li><a href="#bvtxmlref">BVT XML Reference</a></li>
+<li><a href="#itxmlref">Unit/Integration Test XML Reference</a></li>
+</ul>
+
+<hr />
+<h2><a name="bvtreq">BVT Requirements and Goals</a></h2>
+
+<p>&nbsp;</p>
+
+<ul>
+	<li>Framework for running sets of development tests (UT and/or Integration Tests)</li>
+	<li>Provides verification that a successful build meets some level of quality and functionality</li>
+	<li>Each set can be run manually or automated with a single command</li>
+	<li>Each set can be run against a OpenPower build area</li>
+	<li>Self-checking and providing a single pass/fail exit code as well as individual test results and details for debug</li>
+	<li>Different sets may provide different tradeoffs between verification level vs. execution time
+	<ul>
+		<li>Very fast, but verification-level is only minimal "sanity test"</li>
+		<li>...</li>
+		<li>Long running, but verification level is full regression of all components' UT</li>
+	</ul>
+	</li>
+</ul>
+
+<hr />
+<h2><a name="bvtstruct">BVT Structure Overview</a></h2>
+
+<p><img src="op-bvt.jpg" /></p>
+
+<p>&nbsp;</p>
+<ul>
+	<li>High-level XML file (convention: "*-bvt.xml") defines which BVT(s) are run</li>
+	<li>XML files (convention: "*-it.xml") define the sequence of steps in a individual Unit or Integration Test</li>
+	<li>XML files can define common sequences of steps included in multiple other tests to avoid duplication</li>
+	<li>High-level XML-file passed to run-op-bvt to execute</li>
+	<li>run-op-bvt calls run-op-it to execute a Unit or Integration Test</li>
+	<li>run-op-it calls test tools specified in the XML to communicate with the Service Processor and CEC</li>
+</ul>
+
+<p>&nbsp;</p>
+
+<hr />
+<h2><a name="prereqs">Prerequisites</a></h2>
+
+<ul>
+<li>Linux system with perl installed</li>
+<li>perl XML::LibXML package installed</li>
+</ul>
+
+<hr />
+<h2><a name="usage">Usage Instructions</a></h2>
+
+<p>Validate base tool is accessible and to get complete help text for it:</p>
+<pre>
+> run-op-bvt -?
+</pre>
+
+<p>Validate base tool infrastructure is in place and usable:</p>
+<pre>
+> run-op-bvt helloworld-bvt.xml
+</pre>
+
+<p>Run basic validation test using front-end bash script:</p>
+<pre>
+> vi op-ci-bvt
+[ edit all lines which need different values in your test environment (see lines with ???) ]
+> op-ci-bvt opci-basic-bvt.xml
+</pre>
+
+<p>Run basic validation test using args directly (e.g. from automated test):</p>
+<pre>
+> run-op-bvt --bmcip <i>x.x.x.x</i> --bmcuser <i>xxx</i> --bmcpwd <i>xxx</i> --usernameipmi <i>xxx</i> --passwordipmi <i>xxx</i> --cfgfiledir <i>xxx</i> --imagedir <i>/path/to/pnor/images</i> --imagename <i>imagefilename</i> <i>bvtfile.xml</i>
+</pre>
+
+<p>Validate and summarize BVT XML file without running it:</p>
+<pre>
+> op-it-list <i>bvtfile.xml</i>
+</pre>
+
+
+<hr />
+<h2><a name="bvtxmlref">BVT XML Reference</a></h2>
+
+<p>The formal BVT XML schema is in <b>op-it.xsd</b></p>
+<p>This section is a summary/quick-reference...</p>
+
+<p><span style="color:#0000ff;">&lt;bvts&gt;</span> : base (outer) element</p>
+
+<p style="margin-left: 40px;"><span style="color:#0000ff;">&lt;bvt&gt; </span>:
+defines a single BVT test</p>
+
+<p style="margin-left: 80px;"><span style="color:#0000ff;">&lt;id&gt;xxxt&lt;/id&gt; </span>:
+ID string for this BVT</p>
+
+<p style="margin-left: 80px;">&nbsp;<span style="color:#0000ff;">&lt;title&gt;Some Descriptive Phrase&lt;/title&gt;</span> :
+title string for this BVT</p>
+
+<p style="margin-left: 80px;"><span style="color:#0000CD;">&lt;restrict-env&gt;...&lt;/restrict-env&gt;</span> :
+The containing element will be skipped if not running in the environment
+specified in &lt;restrict-env&gt;.  This allows the same
+XML to be run in different environments (e.g. different system types) with tests inappropriate in that
+environment being automatically skipped.  If this element is not
+specified, the test will be run in any test environment. </p>
+
+<p style="margin-left:  80px;"><span
+style="color:#0000ff;">&lt;bvt-xml&gt;relative/path/to/xxx-it.xml&lt;/bvt-xml&gt;</span> :
+The name of the unit/integration test XML file that defines the logic and
+sequencing for this BVT.&nbsp; See&nbsp;
+<a href="#itxmlref">UT/IT XML Reference</a>
+for instructions and syntax of this file.</p>
+
+<p style="margin-left: 40px;"><span style="color:#0000ff;">&lt;/bvt&gt;</span></p>
+
+<p><span style="color:#0000ff;">&lt;/bvts&gt;</span></p>
+
+<p>The XML supports a general "parameterization" mechanism wherein it
+contains placeholders that are replaced by values specified at runtime
+via command line arguments.&nbsp; Placeholders are of the form
+"%%xxx%%", where the double-percent-signs are the delimiters and the xxx
+is the keyword/argument value to be replaced.</p>
+
+<p>For examples, see <b>op-ci-setup.xml</b> where argument values specified on the run-op-bvt command are passed through to the run-bvt-setup script.</p>
+
+<p>&nbsp;</p>
+
+<hr />
+<h2><a name="itxmlref">Unit/Integration Test XML Syntax Reference</a></h2>
+
+<p>The formal BVT XML schema is in <b>op-it.xsd</b></p>
+<p>This section is a summary/quick-reference...</p>
+
+<ul>
+	<li><span style="color:#0000cd;">&lt;integrationtest&gt;</span> :
+Base (outer) element
+
+	<ul>
+		<li><span style="color:#0000cd;">&lt;title&gt;...&lt;/title&gt;</span> :
+Title for integration test as a whole</li>
+		<li><span style="color:#0000cd;">&lt;platform&gt;</span> :
+Start a block of tests that are run together.
+		<ul>
+			<li><span style="color:#0000cd;">&lt;test&gt;</span> :
+Test Group (one or more)
+			<ul>
+				<li><span style="color:#0000cd;">&lt;name&gt;...&lt;/name&gt;</span> :
+Test Group Name (used in test output)</li>
+				<li><span style="color:#0000CD;">&lt;restrict-env&gt;...&lt;/restrict-env&gt;</span> :
+The containing element will be skipped if not running in the environment
+specified in &lt;restrict-env&gt;.  This allows the same
+XML to be run in different environments  (e.g. different system types)
+with tests inappropriate in that
+environment being automatically skipped.  If this element is not
+specified, the test will be run in any test environment.</li>
+				<li><span style="color:#0000cd;">&lt;testcase&gt;</span> :
+Testcase - defines a single "step" to execute (one or more).  The
+testcase must contain <u>one</u> of the following elements...
+				<ul>
+					<li><span style="color:#0000cd;">&lt;cmd&gt;...&lt;/cmd&gt;</span> :
+Script or program to run on the system from which test is being driven</li>
+				</ul>
+				</li>
+				<li>Other optional elements in testcase:
+				<ul>
+					<li><span style="color:#0000cd;">&lt;exitonerror&gt;yes|no&lt;/exitonerror&gt;</span> :
+"yes" indicates to immediately terminate the integration test if this
+testcase fails (default is to continue)</li>
+					<li><span style="color:#0000CD;">&lt;restrict-env&gt;...&lt;/restrict-env&gt;</span> :
+The containing element will be skipped if not running in the environment
+specified in &lt;restrict-env&gt;.  This allows the same
+XML to be run in different environments  (e.g. different system types)
+with tests inappropriate in that
+environment being automatically skipped.  If this element is not
+specified, the test will be run in any test environment.</li>
+					<li><span style="color:#0000cd;">&lt;arg&gt;...&lt;/arg&gt;</span> :
+argument(s) to pass to testcase (may also be specified directly within the execution element value)</li>
+					<li><span style="color:#0000cd;">&lt;ffdc&gt;...&lt;/ffdc&gt;</span> :
+relative pathname and argument to First Failure Data Capture script(s)
+to run if this testcase fails. The default is to not run any script
+(assumes enough debug information is written to stdout/stderr).
+Muliple scripts may be specified, separated by commas.</li>
+				</ul>
+				</li>
+				<li><span style="color:#0000cd;">&lt;/testcase&gt;</span></li>
+			</ul>
+			</li>
+			<li><span style="color:#0000cd;">&lt;/test&gt;</span></li>
+		</ul>
+		</li>
+		<li><span style="color:#0000cd;">&lt;/platform&gt;</span></li>
+	</ul>
+	</li>
+	<li><span style="color:#0000cd;">&lt;/integrationtest&gt;</span></li>
+</ul>
+
+<p><strong>Valid at any point:</strong></p>
+
+<ul>
+	<li><span style="color:#0000cd;">&lt;!-- comment text --&gt;</span> :
+standard XML comments</li>
+	<li><span style="color:#0000cd;">&lt;include&gt;...&lt;/include&gt;</span> :
+Relative pathname to file containing additional XML to include (can be
+nested).&nbsp; Include also supports specifying a "count" to implement
+simple looping.&nbsp; If count is specified the file is run that number
+of times at this point.  For example, "&lt;include count=3&gt;..."  (or
+"&lt;include count=%%loopcount%%&gt;..."  with "--loopcount 3" passed as
+an argument) will result in the file being run three times at that
+point.&nbsp;<br />
+	This element supports limited "parameterization" of includes by
+specifying XML "%%" variables in an optional xmlvars= attribute.&nbsp;
+For example, if you have a common XML file that codes "%%myvar%%" in
+various places then you could use it twice with different values by
+specifying:</li>
+</ul>
+
+<p>&lt;include<span style="color:#0000CD;"> xmlvars="myvar=x"</span>&gt;myscript.xml&lt;/include&gt;<br />
+&lt;include <span style="color:#0000CD;">xmlvars="myvar=y"</span>&gt;myscript.xml&lt;/include&gt;</p>
+
+<p style="margin-left: 40px;">You can specify more than one such variable inside the the xmlvars value string, separated by blanks.&nbsp; The values specified cannot contain whitespace or double quotes.</p>
+
+</body>
+</html>

@@ -1,0 +1,1140 @@
+#!/usr/bin/perl
+# IBM_PROLOG_BEGIN_TAG
+# This is an automatically generated prolog.
+#
+# $Source: op-auto-test/bvt/run-op-it $
+#
+# OpenPOWER Automated Test Project
+#
+# Contributors Listed Below - COPYRIGHT 2015
+# [+] International Business Machines Corp.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# IBM_PROLOG_END_TAG
+                                                                                
+# Run simics/FSP automated integration test
+#
+# Author: Alan Hlava
+                                                                                
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin";
+
+my $version = "1.1";
+my $test_env = "";
+
+my $usage = "Run OpenPower Automated Integration Test (Version ${version})
+
+Syntax:
+   1) Run test:                         run-op-it [OPTIONS] file.xml
+   2) Cleanup old run-op-it processes:  run-op-it --cleanup SIGTERM | SIGKILL [--all]
+
+   file.xml : the test definition file
+
+OPTIONS is one or more of:
+   --subtest \"tst1[,tst2...]\" : list of <subtest> names to run (default is to run all)
+   --debug xml | cmd : instead of running the test, do the specified debug:
+          xml : just display the resulting XML after include processing and variable substitution
+          cmd : just display all commands instead of running them
+   --outpid xxxx : the name of a file in which to store the PID of this process.
+          This can be useful in managing multiple run-op-it programs running concurrently.
+   --outrc yyyy : the name of a file in which to store the exit code of this process.
+          This can be useful in managing multiple run-op-it programs running concurrently.
+   --logpfx xxxx : the string with which to prefix all log messages (this can be useful
+          if running multiple concurrent run-op-it commands to the same common log)
+   --testenv xxx : is this test to run only in specific environment with this tag
+         This may be overridden if env variable \$OP_TEST_ENV is set.
+   --verbose : display additional debug information while executing
+   --fverbose xxxx : Store additional diagnostic and informational messages
+         when setting up and running the test in the specified file (default=none)
+   --xxx yyy : any \"--\" option other than the ones listed above is assumed
+          to be a .xml file substitution variable. In this case, all
+          instances of \"%%xxx%%\" in the .xml file will be replaced by
+          \"yyy\" when processing the file.  This enables the .xml file
+          to be used as a template that can be used to run a variety of
+          tests.
+   Env var OP_TEST_FAILSUMM_LOG : If set, log failure summary data to specified file.
+";
+my $quiet = 0; # Do not display standard messages?
+my $fvfile = "";
+my $verbose_str = "";
+
+                                                                            ###
+package Testcase;
+                                                                            ###
+use Class::Struct;
+struct (
+id => '$',
+cmd => '$',
+arg => '$',
+ffdc   => '$',
+exitonerror => '$',
+restrict_env => '$'
+);
+
+1;
+
+use OpTestInfra;
+
+                                                                            ###
+my $filename = "";
+my $x;
+my $y;
+my $cmd;
+my $cmd_timeout;
+my $timestamp = "";
+my $tmpscriptname = "tmpscript-$$";
+my $rc = 0;
+my $xmldata;
+my $cmd_line_machine;
+my $machine;
+my $testgrp = "";
+my $restrict_env = "";
+my $testcase = "";
+my $exitonerror = 0;
+my $args = "";
+my $testrc = 0;
+my $totalrc = 0;
+my $tmp;
+my %xmlvars;
+my @subtests;
+my %keyattrs;
+my $debug = "";
+my $title_text = "Integration Test";
+my $testcaseid = "";
+my $outpid = "";
+my $outrc = "";
+my @tcs;
+
+my $cleanup_old_signal = "";
+my @cleanup_targets = (
+"run-op-it",
+);
+
+my $cmdtmpfile = "/tmp/run-op-it-cmd-$$.tmp";
+my $logfiledir = "";
+my $logfile = "";
+my $logpfx = "";
+my $logpfxstr = "";
+
+                                                                                
+# killtree
+                                                                                
+sub killtree
+{
+    my ($killpid, $sig) = @_;
+    my $tmp = `ps -o pid --no-headers --ppid ${killpid}`;
+    my @children = split(/\n/, $tmp);
+    foreach my $child (@children)
+    {
+        killtree(${child}, ${sig});
+    }
+    if ($killpid != $$)
+    {
+        print "sending process $killpid signal $sig\n";
+        system("kill -${sig} ${killpid}");
+    }
+}
+
+                                                                                
+# sigtermHandler
+                                                                                
+$SIG{'TERM'} = 'sigtermHandler';
+sub sigtermHandler
+{
+    print "\nrun-op-it received SIGTERM, so terminating!\n";
+
+    # Try to clean up gracefully
+    cleanUp(1);
+
+    # Clean up all child processes that may be left-over
+    killtree($$, "SIGTERM");
+
+    exit (1);
+}
+
+                                                                                
+# syntax
+                                                                                
+sub syntax()
+{
+    print "$usage";
+    exit(1);
+}
+
+                                                                                
+# printMsg
+                                                                                
+sub printMsg
+{
+    my ($msg) = @_;
+    if (! $quiet && ($debug ne "xml"))
+    {
+        $timestamp = `date +'%H:%M:%S'`;
+        chomp($timestamp);
+        print "${timestamp} :: ${logpfxstr}${msg}";
+        vprint "${timestamp} :: ${logpfxstr}${msg}";
+        add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
+        if ($logfile ne "")
+        {
+            open(LOGF, ">>$logfile");
+            print LOGF "${timestamp} :: ${logpfxstr}${msg}";
+            close(LOGF); # Always close/reopen because we have to send shell output to it
+        }
+    }
+}
+
+                                                                                
+# printErrorMsg
+                                                                                
+sub printErrorMsg
+{
+    my ($msg) = @_;
+    $timestamp = `date +'%H:%M:%S'`;
+    chomp($timestamp);
+    print STDERR "${timestamp} :: ${logpfxstr}${msg}";
+    vprint "${timestamp} :: ${logpfxstr}${msg}";
+    add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
+    if ($logfile ne "")
+    {
+        open(LOGF, ">>$logfile");
+        print LOGF "${timestamp} :: ${logpfxstr}${msg}";
+        close(LOGF); # Always close/reopen because we have to send shell output to it
+    }
+    write_log_hist("Failure summary from run-op-it running $filename");
+}
+
+                                                                                
+# runCmd
+                                                                                
+sub runCmd
+{
+    my ($cmd, $log_cmd) = @_;
+    my $cmdtmpprogfile = "";
+    my $cmdrc = 0;
+    my $has_redirection = 0;
+    vprint ">runCmd()\n";
+
+    # Fix up any XML substitution symbols left in the command string
+    if (index($cmd, "\&gt;") != -1 )
+    {
+        $has_redirection = 1;
+    }
+    $cmd =~ s/\&gt\;/\>/g;
+    $cmd =~ s/\&lt\;/\</g;
+    $cmd =~ s/\&amp\;/\&/g;
+
+    if ($debug ne "cmd")
+    {
+        if ($log_cmd)
+        {
+            printMsg("Running command: $cmd\n");
+        }
+        if (($logfile ne "") && ($has_redirection == 0))
+        {
+            $cmd .= " >$cmdtmpfile 2>&1";
+        }
+        vprint "cmd: $cmd\n";
+        $cmdrc = system($cmd);
+        if (($logfile ne "") && ($has_redirection == 0))
+        {
+            vprint "Running: cat $cmdtmpfile\n";
+            system("cat $cmdtmpfile");
+            add_log_hist_file($cmdtmpfile);
+            vprint "Running: cat $cmdtmpfile >>$logfile\n";
+            system("cat $cmdtmpfile >>$logfile");
+        }
+    }
+    else
+    {
+        print "Running: $cmd\n";
+    }
+    if ($cmdtmpprogfile ne "")
+    {
+        system("rm -f $cmdtmpprogfile");
+        printf("\n"); # Separate from in-progress msgs
+        printMsg("\n"); # Separate from in-progress msgs
+    }
+    if ($cmdrc == 0)
+    {
+        printMsg("OK: command finished successfully\n");
+    }
+    else
+    {
+        printErrorMsg("ERROR: command failed with exit code $cmdrc\n");
+    }
+
+    vprint "<runCmd() returning $cmdrc\n";
+    return $cmdrc;
+}
+
+                                                                                
+# runCmdTest
+                                                                                
+sub runCmdTest
+{
+    vprint ">runCmdTest\n";
+    my $x;
+    
+    # Trim off any arguments included in the testcase string
+    $x = index($testcase, " ");
+    if ($x != -1)
+    {
+        $args .= substr($testcase, $x);
+        $testcase = substr($testcase, 0, $x);
+    }
+    
+    # Convert relative path (if any) to absolute path
+    my $x86_script_file = findRelFile($testcase);
+    
+    $testrc = runCmd("$x86_script_file $args", 1);
+    $totalrc += $testrc;
+    
+    vprint "<runCmdTest (testrc: $testrc   totalrc: $totalrc)\n";
+}
+
+my $tmpxmlfile = "/tmp/run-op-it-temp-$$.xml";
+                                                                                
+# readXml
+                                                                                
+sub readXml
+{
+    my ($xml_path) = @_;
+    my $outstr = "";    
+    my $cmd;
+
+    $cmd = "read-op-xml-it $xml_path >$tmpxmlfile";
+
+    my $rc = system($cmd);
+    $outstr = `cat $tmpxmlfile 2>/dev/null`;
+    system("rm -f $tmpxmlfile");
+    if ($rc)
+    {
+        exit(9);
+    }
+
+    return $outstr;
+}
+
+                                                                            ###
+# getAttrs
+                                                                            ###
+sub getAttrs
+{
+    my ($attrstr) = @_;
+    my $saveattrstr = $attrstr;
+    my %outhash;
+    my $x;
+    my $attr;
+    my $val;
+    my $enddelim;
+    
+    vprint ">getAttrs($attrstr)\n";
+    $attrstr = trim($attrstr);
+    while($attrstr ne "")
+    {
+        # Get the attribute name
+        $x = index($attrstr, "=");
+        if ($x == -1)
+        {
+            printErrorMsg("ERROR: XML syntax error: no equal sign found in attribute area: $saveattrstr\n");
+            cleanUp(1);
+            exit(1);
+        }
+        $attr = substr($attrstr, 0, $x);
+        $attrstr = substr($attrstr, ($x + 1));
+        
+        # Determine how the value is delimited
+        if ( !($attrstr =~ /^\"/))
+        {
+            printErrorMsg("ERROR: XML syntax error: all attribute values must start with a double-quote: $saveattrstr\n");
+            cleanUp(1);
+            exit(1);
+        }
+        $attrstr = substr($attrstr, 1);
+        
+        # Get the value string
+        $x = index($attrstr, "\"");
+        if ($x == -1)
+        {
+            printErrorMsg("ERROR: XML syntax error: all attribute values must end with a double-quote: $saveattrstr\n");
+            cleanUp(1);
+            exit(1);
+        }
+        $val = substr($attrstr, 0, $x);
+        $attrstr = substr($attrstr, ($x + 1));
+
+        vprint "   storing: \"$attr\" -> \"$val\"\n";
+        # Store the attr->value mapping
+        $outhash{$attr} = "$val";
+        
+        
+        # Prepare for next loop
+        $attrstr = trim($attrstr);
+        vprint "   attrstr>$attrstr<\n";
+    }
+    vprint "<getAttrs()\n";
+    return %outhash;
+}
+    
+                                                                            ###
+# getValue (do NOT change xmldata, just return the value)
+                                                                            ###
+sub getValue
+{
+    my ($key, $limkeyarg) = @_;
+    vprint ">getValue($key,$limkeyarg)\n";
+    my $value = "";
+    my $l_xmldata = $xmldata;
+    my $limkey;
+
+    if ($limkeyarg =~ /^\</)
+    {
+        $limkey = $limkeyarg;
+    }
+    else
+    {
+        $limkey = "</$limkeyarg>";
+    }
+
+    # Only clear out attributes when we start reading a new <testcase> node
+    if ($key =~ /testcase/) {
+        vprint "    zeroing keyattrs\n";
+        %keyattrs = ();
+    }
+    my $x = index($l_xmldata, "<${key}>");
+    if ($x == -1)
+    {
+        $x = index($l_xmldata, "<${key} "); # Maybe it has attribute(s)?
+    }
+    if (($x != -1) &&
+        ((substr($l_xmldata, ($x + length($key) + 1), 1) eq ">") || (substr($l_xmldata, ($x + length($key) + 1), 1) eq " "))
+        )
+    {
+        if ($limkeyarg ne $key)
+        {
+            my $y = index($l_xmldata, ${limkey});
+            if (($y != -1) && ($y < $x))
+            {
+                vprint "<getValue($key,$limkeyarg) hit limkey, returning: \"$value\"\n";
+                return $value;
+            }
+        }
+        
+        my $attrs_present = 1;
+        if (substr($l_xmldata, ($x + length($key) + 1), 1) eq ">")
+        {
+            $attrs_present = 0;
+        }
+        $l_xmldata = substr($l_xmldata, ($x + length($key) + 2));
+        $x = index($l_xmldata, "</${key}>");
+        if ($x != -1)
+        {
+            $value = substr($l_xmldata, 0, $x);        
+        }
+        
+        # See if any key attributes
+        if ($attrs_present)
+        {
+            my $pos_caret = index($l_xmldata, ">");
+            my $keyattrstr = substr($l_xmldata, 0, $pos_caret);
+            %keyattrs = getAttrs($keyattrstr);
+            vprint "    attribs present (keyattrs is ".%keyattrs.")\n";
+            #
+            $l_xmldata = substr($l_xmldata, length($keyattrstr)+1);
+        }
+    }
+    # Remove newlines which mess up commands sent to the shell
+    $value =~ s/\n/ /g;
+
+    vprint "<getValue($key,$limkeyarg) returning: \"$value\"\n";
+    return $value;
+}
+    
+                                                                            ###
+# findNextKey
+                                                                            ###
+sub findNextKey
+{
+    my ($key, $limkeyarg) = @_;
+    vprint ">findNextKey($key,$limkeyarg)\n";
+    #vprint "start of xmldata: [";
+    #vprint substr($xmldata, 0, 40);
+    #vprint "...]\n";
+    my $rc = 0;
+    my $limkey;
+
+    if ($limkeyarg =~ /^\</)
+    {
+        $limkey = $limkeyarg;
+    }
+    else
+    {
+        $limkey = "</$limkeyarg>";
+    }
+
+    # Only clear out attributes when we start reading a new <testcase> node
+    if ($key =~ /testcase/) {
+        vprint "    zeroing keyattrs\n";
+        %keyattrs = ();
+    }
+    my $x = index($xmldata, "<${key}>");
+    if ($x == -1)
+    {
+        $x = index($xmldata, "<${key} "); # Maybe it has attribute(s)?
+    }
+    if (($x != -1) &&
+        ((substr($xmldata, ($x + length($key) + 1), 1) eq ">") || (substr($xmldata, ($x + length($key) + 1), 1) eq " "))
+        )
+    {
+        if ($limkeyarg ne $key)
+        {
+            my $y = index($xmldata, ${limkey});
+            if (($y != -1) && ($y < $x))
+            {
+                vprint "<findNextKey($key,$limkeyarg) hit limkey, returning: $rc\n";
+                return $rc;
+            }
+        }
+        
+        my $attrs_present = 1;
+        if (substr($xmldata, ($x + length($key) + 1), 1) eq ">")
+        {
+            $attrs_present = 0;
+        }
+        $xmldata = substr($xmldata, ($x + length($key) + 2));
+        $rc = 1;
+        
+        # See if any key attributes
+        if ($attrs_present)
+        {
+            my $pos_caret = index($xmldata, ">");
+            my $keyattrstr = substr($xmldata, 0, $pos_caret);
+            %keyattrs = getAttrs($keyattrstr);
+            vprint "    attribs present (keyattrs is ".%keyattrs.")\n";
+            #
+            $xmldata = substr($xmldata, length($keyattrstr)+1);
+        }
+    }
+    vprint "<findNextKey($key,$limkeyarg) returning: $rc\n";
+    return $rc;
+}
+
+                                                                            ###
+# getNextKey
+                                                                            ###
+sub getNextKey
+{
+    my ($key, $limkey, $nonewline) = @_;
+    vprint ">getNextKey($key,$limkey)\n";
+    my $outstr = "";
+    my $x;
+    if (findNextKey($key, $limkey))
+    {
+        $x = index($xmldata, "</${key}>");
+        if ($x != -1)
+        {
+            $outstr = substr($xmldata, 0, $x);        
+            $xmldata = substr($xmldata, ($x + length($key) + 3));    
+        }
+    }
+    if (!$nonewline)
+    {
+        $outstr =~ s/\n/ /g;
+    }
+    vprint "<getNextKey($key,$limkey) returning: $outstr\n";
+    return $outstr;
+}
+
+                                                                            ###
+# matchstr
+                                                                            ###
+sub matchstr
+{
+    my ($tstr, $regex) = @_;
+    my $outstr = "";
+    if ($tstr =~ /$regex$/)
+    {
+        $outstr = substr($tstr, $-[0]);
+    }
+    vprint "matchstr(\"$tstr\", \"$regex\") returning \"$outstr\"\n";
+    return $outstr;
+}
+
+                                                                                
+# cleanUp
+                                                                                
+sub cleanUp
+{
+    my ($errorterm) = @_;
+    vprint ">cleanUp\n";
+    
+    if ($errorterm && ($logfile ne ""))
+    {
+        print "${logpfxstr}Output from this test saved in $logfile\n";
+    }
+    
+    vprint "<cleanUp\n";
+}
+
+                                                                                
+# doExit
+                                                                                
+sub doExit
+{
+    my ($exitcode) = @_;
+    if ($outrc ne "")
+    {
+        system("echo $exitcode >$outrc");
+    }
+    exit($exitcode);
+}
+
+                                                                                
+# runAllTests
+                                                                                
+sub runAllTests
+{
+    my $savexmldata;
+    my $testcase_index = 0;
+    my @ffdc_scripts;
+    my $ffdc_script = "";
+    my $ffdc_script_count = 0;
+    
+    #--------------------------------------------------------------------------
+    # Read in the XML file and treat as one big string
+    #--------------------------------------------------------------------------
+    $tmp = readXml("$filename");
+    if ($tmp eq "")
+    {
+        printErrorMsg("ERROR: unable to read XML file $filename\n");
+        doExit(1);
+    }
+    #$tmp =~ s/\n/ /g; <- messes up <fspscript> values
+
+    #--------------------------------------------------------------------------
+    # Do the template variable substitution, if any
+    #--------------------------------------------------------------------------
+    foreach my $key (keys(%xmlvars))
+    {
+        vprint "substituting template variable: \%\%${key}\%\% -> $xmlvars{$key}\n";
+        $tmp =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
+    }
+
+    #--------------------------------------------------------------------------
+    # Strip out all comments
+    #--------------------------------------------------------------------------
+    $xmldata = "";
+    $x = index($tmp, "<!--");
+    while($x != -1)
+    {
+        $xmldata .= substr($tmp, 0, $x);
+        $tmp = substr($tmp, ($x + 4));
+        $x = index($tmp, "-->");
+        if ($x == -1)
+        {
+            my $tmpmsg = sprintf("ERROR: XML syntax error: unterminated comment found starting with \"<--%s\"\n", substr($tmp, 0, 10));
+            cleanUp(1);;
+            printErrorMsg($tmpmsg);
+            doExit(1);
+        }
+        $tmp = substr($tmp, ($x + 3));
+        $x = index($tmp, "<!--");
+    }
+    $xmldata .= $tmp;
+    
+    #--------------------------------------------------------------------------
+    # Strip out any excluded subtests
+    #--------------------------------------------------------------------------
+    my $subtest_count = @subtests;
+    if ($subtest_count)
+    {
+        my $subtest_requested = 0;
+        my $subtest_name;
+        my $req_subtest_name;
+        
+        $tmp = $xmldata;
+        $xmldata = "";
+        $x = index($tmp, "<subtest>");
+        while($x != -1)
+        {
+            # Add the data up to the next subtest start
+            $xmldata .= substr($tmp, 0, $x);
+            
+            # Parse out the subtest name
+            $tmp = substr($tmp, ($x + 9));
+            $x = index($tmp, "<name>");
+            if ($x == -1)
+            {
+                cleanUp(1);;
+                printErrorMsg("ERROR: XML syntax error: no name found in <subtest>\n");
+                doExit(1);
+            }
+            $tmp = substr($tmp, ($x + 6));
+            $x = index($tmp, "</name>");
+            if ($x == -1)
+            {
+                cleanUp(1);;
+                printErrorMsg("ERROR: XML syntax error: no end-name element found in <subtest>\n");
+                doExit(1);
+            }
+            $subtest_name = substr($tmp, 0, $x);
+            $tmp = substr($tmp, ($x + 7));
+            
+            # See if this is one we want
+            $subtest_requested = 0;
+            foreach $req_subtest_name (@subtests)
+            {
+                if ($subtest_name eq $req_subtest_name)
+                {
+                    $subtest_requested = 1;
+                    last;
+                }
+            }
+            
+            # Include it or skip it
+            if (!$subtest_requested)
+            {
+                vprint "Skipping subtest $subtest_name\n";
+                $x = index($tmp, "</subtest>");
+                if ($x == -1)
+                {
+                    cleanUp(1);;
+                    printErrorMsg("ERROR: XML syntax error: missing </subtest>\n");
+                    doExit(1);
+                }
+                $tmp = substr($tmp, ($x + 10));
+            }
+            
+            $x = index($tmp, "<subtest>");
+        }
+        $xmldata .= $tmp;
+        
+        $xmldata =~ s/\<\/subtest\>//; # Might be some leftovers
+        vprint "XML after processing requested subtests:\n$xmldata\n";    
+    }
+    
+    # If we're just debugging XML, then display it and we're done
+    if ($debug eq "xml")
+    {
+        print "$xmldata\n";
+        doExit(0);
+    }
+    if (is_verbose_enabled()) { vprint "xmldata:\n"; vprint "$xmldata\n"; }
+    
+    #------------------------------------------------------------------------------
+    # Find the start
+    #------------------------------------------------------------------------------
+    if (! findNextKey("integrationtest", "integrationtest"))
+    {
+        cleanUp(1);;
+        printErrorMsg("ERROR: could not find <integrationtest> in XML file\n");
+        doExit(1);
+    }
+    
+    # Get the integration test title (if any)
+    my $chk_title = getNextKey("title", "<test>"); # Don't find <test> title by mistake!
+    if ($chk_title ne "")
+    {
+        $title_text = $chk_title;
+    }
+    
+    $tmp = `date +'%Y-%B-%d'`;
+    chomp($tmp);
+    printMsg("Starting $title_text on $tmp...\n");
+    
+    #------------------------------------------------------------------------------
+    # Process each platform
+    #------------------------------------------------------------------------------
+    while(findNextKey("platform", "platform"))
+    {
+        vprint "Processing new platform...\n";
+                
+        # Find the machine name
+        $machine = getNextKey("machine", "platform");
+        #if ($machine eq "") { printErrorMsg("ERROR: could not find <machine> key in platform\n"); doExit(9); }
+
+        # Check if this is specific to a platform we're not running and, if so, skip it
+        if (($cmd_line_machine ne "") && (lc($cmd_line_machine) ne lc($machine)))
+        {
+            printMsg("Skipping platform test because XML <machine>$machine</machine> does not match --machine $cmd_line_machine\n");
+            findNextKey("test", "platform"); # skip ahead so we go to next platform
+            next;
+        }
+        
+        # Process each test group
+        while(findNextKey("test", "platform"))
+        {
+            $restrict_env = getValue("restrict-env", "<testcase>");
+            $testgrp = getNextKey("name", "test");
+            if ($testgrp eq "")
+            {
+                $testgrp = getNextKey("title", "test");
+            }
+            vprint "starting to process test: \"$testgrp\"\n";
+
+            # Check for env restriction at <test> level
+            if (($restrict_env ne "") && ($restrict_env ne $test_env))
+            {
+                printMsg("Skipping test due to not running in $restrict_env environment: $testgrp\n");
+                next;
+            }
+            printMsg("Starting Test: $testgrp\n");
+
+            # Create the contained testcases
+            @tcs = ();
+            while(findNextKey("testcase", "test"))
+            {
+                my $tc = new Testcase;
+                ++$testcase_index;
+                $tc->id("$$-$testcase_index");
+                $tc->cmd( getValue("cmd", "testcase") );
+                $tc->arg( getValue("arg", "testcase") );
+                $tc->ffdc( getValue("ffdc", "testcase") );
+                $tc->exitonerror( getValue("exitonerror", "testcase") );
+                $tc->restrict_env( getValue("restrict-env", "testcase") );
+                push(@tcs, $tc);
+            }
+            
+            # Process each testcase within the group
+            foreach my $tc_ref (@tcs)
+            {
+                $testcaseid = $tc_ref->id;
+                vprint "testcaseid: $testcaseid\n";
+
+                # Check for env restriction at <testcase> level
+                $restrict_env = $tc_ref->restrict_env;
+                if (($restrict_env ne "") && ($restrict_env ne $test_env))
+                {
+                    printMsg("Skipping testcase $testcase_index due to not running in $restrict_env environment\n");
+                    next;
+                }
+                
+                # Get exit-on-error specification (if any)
+                $exitonerror = 0; # default is "no"
+                $tmp = $tc_ref->exitonerror;
+                if ($tmp ne "")
+                {
+                    $tmp =~ tr/A-Z/a-z/;
+                    if (($tmp eq "n") || ($tmp eq "no"))
+                    {
+                        $exitonerror = 0;
+                    }
+                    elsif (($tmp eq "y") || ($tmp eq "yes"))
+                    {
+                        $exitonerror = 1;
+                    }
+                    else
+                    {
+                        cleanUp(1);;
+                        printErrorMsg("ERROR: unrecognized value in <exitonerror>: $tmp\n");
+                        doExit(1);
+                    }
+                }
+                
+                # Get the command arguments (if specified separately)
+                $testcase = $tc_ref->cmd;
+                $args = $tc_ref->arg;
+                $testcase =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
+                $args =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
+                
+                # Get the FFDC script(s) (if any)
+                $tmp = $tc_ref->ffdc;
+                $tmp =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
+                @ffdc_scripts = split(/\,/, $tmp);
+                $ffdc_script_count = @ffdc_scripts;
+                
+                # Run the command
+                runCmdTest();
+                
+                # Handle testcase errors
+                if ($testrc)
+                {
+                    # Capture FFDC if requested
+                    if ($ffdc_script_count != 0)
+                    {
+                        printMsg("Capturing FFDC from test\n");
+                        foreach $ffdc_script (@ffdc_scripts)
+                        {
+                            $testcase = "$ffdc_script";
+                            $args = "";
+                        
+                            runCmdTest();
+
+                            # reset, so we won't pass this --timeout option on the next command
+                            if ($testrc != 0)
+                            {
+                                printErrorMsg("ERROR: FFDC capture failed.  Partial data may be stored (see previous messages)\n");
+                            }
+                        }
+                    }
+                    
+                    # Clean up and terminate if requested
+                    if ($exitonerror)
+                    {
+                        cleanUp(1);
+                        printErrorMsg("ERROR: terminating test\n");
+                        doExit(1);
+                    }
+                }
+            }
+
+            printMsg("Finished Test: $testgrp\n");
+        }
+        
+        # Stop simics and simics server
+        cleanUp(0);
+        
+    }
+    
+}
+
+
+                                                                                
+# exportXmlVars
+                                                                                
+# Export any %%variable%%'s as environment variables, so read-op-xml-it can access them
+sub exportXmlVars
+{
+    foreach my $key (keys(%xmlvars))
+    {
+        vprint "Exporting xmlvars{$key} as env variable xmlvar_$key = $xmlvars{$key}\n";
+        $ENV{"xmlvars_$key"} = $xmlvars{$key};
+    }
+}
+
+                                                                                
+# setLogfileName
+                                                                                
+sub setLogfileName
+{
+    my ($basedir) = @_;
+    $logfiledir = $basedir;
+    if ($logpfx eq "")
+    {
+        $logfile = "$logfiledir/run-op-it-$$.log";
+    }
+    else
+    {
+        my $pfx = $logpfx;
+        $pfx =~ s/ /-/g;
+        $logfile = "$logfiledir/$pfx-run-op-it-$$.log";
+    }
+}
+
+                                                                                
+#                            main
+                                                                                
+sub main() { }
+
+#-------------------------------------------------------------------------------
+# parse the arguments
+#-------------------------------------------------------------------------------
+my @argv = @ARGV;
+my $arg;
+$xmlvars{verbose} = "";
+$xmlvars{fverbose} = "";
+
+while(@argv)
+{
+    $arg = shift(@argv);
+    
+    if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
+    
+    if ($arg eq "--verbose")
+    {
+        set_verbose(1);
+        $verbose_str = "--verbose";
+        $xmlvars{verbose} = "--verbose";
+        next;
+    }
+    if ($arg eq "--fverbose")
+    {
+        $fvfile = shift(@argv);
+        set_verbose(1, $fvfile);
+        $verbose_str = "--fverbose $fvfile";
+        $xmlvars{fverbose} = "--fverbose $fvfile";
+        next;
+    }
+    if ($arg eq "--outpid") { $outpid = shift(@argv); next; }
+    if ($arg eq "--outrc") { $outrc = shift(@argv); next; }
+    if ($arg eq "--cleanup")
+    {
+        $cleanup_old_signal = shift(@argv);
+        if (($cleanup_old_signal ne "SIGTERM") && ($cleanup_old_signal ne "SIGKILL"))
+        {
+            print STDERR "ERROR: unrecognized signal specified on --cleanup: \"$cleanup_old_signal\"\n";
+            doExit(9);
+        }
+        next;
+    }
+    if ($arg eq "--subtest")
+    {
+        $arg = shift(@argv);
+        @subtests = split(/\,/, $arg);
+        next;
+    }
+    if ($arg eq "--debug")
+    {
+        $debug = shift(@argv);
+        set_verbose(1); # Debug stmts done using vprint, so need to enable it!
+        next;
+    }
+    if ($arg eq "--testenv") { $test_env = shift(@argv); next; }
+    if ($arg eq "--logpfx")
+    {
+        $logpfx = shift(@argv);
+        $logpfxstr = "${logpfx}: ";
+        next;
+    }
+
+    # Arguments representing XML substitution variables...
+    if ($arg =~ /^\-\-/)
+    {    
+        $arg = substr($arg, 2);
+        $xmlvars{$arg} = shift(@argv);
+    }
+    elsif ($arg =~ /^\-/)
+    {    
+        $arg = substr($arg, 1);
+        $xmlvars{$arg} = shift(@argv);
+    }
+    
+    $filename = $arg;
+}
+
+if ($ENV{OP_TEST_FAILSUMM_LOG} ne "")
+{
+    set_failsumm_log($ENV{OP_TEST_FAILSUMM_LOG});
+}
+
+if (($filename eq "") && ($cleanup_old_signal eq ""))
+{
+    printErrorMsg("ERROR: you must specify a XML file defining the test\n");
+    doExit(9);
+}
+
+# Validate test_env
+if ($ENV{OP_TEST_ENV} ne "")
+{
+    $test_env = $ENV{OP_TEST_ENV};
+}
+else
+{
+    # Set env var for all tools/tests running below this script
+    $ENV{OP_TEST_ENV} = $test_env;
+}
+
+# if we were passed a --machine, save it off for checking against individual tests
+if ($xmlvars{machine} ne "")
+{
+    $cmd_line_machine = $xmlvars{machine};
+    vprint "received --machine $cmd_line_machine on command line\n";
+}
+
+#-------------------------------------------------------------------------------
+# set vars representing execution environment
+#-------------------------------------------------------------------------------
+
+# Store the PID, if requested
+if ($outpid ne "")
+{
+    system("echo $$ >$outpid");
+}
+#if ($logpfxstr eq "")
+#{
+    #$logpfxstr = `whoami`;
+    #chomp($logpfxstr);
+    #$logpfxstr .= "-";
+#}
+
+if (is_verbose_enabled())
+{
+    vprint "version: $version\n";
+    vprint "subtests: @subtests\n";
+    vprint "xmlvars{machine}: $xmlvars{machine}\n";
+    vprint "test_env: $test_env\n";
+    vprint "OP_TEST env vars:\n";
+    if ($fvfile ne "")
+    {
+        system("env | grep OP_TEST_ >>$fvfile");
+    }
+    else
+    {
+        system("env | grep OP_TEST_");
+    }
+}
+
+#------------------------------------------------------------------------------
+# Handle cleanup request
+#------------------------------------------------------------------------------
+if ($cleanup_old_signal ne "")
+{
+    printMsg("Killing old run-op-it processes...\n");
+
+    # Process all running run-op-it processes belonging to this user
+    my $userid = `whoami`;
+    chomp($userid);
+    my $tmp;
+    my @old_procs;
+    foreach my $target (@cleanup_targets)
+    {
+        $tmp = `ps -ef | grep $target | grep $userid | grep -v $$ | grep -v grep | awk '{ print \$2 }'`;
+        @old_procs = split(/\n/, $tmp);
+        
+        # Kill them
+        foreach my $old_pid (@old_procs)
+        {
+            killtree($old_pid, $cleanup_old_signal);
+        }
+    }
+    
+    doExit(0);
+}
+
+# export %%variables%% for read-op-xml-it (which is run under fips-it-list)
+exportXmlVars();
+
+# Validate the syntax of the specified XML file
+$cmd = "op-it-list $verbose_str --q $filename";
+if (is_verbose_enabled() || ($debug eq "cmd")) { vprint "Running: $cmd\n"; }
+system($cmd) && die "ERROR: XML file failed validity checking\n";
+
+#------------------------------------------------------------------------------
+# Run the integration test bucket as defined by the input file
+#------------------------------------------------------------------------------
+runAllTests();
+
+#------------------------------------------------------------------------------
+# Cleanup and exit
+#------------------------------------------------------------------------------
+$tmp = `date +'%Y-%B-%d'`;
+chomp($tmp);
+if ($totalrc == 0)
+{
+    printMsg("OK: Finished tests on $tmp with no testcase errors.\n");
+}
+else
+{
+    $totalrc = 1;
+    set_failsumm_log(""); # Turn off so don't get final exit msg in summary
+    printErrorMsg("ERROR: Finished tests on $tmp with one or more testcase errors.\n");
+}
+if ($logfile ne "")
+{
+    print "${logpfxstr}Output from this test saved in $logfile (simics server logs stored in same directory)\n";
+}
+doExit($totalrc);

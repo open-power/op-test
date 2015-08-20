@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- IBM_PROLOG_BEGIN_TAG                                                   -->
+<!-- This is an automatically generated prolog.                             -->
+<!--                                                                        -->
+<!-- $Source: op-auto-test/bvt/op-ci-setup.xml $                            -->
+<!--                                                                        -->
+<!-- OpenPOWER Automated Test Project                                       -->
+<!--                                                                        -->
+<!-- Contributors Listed Below - COPYRIGHT 2015                             -->
+<!-- [+] International Business Machines Corp.                              -->
+<!--                                                                        -->
+<!--                                                                        -->
+<!-- Licensed under the Apache License, Version 2.0 (the "License");        -->
+<!-- you may not use this file except in compliance with the License.       -->
+<!-- You may obtain a copy of the License at                                -->
+<!--                                                                        -->
+<!--     http://www.apache.org/licenses/LICENSE-2.0                         -->
+<!--                                                                        -->
+<!-- Unless required by applicable law or agreed to in writing, software    -->
+<!-- distributed under the License is distributed on an "AS IS" BASIS,      -->
+<!-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or        -->
+<!-- implied. See the License for the specific language governing           -->
+<!-- permissions and limitations under the License.                         -->
+<!--                                                                        -->
+<!-- IBM_PROLOG_END_TAG                                                     -->
+<xs:schema
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="qualified"
+    >
+
+    <!-- ***************************    TYPES    **************************** -->
+
+    <xs:simpleType name="yes-no-type">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="y" />
+            <xs:enumeration value="yes" />
+            <xs:enumeration value="n" />
+            <xs:enumeration value="no" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="yes-no-empty-type">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="y" />
+            <xs:enumeration value="yes" />
+            <xs:enumeration value="n" />
+            <xs:enumeration value="no" />
+            <xs:enumeration value="" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="arg" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                An argument string to pass to a script or program to be run.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="bvt-xml" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                The name of the integration test XML file that defines the logic and
+                sequencing for this BVT.  See the "integrationtest" element for the
+                syntax of this file.
+                Specify a relative path to the file (e.g. "src/pres/test/file.xml").
+                The value may include arguments to be passed to the command.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="cmd" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                A command to be run on the host (test driver) system.
+                The value may include arguments to be passed to the command.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="exit-on-error" type="yes-no-type">
+        <xs:annotation>
+            <xs:documentation>
+                Specifies whether an error (non-zero exit code) in this testcase
+                should cause the entire test to immediately terminate ("yes" or "no",
+                with the default being not to terminate).
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="ffdc" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                An FFDC program or script to be run when a testcase fails.
+                Specify a relative path to the file (e.g. "rel/path/captureFFDC").
+                The value may include arguments to be passed to the command.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="id" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                A short human-readable ID for the containing element.  This is typically
+                used in temporary names which may be files, so it is advisable to not
+                include whitespace or special characters (letters and numbers only).
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+            
+    <!-- ******************************************************************** -->
+    <xs:element name="integrationtest">
+        <xs:annotation>
+            <xs:documentation>
+                The high-level element enclosing a complete OpenPower Integration Test.
+                This may contain multiple platform groupings.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="platform" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="machine" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                The machine type on which to run a OpenPower Integration Test.  This must
+                be one of the supported simics -machine values for this release.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="name" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                The human-readable name of the containing element.
+                Synonym for "title".
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+    <xs:element name="title" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                The human-readable title of the containing element.
+                Synonym for "name".
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="platform">
+        <xs:annotation>
+            <xs:documentation>
+                A complete set of one or more test definitions to be run sequentially on the
+                same system.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="machine" minOccurs="1" maxOccurs="1"/>
+                <xs:element name="test" minOccurs="1" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="restrict-env" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                The containing element will be skipped if not running in the
+                specified environment (tag value string).  This allows the
+                same XML to be run in appropriate environments with tests inappropriate
+                in that environment being automatically skipped.
+                If this element is not specified, the test will be run in any
+                test environment meeting all other resrtictions (if any).
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="test">
+        <xs:annotation>
+            <xs:documentation>
+                A grouping of related testcases.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="id" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="name" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="title" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="restrict-env" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="testcase" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="testcase">
+        <xs:annotation>
+            <xs:documentation>
+                A grouping of related testcases.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="cmd" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="arg" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="ffdc" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="exitonerror" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="restrict-env" minOccurs="0" maxOccurs="1"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ********************************************************************* -->
+    <!-- ************************    BVT    ********************************** -->
+    <!-- ********************************************************************* -->
+
+    <!-- ******************************************************************** -->
+    <xs:element name="bvt">
+        <xs:annotation>
+            <xs:documentation>
+                Defines a single BVT test.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="id" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="name" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="title" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="machine" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="restrict-env" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="bvt-xml" minOccurs="0" maxOccurs="1"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- ******************************************************************** -->
+    <xs:element name="bvts">
+        <xs:annotation>
+            <xs:documentation>
+                Defines a set of BVT tests.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="bvt" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+
+</xs:schema>
