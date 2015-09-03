@@ -1,0 +1,882 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define basic command execution functions like exec_cmd, etc.
+
+# Change log:
+# 2014/06/25 Mike Walsh xzy0065 - I corrected a flaw where cmd_fnc_u sets a local copy of test_mode to 0.  This is then seen by all subordinate calls to cmd_fnc even though the global value is 1.  I.e. this change allows recursive use of cmd_fnc and cmd_fnc_u.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_opt_funcs
+# gen_bash_valid_funcs
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+
+shopt -s extglob
+################################################################################
+function alarm {
+  local seconds="${1:-0}"
+
+  # This function will either set or clear an alarm based on the value of "${seconds}".  If seconds is a positive non-zero number, this function will set an alarm to go off in "${seconds}" seconds.  This means that the program calling this function will receive a SIGALRM when the alarm goes off.  If "${seconds}" is zero, this function will clear the last alarm set.
+  # This should be roughly equivalent to the c library alarm() function.  Bash has no native equivalent, thus the need for this function.
+  # Note: This function should not be used in conjunction with a sleep command executing in the same process.  I believe sleep also sends SIGALRM, etc.
+  # This function supports only one active alarm at a time.
+
+  # Example call:
+  # alarm $time_out_value 2>/dev/null || return 1
+  # Note: The "2>/dev/null" is necessary if you do not wish to see the stderr messages stating that the child alarm process was killed.
+  # It is necessary to have alarm_child_pid_random_25816_6093 be a global variable.  I gave it an unusual name to avoid naming collisions with variable names chosen by the caller.
+
+  # valid_integer seconds "0.." || return 1
+  # Perf improvement:
+  case "${seconds#[+]}" in +([0-9])) ;; *)
+    { print_error ; echo "For \"seconds\" you specified an invalid value of \"${seconds}\".  You must pass an integer that is greater than or equal to 0." ; } | process_error_message
+    return 1
+  esac
+
+  if [ ! -z "${alarm_child_pid_random_25816_6093}" ] ; then
+    local rc
+    # Kill any alarm processes previously spawned by this program and function.
+    ps "${alarm_child_pid_random_25816_6093}" >/dev/null 2>&1
+    rc="${?}"
+    if [ "${rc}" == "0" ] ; then
+      kill -s SIGTERM $alarm_child_pid_random_25816_6093 >/dev/null 2>&1
+      # Waiting for a dead child effectively checks its status.  This step plus the caller using "2>/dev/null" keeps the "killed" stderr message from being visible.
+      wait $alarm_child_pid_random_25816_6093
+      rc=$?
+    fi
+    # Clear pid var so we don't needlessly come down this path on the next call.
+    alarm_child_pid_random_25816_6093=''
+  fi
+
+  if (( seconds > 0 )) ; then
+    # Spawn the alarm process and remember its pid.
+    # Perf: .002
+    bash -c "sleep $seconds && kill -s SIGALRM $$" >/dev/null 2>&1 &
+    alarm_child_pid_random_25816_6093=$!
+  fi
+
+  return 0
+
+}
+################################################################################
+
+
+
+# exec_command is deprecated.  Use exec_cmd instead.
+################################################################################
+function exec_command {
+
+  local cmd_buf=$1
+  local print_options=$2
+  local print_output=$3
+
+  # This function will run a command and print information based on the print options.
+  # The main benefit of using this function is:
+  # print_options:
+  #   stat_print        This function will print a time-stamped status message saying what is being run.  Example:
+       #(CST) 2008/11/14 11:32:08 - Issuing: rcmd -l root -p FipSroot 9.5.179.240:23 '/nfs/plug_ins/sample/nfs_pgm1 ; echo Rmt_ret_code = $?'
+  #   err_print         This function will print error details when either rcmd fails or the command fails to run successfully on the remote FSP.  Example:
+  # #(CST) 2010/01/27 14:30:07 - **ERROR** exec_command failed.  Error data follows:
+  # ls mike
+  # ls: mike: No such file or directory
+  #   all_print         all_print is the equivalent of specifying both stat_print and err_print.
+  #   For all other values, this function will be silent.
+  #
+
+  # This function will place the stdout results in global variable, EXEC_CMD_OUTPUT.
+
+  # Example usage:
+  # exec_command "date" all_print || exit 1
+  # echo "$exec_command_output"
+
+  # Convert from "print_output" to "1".  print_output is a mnemonic recognized by this function.
+  if [ "${print_output}" == "print_output" ] ; then
+    print_output=1
+  fi
+
+  if [ "$print_options" == "stat_print" -o "$print_options" == "all_print" ] ; then
+    print_time; echo "Issuing: $cmd_buf"
+  fi
+  exec_command_output=$(eval $cmd_buf 2>&1)
+  if [ $? != 0 ] ; then
+    if [ "$print_options" == "err_print" -o "$print_options" == "all_print" ] ; then
+      {
+        print_error ; echo "${FUNCNAME} failed.  Error data follows:"
+        echo "$cmd_buf"
+        echo "$exec_command_output"
+      } | process_error_message
+    fi
+    return 1
+  fi
+
+  if (( print_output )) ; then
+    if [ "$exec_command_output" != "" ] ; then
+      echo "$exec_command_output"
+    fi
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function exec_cmd {
+
+  # Note that this function takes parameters just like a program:
+  # --parm_name=parm_value
+
+  # This function will execute the command in --cmd.  The stdout from the execution of cmd will be put into the global variable, __exec_cmd_std_out__.  This function provides the following benefits:
+  # You have print options:
+  # stat                If "y" is specified for this parm, a statement like this will be written to stdout:
+  # #(CST) 2011/02/28 12:55:21 - Issuing: rcmd -l root -p ******** host 'hostname'
+  # Note that this function uses issuing/my_echo which hides passwords found in hidden_text_list.  So put any passwords you want hidden into hidden_text_list.  See my_echo's prolog for details.
+  # out                 If "y" is specified for this parm, the stdout from the cmd will be printed.  In all cases, the stdout from the command will be put into the global variable __exec_cmd_std_out__.
+  # err                 If "y" is specified for this parm, an error report will be printed to stderr if the final attempt to run the cmd is unsuccessful.  This report will include the values provided as parms to this function as well as the results from each attempt to run the cmd.
+  #
+  # This function will do time-out processing:
+  # time_out            If this parm is "0", no time-out processing will be done.  For any positive integer value, an alarm will be set for ${time_out} seconds.  If the command execution does not complete within the time out value, it will be counted as a failure.  Programming note: If time_out is positive, exec_cmd must fork the "cmd" which means it is actually run in a child process.  Therefore, any variables set in the command will NOT be available to the caller.  For example, if the command is cmd="var1=$(ls -l dir1)" and time_out is non-zero, the var1 assignment will happen in the child process and not in process of the program calling exec_cmd.  In other words, don't rely on the variable being set.
+  #
+  # This function has retry capability:
+  # max_attempts        The number of times to try executing cmd.
+  # sleep_time          The amount of time to sleep between attempts to execute cmd.
+  #
+  # This funtion has remote command evaluation capability:
+  # rmt_cmd             If "y" is specified for this parm, this function will try to determine the success of your command on a remote system by appending " ; echo Rmt_ret_code = $?" to your remote command and then interpreting the output when the command is finished.  If you specify "y" for this parm, you must single quote your remote command and it must be the last item in your "cmd" parm (see example below).
+  #
+  # debug               If "y" is specified for this parm, this function will print debug information, e.g. the list of parms passed to this function.
+
+  # Example uses:
+  #
+  # host=z2036ce
+  # password=FipSroot
+  # add_list_element "${password}" hidden_text_list back "|"
+  # cmd_buf="rcmd -l root -p ${password} $host 'hostname'"
+  # exec_cmd || exit 1
+  #
+  # The prior example would cause your program to print something like this:
+  # #(CST) 2011/03/02 16:07:18 - Issuing: rcmd -l root -p ******** z2036ce 'hostname'
+  # Server-9117-MM-10FFE9B-VA-1
+  #
+  # exec_cmd --stat=n --out=n || exit 1
+  #
+  # The prior example would execute the command but your program would print nothing.  The stdout could of course be found in __exec_cmd_std_out__.
+  #
+  # exec_cmd --rmt_cmd=y || exit 1
+  #
+  # The prior example would cause your program to print something like this:
+  # #(CST) 2011/03/02 16:54:32 - Issuing: rcmd -l root -p ******** z2036ce 'hostname ; echo Rmt_ret_code = $?'
+  # Server-9117-MM-10FFE9B-VA-1
+  #
+  # If the 'hostname' command had failed on the remote system, this function would likewise fail.
+
+
+
+  # Define internal functions.
+  local exec_cmd_timed_out_random_32028_23181
+  #local exec_cmd_child_pid_random_17861_12901
+  #-------------------------------------------------------------------------------
+  function exec_cmd_alarm_handler {
+    (( FUNC_TRACE )) && { print_func_name "$@" ; print_call_stack ; } >&2
+
+    # This function is only for use by exec_cmd.  This function is the alarm signal handler for exec_cmd.  If this function is invoked, it will kill ${exec_cmd_child_pid_random_17861_12901}.  exec_cmd_child_pid_random_17861_12901 is, by necessity, a global variable.  I gave it an unusual name to avoid naming collisions with variable names chosen by the caller.
+  
+    # Set this global variable so that exec_cmd can see that a time-out took place.  I gave the variable an unusual name to avoid naming collisions with variable names chosen by the caller.
+    exec_cmd_timed_out_random_32028_23181=1
+  
+    #kill -s SIGABRT ${exec_cmd_child_pid_random_17861_12901} >/dev/null 2>&1
+    #kill -s SIGTERM ${exec_cmd_child_pid_random_17861_12901} >/dev/null 2>&1
+    # I added code to get children of exec_cmd_child_pid_random_17861_12901 and kill them too.
+    local children
+    get_process_children ${exec_cmd_child_pid_random_17861_12901} children 0
+
+    kill -s SIGTERM ${exec_cmd_child_pid_random_17861_12901} ${children} >/dev/null 2>&1
+  
+  }
+  #-------------------------------------------------------------------------------
+
+
+
+  local cleanup_file_list
+  #-------------------------------------------------------------------------------
+  function exec_cmd_cleanup {
+    (( FUNC_TRACE )) && { print_func_name "$@" ; print_call_stack ; } >&2
+
+    # This function will cleanup files.  The variable names referenced are global to this function (but local to the exec_cmd function).
+
+    (( debug )) && print_func_name "$@"
+
+    if [ ! -z "${cleanup_file_list}" ] ; then
+      # Perf: Fork the rm and trust that it will get done.
+      rm -f ${cleanup_file_list} &
+    fi
+
+  }
+  #-------------------------------------------------------------------------------
+
+  if [ "${1}" == "${1##-}" ] ; then
+    # Positional function style parms.
+    local cmd="${1:-${cmd_buf}}" ; shift
+    local stat="${1:-$(( ! quiet ))}" ; shift
+    local out="${1:-1}" ; shift
+    local err="${1:-1}" ; shift
+    local time_out="${1:-0}" ; shift
+    local max_attempts="${1:-1}" ; shift
+    local sleep_time="${1:-15}" ; shift
+    local rmt_cmd="${1:-0}" ; shift
+    local debug="${1:-0}" ; shift
+    local test_mode="${1:-${test_mode:-0}}" ; shift
+  else
+    # Posix command line style parms.
+    # Long options specification reminder:
+    # No colon=no arg
+    # Single colon=required arg
+    # Double colon=optional arg
+    local longoptions="cmd: stat: out: err: time_out: max_attempts: sleep_time: rmt_cmd: debug: test_mode:"
+
+    # Initialize parms.
+    local cmd="${cmd_buf}"
+    local stat=y
+    (( quiet )) && stat=n
+    local out=y
+    local err=y
+    local time_out=0
+    local max_attempts=1
+    local sleep_time=15
+    local rmt_cmd=n
+    local debug=n
+    local test_mode=0
+
+    # Define the "global" variables used by gen_get_options/gen_print_parms locally.
+    local command_line
+    local parm_list
+    local additional_parms
+
+    # gen_get_options sets the following vars which are global from its perspective.
+    local INDENT COL1_WIDTH PGM_DIRNAME PGM_NAME Start_time
+
+    # Perf: .009 seconds.
+    gen_get_options "$@" || return 1
+ 
+  fi
+
+  # Validate parms.  We do it in-line vs calling validation functions to improve performance.
+  process_boolean_arg debug 1 || return 1
+  if (( debug )) ; then
+    print_time ; echo "Printing debug information, as requested, for this execution of ${FUNCNAME}."
+    gen_print_parms "${parm_list}"
+  fi
+
+  # Perf: Arg validation .001+ seconds.
+  # Validating function parms.
+  case "${cmd}" in "")
+    { print_error "Parameter \"cmd\" has an invalid value of \"${cmd_buf}\"." ; echo ; } | process_error_message
+    return 1
+    ;;
+  esac
+  process_boolean_arg stat 1 || return 1
+  process_boolean_arg out 1 || return 1
+  process_boolean_arg err 1 || return 1
+
+  case "${time_out#[+]}" in +([0-9])) ;; *)
+    { print_error ; echo "For \"time_out\" you specified an invalid value of \"${time_out}\".  You must pass an integer that is greater than or equal to 0." ; } | process_error_message
+    return 1
+  esac
+  case "${max_attempts#[+]}" in +([0-9])) ;; *)
+    { print_error ; echo "For \"max_attempts\" you specified an invalid value of \"${max_attempts}\".  You must pass an integer that is greater than or equal to 0." ; } | process_error_message
+    return 1
+  esac
+  case "${sleep_time#[+]}" in +([0-9])) ;; *)
+    { print_error ; echo "For \"sleep_time\" you specified an invalid value of \"${sleep_time}\".  You must pass an integer that is greater than or equal to 0." ; } | process_error_message
+    return 1
+  esac
+
+  process_boolean_arg rmt_cmd 1 || return 1
+  process_boolean_arg test_mode 1 || return 1
+
+  (( debug )) && print_vars cmd stat out err time_out max_attempts sleep_time rmt_cmd debug test_mode >&2
+
+  local rmt_ret_code_str="Rmt_ret_code = "
+
+  if (( rmt_cmd )) ; then
+    # Alter the callers command.
+    local cmd_len=${#cmd}
+    local ix=cmd_len-1
+    local last_char="${cmd:${ix}}"
+    if [ "${last_char}" == "'" ] ; then
+      # Remove trailing quote.
+      cmd=${cmd:0:${ix}}
+      cmd="${cmd} ; echo ${rmt_ret_code_str}\$?${last_char}"
+    else
+      { print_error ; echo "To use the \"rmt_cmd\" paramater, your \"cmd\" value must end with a quoted string." ; } | process_error_message
+      return 1
+    fi
+  fi
+
+  # Print status message if requested by caller.
+  if (( stat )) ; then
+    #issuing "${cmd}"
+    issuing "${cmd}" "" "${test_mode}"
+    if (( max_attempts == 0 )) ; then
+      print_time ; echo "max_attempts is zero so the preceding command will not actually be executed."
+    fi
+  fi
+
+  (( test_mode )) && return 0
+
+  if (( time_out > 0 )) ; then
+    # Setup our alarm handler.
+    local save_traps=$(trap | grep SIGALRM)
+    trap 'exec_cmd_alarm_handler >/dev/null 2>&1' ALRM
+  fi
+
+  local rc=0
+  local cmd_rc=0
+  local attempt
+  # exec_cmd_timed_out is only used for printing out.  It will be much less confusing to the user than seeing exec_cmd_timed_out_random_32028_23181.
+  local exec_cmd_timed_out
+  # exec_cmd_child_pid is only used for printing out.  It will be much less confusing to the user than seeing exec_cmd_child_pid_random_17861_12901.
+  local exec_cmd_child_pid
+
+  # Files for storing stdout and stderr from the execution of cmd.
+  # 2014/02/03 I saw some errors in dvt pool monitor which I think are caused by duplicate file names from competing processes.  Example errors:
+  # egrep: /tmp/exec_cmd_stdout_19262_29131: No such file or directory
+  # egrep: /tmp/exec_cmd_stdout_19262_29131: No such file or directory
+  # I'll use create_temp_file_name which does a better job of creating unique names.
+
+  local temp_stdout_file
+  local temp_stderr_file
+  local temp_activity_log_file
+  local temp_misc_file
+
+  # Perf: Create temp file names inline vs calling create_temp_file_name
+  local temp_prefix=/tmp/${USER:-$(whoami)}/${PGM_NAME:-${0##*\/}}:${FUNCNAME}:line_${LINENO}:pid_$$:${RANDOM}${RANDOM}${RANDOM}
+
+  temp_stdout_file=${temp_prefix}:stdout
+  temp_stderr_file=${temp_prefix}:stderr
+  # A log of all attempts to execute cmd.
+  temp_activity_log_file=${temp_prefix}:activity_log
+  temp_misc_file=${temp_prefix}:misc
+
+  #create_temp_file_name temp_stdout_file "stdout" 0
+  #create_temp_file_name temp_stderr_file "stderr" 0
+  # A log of all attempts to execute cmd.
+  #create_temp_file_name temp_activity_log_file "activity_log" 0
+  # Strip the last line from stdout.
+  #create_temp_file_name temp_misc_file "" 0
+
+  cleanup_file_list="$temp_stdout_file $temp_stderr_file $temp_activity_log_file $temp_misc_file"
+
+  # PROGRAMMER NOTE: From this point on, all returns should be preceded by a call to exec_cmd_cleanup.
+  for (( attempt=1 ; attempt <= max_attempts ; attempt++ )) ; do
+
+    # Initialize this global variable.
+    exec_cmd_timed_out_random_32028_23181=0
+
+    {
+      # Write to log file.
+      print_dashes
+      print_time ; echo "Attempt # ${attempt}:"
+      issuing "${cmd}"
+    } >> $temp_activity_log_file
+
+    if (( time_out > 0 )) ; then
+      # Set alarm.
+      alarm $time_out 2>/dev/null || { exec_cmd_cleanup ; return 1 ; }
+    fi
+
+    # Execute callers command routing stdout and stderr to temp files.
+    # 2015/05/19 Mike Walsh (xzy0065) - Made a change to route stderr to stdout for more natural looking output.
+    if (( time_out == 0 )) ; then
+      # 2015/05/01 Mike Walsh - I added quotes around ${cmd} to preserve spaces in the command.  Example, listing a file whose name has embedded spaces:
+      # ls '/tmp/FFDC/much   space'
+      # eval "${cmd}" >$temp_stdout_file 2>$temp_stderr_file
+      eval "${cmd}" >$temp_stdout_file 2>&1
+      cmd_rc="${?}"
+      exec_cmd_child_pid_random_17861_12901=""
+    else
+      # eval ${cmd} >$temp_stdout_file 2>$temp_stderr_file &
+      #eval ${cmd} >$temp_stdout_file 2>&1 &
+      #eval ${cmd} >$temp_stdout_file 2>&1 &
+      eval ${cmd} >$temp_stdout_file 2>&1 &
+      # Get spawned child's pid and store it in exec_cmd_child_pid_random_17861_12901 for use by alarm handler.
+      exec_cmd_child_pid_random_17861_12901=$!
+      # Wait for command to finish and get the return code.
+      wait $exec_cmd_child_pid_random_17861_12901
+      cmd_rc="${?}"
+    fi
+
+    (( debug )) && { print_time ; echo "After evaluating user's command:" ; print_var cmd_rc ; }
+
+    if (( exec_cmd_timed_out_random_32028_23181 )) ; then
+      (( debug )) && { print_time ; echo "Timeout occurred.  Waiting on defunct child: ${exec_cmd_child_pid_random_17861_12901}" ; }
+      # If we timed out and the alarm_handler was called, we must wait on the pid to keep noxious output message hidden.
+      wait $exec_cmd_child_pid_random_17861_12901 2>/dev/null
+      # This rc will reflect the fact that a SIGABRT was sent.
+      # This rc will reflect the fact that a SIGTERM was sent.
+      cmd_rc="${?}"
+    fi
+
+    if (( time_out > 0 && !exec_cmd_timed_out_random_32028_23181 )) ; then
+      # Clear alarm.
+      alarm 0 2>/dev/null || { exec_cmd_cleanup ; return 1 ; }
+    fi
+
+    # Set global variable for use by caller.  On the cat command we route stderr to /dev/null because it is possible that the temp file does not exist (e.g. when the user interrupts with control c).
+    __exec_cmd_std_out__=$(cat $temp_stdout_file 2>/dev/null)
+
+
+# This may be a good idea but I don't have time to test it now.
+#    __exec_cmd_std_err__=$(cat $temp_stderr_file 2>/dev/null)
+    { 
+      # Write to log file.
+      if (( exec_cmd_timed_out_random_32028_23181 )) ; then
+        local plural=""
+        (( time_out > 1 )) && plural="s"
+        { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: The caller's command timed out after ${time_out} second${plural}." ; }
+      elif (( cmd_rc != 0 )) ; then
+        { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: The caller's command failed with a return code of ${cmd_rc}." ; }
+      fi
+      exec_cmd_child_pid=$exec_cmd_child_pid_random_17861_12901
+      exec_cmd_timed_out=$exec_cmd_timed_out_random_32028_23181
+      print_vars exec_cmd_child_pid cmd_rc exec_cmd_timed_out time_out
+      #echo "cmd stderr:"
+      #cat $temp_stderr_file 2>/dev/null
+      #echo "cmd stdout:"
+      #cat $temp_stdout_file 2>/dev/null
+      echo
+      echo "cmd stderr and stdout:"
+      echo "----------------------"
+      cat $temp_stdout_file 2>/dev/null
+      print_dashes
+    } >> $temp_activity_log_file
+
+    if [ "${cmd_rc}" == "0" ] ; then
+      if (( rmt_cmd )) ; then
+        (( debug )) && { print_time ; echo "Processing rmt_ret_code_str." ; }
+        # Get remote return code.  Grep for the string and take the last one (usually there is only 1).
+        # 2011/08/30 The "^" anchor should be appropriate but I saw a case where rcmd was returning a few funny chars between the cr and the "Rmt_ret_code".
+        #local rmt_ret_code=$(egrep "^${rmt_ret_code_str}" $temp_stdout_file | tail -n 1 | sed -re "s/${rmt_ret_code_str}//g")
+        local rmt_ret_code=$(egrep -a "${rmt_ret_code_str}" $temp_stdout_file | tail -n 1 | sed -re "s/${rmt_ret_code_str}//g")
+        (( debug )) && { print_var rmt_ret_code ; }
+
+        egrep -av "^${rmt_ret_code_str}[0-9]?" $temp_stdout_file > $temp_misc_file
+        rc="${?}"
+        # rc of 0 means that after stripping the rmt_rec_code_str, there is text in the output.  rc of 1 means that there is no text.  Both of these values are acceptable.  Other values (e.g. 2 - no such file) are not.
+        if ! (( rc == 0 || rc == 1 )) ; then exec_cmd_cleanup ; return 1 ; fi
+        mv $temp_misc_file $temp_stdout_file || { exec_cmd_cleanup ; return 1 ; }
+
+        # Set global variable for use by caller (this time with rmt_ret_code_str line gone).
+        __exec_cmd_std_out__=$(cat $temp_stdout_file 2>/dev/null)
+# This may be a good idea but I don't have time to test it now.
+        __exec_cmd_std_err__=$(cat $temp_stderr_file 2>/dev/null)
+
+        # Shift left and put it in cmd_rc.
+        cmd_rc=$rmt_ret_code
+        (( debug )) && { print_time ; echo "After processing rmt_ret_code_str:" ; print_var cmd_rc ; }
+      fi
+
+      if [ "${cmd_rc}" == "0" ] ; then
+        # Success!  We're done.
+        break
+      else
+        { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: The remote command returned a return code of ${rmt_ret_code}." ; } >> $temp_activity_log_file
+      fi
+    fi
+    if (( attempt < max_attempts )) ; then
+      # We only want to sleep if this is not the last time through the loop, i.e. we're going to try the command again.
+      sleep ${sleep_time}
+    fi
+  done
+
+  (( debug )) && { print_time ; echo "After all attempts:" ; print_var cmd_rc ; }
+  if [ "${cmd_rc}" == "0" ] ; then
+    # Print command output if requested by caller.
+    (( out )) && [ -f "${temp_stdout_file}" ] && cat ${temp_stdout_file}
+  else
+    if (( err )) ; then
+      {
+        # Print complete error report if requested by caller.
+        #print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: The caller's command failed to execute.  See details below:"
+        print_error ; echo "The following command failed to execute: ${cmd}"
+        echo "See details below:"
+        #print_call_stack
+        #gen_print_parms "${parm_list}"
+        echo "Activity Log:"
+        cat $temp_activity_log_file
+      } | process_error_message
+    elif (( out )) ; then
+      [ -f "${temp_stdout_file}" ] && cat ${temp_stdout_file}
+    fi
+  fi
+
+  if (( time_out > 0 )) ; then
+    # Re-instate callers ALRM traps (if any).
+    trap - ALRM
+    eval ${save_traps}
+  fi
+  exec_cmd_cleanup
+
+  return ${cmd_rc}
+
+}
+################################################################################
+
+
+
+################################################################################
+function cmd_fnc {
+
+  # This function is a shortcut to doing this:
+  # 
+  # cmd_buf="echo 'Mike'\\''s output.'"
+  # (( ! quiet )) && issuing
+  # if (( ! test_mode )) ; then eval $cmd_buf || return 1 ; fi
+  #
+  # If you pass more than one parm, this function will try to quote strings for you.  So the equivalent of the code above is:
+  # cmd_fnc_u echo "Mike's output."
+
+  # For some things, you may simply have to quote the whole command string yourself to keep bash from misinterpreting it.  Example:
+  # cmd_buf="echo $value | grep value"
+  # (( ! quiet )) && issuing
+  # if (( ! test_mode )) ; then eval $cmd_buf || return 1 ; fi
+
+  # If you do this:
+  # cmd_fnc echo $value | grep value
+  # This function will run "echo $value" and bash will pipe the result to grep.  Instead, do this:
+  # cmd_fnc 'echo $value | grep value'
+
+  # The following special parms to this function are recognized.  They must be specified in the following order:
+  # "unconditional"     This means that the command is to be executed regardless of the value of the global test_mode variable.
+  # "no_prt_err"        This function will not print an error message when the subsequent command fails to execute.  If no such parm is found, this function will print an error message to stderr when the command fails.
+  # "prt_err_file"      This means that if your command includes redirection to a file, cmd_fnc will print the contents of that file as part of the error message.  In the following example where there is no such file as "mike" and the output of the list command is being routed to ${temp_misc_file}...
+  # cmd_fnc_u prt_err_file "ls mike > ${temp_misc_file} 2>&1"
+  #
+  # Output:
+  #
+  # #(CDT) 2015/06/22 14:46:28.499954 -    0.005830 - **ERROR** The prior command failed:
+  # ls: cannot access mike: No such file or directory
+
+  # Of course, "prt_err_file" will have no affect if you've also specified "no_prt_err".
+
+  local cmd_buf
+
+  # quote_parm_list isn't quite suitable for this application.
+  # local quote_type=single
+  #  quote_parm_list cmd_buf "${@}"
+  #  cmd_buf="${cmd_buf#\'}"
+  #  cmd_buf="${cmd_buf%\'}"
+
+  local loc_test_mode=${test_mode}
+  if [ "${1}" == "unconditional" ] ; then loc_test_mode=0 ; shift ; fi
+
+  local print_error=1
+  if [ "${1}" == "no_prt_err" ] ; then print_error=0 ; shift ; fi
+
+  local prt_err_file=0
+  if [ "${1}" == "prt_err_file" ] ; then prt_err_file=1 ; shift ; fi
+
+  if [ $# -gt 1 ] ; then
+    local parm
+    while [ $# -gt 0 ] ; do
+      parm="${1}"
+      #print_var parm
+      case "${parm}" in
+        ''|*[\$" "\>\<\|\&\\!\"]*)
+          parm="'${parm}'"
+          ;;
+        *\'*)
+          escape_quotes parm single
+          parm="'${parm}'"
+          ;;
+      esac
+      [ -z "${cmd_buf}" ] && cmd_buf="${parm}" || cmd_buf="${cmd_buf} ${parm}"
+      shift || :
+    done
+  else
+    cmd_buf="${1}"
+  fi
+
+  local rc
+  (( ! quiet )) && issuing "${cmd_buf}" "" "${loc_test_mode}"
+  if (( ! loc_test_mode )) ; then
+    eval "${cmd_buf}"
+    rc="${?}"
+    if [ "${rc}" != "0" ] ; then
+      if (( print_error )) ; then
+        if (( prt_err_file )) && [ "${cmd_buf}" != "${cmd_buf/ > }" ] ; then
+          local temp_file_path=${cmd_buf##* > }
+          temp_file_path=${temp_file_path%% *}
+          { print_error ; echo "The prior command failed:" ; cat ${temp_file_path} ; } | process_error_message
+        else
+          { print_error ; echo "The prior command failed." ; } | process_error_message
+        fi
+      fi
+      return ${rc}
+    fi
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function cmd_fnc_u {
+
+  # This is the "unconditional" version of cmd_fnc, i.e. test_mode is set to 0 and then cmd_fnc is called.
+
+  # 2014/06/25 Mike Walsh (xzy0065) - The problem with declaring a local "test_mode" is that it is global to all subordinate functions.  This means that those functions can't call cmd_fnc and rely on it seeing the truly global test_mode value.
+  # local test_mode=0
+  local rc
+
+  cmd_fnc unconditional "${@}"
+  rc="${?}"
+
+  return ${rc}
+
+}
+################################################################################
+
+
+
+################################################################################
+function sleep_kill {
+  local sleep_time="${1:-30}" ; shift || :
+
+  # This function will sleep for the specified sleep time and then do the kill command with the parms specified.
+  # Example call:
+  # sleep_kill 30 -s SIGTERM ${pid}
+
+  sleep ${sleep_time}
+  kill "${@}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function gen_alarm_handler {
+  local command_timed_out_var="${1:-command_timed_out}" ; shift || :
+  local pid="${1}" ; shift || :
+  local signal="${1:-SIGTERM}" ; shift || :
+  local quiet="${1:-${quiet}}" ; shift || :
+
+  # This function can be used as a SIGALRM handler.  For example...
+  # trap 'gen_alarm_handler command_timed_out ${!pid_var_name} SIGTERM' ALRM
+  # This function will set the variable named in command_timed_out_var to "1".  It is the caller's responsibility to initialize this variable to "0".  This flag can then be checked by the caller to see if this function has run.  This function will also send the indicated signal to the specified pid, i.e. it will kill your wayward process for you.
+
+  # Set function's command_timed_out variable to indicate that a time-out occurred.
+  eval ${command_timed_out_var}=1
+  (( ! quiet )) && print_var ${command_timed_out_var}
+
+  # Kill the pid that is exceeding the time-out.
+  cmd_fnc_u "kill -s ${signal} ${pid}"
+
+}
+################################################################################
+
+
+
+mc_keyword="[]"
+mc_glob_keyword="\[\]"
+################################################################################
+function multi_cmd_func {
+  local gen_cmd="${1}" ; shift || :
+  local list="${1}" ; shift || :
+  local headers="${1:-${headers}}" ; shift || :
+  local time_out="${1:-0}" ; shift || :
+  local max_attempts="${1:-1}" ; shift || :
+  local sleep_time="${1:-15}" ; shift || :
+  local rc_list_var="${1}" ; shift || :
+  local list_delim="${1:-${IFS}}" ; shift || :
+
+  # 2014/10/01 Mike Walsh (xzy0065) - I added support for rc_list_var and the list_delim.
+
+  # This function will asynchronously run the command in gen_cmd for each element in the list, replacing all "[element]" keywords in gen_cmd with the list element.
+  # headers indicates that you wish to have headers written for each command run.  Example:
+  # time_out indicates that you wish to have spawned jobs killed and a non-zero return code returned for any spawned process that exceeds the time-out.
+  # max_attempts means that any given spawned job will be launched using exec_cmd so that it will be attempted max_attempts times.
+  # sleep_time is only relevant when max_attempts is specified.  It is passed directly to exec_cmd.
+  # If the caller provides an rc_list_var, this function will return a space-delimited list of return codes, one for each item in the list.
+  # list_delim is the character that is used to delimit items in your list.
+
+  # ------------------------------------------------------------------------------------------------------------------------
+  # #(CDT) 2013/05/14 12:31:16 - Issuing: host gfwr806 >> /tmp/csptest/multi_cmd:multi_cmd_func:line_140:pid_25043:385:gfwr806 2>&1 &
+  # gfwr806.rch.stglabs.ibm.com has address 9.5.111.52
+  # ------------------------------------------------------------------------------------------------------------------------
+  # #(CDT) 2013/05/14 12:31:16 - Issuing: host dfas >> /tmp/csptest/multi_cmd:multi_cmd_func:line_140:pid_25043:385:dfas 2>&1 &
+  # Host dfas not found: 3(NXDOMAIN)
+  # ------------------------------------------------------------------------------------------------------------------------
+
+  # Perf: Validation takes about .001 seconds.
+  valid_value gen_cmd || return 1
+  valid_boolean headers || return 1
+  valid_integer time_out "0.." || return 1
+  valid_integer max_attempts "1.." || return 1
+  valid_integer sleep_time "0.." || return 1
+
+  local rc
+  local wait_rc
+  local cmd_buf
+  local sub_cmd_buf
+  local ret_code=0
+  local temp_file_prefix
+  local temp_file_name
+  local list_element
+  local list_element_var_name
+  local pid_var_name
+
+  # I do add temp files to cleanup_file_list but I clean them up in this function and remove them from cleanup_file_list.  I do this so that cleanup_file_list doesn't get bloated.
+  # Doesn't look like loc_cleanup_file_list is used anywhere.
+  #local loc_cleanup_file_list
+
+  create_temp_file_name temp_file_prefix "" 0
+
+  (( ! quiet )) && echo '------------------------------------------------------------------------------------------------------------------------'
+  (( ! quiet )) && { print_time ; echo "Issuing a command for every item in the list." ; }
+
+  local count=0
+  local save_IFS="${IFS}"
+  local IFS
+
+  IFS="${list_delim}"
+  for list_element in $list ; do
+    IFS="${save_IFS}"
+    (( count++ ))
+    # list_element_var_name=${list_element//./_}
+    #sb_to_var_name "${list_element}" list_element_var_name || return 1
+    #list_element_var_name=${list_element_var_name}${count}_
+    list_element_var_name=_${list_element}_${count}_
+    change_to_varname list_element_var_name 0
+    temp_file_name=${temp_file_prefix}${list_element_var_name}
+    # Perf: .002
+    # add_list_element "${temp_file_name}" cleanup_file_list
+    # Faster to add to cleanup_file_list directly.
+    [ -z "${cleanup_file_list}" ] && cleanup_file_list="${temp_file_name}" || cleanup_file_list="${cleanup_file_list} ${temp_file_name}"
+    #add_list_element "${temp_file_name}" loc_cleanup_file_list
+
+    sub_cmd_buf="${gen_cmd//${mc_glob_keyword}/${list_element}}"
+    if (( max_attempts == 1 )) ; then
+      cmd_buf="${sub_cmd_buf} >> ${temp_file_name} 2>&1 &"
+#      cmd_buf="{ time ${sub_cmd_buf} ; } >> ${temp_file_name} 2>&1 &"
+    else
+      cmd_buf="exec_cmd --stat=y --err=y --out=y --max_attempts=${max_attempts} --sleep_time=${sleep_time} --cmd='$(escape_quotes sub_cmd_buf single 1)' >> ${temp_file_name} 2>&1 &"
+    fi
+    (( headers )) && issuing > ${temp_file_name}
+    (( ! quiet )) && issuing
+    if (( ! test_mode )) ; then
+      pid_var_name=${list_element_var_name}_pid
+      eval ${cmd_buf}
+      eval ${pid_var_name}=$!
+      (( ! quiet )) && print_var ${pid_var_name}
+    fi
+    IFS="${list_delim}"
+  done
+  IFS="${save_IFS}"
+
+  (( ! quiet )) && { echo '------------------------------------------------------------------------------------------------------------------------' ; echo ; }
+
+  local alarm_pid
+  local command_timed_out
+
+  local save_traps
+  if (( time_out > 0 )) ; then
+    save_traps=$(trap | grep SIGALRM)
+    # Setup our alarm handler.
+    cmd_buf="trap 'gen_alarm_handler command_timed_out \${!pid_var_name} SIGTERM' ALRM"
+    # (( ! quiet )) && issuing
+    eval ${cmd_buf}
+  fi
+
+  # 2015/05/26 Mike Walsh (xzy0065) - We need to initialize this to blanks.
+  [ ! -z "${rc_list_var}" ] && eval ${rc_list_var}=\"\"
+
+  count=0
+  local alarm_children
+  IFS="${list_delim}"
+  for list_element in $list ; do
+    IFS="${save_IFS}"
+    let count++
+    #sb_to_var_name "${list_element}" list_element_var_name || return 1
+    #list_element_var_name=${list_element_var_name}${count}_
+    list_element_var_name=_${list_element}_${count}_
+    change_to_varname list_element_var_name 0
+    # list_element_var_name=${list_element//./_}
+    pid_var_name=${list_element_var_name}_pid
+    temp_file_name=${temp_file_prefix}${list_element_var_name}
+
+    (( headers )) && echo '------------------------------------------------------------------------------------------------------------------------'
+    if (( ! test_mode )) ; then
+      if (( time_out > 0 )) ; then
+        command_timed_out=0
+        # Set alarm.
+        # (( ! quiet )) && { print_time ; echo "Starting alarm process."; }
+        cmd_buf="sleep_kill ${time_out} -s SIGALRM $$ &"
+        # (( ! quiet )) && issuing
+        eval ${cmd_buf}
+        alarm_pid=$!
+        get_process_children ${alarm_pid} alarm_children 0
+        #(( ! quiet )) && print_vars alarm_pid alarm_children
+      fi
+      cmd_buf="wait ${!pid_var_name}"
+      (( ! quiet )) && issuing
+      eval ${cmd_buf}
+      wait_rc="${?}"
+      if (( command_timed_out )) ; then
+        # Reconstruct the command for the benefit of the stderr text.
+        cmd_buf="${gen_cmd//${mc_glob_keyword}/${list_element}} >> ${temp_file_name} 2>&1 &"
+        { print_error ; echo "The following command, running in process ${!pid_var_name}, timed out after ${time_out} second(s) and was therefore killed." ; echo "  ${cmd_buf}" ; } | process_error_message >> ${temp_file_name} 2>&1
+      else
+        if (( time_out > 0 )) ; then
+          # Waiting on the killed job suppresses the "gen_bash_cmd_funcs: line 617: 26966 Killed" message.  Note: wait for alarm pid will always return non-zero if we have killed it.  Therefore, we do "|| :" so cmd_fnc_u will not see it as a failure.
+          cmd_buf="kill -s SIGKILL ${alarm_pid} ${alarm_children} ; wait ${alarm_pid} 2>/dev/null"
+          # (( ! quiet )) && issuing
+          eval ${cmd_buf}
+        fi
+      fi
+    else
+      wait_rc=0
+    fi
+    if [ ! -z "${rc_list_var}" ] ; then
+      add_list_element "${wait_rc}" "${rc_list_var}" back " " || return 1
+    fi
+    if [ "${wait_rc}" == "0" ] ; then
+      cat ${temp_file_name} 2>/dev/null
+    else
+      cat ${temp_file_name} >&2
+      ret_code=1
+    fi
+
+    rm -f ${temp_file_name}
+    remove_list_element "${temp_file_name}" cleanup_file_list
+
+    IFS="${list_delim}"
+  done
+  IFS="${save_IFS}"
+
+  if (( time_out > 0 )) ; then
+    # Re-instate callers ALRM traps (if any).
+    trap - ALRM
+    eval ${save_traps}
+  fi
+
+  (( headers )) && echo '------------------------------------------------------------------------------------------------------------------------'
+
+  return ${ret_code}
+
+}
+################################################################################
+
+
+

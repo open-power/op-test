@@ -1,0 +1,428 @@
+#!/usr/bin/wish
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/autoend 1.11 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2009,2012 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+
+regsub {.*/} $argv0 {} program_name
+
+# Source include files (from the same directory as this file).
+source [file dirname [info script]]/gen_tcl_print_funcs 
+
+global widget; 
+global pid;
+global argv0
+
+global help
+set help 0
+set host_name [exec hostname]
+
+#set universal_background "Peach puff"
+set universal_background "honeydew"
+set universal_foreground "darkblue"
+set end_wait "n"
+
+set signal_list {}
+
+# Example "+0+0"
+set x_y "+0+0"
+
+set debug 0
+
+################################################################################
+proc {send_signal} {signal} {
+
+  # This function will send a signal to the target program via the kill program.
+
+  global pid
+  global argv0
+  global targ_program_name
+  global debug
+  global signal_confirmation
+
+  if { "$signal_confirmation($signal)" == "y" || "$signal_confirmation($signal)" == "yes" } {
+    set answer [tk_messageBox -type "yesno" -message "Are you sure you want to send the \"${signal}\" signal to the target process ($pid)?" -default no -icon warning -title "${signal}" -parent .top20]
+    if { "${answer}" == "no" } { return 0 }
+  }
+
+  if {[catch {exec ps $pid} result]} {
+    # Error occurred.  Pid is no longer valid.
+  } else {
+    if { $targ_program_name == "autoipl" && $signal == "TERM" } {
+      # Write authorization file.  The Auto IPL program will check this before terminating.
+      catch {exec echo $argv0 > /tmp/$pid} result
+    }
+    # Signal the program.
+    #set cmd_buf "kill -s SIG${signal} $pid"
+    set cmd_buf "kill -s ${signal} $pid"
+    if { $debug } { issuing }
+    catch {eval exec $cmd_buf} result
+  }
+
+  exit {0}
+
+}
+################################################################################
+
+
+
+################################################################################
+proc {end_wait} {} {
+
+  # This function will cause the Auto IPL program to abandon the wait for the .pfi file.
+
+  global pid
+  global debug
+
+  set cmd_buf "kill -s SIGUSR1 $pid"
+  if { $debug } { issuing }
+  catch {eval exec $cmd_buf} result
+
+#  catch {exec kill -10 $pid} result
+
+}
+################################################################################
+
+
+
+################################################################################
+proc {Window} {args} {
+
+  global vTcl
+  set cmd [lindex $args 0]
+  set name [lindex $args 1]
+  set newname [lindex $args 2]
+  set rest [lrange $args 3 end]
+  if {$name == "" || $cmd == ""} {return}
+  if {$newname == ""} {
+    set newname $name
+  }
+  set exists [winfo exists $newname]
+  switch $cmd {
+    show {
+      if {$exists == "1" && $name != "."} {wm deiconify $name; return}
+      if {[info procs vTclWindow(pre)$name] != ""} {
+        eval "vTclWindow(pre)$name $newname $rest"
+      }
+      if {[info procs vTclWindow$name] != ""} {
+        eval "vTclWindow$name $newname $rest"
+      }
+      if {[info procs vTclWindow(post)$name] != ""} {
+        eval "vTclWindow(post)$name $newname $rest"
+      }
+    }
+    hide    { if $exists {wm withdraw $newname; return} }
+    iconify { if $exists {wm iconify $newname; return} }
+    destroy { if $exists {destroy $newname; return} }
+  }
+
+}
+################################################################################
+
+
+
+#################################
+# VTCL GENERATED GUI PROCEDURES
+
+################################################################################
+proc vTclWindow. {base} {
+
+  if {$base == ""} {
+    set base .
+  }
+  ###################
+  # CREATING WIDGETS
+  ###################
+  wm focusmodel $base passive
+  wm geometry $base 1x1+0+0
+  wm maxsize $base 1265 994
+  wm minsize $base 1 1
+  wm overrideredirect $base 0
+  wm resizable $base 1 1
+  wm withdraw $base
+  wm title $base "vt.tcl"
+  ###################
+  # SETTING GEOMETRY
+  ###################
+
+}
+################################################################################
+
+
+
+################################################################################
+proc vTclWindow.top20 {base} {
+
+  global pid
+  global universal_foreground
+  global universal_background
+  global end_wait
+  global targ_program_name
+  global signal_list
+  global x_y
+  global signal_title
+  global signal_fg
+  global signal_bg
+
+  if {$base == ""} {
+    set base .top20
+  }
+  if {[winfo exists $base]} {
+    wm deiconify $base; return
+  }
+
+  set num_buttons [llength $signal_list]
+
+  if { $end_wait } { incr num_buttons }
+
+  set button_width 139
+  set button_height 45
+
+  # If there is only one button, I double the width.  Otherwise, the whole window is so small that you can't see the title.
+  if { $num_buttons == 1 } { set button_width [expr $button_width*2] }
+
+  ###################
+  # CREATING WIDGETS
+  ###################
+  toplevel $base -class Toplevel
+  wm focusmodel $base passive
+  set base_width [expr $button_width*$num_buttons]
+  set base_height $button_height
+  #set base_size ${base_width}x$base_height+0+0
+  
+  set base_size ${base_width}x$base_height${x_y}
+  wm geometry $base $base_size
+  wm maxsize $base $base_width $base_height
+  wm minsize $base $base_width $base_height
+  wm overrideredirect $base 0
+  wm resizable $base 1 1
+  wm deiconify $base
+  set host_name [exec hostname]
+  wm title $base "$targ_program_name ($pid)"
+
+  for {set list_ix 0} {$list_ix < [llength $signal_list]} {incr list_ix} {
+
+    set signal [lindex $signal_list $list_ix]
+    if { "$signal_title($signal)" == "" } {
+      set title ${signal}
+    } else {
+      set title "$signal_title($signal)"
+    }
+
+    if { "$signal_fg($signal)" == "" } {
+      set foreground ${universal_foreground}
+    } else {
+      set foreground "$signal_fg($signal)"
+    }
+
+    if { "$signal_bg($signal)" == "" } {
+      set background ${universal_background}
+    } else {
+      set background "$signal_bg($signal)"
+    }
+
+    button $base.but${list_ix} \
+      -background "$background" -foreground "$foreground" -font {Helvetica -16 bold} \
+      -text "${title}" \
+      -command "send_signal $signal"
+
+    place $base.but${list_ix} \
+      -x [expr $list_ix * $button_width] -y 0 -width $button_width -height $button_height -anchor nw -bordermode ignore 
+  }
+
+  if { $end_wait != "n" } {
+    button $base.but${list_ix} \
+      -background "$universal_background" -foreground "$universal_foreground" -font {Helvetica -16 bold} \
+      -text {End Wait} \
+      -command end_wait
+    place $base.but${list_ix} \
+      -x [expr $list_ix * $button_width] -y 00 -width $button_width -height $button_height -anchor nw -bordermode ignore
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc {print_help} {} {
+
+  # This procedure will print out the help text for this program.
+
+  global program_name
+  global universal_foreground
+  global universal_background
+  global end_wait
+  global x_y
+
+  puts ""
+  puts "Usage: $program_name \[OPTIONS\] \[PID\]"
+  puts ""
+  puts "$program_name produces a GUI which will send a TERM signal to PID."
+  puts ""
+  puts "  -h                  Print this help text."
+  puts "  -fg <color>         The default foreground color for the buttons.  The default value is (\"$universal_foreground\")."
+  puts "  -bg <color>         The default background color for the buttons.  The default value is (\"$universal_background\")."
+  puts "  -x_y <+n+n>         The x and y coordinates for placing the gui on the screen.  The default value is (\"$x_y\")."
+  puts "  -s <signal>         A signal record comprised of up to 5 fields, separated by colons (see details below).  You may specify this parameter multiple times.  For each one you specify, a corresponding button will appear on the gui.  If you do not specify this parameter, this program will default to having one TERM button with default values for the other fields."
+  puts ""
+  puts "    Signal record fields"
+  puts "    --------------------"
+  puts "    Sig type          The signal type to send to PID.  This should be an upper case value like the signal suffixes shown by \"kill -l\"."
+  puts "    Button name       The text that appears on the button.  This defaults to the value specified for sig type."
+  puts "    Foreground color  The foreground color of the button.  This defaults to the \"-fg\" value."
+  puts "    Background color  The background color of the button.  This defaults to the \"-bg\" value.."
+  puts "    Confirmation      A \"y\" or \"n\" in this field indicates whether you would like a confirmation window to appear when this button is pressed.  This defaults to \"n\"."
+  puts ""
+
+  puts "  -end_wait <y/n>     This parm means that you want an \"End Wait\" button.  This is intended for use with the autoipl program.  When the \"End Wait\" button is pressed, a SIGUSR1 is sent to autoipl.  This will cause autoipl to break out of a wait loop.  The default value is (\"$end_wait\")."
+  puts ""
+
+}
+################################################################################
+
+
+
+################################################################################
+proc {get_command_line_parms} {} {
+
+  # This procedure will get command line parameters.
+
+  global argc
+  global argv
+  global argv0
+
+  global help
+  global universal_foreground
+  global universal_background
+  global end_wait
+  global pid
+  global targ_program_name
+  global signal_list
+  global x_y
+  global debug
+
+  set pid ""
+
+  global signal_title
+  global signal_fg
+  global signal_bg
+  global signal_confirmation
+
+  # We process -h separately because we don't want any other processing to occur.  We don't want default values changed, etc. because the help text references them.
+  for {set ix 0} {$ix < $argc} {incr ix } {
+    if { [lindex $argv $ix] == "-h" } {
+      set help 1
+      return
+    }
+  }
+
+  global cmd_additional_parms
+
+  set max_pos_parms 1
+  set num_pos_parms 0
+
+  for {set ix 0} {$ix < $argc} {incr ix } {
+    if { [lindex $argv $ix] == "-s" } {
+      incr ix
+
+      # Parse
+      set signal_record [split [lindex $argv $ix] ":"]
+#puts "signal_record: $signal_record"
+#      eval set signal_record [list $signal_record]
+#      eval set signal_record {$signal_record}
+
+      set signal_name [lindex $signal_record 0]
+      set signal_title($signal_name) "[lindex $signal_record 1]"
+      set signal_fg($signal_name) "[lindex $signal_record 2]"
+      set signal_bg($signal_name) "[lindex $signal_record 3]"
+      set signal_confirmation($signal_name) "[lindex $signal_record 4]"
+
+      if { $debug } { 
+        puts [format "%-28s %s" "signal_name:" "$signal_name"]
+        puts [format "%-28s %s" "signal_title($signal_name):" "$signal_title($signal_name)"]
+        puts [format "%-28s %s" "signal_fg($signal_name):" "$signal_fg($signal_name)"]
+        puts [format "%-28s %s" "signal_bg($signal_name):" "$signal_bg($signal_name)"]
+        puts [format "%-28s %s" "signal_confirmation($signal_name):" "$signal_confirmation($signal_name)"]
+      }
+
+      lappend signal_list "$signal_name"
+
+    } elseif { [lindex $argv $ix] == "-end_wait" } {
+      incr ix
+      set end_wait [lindex $argv $ix]
+    } elseif { [lindex $argv $ix] == "-x_y" } {
+      incr ix
+      set x_y [lindex $argv $ix]
+    } elseif { [lindex $argv $ix] == "-fg" } {
+      incr ix
+      set universal_foreground [lindex $argv $ix]
+    } elseif { [lindex $argv $ix] == "-bg" } {
+      incr ix
+      set universal_background [lindex $argv $ix]
+    } else {
+      incr num_pos_parms
+      if { $num_pos_parms > $max_pos_parms } {
+        puts stderr "**ERROR** Only one positional parm allowed.  Your first positional parm was \"${pid}\".  \"[lindex $argv $ix]\" is an invalid parameter ."
+        exit 1
+      }
+      set pid [lindex $argv $ix]
+    }
+  }
+
+  if { $pid == "" } {
+    puts stderr "**ERROR** You must supply a pid on the command line."
+    exit 1
+  }
+
+  if {[catch {set buffer [exec ps $pid]} result]} {
+    puts stderr "**ERROR** Pid $pid does not represent an active process."
+    exit 1
+  }
+
+  # Get process target program name using gen_bash_funcs function.
+  set cmd_buf "source gen_bash_funcs && get_process_command_name $pid targ_program_name && echo \$targ_program_name"
+  if {[catch {set targ_program_name [eval exec bash -c {$cmd_buf} ]} result]} {
+    puts stderr $result
+    exit 1
+  }
+
+  # The default list will contain TERM.
+  if { [llength $signal_list] == 0 } {
+    set signal_title(TERM) "TERM"
+    set signal_fg(TERM) ""
+    set signal_bg(TERM) ""
+    set signal_confirmation(TERM) ""
+    lappend signal_list TERM
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+# Main
+
+  get_command_line_parms
+  if { $help } {
+    print_help
+    exit 0
+  }
+
+  Window show .
+  Window show .top20
+
+################################################################################

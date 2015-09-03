@@ -1,0 +1,30 @@
+#!/bin/bash
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/file_date_stamp 1.3 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2009,2011 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+# 2009/05/27 Mike Walsh
+# This simple program will generate the current date time in the following format:
+# "yymmdd.hhmmss"
+# This is useful in naming files where you would like the date stamp to be part of the file name.  Ex.
+# echo hi > name.$(file_date_stamp).status
+# You may pass the number of seconds to this program if you wish to format a pre-calculated time.
+
+if [ "$(uname)" == "AIX" ] ; then
+  date +%y%m%d.%H%M%S
+else
+  SECONDS=${1:-$(date +%s)}
+  date -d "1970-01-01 UTC $SECONDS seconds" +%y%m%d.%H%M%S
+fi

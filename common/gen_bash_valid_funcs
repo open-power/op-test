@@ -1,0 +1,703 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define functions like valid_value, valid_integer, etc.
+
+# This file is designed to contain general validation functions.  By no means should all validation functions be included in this file (ex. valid_sanbox, etc.).
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_misc_funcs
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+
+# General perf notes:
+#  - I've found that coding an explicit return is slower than allowing the function to reach its natural end.
+#  - Having dead code in a function slows it down.  For example, specifying this kind of thing:
+#
+# return
+#
+# Old code...
+# bla, bla
+#
+#  - case is faster than if.
+
+
+# #(CST) 2013/02/28 12:21:31 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do valid_value mike ; done
+# total_seconds:               0.730619000
+# seconds_each:                0.000073061
+# count_per_second:            13687
+
+# New improved numbers.
+# #(CDT) 2015/03/30 15:02:39 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do valid_value var1 ; done
+# total_seconds:               0.360583000
+# seconds_each:                0.000036058
+# count_per_second:            27733
+
+
+shopt -s extglob
+################################################################################
+function valid_value {
+  # Perf: Using numbers vs var names throughout to improve performance.
+  # local parm_name="${1}"
+  # local invalid_value_list="${2}"
+  # local valid_value_list="${3}"
+  # local _delim_="${4:-:}"
+
+  case "${1}" in "")
+    { print_error "Programmer error - Parameter \"parm_name\" has an invalid value of \"${1}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+    return 1
+    ;;
+  esac
+
+  case "${3}" in !(""))
+    # valid_value_list specified.
+    local valid_value
+    # Note: Turn off globbing so that the valid_value_list can have glob-like characters.
+    set -f
+    #IFS="${_delim_}"
+    local IFS="${4:-:}"
+    for valid_value in ${3} ; do
+      # Test for arg 1 value equal to this element of valid_value_list (remember...globbing is turned off now).
+      case "${!1}" in
+        "${valid_value}")
+        # Turn globbing back on.
+        set +f
+        # We found our value in the valid_value_list so all is good.
+        return 0
+        ;;
+      esac
+    done
+    IFS=' '
+    set +f
+    # If we reached this point, it means that the user's value was not found in the valid value list.
+    # The FUNCNAME and BASH_LINENO are those of the caller of this function.
+    #{ print_error ; echo "Function ${FUNCNAME[1]}, line ${BASH_LINENO[0]}: Variable \"${parm_name}\" has a value of \"${!parm_name}\" which was not found in the valid value list (\"$valid_value_list\")." ; print_call_stack ; } >&2
+    { print_error ; echo "Variable \"${1}\" has a value of \"${!1}\" which was not found in the valid value list (\"${3}\")." ; } | process_error_message
+    return 1
+    ;;
+  esac
+
+  case "${2}" in !(""))
+    # invalid_value_list specified.
+    local IFS="${4:-:}"
+    local invalid_value
+    #for invalid_value in ${invalid_value_list} ; do
+    # Note: Turn off globbing so that the valid_value_list can have glob-like characters.
+    set -f
+    for invalid_value in ${2} ; do
+      # Test for arg 1 value equal to this element of invalid_value_list (remember...globbing is turned off now).
+      case "${!1}" in
+        "${invalid_value}")
+        # Turn globbing back on.
+        IFS=' '
+        # Turn globbing back on.
+        set +f
+        { print_error ; echo "Variable \"${1}\" has an invalid value of \"${!1}\".  It may not be any value in the following list:" ; echo "${2}" ; } | process_error_message
+        return 1
+        ;;
+      esac
+    done
+    IFS=' '
+    set +f
+    ;;
+    *)
+    case "${!1}" in "")
+      { print_error ; echo "Variable \"${1}\" has an invalid value of \"${!1}\"." ; } | process_error_message
+      return 1
+      ;;
+    esac
+    ;;
+  esac
+
+}
+################################################################################
+
+
+
+# Perf data:
+# User set range to "1..6" in this case...
+#  (CDT) 2015/03/30 10:56:09 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do valid_range range lower upper ; done
+# total_seconds:               1.224990000
+# seconds_each:                0.000122499
+# count_per_second:            8163
+
+if ! test "${_vr_range_help_+defined}" ; then
+  readonly _vr_range_help_="  The correct format for a range parameter is \"<x..y>\" where x and y are either blank or integers, though only one may be blank.  Furthermore, x cannot be greater than y."
+fi
+################################################################################
+function valid_range {
+  # local range_var="${1}"
+  # local low_bound_var="${2}"
+  # local high_bound_var="${3}"
+
+  # This function will validate a range parameter.  It will also set the low and high bound values in the parameters provided by the caller.  All 3 parms to this function are required.
+
+  # Perf improvement: Make 1 check to see if parms are missing before checking each one individually.
+  if (( ${#@} < 3 )) ; then
+    if (( ${#1} == 0 )) ; then
+    # if [ -z "${1}" ] ; then
+      { print_error "Programmer error - Parameter \"range_var\" has an invalid value of \"${1}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+      return 1
+    fi
+
+    if (( ${#2} == 0 )) ; then
+      { print_error "Parameter \"low_bound_var\" has an invalid value of \"${2}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+      return 1
+    fi
+
+    if (( ${#3} == 0 )) ; then
+      { print_error "Parameter \"high_bound_var\" has an invalid value of \"${3}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+      return 1
+    fi
+  fi
+
+  # Remove spaces.
+  eval ${1}=${!1// /}
+
+  # Get low bound and set it in low_bound_var.
+  eval ${2}=${!1%..*}
+
+  # Get high bound and set it in high_bound_var.
+  eval ${3}=${!1#*..}
+
+  # Perf notes:  case appears to be faster than other methods for checking for "" or for valid integer.  Also, to minimize the number of checks you will notice that I have some repetition (e.g. 2 different places where I make the same check of ${!3}.
+  case "${!2#[-+]}" in
+    "")
+      # No lower bound specified.
+      case "${!3#[-+]}" in
+        "")
+          # No upper bound specified.
+          { print_error "For \"${1}\" you specified \"${!1}\".  You must specify either a lower or an upper bound.${_vr_range_help_}" ; echo ; } | process_error_message
+          return 1
+          ;;
+        +([0-9]))
+          # Upper bound is valid integer.
+        ;;
+        *)
+          { print_error "For \"${1}\" you specified \"${!1}\", i.e. you specified an upper bound of \"${!3}\".  The upper bound must be an integer.${_vr_range_help_}" ; echo ; } | process_error_message
+                  return 1
+        ;;
+      esac
+      ;;
+    +([0-9]))
+      # Lower bound is valid integer.
+      case "${!3#[-+]}" in
+        "")
+          # No upper bound specified.
+          ;;
+        +([0-9]))
+          # Upper bound is valid integer.
+          if (( ${2} > ${3} )) ; then
+            { print_error ; echo "For \"${1}\" you specified \"${!1}\".  Your lower bound must be less than or equal to your upper bound.${_vr_range_help_}" ; echo ; } | process_error_message
+            return 1
+          fi
+        ;;
+        *)
+          { print_error "For \"${1}\" you specified \"${!1}\", i.e. you specified an upper bound of \"${!3}\".  The upper bound must be an integer.${_vr_range_help_}" ; echo ; } | process_error_message
+                  return 1
+        ;;
+      esac
+    ;;
+    *)
+      { print_error "For \"${1}\" you specified \"${!1}\", i.e. you specified a lower bound of \"${!2}\".  The lower bound must be an integer.${_vr_range_help_}" ; echo ; } | process_error_message
+              return 1
+    ;;
+  esac
+
+}
+################################################################################
+
+
+
+# Without range arg.
+# #(CDT) 2015/03/30 11:21:22 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do valid_integer var1 ; done
+# total_seconds:               0.421778000
+# seconds_each:                0.000042177
+# count_per_second:            23710
+
+# With range...
+# #(CDT) 2015/03/30 11:19:11 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do valid_integer var1 1..6 ; done
+# total_seconds:               2.299801000
+# seconds_each:                0.000229980
+# count_per_second:            4348
+################################################################################
+function valid_integer {
+
+  # local integer_var_name="${1}"
+  # local range="${2}"
+
+  # This function will validate integer.  This function returns 0 if it is valid and non-zero otherwise.  In the case of an invalid integer, it also prints an error to stderr.
+  # If you also specify a range, this function will verify that your value is within the range.  Specify the range as follows:
+  # n..p
+  # If the integer is greater than or equal to n and less than or equal to p, it is considered to be within range.
+
+  # Perf improvement:  This way save .00002
+  #[ ! -z "${!1}" ] && printf "%i\n" "${!1}" >/dev/null 2>&1
+  #if [ "$?" != "0" ] ; then
+  # Perf improvement: Save another 0.000034024
+  case "${!1#[-+]}" in +([0-9])) ;; *)
+    # Perf improvement:  Normally, I would check that the caller provided a variable name for integer_var_name.  However, if they don't provide a name the will come down this bad integer leg.  I will do the check here for failure to provide integer_var_name.  Savings: 0.000007555
+    if (( ${#1} == 0 )) ; then
+      { print_error ; echo "Parameter \"integer_var_name\" has an invalid value of \"${1}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+      return 1
+    fi
+    { print_error ; echo "For \"${1}\" you specified an invalid value of \"${!1}\".  You must pass an integer." ; } | process_error_message
+    return 1
+  esac
+
+  # Perf improvement: Savings: 0.000001919
+  #[ -z "${2}" ] && return 0
+  #  (( ${#@} == 1 )) && return 0
+
+  # Perf improvement: It is faster to avoid an explicit return statement so I'll simply wrap this code in an if.
+  if (( ${#@} > 1 )) ; then
+    local range="${2}"
+    local low_bound
+    local high_bound
+
+    valid_range range low_bound high_bound || return 1
+    # Assertion: valid_range will see to it that we don't have empty low and high bound at the same time.
+
+    case "${low_bound}" in
+      "")
+        # Low bound is blank.
+        # High bound MUST have a value so no need to check it.
+        if (( high_bound < ${!1} )) ; then
+          { print_error ; echo "For \"${1}\" you specified an invalid value of \"${!1}\".  The value must be less than or equal to ${high_bound}." ; } | process_error_message
+          return 1
+        fi
+      ;;
+      *)
+        # Low bound has a value.
+        case "${high_bound}" in
+          "")
+            # High bound is blank.
+            if (( ${!1} < low_bound )) ; then
+              { print_error ; echo "For \"${1}\" you specified an invalid value of \"${!1}\".  The value must be greater than or equal to ${low_bound}." ; } | process_error_message
+              return 1
+            fi
+          ;;
+          *)
+            # Both low and high bound are set.
+            if (( ${!1} < low_bound || high_bound < ${!1} )) ; then
+              { print_error ; echo "For \"${1}\" you specified an invalid value of \"${!1}\".  The value must be between ${low_bound} and ${high_bound} (inclusive)." ; } | process_error_message
+              return 1
+            fi
+          ;;
+        esac
+      ;;
+    esac
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function valid_float {
+  local float_var_name="${1}"
+  local range="${2}"
+
+  # This function will validate float.  This function returns 0 if it is valid and non-zero otherwise.  In the case of an invalid float, it also prints an error to stderr.
+  # If you also specify a range, this function will verify that your value is within the range.  Specify the range as follows:
+  # n..p
+  # If the float is greater than or equal to n and less than or equal to p, it is considered to be within range.
+
+  valid_value float_var_name "" || return 1
+
+  local float="${!float_var_name}"
+  local result_1
+  local result_2
+
+  # 2011/07/01 Added "2>/dev/null" to clean up the error messages.
+  valid_value float 2>/dev/null "" && printf "%f\n" "${float}" >/dev/null 2>&1
+  if [ "$?" != "0" ] ; then
+    { print_error ; echo "For \"${float_var_name}\" you specified an invalid value of \"${float}\".  You must pass a floating point number." ; } | process_error_message
+    return 1
+  fi
+
+  [ -z "${range}" ] && return 0
+
+  # Remove spaces.
+  #range=$(echo ${range} | sed -re "s/ //g")
+  range=$(echo ${range} | sed -e "s/ //g")
+  local regex="(^[-]?[\.0-9]*)\.\.([-]?[\.0-9]*$)"
+
+  echo "${range}" | egrep -q "${regex}"
+  if [ "${?}" != "0" ] ; then
+    { print_error ; echo "Programmer error - you specified \"${range}\" for the \"range\" parameter to this function.  The correct format for this parameter is <x..y> where x and y are floating point numbers." ; } | process_error_message
+    return 1
+  fi
+
+  local low_bound
+  local high_bound
+
+  low_bound=${range%..*}
+  high_bound=${range#*..}
+
+  result_1=$(calc "${low_bound} <= ${high_bound}")
+
+  if (( ! result_1 )) ; then
+    { print_error ; echo "Programmer error - you specified \"${range}\" for the \"range\" parameter to this function.  The lower bound value must be less than or equal to the higher bound value." ; } | process_error_message
+    return 1
+
+  fi
+
+
+  if [ -z "${low_bound}" -a -z "${high_bound}" ] ; then
+    { print_error ; echo "Programmer error - you specified \"${range}\" for the \"range\" parameter to this function.  You must have a value for either the lower or the upper bound." ; } | process_error_message
+    return 1
+  fi
+
+  if [ ! -z "${low_bound}" -a ! -z "${high_bound}" ] ; then
+    # Both bounds were specified.
+    result_1=$(calc "${float} < ${low_bound}")
+    result_2=$(calc "${high_bound} < ${float}")
+    if (( result_1 || result_2 )) ; then
+      { print_error ; echo "For \"${float_var_name}\" you specified an invalid value of \"${float}\".  The value must be between ${low_bound} and ${high_bound} (inclusive)." ; } | process_error_message
+      return 1
+    fi
+    return 0
+  fi
+
+  if [ ! -z "${low_bound}" ] ; then
+    # low bound was specified.
+    result_1=$(calc "${float} < ${low_bound}")
+    if (( result_1 )) ; then
+      { print_error ; echo "For \"${float_var_name}\" you specified an invalid value of \"${float}\".  The value must be greater than or equal to ${low_bound}." ; } | process_error_message
+      return 1
+    fi
+    return 0
+  fi
+
+  if [ ! -z "${high_bound}" ] ; then
+    # high bound was specified.
+    result_2=$(calc "${high_bound} < ${float}")
+    if (( result_2 )) ; then
+      { print_error ; echo "For \"${float_var_name}\" you specified an invalid value of \"${float}\".  The value must be less than or equal to ${high_bound}." ; } | process_error_message
+      return 1
+    fi
+    return 0
+  fi
+
+}
+################################################################################
+
+
+
+# 2012/07/11 Perf tuned.
+#total_seconds:               0.728930000
+#seconds_each:                0.000072893
+#count_per_second:            13719
+################################################################################
+function valid_boolean {
+  # Perf: 0.00003
+  # local var_name=${1}
+
+  # This function will verify that the value in the callers var_name variable is either "1", "0" or "" (equivalent to "0").  This function will return 0 for valid values and non-zero otherwise.  In the case of a failure, it will also print an error message to stderr.
+
+  if (( ${#1} == 0 )) ; then
+    { print_error "Parameter \"var_name\" has an invalid value of \"${1}\".  The value must be a valid bash variable name." ; echo ; } | process_error_message
+    return 1
+  fi
+  # Perf: 0.00001
+
+  if [ -z "${!1}" -o "${!1}" == "0" -o "${!1}" == "1" ] ; then
+    # Perf: 0.00003
+    return 0
+  fi
+
+  { print_error ; echo "For \"${1}\" you specified an invalid boolean value of \"${!1}\".  Valid values are \"1\", \"0\" or \"\" (which is equivalent to \"0\")." ; } | process_error_message
+  return 1
+
+}
+################################################################################
+
+
+
+# #(CDT) 2015/03/30 15:07:35 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do process_boolean_arg flag 1 ; done
+# total_seconds:               0.507506000
+# seconds_each:                0.000050750
+# count_per_second:            19704
+
+################################################################################
+function process_boolean_arg {
+  # Perf: .00005 to get here.
+  # local var_name=${1}
+  # local convert_to_bool="${2:-0}"
+  # local capitilize="${3:-0}"
+  # Perf: I'll simply use ${1} and ${2} (vs var_name and convert_to_bool) to improve performance.
+
+  # This function will process the boolean arg passed to it.  For a boolean arg, the user must specify "yes", "no", "y" or "n" (case-insensitive).  If the value is not correct, this function returns non zero.
+  # If convert_to_bool is set, this function will convert the value from y/n to 1/0.
+  # If capitalize is set, "no" is changed to "No" and "yes" is changed to "Yes".
+
+  # valid_value var_name "" || return 1
+  # For performance gain, I'm doing the check in-line.
+  # 2015/03/30 Perf: case is faster...
+  case "${!1}" in "")
+    case "${1}" in "")
+      { print_error "Programmer error - Parameter \"var_name\" has an invalid value of \"${1}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+      return 1
+      ;;
+    esac
+    { print_error ; echo "Variable \"${1}\" has an invalid value of \"${!1}\"." ; } | process_error_message
+    return 1
+      ;;
+  esac
+
+  # Perf: Another .00002 to get here.
+
+  # 2012/07/06 Perf: I vastly improved the performance by foregoing the use of case_change, etc.  I simply use case to check for all possible values.  I will then convert the callers value to either yes/no or 1/0 depending on convert_to_bool.
+
+  case "${!1}" in
+    1|y|Y|yes|yeS|yEs|yES|Yes|YeS|YEs|YES|t|T|True|true)
+      if (( ${2} )) ; then
+        eval ${1}=1
+      else
+        eval ${1}=yes
+      fi
+      ;;
+    0|n|N|no|nO|No|NO|f|F|False|false)
+    # 2014/03/05 I tried this change but it broke vnc's handling of a trailing "-unique" parm.
+    #0|n|N|no|nO|No|NO|''|f|F|False|false)
+      if (( ${2} )) ; then
+        eval ${1}=0
+      else
+        eval ${1}=no
+      fi
+      ;;
+    *)
+      { print_error ; echo "You specified \"${!1}\" for \"--${1}\".  The only acceptable values are \"yes\", \"y\", \"true\", \"t\", \"1\", \"no\", \"n\", \"false\", \"f\" or \"0\" (case-insensitive)." ; } | process_error_message
+      return 1
+      ;;
+  esac
+
+  (( ${3} )) && { eval ${1}=${!1/n/N} ; eval ${1}=${!1/y/Y} ; } || :
+
+}
+################################################################################
+
+
+
+################################################################################
+function process_boolean_arg_list {
+  # local var_list=${1}
+  # local convert_to_bool="${2:-0}"
+  # Perf: I'll simply use ${1} and ${2} (vs var_list and convert_to_bool) to improve performance.
+
+  # This function will process the boolean arg passed to it.  For a boolean arg, the user must specify "yes", "no", "y" or "n" (case-insensitive).  If the value is not correct, this function returns non zero.
+  # If convert_to_bool is set, this function will convert the value from y/n to 1/0.
+
+  # valid_value var_list "" || return 1
+  # For performance gain, I'm doing the check in-line.
+  if [ -z "${1}" ] ; then
+    { print_error ; echo "Variable \"var_list\" has an invalid value of \"\"." ; echo ; } | process_error_message
+    return 1
+  fi
+  # Perf: Another .00002 to get here.
+
+  local 
+
+  local parm_name
+  for parm_name in ${1} ; do
+    process_boolean_arg ${parm_name} ${2} || return 1
+  done
+
+}
+################################################################################
+
+
+
+# #(CDT) 2015/03/30 15:52:35 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do valid_dir_path dir_path ; done
+# total_seconds:               0.768245000
+# seconds_each:                0.000076824
+# count_per_second:            13017
+################################################################################
+function valid_dir_path {
+#  local dir_path_var_name="${1}" ; shift || :
+#  local add_trailing_slash="${1:-0}" ; shift || :
+#  local time_out="${1:-0}" ; shift || :
+#  local convert_to_absolute_path="${1:-0}" ; shift || :
+
+  case "${1}" in "")
+    { print_error "Programmer error - Parameter \"dir_path_var_name\" has an invalid value of \"${1}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+    return 1
+    ;;
+  esac
+
+  # This function will validate the user's dir path (verify that the directory exists).
+  # add_trailing_slash indicates that a trailing slash should be added if the dir path doesn't already have one.
+  # A positive value for time_out indicates that you would like the existence checked repeatedly for up to time_out seconds.  This can be useful for directories in file systems that are prone to network problems. 
+
+  if (( ${2:-0} )) ; then
+    case "${!1}" in
+      "")
+        # dir_path_var is blank...
+        eval ${1}="."
+        ;;
+    esac
+    add_trailing_char ${1} '/' || return 1
+  fi
+
+  case "${!1}" in "")
+    { print_error ; echo "Variable \"${1}\" has an invalid value of \"${!1}\"." ; } | process_error_message
+    return 1
+      ;;
+  esac
+
+  # Check for existence of directory.
+  case "${3:-0}" in
+    0)
+      # No time-out value specified so we'll do a simple check.
+      if [ ! -d "${!1}" ] ; then
+        { print_error ; echo "Directory \"${!1}\", specified in parameter \"${1}\", does not exist." ; } | process_error_message
+        return 1
+      fi
+      ;;
+    *)
+
+      if ! type wait_for_func >/dev/null 2>&1 ; then
+        { print_error ; echo "Programmer error: To use the \"time_out\" parameter for this function, you must source wait_bash_funcs." ; } | process_error_message
+        return 1
+      fi
+      if ! type gen_bash_misc_funcs >/dev/null 2>&1 ; then
+        { print_error ; echo "Programmer error: To use the \"time_out\" parameter for this function, you must source gen_bash_misc_funcs." ; } | process_error_message
+        return 1
+      fi
+
+      local cmd="[ -d \"${!1}\" ]"
+      local cmd_buf
+
+      # Perf improvement: First check for the dir.  Only do the wait if the original check fails.
+      # cmd_buf="wait_for_func \"${cmd}\" \"\" \"\" \"${time_out}\" \"\" \"1\" >/dev/null 2>&1"
+      #cmd_buf="${cmd} || wait_for_func \"${cmd}\" \"\" \"\" \"${time_out}\" \"\" \"1\" >/dev/null 2>&1"
+      cmd_buf="${cmd} || wait_for_func \"${cmd}\" \"\" \"\" \"${3}\" \"\" \"1\" >/dev/null 2>&1"
+  
+      #issuing >&2
+      local STRICT_VAR_DECLARATIONS=0
+  
+      eval $cmd_buf
+      if [ "${?}" != "0" ] ; then
+        { print_error ; echo "Directory \"${!1}\", specified in parameter \"${1}\", does not exist." ; } | process_error_message
+        return 1
+      fi
+      ;;
+  esac
+
+  if (( ${4:-0} )) ; then
+    # convert_to_absolute_path...
+    local save_pwd=${PWD:=$(pwd)}
+    cmd_buf="cd \$${1}"
+    #issuing
+    eval $cmd_buf
+    eval ${1}=$(pwd -P)
+    (( ${2:-0} )) && eval ${1}=${!1}/
+
+    cmd_buf="cd ${save_pwd}"
+    #issuing
+    eval $cmd_buf
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function valid_file_path {
+  local file_path_var="${1}" ; shift
+  local file_must_exist="${1:-1}" ; shift
+  local touch_file="${1:-0}" ; shift
+
+  local parm_name=file_path_var
+  if [ -z "${!parm_name}" ] ; then
+    { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; } | process_error_message
+    return 1
+  fi
+
+  parm_name=${file_path_var}
+  if [ -z "${!parm_name}" ] ; then
+    { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; } | process_error_message
+    return 1
+  fi
+
+  if (( file_must_exist )) ; then
+    if [ ! -f "${!parm_name}" ] ; then
+      { print_error ; echo "File \"${!parm_name}\", specified in parameter \"${parm_name}\", does not exist." ; } | process_error_message
+      return 1
+    fi
+  fi
+
+  if (( touch_file )) ; then
+    if ! touch ${!file_path_var} 2>/dev/null ; then
+      { print_error ; echo "Could not write to file \"${!parm_name}\", specified in parameter \"${parm_name}\"." ; } | process_error_message
+      return 1
+    fi
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function valid_file_list {
+  local file_list_var="${1}"
+
+  # This function will test each name in the file list.  If any is found to not be an existing file, an error message will be printed to stdout and non-zero will be returned.
+
+  local parm_name=file_list_var
+  if [ -z "${!parm_name}" ] ; then
+    { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; } | process_error_message
+    return 1
+  fi
+
+  parm_name=${file_list_var}
+  if [ -z "${!parm_name}" ] ; then
+    { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; } | process_error_message
+    return 1
+  fi
+
+  local file_name
+
+  for file_name in ${file_list} ; do
+    if [ ! -f "${file_name}" ] ; then
+      { print_error ; echo "File \"${file_name}\", specified in parameter \"${parm_name}\", does not exist." ; } | process_error_message
+      return 1
+    fi
+  done
+
+}
+################################################################################
+
+
+
+
+
+
+if ! test "${valid_time_unit_values+defined}" ; then
+  readonly valid_time_unit_values="days:hours:minutes:seconds"
+fi
+################################################################################
+function valid_time_unit {
+  local unit_var="${1}"
+
+  valid_value unit_var || return 1
+
+  #valid_value ${unit_var} "" "seconds:minutes:hours:days" || return 1
+  valid_value ${unit_var} "" "${valid_time_unit_values}" || return 1
+
+}
+################################################################################
+
+

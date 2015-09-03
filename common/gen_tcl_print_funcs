@@ -1,0 +1,227 @@
+#!/usr/bin/wish
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/gen_tcl_print_funcs 1.5 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2012,2014 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+
+
+if { [catch {set NANOSECONDS $env(NANOSECONDS)} result] } { set NANOSECONDS 0 }
+# The programmer can set or clear SHOW_ELAPSED_TIME to show the time elapsed between calls of sprint_time.  This output will be included in the sprint_time output.
+if { [catch {set SHOW_ELAPSED_TIME $env(SHOW_ELAPSED_TIME)} result] } { set SHOW_ELAPSED_TIME 0 }
+# When SHOW_ELAPSED_TIME is set, the print_time output is wider.  To keep everything looking slick, I also widen the name field output by print_var.
+
+# Environment variable "NANOSECONDS" determines how precise our output times are.
+if { [catch {set NANOSECONDS $env(NANOSECONDS)} result] } { set NANOSECONDS 0 }
+# When NANOSECONDS is set, the print_time output is wider.  To keep everything looking slick, I also widen the name field output by print_var.
+
+# I don't want to fail on bad environment variable values so I'll set them to 0 if necessary.
+if { $NANOSECONDS == "" || ![string is integer $NANOSECONDS] } { set NANOSECONDS 0 }
+if { $SHOW_ELAPSED_TIME == "" || ![string is integer $SHOW_ELAPSED_TIME] } { set SHOW_ELAPSED_TIME 0 }
+
+# _print_var_width_ is adjusted based on NANOSECONDS and SHOW_ELAPSED_TIME.
+if { $NANOSECONDS } { set _print_var_width_ 35 ; set width_incr 14 } else { set _print_var_width_ 28 ; set width_incr 7 }
+if { $SHOW_ELAPSED_TIME } {
+  incr _print_var_width_ $width_incr
+  # Initializing _sprint_time_last_seconds_ which is a global value to remember the clock seconds from the last time sprint_time was called.
+  if { $NANOSECONDS } { set _sprint_time_last_seconds_ [exec date {+%s.%N}] } else { set _sprint_time_last_seconds_ [clock seconds] }
+}
+
+
+# General purpose procedures.
+################################################################################
+proc print_var { var_name } {
+  upvar $var_name var_value
+
+  # This function will print the name and value of the variable named in var_name.
+  # This function relies on global var _print_var_width_
+
+  global _print_var_width_
+
+  puts [format "%-${_print_var_width_}s %s" "$var_name:" "$var_value"]
+
+}
+################################################################################
+
+
+
+set tcl_precision 17
+################################################################################
+proc sprint_time { } {
+
+  # This function will return the time in a uniform way.  Example:
+  # #(CDT) 2008/04/30 17:44:19 - 
+  # If global variable NANOSECONDS is set to 1, nanoseconds will be included.  Example:
+  # #(CST) 2012/02/23 17:54:44.931240706 - 
+
+  # If global variable SHOW_ELAPSED_TIME is set, the time elapsed between calls to sprint_time will be included in the output.  Example:
+  # #(CST) 2012/02/23 17:54:44.945903223 -    0.003538 - Start of main.
+  # #(CST) 2012/02/23 17:54:44.957920927 -    0.012018 - End of main..
+
+  # Example use:
+  # puts "[sprint_time]A message."
+
+  global NANOSECONDS
+  global _sprint_time_last_seconds_
+  global SHOW_ELAPSED_TIME
+  global tcl_precision
+
+  if { $NANOSECONDS } {
+    # set date_buffer [exec date {+#(%Z) %Y/%m/%d %H:%M:%S.%N - }]
+    # With one call to "date" I retrieve the date formatted the way I want and the cur_time_seconds in floating point format.
+    # 2014/09/23 Mike Walsh (xzy0065) - I changed nanosecond precision to be just 6 chars so that it fits in with all my other print_time funcs.
+    #set buffer [exec date {+#(%Z) %Y/%m/%d %H:%M:%S.%N - %s.%N}]
+    set buffer [exec date {+#(%Z) %Y/%m/%d %H:%M:%S.%06N - %s.%N}]
+    # Extract the 2 "field" values from buffer.
+    #set date_buffer [string range $buffer 0 38]
+    set date_buffer [string range $buffer 0 35]
+    #set cur_time_seconds [string range $buffer 39 58]
+    set cur_time_seconds [string range $buffer 36 55]
+    if { $SHOW_ELAPSED_TIME } {
+      set elapsed_seconds [expr $cur_time_seconds - $_sprint_time_last_seconds_]
+      # It appears that only the first 6 digits to the right of the decimal are accurate.
+      set date_buffer "${date_buffer}[format "%11.6f" $elapsed_seconds] - "
+    }
+  } else {
+    set cur_time_seconds [clock seconds]
+    set date_buffer [clock format $cur_time_seconds -format "#(%Z) %Y/%m/%d %H:%M:%S - "]
+    if { $SHOW_ELAPSED_TIME } {
+      set elapsed_seconds [expr $cur_time_seconds - $_sprint_time_last_seconds_]
+      set date_buffer "${date_buffer}[format "%4i" $elapsed_seconds] - "
+    }
+  }
+  set _sprint_time_last_seconds_ $cur_time_seconds
+
+  return $date_buffer
+
+}
+################################################################################
+
+
+
+################################################################################
+proc sprint_err { } {
+
+  # This function will return a standardized error message.
+
+  return "[sprint_time]**ERROR** "
+
+}
+################################################################################
+
+
+
+################################################################################
+proc print_error { buffer } {
+
+  # This function will print a standardized error message.
+
+  puts -nonewline stderr "[sprint_err]$buffer"
+
+}
+################################################################################
+
+
+
+set hidden_text_list [list]
+################################################################################
+proc replace_hidden_text { hidden_text_list buffer } {
+  upvar $buffer ref_buffer
+
+  # For every list entry in hidden_text_list, this procedure will replace all occurrences of that text found in buffer.
+  # This can be used by other procedures to hide passwords, etc. when printing to stdout.
+
+  set num_list_elements [llength $hidden_text_list]
+
+  for { set ix 0 } { $ix < $num_list_elements } { incr ix } {
+    set list_element [lindex $hidden_text_list $ix]
+    regsub -all {.} $list_element {*} replacement_text
+    regsub -all $list_element $ref_buffer $replacement_text ref_buffer
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc print_call_stack { { file stdout } } {
+
+  # This function will output the calling function's call stack.  This can be useful for debugging.
+
+  global hidden_text_list
+
+  puts ""
+  puts $file "TCL Call Stack"
+  puts $file "--------------"
+  for {set x [expr [info level]-1]} {$x > 0} {incr x -1} {
+    set buffer "$x: [info level $x]"
+    replace_hidden_text $hidden_text_list buffer
+    puts $file "$buffer"
+  }
+  puts ""
+
+}
+################################################################################
+
+
+
+################################################################################
+proc print_proc_name { { file stdout } } {
+
+  # This function will output the calling function's name and parm values.
+
+  set x [expr [info level]-1]
+  global hidden_text_list
+
+  if { $x == 0 } {
+    puts $file "[sprint_time]Executing: main"
+  } else {
+    set buffer "[sprint_time]Executing: [info level $x]"
+    replace_hidden_text $hidden_text_list buffer
+    puts $file "$buffer"
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc {print_time} {} {
+
+  # This function will print the time in a uniform way, without a new line.  Example:
+  # #(CDT) 2008/04/30 17:44:19
+
+  puts -nonewline "[sprint_time]"
+
+}
+################################################################################
+
+
+
+################################################################################
+proc issuing { { cmd_buf cmd_buf } } {
+  upvar $cmd_buf ref_cmd_buf
+
+  # This function will print the following type of line:
+  # #(CST) yyyy/mm/dd hh:mm:ss - Issuing: ${cmd_buf}
+  #
+
+  puts "[sprint_time]Issuing: $ref_cmd_buf"
+
+}
+################################################################################
+
+

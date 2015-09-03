@@ -1,0 +1,946 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define basic list manipulation functions like add_path, remove_path, num_list_elements, etc.
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# Source file                   functions requiring it
+# gen_bash_quote_funcs          num_list_elements, reverse_list
+# gen_bash_print_funcs          Most (print_error)
+# gen_bash_valid_funcs
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+# 2012/09/26 Performance tuned.
+# 2012/09/26 Performance notes on entire function speed.
+# When the dir_path does need to be added: 0.00064
+# When the dir_path does NOT need to be added: 0.00054
+################################################################################
+function add_path {
+  # Perf: 0.00005 seconds to this point.
+  # Perf: 0.00005 for arg assignments.
+  local dir_path="${1}"
+  local path_var="${2:-PATH}"
+  local position="${3:-front}"
+
+  # This function will add the dir_path directory path to the path variable named in path_var ONLY if it's not already present.  This function will disregard trailing slashes found in the path_var.
+  # The expected parameters are:
+  # dir_path    The path of the dir to be added.  This function will clean this value up before inserting it by 1) replacing multiple slashes with a single slash and 2) by stripping any trailing slash found.
+  # path_var    The name of the environment variable to which the new dir should be added.  This named variable is considered a colon-separated list of directory paths.
+  # position    The position to put the new dir:
+  #             "end" - Put it at the end.  For all other values, it will go on at the beginning.
+  # Note that this function turns on extglob.
+
+  # Perf: 0.00002 seconds for var validation.
+  if [ -z "${dir_path}" ] ; then
+    { print_error ; echo "Variable \"dir_path\" has an invalid value of \"${dir_path}\"." ; print_call_stack; } >&2
+    return 1
+  fi
+
+  # Export the variable (0.000035 seconds).  PATH is exported by default so I think I can safely stop doing this.
+  # eval export ${path_var}
+
+  # Perf: 0.00057 for glob_cmd_buf assignment.
+  local cmd_buf regex glob_cmd_buf delim_str
+
+  # Turn on extended globbing (0.00001 seconds).
+  shopt -s extglob
+
+  # Replacing multiple-slashes with single slash (0.00002 to 0.00009 seconds).
+  dir_path=${dir_path//+(\/)/\/}
+  # Strip trailing slash (0.00001 to .00002 seconds).
+  dir_path=${dir_path%/}
+
+  # Regex: Look for dir_path with optional trailing slash in the path_var.  The dir_path must must be bounded by either start of line or ":" on the left and ":" or end of line on the right (.00002 for assignment).
+  regex="(^|:)${dir_path}[/]?(:|$)"
+  # Test for AIX (.00002 seconds, .00003 to assign cmd_buf).
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    cmd_buf="echo -n \"\${${path_var}}\" | egrep -q \"${regex}\""
+  else
+    cmd_buf="[[ \"\${${path_var}}\" =~ \"${regex}\" ]]"
+  fi
+  #issuing
+  # Perf: 0.00006 seconds to run the "[[ ]]" test.
+  eval $cmd_buf && return
+
+  [ ! -z "${!path_var}" ] && delim_str=:
+
+  if [ "${position}" = "end" ] ; then
+    eval ${path_var}="${!path_var}${delim_str}${dir_path}"
+  else
+    eval ${path_var}="${dir_path}${delim_str}${!path_var}"
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function remove_path {
+  local dir_path="${1}"
+  local path_var="${2:-PATH}"
+
+  # This function will remove all occurrences of dir_path from the path variable named in path_var.
+  # The expected parameters are:
+  # dir_path    The name of the dir to be removed.
+  # path_var    The name of the environment variable from which the new dir should be removed.
+  # This function will remove extraneous slashes from both the dir_path and the elements of path_var.
+
+  if [ -z "${dir_path}" ] ; then
+    { print_error ; echo "Variable \"dir_path\" has an invalid value of \"${dir_path}\"." ; print_call_stack; } >&2
+    return 1
+  fi
+
+  local loc_dir_path
+
+  # Turn on extended globbing (0.00001 seconds).
+  shopt -s extglob
+  # Replacing multiple-slashes with single slash (0.00002 to 0.00009 seconds).
+  dir_path=${dir_path//+(\/)/\/}
+  # Strip trailing slash (0.00001 to .00002 seconds).
+  dir_path=${dir_path%/}
+
+  local new_path
+
+  local IFS=:
+  for loc_dir_path in ${!path_var} ; do
+    IFS=' '
+
+    # Replacing multiple-slashes with single slash (0.00002 to 0.00009 seconds).
+    loc_dir_path=${loc_dir_path//+(\/)/\/}
+    # Strip trailing slash (0.00001 to .00002 seconds).
+    loc_dir_path=${loc_dir_path%/}
+
+
+      if [ "${loc_dir_path}" != "${dir_path}" ] ; then
+        [ -z "${new_path}" ] && new_path="${loc_dir_path}" || new_path="${new_path}:${loc_dir_path}"
+      fi
+    IFS=:
+  done
+  IFS=' '
+
+  export ${path_var}="${new_path}"
+
+}
+################################################################################
+
+
+
+# The next several functions process lists.
+################################################################################
+function valid_list_delim {
+  # Perf: 0.00004
+  # local delimiter="${1}" ; shift || :
+
+  # This function will make sure that the delimiter is valid for use with the other list functions.
+
+  # 2012/06/07 Perf tuned by doing inline parm checking.
+  if [ -z "${1}" -o "${1}" == '"' -o "${1}" == '\' ] ; then
+    { print_error ; echo "Variable \"delimiter\" has an invalid value of '${1}'." ; print_call_stack ; } >&2
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function set_sed_delim {
+  local sed_delim_var="${1:-sed_delimiter}" ; shift || :
+  local regex_val="${1}" ; shift || :
+
+  # This function will assign a sed expression delimiter to the variable named in sed_delim_var.  This is intended to be used in sed commands like 's' (i.e. find/replace).  For example, in the following sed command, the delimiter being used is '/'.
+  # sed -re 's/<regex>/<replacement>/g'
+  # regex_val should contain the values you intend to use in the <regex> portion of the sed command.  Note: this needn't be the exact expression you will be using, but rather a listing of all of the elements you will be using.
+  # This function will consider a list of possible delimiters.  The first one that is NOT contained in your regex_val will be assigned.
+
+  # I believe my sed_delim_list contains no chars that have special meaning in glob or regular expressions.
+  local sed_delim_list='/#@%&'
+  local len_sed_delim_list="${#sed_delim_list}"
+  local sed_delim_candidate
+  local ix
+
+  for (( ix=0; ix < len_sed_delim_list ; ix++ )) ; do
+    sed_delim_candidate="${sed_delim_list:${ix}:1}"
+#    if ! [[ "${regex_val}" =~ "${sed_delim_candidate}" ]] ; then
+    if ! echo "${regex_val}" | egrep -q "${sed_delim_candidate}" 2>/dev/null ; then
+      eval ${sed_delim_var}=\"${sed_delim_candidate}\"
+      return 0
+    fi
+  done
+
+  { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Could not find a suitable sed delimiter.  Each of the possible delimiter candidates in the sed_delim_list, \"$sed_delim_list\", were found in the caller's regex_val, \"${regex_val}\"." ; print_call_stack ; } >&2
+  return 1
+
+}
+################################################################################
+
+
+
+################################################################################
+function valid_list {
+  local list_name="${1}"
+  local invalid_value_list="${2}"
+  local valid_value_list="${3}"
+  local delim="${4:-:}"
+
+  # This function will examine each element in the list indicated by list_name to see if it is valid.  valid_value will be called for each element in the list.  See the prolog for valid_value for more details.
+
+  local list_element
+
+  valid_value list_name "" || return 1
+
+  local sed_delim
+  if [ "$delim" == "/" ] ; then
+    sed_delim="#"
+  else
+    sed_delim="/"
+  fi
+
+  # At one time this function simply used an egrep to look for list items.  However, the caller's parm can have metacharacters which will make that approach fail.  Instead, I use sed to split their lists into separate lines and then I simply use a bash equality test.
+  echo "${!list_name}" | sed -re "s${sed_delim}${delim}${sed_delim}\n${sed_delim}g" |
+  while read list_element ; do
+    valid_value list_element "${invalid_value_list}" "${valid_value_list}" "${delim}" || return 1
+  done || return 1
+
+}
+################################################################################
+
+
+
+################################################################################
+function num_list_elements {
+  local list_name="${1}" ; shift || :
+  local delimiter=${1:-" "} ; shift || :
+  local num_list_elements_var=${1} ; shift || :
+
+  # This function will print the number of elements found in the list to stdout.
+  # The expected parameters are:
+  # list_name           The name of the list (environment variable) whose elements are to be counted.
+  # delimiter           The delimiter to use to seperate list elements.  The default is a space.
+
+  # 2012/06/07 Perf tuned.
+
+  local parm_name
+  for parm_name in list_name ; do
+    if [ -z "${!parm_name}" ] ; then
+      { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; print_call_stack; } >&2
+      return 1
+    fi
+  done
+
+  valid_list_delim "${delimiter}" || return 1
+
+  local cmd_buf
+  local _loc_num_elements_=0
+
+  eval local num_chars_in_list=\${#$list_name}
+  local temp_string=${!list_name//${delimiter}/}
+  local num_chars_in_temp_string=${#temp_string}
+  local num_chars_in_delim=${#delimiter}
+
+  if (( num_chars_in_list == 0 )) ; then
+    _loc_num_elements_=0
+  else
+    let _loc_num_elements_=(${num_chars_in_list}-${num_chars_in_temp_string})/$num_chars_in_delim+1
+  fi
+
+  if [ -z "${num_list_elements_var}" ] ; then
+    echo $_loc_num_elements_
+  else
+    eval $num_list_elements_var=$_loc_num_elements_
+  fi
+
+  # print_var_list "${list_name} delimiter temp_string num_chars_in_list num_chars_in_temp_string num_chars_in_delim _loc_num_elements_" >&2
+
+  return 0
+
+
+  # Old way.
+
+  local cmd_buf
+  local sed_delimiter
+
+  set_sed_delim sed_delimiter "${delimiter}${!list_name}" || return 1
+
+  # Empty list is special case.
+  [ "${!list_name}" == "" ] && { echo 0 ; return 0 ; }
+
+  # Convert the delimiter to a cr/lf and count the resulting lines of output.
+  # We want to be able to process list entries containing single quotes so we call escape_quotes.
+  cmd_buf="echo '$(escape_quotes ${list_name} single 1)' | sed -re 's${sed_delimiter}${delimiter}${sed_delimiter}\\n${sed_delimiter}g' | wc -l"
+  eval "${cmd_buf}"
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function reverse_list {
+  local list_name="${1}" ; shift || :
+  local delimiter=${1:-" "} ; shift || :
+
+  # This function will take the list named in list_name and reverse all of its elements.
+
+  # 2012/06/07 Perf tuned.
+
+  local parm_name
+  for parm_name in list_name ; do
+    if [ -z "${!parm_name}" ] ; then
+      { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; print_call_stack; } >&2
+      return 1
+    fi
+  done
+
+  valid_list_delim "${delimiter}" || return 1
+
+  local cmd_buf
+  local num_chars_in_delim=${#delimiter}
+
+  if (( num_chars_in_delim == 1 )) ; then
+    # Most of my work is with relatively small lists.  Certainly for smaller lists, this method is faster.
+
+    local cur_list_element
+    local new_list
+    local IFS="${delimiter}"
+    for cur_list_element in ${!list_name} ; do
+      # Include this element in the new list.
+      if [ -z "${new_list}" ] ; then
+        new_list="$cur_list_element"
+      else
+        new_list="${cur_list_element}${delimiter}${new_list}"
+      fi
+    done
+    unset IFS
+
+    eval $list_name=\"${new_list}\"
+  else
+    # Old way.
+
+    # We want to be able to process list entries containing single quotes so we call escape_quotes.
+    local sed_delimiter
+    set_sed_delim sed_delimiter "${delimiter}${!list_name}" || return 1
+    # cmd_buf="${list_name}=\$(export count=1 ; echo '$(escape_quotes ${list_name} single 1)' | sed -re 's${sed_delimiter}${delimiter}${sed_delimiter}\\n${sed_delimiter}g' | tac | while read element ; do (( count != 1 )) && echo -n '${delimiter}' ; echo -n \${element} ; let count++ ; done ; echo)"
+    # Found a faster and simpler way to do this.
+    cmd_buf="${list_name}=\$(echo '$(escape_quotes ${list_name} single 1)' | awk -F \"${delimiter}\" -v delim=\"${delimiter}\" '{for (i=NF; i>0; i--) {if ( i == 1 ) {delim=\"\"} ; printf \"%s%s\", \$i, delim;} printf \"\n\"}')"
+    eval $cmd_buf
+  fi
+
+}
+################################################################################
+
+
+
+# 2012/07/11 More perf tuning.
+################################################################################
+function add_list_element {
+  # Perf: 0.00009
+  # local list_element="${1}"
+  # local list_name="${2}"
+  local position=${3:-"back"}
+  local delimiter=${4:-" "}
+  # Perf: 0.00003
+  #local unique="${5:-0}"
+
+  # This function will add a list element to the list named in list_name in question.
+  # The expected parameters are:
+  # list_element        The list element to be added
+  # list_name           The name of the list (environment variable) to which the new list element should be added
+  # position            The position to put the new list element:
+  #                     "front" - Put it at the front.
+  #                     "back" - Put it at the back.  This is the default value.
+  # delimiter           The delimiter to use to seperate list elements.  The default is a space.
+  # unique              This indicates that the element should not be added to the list if the list already contains an identical element.
+
+  # 2012/06/07 Perf tuned.
+
+  # 2015/02/19 It could be legitimate to have null elements in a list.  The only problem it presents is that an empty list would be indistinguishable from a list with one null element.  I'll leave such problems for another day.
+  if (( ${#1} == 0 )) ; then
+    { print_error ; echo "Variable \"list_element\" has an invalid value of \"${1}\"." ; print_call_stack; } >&2
+    return 1
+  fi
+  # Perf: 0.00001
+
+  if (( ${#2} == 0 )) ; then
+    { print_error ; echo "Variable \"list_name\" has an invalid value of \"${2}\"." ; print_call_stack; } >&2
+    return 1
+  fi
+  # Perf: 0.00001
+
+  valid_list_delim "${delimiter}" || return 1
+  # Perf: 0.000007
+
+  if ! [ "${position}" == "back" -o "${position}" == "front" ] ; then
+    { print_error ; echo "Variable \"position\" has a value of \"${position}\" which was not found in the valid value list (\"front:back\")." ; print_call_stack ; } >&2
+    return 1
+  fi
+  # Perf: 0.00004
+
+  if (( ${5} )) ; then
+    # User specified "unique" option.
+    search_list "${1}" ${2} "${delimiter}" && return 0
+  fi
+
+# With changes later, it looks like I don't need this.
+# Performance: Only call escape_quotes if it is needed.
+#  if echo "${list_element}${_loc_list_}" | egrep -q "'" 2>/dev/null ; then
+#    escape_quotes list_element single || return 1
+#    escape_quotes _loc_list_ single || return 1
+#  fi
+
+  if [ -z "${!2}" ] ; then
+    # Perf: 0.00002
+    # List is currently empty so "front" and "back" are one and the same.
+    #cmd_buf="$list_name='${list_element}'"
+    eval $2=\"\${1}\"
+    # Perf: 0.00005
+    return 0
+
+    # cmd_buf="$list_name=\"\${list_element}\""
+    # Perf: 0.00002
+    # issuing
+    # eval $cmd_buf
+    # Perf: 0.00006
+    # return 0
+  fi
+
+  if [ "${position}" = "front" ] ; then
+    # Perf: 0.00002
+    #cmd_buf="$list_name='${list_element}${delimiter}${_loc_list_}'"
+    # cmd_buf="$2=\"\${1}\${delimiter}\${_loc_list_}\""
+    # cmd_buf="$2=\"\${1}\${delimiter}\${!2}\""
+    eval $2=\"\${1}\${delimiter}\${!2}\"
+    # Perf: 0.00002
+    # eval $cmd_buf
+    # Perf: 0.00008
+    return 0
+  fi
+  # Perf: 0.00003
+
+  # local cmd_buf
+  # Perf: 0.00001
+  # local _loc_list_="${!2}"
+  # Perf: 0.00001
+
+  # position must be "back" since we made sure it was a valid value at the beginning of this function.
+  # cmd_buf="$list_name='${_loc_list_}${delimiter}${list_element}'"
+  # 2011/09/20 - This way is faster.
+  #cmd_buf="$2=\"\${_loc_list_}\${delimiter}\${1}\""
+  # cmd_buf="$2=\"\${!2}\${delimiter}\${1}\""
+  eval $2=\"\${!2}\${delimiter}\${1}\"
+  # eval $cmd_buf
+
+  return 0
+
+}
+################################################################################
+
+
+
+
+# #(CDT) 2013/05/28 14:18:48.844575 -    0.013358 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do remove_list_element /tmp/csptest/scr_pgm11:main:line_136:pid_13087:306711451221823: cleanup_file_list " " back all ; done
+# total_seconds:                                    3.401275000
+# seconds_each:                                     0.000340127
+# count_per_second:                                 2940
+################################################################################
+function remove_list_element {
+  # local list_element="${1}"
+  # local list_name="${2}"
+  local delimiter=${3:-" "}
+  local position=${4:-"front"}
+  local delete_num="${5:-all}"
+  local allow_regex="${6:-0}"
+  # Perf: 0.00003
+
+  # This function will remove the element(s) from the list that match(es) list_element.
+  # The expected parameters are:
+  # list_element        The value you wish to remove from the list.
+  # list_name           The name of the list from which the new list element should be removed.
+  # delimiter           The delimiter that is used to seperate list elements.
+  # position            The position from which to remove the list element.  This is moot if delete_num = "all".  The acceptable values are:
+  #                     "front" - remove it from the front.
+  #                     "back" - remove it from the back.  This is the default value.
+  # delete_num          The number of matching entries to remove.  The currently supported values are "1" or "all".
+
+  # 2012/06/06 Perf tuning.  I replaced "valid_value" and other such calls to inline validity checks.
+
+  if (( ${#1} == 0 )) ; then
+    { print_error ; echo "Variable \"list_element\" has an invalid value of \"${1}\"." ; print_call_stack; } >&2
+    return 1
+  fi
+  # Perf: 0.00001
+
+  if (( ${#2} == 0 )) ; then
+    { print_error ; echo "Variable \"list_name\" has an invalid value of \"${2}\"." ; print_call_stack; } >&2
+    return 1
+  fi
+  # Perf: 0.00001
+
+  if [ -z "${delimiter}" -o "${delimiter}" == '"' -o "${delimiter}" == '\' ] ; then
+    { print_error ; echo "Variable \"delimiter\" has an invalid value of '${delimiter}'." ; print_call_stack ; } >&2
+  fi
+
+  if [ "${position}" != "front" -a "${position}" != "back" ] ; then
+    { print_error ; echo "Variable \"position\" has a value of \"${position}\" which was not found in the valid value list (\"front:back\")." ; print_call_stack ; } >&2
+    return 1
+  fi
+
+  if [ "${delete_num}" != "all" ] ; then
+    if ! (( ${delete_num} > 0 )) ; then
+      { print_error ; echo "Variable \"delete_num\" has a value of \"${delete_num}\".  The value must be either \"all\" or a positive integer.." ; print_call_stack ; } >&2
+      return 1
+    fi
+  fi
+
+  #local cmd_buf
+  local must_reverse
+  # If not all matching elements are to be removed from the back, we'll reverse the list before and after removing the values.
+  # Perf: 0.000031
+  [ "${position}" == "back" -a "${delete_num}" != "all" ] && must_reverse=1 || must_reverse=0
+
+  #(( must_reverse )) && { reverse_list ${list_name} "${delimiter}" || return 1 ; } || :
+  if (( must_reverse )) ; then { reverse_list ${2} "${delimiter}" || return 1 ; } ; fi
+  local cur_list_element
+  local new_list
+  #local num_to_delete
+  local num_deleted=0
+  local IFS="${delimiter}"
+  local rc
+  #for cur_list_element in ${!list_name} ; do
+  for cur_list_element in ${!2} ; do
+    #if [ "${cur_list_element}" == "${list_element}" ] ; then
+    #if [ "${cur_list_element}" == "${1}" ] ; then
+    if (( allow_regex )) ; then
+      regexp "${cur_list_element}" "${1}" ; rc="${?}"
+    else
+      [ "${cur_list_element}" == "${1}" ] ; rc="${?}"
+    fi
+    if [ "${rc}" == "0" ] ; then
+      # We found an occurrence of the list_element in the list.
+       if [ "${delete_num}" == "all" ] || (( num_deleted < delete_num )) ; then
+         let num_deleted++
+         continue
+       fi
+    fi
+
+    # Include this element in the new list.
+    if [ -z "${new_list}" ] ; then
+      new_list="${cur_list_element}"
+    else
+      new_list="${new_list}${delimiter}${cur_list_element}"
+    fi
+  done
+  unset IFS
+
+  #eval $list_name=\"${new_list}\"
+  eval ${2}=\"${new_list}\"
+
+  # Old way.
+  # local sed_delimiter
+  # local operator
+  #set_sed_delim sed_delimiter "${delimiter}${list_element}" || return 1
+  #[ "${delete_num}" == "all" ] && operator="g" || operator=""
+  # Remove the value/s. The first sed removes the element(s).  The next 2 seds remove leftover extra delimiters.
+  # We want to be able to process list entries containing single quotes so we call escape_quotes.
+  #cmd_buf="${list_name}=\$(echo '$(escape_quotes ${list_name} single 1)' | sed -re 's${sed_delimiter}(^|${delimiter})($(escape_quotes list_element single 1))(${delimiter}|$)${sed_delimiter}\\1\\3${sed_delimiter}${operator}' | sed -re 's${sed_delimiter}(^${delimiter}|${delimiter}$)${sed_delimiter}${sed_delimiter}g' | sed -re 's${sed_delimiter}${delimiter}${delimiter}${sed_delimiter}${delimiter}${sed_delimiter}g')"
+
+  # issuing
+  # eval $cmd_buf
+
+  #(( must_reverse )) && { reverse_list ${list_name} "${delimiter}" || return 1 ; } || :
+  if (( must_reverse )) ; then { reverse_list ${2} "${delimiter}" || return 1 ; } ; fi
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function retrieve_list_element {
+  local list_element_name="$1"
+  local list_name="$2"
+  local position=${3:-"back"}
+  local delimiter=${4:-" "}
+  local remove="${5:-0}"
+  local fail_on_empty_list="${6:-0}"
+
+  # This function will retrieve a list element from the variable in question.
+  # The expected parameters are:
+  # list_element_name   The name of the list element variable to receive the retrieved value.
+  # list_name           The name of the list from which the new list element should be retrieved.
+  # position            The position from which to retrieve the list element:
+  #                     "front" - Retrieve it from the front.
+  #                     "back" - Retrieve it from the back.  This is the default value.
+  # delimiter           The delimiter that is used to seperate list elements.
+  # remove              If this field is set, the caller's list will have the list element in question removed from it.
+
+  local cmd_buf
+
+  # 2012/02/27 Perf tuning.
+  #valid_value list_element_name "" || return 1
+  #valid_value list_name "" || return 1
+  #valid_value position "" "front:back" || return 1
+  if [ -z "${list_element_name}" ] ; then
+    { print_error ; echo "Variable \"list_element_name\" has an invalid value of \"${list_element_name}\"." ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+  if [ -z "${list_name}" ] ; then
+    { print_error ; echo "Variable \"list_name\" has an invalid value of \"${list_name}\"." ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+
+  if (( fail_on_empty_list )) && [ -z "${!list_name}" ] ; then
+    { print_error ; echo "The \"${list_name}\" is empty and therefore no entry may be retrieved from it." ; } | process_error_message
+    return 1
+  fi
+
+  #if [ "${op_system:=${u_name:=$(uname)}}" == "AIX" ] ; then
+  #if bash_regex_op_valid ; then
+  #  cmd_buf="echo \"\${position}\" | grep -Eq \"^(front|back)$\""
+  #else
+  #  cmd_buf="[[ \"\${position}\" =~ \"^(front|back)$\" ]]"
+  #fi
+  #issuing
+  #  eval $cmd_buf
+  regexp "${position}" "^(front|back)$" 1
+  if [ "${?}" != "0" ] ; then
+    { print_error ; echo "Variable \"position\" has a value of \"${position}\" which was not found in the valid value list (\"front:back\")." ; print_call_stack ; } >&2
+    return 1
+  fi
+
+  if [ "$delimiter" == "\"" ] ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Invalid \"delimiter\" parameter value of \"$delimiter\" (double quote)." ; echo ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+
+  #local sed_delimiter
+  #if [ "$delimiter" == "/" ] ; then
+  #  sed_delimiter="#"
+  #else
+  #  sed_delimiter="/"
+  #fi
+
+  # 2012/02/27 Perf tuning.
+  if [ "${position}" = "front" ] ; then
+    # cmd_buf="$list_element_name=\$(echo \"${!list_name}\" | sed -re \"s${sed_delimiter}([^${delimiter}]*)(.*)${sed_delimiter}\1${sed_delimiter}g\")"
+    cmd_buf="${list_element_name}=\"${!list_name%%${delimiter}*}\""
+  else
+    #cmd_buf="$list_element_name=\$(echo \"${!list_name}\" | sed -re \"s${sed_delimiter}(.*${delimiter})(.*)${sed_delimiter}\2${sed_delimiter}g\")"
+    cmd_buf="${list_element_name}=\"${!list_name##*${delimiter}}\""
+  fi
+  #issuing
+  eval $cmd_buf
+
+  if ! (( remove )) ; then return 0 ; fi
+
+  if [ "${!list_name//${delimiter}/}" == "${!list_name}" ] ; then
+    # The string minus delimiters is the same as the string as-is.  This means there is only one element.
+    cmd_buf="${list_name}=\"\""
+  else
+    if [ "${position}" = "front" ] ; then
+      cmd_buf="${list_name}=\"${!list_name#*${delimiter}}\""
+    else
+      cmd_buf="${list_name}=\"${!list_name%${delimiter}*}\""
+    fi
+  fi
+  #issuing
+  eval $cmd_buf
+
+  # Old way
+  #local num_list_elements
+  #num_list_elements=$(num_list_elements ${list_name} "${delimiter}")
+  #if (( num_list_elements == 1 )) ; then
+  #  cmd_buf="${list_name}=\"\""
+  #elif [ "${position}" = "front" ] ; then
+  #  cmd_buf="${list_name}=\$(echo \"${!list_name}\" | cut -f 2- -d '${delimiter}')"
+  #else
+  #  cmd_buf="${list_name}=\$(echo \"${!list_name}\" | sed -re \"s${sed_delimiter}(.*)[${delimiter}].*\$${sed_delimiter}\1${sed_delimiter}g\")"
+  #fi
+  #eval $cmd_buf
+
+  return 0
+
+}
+################################################################################
+
+
+
+# Perf data:
+# (CDT) 2014/03/17 15:37:15 - Issuing: for (( ix=0 ; ix < 1000 ; ix++ )) ; do read_list "17883:x:gfwr706.rch.stglabs.ibm.com:1395088037:60" ':' pid lock_type host_name epoch_seconds expiration ; done
+# total_seconds:               0.609871000
+# seconds_each:                0.000609871
+# count_per_second:            1640
+################################################################################
+function read_list {
+  local list="${1}" ; shift
+  local delim=${1:-" "} ; shift
+
+  # This function will read the given list into the variables passed.  Example call:
+  # list="Michael Walsh"
+  # read_list list " " first last
+  # print_vars first last
+  # Output:
+  # first:                       Michael
+  # last:                        Walsh
+
+  # If there are more variables then there are fields in the list, the latter variables will be set to blanks.
+  # If there are more fields in the list than there are variables, all trailing data is appended to the last variable.  This is to mimic the behavior of the "read" command in parsing data.
+
+  local var_name
+  for var_name in "${@}" ; do
+    if [ "${list/${delim}}" == "${list}" ] ; then
+      # No more delims so this is the last element.
+      eval ${var_name}=${list}
+      eval list=\"\"
+    else
+      eval ${var_name}=${list%%${delim}*}
+      eval list=${list#*${delim}}
+    fi
+  done
+
+  if [ ! -z "${list}" -a ! -z "${var_name}" ] ; then eval ${var_name}="${!var_name}${delim}${list}" ; fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function search_list {
+  local list_element="${1}"
+  local list_name="${2}"
+  local delimiter="${3:- }"
+  local escape_metachars="${4:-0}"
+
+  # This function will search a list for the given list element.  It will return 0 if the element is found and 1 if not found.
+  # The expected parameters are:
+  # list_element        The list element to be added
+  # list_name           The name of the list (environment variable) to be searched.
+  # delimiter           The delimiter to use to seperate list elements.  The default is a space.
+  # escape_metachars    This is new so it defaults to "0".  If your list_element has metachars that you want escaped (i.e. to make it a literal search), specify 1 for this field.
+
+  if [ -z "$list_element" ] ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: You must pass a non-null value for \"list_element\"." ; echo ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+
+  if [ -z "$list_name" ] ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: You must pass a non-null value for \"list_name\"." ; echo ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+
+  local cmd_buf
+  if (( escape_metachars )) ; then
+    escape_metachars list_element || return 1
+  fi
+
+  #if ! bash_regex_op_valid ; then
+  #if [ "${op_system:=${u_name:=$(uname)}}" == "AIX" ] ; then
+    #cmd_buf="echo \"${!list_name}\" | egrep -q \"(^|${delimiter})${list_element}(${delimiter}|$)\""
+  #  cmd_buf="echo \"${!list_name}\" | grep -Eq \"(^|${delimiter})${list_element}(${delimiter}|$)\""
+  #else
+  #  cmd_buf="[[ \"${!list_name}\" =~ \"(^|${delimiter})${list_element}(${delimiter}|$)\" ]]"
+  #fi
+  #issuing
+  #eval $cmd_buf
+  # regexp "${!list_name}" "(^|${delimiter})${list_element}(${delimiter}|$)" 1
+  # 2013/08/23 Example using the following command:
+  # auto_rcmd -d -l csptest -pf /afs/rchland.ibm.com/usr8/csptest/private/password p8lcb201.aus.stglabs.ibm.com 'multi_cmd "LCB_down_prep --test_mode=y []" $(lcbsys ${HOSTNAME})'
+  # I wound up with this on stderr:
+  # /afs/rchland.ibm.com/usr2/xzy0065/sandbox/apollodev/src/aipl/x86/gen_bash_print_funcs: line 134: lcbsys: command not found
+  # Specifying quiet=0 on the regexp to debug revealed this:
+  # Issuing: [[ "-d -l csptest -pf /afs/rchland.ibm.com/usr8/csptest/private/password p8lcb201.aus.stglabs.ibm.com multi_cmd \"LCB_down_prep --test_mode=y []\" $(lcbsys ${HOSTNAME})" =~ "(^| )-c( |$)" ]]
+  # I'm trying with a late expansion of list_name to remedy this.
+  regexp "\${${list_name}}" "(^|${delimiter})\${list_element}(${delimiter}|$)" 1
+
+}
+################################################################################
+
+
+
+################################################################################
+function sort_list {
+  local list_name="${1}"
+  local delimiter=${2:-" "}
+  local sort_parms=${3}
+
+  # This function will sort the given list.  If you specify sort_parms, they will be used on the "sort" function call, e.g. "-r" to sort in reverse order, etc.  See the sort man page for details.
+
+  valid_value list_name "" || return 1
+
+  valid_value delimiter ":\"" || return 1
+
+  local sed_delimiter
+  if [ "$delimiter" == "/" ] ; then
+    sed_delimiter="#"
+  else
+    sed_delimiter="/"
+  fi
+
+  local cmd_buf
+  local temp_file_path="/tmp/${FUNCNAME}.${$}"
+  local list_element
+
+  cmd_buf="echo \"${!list_name}\" | sed -re \"s${sed_delimiter}${delimiter}${sed_delimiter}\n${sed_delimiter}g\" | sort ${sort_parms} > $temp_file_path"
+#issuing >&2
+  eval $cmd_buf
+
+  # Clear caller's list.
+  eval $list_name=""
+
+  # Re-populate caller's list.
+  while read list_element ; do
+    add_list_element "${list_element}" $list_name back "${delimiter}" || return 1
+  done < $temp_file_path
+
+  rm $temp_file_path
+
+}
+################################################################################
+
+
+
+################################################################################
+function list_intersect {
+  local list1_name="${1}" ; shift
+  local list2_name="${1}" ; shift
+  local new_list_name="${1}" ; shift
+  local delimiter=${1:-" "} ; shift
+  local unique=${1} ; shift
+  local exclude_null_vars=${1} ; shift
+  local negate=${1} ; shift
+
+  # This function will take every element from list1 that can be found in list2 and put it in the new_list.
+  # unique indicates that the resulting list should not have duplicate values.
+  # exclude_null_vars indicates that each element in list1 should be regarded as a variable name.  If the variable in question is blank, it will not included in the new list.
+  # If negate is specified, this function will take every element from list1 that can be NOT found in list2 and put it in the new_list.  In other words, this function will return the difference of list1 and list2.
+
+  local parm_name
+  for parm_name in list1_name list2_name new_list_name ; do
+    case "${!parm_name}" in "")
+      valid_value ${parm_name} || return 1
+    esac
+  done
+
+  local conditional_op
+
+  if (( negate )) ; then
+    conditional_op="||"
+  else
+    conditional_op="&&"
+  fi
+
+  local cmd_buf="search_list \"\${list_element}\" ${list2_name} \" \" ${conditional_op} { add_list_element \"\${list_element}\" ${new_list_name} back \" \" ${unique} || return 1 ; }"
+
+  local saved_IFS="${IFS}"
+  local IFS="${delimiter}"
+  local list_element
+  for list_element in ${!list1_name} ; do
+    IFS="${saved_IFS}"
+    if (( exclude_null_vars )) ; then
+      if [ -z "${!list_element}" ] ; then
+        IFS="${delimiter}"
+        continue
+      fi
+    fi
+    #issuing
+    eval ${cmd_buf}
+    IFS="${delimiter}"
+  done
+  IFS="${saved_IFS}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function custom_sort_list {
+  local unsorted_list_name="${1}" ; shift
+  local sort_reference_list="${1}" ; shift
+  local sorted_list_name="${1}" ; shift
+  local delimiter=${1:-" "} ; shift
+
+  # This function will sort the unsorted_list according to the order of sorted_list.  The resulting will be put in sorted_list.
+  # Note: Any value from the unsorted list that is NOT found in the sort_reference_list will not be included in the sorted list.
+
+  local parm_name
+  for parm_name in unsorted_list_name sort_reference_list sorted_list_name ; do
+    case "${!parm_name}" in "")
+      valid_value ${parm_name} || return 1
+    esac
+  done
+
+  local unique=1
+  local cmd_buf="search_list \"\${list_element}\" ${unsorted_list_name} \" \" && { add_list_element \"\${list_element}\" ${sorted_list_name} back \" \" ${unique} || return 1 ; }"
+
+  local saved_IFS="${IFS}"
+  local IFS="${delimiter}"
+  local list_element
+  for list_element in ${!sort_reference_list} ; do
+    IFS="${saved_IFS}"
+    #issuing
+    eval ${cmd_buf}
+    IFS="${delimiter}"
+  done
+  IFS="${saved_IFS}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_file_list_stats {
+  local list_name="${1}" ; shift || :
+  local delimiter="${1:- }" ; shift || :
+
+  # This function will print statistics on the user's file list which is named in list_name.
+
+  local parm_name
+  for parm_name in list_name ; do
+    if [ -z "${!parm_name}" ] ; then
+      { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; print_call_stack; } >&2
+      return 1
+    fi
+  done
+
+  local file_list_size_var=${list_name}_size
+  local num_existing_files
+  eval local ${file_list_size_var}
+
+  num_list_elements ${list_name} "${delimiter}" ${file_list_size_var}
+
+  if (( ${!file_list_size_var} == 0 )) ; then
+    num_existing_files=0
+  else
+    num_existing_files=$(ls ${!list_name} 2>/dev/null | egrep -v '^$' | wc -l)
+  fi
+
+  print_var_list "${file_list_size_var} num_existing_files"
+  echo "${list_name}:"
+  if (( ${!file_list_size_var} > 0 )) ; then
+    echo ${!list_name} | sed -re "s/${delimiter}/\n/g" | sort
+  fi
+
+}
+################################################################################
+
+
+

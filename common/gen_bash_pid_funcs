@@ -1,0 +1,526 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define basic pid functions like valid_active_pid, get_process_command_name, etc.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_valid_funcs
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+
+################################################################################
+function valid_active_pid {
+  local pid_var="${1}" ; shift || :
+  local print_inactive_pid_err="${1:-1}" ; shift || :
+
+  # This function will validate the pid found in the var named in pid_var.
+  # This fuenction deals with the "inactive pid" error uniquely:
+  # - It will return 2 rather than the typical 1 return code.
+  # - It will only print a message to stderr if print_inactive_pid_err is set.
+
+  valid_value pid_var || return 1
+  valid_boolean print_inactive_pid_err || return 1
+
+  valid_integer $pid_var "1..99999" || return 1
+
+  ps "${!pid_var}" 2>&1 > /dev/null
+  if [ "$?" != "0" ] ; then
+    (( print_inactive_pid_err )) && { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Variable \"${pid_var}\" contains a value of \"${!pid_var}\" which does not describe an active process." ; print_call_stack ; } >&2
+    return 2
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function get_process_command_name {
+  local pid="${1}" ; shift || :
+  local ref_process_command_name="${1}" ; shift || :
+  local print_inactive_pid_err="${1:-1}" ; shift || :
+
+  # This function will get the full command name of the process identified by pid.  If pid does not identify an active process, this function will return non-zero and print an error message to stderr.
+  # Note that I couldn't find a way to have ps simply return this info without truncating long commands.
+
+  eval $ref_process_command_name=\"\"
+  valid_active_pid pid "${print_inactive_pid_err}" || return "${?}"
+  valid_value ref_process_command_name || return 1
+
+  # The "comm" format specifier's output is only 15 characters.  The command name could be longer so we get the short version of the command and use that to extract the full command name from the "ps -o args" output.
+
+  local cmd_buf
+  local short_command
+
+
+  # Some examples of what we're parsing...
+
+  # For example pid 5028:
+  # ps --no-headers -o comm 5028
+  # automulti
+  # ps --no-headers -o args $pid
+  # /bin/bash /afs/rch/projects/esw/dvt/autoipl/apollodev/bin/automulti --monitor_interval=30 --xtc_dir_path=/afs/rchland.ibm.com/usr8/csptest/autoipl/automulti_dvt/xtc/fips760/1139/ --bpc=y --kill_children=y --master_sb=gfw503_50_dvt --vnc_disp_1=51 --max_num_starts=10000 --platform_list_path=/afs/rchland.ibm.com/usr8/csptest/autoipl/automulti_dvt/platform_list_1.760, /afs/rchland.ibm.com/usr8/csptest/autoipl/automulti_dvt/platform_list_2.760 --sb_prefix=dv503 --respect_holds=y -- --max_num_ipls=10000 --failure_threshold=4 --random_ipl_selection=yes --plug_in_dir_paths=/afs/rch/projects/esw/dvt/plug_ins/Refresh_tokens --sim_telnet_frontend=yes
+  # For some programs, the interpreter is the first item on the line.  For others, it's the actual program.  We always want to return the unqualified program name.  So, we first get the short name.  If we don't detect the short name in the first token, then it must be the name of the interpreter and therefore, we need to process the second token.
+
+  cmd_buf="short_command=\$(ps --no-headers -o comm $pid)"
+  # issuing >&2
+  eval $cmd_buf
+
+  cmd_buf="${ref_process_command_name}=\$(ps --no-headers -o args $pid | { read pgm1 pgm2 parms ; if echo \"\${pgm1}\" | egrep -q \"${short_command}\" 2>/dev/null ; then basename \$pgm1 ; else basename \$pgm2 ; fi ; })"
+  # issuing >&2
+  eval $cmd_buf
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function get_process_children {
+  local pid="${1}" ; shift || :
+  local child_list_var="${1}" ; shift || :
+  local print_inactive_pid_err="${1:-1}" ; shift || :
+
+  local global_var_list="${child_list_var}"
+
+  # This function will get the pids of all of the children (no grandchildren) of the process identified by pid and put them in the variable named in child_list_var.  If pid does not identify an active process, this function will return 2, print an error message to stderr and set child_list to "".  For all other errors, this function will return 1.  If the process has no children, child_list will be set to "".
+  # A caller could do something like this:
+  # child_list=$(ps --no-headers -o pid --ppid $$)
+  # However, this function offers 2 advantages:
+  # - It will exclude the pid of the "ps" command.
+  # - It will eliminate cr/lf from the results.
+  #
+  # See valid_active_pid for a description of print_inactive_pid_err.
+
+  # Initialize
+  eval $child_list_var=""
+
+  valid_active_pid pid "${print_inactive_pid_err}" || return "${?}"
+  valid_value child_list_var || return 1
+
+  local ps_cmd_buf
+  local cmd_buf
+  local temp_misc_file=/tmp/${FUNCNAME}_${RANDOM}_${RANDOM}
+  local loc_pid_list
+
+  # We don't want pipes here because those show up as children of this process, as does ps itself.  Instead, we'll route the output to a temp file.
+  ps_cmd_buf="ps --ppid ${pid} -o pid,args --no-headers"
+  cmd_buf="${ps_cmd_buf} > $temp_misc_file"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+
+  # Exlude the pid for the ps command we executed.  Extract the pids and put them in loc_pid_list.
+  cmd_buf="loc_pid_list=\$(egrep -v -- '${ps_cmd_buf}' $temp_misc_file | cut -c 1-5 | sed -re 's/ //g')"
+  # issuing >&2
+  eval $cmd_buf
+
+  rm -f $temp_misc_file
+
+  # Remove cr/lfs.
+  loc_pid_list=$(echo $loc_pid_list)
+  # Copy to caller's var.
+  eval $child_list_var=\"${loc_pid_list}\"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_process_descendants {
+  local pid="${1}" ; shift || :
+  local print_inactive_pid_err="${1:-1}" ; shift || :
+
+  # This function will print a list of all descendants of pid to stdout.
+
+  # This function is recursive.
+
+  local _loc_child_pid_list_
+  local rc
+
+  # Get all children.
+  get_process_children "${pid}" _loc_child_pid_list_ "${print_inactive_pid_err}" || return ${?}
+  [ "${_loc_child_pid_list_}" ] && echo -n "${_loc_child_pid_list_} "
+
+  for pid in $_loc_child_pid_list_ ; do
+    print_process_descendants "${pid}" "${print_inactive_pid_err}"
+    rc="${?}"
+    if [ "${rc}" != "0" ] ; then
+      if [ "${rc}" != "2" ] ; then
+        # "2" means that the current pid is no longer active.  It could have ended since we obtained it.  That is no reason to stop processing our list.
+        return ${rc}
+      fi
+    fi
+  done;
+
+}
+################################################################################
+
+
+
+################################################################################
+function get_process_descendants {
+  local pid="${1}" ; shift || :
+  local child_list_var="${1}"
+
+  local global_var_list="${child_list_var}"
+
+  # This function will get the pids of all descendants of "pid" and put them in the variable named in child_list_var.
+
+  valid_value child_list_var || return 1
+
+  local cmd_buf
+
+  local temp_misc_file=/tmp/${FUNCNAME}_${RANDOM}_${RANDOM}
+
+  cmd_buf="print_process_descendants \"${pid}\" 0 > $temp_misc_file"
+  #issuing >&2
+  eval $cmd_buf || return 1
+
+  cmd_buf="read ${child_list_var} < $temp_misc_file || :"
+  #issuing >&2
+  eval ${cmd_buf}
+
+  rm -f $temp_misc_file
+
+  cmd_buf="${child_list_var}=\$(echo \$${child_list_var})"
+  #issuing >&2
+  eval $cmd_buf || return 1
+
+}
+################################################################################
+
+
+
+################################################################################
+function kill_process_descendants {
+  local pid="${1:-${$}}" ; shift || :
+  local signal="${1:=TERM}" ; shift || :
+  local quiet="${1:-$quiet}" ; shift || :
+
+  local global_var_list=""
+
+  # This function will send the signal to the pids of all descendants of "pid".
+
+  valid_integer pid || return 1
+
+  local cmd_buf
+  local child_list
+  cmd_buf="get_process_descendants '${pid}' child_list"
+  (( ! quiet )) && issuing
+  eval ${cmd_buf} || return 1
+
+  [ -z "${child_list}" ] && return 0
+
+  if (( ! quiet )) ; then
+    print_time ; echo "The following children are still active."
+    cmd_buf="ps $child_list"
+    issuing
+    eval ${cmd_buf}
+  fi
+
+  local temp_misc_file
+  create_temp_file_name temp_misc_file "" 0
+
+  cmd_buf="kill -s ${signal} $child_list 2>${temp_misc_file}"
+  (( ! quiet )) && { print_time ; echo "Killing the active pids." ; issuing ; }
+  eval ${cmd_buf}
+  if [ "${?}" != "0" ] ; then
+    if egrep -v -q "No such process" ${temp_misc_file} ; then
+      #cat ${temp_misc_file}
+      rm -f ${temp_misc_file}
+      return 1
+    fi
+  fi
+  rm -f ${temp_misc_file}
+
+  # 2014/01/17 Waiting for the children allows them to finish executing their exit_functions.  This is much cleaner.
+  cmd_buf="wait ${child_list}"
+  (( ! quiet )) && issuing
+  eval ${cmd_buf}
+
+  # Routing stderr from this function to /dev/null seems to reduce the ": line 225: 17841 Terminated" type messages.
+} 2>/dev/null
+################################################################################
+
+
+
+################################################################################
+function find_descendent_by_name {
+  local start_pid=$1
+  local search_string=$2
+  local ref_targ_pid=$3
+  local print=${4:-0}
+
+  local global_var_list="${ref_targ_pid}"
+
+  # This function will examine start_pid and all its descendants to find the first one whose command field matches search_string.  It will put the pid of the matching process into the variable named in ref_targ_pid.
+
+  local _loc_descendant_pid_list_
+  local cur_pid
+  local cur_process_command_name
+  local rc
+
+  eval ${ref_targ_pid}=\"\"
+
+  get_process_descendants "${start_pid}" _loc_descendant_pid_list_ || return 1
+
+  for cur_pid in ${start_pid} ${_loc_descendant_pid_list_} ; do
+    get_process_command_name "${cur_pid}" cur_process_command_name 0
+    rc="${?}"
+    if [ "${rc}" != "0" ] ; then
+      if [ "${rc}" != "2" ] ; then
+        # "2" means that the current pid is no longer active.  It could have ended since we obtained it.  That is no reason to stop processing our list.
+        return ${rc}
+      fi
+    fi
+    if [ "$cur_process_command_name" == "$search_string" ] ; then
+      eval ${ref_targ_pid}=${cur_pid}
+      break;
+    fi
+  done
+
+  if [ $print != "0" ] ; then
+    if [ "${!ref_targ_pid}" != "" ] ; then
+      print_time ; echo -n "Process $start_pid had a descendant ${!ref_targ_pid} whose command field matched the search_string \"${search_string}\"."
+    else
+      print_time ; echo -n "Process \"$start_pid\" had no descendents whose command field matched the search_string \"${search_string}\"."
+    fi
+    echo "  See the following report." ; echo
+    ps cww -o pid,comm -H $start_pid ${_loc_descendant_pid_list_}
+    # pstree offers an alternative report.
+    #echo
+    #pstree -n -A -l -G -p -a $start_pid
+    echo
+  fi
+
+
+}
+################################################################################
+
+
+
+################################################################################
+function find_descendent_by_name_retry {
+  local pid=$1
+  local search_string=$2
+  local ref_targ_pid=$3
+  local print=$4
+  local max_attempts=${5:-10}
+  local sleep_interval=${6:-1}
+
+  # This function is a retry wrapper for find_descendent_by_name.  This is useful if the caller has spawned a job but the descendent they are searching for has not yet been created.
+
+  valid_integer max_attempts "1.." || return 1
+
+  valid_integer sleep_interval "0.." || return 1
+
+  local temp_file_path="/tmp/${FUNCNAME}.${$}"
+
+  if (( print )) ; then
+    print_time
+    if (( sleep_interval == 1 )) ; then
+      echo -n "Checking every second, "
+    else
+      echo -n "Checking every $sleep_interval seconds, " 
+    fi
+    echo "up to $max_attempts times, to find the \"$search_string\" process among the descendents of pid \"$pid\"."
+  fi
+
+  local count
+  local must_line_feed=0
+  for (( count = 0 ; count < $max_attempts ; count++ )) ; do
+    find_descendent_by_name $pid $search_string $ref_targ_pid $print > $temp_file_path || return 1
+    if [ "${!ref_targ_pid}" != "" ] ; then break ; fi
+    if (( count + 1 < max_attempts )) ; then
+      if (( print )) ; then
+        echo -n "#"
+        must_line_feed=1
+      fi
+      sleep $sleep_interval
+    fi
+  done
+
+  if (( print )) ; then
+    if (( must_line_feed )) ; then echo ; fi
+    # Kick a line.
+    echo
+  fi
+  cat $temp_file_path
+  rm $temp_file_path
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function find_process_by_command {
+  local ref_targ_pid="${1}"
+  local search_string=$2
+  local print=${3:-0}
+  local remove_lf="${4:-0}"
+  local userid="${5:-${USER:=$(whoami)}}"
+
+  # This function will examine all processes running under the given userid, looking for one whose command field matches the regular expression found in search_string.  If successful, it will return that process' pid in targ_pid.  If more than one process matches the search string, all such pids are returned in ref_targ_pid.  If no such process can be found, targ_pid will be set to "".
+
+  valid_value ref_targ_pid "" || return 1
+#  valid_value search_string "" || return 1
+
+  valid_value userid || return 1
+
+  local user_field_width=8
+  local userid_len=${#userid}
+  local whitespace_len
+  let whitespace_len=user_field_width-userid_len
+
+  # We are analyzing the output from ps -eo pid,user,command.  Here is some sample output.
+  #   PID USER     COMMAND
+  #  9047 csptest  autoipl --no_initial_fsp_reset --sim_start_host=gfwb110.rchland.ibm.com --sim_platform=hv16_1...
+  # We want to find a string where:
+  # 5 chars of numbers or spaces
+  # 1 space
+  # 8 chars containing our userid and padded with spaces on the right
+  # 1 space
+  # The command field which will be matched against the caller's search_string.
+  # local cmd_buf="$ref_targ_pid=\$(ps -eo pid,user,command | egrep -- \"^[ 0-9]{5} ${userid}[ ]{$whitespace_len} ${search_string}\" | cut -c1-5 | sed -re \"s/ //g\")"
+
+  # I added --forest to force the output to be sorted by parent/child relationships.  This makes the output of this function more predictable.
+
+  # Example of ps output without --forest:
+  # 6765 csptest  bash
+  # 7238 csptest  autosetup
+  # 7562 csptest  bash
+  # Example of ps output with --forest:
+  # 6765 csptest  bash
+  # 7238 csptest   \_ autosetup
+  # 7562 csptest       \_ bash
+  #
+  # Another example:
+  # 32105 xzy0065  /bin/csh /afs/rchland.ibm.com/usr2/xzy0065/.vnc/xstartup
+  # 32160 xzy0065   \_ vncconfig -iconic
+  # 32169 xzy0065   \_ xterm -geometry 80x24+750+10 -sl 10000 -e bash
+  # 32175 xzy0065   |   \_ bash
+  #  1048 xzy0065   |       \_ xterm -bg lemonchiffon -geometry 160x30+0+80 -si -sk -sl 10000 -sb
+  #  1050 xzy0065   |       |   \_ bash
+  #  1767 xzy0065   |       |       \_ workon apollodev -m x86
+  #  1768 xzy0065   |       |           \_ [bash] <defunct>
+  #  1769 xzy0065   |       |           \_ /bin/bash
+  #  2648 xzy0065   |       \_ ssh csptest@gfwr806
+  # 32172 xzy0065   \_ gnome-session
+
+  # The forest child indicator is " \_ " and the corresponding regular expression is in the following variable.
+  local forest_child_indicator=" \\\\\_ "
+  # The forest indentation is 4 chars of blanks ("    ") or blanks with one pipe symbol (" |  ") for each additional descendent.  The pipe symbols in the output are use for grouping when a process has more than one child (see second example above)..
+#  local forest_indent="    "
+#  local forest_indent=" ( |\|)  "
+  local forest_indent="(    | \|  )"
+  local forest_child_regex="(${forest_indent})*${forest_child_indicator}"
+  # The forest expression is 0 or more indentations followed by the forest delimiter.
+  # The top level process will have no forest child expression at all.  So, in the following egrep, I indicate that there may be 0 or more forest child expressions.
+  local ps_cmd="ps -eo pid,user,command --forest"
+  # echo ; issuing "${ps_cmd}" ; eval ${ps_cmd} ; echo
+  #local cmd_buf="$ref_targ_pid=\$(${ps_cmd} | egrep -- \"^[ 0-9]{5} ${userid}[ ]{$whitespace_len} (${forest_child_regex})*${search_string}\" | cut -c1-5 | sed -re \"s/ //g\")"
+  # Switched to single quotes so as not to do any shell expansion on search_string.
+  local cmd_buf="$ref_targ_pid=\$(${ps_cmd} | egrep -- '^[ 0-9]{5} ${userid}[ ]{$whitespace_len} (${forest_child_regex})*${search_string}' | cut -c1-5 | sed -re \"s/ //g\")"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  if (( remove_lf )) ; then
+    # Convert line feeds to spaces.
+    cmd_buf="$ref_targ_pid=\$(echo \${$ref_targ_pid})"
+    (( DEBUG)) && issuing >&2
+    eval $cmd_buf
+  fi
+
+  if (( $print )) ; then
+    if [ "${!ref_targ_pid}" != "" ] ; then
+      echo "PID   COMMAND"
+      echo "----- --------------------"
+      ps -o pid,command --forest ${!ref_targ_pid} | tail -n +2 | cut -c 1-140
+    else
+      print_time ; echo "No processes found whose \"command\" field matched the search string \"$search_string\"."
+    fi
+  fi
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function find_process_by_command_retry {
+  local ref_targ_pid=$1
+  local search_string=$2
+  local print=${3:-0}
+  local max_attempts=${4:-10}
+  local sleep_interval=${5:-1}
+
+  # This function is a retry wrapper for find_process_by_command.  This is useful if the caller has spawned a process but the process they are searching for has not yet been created.
+
+  if (( max_attempts < 1 )) ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Invalid \"max_attempts\" parameter value of \"$max_attempts\".  It must be 1 or greater." ; echo ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+
+  if (( sleep_interval < 0 )) ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Invalid \"sleep_interval\" parameter value of \"$sleep_interval\".  It must be 0 or greater." ; echo ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+
+  local temp_file_path="/tmp/${FUNCNAME}.${$}"
+
+  if (( print )) ; then
+    print_time
+    if (( sleep_interval == 1 )) ; then
+      echo -n "Checking every second, "
+    else
+      echo -n "Checking every $sleep_interval seconds, " 
+    fi
+    echo "up to $max_attempts times, to find a process whose \"args\" field matches the regular expression \"$search_string\"."
+  fi
+
+  local count
+  local must_line_feed=0
+  for (( count = 0 ; count < $max_attempts ; count++ )) ; do
+    find_process_by_command $ref_targ_pid "$search_string" $print > $temp_file_path || return 1
+    if [ "${!ref_targ_pid}" != "" ] ; then break ; fi
+    if (( count + 1 < max_attempts )) ; then
+      if (( print )) ; then
+        echo -n "#"
+        must_line_feed=1
+      fi
+      sleep $sleep_interval
+    fi
+  done
+
+  if (( print )) ; then
+    if (( must_line_feed )) ; then echo ; fi
+    # Kick a line.
+    echo
+  fi
+  cat $temp_file_path
+  rm $temp_file_path
+
+  return 0
+
+}
+################################################################################
+
+
+

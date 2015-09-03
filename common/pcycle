@@ -1,0 +1,1063 @@
+#! /usr/bin/python
+
+# Change log:
+# 2014/06/24 James Avery (jlavery) - Added exclusive lock functionality to pcycle.py and pcycle_alt.py. Added file pcycle_lock to achieve this, which is basically Michael Walsh's test_lock script. Added debug option and text.
+# 2014/06/25 James Avery (jlavery) - Added signal handler so that locks are released upon program interrupt. Added a progress bar.
+# 2014/06/27 James Avery (jlavery) - The three files have been condensed into one to try and alleviate POR errors on the 820 machines, and also because it's much simpler.
+# 2014/07/01 James Avery (jlavery) - Instead of the pcycle_lock program, pcycle now uses a Python implementation of mlock, which is safer as we're not spawning new processes we have to communicate with. This required importing some of the libraries I've been converting from Bash to Python. pcycle_lock is now obsolete.
+# 2014/07/15 James Avery (jlavery) - Retooled the Python custom libraries to use "import x" instead of "from x import *". This is safer and overall better to work with. The script just needs some retooling.
+# 2014/08/04 James Avery (jlavery) - The program can now accept multiple IPCs as input, and perform operations on all of them. Latent errors have also been fixed.
+# 2014/08/21 James Avery (jlavery) - In the case of a "connection reset" error, the program will try to reconnect and resume for up to five minutes.
+# 2014/10/01 James Avery (jlavery) - Five-minute retries have been added to the initial IPC connection as well.
+
+import os
+import sys
+import signal
+import telnetlib
+import time
+import subprocess
+import re
+import sre_constants
+import shutil
+import getopt
+import socket
+import commands
+import string
+
+import gen_python_dns_funcs as gdns
+import gen_python_exit_funcs as gexit
+import gen_python_globals as g
+import gen_python_print_funcs as gprint
+import gen_python_opt_funcs as gopt
+import gen_python_lock_funcs as glock
+import gen_python_obj_funcs as gobj
+import gen_python_sig_funcs as gsig
+
+# ERROR CODES
+# 0 = SUCCESS
+# 1 = SYNTAX ERROR
+# 2 = TIMEOUT/CONNECTION ERROR
+# 3 = LOCK ERROR
+
+# The IPC_OBJ_LIST needs to be global because the signal handler needs access
+# to it.
+IPC_OBJ_LIST = []
+
+# These strings are used to know when to stop printing and start issuing
+# commands. Several functions use these, so they're global constants.
+SelectString = 'Select item number:'
+SelectCommand = 'Select Outlet Command:'
+
+################################################################################
+
+
+
+# Redefining some things.
+print_var = g.print_var
+print_error = g.print_error
+print_time = gprint.print_time
+qprint = gprint.qprint
+qprint_time = gprint.qprint_time
+dprint = gprint.dprint
+
+
+
+################################################################################
+# We need to create a new Timeout class, in case the log in
+# or log out fail for some reason.
+class PcycleTimeout(Exception):
+  pass
+
+################################################################################
+
+
+
+################################################################################
+# Creating a new Exception class for kill-worthy value errors will make our
+# functions much simpler.
+class ExitException(Exception):
+  pass
+
+################################################################################
+
+
+
+################################################################################
+# A signal handler that will redirect SIGTERM and SIGINT to PcycleExit.
+# of SIGTERM or SIGINT.
+def PcycleExitHandler(signo, frame):
+  if signo == signal.SIGINT:
+    print_error("Program terminated by Ctrl+C interrupt.")
+  elif signo == signal.SIGTERM:
+    print_error("Program terminated by external kill command.")
+
+  # Head to the exit function.
+  PcycleExit(1)
+
+################################################################################
+
+
+
+################################################################################
+# Our general exit function. Traps signals, pops the cleanup stack, logs out
+# of Telnet sessions and releases our locks.
+def PcycleExit(rc=0):
+
+  # Trap interrupt signals while we clean up.
+  gsig.trap_signal(signal.SIGINT)
+  gsig.trap_signal(signal.SIGTERM)
+
+  # Clear the global cleanup stack (in case we were interrupted while trying
+  # to acquire or release a lock).
+  gexit.pop_cleanup_stack()
+
+  # Log out and release our locks.
+  for ipc_obj in IPC_OBJ_LIST:
+    dprint("Disconneting from IPC " + ipc_obj.ipc_host + ".")
+    ipc_obj.disconnect()
+    dprint("Unlocking IPC " + ipc_obj.ipc_host + ".")
+    ipc_obj.unlock()
+
+  # Throw away trapped signals, since we're exiting anyway.
+  gsig.release_signals(False)
+
+  # Finally, exit with our given return code.
+  sys.exit(rc)
+
+################################################################################
+
+
+
+################################################################################
+# A function that will use mlock to acquire an exclusive file lock.
+def acquire_lock(hostname,down_time):
+  # We now have a Pythom implementation of mlock, which handles error
+  # checking and all sorts of great things.
+
+  # The lock path, in a separate variable for easy changes.
+  LOCK_PATH = "/afs/rch/projects/esw/dvt/.lock_files/"
+
+  lockfile = LOCK_PATH + "pcycle_lock_" + hostname
+  # We want to wait for 450 seconds, and lock for at least down_time +
+  # 60 seconds.
+  wait_time = 450
+  expiration = 120
+  if down_time+60 > 120:
+    expiration = down_time + 60
+
+  dprint("Attempting to acquire exclusive lock on file " + str(lockfile) + ".")
+  qprint_time("Acquiring lock on IPC.")
+
+  # We'll try to get the lock for wait_time seconds, and when we do, we'll hold
+  # onto it for expiration seconds, or until we unlock it.
+  rc, lock_acquired = glock.mlock(lockfile, expiration, "x", wait_time)
+
+  # Now for error checking.
+  if not lock_acquired:
+    dprint("Timed out while attempting to acquire lock.")
+  elif rc != 0:
+    # We don't know what went wrong here, and we need to give the lock back.
+    print_error("Unknown error in mlock. Releasing lock as it is not guaranteed to be stable.")
+    glock.mlock(lockfile, 0, "u", wait_time)
+    lock_acquired = false
+
+  # If we have the lock and there were no problems, then return the name of
+  # the lockfile we used. Otherwise, return None.
+  if lock_acquired:
+    qprint_time("Lock obtained.")
+    return lockfile
+  else:
+    return None   
+
+################################################################################
+
+
+
+################################################################################
+# A function to release the mlock.
+def release_lock(lockfile):
+  if lockfile is None:
+    return 0
+
+  dprint("Releasing exclusive lock.")
+
+  rc, lock_released = glock.mlock(lockfile, 0, "u", 120)
+  if lock_released and rc == 0:
+    qprint_time("Lock released.")
+  else:
+    print_error("Lock may not have been released. It will expire on its own within the next 120 seconds.")
+
+  return 0
+
+################################################################################
+
+
+
+################################################################################
+# A function that will process a colon-delimited list of strings from
+# an option flag.
+def multi_opt_process(opt_string, flag, num_parts = 0):
+  opt_list = []
+
+  # If nothing was provided in this flag, 0 is our value to prevent search
+  # based on that flag.
+  if not opt_string:
+    opt_list = [0] * num_parts
+    return opt_list
+
+  try:
+    opt_list = opt_string.split(":")
+  except AttributeError:
+    print_error("Invalid value passed in " + flag + " flag.")
+    raise ExitException
+
+  if opt_list == []:
+    print_error("Invalid value passed in " + flag + " flag: no data found.")
+    raise ExitException
+
+  # This will never occur in the --ipc_host flag.
+  if num_parts > 0:
+    # If only one argument was provided, we'll duplicate it and apply it to
+    # every IPC.
+    if len(opt_list) == 1:
+      opt_list = [opt_list[0]] * num_parts
+    elif len(opt_list) != num_parts:
+      print_error("Incorrect number of arguments given to the " + flag + " flag. The number of arguments must either be 1 or must match the arguments given to the --ipc_host flag.")
+      raise ExitException
+
+  return opt_list
+    
+################################################################################
+
+
+
+################################################################################
+# A function that will process our critical options and convert them to IPC
+# objects, which we can process more easily.
+def process_option_flags(ipc_hosts, outlet_nums, outlet_names):
+
+  # The first thing we need to do is split everything into lists. We have no
+  # error checking because we've wrapped this entire function in a try/except
+  # block, looking for an ExitException.
+  ipc_hosts = multi_opt_process(ipc_hosts, "--ipc_host")
+  outlet_nums = multi_opt_process(outlet_nums, "--outlet_nums", len(ipc_hosts))
+  outlet_names = multi_opt_process(outlet_names, "--outlet_names", len(ipc_hosts))
+
+  # Next we need to get the full DNS of every IPC host.
+  ipc_hosts = map(gdns.get_mhost_dns, ipc_hosts)
+  if None in ipc_hosts:
+    # We were given an invalid IPC host name.
+    print_error("Invalid IPC host name provided in --ipc_host flag.")
+    raise ExitException
+
+  # Next, we will remove duplicates from the IPC host list, which will affect
+  # all three lists.
+  ipc_host_set = set()
+  ipc_host_list = []
+  outlet_num_list = []
+  outlet_name_list = []
+  for i, host in enumerate(ipc_hosts):
+    if host not in ipc_host_set:
+      ipc_host_set.add(host)
+      ipc_host_list.append(host)
+      outlet_num_list.append(outlet_nums[i])
+      outlet_name_list.append(outlet_names[i])
+
+  # Lastly, we are going to create IPC objects out of our three lists and
+  # return them in their own list.
+  ipc_obj_list = []
+  for i, host in enumerate(ipc_host_list):
+    new_IPC = IPC(host, outlet_num_list[i], outlet_name_list[i])
+    ipc_obj_list.append(new_IPC)
+
+  # Return the list of IPC objects.
+  return ipc_obj_list
+
+################################################################################
+
+
+
+################################################################################
+# A class to hold data for a specific IPC.
+class IPC(gobj.GenPythonObject):
+
+#*******************************************************************************
+# Constructor.
+  def __init__(self, ipc_host, outlet_nums, outlet_names):
+    self.ipc_host = ipc_host
+    self.outlet_nums = outlet_nums
+    self.outlet_names = outlet_names
+    self.connection = None
+    self.ipc_lock = None
+    self.device_list = []
+    self.status_list = []
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# A wrapper that will add a reconnect/retry to whatever function we're
+# wrapping.
+  def retry_wrapper(func):
+    def wrapped_func(self, *args):
+      while True:
+        try:
+          return func(self, *args)
+        except socket.error:
+          rc = self.reconnect()
+          if rc == 1:
+            # We shouldn't be getting this error anymore.
+            print_error('Connection error. Some entity has bypassed the pcycle script/lock system and is directly communicating with IPC ' + str(self.ipc_host) + ', or something else has gone wrong in an unknown way.')
+            raise ExitException
+
+    return wrapped_func
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Connect to this specific IPC.
+  def connect(self):
+    # Connect to the IPC.
+    qprint_time('Connecting to IPC ' + str(self.ipc_host) + '.')
+    self.connection = IPCConnect(self.ipc_host)
+
+    # Attempt to log in.
+    try:
+      LogIn(self.connection)
+    except socket.error:
+      rc = self.reconnect()
+      if rc == 1:
+        # We shouldn't be getting this error anymore.
+        print_error('Connection error. Some entity has bypassed the pcycle script/lock system and is directly communicating with IPC ' + str(self.ipc_host) + ', or something else has gone wrong in an unknown way.')
+        raise ExitException
+
+    return 0
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Disconnect from this specific IPC.
+  def disconnect(self):
+    if not self.connection:
+      return 0
+
+    try:
+      LogOut(self.connection)
+    except socket.error:
+      # This is fine, we suppose?
+      pass
+
+    return 0
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Try to reconnect to this specific IPC. Try for five minutes.
+  def reconnect(self):
+
+    start_time = time.time()
+
+    connected = 0
+    while not connected:
+      current_time = time.time()
+      if current_time - start_time > 300:
+        break
+
+      try:
+        self.connection = IPCConnect(self.ipc_host)
+        LogIn(self.connection)
+        connected = 1
+      except socket.error:
+        pass
+
+    if not connected:
+      return 1
+
+    return 0
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Obtain a lock on this IPC, or wait for the lock to become available.
+  def lock(self, downtime):
+    self.ipc_lock = acquire_lock(self.ipc_host,downtime)
+    if self.ipc_lock is None:
+      print_error('Timed out or other error while attempting to obtain an exclusive lock on ' + str(self.ipc_host) + '. It is possible that the next execution of pcycle may need to wait up to 450 seconds to obtain a lock.')
+      raise ExitException
+
+    return 0
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Remove the lock on this IPC.
+  def unlock(self):
+    if not self.ipc_lock:
+      return 0
+    release_lock(self.ipc_lock)
+
+    return 0
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Obtain all matched outlets for this IPC.
+  @retry_wrapper
+  def get_devices(self):
+
+    self.device_list, self.status_list = GetAllDevices(self.connection, self.outlet_names, self.outlet_nums)
+
+    return 0
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Turn off all applicable outlets for this IPC.
+  @retry_wrapper
+  def power_off(self):
+    powered_off = False
+
+    for dev, stat in zip(self.device_list, self.status_list):
+      if stat == 'ON':
+        powered_off = True
+        if not g.test_mode:
+          TurnOffNum(self.connection, dev[0])
+        if not g.quiet:
+          PrintStatus(self.connection, dev[0])
+
+    return powered_off
+
+#*******************************************************************************
+
+
+
+#*******************************************************************************
+# Turn on all applicable outlets for this IPC.
+  @retry_wrapper
+  def power_on(self, command):
+
+    for dev, stat in zip(self.device_list, self.status_list):
+      if stat == 'OFF' or command == 'REBOOT':
+        if not g.test_mode:
+          TurnOnNum(self.connection, dev[0])
+        if not g.quiet:
+          PrintStatus(self.connection, dev[0])
+
+    return 0
+
+#*******************************************************************************
+
+################################################################################
+
+
+
+################################################################################
+# Connect to the host (and possibly time out).
+def IPCConnect(HOST):
+  # Need to handle timeouts manually, since this script runs on
+  # Python versions older than 2.6.
+  dprint("Connecting to the IPC via Telnet.")
+  def TimeoutHandler(signo, frame):
+    raise PcycleTimeout()
+
+  OriginalHandler = signal.signal(signal.SIGALRM, TimeoutHandler)
+  signal.alarm(60)
+
+  try:
+    tn = telnetlib.Telnet(HOST)
+  except PcycleTimeout:
+    print_error('Connection attempt timed out. Make sure the IPC is on and connected to the network.')
+    raise ExitException
+  except socket.gaierror:
+    print_error('Connection error. Make sure the host exists and has been typed correctly.')
+    raise ExitException
+
+  # We made it, so cancel the timeout.
+  signal.signal(signal.SIGALRM, OriginalHandler)
+  signal.alarm(0)
+  dprint("Connection established.")
+
+  return tn
+
+################################################################################
+
+
+
+################################################################################
+# Log into the tn machine.
+def LogIn(tn):
+  global SelectString
+
+  # Login credentials.
+  user = "Admin"
+  password = "ipc"
+
+  dprint("Logging into the IPC.")
+  VersionStrng = tn.read_until("login:")
+
+  for line in VersionStrng.split("\n"):
+    if re.search('Version', line):
+      for Vars in line.split(" "):
+        if not re.search('Version', Vars):
+          VERSION = Vars
+
+  dprint(VersionStrng)
+  tn.write(user.encode('ascii')+ "\r\n")
+  dprint(tn.read_until("Password:"))
+  tn.write(password.encode('ascii') + "\r\n")
+
+  # Depending on the version the machine is running,
+  # it may display a slightly different string.
+  if '1.0.B' in VERSION:
+    dprint('No changes for 1.0.B\n\n')
+  elif '1.0.C' in VERSION:
+    dprint('No changes for 1.0.C\n\n')
+  elif '1.2.C' in VERSION:
+    dprint('Changes applied for 1.2.C\n\n')
+    SelectString = 'Select Item Number:'
+  dprint("Successfully logged in.")
+
+################################################################################
+
+
+
+################################################################################
+# Log out of the tn machine.
+def LogOut(tn):
+  global SelectString
+
+  if tn is None:
+    return 0
+
+  # This function is prone to randomly hanging, so we will have to
+  # manually time it out after ten seconds.
+  def TimeoutHandler(signo, frame):
+    raise PcycleTimeout()
+
+  dprint("Logging out of the IPC.")
+
+  OriginalHandler = signal.signal(signal.SIGALRM, TimeoutHandler)
+  signal.alarm(10)
+
+  try:
+    # We're going to back out twice, which should get us back to the
+    # main menu from wherever we are.
+    tn.write("b\r\n")
+    tn.read_until(SelectString)
+    tn.write("b\r\n")
+    tn.read_until(SelectString)
+    tn.write("5\r\n")
+    tn.read_until("Logout Goodbye")
+  except PcycleTimeout:
+    print_time() ; print('Error logging out. Connection forcibly closed.')
+  tn.close()
+
+  # We made it, so cancel the timeout.
+  signal.signal(signal.SIGALRM, OriginalHandler)
+  signal.alarm(0)
+  dprint("Logout complete.")
+
+################################################################################
+
+
+
+################################################################################
+# Turn on a specific device that we are calling by outlet number.
+def TurnOnNum( tn , Device):
+  global SelectString
+  global SelectCommand
+  FoundDevice = 0
+
+  dprint("Turning on outlet " + str(Device) + ".")
+  tn.read_until(SelectString)
+  #time.sleep(2)
+  tn.write("4\r\n")  #Main Menu  *4) Outlet Status
+
+  # Search for the outlet number just to make sure it's valid.
+  # Better to be safe than sorry.
+  DevicesString = tn.read_until(SelectString)
+  for line in DevicesString.split("\n"):
+    if line[0] == Device:
+      tn.write(line[0] + "\r\n")  #Outlet Control Sub Menu  SELECT DEVICE.
+      FoundDevice = line[0]
+			
+  if FoundDevice == 0:
+    print_error('Device ' + str(Device) + ' not found!')
+    qprint("Continuing with execution.")
+    # The device was not found, so let's just back out of this
+    # menu gracefully (and cautiously).
+    tn.write("b\r\n") # Go back a menu.
+    #time.sleep(2)
+    tn.read_until(SelectString)
+    tn.write("b\r\n") # Go back a menu.
+    #time.sleep(2)
+    tn.read_until(SelectString)
+    tn.write("b\r\n") # Go back a menu (just to be safe).
+    # And now we'll exit the function.
+    return
+
+  tn.read_until(SelectCommand)
+  #time.sleep(2)
+  tn.write("1\r\n")  #Command Choices    *1) Immediate On
+
+  tn.read_until("Press the <Enter> key to implement or the <b> to cancel the command.")
+  tn.write("\r\n")  #Confirm Action of above.
+  #time.sleep(2)
+  tn.read_until(SelectString)
+  tn.write("b\r\n") #go back a menu.
+  #time.sleep(2)
+  tn.read_until(SelectString)
+  tn.write("b\r\n") #go back a menu. Cautious
+  dprint("Power on initiated for outlet " + str(Device) + ".")
+
+  time.sleep(1)
+
+################################################################################
+
+
+
+################################################################################
+# Turn off a specific device that we are calling by outlet number.
+def TurnOffNum( tn , Device):
+  global SelectString
+  global SelectCommand
+  FoundDevice = 0
+
+  dprint("Turning off outlet " + str(Device) + ".")
+  tn.read_until(SelectString)
+  #time.sleep(2)
+  tn.write("4\r\n")  #Main Menu  *4) Outlet Status
+
+  # Search for the outlet number just to make sure it's valid.
+  # Better to be safe than sorry.
+  DevicesString = tn.read_until(SelectString)
+  for line in DevicesString.split("\n"):
+    if line[0] == Device:
+      tn.write(line[0] + "\r\n")  #Outlet Control Sub Menu  SELECT DEVICE.
+      FoundDevice = line[0]
+			
+  if FoundDevice == 0:
+    print_error('Device ' + str(Device) + ' not found!')
+    qprint("Continuing with execution.")
+    # The device was not found, so let's just back out of this
+    # menu gracefully (and cautiously).
+    tn.write("b\r\n") # Go back a menu.
+    #time.sleep(2)
+    tn.read_until(SelectString)
+    tn.write("b\r\n") # Go back a menu.
+    #time.sleep(2)
+    tn.read_until(SelectString)
+    tn.write("b\r\n") # Go back a menu (just to be safe).
+    # And now we'll exit the function.
+    return
+
+  tn.read_until(SelectCommand)
+  #time.sleep(2)
+  tn.write("2\r\n") #Command Choices    *2) Immediate Off
+
+  tn.read_until("Press the <Enter> key to implement or the <b> to cancel the command.")
+  tn.write("\r\n")  #Confirm Action of above.
+  #time.sleep(2)
+  tn.read_until(SelectString)
+  tn.write("b\r\n") #go back a menu.
+  #time.sleep(2)
+  tn.read_until(SelectString)
+  tn.write("b\r\n") #go back a menu. Cautious
+  dprint("Power off initiated for outlet " + str(Device) + ".")
+
+  time.sleep(1)
+
+################################################################################
+
+
+
+################################################################################
+# Get the outlet number and status of every device matching a given
+# string. Useful if we need to cycle multiple power supplies.
+# Returns a list of outlet numbers and a list of their statuses.
+# Outlet numbers can also be provided directly.
+def GetAllDevices(tn, Device, Outlets):
+  global SelectString
+  DeviceList = []
+  StatusList = []
+  AllDevices = False
+
+  dprint("Searching for outlets based on regex \"" + str(Device) + "\" and outlet string \"" + str(Outlets) + "\".")
+
+  # Are we just fetching all outlets?
+  if isinstance(Outlets, basestring) and Outlets.lower() in ('a', 'all'):
+    AllDevices = True
+
+  GarbageString = tn.read_until(SelectString)
+  tn.write("4\r\n")  # Main Menu  *4) Select Outlet Control
+
+  # Look through the list of devices for anything matching our
+  # given string or outlet number. If found, make note of the
+  # outlet number and the status.
+  DevicesString = tn.read_until(SelectString)   #DISPLAY the Status screen
+  for line in DevicesString.split("\n"):
+    DeviceFound = False
+    if AllDevices:  #We're just getting every single outlet.
+      DeviceFound = True
+    elif Device != 0 and re.search(Device, line):  # Look for the Device in the line string
+      DeviceFound = True
+    elif Outlets != 0 and re.search(line[0], Outlets):  # Look for this line's outlet number
+      DeviceFound = True
+    # If either method worked, add this machine. But first, check
+    # to make sure we've actually found a machine. Terrible regex
+    # conditions may have an effect.
+    if DeviceFound:
+      if re.search(line[0],'12345678'):
+        DeviceList += [line[0]]
+        dprint("Outlet " + line[0] + " matched.")
+        for Vars in line.split(" "):
+          if re.search("Off", Vars) or re.search("OFF", Vars):
+            StatusList += ['OFF']
+          elif re.search("On", Vars) or re.search("ON", Vars):
+            StatusList += ['ON']
+  tn.write("b\r\n") #go back a menu.
+  #time.sleep(2)
+  tn.read_until(SelectString)
+  tn.write("b\r\n") #go back a menu.
+  #time.sleep(2)
+  tn.read_until(SelectString)
+  tn.write("b\r\n") #go back an extra menu. Just being cautious.
+
+  # Return the two lists we made.
+  return (DeviceList, StatusList)
+
+################################################################################
+
+
+
+################################################################################
+# Print out whether a specific device is off or on.
+# Returns OFF or ON.
+def PrintStatus( tn , Device):
+  global SelectString
+  RC = 'NONE'
+
+  if Device == 0:
+    # If there's no device specified, print out the status of all devices.
+    dprint('####################################################')
+    dprint('####################################################')
+    tn.read_until(SelectString)
+    tn.write("4\r\n")  #Main Menu  *4) Select Outlet Control
+    #time.sleep(2)
+    dprint(tn.read_until(SelectString))   #DISPLAY the Status screen.
+    tn.write("b\r\n") #go back a menu.
+    #time.sleep(2)
+    tn.read_until(SelectString)
+    tn.write("b\r\n") #go back a menu.
+    dprint('####################################################')
+    dprint('####################################################')
+  else:
+    GarbageString = tn.read_until(SelectString)
+    tn.write("4\r\n")  #Main Menu  *4) Select Outlet Control
+    #time.sleep(2)
+		
+    # Look through the list of devices for our device, and print out
+    # whether it's off or on in an alarmed fashion.
+    DevicesString = tn.read_until(SelectString)   #DISPLAY the Status screen.
+    for line in DevicesString.split("\n"):
+      if Device == line[0]:
+        for Vars in line.split(" "):
+          if re.search("Off", Vars) or re.search("OFF", Vars):
+            qprint("OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF")
+            qprint("OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF")
+            qprint(line)
+            qprint("OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF")
+            qprint("OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF OFF\n\n")
+            RC = 'OFF'
+          elif re.search("On", Vars) or re.search("ON", Vars):
+            qprint("ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON")
+            qprint("ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON")
+            qprint(line)
+            qprint("ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON")
+            qprint("ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON ON\n\n")
+            RC = 'ON'
+    tn.write("b\r\n") #go back a menu.
+    #time.sleep(2)
+    tn.read_until(SelectString)
+    tn.write("b\r\n") #go back a menu.
+  return RC
+
+################################################################################
+
+
+
+################################################################################
+# The function to process the command arguments and handle related errors.
+def get_options(opt_list):
+
+  # Option variables.
+  HOST = 0
+  SYSTEM = 0
+  OUTLETS = 0
+  DOWNTIME = 30
+  POWEROPTION = "REBOOT"
+
+  try:
+    opts, args = getopt.getopt(opt_list,'', ['ipc_host=', 'outlet_nums=', 'outlet_names=', 'ipc_cmd=', 'down_time=', 'test_mode=', 'quiet=', 'debug=', 'help'])
+  except getopt.GetoptError:
+    print_error('Invalid option used. Try \"pcycle --help\" for usage information.')
+    print
+    sys.exit(1)
+
+  for opt, arg in opts:
+    if opt in ('-h', '--help'):
+      print
+      print "Usage: pcycle [OPTIONS]"
+      print
+      print "pcycle will run commands on an \"Intelligent Power Controller\" (IPC, also known as a \"Pulizzi\"). An IPC is a device which can drop or apply power to any of its various outlets, and can be remotely given commands. This device is useful for remotely cycling power on whatever device is plugged into one of the IPC outlets."
+      print
+      print "Options:"
+      print "  --ipc_host=<host>                A colon-delimited list of the host names (DNS name or IP address) of the IPCs you wish to communicate with. Example values are \"ipc03\" or \"ipc03:ipc02\". The default value is \"\"."
+      print
+      print "  Note: the user must specify at least one of the following two parameters. They may also specify both. In each case, if only one parameter is specified (e.g. \"357\"), that parameter will be applied to all IPCs. If multiple colon-separated parameters are specified (e.g. \"35:57\"), each group will be assigned to the corresponding IPC from --ipc_host."
+      print "  --outlet_nums=<list>             A colon-delimited list of groups of outlet numbers to be acted upon by pcycle. Specifying \"--outlet_nums=357\" would indicate outlets 3, 5 and 7. Additionally, the user may specify \"a\" or \"all\" to indicate all outlets. The default value is \"\"."
+      print "  --outlet_names=<regex>           A colon-delimited list of regular expressions that will be used to select outlets based on their outlet names. The default value is \"\"."
+      print
+      print "  --ipc_cmd=<cmd>                  The IPC command to be run. Possible values: \"on\", \"off\", \"reboot\", \"status\". The default value is \"reboot\"."
+      print "  --down_time=<int>                The amount of time that the power should remain off for a \"reboot\" command. The default value is 30."
+      print "  --test_mode=<y/n>                If this parameter is set to \"y\", pcycle will go through all the motions but not actually do anything substantial. This is mainly to be used by the developer of pcycle. The default value is \"n\"."
+      print "  --quiet=<y/n>                    If this parameter is set to \"y\", pcycle will print only essential information, i.e. it will not print out parameters, print commands, print the total run time, etc. The default value is \"n\"."
+      print "  --debug=<y/n>                    If this parameter is set to \"y\", pcycle will print out additional information intended for debugging. This is mainly to be used by the developer of pcycle. The default value is \"n\"."
+      print
+      print "Example usage:"
+      print "  pcycle --ipc_host=ipc02:ipc03 --outlet_nums=34:78 --outlet_names=tul"
+      print "This command will look on IPCs ipc02 and ipc03 for matching outlets. On ipc02, it will power cycle outlets 3 and 4, while on ipc03, it will power cycle outlets 7 and 8. Additionally, both IPCs will power cycle any outlets with \"tul\" in the machine name."
+      print
+      sys.exit(0)
+    elif opt == '--ipc_host':
+      HOST = arg
+    elif opt == '--outlet_names':
+      SYSTEM = arg
+    elif opt == '--outlet_nums':
+      OUTLETS = arg
+    elif opt == '--down_time':
+      DOWNTIME = int(arg)
+    elif opt == '--ipc_cmd':
+      if arg.upper() in ('ON', 'OFF', 'REBOOT', 'STATUS'):
+        POWEROPTION = arg.upper()
+      else:
+        print_error('Invalid ipc_cmd option.')
+        sys.exit(1)
+    elif opt == '--test_mode':
+      g.test_mode = gopt.bool_convert(arg)
+    elif opt == '--quiet':
+      g.quiet = gopt.bool_convert(arg)
+    elif opt == '--debug':
+      g.debug = gopt.bool_convert(arg)
+
+  return (HOST, SYSTEM, OUTLETS, DOWNTIME, POWEROPTION)
+
+################################################################################
+
+
+
+################################################################################
+# This is where the code execution begins.
+# The old version of this script used direct input to specify a
+# machine, but now command line arguments are used.
+def main():
+
+  global IPC_OBJ_LIST
+
+  # We'll start by redirecting a couple of signals, in order to exit
+  # a bit more gracefully, without leaving locks or telnets behind.
+  signal.signal(signal.SIGINT, PcycleExitHandler)
+  signal.signal(signal.SIGTERM, PcycleExitHandler)
+
+  # Get command line arguments and handle any related errors.
+  HOST, SYSTEM, OUTLETS, DOWNTIME, POWEROPTION = get_options(sys.argv[1:])
+
+  # We need to acquire a series of system parameters before we can use mlock.
+  g.get_system_parms()
+
+  # Some error checking.
+  if HOST == 0:
+    print_error('No ipc_host specified.')
+    sys.exit(1)
+	
+  if SYSTEM == 0 and OUTLETS == 0:
+    print_error('No outlets specified.')
+    sys.exit(1)
+
+  # Clarify what actions we are taking.
+  TurnOffMachines = POWEROPTION == 'OFF' or POWEROPTION == 'REBOOT'
+  TurnOnMachines = POWEROPTION == 'ON' or POWEROPTION == 'REBOOT'
+
+  # We start by creating IPC objects out of our flags.
+  try:
+    IPC_OBJ_LIST = process_option_flags(HOST, OUTLETS, SYSTEM)
+  except ExitException:
+    sys.exit(1)
+
+  if IPC_OBJ_LIST == []:
+    print_error("Error: could not process option data.")
+    sys.exit(1)
+
+  # Debug statements.
+  if g.debug:
+    print('Server = ' + str(HOST) + ', device = ' + str(SYSTEM) + ', outlets = ' + str(OUTLETS) + ', time = ' + str(DOWNTIME) + ', power = ' + str(POWEROPTION) + ', test_mode = ' + str(g.test_mode) + ', quiet = ' + str(g.quiet) + ', debug = ' + str(g.debug))
+    for ipc_obj in IPC_OBJ_LIST:
+      print ipc_obj
+
+  # Further debugging.
+
+  for ipc_obj in IPC_OBJ_LIST:
+    # We'll do a quick test to make sure we've been given a valid regex.
+    # If it throws an error, exit gracefully.
+    if ipc_obj.outlet_names:
+      try:
+        re.search(ipc_obj.outlet_names,'regex test')
+      except sre_constants.error:
+        print_error('Invalid regular expression provided in --outlet_names option.')
+        sys.exit(1)
+
+    # Do a quick test to determine that valid outlet numbers have
+    # been provided. If not, exit gracefully.
+    if ipc_obj.outlet_nums:
+      try:
+        for i in ipc_obj.outlet_nums:
+          if int(i) < 1 or int(i) > 8:
+            print_error('Outlet numbers must be between 1 and 8.')
+            sys.exit(1)
+      except ValueError:
+        # Check for "all".
+        if ipc_obj.outlet_nums.lower() not in ('a', 'all'): 
+          print_error('Invalid outlet numbers provided.')
+          sys.exit(1)
+
+  # Before we connect to the IPC, we need to acquire a semaphore lock to
+  # make sure we are the only ones trying to connect. We'll do this once
+  # for every IPC.
+  try:
+    for ipc_obj in IPC_OBJ_LIST:
+      ipc_obj.lock(DOWNTIME)
+  except ExitException:
+    PcycleExit(3)
+
+  # Now we need to establish a connection to every IPC. We'll try this
+  # up to five times.
+  num_attempts = 0
+  while True:
+    try:
+      for ipc_obj in IPC_OBJ_LIST:
+        ipc_obj.connect()
+      break
+    except ExitException:
+      num_attempts += 1
+      if num_attempts >= 5:
+        print_error('Maximum number of retries reached. Exiting script.')
+        PcycleExit(2)
+
+  # Get a list of all devices matching the given device string, as well
+  # as another list of all their statuses. Specific outlet numbers may
+  # also be provided.
+  machines_matched = False
+  try:
+    for ipc_obj in IPC_OBJ_LIST:
+      ipc_obj.get_devices()
+
+      # Did we match any outlets on this IPC?
+      if ipc_obj.device_list == []:
+        qprint('No machines matched on IPC ' + str(ipc_obj.ipc_host) + '.')
+      else:
+        machines_matched = True
+  except ExitException:
+    PcycleExit(1)
+
+  # If we didn't match any machines, just quit.
+  if not machines_matched:
+    print_error('No machines matched on any IPC.')
+    PcycleExit(1)
+
+  for ipc_obj in IPC_OBJ_LIST:
+    dprint(str(ipc_obj.device_list))
+    if ipc_obj.device_list != []:
+      qprint('Outlets matched on ' + ipc_obj.ipc_host + ':')
+      for dev, stat in zip(ipc_obj.device_list, ipc_obj.status_list):
+        qprint('    ' + str(dev) + ': ' + str(stat))
+  qprint('\n')
+
+  # Right now, ipc_obj.device_list contains the outlet numbers of each device.
+
+  # If all we're doing is getting the status of these outlets, we'll do that
+  # here in this loop.
+  if POWEROPTION == "STATUS":
+    qprint_time("Printing machine status.")
+    try:
+      for ipc_obj in IPC_OBJ_LIST:
+        for dev in ipc_obj.device_list:
+          if not g.quiet:
+            PrintStatus(ipc_obj.connection, dev[0])
+    except ExitException:
+      PcycleExit(2)
+
+  # Turn off all devices that need turning off, if requested.
+  NeedToWait = False
+  if TurnOffMachines:
+    qprint_time("Powering off machines.")
+    try:
+      for ipc_obj in IPC_OBJ_LIST:
+        powered_off = ipc_obj.power_off()
+        if powered_off:
+          NeedToWait = True
+    except ExitException:
+      PcycleExit(2)
+
+  # Wait, if necessary.
+  if NeedToWait and TurnOnMachines:
+    qprint_time('Waiting ' + str(DOWNTIME) + ' seconds while power to devices is cycled.\n')
+    for i in range(0,DOWNTIME):
+      sys.stdout.write("#")
+      sys.stdout.flush()
+      time.sleep(1)
+    print
+
+  # Turn all devices back on, if requested.
+  if TurnOnMachines:
+    qprint_time("Powering on machines.")
+    try:
+      for ipc_obj in IPC_OBJ_LIST:
+        ipc_obj.power_on(POWEROPTION)
+    except ExitException:
+      PcycleExit(2)
+
+  # Log out.
+  try:
+    for ipc_obj in IPC_OBJ_LIST:
+      ipc_obj.disconnect()
+  except ExitException:
+    PcycleExit(2)
+
+  # Release the locks.
+  try:
+    for ipc_obj in IPC_OBJ_LIST:
+      ipc_obj.unlock()
+  except ExitException:
+    PcycleExit(3)
+
+  qprint_time('Power cycling complete.')
+  sys.exit(0)
+# End of main().
+
+if __name__ == "__main__":
+  main()

@@ -1,0 +1,484 @@
+#!/bin/bash
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/gen_bash_report_funcs 1.13 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2011,2013 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+# 2011/10/08 This file may be sourced in order to define basic report functions like print_report_header, print_report_line etc.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_valid_funcs
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+# To use the following report header functions, your field variables must be var_rec arrays as described here:
+# A var_rec array is defined as an array with these elements:
+# Element 1: The value          The actual data to be printed on each line of a report.
+# Element 2: The data type      The type of data...i = integer, f = float, s = string (default).
+# Element 3: Field length       The length of the field (defaults to 4 or the length of the field name, whichever is greater).
+
+# So, here is an example:
+# Declaration
+# Total=(0 i 10)
+# After this, simply use the variable as you would a non-array:
+# Total=3
+# Finally...
+# print_report_header Total
+# print_report_line Total
+
+# The caller can set _indent_report_ to an integer of 0 or greater to control to cause the report to be indented by that many characters.
+
+# The caller can set _no_underline_ to 1 to cause print_report_header to not print the underlining below the field names.
+# The caller can set _no_cr_lf_cleanup_ to keep print_report_line from removing cr/lfs.  This is designed to be used as a performance boost for callers who KNOW they don't have cr/lfs in their variable values.
+
+
+################################################################################
+function print_report_header {
+  # This function will print a report header containing all of the variable names passed as parameters.  It will then print another line of underlines for each variable name.
+
+  local var_name
+  local var_value
+  local var_type
+  local var_len
+  #local OLD_IFS
+  local cmd_buf
+  #local var_rec
+
+  if [ -z "${_indent_report_}" ] ; then
+    _indent_report_=0
+  else
+    # valid_integer _indent_report_ "0.." || return 1
+    # valid_integer is nice but I need better performance, so...
+    # Using builtin printf to validate the integer in _indent_report_.
+    printf "%i\n" "${_indent_report_}" >/dev/null 2>&1
+    if [ "${?}" != "0" ] || (( _indent_report_ < 0 )) ; then
+      { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Global variable \"_indent_report_\" has an invalid value of \"${_indent_report_}\".  It must contain an integer value which is 0 or greater." ; print_call_stack; } >&2
+      return 1
+    fi
+  fi
+
+  (( _indent_report_ > 0 )) && printf "%${_indent_report_:-0}s" ""
+
+  for var_name in "$@" ; do
+    # This new way is much faster.
+    var_value=${!var_name}
+    # var_type isn't used in this function so I've commented it out.
+    # eval "var_type=\${${var_name}[1]}"
+    eval "var_len=\${${var_name}[2]}"
+    # Set default length.
+    [ -z "${var_len}" ] && var_len=4
+    # If the specified length is less than the field width, adjust it.
+    [ "${#var_name}" -gt "${var_len}" ] && var_len="${#var_name}"
+    printf "%-${var_len}s " ${var_name}
+    continue
+
+
+# Old way in the remainder of this loop.  This code is no longer executed.
+    # Note: Saving and restoring caller's value for $IFS.  Manipulating this variable allows us to preserve spaces embedded in array elements.
+    OLD_IFS=$IFS
+    local IFS=''
+    # Put var name + subscript into array_string.
+    local array_string="${var_name}[@]"
+    # Make a local copy of the array passed to this function as parameter n.
+    # local var_rec=("${!array_string}")
+    # This way works in AIX as well.
+    # Perf note: .063 seconds.
+    cmd_buf="var_rec=(\"\${${array_string}}\")"
+    #issuing
+    eval $cmd_buf
+    IFS=$OLD_IFS
+
+    var_value=${var_rec[0]}
+    var_type=${var_rec[1]:-"s"}
+    #var_len=$(max_i ${#var_name} ${var_rec[2]:-4})
+    if [ "${#var_name}" -gt "${var_rec[2]:-4}" ] ; then
+      var_len="${#var_name}"
+    else
+      var_len="${var_rec[2]:-4}"
+    fi
+    printf "%-${var_len}s " ${var_name}
+  done
+
+  echo
+
+  (( _no_underline_ )) && return 0
+
+  printf "%${_indent_report_:-0}s" ""
+
+  for var_name in "$@" ; do
+    # This new way is much faster.
+    var_value=${!var_name}
+    # var_type isn't used in this function so I've commented it out.
+    # eval "var_type=\${${var_name}[1]}"
+    eval "var_len=\${${var_name}[2]}"
+    # Set default length.
+    [ -z "${var_len}" ] && var_len=4
+    # If the specified length is less than the field width, adjust it.
+    [ "${#var_name}" -gt "${var_len}" ] && var_len="${#var_name}"
+
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      local ix
+      local buffer
+      buffer=""
+      for (( ix = 0; ix < $var_len ; ix++ )) ; do
+        # echo -n "-"
+        buffer="${buffer}-"
+      done
+
+      # echo -n " "
+      buffer="${buffer} "
+      echo -n "${buffer}"
+    else
+      eval printf %.0s- {1..${var_len}}
+      printf ' '
+    fi
+    continue
+
+
+# Old ways...
+    local ix
+    local buffer
+    #buffer=""
+    for (( ix = 0; ix < $var_len ; ix++ )) ; do
+      # echo -n "-"
+      buffer="${buffer}-"
+    done
+
+    # echo -n " "
+    buffer="${buffer} "
+#    echo -n "${buffer} "
+    continue
+
+
+# Old way in the remainder of this loop.  This code is no longer executed.
+
+    # Note: Saving and restoring caller's value for $IFS.  Manipulating this variable allows us to preserve spaces embedded in array elements.
+    OLD_IFS=$IFS
+    IFS=''
+    # Put var name + subscript into array_string.
+    local array_string="${var_name}[@]"
+    # Make a local copy of the array passed to this function as parameter n.
+    # local var_rec=("${!array_string}")
+    # This way works in AIX as well.
+    cmd_buf="var_rec=(\"\${${array_string}}\")"
+    #issuing
+    eval $cmd_buf
+    IFS=$OLD_IFS
+
+    var_value=${var_rec[0]}
+    var_type=${var_rec[1]:-"s"}
+    #var_len=$(max_i ${#var_name} ${var_rec[2]:-4})
+    if [ "${#var_name}" -gt "${var_rec[2]:-4}" ] ; then
+      var_len="${#var_name}"
+    else
+      var_len="${var_rec[2]:-4}"
+    fi
+
+    local ix
+    for (( ix = 0; ix < $var_len ; ix++ )) ; do
+      echo -n "-"
+    done
+
+    echo -n " "
+  done
+
+#  echo "${buffer}"
+  echo
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_report_line {
+  # This function will print one row of data containing all of the values contained in the variable names passed to this function.
+
+  local var_name
+  local var_value
+  local var_type
+  local var_len
+  #local OLD_IFS
+  local cmd_buf
+
+  if [ -z "${_indent_report_}" ] ; then
+    _indent_report_=0
+  else
+    # valid_integer _indent_report_ "0.." || return 1
+    # valid_integer is nice but I need better performance, so...
+    # Using builtin printf to validate the integer in _indent_report_.
+    printf "%i\n" "${_indent_report_}" >/dev/null 2>&1
+    if [ "${?}" != "0" ] || (( _indent_report_ < 0 )) ; then
+      { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Global variable \"_indent_report_\" has an invalid value of \"${_indent_report_}\".  It must contain an integer value which is 0 or greater." ; print_call_stack; } >&2
+      return 1
+    fi
+  fi
+
+  (( _indent_report_ > 0 )) && printf "%${_indent_report_:-0}s" ""
+
+  local format_string
+  local var_string
+  for var_name in "$@" ; do
+    # This new way is much faster.
+    var_value=${!var_name}
+    # (( ! _no_cr_lf_cleanup_ )) && var_value=$(echo "${var_value}" | sed -re 's/[\r\n]*$//g')
+    # This way is much faster.
+    (( ! _no_cr_lf_cleanup_ )) && { var_value=${var_value//$'\n'/}; var_value=${var_value//$'\r'/} ; }
+    eval "var_type=\${${var_name}[1]}"
+    [ -z "${var_type}" ] && var_type=s
+    eval "var_len=\${${var_name}[2]}"
+    # Set default length.
+    [ -z "${var_len}" ] && var_len=4
+    # If the specified length is less than the field width, adjust it.
+    [ "${#var_name}" -gt "${var_len}" ] && var_len="${#var_name}"
+
+    #echo "var_value: $var_value" ; echo "var_type: $var_type" ; echo "var_len: $var_len"
+    if [ $var_type == "i" ] ; then
+      cmd_buf="printf \"%${var_len}i \" \"${var_value}\""
+      if ! eval ${cmd_buf} >/dev/null 2>&1 ; then
+        { echo ; print_error "Function ${FUNCNAME}, line ${LINENO}: While attempting to generate a report line, encountered an invalid integer value of \"${var_value}\" in caller's data." ; echo ; } >&2
+        print_call_stack >&2
+        return 1
+      fi
+      eval ${cmd_buf}
+      #printf "%${var_len}i " "${var_value}"
+    elif [ $var_type == "f" -a ! -z "${var_value}" ] ; then
+      # A certain portion of the field length will be taken up by the decimal point and the numbers to the right of the decimal point.
+      printf "%${var_len}.${scale:=4}f " "${var_value}"
+    else
+      # Note that values will be truncated to fit in the field.
+      #printf "%-${var_len}.${var_len}s " "${var_value}"
+      cmd_buf="printf \"%-${var_len}.${var_len}s \" \"\${var_value}\""
+      [ ! -z "${format_string}" ] && delim=" "
+      #issuing >&2
+      eval $cmd_buf
+    fi
+    continue
+
+
+
+# Old way in the remainder of this loop.  This code is no longer executed.
+
+    # Note: Saving and restoring caller's value for $IFS.  Manipulating this variable allows us to preserve spaces embedded in array elements.
+    OLD_IFS=$IFS
+    local IFS=''
+
+    # Put var name + subscript into array_string.
+    local array_string="${var_name}[@]"
+    # Make a local copy of the array passed to this function as parameter n.
+    #local var_rec=("${!array_string}")
+    # This way works in AIX as well.
+    local var_rec
+    cmd_buf="var_rec=(\"\${${array_string}}\")"
+    #issuing
+    eval $cmd_buf
+    IFS=$OLD_IFS
+
+    var_value=${var_rec[0]}
+    # Remove trailing cr/lf - These cause problems in a field.
+
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      # I haven't tested this on AIX to see if sed w/o extended regex will remove cr/lf.
+      (( ! _no_cr_lf_cleanup_ )) && var_value=$(echo "${var_value}" | sed -e 's/[\r\n]*$//g')
+    else
+      (( ! _no_cr_lf_cleanup_ )) && var_value=$(echo "${var_value}" | sed -re 's/[\r\n]*$//g')
+    fi
+    var_type=${var_rec[1]:-"s"}
+
+    # 2011/12/06 To improve performance, I'm figuring out the max inline.
+    #var_len=$(max_i ${#var_name} ${var_rec[2]:-4})
+
+#    if [ "${#var_name}" -gt "${var_rec[2]:-4}" ] ; then
+#      var_len="${#var_name}"
+#    else
+#      var_len="${var_rec[2]:-4}"
+#    fi
+
+    #echo "var_value: $var_value" ; echo "var_type: $var_type" ; echo "var_len: $var_len"
+    if [ $var_type == "i" ] ; then
+      cmd_buf="printf \"%${var_len}i \" \"${var_value}\""
+      if ! eval ${cmd_buf} >/dev/null 2>&1 ; then
+        { echo ; print_error "Function ${FUNCNAME}, line ${LINENO}: While attempting to generate a report line, encountered an invalid integer value of \"${var_value}\" in caller's data." ; echo ; } >&2
+        print_call_stack >&2
+        return 1
+      fi
+      eval ${cmd_buf}
+      #printf "%${var_len}i " "${var_value}"
+    elif [ $var_type == "f" -a ! -z "${var_value}" ] ; then
+      # A certain portion of the field length will be taken up by the decimal point and the numbers to the right of the decimal point.
+      printf "%${var_len}.${scale:=4}f " "${var_value}"
+    else
+      # Note that values will be truncated to fit in the field.
+      #printf "%-${var_len}.${var_len}s " "${var_value}"
+      cmd_buf="printf \"%-${var_len}.${var_len}s \" \"\${var_value}\""
+      #issuing >&2
+      eval $cmd_buf
+    fi
+  done
+
+  echo
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function report_pgm_prereq_help {
+
+
+  printf "${PGM_NAME} will only work correctly on files that have a report header with the following format:\n"
+  printf "\n"
+  printf "Field_name_1      Field_name_2\n"
+  printf -- "----------------- -----------------\n"
+  printf "\n"
+  printf "In other words, any fields of interest must be found on line 1 of the file.  Line 2 must have the dashed lines which indicate the width of the field.\n"
+
+}
+################################################################################
+
+
+
+################################################################################
+function process_report_header {
+  file_path_var="${1}" ; shift || :
+  field_list_var="${1}" ; shift || :
+
+  # This function will read the header from a report file and set global variables accordingly.  This can also serve as a validation of a report file.
+  # If field_list_var is provided, it will have the field names assigned to it.
+
+  valid_file_path ${file_path_var} || return 1
+
+  local cmd_buf
+  local _loc_field_list_
+  local _loc_dash_line_
+  local _loc_data_line_
+
+  {
+    read _loc_field_list_
+    read _loc_dash_line_
+    read _loc_data_line_
+  } < ${!file_path_var}
+
+  # Create local field_name array.  Each element contains one field name.
+  cmd_buf="local field_name=(${_loc_field_list_})"
+  #issuing
+  eval ${cmd_buf}
+
+  if [ ! -z "${field_list_var}" ] ; then
+    cmd_buf="${field_list_var}=\$(echo \${_loc_field_list_})"
+    #issuing
+    eval ${cmd_buf}
+  fi
+
+  # Create a local field_dash array.  Each element contains the dash string associated with the field name.
+  cmd_buf="local field_dash=(${_loc_dash_line_})"
+  #issuing
+  eval ${cmd_buf}
+
+  # Create a local field_length array.  The value of each element will be determined based on the length of the corresponding field_dash element.
+  local field_length=()
+  # Create a local field_type array.  If the corresponding value in the first line of data is a valid integer, this will be set to "i".  If instead it is a valid floating point, it will be set to "f".  Otherwise, it will be set to "s".
+  local field_type=()
+
+  local ix
+  local data_line_pos=0
+  for ((ix=0; ix < ${#field_name[@]}; ix++)) ; do
+    field_length[${ix}]=${#field_dash[${ix}]}
+    if printf "%i" ${_loc_data_line_:${data_line_pos}:field_length[${ix}]} >/dev/null 2>&1 ; then
+      field_type[${ix}]="i"
+    elif printf "%1.1f" ${_loc_data_line_:${data_line_pos}:field_length[${ix}]} >/dev/null 2>&1 ; then
+      field_type[${ix}]="f"
+    else
+      field_type[${ix}]="s"
+    fi
+    #echo "field_length: ${field_length[${ix}]}"
+    #echo "data: ${_loc_data_line_:${data_line_pos}:field_length[${ix}]}<eod>"
+    #echo "field_type: ${field_type[${ix}]}"
+    cmd_buf="${field_name[${ix}]}=(\"${_loc_data_line_:${data_line_pos}:field_length[${ix}]}\" \"${field_type[${ix}]}\" \"${field_length[${ix}]}\")"
+    #issuing
+    # Perf is better here with cmd_buf quoted.
+    eval "${cmd_buf}"
+    let data_line_pos+=field_length[${ix}]+1
+  done
+
+  # As a debug test, you should be able to print the report header and one line using the newly created global vars.
+  #print_report_header ${_loc_field_list_}
+  #print_report_line ${_loc_field_list_}
+
+}
+################################################################################
+
+
+
+################################################################################
+function cut_report_func {
+  file_list="${1}" ; shift || :
+  cut_field_list="${1}" ; shift || :
+
+  # This function will do a "cut" on the file_list.  The advantage over plain cut is that this function can understand report field names.  The file must be a "report" file.
+
+  local cmd_buf
+
+  local file_path=${file_list%% *}
+  process_report_header file_path field_list || return 1
+
+  local field_name
+  local key
+  local start_key
+  local start_pos
+  local end_key
+  local end_pos
+  local cut_parm
+
+  for field_name in $cut_field_list ; do
+    # Getting the column position number for the field_name field by examining the first file in the file_list.  The extra work is necessary to be able to show field_name = "" (i.e. unknown) in our output.
+    # First use the get_key program which returns a key field suitable for the "sort" command.
+    key=$(get_key ${field_name} ${file_list%% *})
+    # From the key, obtain the start_key.
+    start_key=${key%,*}
+    # From the start_key obtain the column position number.
+    start_pos=${start_key#*.}
+
+
+    # From the key, obtain the end_key.
+    end_key=${key#*,}
+    # From the end_key obtain the column position number.
+    end_pos=${end_key#*.}
+
+    #print_var_list "start_pos end_pos"
+
+    add_list_element "${start_pos}-${end_pos}" cut_parm back ","
+
+  done
+
+  cmd_buf="cut -c${cut_parm} \${file_list}"
+  #issuing
+  eval ${cmd_buf}
+
+}
+################################################################################

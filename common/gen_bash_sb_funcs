@@ -1,0 +1,324 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define sandbox functions like valid_sb, sb_release, etc.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_valid_funcs
+# gen_bash_list_funcs
+
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+
+################################################################################
+function valid_workon {
+
+  # This function will verify that you are worked on to a sandbox.
+
+  if [ ! -n "${sb}" -o ! -n "${SANDBOX}" ] ; then
+    { print_error ; echo "You are not worked on to a sandbox." ; } | process_error_message
+    return 1
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function valid_sb {
+  local sb="${1}"
+  local mode="${2:-ppc}"
+
+  # This function will return 0 if we can workon to ${sb} and non-zero otherwise.  Any failure message will go to stderr, as usual.
+
+  valid_value sb "" || return 1
+
+  valid_value mode "" || return 1
+
+  workon ${sb} -m ${mode} -c 'echo test' -quiet > /dev/null || return 1
+
+}
+################################################################################
+
+
+
+################################################################################
+function sb_release {
+  local sb="${1}"
+
+  # This function will print the backing release of ${sb} to stdout.
+  valid_sb ${sb} || return 1
+
+  workon -sb ${sb} -m ppc -c 'echo $bb' -quiet | sed -re "s#(.*/)([^/]*)/(Builds|Current).*#\2#g"
+
+}
+################################################################################
+
+
+
+################################################################################
+function sb_driver {
+  local sb="${1}"
+
+  # This function will print the backing driver of ${sb} to stdout.
+
+  valid_sb ${sb} || return 1
+
+  workon -sb ${sb} -m ppc -c 'echo $bb' -quiet | sed -re "s#(.*)(Builds|Current)/([^/]*).*#\3#g"
+
+}
+################################################################################
+
+
+
+################################################################################
+function sb_to_var_name {
+  local sb="${1}" ; shift 1 || :
+  local sb_var_name="${1}" ; shift 1 || :
+
+  # This function will convert the sandbox name to a legal bash environment variable name.  This function is needed because sandbox names can contain some characters which are not legal in variable names.  Currently, we're converting...
+  # From        To
+  # ----------- -----------
+  # "."         _dot_
+  # "-"         _dash_
+  # ":"         _colon_
+  # " "         _
+  #
+  # Note: This function can be used in a more general way, i.e. it needn't only be used for sandbox names.
+
+  # The returned value will also have an underscore appended to the front and the end.  The first underscore serves 2 purposes: 1) It will prevent naming collisions (this actually happened during initial testing of this function - the calling program used "master_sb" as the variable name which had a value of "master"). 2) It allows the user's sandbox name to begin with a number.
+
+  local _loc_sb_var_name_="_${sb}_"
+
+  _loc_sb_var_name_="${_loc_sb_var_name_//\./_dot_}"
+  _loc_sb_var_name_="${_loc_sb_var_name_//\-/_dash_}"
+  _loc_sb_var_name_="${_loc_sb_var_name_//:/_colon_}"
+  _loc_sb_var_name_="${_loc_sb_var_name_// /_}"
+  _loc_sb_var_name_="${_loc_sb_var_name_//\//_sl_}"
+  _loc_sb_var_name_="${_loc_sb_var_name_//,/_comma_}"
+
+  if [ ! -z "${sb_var_name}" ] ; then
+    eval ${sb_var_name}=\"${_loc_sb_var_name_}\"
+  else
+    echo "${_loc_sb_var_name_}"
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function get_sb_vars {
+  local sb="${1}"
+  local sb_var_prefix_var_name="${2:-sb_var_prefix}"
+  local extra_var_list="${3:-release:driver:bb_cell:base_cell}"
+  local quiet="${4:-1}"
+
+  # This function will set numerous global environment variables having to do with the sandbox.  The advantage of using this function is that it only calls workon once which is more efficient than getting these values one at a time via several workon commands.
+  # The names of the global variables set will consist of a sandbox prefix + the name of the environment variable.  For example, if the sandbox is sbx1, the BACKED_SANDBOXDIR value obtained from the sandbox environment would be put into global variable _sbx1_BACKED_SANDBOXDIR.  All of the variables in env_var_list (below) will be obtained.  In addition, depending on the value of extra_var_list, the following variables will be set:
+  # ${sb_var_prefix}release
+  # ${sb_var_prefix}driver
+  # ${sb_var_prefix}base_cell
+  # ${sb_var_prefix}bb_cell
+  # (This is made optional because it adds time to the running of this function)
+
+
+  # The sandbox prefix value will be put into the variable specified by the caller in sb_var_prefix_var_name.
+
+  local value_list
+  local env_var_list="BACKED_SANDBOXDIR SANDBOXBASE bb sb"
+  local var_name
+  local assignment_statement
+  local cmd_buf
+
+  valid_value sb "" || return 1
+  #valid_list extra_var_list "" ":release:driver:bb_cell:base_cell:branch" || return 1
+  valid_list extra_var_list "" ":release:driver:bb_cell:base_cell" || return 1
+
+  cmd_buf="$sb_var_prefix_var_name=\"\$(sb_to_var_name $sb)\""
+  eval $cmd_buf || return 1
+
+  # Using a temp file is a little more effort to program than simply doing this:
+  # value_list="$(workon -quiet $sb -m ppc -c "for var_name in $env_var_list ; do printenv | grep "^\${var_name}=" ; done" 2>&1)"
+  # However, it is faster and my callers care about performance.
+
+  local temp_filename=/tmp/${PGM_NAME}_${FUNCNAME}_${RANDOM}_${RANDOM}
+  #local temp_filename=/afs/rchland.ibm.com/usr8/csptest/test.txt
+
+  # 2015/08/20 Mike Walsh (xzy0065) - If DEBUG is 1 then my_workon produces extra data which we must not tolerate here.
+  local DEBUG=0
+
+  #my_workon -quiet $sb -m ppc -c "for var_name in $env_var_list ; do printenv | grep "^\${var_name}=" ; done" > ${temp_filename}
+  #^if one of the env_vars is not found via grep, $? will be 1 and this will report that workon failed, when in reality printenv
+  #just didn't contain one of the things from env_var_list (like sb with an OP sandbox for example)
+  my_workon -quiet $sb -m ppc -c "for var_name in $env_var_list ; do printenv | grep "^\${var_name}=" ; echo -n ; done" > ${temp_filename}
+  if [ $? != 0 ] ; then
+    { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Could not workon to sandbox, \"${sb}\"." ; rm $temp_filename ; print_call_stack ; } >&2
+    #{ print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Could not workon to sandbox, \"${sb}\"." ; print_call_stack ; } >&2
+    return 1
+  fi
+
+  while read assignment_statement ; do
+    cmd_buf="export ${!sb_var_prefix_var_name}${assignment_statement}"
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || { print_call_stack ; rm ${temp_filename} ; return 1 ; }
+  done < ${temp_filename}
+  rm ${temp_filename}
+  
+  local release_type
+  local bsd_var="${!sb_var_prefix_var_name}BACKED_SANDBOXDIR"
+  release_type "${!bsd_var}" "build_dir" "release_type"
+  
+  # This following command will eliminate multi-slashes in the $bb string.  This makes it easier to find release and driver.
+  local multi_slash_elim_cmd=" | sed -re \"s#[/]+#/#g\""
+  
+  #If this is an OP build then we need to fix prefix_bb and prefix_sb
+  local _loc_build_
+  if [ "${release_type}" == "op" ] ; then
+    #first we need to get the build to find its base dir (bb). 
+    #store it in _loc_build_ in case user asks for it (driver) in extra_var_list below
+    cmd_buf="_loc_build_=\$(echo ${!bsd_var}${multi_slash_elim_cmd} | sed -re \"s#(.*)(Builds)/([^/]*).*#\\3#g\")"
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || return 1
+    
+    #now get the bb via build_dir_base_path
+    cmd_buf="export ${!sb_var_prefix_var_name}bb=\$(build_dir_base_path \"${_loc_build_}\")"
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || return 1
+    
+    #now set sb properly
+    cmd_buf="export ${!sb_var_prefix_var_name}sb=${HOME}/sandbox/${sb}/src"
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || { print_call_stack ; rm ${temp_filename} ; return 1 ; }
+  fi
+  
+  var_name="${!sb_var_prefix_var_name}bb"
+  search_list release extra_var_list ":"
+  if [ "$?" == "0" ] ; then
+    cmd_buf="export ${!sb_var_prefix_var_name}release=\$(echo ${!var_name}${multi_slash_elim_cmd} | sed -re \"s#(.*/)([^/]*)/(Builds|Current).*#\\2#g\")"
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || { print_call_stack ; return 1 ; }
+  fi
+  search_list driver extra_var_list ":"
+  if [ "$?" == "0" ] ; then
+    #check if this was already determined, if so then use it
+    if [ -z "${_loc_build_}" ] ; then
+      cmd_buf="export ${!sb_var_prefix_var_name}driver=\$(echo ${!var_name}${multi_slash_elim_cmd} | sed -re \"s#(.*)(Builds|Current)/([^/]*).*#\\3#g\")"
+    else
+      cmd_buf="export ${!sb_var_prefix_var_name}driver=${_loc_build_}"
+    fi
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || { print_call_stack ; return 1 ; }
+  fi
+
+#  search_list branch extra_var_list ":"
+#  if [ "$?" == "0" ] ; then
+#    local loc_driver
+#    loc_driver=$(echo ${!var_name}${multi_slash_elim_cmd} | sed -re "s#(.*)(Builds|Current)/([^/]*).*#\3#g")
+#    if regexp "${loc_driver}" "[0-9]{3}\.[0-9]{4}\.[0-9]{8}[a-m]" ; then
+#      cmd_buf="export ${!sb_var_prefix_var_name}branch=\"master\""
+#      (( ! quiet )) && issuing >&2
+#      eval $cmd_buf || { print_call_stack ; return 1 ; }
+#    elif regexp "${loc_driver}" "[0-9]{3}\.[0-9]{4}\.[0-9]{8}[n-z]" ; then
+#      cmd_buf="export ${!sb_var_prefix_var_name}branch=\"master_next\""
+#      (( ! quiet )) && issuing >&2
+#      eval $cmd_buf || { print_call_stack ; return 1 ; }
+#    fi
+#  fi
+
+  search_list bb_cell extra_var_list ":"
+  if [ "$?" == "0" ] ; then
+    # Get cells associated with paths.
+    cmd_buf="export ${!sb_var_prefix_var_name}bb_cell=\$(which_cell ${!var_name})"
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || { print_call_stack ; return 1 ; }
+  fi
+
+  search_list base_cell extra_var_list ":"
+  if [ "$?" == "0" ] ; then
+    var_name="${!sb_var_prefix_var_name}sb"
+    # The last "cut" is to change things like "ausgsa-h2" to "ausgsa".
+    cmd_buf="export ${!sb_var_prefix_var_name}base_cell=\$(which_cell ${!var_name})"
+    (( ! quiet )) && issuing >&2
+    eval $cmd_buf || { print_call_stack ; return 1 ; }
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function sb_exists {
+  local sandbox_name="${1}" ; shift || :
+  local cross_site_bad="${1:-0}"
+
+  # This function will write 1 or 0 to stdout to indicate whether the given sandbox exists.
+  # If the sandbox check has errors, this function will still write 1 to stdout but it will return non-zero and write the error data to stderr.
+  # If cross_site_bad is set to 1 by the caller, a sandbox that is based cross-site will be counted as bad.
+
+  local cmd_buf
+  local rc
+  local temp_misc_file=/tmp/${PGM_NAME:-$(basename $0)}_${FUNCNAME}_${RANDOM}_${RANDOM}
+  local sandbox_base
+  local sb_base_cell
+  local sb_base_site
+  local local_afs_cell
+  local local_site
+
+  valid_value sandbox_name || return 1
+  valid_boolean cross_site_bad || return 1
+
+  local SANDBOXRC="${SANDBOXRC}"
+  [ -z "${SANDBOXRC}" ] && SANDBOXRC=$HOME/.sandboxrc
+  if [ ! -f "${SANDBOXRC}" ] ; then
+    touch ${SANDBOXRC}
+  fi
+
+  # I just discovered that sbinfo returns non-zero for a non-existent sandbox but not for an unhealthy sandbox.  So, I'm forced to switch to workon which is ever so slightly slower.  Also, -quiet hides some of the error data we would want to see.
+  # I just discovered that using "novar" will not detect some legitimate sandbox problems.
+  #cmd_buf="sbinfo -quiet -sb ${sandbox_name} novar >/dev/null 2>$temp_misc_file"
+  cmd_buf="workon -m ppc -sb ${sandbox_name} -c 'echo \$bb' >$temp_misc_file 2>&1"
+  #issuing >&2
+  eval ${cmd_buf}
+  rc="${?}"
+  if [ "${rc}" == "0" ] ; then
+    echo 1
+    if (( cross_site_bad )) ; then
+      sandbox_base=$(sbinfo sandbox_base -sb ${sandbox_name})
+      sb_base_cell=$(which_cell ${sandbox_base})
+      site "${sb_base_cell}" sb_base_site || return1 1
+
+      local_afs_cell=$(afs_cell)
+      site "${local_afs_cell}" local_site || return 1
+      if [ "${sb_base_site}" != "${local_site}" ] ; then
+        { print_error ; echo "Sandbox \"$sb\" is based in cell \"${sb_base_cell}\" which is in ${sb_base_site}.  However, this program is running in "${local_site}".  This constitutes a cross-site based sandbox." ; print_var_list "sandbox_base sb_base_cell sb_base_site local_afs_cell local_site" ; } >&2
+        rc=3
+      fi
+    fi
+  else
+    if egrep -q "Sandbox ${sandbox_name} does not exist" $temp_misc_file 2>/dev/null ; then
+      rc=0
+      echo 0
+    else
+      echo 1
+      cat $temp_misc_file >&2
+    fi
+  fi
+
+  rm -f $temp_misc_file
+
+  return ${rc}
+
+}
+################################################################################
