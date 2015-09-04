@@ -1,6 +1,6 @@
 [BMC_name] habsysname
-[BMC_Password] admin
-[BMC_user] ADMIN
+[BMC_Password] password
+[BMC_user] user
 [OS_Host] habosname
 [OS_user] userid
 [OS_Password] password
