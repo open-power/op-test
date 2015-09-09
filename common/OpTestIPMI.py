@@ -136,7 +136,7 @@ class OpTestIPMI():
             print 'SOL already deactivated'
         time.sleep(2)
         logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
-        cmd = os.getcwd() + '/../common/sol_logger.exp %s %s %s %s' % (
+        cmd = os.getcwd().rsplit("/", 2)[0] + '/op-test-framework/common/sol_logger.exp %s %s %s %s' % (
             self.cv_bmcIP,
             self.cv_bmcUser,
             self.cv_bmcPwd,
@@ -201,7 +201,7 @@ class OpTestIPMI():
         :returns: int -- 0: success, 1: error
         """
         selDesc = 'Transition to Non-recoverable'
-        logFile = self.cv_ffdcDir + '/' + 'sel.log'
+        logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
         output = self._ipmitool_cmd_run('sel elist')
 
         with open('%s' % logFile, 'w') as f:
