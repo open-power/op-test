@@ -32,6 +32,8 @@
 
 from OpTestBMC import OpTestBMC
 from OpTestIPMI import OpTestIPMI
+from OpTestConstants import OpTestConstants as BMC_CONST
+from OpTestError import OpTestError
 
 
 class OpTestSystem():
@@ -54,35 +56,65 @@ class OpTestSystem():
     # System Interfaces
     ############################################################################
 
-    ## Clear all SDR's in the System
-    #  @return int -- 0: success, 1: error
+    ##
+    # @brief Clear all SDR's in the System
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_sdr_clear(self):
-        return self.cv_IPMI.ipmi_sdr_clear()
+        try:
+            rc =  self.cv_IPMI.ipmi_sdr_clear()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
 
-    ## Power on the system
-    #  @return int -- 0: success, 1: error
+    ##
+    # @brief Power on the system
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_power_on(self):
-        return self.cv_IPMI.ipmi_power_on()
+        try:
+            rc = self.cv_IPMI.ipmi_power_on()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
 
-    ## Power off the system
-    #  @return int -- 0: success, 1: error
+    ##
+    # @brief Power off the system
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_power_off(self):
-        return self.cv_IPMI.ipmi_power_off()
+        try:
+            rc = self.cv_IPMI.ipmi_power_off()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
 
-    ## Wait for boot to end based on serial over lan output data
-    #  @return int -- 0: success, 1: error
+    ##
+    # @brief Wait for boot to end based on serial over lan output data
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_ipl_wait_for_working_state(self,i_timeout=10):
-        return self.cv_IPMI.ipl_wait_for_working_state(i_timeout)
+        try:
+            rc = self.cv_IPMI.ipl_wait_for_working_state(i_timeout)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
 
-    ## Check for error during IPL that would result in test case failure
-    #  @return int -- 0: success, 1: error
+    ##
+    # @brief Check for error during IPL that would result in test case failure
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_sel_check(self,i_string):
-        return self.cv_IPMI.ipmi_sel_check(i_string)
+        try:
+            rc = self.cv_IPMI.ipmi_sel_check(i_string)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
 
     ############################################################################
     # BMC Interfaces
@@ -92,18 +124,34 @@ class OpTestSystem():
     #  @return int -- 0: success, 1: error
     #
     def bmc_reboot(self):
-        return self.cv_BMC.reboot()
+        try:
+            rc = self.cv_BMC.reboot()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
 
-    ## Update the BMC PNOR
-    #  @param i_imageDir PNOR image directory
-    #  @param i_imageName PNOR image name
-    #  @return int -- 0: success, 1: error
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Update the BMC using hpm file
     #
-    def bmc_update(self,i_imageDir,i_imageName):
-        rc = self.cv_BMC.pnor_img_transfer(i_imageDir,i_imageName)
-        if rc == 0:
-            rc = self.cv_BMC.pnor_img_flash(i_imageName)
-        return rc
+    # @param i_imageDir HPM file image location
+    # @param i_bmcimagetype BMC_CONST.BMC_FW_IMAGE or BMC_CONST.BMC_PNOR_IMAGE
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def bmc_update_hpm(self,i_imageDir, i_bmcimagetype):
+
+        try:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_IPMI.preserve_network_setting()
+            self.cv_IPMI.ipmi_code_update(i_imageDir, i_bmcimagetype)
+            self.cv_IPMI.ipmi_power_on()
+            self.cv_IPMI.ipmi_cold_reset()
+        except OpTestError as e:
+            return BMC_CONST.FW_SUCCESS
+
+        return BMC_CONST.FW_SUCCESS
+
 
     ###########################################################################
     # OS Interfaces
