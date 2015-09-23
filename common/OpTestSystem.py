@@ -34,7 +34,7 @@ from OpTestBMC import OpTestBMC
 from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-
+from OpTestConnection import OpTestConnection
 
 class OpTestSystem():
 
@@ -46,11 +46,20 @@ class OpTestSystem():
     #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
+    # "Only required for inband tests" else Default = None
+    # @param i_lparIP The IP address of the LPAR
+    # @param i_lparuser The userid to log into the LPAR
+    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_lpartype The type of lpar example aix or linux
+    # @param i_lparid ID of the lpar. Default set to 1
+    #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None):
+                 i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_lparip=None,
+                 i_lparuser=None, i_lparPasswd=None, i_lpartype=None, i_lparid = "1"):
         self.cv_BMC = OpTestBMC(i_bmcIP,i_bmcUser,i_bmcPasswd,i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
-                                  i_ffdcDir)
+                                  i_ffdcDir, i_lparip, i_lparuser, i_lparPasswd,
+                                  i_lpartype, i_lparid)
 
     ############################################################################
     # System Interfaces
@@ -59,7 +68,7 @@ class OpTestSystem():
     ##
     # @brief Clear all SDR's in the System
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def sys_sdr_clear(self):
         try:
@@ -71,7 +80,7 @@ class OpTestSystem():
     ##
     # @brief Power on the system
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def sys_power_on(self):
         try:
@@ -83,7 +92,7 @@ class OpTestSystem():
     ##
     # @brief Power off the system
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def sys_power_off(self):
         try:
@@ -95,7 +104,7 @@ class OpTestSystem():
     ##
     # @brief Wait for boot to end based on serial over lan output data
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def sys_ipl_wait_for_working_state(self,i_timeout=10):
         try:
@@ -107,7 +116,7 @@ class OpTestSystem():
     ##
     # @brief Check for error during IPL that would result in test case failure
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def sys_sel_check(self,i_string):
         try:
@@ -120,8 +129,10 @@ class OpTestSystem():
     # BMC Interfaces
     ############################################################################
 
-    ## Reboot the BMC
-    #  @return int -- 0: success, 1: error
+    ##
+    # @brief Reboot the BMC
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def bmc_reboot(self):
         try:
@@ -132,25 +143,80 @@ class OpTestSystem():
         return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief Update the BMC using hpm file
+    # @brief Update the BMC fw image using hpm file
     #
-    # @param i_imageDir HPM file image location
-    # @param i_bmcimagetype BMC_CONST.BMC_FW_IMAGE or BMC_CONST.BMC_PNOR_IMAGE
+    # @param i_image HPM file image including location
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_update_hpm(self,i_imageDir, i_bmcimagetype):
+    def bmc_outofband_fw_update_hpm(self,i_image):
 
         try:
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.preserve_network_setting()
-            self.cv_IPMI.ipmi_code_update(i_imageDir, i_bmcimagetype)
+            self.cv_IPMI.ipmi_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
             self.cv_IPMI.ipmi_power_on()
-            self.cv_IPMI.ipmi_cold_reset()
         except OpTestError as e:
-            return BMC_CONST.FW_SUCCESS
+            return BMC_CONST.FW_FAILED
 
         return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Update the BMC pnor image using hpm file
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def bmc_outofband_pnor_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_IPMI.preserve_network_setting()
+            self.cv_IPMI.ipmi_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
+            self.cv_IPMI.ipmi_power_on()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+
+
+    ##
+    # @brief Update the BMC fw using hpm file using LPAR
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def bmc_inband_fw_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_inband_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+
+
+    ##
+    # @brief Update the BMC pnor using hpm file using LPAR
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def bmc_inband_pnor_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_inband_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
 
 
     ###########################################################################

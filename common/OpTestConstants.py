@@ -42,10 +42,14 @@ class OpTestConstants():
                  "0x4f 0x4e 0x0 0x0 0x0 0x0 0x0 0x0 |xxd -r -p"
     BMC_IPMITOOL_H = "ipmitool -H "
     BMC_FLASH_IMAGE = "echo y | ipmitool -H "
-    BMC_FW_IMAGE = " component 1 -z 30000 force"
-    BMC_PNOR_IMAGE = " component 2 -z 30000"
+    BMC_FW_IMAGE_UPDATE = " component 1 -z 30000 force"
+    BMC_PNOR_IMAGE_UPDATE = " component 2 -z 30000"
     BMC_LANPLUS = " -I lanplus" #-U ADMIN -P admin"
     BMC_HPM_UPDATE = " hpm upgrade "
+    BMC_ACTIVE_SIDE = " sensor list|grep -i golden"
+    BMC_SOL_ACTIVATE = " sol activate"
+    BMC_SOL_DEACTIVATE = " sol deactivate"
+    BMC_GET_OS_RELEASE = "cat /etc/os-release"
 
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"
     BMC_ERROR_LAN = "Unable to establish LAN session"
@@ -53,6 +57,9 @@ class OpTestConstants():
 
     BMC_ADMIN_USER = "ADMIN"
     BMC_SYADMIN_USER = "sysadmin"
+
+    PRIMARY_SIDE = "0x0080"
+    GOLDEN_SIDE = "0x0180"
 
     # Framework Constants
     FW_SUCCESS = 0

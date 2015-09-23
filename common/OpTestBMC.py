@@ -47,7 +47,6 @@ class OpTestBMC():
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPasswd = i_bmcPasswd
         self.cv_ffdcDir = i_ffdcDir
-        self.cv_IPMI = OpTestIPMI(i_bmcIP,i_bmcUser,i_bmcPasswd,i_ffdcDir)
 
     ##
     # @brief This function runs a command on the BMC
@@ -58,44 +57,52 @@ class OpTestBMC():
     # @param timeout @type int: Command timeout in seconds. If not specified, the
     #        default timeout value is 30 seconds.
     #
-    # @return int -- the return code, 0: success, 1: error
-    #    raises: pexect timeout, eof
+    # @return int -- the return code, 0: success,
+    #                or raises: OpTestError
     #
     def _cmd_run(self, cmdStr, timeout=30, logFile=None):
 
         ''' Add -k to the SSH options '''
         hostname = self.cv_bmcIP + " -k"
 
-        p = pxssh.pxssh()
-        p.logfile = sys.stdout
-        p.PROMPT = '# '
+        try:
+            p = pxssh.pxssh()
+            p.logfile = sys.stdout
+            p.PROMPT = '# '
 
-        ''' login but do not try to change the prompt since the AMI bmc
-            busybox does support it '''
+            ''' login but do not try to change the prompt since the AMI bmc
+                busybox does support it '''
 
-        # http://superuser.com/questions/839878/how-to-solve-python-bug-without-root-permission
-        p.login(hostname, self.cv_bmcUser, self.cv_bmcPasswd, auto_prompt_reset=False)
-        p.sendline()
-        p.prompt()
-        print 'At BMC %s prompt...' % self.cv_bmcIP
+            # http://superuser.com/questions/839878/how-to-solve-python-bug-without-root-permission
+            p.login(hostname, self.cv_bmcUser, self.cv_bmcPasswd, '''auto_prompt_reset=False''')
+            p.sendline()
+            p.prompt()
+            print 'At BMC %s prompt...' % self.cv_bmcIP
 
-        p.sendline(cmdStr)
-        p.prompt(timeout=timeout)
+            p.sendline(cmdStr)
+            p.prompt(timeout=timeout)
 
-        ''' if optional argument is set, save command output to file '''
+            ''' if optional argument is set, save command output to file '''
 
-        if logFile is not None:
-            fn = self.cv_ffdcDir + "/" + logFile
-            with open(fn, 'w') as f:
-                f.write(p.before)
+            if logFile is not None:
+                fn = self.cv_ffdcDir + "/" + logFile
+                with open(fn, 'w') as f:
+                    f.write(p.before)
 
-        p.sendline('echo $?')
-        index = p.expect(['0', pexpect.TIMEOUT])
+            p.sendline('echo $?')
+            index = p.expect(['0', pexpect.TIMEOUT])
+        except:
+            l_msg = "__cmd_run Failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
         if index == 0:
             rc = 0
         if index == 1:
-            print 'Non-zero return code detected, command failed'
-            rc = p.before
+            l_msg = 'Non-zero return code detected, command failed'
+            print l_msg
+            raise OpTestError(l_msg)
+            #rc = p.before
 
         return rc
 
@@ -144,6 +151,7 @@ class OpTestBMC():
         rsync_cmd = 'rsync -v -e "ssh -k" %s %s@%s:/tmp' % (pnor_path,
                                                             self.cv_bmcUser,
                                                             self.cv_bmcIP)
+
         print rsync_cmd
         rsync = pexpect.spawn(rsync_cmd)
         rsync.logfile = sys.stdout
@@ -162,5 +170,5 @@ class OpTestBMC():
     #
     def pnor_img_flash(self,i_imageName):
         cmd = '/usr/local/bin/pflash -E -f -p /tmp/%s' % i_imageName
-        rc = self._cmd_run(cmd, timeout=180, logFile='pflash.log')
+        rc = self._cmd_run(cmd, timeout=1800, logFile='pflash.log')
         return rc
