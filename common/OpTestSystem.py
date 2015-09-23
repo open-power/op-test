@@ -90,6 +90,18 @@ class OpTestSystem():
         return rc
 
     ##
+    # @brief Power soft the system
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_power_soft(self):
+        try:
+            rc = self.cv_IPMI.ipmi_power_soft()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
+
+    ##
     # @brief Power off the system
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
@@ -97,6 +109,18 @@ class OpTestSystem():
     def sys_power_off(self):
         try:
             rc = self.cv_IPMI.ipmi_power_off()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
+
+    ##
+    # @brief Warm reset on the bmc system
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_warm_reset(self):
+        try:
+            rc = self.cv_IPMI.ipmi_warm_reset()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return rc

@@ -151,6 +151,20 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
     ##
+    # @brief This function sends the chassis power soft ipmitool command
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_power_soft(self):
+        output = self._ipmitool_cmd_run(self.cv_cmd + 'chassis power soft')
+        if "Chassis Power Control: Soft" in output:
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Power Soft Failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
     # @brief Spawns the sol logger expect script as a background process. In order to
     #        properly kill the process the caller should call the ipmitool sol
     #        deactivate command, i.e.: ipmitool_cmd_run('sol deactivate'). The sol.log
@@ -166,7 +180,7 @@ class OpTestIPMI():
             print 'SOL already deactivated'
         time.sleep(2)
         logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
-        cmd = os.getcwd() + '/op-test-framework/common/sol_logger.exp %s %s %s %s' % (
+        cmd = os.getcwd() + '/../common/sol_logger.exp %s %s %s %s' % (
             self.cv_bmcIP,
             self.cv_bmcUser,
             self.cv_bmcPwd,
@@ -271,6 +285,26 @@ class OpTestIPMI():
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Cold reset Failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief Performs a warm reset onto the bmc
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_warm_reset(self):
+
+        l_cmd = BMC_CONST.BMC_WARM_RESET
+        print ("Applying Warm reset. Wait for "
+                            + str(BMC_CONST.BMC_WARM_RESET_DELAY) + "sec")
+        rc = self._ipmitool_cmd_run(self.cv_cmd + l_cmd)
+        if BMC_CONST.BMC_PASS_WARM_RESET in rc:
+            print rc
+            time.sleep(BMC_CONST.BMC_WARM_RESET_DELAY)
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Warm reset Failed"
             print l_msg
             raise OpTestError(l_msg)
 

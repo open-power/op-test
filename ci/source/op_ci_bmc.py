@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -132,6 +133,22 @@ def ipmi_power_on():
     :returns: int -- 0: success, 1: error
     """
     return opTestSys.sys_power_on()
+
+
+def ipmi_warm_reset():
+    """ This function sends the warm reset ipmitool command
+
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.sys_warm_reset()
+
+
+def ipmi_power_soft():
+    """ This function sends the chassis power soft ipmitool command
+
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.sys_power_soft()
 
 
 def ipmi_sol_capture():

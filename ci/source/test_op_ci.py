@@ -39,8 +39,14 @@ def test_config_check():
 def test_ipmi_power_off():
     assert op_ci_bmc.ipmi_power_off() == 0
 
+def test_ipmi_power_soft():
+    assert op_ci_bmc.ipmi_power_soft() == 0
+
+def test_ipmi_warm_reset():
+    assert op_ci_bmc.ipmi_warm_reset() == 0
+
 def test_bmc_reboot():
-    assert op_ci_bmc.bmc_reboot() > 0
+    assert op_ci_bmc.bmc_reboot() == 0
 
 def test_ipmi_sdr_clear():
     assert op_ci_bmc.ipmi_sdr_clear() == 0
