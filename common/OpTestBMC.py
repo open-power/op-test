@@ -74,7 +74,7 @@ class OpTestBMC():
                 busybox does support it '''
 
             # http://superuser.com/questions/839878/how-to-solve-python-bug-without-root-permission
-            p.login(hostname, self.cv_bmcUser, self.cv_bmcPasswd, '''auto_prompt_reset=False''')
+            p.login(hostname, self.cv_bmcUser, self.cv_bmcPasswd, auto_prompt_reset=False)
             p.sendline()
             p.prompt()
             print 'At BMC %s prompt...' % self.cv_bmcIP
