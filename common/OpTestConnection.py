@@ -227,6 +227,117 @@ class OpTestConnection():
             os.close(fd)
         return list
 
+    ##
+    #   @details  This method does a scp  from lcb(where rpm and xml files are found) to hmc
+    #             rpmxmlPath = Location where rpm and xml files are stored for the build
+    #             destination = Path in hmc where rpm and xml files will be stored.Format should be loginid@destinationPath
+    #   @param    hostfile
+    #   @param    destid
+    #   @param    destName
+    #   @param    destPath
+    #   @param    passwd
+    #   @param    ssh_ver
+    #   @return   output from terminal
+    #   @throw    SshConnectionError
+    #
+    def scp_filesfrom_lcbtohmc(
+            self,
+            hostfile,
+            destid,
+            destName,
+            destPath,
+            passwd,
+            ssh_ver="2"):
+        pid, fd = pty.fork()
+        Password = passwd + "\r\n"
+        list = ''
+        destinationPath = destid.strip() + "@" + destName.strip() + \
+            ":" + destPath
+
+        # We've spawned a separate process with the .fork above so one process
+        # will execute the scp command, and the other process will handle the
+        # back and forth of the password and the error paths
+        if pid == 0:
+            arglist = (
+                "/usr/bin/scp",
+                "-o AfsTokenPassing=no",
+                "-" +
+                ssh_ver.strip(),
+                hostfile,
+                destinationPath)
+            print(arglist)
+            # TODO - The klog command causes the os.read by the other
+            # process to not work.  Seems like you can't do 2 .execv's
+            #user = self.m_pConfig.getOtherDetails("afsid")
+            #password = self.m_pConfig.getOtherDetails("afspasswd")
+            #cell = 'austin'
+            #arglist1 = ("klog", user, "-c", cell, "-password", password)
+            #os.execv("/usr/bin/klog", arglist1)
+            os.execv("/usr/bin/scp", arglist)
+        else:
+            while True:
+                try:
+                    x = os.read(fd, 1024)
+                    # print "=============================="
+                    # print "response"
+                    # print x
+                    # print "=============================="
+                    print("x=" + x)
+                    if(x.__contains__('(yes/no)')):
+                        l_res = "yes\r\n"
+                        os.write(fd, l_res)
+                    if(x.__contains__('s password:')):
+                        x = ''
+                        print("Entered password")
+                        pwd = Password
+                        os.write(fd, pwd)
+                    if(x.__contains__('Password:')):
+                        x = ''
+                        os.write(fd, Password)
+                    if(x.__contains__('password')):
+                        response = Password
+                        os.write(fd, response)
+                    if(x.__contains__('yes')):
+                        response = '1' + "\r\n"
+                        os.write(fd, response)
+                    if(x.__contains__('100%')):
+                        # We copied 100% of file so break out
+                        break
+                    if(x.__contains__("Invalid ssh2 packet type")):
+                        print(x)
+                        raise OpTestError(x)
+                    if(x.__contains__("Protocol major versions differ: 1 vs. 2")):
+                        print (x)
+                        raise OpTestError(x)
+                    if(x.__contains__("Connection refused")):
+                        print (x)
+                        raise OpTestError(x)
+                    if(x.__contains__('Connection closed by')):
+                        print (x)
+                        raise OpTestError(x)
+                    if(x.__contains__("WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED")):
+                        print (x)
+                        raise OpTestError("Its a RSA key problem : \n" + x)
+                    if(x.__contains__("WARNING: POSSIBLE DNS SPOOFING DETECTED")):
+                        print(x)
+                        raise OpTestError("Its a RSA key problem : \n" + x)
+                    if(x.__contains__("Permission denied")):
+                        print(x)
+                        raise OpTestError("Wrong Login or Password :" + x)
+                    list = list + x
+                    time.sleep(1)
+                except OSError as e:
+                    print("OSError string: " + e.strerror)
+                    raise OpTestError(e.strerror)
+
+        if list.__contains__("Name or service not known"):
+            reason = 'SSH Failed for :' + destid + \
+                "\n Please provide a valid Hostname"
+            print("scp command failed to hmc!")
+            raise OpTestError(reason)
+
+        print(list)
+        return list
 
 
 

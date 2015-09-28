@@ -426,14 +426,24 @@ class OpTestIPMI():
             print ("Partition not active! Going to Power Cycle ....")
             self.ipmi_power_off()
             self.ipmi_power_on()
-            time.sleep(600)
-            value = self.lpar.PingFunc(self.lpar.ip)[0]
-            if(value != 2):
-                l_msg = "Partition is still not active"
-                print l_msg
-                raise OpTestError(l_msg)
-        print("Partition is Pinging")
-        return BMC_CONST.FW_SUCCESS
+            time.sleep(100)
+            '''  Ping the system until it reboots  '''
+            retries = 0
+            while True:
+                try:
+                    subprocess.check_call(["ping", self.lpar.ip, "-c1"])
+                    break
+                except subprocess.CalledProcessError as e:
+                    print "Ping return code: ", e.returncode, "retrying..."
+                    retries += 1
+                    time.sleep(100)
+                if retries > 5:
+                    l_msg = "Error. BMC host is not responding to pings"
+                    print l_msg
+                    raise OpTestError(l_msg)
+            print 'Partition is pinging'
+            return BMC_CONST.FW_SUCCESS
+
 
 
 
@@ -452,21 +462,20 @@ class OpTestIPMI():
         self.Validate_LPAR()
 
         # Copy the hpm file to the tmp folder in the partition
-        l_cmd = "scp " + i_image + " " + self.lpar.user + "@"  + self.lpar.ip + ":/tmp"
         try:
-            child = pexpect.spawn(l_cmd)
-            child.expect('[Pp]assword:')
-            child.sendline(self.lpar.passwd)
-
+            self.lpar.scp_filesfrom_lcbtohmc(i_image, self.lpar.user,
+                                             self.lpar.ip, "/tmp/", self.lpar.passwd)
         except:
             l_msg = "Copying hpm file to lpar failed"
             print l_msg
             raise OpTestError(l_msg)
 
         self.preserve_network_setting()
-        l_cmd = BMC_CONST.BMC_HPM_UPDATE + "/tmp/" + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
+        l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
+                + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
+        print l_cmd
         try:
-            rc = self.lpar.SshExecute("echo y | ipmitool -I usb " + l_cmd)
+            rc = self.lpar.SshExecute(l_cmd)
             print rc
             self.ipmi_cold_reset()
         except subprocess.CalledProcessError:
