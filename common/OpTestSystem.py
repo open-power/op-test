@@ -205,6 +205,26 @@ class OpTestSystem():
 
         return BMC_CONST.FW_SUCCESS
 
+    ##
+    # @brief Update the BMC fw and pnor image using hpm file
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def bmc_outofband_fwandpnor_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_IPMI.preserve_network_setting()
+            self.cv_IPMI.ipmi_code_update(i_image,BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
+            self.cv_IPMI.ipmi_power_on()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+
 
 
     ##
@@ -236,6 +256,23 @@ class OpTestSystem():
 
         try:
             self.cv_IPMI.ipmi_inband_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Update the BMC fw and pnor using hpm file using LPAR
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def bmc_inband_fwandpnor_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_inband_code_update(i_image, BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 

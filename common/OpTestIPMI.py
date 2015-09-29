@@ -341,6 +341,7 @@ class OpTestIPMI():
     #
     def ipmi_code_update(self, i_image, i_imagecomponent):
 
+        self.ipmi_cold_reset()
         l_cmd = BMC_CONST.BMC_HPM_UPDATE + i_image + " " + i_imagecomponent
         try:
             rc = self._ipmitool_cmd_run("echo y | " + self.cv_cmd + l_cmd)
@@ -426,7 +427,7 @@ class OpTestIPMI():
             print ("Partition not active! Going to Power Cycle ....")
             self.ipmi_power_off()
             self.ipmi_power_on()
-            time.sleep(100)
+            time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
             '''  Ping the system until it reboots  '''
             retries = 0
             while True:
@@ -436,7 +437,7 @@ class OpTestIPMI():
                 except subprocess.CalledProcessError as e:
                     print "Ping return code: ", e.returncode, "retrying..."
                     retries += 1
-                    time.sleep(100)
+                    time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
                 if retries > 5:
                     l_msg = "Error. BMC host is not responding to pings"
                     print l_msg
@@ -445,6 +446,23 @@ class OpTestIPMI():
             return BMC_CONST.FW_SUCCESS
 
 
+
+    ##
+    # @brief Executes a command on the os of the bmc to protect network setting
+    #
+    # @return OpTestError if failed
+    #
+    def os_protect_network_setting(self):
+        try:
+            l_rc = self.lpar.SshExecute(BMC_CONST.OS_PRESERVE_NETWORK)
+        except:
+            l_errmsg = "Can't preserve network setting"
+            print l_errmsg
+            raise OpTestError(l_errmsg)
+
+        if(l_rc != "\n"):
+            print l_rc
+            raise OpTestError(l_rc)
 
 
     ##
@@ -459,11 +477,12 @@ class OpTestIPMI():
     #
     def ipmi_inband_code_update(self, i_image, imagecomponent):
 
+        self.ipmi_cold_reset()
         self.Validate_LPAR()
 
         # Copy the hpm file to the tmp folder in the partition
         try:
-            self.lpar.scp_filesfrom_lcbtohmc(i_image, self.lpar.user,
+            self.lpar.copyFilesToDest(i_image, self.lpar.user,
                                              self.lpar.ip, "/tmp/", self.lpar.passwd)
         except:
             l_msg = "Copying hpm file to lpar failed"
@@ -472,18 +491,19 @@ class OpTestIPMI():
 
         self.preserve_network_setting()
         l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
-                + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
+                + i_image.rsplit("/", 1)[-1] + imagecomponent
         print l_cmd
         try:
-            rc = self.lpar.SshExecute(l_cmd)
-            print rc
+            self.os_protect_network_setting()
+            l_rc = self.lpar.SshExecute(l_cmd)
+            print l_rc
             self.ipmi_cold_reset()
         except subprocess.CalledProcessError:
             l_msg = "Code Update Failed"
             print l_msg
             raise OpTestError(l_msg)
 
-        if(rc.__contains__("Firmware upgrade procedure successful")):
+        if(l_rc.__contains__("Firmware upgrade procedure successful")):
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Code Update Failed"
