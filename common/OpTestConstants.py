@@ -51,6 +51,7 @@ class OpTestConstants():
     BMC_FLASH_IMAGE = "echo y | ipmitool -H "
     BMC_FW_IMAGE_UPDATE = " component 1 -z 30000 force"
     BMC_PNOR_IMAGE_UPDATE = " component 2 -z 30000"
+    BMC_FWANDPNOR_IMAGE_UPDATE = " -z 30000 force"
     BMC_LANPLUS = " -I lanplus" #-U ADMIN -P admin"
     BMC_HPM_UPDATE = " hpm upgrade "
     BMC_ACTIVE_SIDE = " sensor list|grep -i golden"
@@ -70,3 +71,10 @@ class OpTestConstants():
     # Framework Constants
     FW_SUCCESS = 0
     FW_FAILED = 1
+
+    # Commands to be executed on the OS
+    OS_PRESERVE_NETWORK = "ipmitool -I usb raw 0x32 0xba 0x18 0x00"
+
+
+    # Sleep times
+    LPAR_BRINGUP_TIME = 80

@@ -49,8 +49,13 @@ class OpTestConnection():
         self.OsType = i_Type
         self.id = i_id
 
-
-
+    ##
+    # @brief Pings 2 packages to system under test
+    #
+    # @param    ip: ip address of system under test
+    # @return   number of returned ping response
+    #           or raise OpTestError if failed
+    #
     def PingFunc(self, ip):
         arglist = "ping -c 2 " + str(ip)
         try:
@@ -71,13 +76,12 @@ class OpTestConnection():
 
 
     ##
-    #   @details   This method executes the command(cmd) on the host using a ssh session from linux box where test is executing.
+    #   @brief     This method executes the command(cmd) on the host using a ssh session from linux box where test is executing.
     #   @param     cmd: @type string: Command that has to be executed on host through a ssh session
-    #   @param     ispol: @type bool: True if host is HMC(selects version 1).False if host SDMC(selects version 2)
-    #   @return    returns command output if command execution is successful else raises SshConnectionError
+    #   @return    returns command output if command execution is successful else raises OpTestError
     #   @throw     OpTestError
     #
-    def SshExecute(self, cmd, ispol=False):
+    def SshExecute(self, cmd):
 
         host = self.ip
         user = self.user
@@ -204,7 +208,7 @@ class OpTestConnection():
                                           "Do smstop then smstart to restart)")
                     if((x.__contains__("Error:")) and (cmd.__contains__('rmsys'))):
                         print(x)
-                        raise OpTestError("Error removing FSP from FSM:" + host)
+                        raise OpTestError("Error removing:" + host)
                     if((x.__contains__("Bad owner or permissions on /root/.ssh/config"))):
                         print(x)
                         raise OpTestError("Bad owner or permissions on /root/.ssh/config,"
@@ -228,9 +232,8 @@ class OpTestConnection():
         return list
 
     ##
-    #   @details  This method does a scp  from lcb(where rpm and xml files are found) to hmc
-    #             rpmxmlPath = Location where rpm and xml files are stored for the build
-    #             destination = Path in hmc where rpm and xml files will be stored.Format should be loginid@destinationPath
+    #   @brief    This method does a scp from local system (where files are found)
+    #             to destination(Path where files will be stored)
     #   @param    hostfile
     #   @param    destid
     #   @param    destName
@@ -238,9 +241,9 @@ class OpTestConnection():
     #   @param    passwd
     #   @param    ssh_ver
     #   @return   output from terminal
-    #   @throw    SshConnectionError
+    #   @throw    subprocess or OpTestError
     #
-    def scp_filesfrom_lcbtohmc(
+    def copyFilesToDest(
             self,
             hostfile,
             destid,
@@ -266,22 +269,11 @@ class OpTestConnection():
                 hostfile,
                 destinationPath)
             print(arglist)
-            # TODO - The klog command causes the os.read by the other
-            # process to not work.  Seems like you can't do 2 .execv's
-            #user = self.m_pConfig.getOtherDetails("afsid")
-            #password = self.m_pConfig.getOtherDetails("afspasswd")
-            #cell = 'austin'
-            #arglist1 = ("klog", user, "-c", cell, "-password", password)
-            #os.execv("/usr/bin/klog", arglist1)
             os.execv("/usr/bin/scp", arglist)
         else:
             while True:
                 try:
                     x = os.read(fd, 1024)
-                    # print "=============================="
-                    # print "response"
-                    # print x
-                    # print "=============================="
                     print("x=" + x)
                     if(x.__contains__('(yes/no)')):
                         l_res = "yes\r\n"
@@ -333,22 +325,8 @@ class OpTestConnection():
         if list.__contains__("Name or service not known"):
             reason = 'SSH Failed for :' + destid + \
                 "\n Please provide a valid Hostname"
-            print("scp command failed to hmc!")
+            print("scp command failed!")
             raise OpTestError(reason)
 
         print(list)
         return list
-
-
-
-# Unit Test
-if __name__ == '__main__':
-
-    lpar = OpTestConnection("alp046p1.aus.stglabs.ibm.com", "root", "coolpw0rd" , "aix", "1" )
-
-    cmd = "ls"
-    l_res = lpar.SshExecute(cmd)
-    print l_res
-    print "Done"
-
-
