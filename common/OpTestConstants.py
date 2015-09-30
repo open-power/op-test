@@ -74,6 +74,8 @@ class OpTestConstants():
 
     # Commands to be executed on the OS
     OS_PRESERVE_NETWORK = "ipmitool -I usb raw 0x32 0xba 0x18 0x00"
+    LPAR_COLD_RESET = "ipmitool -I usb mc reset cold"
+    LPAR_WARM_RESET = "ipmitool -I usb mc reset warm"
 
 
     # Sleep times
