@@ -49,11 +49,17 @@ from OpTestUtil import OpTestUtil
 
 class OpTestLpar():
 
-
-    def __init__(self, i_ip, i_user, i_passwd):
-        self.ip = i_ip
-        self.user = i_user
-        self.passwd = i_passwd
+    ##
+    # @brief Initialize this object
+    #
+    # @param i_lparip @type string: IP Address of the lpar
+    # @param i_lparuser @type string: Userid to log into the lpar
+    # @param i_lparpasswd @type string: Password of the userid to log into the lpar
+    #
+    def __init__(self, i_lparip, i_lparuser, i_lparpasswd):
+        self.ip = i_lparip
+        self.user = i_lparuser
+        self.passwd = i_lparpasswd
         self.util = OpTestUtil()
 
     ##
@@ -64,16 +70,16 @@ class OpTestLpar():
     #
     def _ssh_execute(self, i_cmd):
 
-        host = self.l_ip
-        user = self.l_user
-        pwd = self.l_passwd
+        l_host = self.ip
+        l_user = self.user
+        l_pwd = self.passwd
 
         l_output = ''
         ssh_ver = '-2'
 
         count = 0
         while(1):
-            value = self.util.PingFunc(host)[0]
+            value = self.util.PingFunc(l_host)[0]
             if(count > 5):
                 l_msg = "Partition not pinging after 2.5 min, hence quitting."
                 print l_msg
@@ -108,7 +114,7 @@ class OpTestLpar():
             # In child process.  Issue attempt ssh connection to remote host
 
             arglist = ('/usr/bin/ssh -o StrictHostKeyChecking=no',
-                       host, ssh_ver, '-k', '-l', user, i_cmd)
+                       l_host, ssh_ver, '-k', '-l', l_user, i_cmd)
 
             try:
                 os.execv('/usr/bin/ssh', arglist)
@@ -146,12 +152,12 @@ class OpTestLpar():
                         os.write(fd, l_res)
                     if(x.__contains__('s password:')):
                         x = ''
-                        os.write(fd, pwd + '\r\n')
+                        os.write(fd, l_pwd + '\r\n')
                     if(x.__contains__('Password:')):
                         x = ''
-                        os.write(fd, pwd + '\r\n')
+                        os.write(fd, l_pwd + '\r\n')
                     if(x.__contains__('password')):
-                        response = pwd + "\r\n"
+                        response = l_pwd + "\r\n"
                         os.write(fd, response)
                     if(x.__contains__('yes')):
                         response = '1' + "\r\n"
@@ -171,7 +177,7 @@ class OpTestLpar():
                         print (x)
                         raise OpTestError("Its a RSA key problem : \n" + x)
                     if(x.__contains__("Permission denied")):
-                        l_msg = "Wrong Login or Password(" + user + "/" + pwd + ") :" + x
+                        l_msg = "Wrong Login or Password(" + l_user + "/" + l_pwd + ") :" + x
                         print (l_msg)
                         raise OpTestError(l_msg)
                     if(x.__contains__("Rebooting") or \
@@ -180,7 +186,7 @@ class OpTestLpar():
                         raise OpTestError(l_output)
                     if(x.__contains__("Connection timed out")):
                         l_msg = "Connection timed out/" + \
-                            host + " is not pingable"
+                            l_host + " is not pingable"
                         print (x)
                         raise OpTestError(l_msg)
                     if(x.__contains__("could not connect to CLI daemon")):
@@ -189,7 +195,7 @@ class OpTestLpar():
                                           "Do smstop then smstart to restart)")
                     if((x.__contains__("Error:")) and (i_cmd.__contains__('rmsys'))):
                         print(x)
-                        raise OpTestError("Error removing:" + host)
+                        raise OpTestError("Error removing:" + l_host)
                     if((x.__contains__("Bad owner or permissions on /root/.ssh/config"))):
                         print(x)
                         raise OpTestError("Bad owner or permissions on /root/.ssh/config,"
@@ -200,7 +206,7 @@ class OpTestLpar():
                 except OSError:
                     break
         if l_output.__contains__("Name or service not known"):
-            reason = 'SSH Failed for :' + host + \
+            reason = 'SSH Failed for :' + l_host + \
                 "\n Please provide a valid Hostname"
             print reason
             raise OpTestError(reason)
@@ -279,7 +285,7 @@ class OpTestLpar():
             print l_msg
             raise OpTestError(l_msg)
 
-        self.lpar_protect_network_setting()
+        #self.lpar_protect_network_setting() #writing to partition is not stable
         l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
                 + i_image.rsplit("/", 1)[-1] + imagecomponent
         print l_cmd

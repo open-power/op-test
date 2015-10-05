@@ -240,7 +240,7 @@ class OpTestSystem():
     def sys_bmc_inband_fw_update_hpm(self,i_image):
 
         try:
-            self.bmc_validate_lpar()
+            self.sys_bmc_validate_lpar()
             self.cv_IPMI.ipmi_cold_reset()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
@@ -261,7 +261,7 @@ class OpTestSystem():
     def sys_bmc_inband_pnor_update_hpm(self,i_image):
 
         try:
-            self.bmc_validate_lpar()
+            self.sys_bmc_validate_lpar()
             self.cv_IPMI.ipmi_cold_reset()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
@@ -281,7 +281,7 @@ class OpTestSystem():
     def sys_bmc_inband_fwandpnor_update_hpm(self,i_image):
 
         try:
-            self.bmc_validate_lpar()
+            self.sys_bmc_validate_lpar()
             self.cv_IPMI.ipmi_cold_reset()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
