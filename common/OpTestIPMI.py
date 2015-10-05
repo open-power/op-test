@@ -42,7 +42,14 @@ from OpTestUtil import OpTestUtil
 
 class OpTestIPMI():
 
-
+    ##
+    # @brief Initialize this object
+    #
+    # @param i_bmcIP @type string: IP Address of the BMC
+    # @param i_bmcUser @type string: Userid to log into the BMC
+    # @param i_bmcPwd @type string: Password of the userid to log into the BMC
+    # @param i_ffdcDir @type string: Optional param to indicate where to write FFDC
+    #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir):
 
         self.cv_bmcIP = i_bmcIP
@@ -345,6 +352,7 @@ class OpTestIPMI():
 
         self.ipmi_cold_reset()
         l_cmd = BMC_CONST.BMC_HPM_UPDATE + i_image + " " + i_imagecomponent
+        self.ipmi_preserve_network_setting()
         try:
             rc = self._ipmitool_cmd_run("echo y | " + self.cv_cmd + l_cmd)
             print rc
@@ -390,7 +398,7 @@ class OpTestIPMI():
     # @return pnor level of the bmc
     #         or raise OpTestError
     #
-    def ipmi_get_PNOR_Level(self):
+    def ipmi_get_PNOR_level(self):
         l_rc =  self._ipmitool_cmd_run(self.cv_cmd + BMC_CONST.BMC_MCHBLD)
         print l_rc
         return l_rc

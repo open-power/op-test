@@ -24,6 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
+## @package OpTestLpar
+#  Lpar package which contains all functions related to LPAR communication
+#
+#  This class encapsulates all function which deals with the Lpar
+#  in OpenPower systems
+
 import sys
 import os
 import string
@@ -44,12 +50,10 @@ from OpTestUtil import OpTestUtil
 class OpTestLpar():
 
 
-    def __init__(self, i_ip, i_user, i_passwd, i_Type, i_id):
+    def __init__(self, i_ip, i_user, i_passwd):
         self.ip = i_ip
         self.user = i_user
         self.passwd = i_passwd
-        self.OsType = i_Type
-        self.id = i_id
         self.util = OpTestUtil()
 
     ##
@@ -58,13 +62,13 @@ class OpTestLpar():
     #   @param i_cmd: @type string: Command to be executed on host through a ssh session
     #   @return command output if command execution is successful else raises OpTestError
     #
-    def SshExecute(self, i_cmd):
+    def _ssh_execute(self, i_cmd):
 
-        host = self.ip
-        user = self.user
-        pwd = self.passwd
+        host = self.l_ip
+        user = self.l_user
+        pwd = self.l_passwd
 
-        list = ''
+        l_output = ''
         ssh_ver = '-2'
 
         count = 0
@@ -172,8 +176,8 @@ class OpTestLpar():
                         raise OpTestError(l_msg)
                     if(x.__contains__("Rebooting") or \
                        (x.__contains__("rebooting the system"))):
-                        list = list + x
-                        raise OpTestError(list)
+                        l_output = l_output + x
+                        raise OpTestError(l_output)
                     if(x.__contains__("Connection timed out")):
                         l_msg = "Connection timed out/" + \
                             host + " is not pingable"
@@ -191,11 +195,11 @@ class OpTestLpar():
                         raise OpTestError("Bad owner or permissions on /root/.ssh/config,"
                                           "Try 'chmod -R 600 /root/.ssh' & retry operation")
 
-                    list = list + x
+                    l_output = l_output + x
                     # time.sleep(1)
                 except OSError:
                     break
-        if list.__contains__("Name or service not known"):
+        if l_output.__contains__("Name or service not known"):
             reason = 'SSH Failed for :' + host + \
                 "\n Please provide a valid Hostname"
             print reason
@@ -206,20 +210,19 @@ class OpTestLpar():
         if (fd):
             os.waitpid(pid, 0)
             os.close(fd)
-        return list
+        return l_output
 
     ##
     # @brief Get and Record Ubunto OS level
     #
-    # @return o_oslevel @type string: OS level of the partition provided
+    # @return l_oslevel @type string: OS level of the partition provided
     #         or raise OpTestError
     #
     def lpar_get_OS_Level(self):
 
-        self.Validate_LPAR()
-        o_oslevel = self.SshExecute(BMC_CONST.BMC_GET_OS_RELEASE)
-        print o_oslevel
-        return o_oslevel
+        l_oslevel = self._ssh_execute(BMC_CONST.BMC_GET_OS_RELEASE)
+        print l_oslevel
+        return l_oslevel
 
 
     ##
@@ -229,7 +232,7 @@ class OpTestLpar():
     #
     def lpar_protect_network_setting(self):
         try:
-            l_rc = self.SshExecute(BMC_CONST.OS_PRESERVE_NETWORK)
+            l_rc = self._ssh_execute(BMC_CONST.OS_PRESERVE_NETWORK)
         except:
             l_errmsg = "Can't preserve network setting"
             print l_errmsg
@@ -245,7 +248,7 @@ class OpTestLpar():
         l_cmd = BMC_CONST.LPAR_COLD_RESET
         print ("Applying Cold reset. Wait for "
                             + str(BMC_CONST.BMC_COLD_RESET_DELAY) + "sec")
-        l_rc = self.SshExecute(l_cmd)
+        l_rc = self._ssh_execute(l_cmd)
         if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
             print l_rc
             time.sleep(BMC_CONST.BMC_COLD_RESET_DELAY)
@@ -281,7 +284,7 @@ class OpTestLpar():
                 + i_image.rsplit("/", 1)[-1] + imagecomponent
         print l_cmd
         try:
-            l_rc = self.SshExecute(l_cmd)
+            l_rc = self._ssh_execute(l_cmd)
             print l_rc
         except subprocess.CalledProcessError:
             l_msg = "Code Update Failed"

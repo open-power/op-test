@@ -65,10 +65,13 @@ class OpTestUtil():
             raise OpTestError(l_msg)
 
         if(stdout_value.__contains__("2 received")):
+            print ("Partition is pinging")
             return 2, stderr_value
         elif(stdout_value.__contains__("1 received")):
+            print ("Partition started pinging or intermittent connection")
             return 1, stderr_value
         else:
+            print ("Partition is not pinging")
             return 0, stderr_value
 
     ##

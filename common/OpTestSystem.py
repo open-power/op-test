@@ -54,17 +54,14 @@ class OpTestSystem():
     # @param i_lparIP The IP address of the LPAR
     # @param i_lparuser The userid to log into the LPAR
     # @param i_lparPasswd The password of the userid to log into the LPAR with
-    # @param i_lpartype The type of lpar example aix or linux
-    # @param i_lparid ID of the lpar. Default set to 1
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
                  i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None, i_lpartype=None, i_lparid = "1"):
+                 i_lparuser=None, i_lparPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP,i_bmcUser,i_bmcPasswd,i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd,
-                                     i_lpartype, i_lparid)
+        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd)
         self.util = OpTestUtil()
 
     ############################################################################
@@ -164,7 +161,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_reboot(self):
+    def sys_bmc_reboot(self):
         try:
             rc = self.cv_BMC.reboot()
         except OpTestError as e:
@@ -179,7 +176,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_outofband_fw_update_hpm(self,i_image):
+    def sys_bmc_outofband_fw_update_hpm(self,i_image):
 
         try:
             self.cv_IPMI.ipmi_power_off()
@@ -199,7 +196,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_outofband_pnor_update_hpm(self,i_image):
+    def sys_bmc_outofband_pnor_update_hpm(self,i_image):
 
         try:
             self.cv_IPMI.ipmi_power_off()
@@ -218,7 +215,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_outofband_fwandpnor_update_hpm(self,i_image):
+    def sys_bmc_outofband_fwandpnor_update_hpm(self,i_image):
 
         try:
             self.cv_IPMI.ipmi_power_off()
@@ -240,7 +237,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_inband_fw_update_hpm(self,i_image):
+    def sys_bmc_inband_fw_update_hpm(self,i_image):
 
         try:
             self.bmc_validate_lpar()
@@ -261,7 +258,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_inband_pnor_update_hpm(self,i_image):
+    def sys_bmc_inband_pnor_update_hpm(self,i_image):
 
         try:
             self.bmc_validate_lpar()
@@ -281,7 +278,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_inband_fwandpnor_update_hpm(self,i_image):
+    def sys_bmc_inband_fwandpnor_update_hpm(self,i_image):
 
         try:
             self.bmc_validate_lpar()
@@ -299,7 +296,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS raises OpTestError when failed
     #
-    def bmc_validate_lpar(self):
+    def sys_bmc_validate_lpar(self):
         # Check to see if lpar credentials are present
         if(self.cv_LPAR.ip == None):
             l_msg = "Partition credentials not provided"
@@ -308,7 +305,7 @@ class OpTestSystem():
 
         # Check if partition is active
         value = self.util.PingFunc(self.cv_LPAR.ip)[0]
-        if((value == 0) or (value == 1)):
+        if((value != BMC_CONST.PING_SUCCESS)):
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_power_on()
             time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)

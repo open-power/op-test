@@ -72,6 +72,11 @@ class OpTestConstants():
     FW_SUCCESS = 0
     FW_FAILED = 1
 
+    # PingFunc Constants
+    PING_FAILED = 0
+    PING_UNDETERMINED = 1
+    PING_SUCCESS = 2
+
     # Commands to be executed on the OS
     OS_PRESERVE_NETWORK = "ipmitool -I usb raw 0x32 0xba 0x18 0x00"
     LPAR_COLD_RESET = "ipmitool -I usb mc reset cold"
