@@ -308,23 +308,21 @@ class OpTestSystem():
         if((value != BMC_CONST.PING_SUCCESS)):
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_power_on()
-            time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
+
             '''  Ping the system until it reboots  '''
             retries = 0
-            while True:
-                try:
-                    subprocess.check_call(["ping", self.cv_LPAR.ip, "-c1"])
-                    break
-                except subprocess.CalledProcessError as e:
-                    print "Ping return code: ", e.returncode, "retrying..."
-                    retries += 1
-                    time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
+            while (value != BMC_CONST.PING_SUCCESS):
                 if retries > 5:
                     l_msg = "Error. BMC host is not responding to pings"
                     print l_msg
                     raise OpTestError(l_msg)
-            print 'Partition is pinging'
-            return BMC_CONST.FW_SUCCESS
+
+                time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
+                value = self.util.PingFunc(self.cv_LPAR.ip)[0]
+                retries += 1
+
+        print 'Partition is pinging'
+        return BMC_CONST.FW_SUCCESS
 
 
 

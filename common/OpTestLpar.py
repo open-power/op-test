@@ -84,13 +84,11 @@ class OpTestLpar():
                 l_msg = "Partition not pinging after 2.5 min, hence quitting."
                 print l_msg
                 raise OpTestError(l_msg)
-            if(value == 2):
+            if(value == BMC_CONST.PING_SUCCESS):
                 l_msg = "Partition is pinging"
                 print l_msg
                 break
-            elif(value == 1):
-                print ("Partition started pinging")
-            elif(value == 0):
+            elif(value == BMC_CONST.PING_FAILED):
                 print ("Partition not pinging")
                 time.sleep(10)
                 count += 1
