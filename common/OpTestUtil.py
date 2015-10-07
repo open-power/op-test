@@ -49,27 +49,38 @@ class OpTestUtil():
     ##
     # @brief Pings 2 packages to system under test
     #
-    # @param    ip: ip address of system under test
-    # @return   number of returned ping response
-    #           or raise OpTestError if failed
+    # @param i_ip @type string: ip address of system under test
+    # @param i_try @type int: number of times the system is
+    #        pinged before returning Failed
     #
-    def PingFunc(self, ip):
-        arglist = "ping -c 2 " + str(ip)
-        try:
-            p1 = subprocess.Popen(
-                arglist, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            stdout_value, stderr_value = p1.communicate()
-        except:
-            l_msg = "Ping Test Failed."
-            print l_msg
-            raise OpTestError(l_msg)
+    # @return   BMC_CONST.PING_SUCCESS when PASSED or
+    #           raise OpTestError when FAILED
+    #
+    def PingFunc(self, i_ip, i_try=1):
 
-        if(stdout_value.__contains__("2 received")):
-            print ("Partition is pinging")
-            return BMC_CONST.PING_SUCCESS, stderr_value
-        else:
-            print ("Partition is not pinging")
-            return BMC_CONST.PING_FAILED, stderr_value
+        arglist = "ping -c 2 " + str(i_ip)
+        while(i_try != 0):
+
+            try:
+                p1 = subprocess.Popen(
+                    arglist, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+                stdout_value, stderr_value = p1.communicate()
+            except:
+                l_msg = "Ping Test Failed."
+                print l_msg
+                raise OpTestError(l_msg)
+
+            if(stdout_value.__contains__("2 received")):
+                print ("Partition is pinging")
+                return BMC_CONST.PING_SUCCESS
+
+            else:
+                print ("Partition is not pinging")
+                i_try -= 1
+                time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
+
+        print stderr_value
+        raise OpTestError(stderr_value)
 
     ##
     #   @brief    This method does a scp from local system (where files are found)

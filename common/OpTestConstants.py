@@ -82,6 +82,8 @@ class OpTestConstants():
     LPAR_COLD_RESET = "ipmitool -I usb mc reset cold"
     LPAR_WARM_RESET = "ipmitool -I usb mc reset warm"
 
-
     # Sleep times
     LPAR_BRINGUP_TIME = 80
+
+    PING_RETRY_POWERCYCLE = 5
+    PING_RETRY_FOR_STABILITY = 3

@@ -304,22 +304,12 @@ class OpTestSystem():
             raise OpTestError(l_msg)
 
         # Check if partition is active
-        value = self.util.PingFunc(self.cv_LPAR.ip)[0]
-        if((value != BMC_CONST.PING_SUCCESS)):
+        try:
+            self.util.PingFunc(self.cv_LPAR.ip)
+        except OpTestError as e:
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_power_on()
-
-            '''  Ping the system until it reboots  '''
-            retries = 0
-            while (value != BMC_CONST.PING_SUCCESS):
-                if retries > 5:
-                    l_msg = "Error. BMC host is not responding to pings"
-                    print l_msg
-                    raise OpTestError(l_msg)
-
-                time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
-                value = self.util.PingFunc(self.cv_LPAR.ip)[0]
-                retries += 1
+            self.util.PingFunc(self.cv_LPAR.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         print 'Partition is pinging'
         return BMC_CONST.FW_SUCCESS

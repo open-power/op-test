@@ -77,25 +77,7 @@ class OpTestLpar():
         l_output = ''
         ssh_ver = '-2'
 
-        count = 0
-        while(1):
-            value = self.util.PingFunc(l_host)[0]
-            if(count > 5):
-                l_msg = "Partition not pinging after 2.5 min, hence quitting."
-                print l_msg
-                raise OpTestError(l_msg)
-            if(value == BMC_CONST.PING_SUCCESS):
-                l_msg = "Partition is pinging"
-                print l_msg
-                break
-            elif(value == BMC_CONST.PING_FAILED):
-                print ("Partition not pinging")
-                time.sleep(10)
-                count += 1
-            else:
-                l_msg = "Can't ping! Abort"
-                print(l_msg)
-                raise OpTestError(l_msg)
+        self.util.PingFunc(l_host, BMC_CONST.PING_RETRY_FOR_STABILITY)
 
         # Flush everything out prior to forking
         sys.stdout.flush()
