@@ -52,7 +52,7 @@ class OpTestConstants():
     BMC_FW_IMAGE_UPDATE = " component 1 -z 30000 force"
     BMC_PNOR_IMAGE_UPDATE = " component 2 -z 30000"
     BMC_FWANDPNOR_IMAGE_UPDATE = " -z 30000 force"
-    BMC_LANPLUS = " -I lanplus" #-U ADMIN -P admin"
+    BMC_LANPLUS = " -I lanplus"
     BMC_HPM_UPDATE = " hpm upgrade "
     BMC_ACTIVE_SIDE = " sensor list|grep -i golden"
     BMC_SOL_ACTIVATE = " sol activate"
@@ -61,9 +61,6 @@ class OpTestConstants():
 
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"
     BMC_ERROR_LAN = "Unable to establish LAN session"
-
-    BMC_ADMIN_USER = "ADMIN"
-    BMC_SYADMIN_USER = "sysadmin"
 
     PRIMARY_SIDE = "0x0080"
     GOLDEN_SIDE = "0x0180"
