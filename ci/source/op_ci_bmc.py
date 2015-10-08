@@ -89,7 +89,7 @@ def bmc_reboot():
         reboot - TODO
 
     """
-    opTestSys.bmc_reboot()
+    opTestSys.sys_bmc_reboot()
 
     return 0
 

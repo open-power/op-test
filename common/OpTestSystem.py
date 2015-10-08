@@ -30,11 +30,15 @@
 #  This class encapsulates all interfaces and classes required to do end to end
 #  automated flashing and testing of OpenPower systems.
 
+import time
+import subprocess
+
 from OpTestBMC import OpTestBMC
 from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from OpTestConnection import OpTestConnection
+from OpTestLpar import OpTestLpar
+from OpTestUtil import OpTestUtil
 
 class OpTestSystem():
 
@@ -50,16 +54,15 @@ class OpTestSystem():
     # @param i_lparIP The IP address of the LPAR
     # @param i_lparuser The userid to log into the LPAR
     # @param i_lparPasswd The password of the userid to log into the LPAR with
-    # @param i_lpartype The type of lpar example aix or linux
-    # @param i_lparid ID of the lpar. Default set to 1
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
                  i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None, i_lpartype=None, i_lparid = "1"):
+                 i_lparuser=None, i_lparPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP,i_bmcUser,i_bmcPasswd,i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
-                                  i_ffdcDir, i_lparip, i_lparuser, i_lparPasswd,
-                                  i_lpartype, i_lparid)
+                                  i_ffdcDir)
+        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd)
+        self.util = OpTestUtil()
 
     ############################################################################
     # System Interfaces
@@ -158,7 +161,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_reboot(self):
+    def sys_bmc_reboot(self):
         try:
             rc = self.cv_BMC.reboot()
         except OpTestError as e:
@@ -173,11 +176,11 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_outofband_fw_update_hpm(self,i_image):
+    def sys_bmc_outofband_fw_update_hpm(self,i_image):
 
         try:
             self.cv_IPMI.ipmi_power_off()
-            self.cv_IPMI.preserve_network_setting()
+            self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_IPMI.ipmi_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
             self.cv_IPMI.ipmi_power_on()
         except OpTestError as e:
@@ -193,17 +196,37 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_outofband_pnor_update_hpm(self,i_image):
+    def sys_bmc_outofband_pnor_update_hpm(self,i_image):
 
         try:
             self.cv_IPMI.ipmi_power_off()
-            self.cv_IPMI.preserve_network_setting()
+            self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_IPMI.ipmi_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
             self.cv_IPMI.ipmi_power_on()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Update the BMC fw and pnor image using hpm file
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_bmc_outofband_fwandpnor_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_IPMI.ipmi_preserve_network_setting()
+            self.cv_IPMI.ipmi_code_update(i_image,BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
+            self.cv_IPMI.ipmi_power_on()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
 
 
 
@@ -214,10 +237,13 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_inband_fw_update_hpm(self,i_image):
+    def sys_bmc_inband_fw_update_hpm(self,i_image):
 
         try:
-            self.cv_IPMI.ipmi_inband_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
+            self.sys_bmc_validate_lpar()
+            self.cv_IPMI.ipmi_cold_reset()
+            self.cv_IPMI.ipmi_preserve_network_setting()
+            self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -232,14 +258,62 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def bmc_inband_pnor_update_hpm(self,i_image):
+    def sys_bmc_inband_pnor_update_hpm(self,i_image):
 
         try:
-            self.cv_IPMI.ipmi_inband_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
+            self.sys_bmc_validate_lpar()
+            self.cv_IPMI.ipmi_cold_reset()
+            self.cv_IPMI.ipmi_preserve_network_setting()
+            self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
         return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Update the BMC fw and pnor using hpm file using LPAR
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_bmc_inband_fwandpnor_update_hpm(self,i_image):
+
+        try:
+            self.sys_bmc_validate_lpar()
+            self.cv_IPMI.ipmi_cold_reset()
+            self.cv_IPMI.ipmi_preserve_network_setting()
+            self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Validates the partition and waits for partition to connect
+    #        important to perform before all inband communications
+    #
+    # @return BMC_CONST.FW_SUCCESS raises OpTestError when failed
+    #
+    def sys_bmc_validate_lpar(self):
+        # Check to see if lpar credentials are present
+        if(self.cv_LPAR.ip == None):
+            l_msg = "Partition credentials not provided"
+            print l_msg
+            raise OpTestError(l_msg)
+
+        # Check if partition is active
+        try:
+            self.util.PingFunc(self.cv_LPAR.ip)
+        except OpTestError as e:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_IPMI.ipmi_power_on()
+            self.util.PingFunc(self.cv_LPAR.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+
+        print 'Partition is pinging'
+        return BMC_CONST.FW_SUCCESS
+
 
 
 

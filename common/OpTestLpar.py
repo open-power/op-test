@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-auto-test/common/OpTestConstants.py $
+# $Source: op-auto-test/common/OpTestLpar.py $
 #
 # OpenPOWER Automated Test Project
 #
@@ -24,6 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
+## @package OpTestLpar
+#  Lpar package which contains all functions related to LPAR communication
+#
+#  This class encapsulates all function which deals with the Lpar
+#  in OpenPower systems
+
 import sys
 import os
 import string
@@ -37,76 +43,41 @@ import select
 import pty
 import pexpect
 
+from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
+from OpTestUtil import OpTestUtil
 
-class OpTestConnection():
-
-
-    def __init__(self, i_ip, i_user, i_passwd, i_Type, i_id):
-        self.ip = i_ip
-        self.user = i_user
-        self.passwd = i_passwd
-        self.OsType = i_Type
-        self.id = i_id
-
-
-
-    def PingFunc(self, ip):
-        arglist = "ping -c 2 " + str(ip)
-        try:
-            p1 = subprocess.Popen(
-                arglist, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            stdout_value, stderr_value = p1.communicate()
-        except:
-            l_msg = "Ping Test Failed."
-            print l_msg
-            raise OpTestError(l_msg)
-
-        if(stdout_value.__contains__("2 received")):
-            return 2, stderr_value
-        elif(stdout_value.__contains__("1 received")):
-            return 1, stderr_value
-        else:
-            return 0, stderr_value
-
+class OpTestLpar():
 
     ##
-    #   @details   This method executes the command(cmd) on the host using a ssh session from linux box where test is executing.
-    #   @param     cmd: @type string: Command that has to be executed on host through a ssh session
-    #   @param     ispol: @type bool: True if host is HMC(selects version 1).False if host SDMC(selects version 2)
-    #   @return    returns command output if command execution is successful else raises SshConnectionError
-    #   @throw     OpTestError
+    # @brief Initialize this object
     #
-    def SshExecute(self, cmd, ispol=False):
+    # @param i_lparip @type string: IP Address of the lpar
+    # @param i_lparuser @type string: Userid to log into the lpar
+    # @param i_lparpasswd @type string: Password of the userid to log into the lpar
+    #
+    def __init__(self, i_lparip, i_lparuser, i_lparpasswd):
+        self.ip = i_lparip
+        self.user = i_lparuser
+        self.passwd = i_lparpasswd
+        self.util = OpTestUtil()
 
-        host = self.ip
-        user = self.user
-        pwd = self.passwd
+    ##
+    #   @brief This method executes the command(i_cmd) on the host using a ssh session
+    #
+    #   @param i_cmd: @type string: Command to be executed on host through a ssh session
+    #   @return command output if command execution is successful else raises OpTestError
+    #
+    def _ssh_execute(self, i_cmd):
 
-        list = ''
+        l_host = self.ip
+        l_user = self.user
+        l_pwd = self.passwd
+
+        l_output = ''
         ssh_ver = '-2'
 
-        count = 0
-        while(1):
-            value = self.PingFunc(host)[0]
-            if(count > 5):
-                l_msg = "Partition not pinging after 2.5 min, hence quitting."
-                print l_msg
-                raise OpTestError(l_msg)
-            if(value == 2):
-                l_msg = "Partition is pinging"
-                print l_msg
-                break
-            elif(value == 1):
-                print ("Partition started pinging")
-            elif(value == 0):
-                print ("Partition not pinging")
-                time.sleep(10)
-                count += 1
-            else:
-                l_msg = "Can't ping! Abort"
-                print(l_msg)
-                raise OpTestError(l_msg)
+        self.util.PingFunc(l_host, BMC_CONST.PING_RETRY_FOR_STABILITY)
 
         # Flush everything out prior to forking
         sys.stdout.flush()
@@ -123,7 +94,7 @@ class OpTestConnection():
             # In child process.  Issue attempt ssh connection to remote host
 
             arglist = ('/usr/bin/ssh -o StrictHostKeyChecking=no',
-                       host, ssh_ver, '-k', '-l', user, cmd)
+                       l_host, ssh_ver, '-k', '-l', l_user, i_cmd)
 
             try:
                 os.execv('/usr/bin/ssh', arglist)
@@ -148,7 +119,7 @@ class OpTestConnection():
                     #print "ssh x= " + x
                     end_time = time.time()
                     if(end_time - start_time > 1500):
-                        if(cmd.__contains__('updlic') or cmd.__contains__('update_flash')):
+                        if(i_cmd.__contains__('updlic') or i_cmd.__contains__('update_flash')):
                             continue
                         else:
                             l_msg = "Timeout occured/SSH request " \
@@ -161,12 +132,12 @@ class OpTestConnection():
                         os.write(fd, l_res)
                     if(x.__contains__('s password:')):
                         x = ''
-                        os.write(fd, pwd + '\r\n')
+                        os.write(fd, l_pwd + '\r\n')
                     if(x.__contains__('Password:')):
                         x = ''
-                        os.write(fd, pwd + '\r\n')
+                        os.write(fd, l_pwd + '\r\n')
                     if(x.__contains__('password')):
-                        response = pwd + "\r\n"
+                        response = l_pwd + "\r\n"
                         os.write(fd, response)
                     if(x.__contains__('yes')):
                         response = '1' + "\r\n"
@@ -186,36 +157,36 @@ class OpTestConnection():
                         print (x)
                         raise OpTestError("Its a RSA key problem : \n" + x)
                     if(x.__contains__("Permission denied")):
-                        l_msg = "Wrong Login or Password(" + user + "/" + pwd + ") :" + x
+                        l_msg = "Wrong Login or Password(" + l_user + "/" + l_pwd + ") :" + x
                         print (l_msg)
                         raise OpTestError(l_msg)
                     if(x.__contains__("Rebooting") or \
                        (x.__contains__("rebooting the system"))):
-                        list = list + x
-                        raise OpTestError(list)
+                        l_output = l_output + x
+                        raise OpTestError(l_output)
                     if(x.__contains__("Connection timed out")):
                         l_msg = "Connection timed out/" + \
-                            host + " is not pingable"
+                            l_host + " is not pingable"
                         print (x)
                         raise OpTestError(l_msg)
                     if(x.__contains__("could not connect to CLI daemon")):
                         print(x)
                         raise OpTestError("Director server is not up/running("
                                           "Do smstop then smstart to restart)")
-                    if((x.__contains__("Error:")) and (cmd.__contains__('rmsys'))):
+                    if((x.__contains__("Error:")) and (i_cmd.__contains__('rmsys'))):
                         print(x)
-                        raise OpTestError("Error removing FSP from FSM:" + host)
+                        raise OpTestError("Error removing:" + l_host)
                     if((x.__contains__("Bad owner or permissions on /root/.ssh/config"))):
                         print(x)
                         raise OpTestError("Bad owner or permissions on /root/.ssh/config,"
                                           "Try 'chmod -R 600 /root/.ssh' & retry operation")
 
-                    list = list + x
+                    l_output = l_output + x
                     # time.sleep(1)
                 except OSError:
                     break
-        if list.__contains__("Name or service not known"):
-            reason = 'SSH Failed for :' + host + \
+        if l_output.__contains__("Name or service not known"):
+            reason = 'SSH Failed for :' + l_host + \
                 "\n Please provide a valid Hostname"
             print reason
             raise OpTestError(reason)
@@ -225,19 +196,90 @@ class OpTestConnection():
         if (fd):
             os.waitpid(pid, 0)
             os.close(fd)
-        return list
+        return l_output
+
+    ##
+    # @brief Get and Record Ubunto OS level
+    #
+    # @return l_oslevel @type string: OS level of the partition provided
+    #         or raise OpTestError
+    #
+    def lpar_get_OS_Level(self):
+
+        l_oslevel = self._ssh_execute(BMC_CONST.BMC_GET_OS_RELEASE)
+        print l_oslevel
+        return l_oslevel
 
 
+    ##
+    # @brief Executes a command on the os of the bmc to protect network setting
+    #
+    # @return OpTestError if failed
+    #
+    def lpar_protect_network_setting(self):
+        try:
+            l_rc = self._ssh_execute(BMC_CONST.OS_PRESERVE_NETWORK)
+        except:
+            l_errmsg = "Can't preserve network setting"
+            print l_errmsg
+            raise OpTestError(l_errmsg)
 
+    ##
+    # @brief Performs a cold reset onto the lpar
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_cold_reset(self):
+        # TODO: cold reset command to os is not too stable
+        l_cmd = BMC_CONST.LPAR_COLD_RESET
+        print ("Applying Cold reset. Wait for "
+                            + str(BMC_CONST.BMC_COLD_RESET_DELAY) + "sec")
+        l_rc = self._ssh_execute(l_cmd)
+        if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
+            print l_rc
+            time.sleep(BMC_CONST.BMC_COLD_RESET_DELAY)
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Cold reset Failed"
+            print l_msg
+            raise OpTestError(l_msg)
 
-# Unit Test
-if __name__ == '__main__':
+    ##
+    # @brief Flashes image using ipmitool
+    #
+    # @param i_image @type string: hpm file including location
+    # @param i_imagecomponent @type string: component to be
+    #        update from the hpm file BMC_CONST.BMC_FW_IMAGE_UPDATE
+    #        or BMC_CONST.BMC_PNOR_IMAGE
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_code_update(self, i_image, imagecomponent):
 
-    lpar = OpTestConnection("alp046p1.aus.stglabs.ibm.com", "root", "coolpw0rd" , "aix", "1" )
+        # Copy the hpm file to the tmp folder in the partition
+        try:
+            self.util.copyFilesToDest(i_image, self.user,
+                                             self.ip, "/tmp/", self.passwd)
+        except:
+            l_msg = "Copying hpm file to lpar failed"
+            print l_msg
+            raise OpTestError(l_msg)
 
-    cmd = "ls"
-    l_res = lpar.SshExecute(cmd)
-    print l_res
-    print "Done"
+        #self.lpar_protect_network_setting() #writing to partition is not stable
+        l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
+                + i_image.rsplit("/", 1)[-1] + imagecomponent
+        print l_cmd
+        try:
+            l_rc = self._ssh_execute(l_cmd)
+            print l_rc
+        except subprocess.CalledProcessError:
+            l_msg = "Code Update Failed"
+            print l_msg
+            raise OpTestError(l_msg)
 
-
+        if(l_rc.__contains__("Firmware upgrade procedure successful")):
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Code Update Failed"
+            print l_msg
+            raise OpTestError(l_msg)

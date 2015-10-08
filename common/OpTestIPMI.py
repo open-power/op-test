@@ -37,13 +37,20 @@ import pexpect
 #from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from OpTestConnection import OpTestConnection
+from OpTestLpar import OpTestLpar
+from OpTestUtil import OpTestUtil
 
 class OpTestIPMI():
 
-
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir,
-                 i_lparip, i_lparuser, i_lparPasswd, i_lpartype, i_lparid):
+    ##
+    # @brief Initialize this object
+    #
+    # @param i_bmcIP @type string: IP Address of the BMC
+    # @param i_bmcUser @type string: Userid to log into the BMC
+    # @param i_bmcPwd @type string: Password of the userid to log into the BMC
+    # @param i_ffdcDir @type string: Optional param to indicate where to write FFDC
+    #
+    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir):
 
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
@@ -51,10 +58,7 @@ class OpTestIPMI():
         self.cv_ffdcDir = i_ffdcDir
         self.cv_cmd = 'ipmitool -H %s -I lanplus -U %s -P %s ' \
                       % (self.cv_bmcIP, self.cv_bmcUser, self.cv_bmcPwd)
-
-        self.lpar = OpTestConnection(i_lparip, i_lparuser, i_lparPasswd,
-                                     i_lpartype, i_lparid)
-
+        self.util = OpTestUtil()
 
 
     ##
@@ -100,6 +104,7 @@ class OpTestIPMI():
             output = cmd.communicate()[0]
             return output
 
+
     ##
     # @brief This function clears the sensor data
     #
@@ -122,6 +127,7 @@ class OpTestIPMI():
             print l_msg
             raise OpTestError(l_msg)
 
+
     ##
     # @brief This function sends the chassis power off ipmitool command
     #
@@ -135,6 +141,7 @@ class OpTestIPMI():
             l_msg = "Power OFF Failed"
             print l_msg
             raise OpTestError(l_msg)
+
 
     ##
     # @brief This function sends the chassis power on ipmitool command
@@ -150,6 +157,7 @@ class OpTestIPMI():
             print l_msg
             raise OpTestError(l_msg)
 
+
     ##
     # @brief This function sends the chassis power soft ipmitool command
     #
@@ -163,6 +171,7 @@ class OpTestIPMI():
             l_msg = "Power Soft Failed"
             print l_msg
             raise OpTestError(l_msg)
+
 
     ##
     # @brief Spawns the sol logger expect script as a background process. In order to
@@ -191,6 +200,7 @@ class OpTestIPMI():
         except:
             raise OpTestError("sol capture Failed")
         return solChild
+
 
     ##
     # @brief This function starts the sol capture and waits for the IPL to end. The
@@ -243,7 +253,6 @@ class OpTestIPMI():
         return BMC_CONST.FW_SUCCESS
 
 
-
     ##
     # @brief This function dumps the sel log and looks for specific hostboot error
     #        log string
@@ -288,6 +297,7 @@ class OpTestIPMI():
             print l_msg
             raise OpTestError(l_msg)
 
+
     ##
     # @brief Performs a warm reset onto the bmc
     #
@@ -309,13 +319,12 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
 
-
     ##
     # @brief Preserves the network setting
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def preserve_network_setting(self):
+    def ipmi_preserve_network_setting(self):
 
         print ("Protecting BMC network setting")
         l_cmd =  BMC_CONST.BMC_PRESRV_LAN
@@ -341,7 +350,9 @@ class OpTestIPMI():
     #
     def ipmi_code_update(self, i_image, i_imagecomponent):
 
+        self.ipmi_cold_reset()
         l_cmd = BMC_CONST.BMC_HPM_UPDATE + i_image + " " + i_imagecomponent
+        self.ipmi_preserve_network_setting()
         try:
             rc = self._ipmitool_cmd_run("echo y | " + self.cv_cmd + l_cmd)
             print rc
@@ -387,96 +398,7 @@ class OpTestIPMI():
     # @return pnor level of the bmc
     #         or raise OpTestError
     #
-    def Get_PNOR_Level(self):
+    def ipmi_get_PNOR_level(self):
         l_rc =  self._ipmitool_cmd_run(self.cv_cmd + BMC_CONST.BMC_MCHBLD)
         print l_rc
         return l_rc
-
-
-    ##
-    # @brief Get and Record Ubunto OS level
-    #
-    # @return o_oslevel @type string: OS level of the partition provided
-    #         or raise OpTestError
-    #
-    def inband_get_OS_Level(self):
-
-        self.Validate_LPAR()
-        o_oslevel = self.lpar.SshExecute(BMC_CONST.BMC_GET_OS_RELEASE)
-        print o_oslevel
-        return o_oslevel
-
-    ##
-    # @brief Validates the partition and performs reconnect
-    #        important to perform before all inband communications
-    #
-    # @return BMC_CONST.FW_SUCCESS raises OpTestError when failed
-    #
-    def Validate_LPAR(self):
-        # Check to see if lpar credentials are present
-        if(self.lpar.ip == None):
-            l_msg = "Partition credentials not provided"
-            print l_msg
-            raise OpTestError(l_msg)
-
-        # Check if partition is active
-        value = self.lpar.PingFunc(self.lpar.ip)[0]
-        if((value == 0) or (value == 1)):
-            # power cycle to activate partition
-            print ("Partition not active! Going to Power Cycle ....")
-            self.ipmi_power_off()
-            self.ipmi_power_on()
-            time.sleep(600)
-            value = self.lpar.PingFunc(self.lpar.ip)[0]
-            if(value != 2):
-                l_msg = "Partition is still not active"
-                print l_msg
-                raise OpTestError(l_msg)
-        print("Partition is Pinging")
-        return BMC_CONST.FW_SUCCESS
-
-
-
-    ##
-    # @brief Flashes image using ipmitool
-    #
-    # @param i_image @type string: hpm file including location
-    # @param i_imagecomponent @type string: component to be
-    #        update from the hpm file BMC_CONST.BMC_FW_IMAGE_UPDATE
-    #        or BMC_CONST.BMC_PNOR_IMAGE
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def ipmi_inband_code_update(self, i_image, imagecomponent):
-
-        self.Validate_LPAR()
-
-        # Copy the hpm file to the tmp folder in the partition
-        l_cmd = "scp " + i_image + " " + self.lpar.user + "@"  + self.lpar.ip + ":/tmp"
-        try:
-            child = pexpect.spawn(l_cmd)
-            child.expect('[Pp]assword:')
-            child.sendline(self.lpar.passwd)
-
-        except:
-            l_msg = "Copying hpm file to lpar failed"
-            print l_msg
-            raise OpTestError(l_msg)
-
-        self.preserve_network_setting()
-        l_cmd = BMC_CONST.BMC_HPM_UPDATE + "/tmp/" + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
-        try:
-            rc = self.lpar.SshExecute("echo y | ipmitool -I usb " + l_cmd)
-            print rc
-            self.ipmi_cold_reset()
-        except subprocess.CalledProcessError:
-            l_msg = "Code Update Failed"
-            print l_msg
-            raise OpTestError(l_msg)
-
-        if(rc.__contains__("Firmware upgrade procedure successful")):
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Code Update Failed"
-            print l_msg
-            raise OpTestError(l_msg)

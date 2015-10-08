@@ -51,7 +51,8 @@ class OpTestConstants():
     BMC_FLASH_IMAGE = "echo y | ipmitool -H "
     BMC_FW_IMAGE_UPDATE = " component 1 -z 30000 force"
     BMC_PNOR_IMAGE_UPDATE = " component 2 -z 30000"
-    BMC_LANPLUS = " -I lanplus" #-U ADMIN -P admin"
+    BMC_FWANDPNOR_IMAGE_UPDATE = " -z 30000 force"
+    BMC_LANPLUS = " -I lanplus"
     BMC_HPM_UPDATE = " hpm upgrade "
     BMC_ACTIVE_SIDE = " sensor list|grep -i golden"
     BMC_SOL_ACTIVATE = " sol activate"
@@ -61,12 +62,25 @@ class OpTestConstants():
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"
     BMC_ERROR_LAN = "Unable to establish LAN session"
 
-    BMC_ADMIN_USER = "ADMIN"
-    BMC_SYADMIN_USER = "sysadmin"
-
     PRIMARY_SIDE = "0x0080"
     GOLDEN_SIDE = "0x0180"
 
     # Framework Constants
     FW_SUCCESS = 0
     FW_FAILED = 1
+
+    # PingFunc Constants
+    PING_FAILED = 0
+    PING_UNDETERMINED = 1
+    PING_SUCCESS = 2
+
+    # Commands to be executed on the OS
+    OS_PRESERVE_NETWORK = "ipmitool -I usb raw 0x32 0xba 0x18 0x00"
+    LPAR_COLD_RESET = "ipmitool -I usb mc reset cold"
+    LPAR_WARM_RESET = "ipmitool -I usb mc reset warm"
+
+    # Sleep times
+    LPAR_BRINGUP_TIME = 80
+
+    PING_RETRY_POWERCYCLE = 5
+    PING_RETRY_FOR_STABILITY = 3
