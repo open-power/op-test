@@ -39,6 +39,7 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestLpar import OpTestLpar
 from OpTestUtil import OpTestUtil
+from OpTestWeb import OpTestWeb
 
 class OpTestSystem():
 
@@ -62,6 +63,7 @@ class OpTestSystem():
         self.cv_IPMI = OpTestIPMI(i_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
                                   i_ffdcDir)
         self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd)
+        self.cv_WEB = OpTestWeb(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi)
         self.util = OpTestUtil()
 
     ############################################################################
@@ -152,10 +154,6 @@ class OpTestSystem():
             return BMC_CONST.FW_FAILED
         return rc
 
-    ############################################################################
-    # BMC Interfaces
-    ############################################################################
-
     ##
     # @brief Reboot the BMC
     #
@@ -168,6 +166,11 @@ class OpTestSystem():
             return BMC_CONST.FW_FAILED
 
         return BMC_CONST.FW_SUCCESS
+
+
+    ###########################################################################
+    # CODE-UPDATE INTERFACES
+    ###########################################################################
 
     ##
     # @brief Update the BMC fw image using hpm file
@@ -244,6 +247,9 @@ class OpTestSystem():
             self.cv_IPMI.ipmi_cold_reset()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
+            self.cv_IPMI.ipmi_cold_reset()
+            # TODO: remove power_off() once DEFECT:SW325477 is fixed
+            self.cv_IPMI.ipmi_power_off()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -265,6 +271,9 @@ class OpTestSystem():
             self.cv_IPMI.ipmi_cold_reset()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
+            self.cv_IPMI.ipmi_cold_reset()
+            # TODO: remove power_off() once DEFECT:SW325477 is fixed
+            self.cv_IPMI.ipmi_power_off()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -285,7 +294,70 @@ class OpTestSystem():
             self.cv_IPMI.ipmi_cold_reset()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
+            self.cv_IPMI.ipmi_cold_reset()
+            # TODO: remove power_off() once DEFECT:SW325477 is fixed
+            self.cv_IPMI.ipmi_power_off()
         except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Update the PNOR image using hpm file through web GUI
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED or BMC_CONST.FW_INVALID
+    #
+    def sys_bmc_web_pnor_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_WEB.web_update_hpm(i_image,BMC_CONST.UPDATE_PNOR)
+        except OpTestError as e:
+            if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
+                return BMC_CONST.FW_INVALID
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Update the BMC image using hpm file through web GUI
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED or BMC_CONST.FW_INVALID
+    #
+    def sys_bmc_web_bmc_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_WEB.web_update_hpm(i_image,BMC_CONST.UPDATE_BMC)
+        except OpTestError as e:
+            if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
+                return BMC_CONST.FW_INVALID
+            return BMC_CONST.FW_FAILED
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Update the BMC and PNOR image using hpm file through web GUI
+    #
+    # @param i_image HPM file image including location
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED or BMC_CONST.FW_INVALID
+    #
+    def sys_bmc_web_bmcandpnor_update_hpm(self,i_image):
+
+        try:
+            self.cv_IPMI.ipmi_power_off()
+            self.cv_WEB.web_update_hpm(i_image, BMC_CONST.UPDATE_BMCANDPNOR)
+        except OpTestError as e:
+            if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
+                return BMC_CONST.FW_INVALID
             return BMC_CONST.FW_FAILED
 
         return BMC_CONST.FW_SUCCESS

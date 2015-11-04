@@ -56,7 +56,7 @@ class OpTestIPMI():
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd
         self.cv_ffdcDir = i_ffdcDir
-        self.cv_cmd = 'ipmitool -H %s -I lanplus -U %s -P %s ' \
+        self.cv_baseIpmiCmd = 'ipmitool -H %s -I lanplus -U %s -P %s ' \
                       % (self.cv_bmcIP, self.cv_bmcUser, self.cv_bmcPwd)
         self.util = OpTestUtil()
 
@@ -112,10 +112,10 @@ class OpTestIPMI():
     #
     def ipmi_sdr_clear(self):
 
-        output = self._ipmitool_cmd_run(self.cv_cmd + 'sel clear')
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sel clear')
         if 'Clearing SEL' in output:
-            time.sleep(3)
-            output = self._ipmitool_cmd_run(self.cv_cmd + 'sel elist')
+            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+            output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sel elist')
             if 'no entries' in output:
                 return BMC_CONST.FW_SUCCESS
             else:
@@ -134,7 +134,8 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_power_off(self):
-        output = self._ipmitool_cmd_run(self.cv_cmd + 'chassis power off')
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power off')
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         if 'Down/Off' in output:
             return BMC_CONST.FW_SUCCESS
         else:
@@ -149,7 +150,8 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_power_on(self):
-        output = self._ipmitool_cmd_run(self.cv_cmd + 'chassis power on')
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power on')
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         if 'Up/On' in output:
             return BMC_CONST.FW_SUCCESS
         else:
@@ -164,7 +166,8 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_power_soft(self):
-        output = self._ipmitool_cmd_run(self.cv_cmd + 'chassis power soft')
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power soft')
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         if "Chassis Power Control: Soft" in output:
             return BMC_CONST.FW_SUCCESS
         else:
@@ -184,10 +187,10 @@ class OpTestIPMI():
     def _ipmi_sol_capture(self):
 
         try:
-            self._ipmitool_cmd_run(self.cv_cmd + 'sol deactivate')
+            self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sol deactivate')
         except OpTestError:
             print 'SOL already deactivated'
-        time.sleep(2)
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
         cmd = os.getcwd() + '/../common/sol_logger.exp %s %s %s %s' % (
             self.cv_bmcIP,
@@ -232,7 +235,7 @@ class OpTestIPMI():
     #    cmd = 'sdr elist |grep \'Host Status\''
         cmd = 'sdr elist |grep \'OCC Active\''
         while True:
-            output = self._ipmitool_cmd_run(self.cv_cmd + cmd)
+            output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + cmd)
             #if 'S0/G0: working' in output:
             if 'Device Enabled' in output:
                 print "Host Status is S0/G0: working, IPL finished"
@@ -244,7 +247,7 @@ class OpTestIPMI():
             time.sleep(5)
 
         try:
-            self._ipmitool_cmd_run(self.cv_cmd + 'sol deactivate')
+            self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sol deactivate')
         except subprocess.CalledProcessError:
             l_msg = 'SOL already deactivated'
             print l_msg
@@ -263,7 +266,7 @@ class OpTestIPMI():
 
         selDesc = 'Transition to Non-recoverable'
         logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
-        output = self._ipmitool_cmd_run(self.cv_cmd + 'sel elist')
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sel elist')
 
         with open('%s' % logFile, 'w') as f:
             for line in output:
@@ -278,19 +281,36 @@ class OpTestIPMI():
 
 
     ##
+    # @brief Determines the power status of the bmc
+    #
+    # @return l_output @type string: Power status of bmc
+    #         "Chassis Power is on" or "Chassis Power is off"
+    #
+    def ipmi_power_status(self):
+        l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power status')
+        print l_output
+        return l_output
+
+    ##
     # @brief Performs a cold reset onto the bmc
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_cold_reset(self):
 
-        l_cmd = BMC_CONST.BMC_COLD_RESET
+        l_initstatus = self.ipmi_power_status()
         print ("Applying Cold reset. Wait for "
                             + str(BMC_CONST.BMC_COLD_RESET_DELAY) + "sec")
-        rc = self._ipmitool_cmd_run(self.cv_cmd + l_cmd)
+        rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_COLD_RESET)
         if BMC_CONST.BMC_PASS_COLD_RESET in rc:
             print rc
             time.sleep(BMC_CONST.BMC_COLD_RESET_DELAY)
+            l_finalstatus = self.ipmi_power_status()
+            if(l_finalstatus != l_initstatus):
+                l_msg = "Power status changed during reset"
+                print l_msg
+                raise OpTestError(l_msg)
+
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Cold reset Failed"
@@ -308,7 +328,7 @@ class OpTestIPMI():
         l_cmd = BMC_CONST.BMC_WARM_RESET
         print ("Applying Warm reset. Wait for "
                             + str(BMC_CONST.BMC_WARM_RESET_DELAY) + "sec")
-        rc = self._ipmitool_cmd_run(self.cv_cmd + l_cmd)
+        rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
         if BMC_CONST.BMC_PASS_WARM_RESET in rc:
             print rc
             time.sleep(BMC_CONST.BMC_WARM_RESET_DELAY)
@@ -328,7 +348,7 @@ class OpTestIPMI():
 
         print ("Protecting BMC network setting")
         l_cmd =  BMC_CONST.BMC_PRESRV_LAN
-        rc = self._ipmitool_cmd_run(self.cv_cmd + l_cmd)
+        rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
 
         if BMC_CONST.BMC_ERROR_LAN in rc:
             l_msg = "Can't protect setting! Please preserve setting manually"
@@ -354,7 +374,7 @@ class OpTestIPMI():
         l_cmd = BMC_CONST.BMC_HPM_UPDATE + i_image + " " + i_imagecomponent
         self.ipmi_preserve_network_setting()
         try:
-            rc = self._ipmitool_cmd_run("echo y | " + self.cv_cmd + l_cmd)
+            rc = self._ipmitool_cmd_run("echo y | " + self.cv_baseIpmiCmd + l_cmd)
             print rc
             self.ipmi_cold_reset()
 
@@ -380,7 +400,7 @@ class OpTestIPMI():
     #
     def ipmi_get_side_activated(self):
 
-        rc = self._ipmitool_cmd_run(self.cv_cmd + BMC_CONST.BMC_ACTIVE_SIDE)
+        rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_ACTIVE_SIDE)
         if(rc.__contains__(BMC_CONST.PRIMARY_SIDE)):
             print("Primary side is active")
             return BMC_CONST.PRIMARY_SIDE
@@ -399,6 +419,6 @@ class OpTestIPMI():
     #         or raise OpTestError
     #
     def ipmi_get_PNOR_level(self):
-        l_rc =  self._ipmitool_cmd_run(self.cv_cmd + BMC_CONST.BMC_MCHBLD)
+        l_rc =  self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_MCHBLD)
         print l_rc
         return l_rc

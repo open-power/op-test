@@ -267,11 +267,12 @@ class OpTestLpar():
 
         #self.lpar_protect_network_setting() #writing to partition is not stable
         l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
-                + i_image.rsplit("/", 1)[-1] + imagecomponent
+                + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
         print l_cmd
         try:
             l_rc = self._ssh_execute(l_cmd)
             print l_rc
+            self._ssh_execute("rm -rf /tmp/" + i_image.rsplit("/", 1)[1])
         except subprocess.CalledProcessError:
             l_msg = "Code Update Failed"
             print l_msg
@@ -283,3 +284,4 @@ class OpTestLpar():
             l_msg = "Code Update Failed"
             print l_msg
             raise OpTestError(l_msg)
+
