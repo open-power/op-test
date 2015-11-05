@@ -1,8 +1,6 @@
 This repository provides a collection of tools that enable automated testing of
 OpenPower systems.  The directories are as follows:
 
-- TBD - flash: Tools to upgrade firmware on your BMC
-- TBD - boot: Tools to test the booting of your OpenPower system
 - ci: Tools to incorporate your OpenPower system into a continuous integration
       environment
 - bvt: XML based build verification tool test suite that can be used to run
@@ -23,9 +21,6 @@ You also need expect and pexpect available.
 
 ### Examples ###
 
-**Flash**
-
-**Boot**
 
 **BVT**
 
