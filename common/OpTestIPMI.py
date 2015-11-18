@@ -415,6 +415,7 @@ class OpTestIPMI():
     #         or raise OpTestError
     #
     def ipmi_get_PNOR_level(self):
+<<<<<<< HEAD
         l_rc =  self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
                                        BMC_CONST.BMC_MCHBLD)
         return l_rc
@@ -539,3 +540,8 @@ class OpTestIPMI():
 
         return l_result
 
+=======
+        l_rc =  self._ipmitool_cmd_run(self.cv_cmd + BMC_CONST.BMC_MCHBLD)
+        print l_rc
+        return l_rc
+>>>>>>> Since AMI BMC bug is fixed and Host Status sensor is working fine, so uncommenting the original lines. Also, removing the newly added lines.
