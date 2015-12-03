@@ -39,6 +39,10 @@ passwordipmi="???"
 cfgfiledir="???"
 imagedir="???"
 imagename="???"
+lparip="???"
+lparuser="???"
+lparPasswd="???"
+hpmimage="???"
 
 bvtoutfile="/tmp/op-ci-bvt-$$.out"
 fvfile="/tmp/op-ci-bvt-fv-$$.out"
@@ -46,7 +50,7 @@ fvfile="/tmp/op-ci-bvt-fv-$$.out"
 # If you have special code to set env vars to get python 2.7 active, edit and uncomment:
 #source ???
 export PATH="$PATH:."
-run-op-bvt --fverbose $fvfile --bmcip $bmcip --bmcuser $bmcuser --bmcpwd $bmcpwd --usernameipmi $usernameipmi --passwordipmi $passwordipmi --cfgfiledir $cfgfiledir --imagedir $imagedir --imagename $imagename $1 2>&1 | tee $bvtoutfile
+run-op-bvt --fverbose $fvfile --bmcip $bmcip --bmcuser $bmcuser --bmcpwd $bmcpwd --usernameipmi $usernameipmi --passwordipmi $passwordipmi --cfgfiledir $cfgfiledir --imagedir $imagedir --imagename $imagename --lparip $lparip --lparuser $lparuser --lparPasswd $lparPasswd --hpmimage $hpmimage $1 2>&1 | tee $bvtoutfile
 rc=${PIPESTATUS[0]}
 set +x
 echo "run-op-bvt finished with exit code $rc"
