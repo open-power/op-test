@@ -39,7 +39,7 @@ import time
 #
 
 ##
-# FWUpdate_Page
+# FWUpdatePage
 # @brief: This class manages interaction with FW Update
 # menus and webpages
 #
@@ -57,6 +57,7 @@ class FWUpdatePage():
     #  @brief Function to traverse to BMC FW Update page
     #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -87,8 +88,9 @@ class FWUpdatePage():
 
     ##
     #  @brief Function to traverse to BMC FW Protocol Configuration Page
-    #         This function may throw some unexpected exception
+    #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -113,8 +115,9 @@ class FWUpdatePage():
 
     ##
     #  @brief This function selects AMI option in the FW Update page
-    #         This function may throw some unexpected exception
+    #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -135,7 +138,9 @@ class FWUpdatePage():
 
     ##
     #  @brief This function hits continue button on all FW Update web pages
+    #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -153,8 +158,9 @@ class FWUpdatePage():
 
     ##
     #  @brief This function selects HPM option in the FW Update page
-    #         This function may throw some unexpected exception
+    #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -183,7 +189,6 @@ class FWUpdatePage():
     #  @param protocol - String which identified hwat protocol to select. This
     #                    string should match the options listed in BMC drop down menu
     #
-    #
     # @return BMC_CONST.FW_SUCCESS upon success
     #         This function may throw some unexpected exception on failure
     #         which will be caught by the calling function
@@ -210,7 +215,9 @@ class FWUpdatePage():
     ##
     #  @brief This function updates text field which contains server hosting
     #         BMC image
+    #
     #  @param addr - Fills out IP address of server providing the BMC image
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -227,7 +234,9 @@ class FWUpdatePage():
     ##
     #  @brief This function updates imagename field. Full path to the image
     #         needs to be provided
+    #
     #  @param image - full path to the BMC image
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -244,7 +253,9 @@ class FWUpdatePage():
     ##
     #  @brief This function saves the updated protocol configuration. This page
     #         prompts a javascript alert which will be accepted
+    #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -261,7 +272,9 @@ class FWUpdatePage():
 
     ##
     #  @brief This function provides the path to a BMC FW Image file
+    #
     #  @param Full path to the BMC image file
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -275,7 +288,9 @@ class FWUpdatePage():
 
     ##
     #  @brief This function clicks the OK button at FW Update option
+    #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -288,9 +303,10 @@ class FWUpdatePage():
         return BMC_CONST.FW_SUCCESS
 
     ##
-    #  @brief This function selects all FW images to be updated
-    #         BIOS and Boot-App
+    #  @brief This function selects all FW images to be updated BIOS and Boot-App
+    #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -310,6 +326,7 @@ class FWUpdatePage():
     #  @brief This function selects only BIOS FW images to be updated
     #
     #  @param none
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -324,7 +341,8 @@ class FWUpdatePage():
     ##
     #  @brief This function selects only BIOS FW images to be updated
     #
-    #  @param none
+    #  @param None
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -338,7 +356,9 @@ class FWUpdatePage():
 
     ##
     #  @brief This function selects proceed button
-    #  @param
+    #
+    #  @param None
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
@@ -355,7 +375,9 @@ class FWUpdatePage():
     ##
     #  @brief This function waits for fw update to be completed. Expectation
     #         is that an alert box will popup at the end of the FW update
-    #  @param
+    #
+    #  @param timeout @type int time to wait for an alert to be present
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function

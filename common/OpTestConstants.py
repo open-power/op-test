@@ -45,6 +45,9 @@ class OpTestConstants():
     BMC_PRESRV_LAN = " raw 0x32 0xba 0x18 0x00"
     BMC_MCHBLD = " raw 0x3a 0x0b 0x56 0x45 0x52 0x53 0x49 " \
                  "0x4f 0x4e 0x0 0x0 0x0 0x0 0x0 0x0 |xxd -r -p"
+    BMC_OCC_SENSOR = "raw 0x04 0x30 0x"
+    BMC_DISABLE_OCC = " 0x01 0x00 0x01"
+    BMC_ENABLE_OCC = " 0x01 0x00 0x02"
     BMC_IPMITOOL_H = "ipmitool -H "
     BMC_FLASH_IMAGE = "echo y | ipmitool -H "
     BMC_FW_IMAGE_UPDATE = "component 1 -z 30000 force"
@@ -62,23 +65,31 @@ class OpTestConstants():
     LPAR_COLD_RESET = "ipmitool -I usb mc reset cold"
     LPAR_WARM_RESET = "ipmitool -I usb mc reset warm"
 
+    # Command to boot into PRIMARY and GOLDEN SIDE
+    BMC_BOOT_PRIMARY = "/etc/init.d/boot_into_primary"
+    BMC_BOOT_GOLDEN = "/etc/init.d/boot_into_golden"
+
     # TIME DELAYS & RETRIES
     BMC_WARM_RESET_DELAY = 150
     BMC_COLD_RESET_DELAY = 150
     LPAR_BRINGUP_TIME = 100
     SHORT_WAIT_IPL = 10
-    HOST_REBOOT_DELAY = 50
+    HOST_REBOOT_DELAY = 100
     WEB_UPDATE_DELAY = 600
     WEB_DRIVER_WAIT = 20
+    OCC_ENABLE_WAIT = 200
 
     PING_RETRY_POWERCYCLE = 7
     PING_RETRY_FOR_STABILITY = 5
+    CMD_RETRY_BMC = 2
 
     # RETURN MESSAGES
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"
     BMC_ERROR_LAN = "Unable to establish LAN session"
     HOST_CONNECTION_LOST = "closed by remote host"
     ERROR_SELENIUM_HEADLESS = "Host doesn't have selenium installed"
+    POWER_ACTIVATE_SUCCESS = "Power limit successfully activated"
+    POWER_DEACTIVATE_SUCCESS = "Power limit successfully deactivated"
 
     # BMC ACTIVE SIDES
     PRIMARY_SIDE = "0x0080"
@@ -98,3 +109,23 @@ class OpTestConstants():
     UPDATE_BMC = 1
     UPDATE_PNOR = 2
     UPDATE_BMCANDPNOR = 3
+
+    # Energy Scale constants
+    ACTIVATE_POWER_LIMIT = " dcmi power activate "
+    SET_POWER_LIMIT = " dcmi power set_limit limit "
+    ACTIVATE_POWER_LIMIT_SUCCESS = "Power limit successfully activated"
+    GET_POWER_LIMIT = " dcmi power get_limit "
+    DCMI_POWER_DEACTIVATE = "dcmi power deactivate"
+    DCMI_POWER_ACTIVATE = "dcmi power activate"
+    OP_CHECK_OCC = "sdr elist |grep 'OCC'"
+    OP_CHECK_PROCESSOR = "sensor list|grep -i proc"
+    OP_CHECK_CPU = "sensor list|grep -i cpu"
+    OP_CHECK_DIMM = "sensor list|grep -i dimm"
+    OP_CHECK_FAN = "sensor list|grep -i fan"
+    OP_CHECK_SENSOR_LIST = "sensor list"
+    OP_GET_TEMP = "dcmi get_temp_reading"
+    OP_GET_POWER = "dcmi power reading"
+
+    POWER_ACTIVATE_SUCCESS = "Power limit successfully activated"
+    POWER_DEACTIVATE_SUCCESS = "Power limit successfully deactivated"
+

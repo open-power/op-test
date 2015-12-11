@@ -57,8 +57,9 @@ class MaintenancePage():
 
     ##
     #  @brief Function to traverse to BMC Maintenance Page
-    #         This function may throw some unexpected exception
-    #  @param none
+    #
+    #  @param None
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          raise OpTestError when fails
     #
@@ -84,9 +85,11 @@ class MaintenancePage():
 
     ##
     #  @brief This function selects various options to be preserved
+    #
     #  @param optionname - Name of the option to be preserved. Has to be from
     #         OptionDict
     #  @param iselect - Set to true if option needs to be preserved
+    #
     #  @return BMC_CONST.FW_SUCCESS upon success
     #          raise OpTestError when fails
     #

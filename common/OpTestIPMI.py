@@ -419,6 +419,128 @@ class OpTestIPMI():
     #         or raise OpTestError
     #
     def ipmi_get_PNOR_level(self):
-        l_rc =  self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_MCHBLD)
-        print l_rc
+        l_rc =  self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                       BMC_CONST.BMC_MCHBLD)
         return l_rc
+
+
+    ##
+    # @brief set power limit of bmc
+    #
+    # @param i_powerlimit @type int: power limit to be set at BMC
+    #
+    # @return raise OpTestError when fails
+    #
+    def ipmi_set_power_limit(self, i_powerlimit):
+
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.SET_POWER_LIMIT + i_powerlimit)
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+        if(i_powerlimit not in l_rc):
+            raise OpTestError(l_rc)
+
+
+    ##
+    # @brief Determines the power limit on the bmc
+    #
+    # @return l_powerlimit @type int: current power limit on bmc
+    #         or raise OpTestError
+    #
+    def ipmi_get_power_limit(self):
+
+        l_powerlimit = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                              BMC_CONST.GET_POWER_LIMIT)
+        return l_powerlimit
+
+    ##
+    # @brief Activates the power limit of the target bmc
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_activate_power_limit(self):
+
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.DCMI_POWER_ACTIVATE)
+        if(BMC_CONST.POWER_ACTIVATE_SUCCESS in l_rc):
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Power limit activation failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+
+    ##
+    # @brief Deactivates the power limit of the target bmc
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_deactivate_power_limit(self):
+
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.DCMI_POWER_DEACTIVATE)
+        if(BMC_CONST.POWER_DEACTIVATE_SUCCESS in l_rc):
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Power limit deactivation failed. " \
+                    "Make sure a power limit is set before activating it"
+            print l_msg
+            raise OpTestError(l_msg)
+
+
+    ##
+    # @brief Enable OCC Sensor
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_enable_all_occ_sensor(self):
+
+        l_status = self.ipmi_get_occ_status()
+        # example ssample: OCC Active | 08h | ok  | 210.0 |)
+
+        # Get sensor ids to enable all OCCs
+        l_status = l_status.rsplit("\n", 1)[0].split("\n")
+        for i in range(len(l_status)):
+            l_sensor_id = l_status[i].split("|")[1].strip()[:2]
+            self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_OCC_SENSOR +
+                                   l_sensor_id + BMC_CONST.BMC_ENABLE_OCC)
+
+        # Wait for OCC to stabilize
+        time.sleep(BMC_CONST.OCC_ENABLE_WAIT)
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Disable OCC Sensor
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_disable_all_occ_sensor(self):
+
+        l_status = self.ipmi_get_occ_status()
+
+        # Get sensor ids to disable all OCCs
+        l_status = l_status.rsplit("\n", 1)[0].split("\n")
+        for i in range(len(l_status)):
+            l_sensor_id = l_status[i].split("|")[1].strip()[:2]
+            self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_OCC_SENSOR +
+                                   l_sensor_id + BMC_CONST.BMC_DISABLE_OCC)
+
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Get OCC status
+    #  (example:
+    #   OCC 1 Active     | 08h | ok  | 210.0 | Device Enabled
+    #   OCC 2 Active     | 09h | ok  | 210.1 | Device Enabled)
+    #
+    # @return OCC sensor status or raise OpTestError
+    #
+    def ipmi_get_occ_status(self):
+        l_result = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                          BMC_CONST.OP_CHECK_OCC)
+        if ("Device" not in l_result):
+            l_msg = "Can't recognize output"
+            print(l_msg + ": " + l_result)
+            raise OpTestError(l_msg)
+
+        return l_result
+
