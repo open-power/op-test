@@ -544,4 +544,7 @@ class OpTestIPMI():
         l_rc =  self._ipmitool_cmd_run(self.cv_cmd + BMC_CONST.BMC_MCHBLD)
         print l_rc
         return l_rc
+<<<<<<< HEAD
 >>>>>>> Since AMI BMC bug is fixed and Host Status sensor is working fine, so uncommenting the original lines. Also, removing the newly added lines.
+=======
+>>>>>>> a81d4a33c45ccb821810dc32f1b2c3ccbaca7bff
