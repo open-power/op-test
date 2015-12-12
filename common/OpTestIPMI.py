@@ -227,17 +227,13 @@ class OpTestIPMI():
 
         timeout = time.time() + 60*timeout
 
-        ''' WORKAROUND FOR AMI BUG
-         After updating the AMI level the Host Status sensor no longer works
-         as expected.  To workaround this we use the OCC Active sensor instead.
-         When OCC Active is in Device Enabled state we consider this working
-         state.'''
-    #    cmd = 'sdr elist |grep \'Host Status\''
-        cmd = 'sdr elist |grep \'OCC Active\''
+        ''' AMI BUG is fixed now
+         After updating the AMI level the Host Status sensor works as expected.
+         '''
+        cmd = 'sdr elist |grep \'Host Status\''
         while True:
             output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + cmd)
-            #if 'S0/G0: working' in output:
-            if 'Device Enabled' in output:
+            if 'S0/G0: working' in output:
                 print "Host Status is S0/G0: working, IPL finished"
                 break
             if time.time() > timeout:
@@ -422,7 +418,6 @@ class OpTestIPMI():
         l_rc =  self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
                                        BMC_CONST.BMC_MCHBLD)
         return l_rc
-
 
     ##
     # @brief set power limit of bmc
