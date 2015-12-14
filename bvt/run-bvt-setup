@@ -242,10 +242,10 @@ printf OUTF $cfgfile_fmt,
         $ffdcdir,
         $imagedir,
         $imagename,
-	$lparip,
-	$lparuser,
-	$lparPasswd,
-	$hpmimage;
+        $lparip,
+        $lparuser,
+        $lparPasswd,
+        $hpmimage;
 close(OUTF);
 if ($verbose)
 {
