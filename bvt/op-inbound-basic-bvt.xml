@@ -2,7 +2,7 @@
 <!-- IBM_PROLOG_BEGIN_TAG                                                   -->
 <!-- This is an automatically generated prolog.                             -->
 <!--                                                                        -->
-<!-- $Source: op-auto-test/bvt/op-ci-setup.xml $                            -->
+<!-- $Source: op-auto-test/bvt/op-inbound-basic-bvt.xml $                   -->
 <!--                                                                        -->
 <!-- OpenPOWER Automated Test Project                                       -->
 <!--                                                                        -->
@@ -23,10 +23,13 @@
 <!-- permissions and limitations under the License.                         -->
 <!--                                                                        -->
 <!-- IBM_PROLOG_END_TAG                                                     -->
+<bvts>
 
-<test>
-    <testcase>
-        <cmd>run-bvt-setup --bmcip %%bmcip%% --bmcuser %%bmcuser%% --bmcpwd %%bmcpwd%% --usernameipmi %%usernameipmi%% --passwordipmi %%passwordipmi%% --cfgfiledir %%cfgfiledir%% --ffdcdir %%ffdcdir%% --imagedir %%imagedir%% --imagename %%imagename%% --lparip %%lparip%% --lparuser %%lparuser%% --lparPasswd %%lparPasswd%% --hpmimage %%hpmimage%%</cmd>
-        <exitonerror>yes</exitonerror>
-    </testcase>
-</test>
+<bvt>
+    <id>op-inbound-basic</id>
+    <title>OP Inbound BVT</title>
+    <bvt-xml>op-inbound-basic.xml</bvt-xml>
+    <coverage/>
+</bvt>
+
+</bvts>

@@ -48,6 +48,10 @@ my $imagedir = "";
 my $ffdcdir = "ffdc/";
 my $imagename = "habanero.pnor";
 my $cfgfiledir = ".";
+my $lparip = "";
+my $lparuser = "";
+my $lparPasswd = "";
+my $hpmimage = "";
 
 my $usage = "Setup an OP CI BVT test config file per the passed arguments (v${version})
 
@@ -78,6 +82,13 @@ prompt = \#
 ffdcdir = %s
 imagedir = %s
 imagename = %s
+
+[lpar]
+lparip = %s
+lparuser = %s
+lparPasswd = %s
+prompt = \#
+hpmimage = %s
 
 ";
 
@@ -156,6 +167,10 @@ while(@argv)
         if (setArg("--bmcpwd", \$bmcpwd)) { next; }
         if (setArg("--usernameipmi", \$usernameipmi)) { next; }
         if (setArg("--passwordipmi", \$passwordipmi)) { next; }
+        if (setArg("--lparip", \$lparip)) { next; }
+        if (setArg("--lparuser", \$lparuser)) { next; }
+        if (setArg("--lparPasswd", \$lparPasswd)) { next; }
+        if (setArg("--hpmimage", \$hpmimage)) { next; }
         if (setArg("--ffdcdir", \$ffdcdir)) { next; }
         if (setArg("--cfgfiledir", \$cfgfiledir)) { next; }
         if (setArg("--imagedir", \$imagedir)) { next; }
@@ -189,6 +204,26 @@ if ($passwordipmi eq "")
         print STDERR "ERROR: missing required argument --passwordipmi\n";
         exit(1);
 }
+if ($lparip eq "")
+{
+        print STDERR "ERROR: missing required argument --lparip\n";
+        exit(1);
+}
+if ($lparuser eq "")
+{
+        print STDERR "ERROR: missing required argument --lparuser\n";
+        exit(1);
+}
+if ($lparPasswd eq "")
+{
+        print STDERR "ERROR: missing required argument --lparPasswd\n";
+        exit(1);
+}
+if ($hpmimage eq "")
+{
+        print STDERR "ERROR: missing required argument --hpmimage\n";
+        exit(1);
+}
 
 # The OP CI tools want dirs to end in slash...
 if ($ffdcdir !~ /\/$/) { $ffdcdir .= "/"; }
@@ -206,7 +241,11 @@ printf OUTF $cfgfile_fmt,
         $passwordipmi,
         $ffdcdir,
         $imagedir,
-        $imagename;
+        $imagename,
+        $lparip,
+        $lparuser,
+        $lparPasswd,
+        $hpmimage;
 close(OUTF);
 if ($verbose)
 {
