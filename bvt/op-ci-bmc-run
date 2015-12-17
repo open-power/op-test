@@ -34,6 +34,7 @@ full_path = os.path.abspath(os.path.dirname(sys.argv[0])).split('bvt')[0]
 sys.path.append(full_path)
 # TODO - Just call common API's directly
 import ci.source.op_ci_bmc as op_ci_bmc
+import ci.source.op_inbound_hpm as op_inbound_hpm
 
 sys.exit( $function )\"";
 #print "cmd: $cmd\n";
