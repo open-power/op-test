@@ -10,9 +10,7 @@ OpenPower systems.  The directories are as follows:
 Please note that this is very basic now.  Our example below will reboot the BMC
 and then validate a boot of the system.
 
-The ability to update the image is broken due to the BMC removing the rsync
-tool.  This issue is being worked, for now the pnor udpate has to be
-manually done.
+The BMC and PNOR image can now be updated using the IPMITOOL.
 
 ### Requirements ###
 
@@ -33,7 +31,7 @@ validate a boot of the system.
 
 ### Notes ###
 
-- Code Update does not work currently, you need to flash the HPM you want to test.
+- Code Update works using the IPMITOOL.
 - You need to have the bvt directory in your PATH
 
 
