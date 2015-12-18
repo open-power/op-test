@@ -99,13 +99,13 @@
 
         <test>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.validate_lpar()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.outofband_fwandpnor_update_hpm()"</cmd>
             </testcase>
         </test>
 
         <test>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.outofband_fwandpnor_update_hpm()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.validate_lpar()"</cmd>
             </testcase>
         </test>
 
