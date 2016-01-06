@@ -49,17 +49,20 @@ def _config_read():
     bmcConfig = ConfigParser.RawConfigParser()
     configFile = os.path.join(os.path.dirname(__file__), 'op_ci_tools.cfg')
     bmcConfig.read(configFile)
-    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test'))
+    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')),dict(bmcConfig.items('lpar'))
 
 ''' Read the configuration settings into global space so they can be used by
     other functions '''
 
-bmcCfg, testCfg = _config_read()
+bmcCfg, testCfg, lparCfg = _config_read()
 opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
                          bmcCfg['password'],
                          bmcCfg['usernameipmi'],
                          bmcCfg['passwordipmi'],
-                         testCfg['ffdcdir'])
+                         testCfg['ffdcdir'],
+                         lparCfg['lparip'],
+                         lparCfg['lparuser'],
+                         lparCfg['lparpasswd'])
 
 
 def test_init():
@@ -186,3 +189,18 @@ def ipmi_sel_check():
     """
     selDesc = 'Transition to Non-recoverable'
     return opTestSys.sys_sel_check(selDesc)
+
+def validate_lpar():
+    """This function validate that the OS/partition can be pinged.
+
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.sys_bmc_validate_lpar()
+
+
+def outofband_fwandpnor_update_hpm():
+    """This function does a complete update of BMC and PNOR using the image provided by the user.
+
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.sys_bmc_outofband_fwandpnor_update_hpm(lparCfg['hpmimage'])

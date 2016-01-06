@@ -65,3 +65,9 @@ def test_wait_for_working_state():
 
 def test_ipmi_sel_check():
     assert op_ci_bmc.ipmi_sel_check() == 0
+
+def test_validate_lpar():
+    assert op_ci_bmc.validate_lpar() == 0
+
+def test_outofband_fwandpnor_update_hpm():
+    assert op_ci_bmc.outofband_fwandpnor_update_hpm() == 0
