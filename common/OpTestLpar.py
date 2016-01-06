@@ -285,3 +285,192 @@ class OpTestLpar():
             print l_msg
             raise OpTestError(l_msg)
 
+    ##
+    # @brief It will run linux command(i_cmd) on lpar using private interface _ssh_execute()
+    #        making this interface is public
+    #
+    # @param i_cmd @type string: linux command
+    #
+    # @return command output if command execution is successful else raises OpTestError
+    #
+    def lpar_run_command(self, i_cmd):
+        try:
+            l_res = self._ssh_execute(i_cmd)
+        except:
+            l_msg = "Command execution on lpar failed"
+            print l_msg
+            print sys.exc_info()
+            raise OpTestError(l_msg)
+        print l_res
+        return l_res
+
+    ##
+    # @brief It will check existence of given linux command(i_cmd) on lpar
+    #
+    # @param i_cmd @type string: linux command
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_check_command(self, i_cmd):
+        l_cmd = 'which ' + i_cmd + '; echo $?'
+        print l_cmd
+        l_res = self.lpar_run_command(l_cmd)
+        l_res = l_res.splitlines()
+
+        if (int(l_res[-1]) == 0):
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "%s command is not present on lpar" % i_cmd
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief It will get the linux kernel version on lpar
+    #
+    # @return l_kernel @type string: kernel version of the partition provided
+    #         or raise OpTestError
+    #
+    def lpar_get_kernel_version(self):
+        l_kernel = self._ssh_execute("uname -a | awk {'print $3'}")
+        l_kernel = l_kernel.replace("\r\n", "")
+        print l_kernel
+        return l_kernel
+
+    ##
+    # @brief This function will checks first for config file for a given kernel version on lpar,
+    #        if available then check for config option value and return that value
+    #            whether it is y or m...etc.
+    #        sample config option values:
+    #        CONFIG_CRYPTO_ZLIB=m
+    #        CONFIG_CRYPTO_LZO=y
+    #        # CONFIG_CRYPTO_842 is not set
+    #
+    #
+    # @param i_kernel @type string: kernel version
+    # @param i_config @type string: Which config option want to check in config file
+    #                               Ex:CONFIG_SENSORS_IBMPOWERNV
+    #
+    # @return l_val @type string: It will return config option value y or m,
+    #                             or raise OpTestError if config file is not available on lpar
+    #                             or raise OpTestError if config option is not set in file.
+    #
+    def lpar_check_config(self, i_kernel, i_config):
+        l_file = "/boot/config-%s" % i_kernel
+        l_res = self._ssh_execute("test -e %s; echo $?" % l_file)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Config file is available"
+        else:
+            l_msg = "Config file %s is not available on lpar" % l_file
+            print l_msg
+            raise OpTestError(l_msg)
+        l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
+        print l_cmd
+        l_res = self._ssh_execute(l_cmd)
+        print l_res
+        try:
+            l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
+        except:
+            print l_val
+            l_msg = "config option is not set,exiting..."
+            print l_msg
+            raise OpTestError(l_msg)
+        return l_val
+
+    ##
+    # @brief It will return installed package name for given linux command(i_cmd) on lpar
+    #
+    # @param i_cmd @type string: linux command
+    # @param i_oslevel @type string: OS level
+    #
+    # @return l_pkg @type string: installed package on lpar
+    #
+    def lpar_check_pkg_for_utility(self, i_oslevel, i_cmd):
+        if 'Ubuntu' in i_oslevel:
+            l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd)
+            return l_res
+        else:
+            l_cmd = "rpm -qf `which %s`" % i_cmd
+            l_res = self._ssh_execute(l_cmd)
+            l_pkg = l_res.replace("\r\n", "")
+            print l_pkg
+            return l_pkg
+
+    ##
+    # @brief This function loads ibmpowernv driver only on powernv platform
+    #        and also this function works only in root user mode
+    #
+    # @param i_oslevel @type string: OS level
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_load_ibmpowernv(self, i_oslevel):
+        if "PowerKVM" not in i_oslevel:
+            l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?")
+            l_rc = l_rc.replace("\r\n", "")
+            if int(l_rc) == 0:
+                cmd = "lsmod | grep -i ibmpowernv"
+                response = self._ssh_execute(cmd)
+                if "ibmpowernv" not in response:
+                    l_msg = "ibmpowernv module is not loaded, exiting"
+                    raise OpTestError(l_msg)
+                else:
+                    print "ibmpowernv module is loaded"
+                print cmd
+                print response
+                return BMC_CONST.FW_SUCCESS
+            else:
+                l_msg = "modprobe failed while loading ibmpowernv,exiting..."
+                print l_msg
+                raise OpTestError(l_msg)
+        else:
+            return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function restarts the lm_sensors service on lpar using systemctl utility
+    #        systemctl utility is not present in ubuntu, This function will work in remaining all
+    #        other OS'es i.e redhat, sles and PowerKVM
+    #
+    # @param i_oslevel @type string: OS level
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_start_lm_sensor_svc(self, i_oslevel):
+        if 'Ubuntu' in i_oslevel:
+            pass
+        else:
+            try:
+                # Start the lm_sensors service
+                cmd = "/bin/systemctl stop  lm_sensors.service"
+                self.lpar_run_command(cmd)
+                cmd = "/bin/systemctl start  lm_sensors.service"
+                self.lpar_run_command(cmd)
+                cmd = "/bin/systemctl status  lm_sensors.service"
+                res = self.lpar_run_command(cmd)
+                return BMC_CONST.FW_SUCCESS
+            except:
+                l_msg = "loading lm_sensors service failed"
+                print l_msg
+                raise OpTestError(l_msg)
+
+    ##
+    # @brief It will clone latest linux git repository in i_dir directory
+    #
+    # @param i_dir @type string: directory where linux source will be cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_clone_linux_source(self, i_dir):
+        l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self._ssh_execute("rm -rf %s" % i_dir)
+        self._ssh_execute("mkdir %s" % i_dir)
+        try:
+            print l_cmd
+            res = self._ssh_execute(l_cmd)
+            print res
+            return BMC_CONST.FW_SUCCESS
+        except:
+            l_msg = "Cloning linux git repository is failed"
+            print l_msg
+            raise OpTestError(l_msg)
