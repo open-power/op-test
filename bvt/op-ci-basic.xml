@@ -24,6 +24,7 @@
 <!--                                                                        -->
 <!-- IBM_PROLOG_END_TAG                                                     -->
 
+
 <integrationtest>
     <platform>
 
@@ -38,7 +39,37 @@
 
         <test>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_off()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sdr_clear()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.outofband_fwandpnor_update_hpm()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.validate_lpar()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipl_wait_for_working_state()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sel_check()"</cmd>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_on()"</cmd>
             </testcase>
         </test>
 
@@ -60,11 +91,6 @@
             </testcase>
         </test>
 
-        <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sdr_clear()"</cmd>
-            </testcase>
-        </test>
 
 <!--    Rsync not available on BMC
         <test>
@@ -81,31 +107,7 @@
 -->
         <test>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_on()"</cmd>
-            </testcase>
-        </test>
-
-        <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.ipl_wait_for_working_state()"</cmd>
-            </testcase>
-        </test>
-
-        <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sel_check()"</cmd>
-            </testcase>
-        </test>
-
-        <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.outofband_fwandpnor_update_hpm()"</cmd>
-            </testcase>
-        </test>
-
-        <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.validate_lpar()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_off()"</cmd>
             </testcase>
         </test>
 
