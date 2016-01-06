@@ -1,8 +1,8 @@
-#!/usr/bin/perl
+#!/usr/bin/python
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-auto-test/bvt/op-ci-bmc-run $
+# $Source: op-auto-test/testcases/__init__.py $
 #
 # OpenPOWER Automated Test Project
 #
@@ -23,23 +23,3 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-use strict;
-my @argv = @ARGV;
-my $function = shift(@argv);
-my $cmd = "python -c \"";
-$cmd .= "import sys
-import os
-# Get path to base directory and append to path to get common modules
-full_path = os.path.abspath(os.path.dirname(sys.argv[0])).split('bvt')[0]
-sys.path.append(full_path)
-# TODO - Just call common API's directly
-import ci.source.op_ci_bmc as op_ci_bmc
-import ci.source.op_inbound_hpm as op_inbound_hpm
-import ci.source.op_opal_fvt as op_opal_fvt
-
-sys.exit( $function )\"";
-#print "cmd: $cmd\n";
-my $rc = system($cmd);
-#print "python returned $rc from system()\n";
-if ($rc) { $rc = 1; } # make sure the exit code is OK for the shell
-exit($rc);
