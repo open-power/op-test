@@ -36,6 +36,7 @@ sys.path.append(full_path)
 import ci.source.op_ci_bmc as op_ci_bmc
 import ci.source.op_inbound_hpm as op_inbound_hpm
 import ci.source.op_opal_fvt as op_opal_fvt
+import ci.source.op_outofband_firmware_update as op_outofband_firmware_update
 
 sys.exit( $function )\"";
 #print "cmd: $cmd\n";
