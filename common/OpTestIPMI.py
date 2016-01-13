@@ -538,6 +538,3 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
         return l_result
-        l_rc =  self._ipmitool_cmd_run(self.cv_cmd + BMC_CONST.BMC_MCHBLD)
-        print l_rc
-        return l_rc
