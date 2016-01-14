@@ -38,6 +38,24 @@
 
         <test>
             <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_i2c_driver()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_at24_driver()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_real_time_clock()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+        <test>
+            <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_sensors()"</cmd>
                 <exitonerror>no</exitonerror>
             </testcase>

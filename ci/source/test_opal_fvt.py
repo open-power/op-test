@@ -44,3 +44,15 @@ def test_sensors():
 
 def test_switchendian_syscall():
     assert op_opal_fvt.test_switch_endian_syscall() == 0
+
+
+def test_rtc_driver():
+    assert op_opal_fvt.test_real_time_clock() == 0
+
+
+def test_at24_driver():
+    assert op_opal_fvt.test_at24_driver() == 0
+
+
+def test_i2c_driver():
+    assert op_opal_fvt.test_i2c_driver() == 0
