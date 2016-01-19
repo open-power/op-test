@@ -295,6 +295,7 @@ class OpTestLpar():
     #
     def lpar_run_command(self, i_cmd):
         try:
+            print i_cmd
             l_res = self._ssh_execute(i_cmd)
         except:
             l_msg = "Command execution on lpar failed"
@@ -472,5 +473,215 @@ class OpTestLpar():
             return BMC_CONST.FW_SUCCESS
         except:
             l_msg = "Cloning linux git repository is failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief It will load the module using modprobe and verify whether it is loaded or not
+    #
+    # @param i_module @type string: module name, which we want to load on lpar
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_load_module(self, i_module):
+        l_res = self.lpar_run_command("modprobe %s; echo $?" % i_module)
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            pass
+        else:
+            l_msg = "Error in loading the module %s, modprobe failed" % i_module
+            print l_msg
+            raise OpTestError(l_msg)
+        l_res = self.lpar_run_command("lsmod | grep -i --color=never %s" % i_module)
+        if l_res.__contains__(i_module):
+            print "%s module is loaded" % i_module
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = " %s module is not loaded" % i_module
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief This function will read real time clock(RTC) time using hwclock utility
+    #
+    # @return l_res @type string: return hwclock value if command execution successfull
+    #           else raise OpTestError
+    #
+    def lpar_read_hwclock(self):
+        print "Reading the hwclock"
+        l_res = self.lpar_run_command("hwclock -r;echo $?")
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            return l_res
+        else:
+            l_msg = "Reading the hwclock failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief This function will read system time using date utility (This will be mantained by kernel)
+    #
+    # @return l_res @type string: return system time value if command execution successfull
+    #           else raise OpTestError
+    #
+    def lpar_read_systime(self):
+        print "Reading system time using date utility"
+        l_res = self.lpar_run_command("date;echo $?")
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            return l_res
+        else:
+            l_msg = "Reading the system time failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief This function will set hwclock time using the --date option
+    #        format should be "2015-01-01 12:12:12"
+    #
+    # @param i_time @type string: this is the time for setting the hwclock
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_set_hwclock_time(self, i_time):
+        print "Setting the hwclock time to %s" % i_time
+        l_res = self.lpar_run_command("hwclock --set --date \'%s\';echo $?" % i_time)
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Setting the hwclock failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief This function will load driver module on lpar based on the config option
+    #        if config value m: built as a module
+    #                        y: driver built into kernel itself
+    #        else   raises OpTestError
+    #
+    # @param i_kernel @type string: kernel version to get config file
+    #        i_config @type string: config option to check in config file
+    #        i_module @type string: driver module to load on lpar based on config value
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_load_module_based_on_config(self, i_kernel, i_config, i_module):
+        l_val = self.lpar_check_config(i_kernel, i_config)
+        if l_val == 'm':
+            self.lpar_load_module(i_module)
+        elif l_val == 'y':
+            print "Driver built into kernel itself"
+        else:
+            l_msg = "Config value is changed"
+            print l_msg
+            raise OpTestError(l_msg)
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function will return the list of installed i2c buses on lpar in two formats
+    #        list-by number Ex: ["0","1","2",....]
+    #        list-by-name  Ex: ["i2c-0","i2c-1","i2c-2"....]
+    #
+    # @return l_list @type list: list of i2c buses by number
+    #         l_list1 @type list: list of i2c buses by name
+    #         or raise OpTestError if not able to get list of i2c buses
+    #
+    def lpar_get_list_of_i2c_buses(self):
+        l_res = self.lpar_run_command("i2cdetect -l;echo $?")
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            pass
+        else:
+            l_msg = "Not able to get list of i2c buses"
+            print l_msg
+            raise OpTestError(l_msg)
+        l_res = self.lpar_run_command("i2cdetect -l | awk '{print $1}'")
+        l_res = l_res.splitlines()
+        # list by number Ex: ["0","1","2",....]
+        l_list = []
+        # list by name Ex: ["i2c-0","i2c-1"...]
+        l_list1 = []
+        for l_bus in l_res:
+            matchObj = re.search("(i2c)-(\d{1,})", l_bus)
+            if matchObj:
+                l_list.append(matchObj.group(2))
+                l_list1.append(l_bus)
+            else:
+                pass
+        return l_list, l_list1
+
+    ##
+    # @brief This function will get information of EEPROM chips attached to the i2c buses
+    #
+    # @return l_res @type string: return EEPROM chips information
+    #           else raise OpTestError
+    #
+    def lpar_get_info_of_eeprom_chips(self):
+        print "Getting the information of EEPROM chips"
+        l_res = self.lpar_run_command("dmesg | grep -i --color=never at24")
+        if l_res.__contains__("at24"):
+            pass
+        else:
+            l_res = self.lpar_run_command("dmesg -C")
+            self.lpar_run_command("rmmod at24")
+            self.lpar_load_module("at24")
+            l_res = self.lpar_run_command("dmesg | grep -i --color=never at24")
+            if l_res.__contains__("at24"):
+                pass
+            else:
+                l_msg = "Not able to get at24 info"
+                raise OpTestError(l_msg)
+        return l_res
+
+    ##
+    # @brief It will return list with elements having pairs of eeprom chip addresses and
+    #        corresponding i2c bus where the chip is attached. This information is getting
+    #        through sysfs interface. format is ["0 0x50","0 0x51","1 0x51","1 0x52"....]
+    #
+    # @return l_chips @type list: list having pairs of i2c bus number and eeprom chip address.
+    #           else raise OpTestError
+    #
+    def lpar_get_list_of_eeprom_chips(self):
+        l_res = self.lpar_run_command("find /sys/ -name eeprom;echo $?")
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            pass
+        else:
+            l_msg = "Not able to get list of eeprom chip addresses through sysfs interface"
+            print l_msg
+            raise OpTestError(l_msg)
+        l_chips = []
+        for l_line in l_res:
+            if l_line.__contains__("eeprom"):
+                matchObj = re.search("/(\d{1,}-\d{4})/eeprom", l_line)
+                if matchObj:
+                    l_line = matchObj.group(1)
+                    i_args = (l_line.replace("-", " "))
+                    print i_args
+                else:
+                    continue
+                i_args = re.sub(" 00", " 0x", i_args)
+                l_chips.append(i_args)
+                print i_args
+        return l_chips
+
+    ##
+    # @brief The hexdump utility is used to display the specified files.
+    #        This function will display in both ASCII+hexadecimal format.
+    #
+    # @param i_dev @type string: this is the file used as a input to hexdump for display info
+    #                            Example file:"/sys/devices/platform/3fc0000000000.xscom:i2cm@a0000:i2c-bus@1/i2c-3/3-0050/eeprom"
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    #
+    def lpar_hexdump(self, i_dev):
+        l_res = self.lpar_run_command("hexdump -C %s;echo $?" % i_dev)
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "hexdump failed for device %s" % i_dev
             print l_msg
             raise OpTestError(l_msg)

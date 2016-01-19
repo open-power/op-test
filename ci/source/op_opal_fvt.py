@@ -46,6 +46,9 @@ import ConfigParser
 
 from testcases.OpTestSensors import OpTestSensors
 from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
+from testcases.OpTestRTCdriver import OpTestRTCdriver
+from testcases.OpTestAt24driver import OpTestAt24driver
+from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 
 
 def _config_read():
@@ -77,6 +80,30 @@ opTestSwitchEndianSyscall = OpTestSwitchEndianSyscall(bmcCfg['ip'],
                                                       lparCfg['lparuser'],
                                                       lparCfg['lparpasswd'])
 
+opTestRTCdriver = OpTestRTCdriver(bmcCfg['ip'],
+                                  bmcCfg['username'],
+                                  bmcCfg['password'],
+                                  bmcCfg['usernameipmi'],
+                                  bmcCfg['passwordipmi'],
+                                  testCfg['ffdcdir'],
+                                  lparCfg['lparip'],
+                                  lparCfg['lparuser'],
+                                  lparCfg['lparpasswd'])
+
+opTestAt24driver = OpTestAt24driver(bmcCfg['ip'], bmcCfg['username'],
+                                    bmcCfg['password'],
+                                    bmcCfg['usernameipmi'],
+                                    bmcCfg['passwordipmi'],
+                                    testCfg['ffdcdir'], lparCfg['lparip'],
+                                    lparCfg['lparuser'], lparCfg['lparpasswd'])
+
+opTestI2Cdriver = OpTestI2Cdriver(bmcCfg['ip'], bmcCfg['username'],
+                                  bmcCfg['password'],
+                                  bmcCfg['usernameipmi'],
+                                  bmcCfg['passwordipmi'],
+                                  testCfg['ffdcdir'], lparCfg['lparip'],
+                                  lparCfg['lparuser'], lparCfg['lparpasswd'])
+
 
 def test_init():
     """This function validates the test config before running other functions
@@ -105,3 +132,24 @@ def test_switch_endian_syscall():
     returns: int 0: success, 1: error
     """
     return opTestSwitchEndianSyscall.testSwitchEndianSysCall()
+
+
+def test_real_time_clock():
+    """This function tests Real Time Clock driver functionalites using hwclock utility
+    returns: int 0-success, raises exception-error
+    """
+    return opTestRTCdriver.test_RTC_driver()
+
+
+def test_at24_driver():
+    """This function tests Atmel EEPROM 24(AT24) driver functionalites
+    returns: int 0-success, raises exception-error
+    """
+    return opTestAt24driver.testAt24driver()
+
+
+def test_i2c_driver():
+    """This function tests I2C driver capabilites using i2c-tools
+    returns: int 0-success, raises exception-error
+    """
+    return opTestI2Cdriver.testI2Cdriver()
