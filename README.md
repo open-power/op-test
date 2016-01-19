@@ -5,12 +5,9 @@ OpenPower systems.  The directories are as follows:
       environment
 - bvt: XML based build verification tool test suite that can be used to run
        existing (and create new) build verification tests
+- testcases: Location to put testcases which require logic not suitable for a bvt
 - common: Common python library used by all other tools
 
-Please note that this is very basic now.  Our example below will reboot the BMC
-and then validate a boot of the system.
-
-The BMC and PNOR image can now be updated using the IPMITOOL.
 
 ### Requirements ###
 
@@ -22,8 +19,7 @@ You also need expect and pexpect available.
 
 **BVT**
 
-Run the op-ci-basic-bvt.xml which will update (TBD) the PNOR image on the BMC and
-validate a boot of the system.
+Run the op-ci-basic-bvt.xml which will update the BMC and PNOR images on the BMC, validate the partition comes up, and also validate a variety of reboots and IPMI commands.
 
     ./run-op-bvt --bmcip <bmc ip> --bmcuser <bmc userid> --bmcpwd <bmc passwd> --usernameipmi <ipmi login> --passwordipmi <ipmi passwd> --cfgfiledir "../ci/source/" --imagedir <dir of pnor image> --imagename palmetto.pnor --fverbose <dir/file for debug> ./op-ci-basic-bvt.xml
 
