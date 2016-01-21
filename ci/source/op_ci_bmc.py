@@ -37,7 +37,8 @@ import sys
 import os
 
 # Get path to base directory and append to path to get common modules
-full_path = os.path.abspath(os.path.dirname(sys.argv[0])).split('ci')[0]
+full_path = os.path.dirname(os.path.abspath(__file__))
+full_path = full_path.split('ci')[0]
 sys.path.append(full_path)
 
 import ConfigParser
