@@ -124,6 +124,18 @@ class OpTestSystem():
         return rc
 
     ##
+    # @brief Power cycle the system
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_power_cycle(self):
+        try:
+            rc = self.cv_IPMI.ipmi_power_cycle()
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
+
+    ##
     # @brief Warm reset on the bmc system
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED

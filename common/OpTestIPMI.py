@@ -177,6 +177,22 @@ class OpTestIPMI():
 
 
     ##
+    # @brief This function sends the chassis power cycle ipmitool command
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_power_cycle(self):
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power cycle')
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+        if "Chassis Power Control: Cycle" in output:
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Power Cycle Failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+
+    ##
     # @brief Spawns the sol logger expect script as a background process. In order to
     #        properly kill the process the caller should call the ipmitool sol
     #        deactivate command, i.e.: ipmitool_cmd_run('sol deactivate'). The sol.log
