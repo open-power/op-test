@@ -26,33 +26,25 @@
 
 import os
 import sys
-# from op_ci_bmc import bmc_reboot
-# full_path = os.path.abspath(os.path.dirname(sys.argv[0])).split('ci')[0]
-# sys.path.append(full_path)
-# import op_ci_bmc
-# Fixture
 import op_opal_fvt
-
 
 def test_config_check():
     assert op_opal_fvt.test_init() == 0
 
-
 def test_sensors():
     assert op_opal_fvt.test_sensors() == 0
-
 
 def test_switchendian_syscall():
     assert op_opal_fvt.test_switch_endian_syscall() == 0
 
+def test_ipmi_heartbeat():
+    assert op_opal_fvt.test_ipmi_heartbeat() == 0
 
 def test_rtc_driver():
     assert op_opal_fvt.test_real_time_clock() == 0
 
-
 def test_at24_driver():
     assert op_opal_fvt.test_at24_driver() == 0
-
 
 def test_i2c_driver():
     assert op_opal_fvt.test_i2c_driver() == 0
