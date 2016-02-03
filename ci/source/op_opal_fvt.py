@@ -46,6 +46,7 @@ import ConfigParser
 
 from testcases.OpTestSensors import OpTestSensors
 from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
+from testcases.OpTestHeartbeat import OpTestHeartbeat
 from testcases.OpTestRTCdriver import OpTestRTCdriver
 from testcases.OpTestAt24driver import OpTestAt24driver
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
@@ -104,6 +105,13 @@ opTestI2Cdriver = OpTestI2Cdriver(bmcCfg['ip'], bmcCfg['username'],
                                   testCfg['ffdcdir'], lparCfg['lparip'],
                                   lparCfg['lparuser'], lparCfg['lparpasswd'])
 
+opTestHeartbeat = OpTestHeartbeat(bmcCfg['ip'], bmcCfg['username'],
+                              bmcCfg['password'],
+                              bmcCfg['usernameipmi'],
+                              bmcCfg['passwordipmi'],
+                              testCfg['ffdcdir'], lparCfg['lparip'],
+                              lparCfg['lparuser'], lparCfg['lparpasswd'])
+
 
 def test_init():
     """This function validates the test config before running other functions
@@ -132,6 +140,12 @@ def test_switch_endian_syscall():
     returns: int 0: success, 1: error
     """
     return opTestSwitchEndianSyscall.testSwitchEndianSysCall()
+
+def test_ipmi_heartbeat():
+    """This function tests whether the kopald service is running in platform OS
+    returns: int 0-success, raises exception-error
+    """
+    return opTestHeartbeat.test_kopald_service()
 
 
 def test_real_time_clock():
