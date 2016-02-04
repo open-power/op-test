@@ -84,13 +84,17 @@ class OpTestUtil():
 
     ##
     #   @brief    This method does a scp from local system (where files are found)
-    #             to destination(Path where files will be stored)
+    #             to destination(Path where files will be stored) or
+    #             scp to local system(where files will be stored) from
+    #             destination(where files are found).
     #   @param    hostfile
     #   @param    destid
     #   @param    destName
     #   @param    destPath
     #   @param    passwd
     #   @param    ssh_ver
+    #   @param    i_function @type int: SCP_TO_REMOTE = 1(scp to remote system(default))
+    #                                   SCP_TO_LOCAL = 2 (scp to local system)
     #   @return   output from terminal
     #   @throw    subprocess or OpTestError
     #
@@ -101,7 +105,8 @@ class OpTestUtil():
             destName,
             destPath,
             passwd,
-            ssh_ver="2"):
+            ssh_ver="2",
+            i_function=1):
         pid, fd = pty.fork()
         Password = passwd + "\r\n"
         list = ''
@@ -112,13 +117,25 @@ class OpTestUtil():
         # will execute the scp command, and the other process will handle the
         # back and forth of the password and the error paths
         if pid == 0:
-            arglist = (
-                "/usr/bin/scp",
-                "-o AfsTokenPassing=no",
-                "-" +
-                ssh_ver.strip(),
-                hostfile,
-                destinationPath)
+            if i_function == 1:
+                arglist = (
+                    "/usr/bin/scp",
+                    "-o AfsTokenPassing=no",
+                    "-" +
+                    ssh_ver.strip(),
+                    hostfile,
+                    destinationPath)
+            elif i_function == 2:
+                arglist = (
+                    "/usr/bin/scp",
+                    "-" +
+                    ssh_ver.strip(),
+                    destinationPath,
+                    hostfile)
+            else:
+                l_msg = "Please provide valid scp function"
+                print l_msg
+                raise OpTestError(l_msg)
             print(arglist)
             os.execv("/usr/bin/scp", arglist)
         else:

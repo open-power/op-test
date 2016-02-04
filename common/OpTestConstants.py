@@ -131,3 +131,7 @@ class OpTestConstants():
     POWER_ACTIVATE_SUCCESS = "Power limit successfully activated"
     POWER_DEACTIVATE_SUCCESS = "Power limit successfully deactivated"
 
+    # SCP functionality constants
+    SCP_TO_REMOTE = 1
+    SCP_TO_LOCAL = 2
+
