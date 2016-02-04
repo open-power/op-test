@@ -50,6 +50,7 @@ from testcases.OpTestHeartbeat import OpTestHeartbeat
 from testcases.OpTestRTCdriver import OpTestRTCdriver
 from testcases.OpTestAt24driver import OpTestAt24driver
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
+from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 
 
 def _config_read():
@@ -112,6 +113,12 @@ opTestHeartbeat = OpTestHeartbeat(bmcCfg['ip'], bmcCfg['username'],
                               testCfg['ffdcdir'], lparCfg['lparip'],
                               lparCfg['lparuser'], lparCfg['lparpasswd'])
 
+opTestMtdPnorDriver = OpTestMtdPnorDriver(bmcCfg['ip'], bmcCfg['username'],
+                                          bmcCfg['password'],
+                                          bmcCfg['usernameipmi'],
+                                          bmcCfg['passwordipmi'],
+                                          testCfg['ffdcdir'], lparCfg['lparip'],
+                                          lparCfg['lparuser'], lparCfg['lparpasswd'])
 
 def test_init():
     """This function validates the test config before running other functions
@@ -141,6 +148,7 @@ def test_switch_endian_syscall():
     """
     return opTestSwitchEndianSyscall.testSwitchEndianSysCall()
 
+
 def test_ipmi_heartbeat():
     """This function tests whether the kopald service is running in platform OS
     returns: int 0-success, raises exception-error
@@ -167,3 +175,10 @@ def test_i2c_driver():
     returns: int 0-success, raises exception-error
     """
     return opTestI2Cdriver.testI2Cdriver()
+
+
+def test_mtd_pnor_driver():
+    """This function tests MTD PNOR driver using fcp utility to get PNOR flash contents in an x86 machine
+    returns: int 0-success, raises exception-error
+    """
+    return opTestMtdPnorDriver.testMtdPnorDriver()
