@@ -51,3 +51,7 @@ def test_i2c_driver():
 
 def test_mtdpnor_driver():
     assert op_opal_fvt.test_mtd_pnor_driver() == 0
+
+def test_ipmi_inband_functionality():
+    assert op_opal_fvt.test_ipmi_inband_functionality() == 0
+

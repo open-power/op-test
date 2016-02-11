@@ -85,5 +85,12 @@
             </testcase>
         </test>
 
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_inband_functionality()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
     </platform>
 </integrationtest>
