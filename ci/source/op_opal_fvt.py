@@ -51,6 +51,7 @@ from testcases.OpTestRTCdriver import OpTestRTCdriver
 from testcases.OpTestAt24driver import OpTestAt24driver
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
+from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 
 
 def _config_read():
@@ -120,6 +121,14 @@ opTestMtdPnorDriver = OpTestMtdPnorDriver(bmcCfg['ip'], bmcCfg['username'],
                                           testCfg['ffdcdir'], lparCfg['lparip'],
                                           lparCfg['lparuser'], lparCfg['lparpasswd'])
 
+opTestInbandIPMI = OpTestInbandIPMI(bmcCfg['ip'], bmcCfg['username'],
+                              bmcCfg['password'],
+                              bmcCfg['usernameipmi'],
+                              bmcCfg['passwordipmi'],
+                              testCfg['ffdcdir'], lparCfg['lparip'],
+                              lparCfg['lparuser'], lparCfg['lparpasswd'])
+
+
 def test_init():
     """This function validates the test config before running other functions
     """
@@ -182,3 +191,10 @@ def test_mtd_pnor_driver():
     returns: int 0-success, raises exception-error
     """
     return opTestMtdPnorDriver.testMtdPnorDriver()
+
+def test_ipmi_inband_functionality():
+    """This function tests whether the kopald service is running in platform OS
+    returns: int 0-success, raises exception-error
+    """
+    return opTestInbandIPMI.test_ipmi_inband_functionality()
+
