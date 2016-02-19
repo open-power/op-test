@@ -1,12 +1,16 @@
-This repository provides a collection of tools that enable automated testing of
-OpenPower systems.  The directories are as follows:
+## OpenPower Test Framework ##
 
-- ci: Tools to incorporate your OpenPower system into a continuous integration
-      environment
-- bvt: XML based build verification tool test suite that can be used to run
-       existing (and create new) build verification tests
-- testcases: Location to put testcases which require logic not suitable for a bvt
-- common: Common python library used by all other tools
+This repository provides a collection of tools that enable automated testing of
+OpenPower systems.  
+
+The end goals is to have a collection of build verification tests (bvt) that can be run against any OpenPower system to validate it's function.  The tests are automation/jenkins ready. The tests cover basic functionality like software updates and low level firmware features, all the way up to OS and OPAL functional tests.  
+
+The **common** directory is where we abstract the OpenPower system interfaces.  It provides the generic API's (and detailed implementations) of interfaces required by the test cases.
+
+The **bvt** directory is where the test executions are defined.  These tests are xml based.  They may call into the common to run the tests directly or they may call into the **testcases** directory for tests that require more logic.
+
+The ci directory is left over from some legacy continuous integration work.  The BVT's currently use CI as a pass through to execute the tests.  We have a TODO to remove the CI function eventually.
+
 
 
 ### Requirements ###
@@ -22,8 +26,6 @@ You also need expect and pexpect available.
 Run the op-ci-basic-bvt.xml which will update the BMC and PNOR images on the BMC, validate the partition comes up, and also validate a variety of reboots and IPMI commands.
 
     ./run-op-bvt --bmcip <bmc ip> --bmcuser <bmc userid> --bmcpwd <bmc passwd> --usernameipmi <ipmi login> --passwordipmi <ipmi passwd> --cfgfiledir "../ci/source/" --imagedir <dir of pnor image> --imagename palmetto.pnor --fverbose <dir/file for debug> ./op-ci-basic-bvt.xml
-
-**CI**
 
 ### Notes ###
 
