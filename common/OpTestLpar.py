@@ -685,3 +685,79 @@ class OpTestLpar():
             l_msg = "hexdump failed for device %s" % i_dev
             print l_msg
             raise OpTestError(l_msg)
+
+    ##
+    # @brief It will clone latest skiboot git repository in i_dir directory
+    #
+    # @param i_dir @type string: directory where skiboot source will be cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_clone_skiboot_source(self, i_dir):
+        l_msg = 'https://github.com/open-power/skiboot.git/'
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self.lpar_run_command("git config --global http.sslverify false")
+        self.lpar_run_command("rm -rf %s" % i_dir)
+        self.lpar_run_command("mkdir %s" % i_dir)
+        try:
+            print l_cmd
+            l_res = self.lpar_run_command(l_cmd)
+            print l_res
+            return BMC_CONST.FW_SUCCESS
+        except:
+            l_msg = "Cloning skiboot git repository is failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief It will compile xscom-utils in the skiboot directory which was cloned in i_dir directory
+    #
+    # @param i_dir @type string: directory where skiboot source was cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_compile_xscom_utilities(self, i_dir):
+        l_cmd = "cd %s/external/xscom-utils; make;" % i_dir
+        print l_cmd
+        l_res = self.lpar_run_command(l_cmd)
+        l_cmd = "test -f %s/external/xscom-utils/getscom; echo $?" % i_dir
+        l_res = self.lpar_run_command(l_cmd)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Executable binary getscom is available"
+        else:
+            l_msg = "getscom bin file is not present after make"
+            print l_msg
+            raise OpTestError(l_msg)
+        l_cmd = "test -f %s/external/xscom-utils/putscom; echo $?" % i_dir
+        l_res = self.lpar_run_command(l_cmd)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Executable binary putscom is available"
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "putscom bin file is not present after make"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief It will compile gard utility in the skiboot directory which was cloned in i_dir directory
+    #
+    # @param i_dir @type string: directory where skiboot source was cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_compile_gard_utility(self, i_dir):
+        l_cmd = "cd %s/external/gard; make;" % i_dir
+        print l_cmd
+        l_res = self.lpar_run_command(l_cmd)
+        l_cmd = "test -f %s/external/gard/gard; echo $?" % i_dir
+        l_res = self.lpar_run_command(l_cmd)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Executable binary gard is available"
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "gard bin file is not present after make"
+            print l_msg
+            raise OpTestError(l_msg)

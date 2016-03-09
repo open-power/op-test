@@ -55,3 +55,18 @@ def test_mtdpnor_driver():
 def test_ipmi_inband_functionality():
     assert op_opal_fvt.test_ipmi_inband_functionality() == 0
 
+def test_hmi_proc_recv_done():
+    assert op_opal_fvt.test_hmi_proc_recv_done() == 0
+
+def test_hmi_proc_recv_error_masked():
+    assert op_opal_fvt.test_hmi_proc_recv_error_masked() == 0
+
+def test_hmi_malfunction_alert():
+    assert op_opal_fvt.test_hmi_malfunction_alert() == 0
+
+def test_hmi_hypervisor_resource_error():
+    assert op_opal_fvt.test_hmi_hypervisor_resource_error() == 0
+
+def test_clearing_gard_entries():
+    assert op_opal_fvt.clear_gard_entries() == 0
+

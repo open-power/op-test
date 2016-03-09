@@ -30,6 +30,8 @@
 #  This class encapsulates commands and constants which deals with the BMC in OpenPower
 #  systems
 
+import pexpect
+
 class OpTestConstants():
 
     # Platforms
@@ -135,3 +137,35 @@ class OpTestConstants():
     SCP_TO_REMOTE = 1
     SCP_TO_LOCAL = 2
 
+    # Constants related to ipmi console interfaces
+    IPMI_SOL_ACTIVATE_TIME = 5
+    IPMI_SOL_DEACTIVATE_TIME = 10
+    IPMI_WAIT_FOR_TERMINATING_SESSION = 10
+    IPMI_CON_DELAY_BEFORE_SEND = 0.9
+
+    IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT = ["[SOL Session operational.  Use ~? for help]\r\n", \
+        "Error: Unable to establish IPMI v2 / RMCP+ session", \
+        pexpect.TIMEOUT, pexpect.EOF]
+    IPMI_CONSOLE_EXPECT_ENTER_OUTPUT = ["login: ", "#", "/ #", "Petitboot", pexpect.TIMEOUT, pexpect.EOF]
+    IPMI_CONSOLE_EXPECT_LOGIN = 0
+    IPMI_CONSOLE_EXPECT_PASSWORD = 0
+    IPMI_CONSOLE_EXPECT_PETITBOOT = [2,3]
+    IPMI_CONSOLE_EXPECT_RANDOM_STATE = [4,5]
+    IPMI_LPAR_UNIQUE_PROMPT = "PS1=[pexpect]#"
+    IPMI_LPAR_EXPECT_PEXPECT_PROMPT = "[pexpect]#"
+    IPMI_LPAR_EXPECT_PEXPECT_PROMPT_LIST = [r"\[pexpect\]#$", pexpect.TIMEOUT]
+
+    # HMI Test case constants
+    HMI_PROC_RECV_DONE = 1
+    HMI_PROC_RECV_ERROR_MASKED = 2
+    HMI_MALFUNCTION_ALERT = 3
+    HMI_HYPERVISOR_RESOURCE_ERROR = 4
+    HMI_TEST_CASE_SLEEP_TIME = 30
+
+    # CPU sleep states constants
+    GET_CPU_SLEEP_STATE2 = "cat /sys/devices/system/cpu/cpu*/cpuidle/state2/disable"
+    GET_CPU_SLEEP_STATE1 = "cat /sys/devices/system/cpu/cpu*/cpuidle/state1/disable"
+    GET_CPU_SLEEP_STATE0 = "cat /sys/devices/system/cpu/cpu*/cpuidle/state0/disable"
+
+    DISABLE_CPU_SLEEP_STATE1 = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state1/disable; do echo 1 > $i; done"
+    DISABLE_CPU_SLEEP_STATE2 = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state2/disable; do echo 1 > $i; done"

@@ -44,6 +44,7 @@ full_path = full_path.split('ci')[0]
 sys.path.append(full_path)
 import ConfigParser
 
+from common.OpTestConstants import OpTestConstants as BMC_CONST
 from testcases.OpTestSensors import OpTestSensors
 from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
 from testcases.OpTestHeartbeat import OpTestHeartbeat
@@ -52,6 +53,7 @@ from testcases.OpTestAt24driver import OpTestAt24driver
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
+from testcases.OpTestHMIHandling import OpTestHMIHandling
 
 
 def _config_read():
@@ -128,6 +130,12 @@ opTestInbandIPMI = OpTestInbandIPMI(bmcCfg['ip'], bmcCfg['username'],
                               testCfg['ffdcdir'], lparCfg['lparip'],
                               lparCfg['lparuser'], lparCfg['lparpasswd'])
 
+opTestHMIHandling = OpTestHMIHandling(bmcCfg['ip'], bmcCfg['username'],
+                                          bmcCfg['password'],
+                                          bmcCfg['usernameipmi'],
+                                          bmcCfg['passwordipmi'],
+                                          testCfg['ffdcdir'], lparCfg['lparip'],
+                                          lparCfg['lparuser'], lparCfg['lparpasswd'])
 
 def test_init():
     """This function validates the test config before running other functions
@@ -192,9 +200,44 @@ def test_mtd_pnor_driver():
     """
     return opTestMtdPnorDriver.testMtdPnorDriver()
 
+
 def test_ipmi_inband_functionality():
     """This function tests whether the kopald service is running in platform OS
     returns: int 0-success, raises exception-error
     """
     return opTestInbandIPMI.test_ipmi_inband_functionality()
 
+
+def test_hmi_proc_recv_done():
+    """This function tests HMI recoverable error: processor recovery done
+    returns: int 0-success, raises exception-error
+    """
+    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
+
+def test_hmi_proc_recv_error_masked():
+    """This function tests HMI recoverable error: proc_recv_error_masked
+    returns: int 0-success, raises exception-error
+    """
+    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_ERROR_MASKED)
+
+
+def clear_gard_entries():
+    """This function reboots the system and then clears any hardware gards through gard utility.
+    And finally reboots the system again to stable point.
+    returns: int 0-success, raises exception-error
+    """
+    return opTestHMIHandling.clearGardEntries()
+
+
+def test_hmi_malfunction_alert():
+    """This function tests HMI Malfunction alert: Core checkstop functionality
+    returns: int 0-success, raises exception-error
+    """
+    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
+
+
+def test_hmi_hypervisor_resource_error():
+    """This function tests HMI: Hypervisor resource error functionality
+        returns: int 0-success, raises exception-error
+    """
+    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)

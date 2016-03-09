@@ -32,6 +32,9 @@
 
 import time
 import subprocess
+import pexpect
+import os
+import sys
 
 from OpTestBMC import OpTestBMC
 from OpTestIPMI import OpTestIPMI
@@ -618,3 +621,33 @@ class OpTestSystem():
             return self.cv_BMC.sys_execute_cmd_onto_bmc(i_cmd)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
+
+
+    ###########################################################################
+    # IPMI Console interfaces
+    ###########################################################################
+
+    ##
+    # @brief It will get the ipmi sol console
+    #
+    # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
+    #
+    def sys_get_ipmi_console(self):
+        self.l_con = self.cv_IPMI.ipmi_get_console()
+        return self.l_con
+
+    ##
+    # @brief This function is used to close ipmi console
+    #
+    # @param i_con @type Object: it is a object of pexpect.spawn class
+    #                            this is the active ipmi sol console object
+    #
+    # @return BMC_CONST.FW_SUCCESS or return BMC_CONST.FW_FAILED
+    #
+    def sys_ipmi_close_console(self, i_con):
+        try:
+            l_con = i_con
+            self.cv_IPMI.ipmi_close_console(l_con)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return BMC_CONST.FW_SUCCESS
