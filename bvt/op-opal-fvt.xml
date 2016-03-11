@@ -38,6 +38,12 @@
 
         <test>
             <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_prd_driver()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+        <test>
+            <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_proc_recv_done()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
