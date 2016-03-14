@@ -54,6 +54,7 @@ from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 from testcases.OpTestHMIHandling import OpTestHMIHandling
+from testcases.OpTestPrdDriver import OpTestPrdDriver
 
 
 def _config_read():
@@ -136,6 +137,14 @@ opTestHMIHandling = OpTestHMIHandling(bmcCfg['ip'], bmcCfg['username'],
                                           bmcCfg['passwordipmi'],
                                           testCfg['ffdcdir'], lparCfg['lparip'],
                                           lparCfg['lparuser'], lparCfg['lparpasswd'])
+
+opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
+                                  bmcCfg['password'],
+                                  bmcCfg['usernameipmi'],
+                                  bmcCfg['passwordipmi'],
+                                  testCfg['ffdcdir'], lparCfg['lparip'],
+                                  lparCfg['lparuser'], lparCfg['lparpasswd'])
+
 
 def test_init():
     """This function validates the test config before running other functions
@@ -241,3 +250,10 @@ def test_hmi_hypervisor_resource_error():
         returns: int 0-success, raises exception-error
     """
     return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
+
+
+def test_prd_driver():
+    """This function tests PRD-processor runtime diagnostic functionality
+        returns: int 0-success, raises exception-error
+    """
+    return opTestPrdDriver.testPrdDriver()

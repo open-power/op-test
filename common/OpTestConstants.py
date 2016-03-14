@@ -169,3 +169,16 @@ class OpTestConstants():
 
     DISABLE_CPU_SLEEP_STATE1 = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state1/disable; do echo 1 > $i; done"
     DISABLE_CPU_SLEEP_STATE2 = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state2/disable; do echo 1 > $i; done"
+
+    # PRD driver specific registers
+    IPOLL_MASK_REGISTER = "0x01020013"
+    # PBAFIR_OCI_APAR_ERR: OCI Address Parity Error Det Address parity
+    # error detected by PBA OCI Slave logic for any valid address.
+    PBAFIR_OCI_APAR_ERR = 0x8000000000000000
+    PBAFIR_PB_CE_FW  = 0x0400000000000000
+    PBAFIR_PB_RDDATATO_FW = 0x2000000000000000
+    PBAFIR_PB_RDADRERR_FW = 0x6000000000000000
+    PBA_FAULT_ISOLATION_REGISTER = "0x02010840"
+    PBA_FAULT_ISOLATION_MASK_REGISTER = "0x02010843"
+
+    CLONE_SKIBOOT_DIR = "/tmp/skiboot"
