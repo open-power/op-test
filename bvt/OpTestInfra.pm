@@ -23,11 +23,11 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-                                                                                
+
 # OpTestInfra: Common perl functions for OpenPower IT/BVT test infrastructure
 #
 # Author: Alan Hlava
-                                                                                
+
 #use strict;
 use Fcntl qw(:DEFAULT :flock LOCK_EX LOCK_UN);
 
@@ -48,12 +48,11 @@ require Exporter;
 @EXPORT = qw(set_verbose is_verbose_enabled vprint set_failsumm_log clear_log_hist add_log_hist add_log_hist_file write_log_hist trim findRelFile);
 @EXPORT_OK = qw($verbose $verbose_file);
 
-                                                                                
 # set_verbose
 #    arg1 : 0=no verbose tracing, 1=verbose tracing to STDERRR
 #    arg2 : [optional] instead of STDERR append verbose output to this file
 #           (overrides arg1)
-                                                                                
+
 sub set_verbose
 {
     my ($vval, $vfile) = @_;
@@ -62,17 +61,11 @@ sub set_verbose
     $ppid = getppid();
 }
 
-                                                                                
-# is_verbose_enabled
-                                                                                
 sub is_verbose_enabled
 {
     return( $verbose || ($verbose_file ne "") );
 }
 
-                                                                                
-# vprint
-                                                                                
 sub vprint
 {
     my ($str) = @_;
@@ -110,11 +103,9 @@ sub vprint
 
 }
 
-                                                                                
 # set_failsumm_log
 #    arg1 : Fully qualiified name of fail summary file
 #    arg2 : [optional] Size of log history to print in the fail summary file
-                                                                                
 sub set_failsumm_log
 {
     my ($fn, $lim) = @_;
@@ -127,18 +118,12 @@ sub set_failsumm_log
     $ppid = getppid();
 }
 
-                                                                                
-# clear_log_hist
-                                                                                
 sub clear_log_hist
 {
     @log_hist = ();
     $log_hist_count = 0;
 }
 
-                                                                                
-# add_log_hist
-                                                                                
 sub add_log_hist
 {
     my ($msg) = @_;
@@ -153,9 +138,6 @@ sub add_log_hist
     }
 }
 
-                                                                                
-# add_log_hist_file
-                                                                                
 sub add_log_hist_file
 {
     my ($msg_file) = @_;
@@ -168,10 +150,8 @@ sub add_log_hist_file
     }
 }
 
-                                                                                
 # write_log_hist
 #    arg1 : Write history separator line? (blank=no, non-blank=yes, and use this text in it)
-                                                                                
 sub write_log_hist
 {
     my ($septitle) = @_;
@@ -213,9 +193,6 @@ sub write_log_hist
     clear_log_hist();
 }
 
-                                                                                
-# trim
-                                                                                
 sub trim
 {
     my ($str) = @_;
