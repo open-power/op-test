@@ -123,14 +123,6 @@ sub syntax()
     exit(1);
 }
 
-sub trim
-{
-    my ($str) = @_;
-    $str =~ s/^\s+//;
-    $str =~ s/\s+$//;
-    return $str;
-}
-
 sub runCmd
 {
     my ($l_cmd) = @_;
