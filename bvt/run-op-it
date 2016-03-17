@@ -23,11 +23,11 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-                                                                                
+
 # Run simics/FSP automated integration test
 #
 # Author: Alan Hlava
-                                                                                
+
 use strict;
 
 use FindBin;
@@ -130,9 +130,8 @@ my $logfile = "";
 my $logpfx = "";
 my $logpfxstr = "";
 
-                                                                                
 # killtree
-                                                                                
+
 sub killtree
 {
     my ($killpid, $sig) = @_;
@@ -149,9 +148,6 @@ sub killtree
     }
 }
 
-                                                                                
-# sigtermHandler
-                                                                                
 $SIG{'TERM'} = 'sigtermHandler';
 sub sigtermHandler
 {
@@ -166,18 +162,12 @@ sub sigtermHandler
     exit (1);
 }
 
-                                                                                
-# syntax
-                                                                                
 sub syntax()
 {
     print "$usage";
     exit(1);
 }
 
-                                                                                
-# printMsg
-                                                                                
 sub printMsg
 {
     my ($msg) = @_;
@@ -197,9 +187,6 @@ sub printMsg
     }
 }
 
-                                                                                
-# printErrorMsg
-                                                                                
 sub printErrorMsg
 {
     my ($msg) = @_;
@@ -217,9 +204,6 @@ sub printErrorMsg
     write_log_hist("Failure summary from run-op-it running $filename");
 }
 
-                                                                                
-# runCmd
-                                                                                
 sub runCmd
 {
     my ($cmd, $log_cmd) = @_;
@@ -281,14 +265,11 @@ sub runCmd
     return $cmdrc;
 }
 
-                                                                                
-# runCmdTest
-                                                                                
 sub runCmdTest
 {
     vprint ">runCmdTest\n";
     my $x;
-    
+
     # Trim off any arguments included in the testcase string
     $x = index($testcase, " ");
     if ($x != -1)
@@ -296,24 +277,22 @@ sub runCmdTest
         $args .= substr($testcase, $x);
         $testcase = substr($testcase, 0, $x);
     }
-    
+
     # Convert relative path (if any) to absolute path
     my $x86_script_file = findRelFile($testcase);
-    
+
     $testrc = runCmd("$x86_script_file $args", 1);
     $totalrc += $testrc;
-    
+
     vprint "<runCmdTest (testrc: $testrc   totalrc: $totalrc)\n";
 }
 
 my $tmpxmlfile = "/tmp/run-op-it-temp-$$.xml";
-                                                                                
-# readXml
-                                                                                
+
 sub readXml
 {
     my ($xml_path) = @_;
-    my $outstr = "";    
+    my $outstr = "";
     my $cmd;
 
     $cmd = "read-op-xml-it $xml_path >$tmpxmlfile";
@@ -341,7 +320,7 @@ sub getAttrs
     my $attr;
     my $val;
     my $enddelim;
-    
+
     vprint ">getAttrs($attrstr)\n";
     $attrstr = trim($attrstr);
     while($attrstr ne "")
@@ -356,7 +335,7 @@ sub getAttrs
         }
         $attr = substr($attrstr, 0, $x);
         $attrstr = substr($attrstr, ($x + 1));
-        
+
         # Determine how the value is delimited
         if ( !($attrstr =~ /^\"/))
         {
@@ -365,7 +344,7 @@ sub getAttrs
             exit(1);
         }
         $attrstr = substr($attrstr, 1);
-        
+
         # Get the value string
         $x = index($attrstr, "\"");
         if ($x == -1)
@@ -380,8 +359,8 @@ sub getAttrs
         vprint "   storing: \"$attr\" -> \"$val\"\n";
         # Store the attr->value mapping
         $outhash{$attr} = "$val";
-        
-        
+
+
         # Prepare for next loop
         $attrstr = trim($attrstr);
         vprint "   attrstr>$attrstr<\n";
@@ -389,7 +368,6 @@ sub getAttrs
     vprint "<getAttrs()\n";
     return %outhash;
 }
-    
                                                                             ###
 # getValue (do NOT change xmldata, just return the value)
                                                                             ###
@@ -433,7 +411,7 @@ sub getValue
                 return $value;
             }
         }
-        
+
         my $attrs_present = 1;
         if (substr($l_xmldata, ($x + length($key) + 1), 1) eq ">")
         {
@@ -443,9 +421,9 @@ sub getValue
         $x = index($l_xmldata, "</${key}>");
         if ($x != -1)
         {
-            $value = substr($l_xmldata, 0, $x);        
+            $value = substr($l_xmldata, 0, $x);
         }
-        
+
         # See if any key attributes
         if ($attrs_present)
         {
@@ -463,10 +441,7 @@ sub getValue
     vprint "<getValue($key,$limkeyarg) returning: \"$value\"\n";
     return $value;
 }
-    
-                                                                            ###
-# findNextKey
-                                                                            ###
+
 sub findNextKey
 {
     my ($key, $limkeyarg) = @_;
@@ -509,7 +484,7 @@ sub findNextKey
                 return $rc;
             }
         }
-        
+
         my $attrs_present = 1;
         if (substr($xmldata, ($x + length($key) + 1), 1) eq ">")
         {
@@ -517,7 +492,7 @@ sub findNextKey
         }
         $xmldata = substr($xmldata, ($x + length($key) + 2));
         $rc = 1;
-        
+
         # See if any key attributes
         if ($attrs_present)
         {
@@ -547,8 +522,8 @@ sub getNextKey
         $x = index($xmldata, "</${key}>");
         if ($x != -1)
         {
-            $outstr = substr($xmldata, 0, $x);        
-            $xmldata = substr($xmldata, ($x + length($key) + 3));    
+            $outstr = substr($xmldata, 0, $x);
+            $xmldata = substr($xmldata, ($x + length($key) + 3));
         }
     }
     if (!$nonewline)
@@ -574,25 +549,19 @@ sub matchstr
     return $outstr;
 }
 
-                                                                                
-# cleanUp
-                                                                                
 sub cleanUp
 {
     my ($errorterm) = @_;
     vprint ">cleanUp\n";
-    
+
     if ($errorterm && ($logfile ne ""))
     {
         print "${logpfxstr}Output from this test saved in $logfile\n";
     }
-    
+
     vprint "<cleanUp\n";
 }
 
-                                                                                
-# doExit
-                                                                                
 sub doExit
 {
     my ($exitcode) = @_;
@@ -603,9 +572,6 @@ sub doExit
     exit($exitcode);
 }
 
-                                                                                
-# runAllTests
-                                                                                
 sub runAllTests
 {
     my $savexmldata;
@@ -613,7 +579,7 @@ sub runAllTests
     my @ffdc_scripts;
     my $ffdc_script = "";
     my $ffdc_script_count = 0;
-    
+
     #--------------------------------------------------------------------------
     # Read in the XML file and treat as one big string
     #--------------------------------------------------------------------------
@@ -655,7 +621,7 @@ sub runAllTests
         $x = index($tmp, "<!--");
     }
     $xmldata .= $tmp;
-    
+
     #--------------------------------------------------------------------------
     # Strip out any excluded subtests
     #--------------------------------------------------------------------------
@@ -665,7 +631,7 @@ sub runAllTests
         my $subtest_requested = 0;
         my $subtest_name;
         my $req_subtest_name;
-        
+
         $tmp = $xmldata;
         $xmldata = "";
         $x = index($tmp, "<subtest>");
@@ -673,7 +639,7 @@ sub runAllTests
         {
             # Add the data up to the next subtest start
             $xmldata .= substr($tmp, 0, $x);
-            
+
             # Parse out the subtest name
             $tmp = substr($tmp, ($x + 9));
             $x = index($tmp, "<name>");
@@ -693,7 +659,7 @@ sub runAllTests
             }
             $subtest_name = substr($tmp, 0, $x);
             $tmp = substr($tmp, ($x + 7));
-            
+
             # See if this is one we want
             $subtest_requested = 0;
             foreach $req_subtest_name (@subtests)
@@ -704,7 +670,7 @@ sub runAllTests
                     last;
                 }
             }
-            
+
             # Include it or skip it
             if (!$subtest_requested)
             {
@@ -718,15 +684,15 @@ sub runAllTests
                 }
                 $tmp = substr($tmp, ($x + 10));
             }
-            
+
             $x = index($tmp, "<subtest>");
         }
         $xmldata .= $tmp;
-        
+
         $xmldata =~ s/\<\/subtest\>//; # Might be some leftovers
-        vprint "XML after processing requested subtests:\n$xmldata\n";    
+        vprint "XML after processing requested subtests:\n$xmldata\n";
     }
-    
+
     # If we're just debugging XML, then display it and we're done
     if ($debug eq "xml")
     {
@@ -734,7 +700,7 @@ sub runAllTests
         doExit(0);
     }
     if (is_verbose_enabled()) { vprint "xmldata:\n"; vprint "$xmldata\n"; }
-    
+
     #------------------------------------------------------------------------------
     # Find the start
     #------------------------------------------------------------------------------
@@ -744,25 +710,23 @@ sub runAllTests
         printErrorMsg("ERROR: could not find <integrationtest> in XML file\n");
         doExit(1);
     }
-    
+
     # Get the integration test title (if any)
     my $chk_title = getNextKey("title", "<test>"); # Don't find <test> title by mistake!
     if ($chk_title ne "")
     {
         $title_text = $chk_title;
     }
-    
+
     $tmp = `date +'%Y-%B-%d'`;
     chomp($tmp);
     printMsg("Starting $title_text on $tmp...\n");
-    
-    #------------------------------------------------------------------------------
+
     # Process each platform
-    #------------------------------------------------------------------------------
     while(findNextKey("platform", "platform"))
     {
         vprint "Processing new platform...\n";
-                
+
         # Find the machine name
         $machine = getNextKey("machine", "platform");
         #if ($machine eq "") { printErrorMsg("ERROR: could not find <machine> key in platform\n"); doExit(9); }
@@ -774,7 +738,7 @@ sub runAllTests
             findNextKey("test", "platform"); # skip ahead so we go to next platform
             next;
         }
-        
+
         # Process each test group
         while(findNextKey("test", "platform"))
         {
@@ -808,7 +772,7 @@ sub runAllTests
                 $tc->restrict_env( getValue("restrict-env", "testcase") );
                 push(@tcs, $tc);
             }
-            
+
             # Process each testcase within the group
             foreach my $tc_ref (@tcs)
             {
@@ -822,7 +786,7 @@ sub runAllTests
                     printMsg("Skipping testcase $testcase_index due to not running in $restrict_env environment\n");
                     next;
                 }
-                
+
                 # Get exit-on-error specification (if any)
                 $exitonerror = 0; # default is "no"
                 $tmp = $tc_ref->exitonerror;
@@ -844,22 +808,22 @@ sub runAllTests
                         doExit(1);
                     }
                 }
-                
+
                 # Get the command arguments (if specified separately)
                 $testcase = $tc_ref->cmd;
                 $args = $tc_ref->arg;
                 $testcase =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
                 $args =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
-                
+
                 # Get the FFDC script(s) (if any)
                 $tmp = $tc_ref->ffdc;
                 $tmp =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
                 @ffdc_scripts = split(/\,/, $tmp);
                 $ffdc_script_count = @ffdc_scripts;
-                
+
                 # Run the command
                 runCmdTest();
-                
+
                 # Handle testcase errors
                 if ($testrc)
                 {
@@ -871,7 +835,7 @@ sub runAllTests
                         {
                             $testcase = "$ffdc_script";
                             $args = "";
-                        
+
                             runCmdTest();
 
                             # reset, so we won't pass this --timeout option on the next command
@@ -881,7 +845,7 @@ sub runAllTests
                             }
                         }
                     }
-                    
+
                     # Clean up and terminate if requested
                     if ($exitonerror)
                     {
@@ -894,18 +858,12 @@ sub runAllTests
 
             printMsg("Finished Test: $testgrp\n");
         }
-        
+
         # Stop simics and simics server
         cleanUp(0);
-        
     }
-    
 }
 
-
-                                                                                
-# exportXmlVars
-                                                                                
 # Export any %%variable%%'s as environment variables, so read-op-xml-it can access them
 sub exportXmlVars
 {
@@ -916,9 +874,6 @@ sub exportXmlVars
     }
 }
 
-                                                                                
-# setLogfileName
-                                                                                
 sub setLogfileName
 {
     my ($basedir) = @_;
@@ -935,14 +890,7 @@ sub setLogfileName
     }
 }
 
-                                                                                
-#                            main
-                                                                                
-sub main() { }
-
-#-------------------------------------------------------------------------------
 # parse the arguments
-#-------------------------------------------------------------------------------
 my @argv = @ARGV;
 my $arg;
 $xmlvars{verbose} = "";
@@ -951,9 +899,9 @@ $xmlvars{fverbose} = "";
 while(@argv)
 {
     $arg = shift(@argv);
-    
+
     if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
-    
+
     if ($arg eq "--verbose")
     {
         set_verbose(1);
@@ -1003,16 +951,16 @@ while(@argv)
 
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
-    {    
+    {
         $arg = substr($arg, 2);
         $xmlvars{$arg} = shift(@argv);
     }
     elsif ($arg =~ /^\-/)
-    {    
+    {
         $arg = substr($arg, 1);
         $xmlvars{$arg} = shift(@argv);
     }
-    
+
     $filename = $arg;
 }
 
@@ -1094,14 +1042,14 @@ if ($cleanup_old_signal ne "")
     {
         $tmp = `ps -ef | grep $target | grep $userid | grep -v $$ | grep -v grep | awk '{ print \$2 }'`;
         @old_procs = split(/\n/, $tmp);
-        
+
         # Kill them
         foreach my $old_pid (@old_procs)
         {
             killtree($old_pid, $cleanup_old_signal);
         }
     }
-    
+
     doExit(0);
 }
 
