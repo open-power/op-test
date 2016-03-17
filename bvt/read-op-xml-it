@@ -74,16 +74,9 @@ if ($filename eq "")
     exit(9);
 }
 
-#-------------------------------------------------------------------------------
-# set vars representing execution environment
-#-------------------------------------------------------------------------------
-
 vprint "Starting read-op-xml-it\n";
 vprint "processing_include: $processing_include\n";
 
-#------------------------------------------------------------------------------
-# Read the XML file and write to STDOUT
-#------------------------------------------------------------------------------
 $infilename = findRelFile($filename);
 open(INF, "<$infilename") || die "ERROR: read-op-xml-it: unable to open $infilename: $!";
 my $line;
