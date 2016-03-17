@@ -30,6 +30,7 @@
 
 use strict;
 
+use File::Copy;
 use FindBin;
 use lib "$FindBin::Bin";
 use XML::LibXML;
@@ -363,26 +364,21 @@ sub runTest
     vprint "<runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
 }
 
-sub cleanUp
+END
 {
-    my ($errorterm) = @_;
-
-    vprint ">run-op-bvt cleanUp($errorterm)\n";
+    vprint ">run-op-bvt cleanUp($?)\n";
 
     if ($tmp_bvtxmlfile)
     {
         unlink $bvtxmlfile;
     }
 
-    if ($errorterm)
+    if ($?)
     {
-        $cmd = "cp $logfile ${savedir}/";
-        vprint "cmd: $cmd\n";
-        system($cmd);
-
+        copy($logfile, "${savedir}/");
         print "All logs and FFDC saved under $savedir\n";
     }
-    vprint "<run-op-bvt cleanUp($errorterm)\n";
+    vprint "<run-op-bvt cleanUp($?)\n";
 }
 
 #-----------------------------------------------------------------------------
@@ -521,7 +517,6 @@ foreach my $bvt ( $xmldata->findnodes('/bvts/bvt') )
 #------------------------------------------------------------------------------
 # Cleanup and exit
 #------------------------------------------------------------------------------
-cleanUp(0);
 $tmp = `date +'%Y-%B-%d'`;
 chomp($tmp);
 if ($totalrc == 0)
