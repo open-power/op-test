@@ -30,6 +30,8 @@
 ################################################################################
 use strict;
 
+use Getopt::Long;
+
 my $version = "1.1";
 my @argv = @ARGV;
 my $arg;
@@ -121,30 +123,6 @@ sub vprint
         }
 }
 
-################################################################################
-# setArg
-################################################################################
-sub setArg
-{
-        my ($argname, $argval_ref) = @_;
-        my $rc = 0;
-        if ($arg eq "$argname")
-        {
-                if (($argv[0] !~ /^\-\-/) &&
-                    ($argv[0] !~ /^\%\%/))
-                {
-                        $$argval_ref = shift(@argv);
-                        $rc = 1;
-                }
-                if ($argv[0] =~ /^\%\%/) { shift(@argv); $rc = 1; }
-        }
-        return($rc);
-}
-
-################################################################################
-#                            main
-################################################################################
-sub main() { }
 $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
 
 #-------------------------------------------------------------------------------
@@ -152,78 +130,28 @@ $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
 #-------------------------------------------------------------------------------
 
 # Parse the arguments
-while(@argv)
-{
-        $arg = shift(@argv);
 
-        if ($arg eq "-?") { syntax(); }
-        if ($arg eq "--help") { syntax(); }
-        if ($arg eq "-h") { syntax(); }
+my $help = 0;
+GetOptions("help|?|h" => \$help,
+	   "verbose" => \$verbose,
+	   "bmcip=s" => \$bmcip,
+	   "bmcuser:s" => \$bmcuser,
+	   "bmcpwd=s" => \$bmcpwd,
+	   "usernameipmi=s" => \$usernameipmi,
+	   "passwordipmi=s" => \$passwordipmi,
+	   "lparip=s" => \$lparip,
+	   "lparuser=s" => \$lparuser,
+	   "lparPasswd=s" => \$lparPasswd,
+	   "hpmimage:s" => \$hpmimage,
+	   "ffdcdir:s" => \$ffdcdir,
+	   "cfgfiledir:s" => \$cfgfiledir,
+	   "imagedir:s" => \$imagedir,
+	   "imagename:s" => \$imagename,
+    ) or syntax();
 
-        if ($arg eq "--verbose") { $verbose = 1; next; }
-
-        if (setArg("--bmcip", \$bmcip)) { next; }
-        if (setArg("--bmcuser", \$bmcuser)) { next; }
-        if (setArg("--bmcpwd", \$bmcpwd)) { next; }
-        if (setArg("--usernameipmi", \$usernameipmi)) { next; }
-        if (setArg("--passwordipmi", \$passwordipmi)) { next; }
-        if (setArg("--lparip", \$lparip)) { next; }
-        if (setArg("--lparuser", \$lparuser)) { next; }
-        if (setArg("--lparPasswd", \$lparPasswd)) { next; }
-        if (setArg("--hpmimage", \$hpmimage)) { next; }
-        if (setArg("--ffdcdir", \$ffdcdir)) { next; }
-        if (setArg("--cfgfiledir", \$cfgfiledir)) { next; }
-        if (setArg("--imagedir", \$imagedir)) { next; }
-        if (setArg("--imagename", \$imagename)) { next; }
-
-        if ($arg =~ /^\-/) { print STDERR "ERROR: unrecognized option: $arg\n"; exit(1); }
-
-        print STDERR "ERROR: unrecognized option: $arg\n";
-        exit(1);
-}
+syntax() if $help;
 
 vprint "Starting run-bvt-setup (v${version})\n";
-
-if ($bmcip eq "")
-{
-        print STDERR "ERROR: missing required argument --bmcip\n";
-        exit(1);
-}
-if ($bmcpwd eq "")
-{
-        print STDERR "ERROR: missing required argument --bmcpwd\n";
-        exit(1);
-}
-if ($usernameipmi eq "")
-{
-        print STDERR "ERROR: missing required argument --usernameipmi\n";
-        exit(1);
-}
-if ($passwordipmi eq "")
-{
-        print STDERR "ERROR: missing required argument --passwordipmi\n";
-        exit(1);
-}
-if ($lparip eq "")
-{
-        print STDERR "ERROR: missing required argument --lparip\n";
-        exit(1);
-}
-if ($lparuser eq "")
-{
-        print STDERR "ERROR: missing required argument --lparuser\n";
-        exit(1);
-}
-if ($lparPasswd eq "")
-{
-        print STDERR "ERROR: missing required argument --lparPasswd\n";
-        exit(1);
-}
-if ($hpmimage eq "")
-{
-        print STDERR "ERROR: missing required argument --hpmimage\n";
-        exit(1);
-}
 
 # The OP CI tools want dirs to end in slash...
 if ($ffdcdir !~ /\/$/) { $ffdcdir .= "/"; }
