@@ -39,7 +39,6 @@ my $usage = "Run OpenPower Automated Integration Test
 
 Syntax:
    1) Run test:                         run-op-it [OPTIONS] file.xml
-   2) Cleanup old run-op-it processes:  run-op-it --cleanup SIGTERM | SIGKILL [--all]
 
    file.xml : the test definition file
 
@@ -111,11 +110,6 @@ my $debug = "";
 my $title_text = "Integration Test";
 my $testcaseid = "";
 my @tcs;
-
-my $cleanup_old_signal = "";
-my @cleanup_targets = (
-"run-op-it",
-);
 
 my $cmdtmpfile = "/tmp/run-op-it-cmd-$$.tmp";
 my $logfiledir = "";
@@ -900,16 +894,6 @@ while(@argv)
         $xmlvars{fverbose} = "--fverbose $fvfile";
         next;
     }
-    if ($arg eq "--cleanup")
-    {
-        $cleanup_old_signal = shift(@argv);
-        if (($cleanup_old_signal ne "SIGTERM") && ($cleanup_old_signal ne "SIGKILL"))
-        {
-            print STDERR "ERROR: unrecognized signal specified on --cleanup: \"$cleanup_old_signal\"\n";
-            exit(9);
-        }
-        next;
-    }
     if ($arg eq "--subtest")
     {
         $arg = shift(@argv);
@@ -950,7 +934,7 @@ if ($ENV{OP_TEST_FAILSUMM_LOG} ne "")
     set_failsumm_log($ENV{OP_TEST_FAILSUMM_LOG});
 }
 
-if (($filename eq "") && ($cleanup_old_signal eq ""))
+if ($filename eq "")
 {
     printErrorMsg("ERROR: you must specify a XML file defining the test\n");
     exit(9);
@@ -999,33 +983,6 @@ if (is_verbose_enabled())
     {
         system("env | grep OP_TEST_");
     }
-}
-
-#------------------------------------------------------------------------------
-# Handle cleanup request
-#------------------------------------------------------------------------------
-if ($cleanup_old_signal ne "")
-{
-    printMsg("Killing old run-op-it processes...\n");
-
-    # Process all running run-op-it processes belonging to this user
-    my $userid = `whoami`;
-    chomp($userid);
-    my $tmp;
-    my @old_procs;
-    foreach my $target (@cleanup_targets)
-    {
-        $tmp = `ps -ef | grep $target | grep $userid | grep -v $$ | grep -v grep | awk '{ print \$2 }'`;
-        @old_procs = split(/\n/, $tmp);
-
-        # Kill them
-        foreach my $old_pid (@old_procs)
-        {
-            killtree($old_pid, $cleanup_old_signal);
-        }
-    }
-
-    exit(0);
 }
 
 # export %%variables%% for read-op-xml-it (which is run under fips-it-list)
