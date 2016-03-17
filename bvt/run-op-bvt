@@ -33,6 +33,7 @@ use strict;
 use FindBin;
 use lib "$FindBin::Bin";
 use XML::LibXML;
+use File::Path;
 use OpTestInfra;
 
 my $version = "1.1";
@@ -503,35 +504,14 @@ if ($bvtxmlfile eq "")
 #-------------------------------------------------------------------------------
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
-system("mkdir -p $savedir") && die "ERROR: unable to create save directory $savedir: $!";
+File::Path::make_path($savedir);
+
 set_failsumm_log("${savedir}/failsumm.log");
 $ENV{OP_TEST_FAILSUMM_LOG} = "${savedir}/failsumm.log"; # Set so lower-level tools can find it
 
-# Ensure all other needed direectories exist
-if (! -d "${resdir}")
-{
-    if (system("mkdir -p ${resdir}"))
-    {
-        print STDERR "ERROR: unable to create $resdir\n";
-        exit(9);
-    }
-}
-if (! -d "${tmpdir}")
-{
-    if (system("mkdir -p ${tmpdir}"))
-    {
-        print STDERR "ERROR: unable to create $tmpdir\n";
-        exit(9);
-    }
-}
-if (! -d "${logdir}")
-{
-    if (system("mkdir -p ${logdir}"))
-    {
-        print STDERR "ERROR: unable to create $logdir\n";
-        exit(9);
-    }
-}
+File::Path::make_path($resdir) if (! -d "${resdir}");
+File::Path::make_path($tmpdir) if (! -d "${tmpdir}");
+File::Path::make_path($logdir) if (! -d "${logdir}");
 
 # Open the log file and print the startup message
 open($logf, ">$logfile") || die "ERROR: unable to open $logfile for write:$!";
