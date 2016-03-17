@@ -190,7 +190,6 @@ sub printBVT
     vprint "<printBVT()\n";
 }
 
-sub main() { }
 $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
 
 #-------------------------------------------------------------------------------
