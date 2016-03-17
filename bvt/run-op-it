@@ -48,8 +48,6 @@ OPTIONS is one or more of:
    --debug xml | cmd : instead of running the test, do the specified debug:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
-   --outpid xxxx : the name of a file in which to store the PID of this process.
-          This can be useful in managing multiple run-op-it programs running concurrently.
    --outrc yyyy : the name of a file in which to store the exit code of this process.
           This can be useful in managing multiple run-op-it programs running concurrently.
    --logpfx xxxx : the string with which to prefix all log messages (this can be useful
@@ -114,7 +112,6 @@ my %keyattrs;
 my $debug = "";
 my $title_text = "Integration Test";
 my $testcaseid = "";
-my $outpid = "";
 my $outrc = "";
 my @tcs;
 
@@ -916,7 +913,6 @@ while(@argv)
         $xmlvars{fverbose} = "--fverbose $fvfile";
         next;
     }
-    if ($arg eq "--outpid") { $outpid = shift(@argv); next; }
     if ($arg eq "--outrc") { $outrc = shift(@argv); next; }
     if ($arg eq "--cleanup")
     {
@@ -996,11 +992,6 @@ if ($xmlvars{machine} ne "")
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
 
-# Store the PID, if requested
-if ($outpid ne "")
-{
-    system("echo $$ >$outpid");
-}
 #if ($logpfxstr eq "")
 #{
     #$logpfxstr = `whoami`;
