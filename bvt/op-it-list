@@ -34,6 +34,7 @@ use FindBin;
 use lib "$FindBin::Bin";
 use OpTestInfra;
 use XML::LibXML;
+use Getopt::Long;
 
 my $version = "1.1";
 my $cmd;
@@ -196,26 +197,16 @@ $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
 # Get arguments
 #-------------------------------------------------------------------------------
 
-# Parse the arguments
-my @argv = @ARGV;
-my $arg;
-while(@argv)
-{
-    $arg = shift(@argv);
+my $help = 0;
+GetOptions("help|h|?" => \$help,
+	   "list" => sub { $test_type = "list"; },
+	   "q" => sub { $test_type = "q"; },
+	   "verbose" => sub { set_verbose(1); $verbose_str = "--verbose"; },
+	   "fverbose:s" => sub { $fvfile = shift; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; },
+	   "<>" => sub { $xmlfile_arg = shift }
+    ) or syntax();
 
-    if ($arg eq "-?") { syntax(); }
-    if ($arg eq "--help") { syntax(); }
-    if ($arg eq "-h") { syntax(); }
-
-    if ($arg eq "--list") { $test_type = "list"; next; }
-    if ($arg eq "--q") { $test_type = "q"; next; }
-    if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
-    if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
-
-    if ($arg =~ /^\-/) { print STDERR "ERROR: unrecognized option: $arg\n"; exit(1); }
-
-    $xmlfile_arg = $arg;
-}
+syntax() if $help;
 
 push(@tmpfiles, $tmperrfile);
 push(@tmpfiles, $tmpxmlfile);
