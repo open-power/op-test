@@ -23,11 +23,11 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-                                                                                
+
 # Syntax-check and list major elements in a OpenPower IT/BVT XML file.
 #
 # Author: Alan Hlava
-                                                                                
+
 use strict;
 
 use FindBin;
@@ -71,18 +71,12 @@ my $tmpxmlfile = "/tmp/fips-it-test-$$.xml";
 my $tmpbvtfile = "/tmp/fips-it-test-bvt-$$.xml";
 my @tmpfiles;
 
-                                                                                
-# syntax
-                                                                                
 sub syntax()
 {
     print "$usage";
     exit(1);
 }
 
-                                                                                
-# cleanTempFiles
-                                                                                
 sub cleanTempFiles
 {
     unlink @tmpfiles;
@@ -92,9 +86,7 @@ my @cmdelmts =
 (
     "cmd",
 );
-                                                                                
-# printTestcase
-                                                                                
+
 sub printTestcase
 {
     vprint ">printTestcase()\n";
@@ -122,9 +114,6 @@ sub printTestcase
     vprint "<printTestcase()\n";
 }
 
-                                                                                
-# getNameOrTitle
-                                                                                
 sub getNameOrTitle
 {
     my ($node) = @_;
@@ -140,9 +129,6 @@ sub getNameOrTitle
     return $name;
 }
 
-                                                                                
-# printIntegrationTest
-                                                                                
 sub printIntegrationTest
 {
     vprint ">printIntegraionTest()\n";
@@ -185,9 +171,6 @@ sub printIntegrationTest
     vprint "<printIntegraionTest()\n";
 }
 
-                                                                                
-# printBVT
-                                                                                
 sub printBVT
 {
     vprint ">printBVT()\n";
@@ -200,16 +183,13 @@ sub printBVT
     my @its = $bvt->findnodes('./integrationtest');
     foreach my $it (@its)
     {
-        printIntegrationTest($it);    
+        printIntegrationTest($it);
     }
     $test_indent = substr($test_indent, 3);
-    
+
     vprint "<printBVT()\n";
 }
-    
-                                                                                
-#                            main
-                                                                                
+
 sub main() { }
 $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
 
@@ -227,12 +207,12 @@ while(@argv)
     if ($arg eq "-?") { syntax(); }
     if ($arg eq "--help") { syntax(); }
     if ($arg eq "-h") { syntax(); }
-    
+
     if ($arg eq "--list") { $test_type = "list"; next; }
     if ($arg eq "--q") { $test_type = "q"; next; }
     if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
     if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
-    
+
     if ($arg =~ /^\-/) { print STDERR "ERROR: unrecognized option: $arg\n"; exit(1); }
 
     $xmlfile_arg = $arg;
@@ -247,7 +227,7 @@ vprint "Running op-it-list ($version)...\n";
 if ($xmlfile_arg eq "")
 {
     print STDERR "ERROR: you must specify an XML file to test\n";
-    cleanTempFiles();    
+    cleanTempFiles();
     exit(1);
 }
 
@@ -264,7 +244,7 @@ else
     if ($xmlfile eq "")
     {
         print STDERR "ERROR: could not find $xmlfile_arg relative to op-it-list dir\n";
-        cleanTempFiles();    
+        cleanTempFiles();
         exit(1);
     }
 }
@@ -278,7 +258,7 @@ vprint "cmd: $cmd\n";
 if (system($cmd))
 {
     print STDERR "ERROR: BVT preprocessing failure\n";
-    cleanTempFiles();    
+    cleanTempFiles();
     exit(1);
 }
 
@@ -288,7 +268,7 @@ vprint "cmd: $cmd\n";
 if (system($cmd))
 {
     print STDERR "ERROR: read-op-xml-it failure\n";
-    cleanTempFiles();    
+    cleanTempFiles();
     exit(1);
 }
 unlink $tmpbvtfile;
@@ -303,7 +283,7 @@ $schemafile = "${tmp}/${schemafn}";
 if (! -e $schemafile)
 {
     print STDERR "ERROR: could not find $schemafn in op-it-list dir ($schemafile).  Unable to do validation.\n";
-    cleanTempFiles();    
+    cleanTempFiles();
     exit(1);
 }
 
@@ -313,13 +293,13 @@ if (system($cmd) != 0)
 {
     system("cat $tmperrfile >&2");
     print STDERR "ERROR: $xmlfile contains XML errors.  See previous messages for details (expanded XML file: $tmpxmlfile)\n";
-    cleanTempFiles();    
+    cleanTempFiles();
     exit(1);
 }
 
 if ($test_type eq "q")
 {
-    cleanTempFiles();    
+    cleanTempFiles();
     exit(0);
 }
 system("cat $tmperrfile");
@@ -333,7 +313,7 @@ $xmldata = $xml->parse_file("${tmpxmlfile}");
 #vprint "Doing process_xincludes()...\n";
 #$xml->process_xincludes($xmldata);
 unlink $tmpxmlfile;
-    
+
 my @bvts = $xmldata->findnodes('/bvts/bvt');
 my $bvtcount = @bvts;
 if ($bvtcount == 0)
@@ -341,7 +321,7 @@ if ($bvtcount == 0)
     my @its = $xmldata->findnodes('/integrationtest');
     foreach my $it (@its)
     {
-        printIntegrationTest($it);    
+        printIntegrationTest($it);
     }
 }
 else
@@ -351,4 +331,4 @@ else
         printBVT($bvt);
     }
 }
-cleanTempFiles();    
+cleanTempFiles();
