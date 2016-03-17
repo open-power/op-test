@@ -66,20 +66,18 @@ my $test_name;
 my $machine;
 #my $parser;
 my $xmldata;
-my $tmperrfile = "/tmp/fips-it-test-$$.err";
-my $tmpxmlfile = "/tmp/fips-it-test-$$.xml";
-my $tmpbvtfile = "/tmp/fips-it-test-bvt-$$.xml";
-my @tmpfiles;
 
+use File::Temp;
+my $tmperrfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-XXXXXX",
+				 SUFFIX => ".err");
+my $tmpxmlfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-XXXXXX",
+				 SUFFIX => ".xml");
+my $tmpbvtfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-bvtXXXXXX",
+				 SUFFIX => ".xml");
 sub syntax()
 {
     print "$usage";
     exit(1);
-}
-
-sub cleanTempFiles
-{
-    unlink @tmpfiles;
 }
 
 my @cmdelmts =
@@ -207,16 +205,11 @@ GetOptions("help|h|?" => \$help,
 
 syntax() if $help;
 
-push(@tmpfiles, $tmperrfile);
-push(@tmpfiles, $tmpxmlfile);
-push(@tmpfiles, $tmpbvtfile);
-
 vprint "Running op-it-list...\n";
 
 if ($xmlfile_arg eq "")
 {
     print STDERR "ERROR: you must specify an XML file to test\n";
-    cleanTempFiles();
     exit(1);
 }
 
@@ -233,7 +226,6 @@ else
     if ($xmlfile eq "")
     {
         print STDERR "ERROR: could not find $xmlfile_arg relative to op-it-list dir\n";
-        cleanTempFiles();
         exit(1);
     }
 }
@@ -247,7 +239,6 @@ vprint "cmd: $cmd\n";
 if (system($cmd))
 {
     print STDERR "ERROR: BVT preprocessing failure\n";
-    cleanTempFiles();
     exit(1);
 }
 
@@ -257,7 +248,6 @@ vprint "cmd: $cmd\n";
 if (system($cmd))
 {
     print STDERR "ERROR: read-op-xml-it failure\n";
-    cleanTempFiles();
     exit(1);
 }
 unlink $tmpbvtfile;
@@ -272,7 +262,6 @@ $schemafile = "${tmp}/${schemafn}";
 if (! -e $schemafile)
 {
     print STDERR "ERROR: could not find $schemafn in op-it-list dir ($schemafile).  Unable to do validation.\n";
-    cleanTempFiles();
     exit(1);
 }
 
@@ -282,13 +271,11 @@ if (system($cmd) != 0)
 {
     system("cat $tmperrfile >&2");
     print STDERR "ERROR: $xmlfile contains XML errors.  See previous messages for details (expanded XML file: $tmpxmlfile)\n";
-    cleanTempFiles();
     exit(1);
 }
 
 if ($test_type eq "q")
 {
-    cleanTempFiles();
     exit(0);
 }
 system("cat $tmperrfile");
@@ -320,4 +307,3 @@ else
         printBVT($bvt);
     }
 }
-cleanTempFiles();
