@@ -48,8 +48,6 @@ OPTIONS is one or more of:
    --debug xml | cmd : instead of running the test, do the specified debug:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
-   --outrc yyyy : the name of a file in which to store the exit code of this process.
-          This can be useful in managing multiple run-op-it programs running concurrently.
    --logpfx xxxx : the string with which to prefix all log messages (this can be useful
           if running multiple concurrent run-op-it commands to the same common log)
    --testenv xxx : is this test to run only in specific environment with this tag
@@ -112,7 +110,6 @@ my %keyattrs;
 my $debug = "";
 my $title_text = "Integration Test";
 my $testcaseid = "";
-my $outrc = "";
 my @tcs;
 
 my $cleanup_old_signal = "";
@@ -561,10 +558,6 @@ sub cleanUp
 sub doExit
 {
     my ($exitcode) = @_;
-    if ($outrc ne "")
-    {
-        system("echo $exitcode >$outrc");
-    }
     exit($exitcode);
 }
 
@@ -913,7 +906,6 @@ while(@argv)
         $xmlvars{fverbose} = "--fverbose $fvfile";
         next;
     }
-    if ($arg eq "--outrc") { $outrc = shift(@argv); next; }
     if ($arg eq "--cleanup")
     {
         $cleanup_old_signal = shift(@argv);
