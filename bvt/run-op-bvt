@@ -34,6 +34,7 @@ use FindBin;
 use lib "$FindBin::Bin";
 use XML::LibXML;
 use File::Path;
+use Getopt::Long qw(:config pass_through);
 use OpTestInfra;
 
 my $version = "1.1";
@@ -395,24 +396,20 @@ sub cleanUp
 #-----------------------------------------------------------------------------
 # parse the arguments
 #-----------------------------------------------------------------------------
-my @argv = @ARGV;
-my $arg;
 $| = 1; # Force STDOUT to be unbuffered so we get output in the right order
 
+my $help = 0;
 $commandline = $0 . " ". (join " ", @ARGV);
+GetOptions('help|?|h' => \$help,
+	   'noclrfailsumm' => sub { $clear_failsumm = 0;},
+	   'verbose' => sub { set_verbose(1); $verbose_str = "--verbose"; },
+	   'fverbose=s' => sub { $fvfile = "$_"; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" ;},
+	   'savedir=s' => \$savedir,
+    ) or syntax();
 
-while(@argv)
+my @argv = @ARGV;
+while (my $arg = shift @argv)
 {
-    $arg = shift(@argv);
-
-    if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
-
-    if ($arg eq "--noclrfailsumm") { $clear_failsumm = 0; next; }
-    if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
-    if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
-
-    if ($arg eq "--savedir") { $savedir = shift(@argv); next; }
-
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
     {
@@ -430,9 +427,10 @@ while(@argv)
         else { $xmlvars_it .= " --$arg $xmlvars{$arg}"; }
         next;
     }
-
-    push(@bvtxmlfiles, $arg);
+    push @bvtxmlfiles, $arg;
 }
+
+syntax() if $help;
 
 # Setup savedir
 if ($savedir eq "")
