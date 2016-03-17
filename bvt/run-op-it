@@ -140,9 +140,6 @@ sub sigtermHandler
 {
     print "\nrun-op-it received SIGTERM, so terminating!\n";
 
-    # Try to clean up gracefully
-    cleanUp(1);
-
     # Clean up all child processes that may be left-over
     killtree($$, "SIGTERM");
 
@@ -317,7 +314,6 @@ sub getAttrs
         if ($x == -1)
         {
             printErrorMsg("ERROR: XML syntax error: no equal sign found in attribute area: $saveattrstr\n");
-            cleanUp(1);
             exit(1);
         }
         $attr = substr($attrstr, 0, $x);
@@ -327,7 +323,6 @@ sub getAttrs
         if ( !($attrstr =~ /^\"/))
         {
             printErrorMsg("ERROR: XML syntax error: all attribute values must start with a double-quote: $saveattrstr\n");
-            cleanUp(1);
             exit(1);
         }
         $attrstr = substr($attrstr, 1);
@@ -337,7 +332,6 @@ sub getAttrs
         if ($x == -1)
         {
             printErrorMsg("ERROR: XML syntax error: all attribute values must end with a double-quote: $saveattrstr\n");
-            cleanUp(1);
             exit(1);
         }
         $val = substr($attrstr, 0, $x);
@@ -536,17 +530,12 @@ sub matchstr
     return $outstr;
 }
 
-sub cleanUp
+END
 {
-    my ($errorterm) = @_;
-    vprint ">cleanUp\n";
-
-    if ($errorterm && ($logfile ne ""))
+    if ($? && ($logfile ne ""))
     {
         print "${logpfxstr}Output from this test saved in $logfile\n";
     }
-
-    vprint "<cleanUp\n";
 }
 
 sub runAllTests
@@ -590,7 +579,6 @@ sub runAllTests
         if ($x == -1)
         {
             my $tmpmsg = sprintf("ERROR: XML syntax error: unterminated comment found starting with \"<--%s\"\n", substr($tmp, 0, 10));
-            cleanUp(1);;
             printErrorMsg($tmpmsg);
             exit(1);
         }
@@ -622,7 +610,6 @@ sub runAllTests
             $x = index($tmp, "<name>");
             if ($x == -1)
             {
-                cleanUp(1);;
                 printErrorMsg("ERROR: XML syntax error: no name found in <subtest>\n");
                 exit(1);
             }
@@ -630,7 +617,6 @@ sub runAllTests
             $x = index($tmp, "</name>");
             if ($x == -1)
             {
-                cleanUp(1);;
                 printErrorMsg("ERROR: XML syntax error: no end-name element found in <subtest>\n");
                 exit(1);
             }
@@ -655,7 +641,6 @@ sub runAllTests
                 $x = index($tmp, "</subtest>");
                 if ($x == -1)
                 {
-                    cleanUp(1);;
                     printErrorMsg("ERROR: XML syntax error: missing </subtest>\n");
                     exit(1);
                 }
@@ -683,7 +668,6 @@ sub runAllTests
     #------------------------------------------------------------------------------
     if (! findNextKey("integrationtest", "integrationtest"))
     {
-        cleanUp(1);;
         printErrorMsg("ERROR: could not find <integrationtest> in XML file\n");
         exit(1);
     }
@@ -780,7 +764,6 @@ sub runAllTests
                     }
                     else
                     {
-                        cleanUp(1);;
                         printErrorMsg("ERROR: unrecognized value in <exitonerror>: $tmp\n");
                         exit(1);
                     }
@@ -826,7 +809,6 @@ sub runAllTests
                     # Clean up and terminate if requested
                     if ($exitonerror)
                     {
-                        cleanUp(1);
                         printErrorMsg("ERROR: terminating test\n");
                         exit(1);
                     }
@@ -835,9 +817,6 @@ sub runAllTests
 
             printMsg("Finished Test: $testgrp\n");
         }
-
-        # Stop simics and simics server
-        cleanUp(0);
     }
 }
 
