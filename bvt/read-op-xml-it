@@ -37,7 +37,6 @@ use OpTestInfra;
 
 my $fvfile = "";
 my $verbose_str = "";
-my $version = "1.1";
 
 my $filename = "";
 my $infilename = "";
@@ -48,7 +47,7 @@ my $processing_include = 0; # Internal flag to indicate we're processing an <inc
 
 sub syntax()
 {
-    print "Read integration test XML file to stdout and expand include nesting (v${version})\n\n";
+    print "Read integration test XML file to stdout and expand include nesting\n\n";
     print "Syntax: read-op-xml-it [OPTIONS] file.xml\n";
     print "   file.xml : the test definition file\n";
     print "\nWhere OPTIONS is one or more of:\n";
@@ -79,7 +78,7 @@ if ($filename eq "")
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
 
-vprint "Starting read-op-xml-it v${version}\n";
+vprint "Starting read-op-xml-it\n";
 vprint "processing_include: $processing_include\n";
 
 #------------------------------------------------------------------------------
