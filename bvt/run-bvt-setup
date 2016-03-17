@@ -32,8 +32,6 @@ use strict;
 
 use Getopt::Long;
 
-my @argv = @ARGV;
-my $arg;
 my $cmd;
 my $tmp;
 my @flds;
