@@ -82,15 +82,6 @@ if ($filename eq "")
 vprint "Starting read-op-xml-it v${version}\n";
 vprint "processing_include: $processing_include\n";
 
-# read any %%variable%%'s set by run-fsp-it
-foreach my $key (keys %ENV)
-{
-    if ($key =~ /^xmlvars_/) {
-        vprint "$key: $ENV{$key}\n";
-    }
-
-}
-
 #------------------------------------------------------------------------------
 # Read the XML file and write to STDOUT
 #------------------------------------------------------------------------------
