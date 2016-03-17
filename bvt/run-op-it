@@ -555,12 +555,6 @@ sub cleanUp
     vprint "<cleanUp\n";
 }
 
-sub doExit
-{
-    my ($exitcode) = @_;
-    exit($exitcode);
-}
-
 sub runAllTests
 {
     my $savexmldata;
@@ -576,7 +570,7 @@ sub runAllTests
     if ($tmp eq "")
     {
         printErrorMsg("ERROR: unable to read XML file $filename\n");
-        doExit(1);
+        exit(1);
     }
     #$tmp =~ s/\n/ /g; <- messes up <fspscript> values
 
@@ -604,7 +598,7 @@ sub runAllTests
             my $tmpmsg = sprintf("ERROR: XML syntax error: unterminated comment found starting with \"<--%s\"\n", substr($tmp, 0, 10));
             cleanUp(1);;
             printErrorMsg($tmpmsg);
-            doExit(1);
+            exit(1);
         }
         $tmp = substr($tmp, ($x + 3));
         $x = index($tmp, "<!--");
@@ -636,7 +630,7 @@ sub runAllTests
             {
                 cleanUp(1);;
                 printErrorMsg("ERROR: XML syntax error: no name found in <subtest>\n");
-                doExit(1);
+                exit(1);
             }
             $tmp = substr($tmp, ($x + 6));
             $x = index($tmp, "</name>");
@@ -644,7 +638,7 @@ sub runAllTests
             {
                 cleanUp(1);;
                 printErrorMsg("ERROR: XML syntax error: no end-name element found in <subtest>\n");
-                doExit(1);
+                exit(1);
             }
             $subtest_name = substr($tmp, 0, $x);
             $tmp = substr($tmp, ($x + 7));
@@ -669,7 +663,7 @@ sub runAllTests
                 {
                     cleanUp(1);;
                     printErrorMsg("ERROR: XML syntax error: missing </subtest>\n");
-                    doExit(1);
+                    exit(1);
                 }
                 $tmp = substr($tmp, ($x + 10));
             }
@@ -686,7 +680,7 @@ sub runAllTests
     if ($debug eq "xml")
     {
         print "$xmldata\n";
-        doExit(0);
+        exit(0);
     }
     if (is_verbose_enabled()) { vprint "xmldata:\n"; vprint "$xmldata\n"; }
 
@@ -697,7 +691,7 @@ sub runAllTests
     {
         cleanUp(1);;
         printErrorMsg("ERROR: could not find <integrationtest> in XML file\n");
-        doExit(1);
+        exit(1);
     }
 
     # Get the integration test title (if any)
@@ -718,7 +712,7 @@ sub runAllTests
 
         # Find the machine name
         $machine = getNextKey("machine", "platform");
-        #if ($machine eq "") { printErrorMsg("ERROR: could not find <machine> key in platform\n"); doExit(9); }
+        #if ($machine eq "") { printErrorMsg("ERROR: could not find <machine> key in platform\n"); exit(9); }
 
         # Check if this is specific to a platform we're not running and, if so, skip it
         if (($cmd_line_machine ne "") && (lc($cmd_line_machine) ne lc($machine)))
@@ -794,7 +788,7 @@ sub runAllTests
                     {
                         cleanUp(1);;
                         printErrorMsg("ERROR: unrecognized value in <exitonerror>: $tmp\n");
-                        doExit(1);
+                        exit(1);
                     }
                 }
 
@@ -840,7 +834,7 @@ sub runAllTests
                     {
                         cleanUp(1);
                         printErrorMsg("ERROR: terminating test\n");
-                        doExit(1);
+                        exit(1);
                     }
                 }
             }
@@ -912,7 +906,7 @@ while(@argv)
         if (($cleanup_old_signal ne "SIGTERM") && ($cleanup_old_signal ne "SIGKILL"))
         {
             print STDERR "ERROR: unrecognized signal specified on --cleanup: \"$cleanup_old_signal\"\n";
-            doExit(9);
+            exit(9);
         }
         next;
     }
@@ -959,7 +953,7 @@ if ($ENV{OP_TEST_FAILSUMM_LOG} ne "")
 if (($filename eq "") && ($cleanup_old_signal eq ""))
 {
     printErrorMsg("ERROR: you must specify a XML file defining the test\n");
-    doExit(9);
+    exit(9);
 }
 
 # Validate test_env
@@ -1031,7 +1025,7 @@ if ($cleanup_old_signal ne "")
         }
     }
 
-    doExit(0);
+    exit(0);
 }
 
 # export %%variables%% for read-op-xml-it (which is run under fips-it-list)
@@ -1066,4 +1060,4 @@ if ($logfile ne "")
 {
     print "${logpfxstr}Output from this test saved in $logfile (simics server logs stored in same directory)\n";
 }
-doExit($totalrc);
+exit($totalrc);
