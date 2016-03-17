@@ -23,11 +23,11 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-                                                                                
+
 # Run OpenPower automated build verification test (BVT)
 #
 # Author: Alan Hlava
-                                                                                
+
 use strict;
 
 use FindBin;
@@ -116,18 +116,12 @@ Where OPTIONS is zero or more of:
              tests.
 \n";
 
-                                                                                
-# syntax
-                                                                                
 sub syntax()
 {
     print "$usage";
     exit(1);
 }
 
-                                                                                
-# trim
-                                                                                
 sub trim
 {
     my ($str) = @_;
@@ -136,9 +130,6 @@ sub trim
     return $str;
 }
 
-                                                                                
-# runCmd
-                                                                                
 sub runCmd
 {
     my ($l_cmd) = @_;
@@ -148,9 +139,6 @@ sub runCmd
     return $rc;
 }
 
-                                                                                
-# logprint
-                                                                                
 sub logprint
 {
     my ($msg, $err) = @_;
@@ -173,9 +161,6 @@ sub logprint
     add_log_hist("${timestamp} :: $msg");
 }
 
-                                                                                
-# errprint
-                                                                                
 sub errprint
 {
     my ($msg) = @_;
@@ -183,13 +168,10 @@ sub errprint
     write_log_hist("Failure summary from run-op-bvt running $bvtxmlfile");
 }
 
-                                                                                
-# doVarSub
-                                                                                
 sub doVarSub
 {
     my ($value) = @_;
-    
+
     # Do substitution for any xmlvar keys
     foreach my $key (keys %xmlvars)
     {
@@ -198,9 +180,6 @@ sub doVarSub
     return $value;
 }
 
-                                                                                
-# getFileName
-                                                                                
 sub getFileName
 {
     my ($fullpath) = @_;
@@ -213,9 +192,6 @@ sub getFileName
     return $fn;
 }
 
-                                                                                
-# getXMLFilePath
-                                                                                
 sub getXMLFilePath
 {
     my ($inxmlfile) = @_;
@@ -244,9 +220,6 @@ sub getXMLFilePath
     return $outxmlfile;
 }
 
-                                                                                
-# mergeBvtFile
-                                                                                
 sub mergeBvtFile
 {
     my ($fromfile, $tofile) = @_;
@@ -304,9 +277,6 @@ sub mergeBvtFile
     vprint "<mergeBvtFile($fromfile, $tofile)\n";
 }
 
-                                                                                
-# mergeBvtInputFiles
-                                                                                
 sub mergeBvtInputFiles
 {
     vprint ">mergeBvtInputFiles()\n";
@@ -352,9 +322,6 @@ sub mergeBvtInputFiles
     vprint "<mergeBvtInputFiles() set bvtxmlfile to $bvtxmlfile\n";
 }
 
-                                                                                
-# checkSkipTest
-                                                                                
 sub checkSkipTest
 {
     my ($bvt_node) = @_;
@@ -370,9 +337,6 @@ sub checkSkipTest
     return $rc;
 }
 
-                                                                                
-# runTest
-                                                                                
 sub runTest
 {
     my ($test_id, $title, $mach, $relxmlfile) = @_;
@@ -406,9 +370,6 @@ sub runTest
     vprint "<runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
 }
 
-                                                                                
-# cleanUp
-                                                                                
 sub cleanUp
 {
     my ($errorterm) = @_;
@@ -431,14 +392,9 @@ sub cleanUp
     vprint "<run-op-bvt cleanUp($errorterm)\n";
 }
 
-                                                                                
-#                            main
-                                                                                
-sub main { }
-
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # parse the arguments
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 my @argv = @ARGV;
 my $arg;
 $| = 1; # Force STDOUT to be unbuffered so we get output in the right order
@@ -448,9 +404,9 @@ $commandline = $0 . " ". (join " ", @ARGV);
 while(@argv)
 {
     $arg = shift(@argv);
-    
+
     if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
-    
+
     if ($arg eq "--noclrfailsumm") { $clear_failsumm = 0; next; }
     if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
     if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
@@ -459,7 +415,7 @@ while(@argv)
 
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
-    {    
+    {
         $arg = substr($arg, 2);
         $xmlvars{$arg} = shift(@argv);
         if ($arg eq "machine") { $def_machine = $xmlvars{$arg}; }
@@ -467,7 +423,7 @@ while(@argv)
         next;
     }
     if ($arg =~ /^\-/)
-    {    
+    {
         $arg = substr($arg, 1);
         $xmlvars{$arg} = shift(@argv);
         if ($arg eq "machine") { $def_machine = $xmlvars{$arg}; }
@@ -482,7 +438,7 @@ while(@argv)
 if ($savedir eq "")
 {
     $savedir = "/tmp/${userid}/bvt/";
-    $tmp = `date '+\%F'`;    
+    $tmp = `date '+\%F'`;
     chomp($tmp);
     $savedir .= "${tmp}-$$";
 }
@@ -549,7 +505,7 @@ if (system($cmd))
 #------------------------------------------------------------------------------
 $xml = XML::LibXML->new();
 $xmldata = $xml->parse_file("${fullbvtxmlfile}");
-                
+
 #------------------------------------------------------------------------------
 # Run all the tests
 #------------------------------------------------------------------------------
