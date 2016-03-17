@@ -33,10 +33,9 @@ use strict;
 use FindBin;
 use lib "$FindBin::Bin";
 
-my $version = "1.1";
 my $test_env = "";
 
-my $usage = "Run OpenPower Automated Integration Test (Version ${version})
+my $usage = "Run OpenPower Automated Integration Test
 
 Syntax:
    1) Run test:                         run-op-it [OPTIONS] file.xml
@@ -1011,7 +1010,6 @@ if ($outpid ne "")
 
 if (is_verbose_enabled())
 {
-    vprint "version: $version\n";
     vprint "subtests: @subtests\n";
     vprint "xmlvars{machine}: $xmlvars{machine}\n";
     vprint "test_env: $test_env\n";
