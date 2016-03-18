@@ -32,12 +32,8 @@ use strict;
 
 use Getopt::Long;
 
-my $cmd;
-my $tmp;
-my @flds;
 my $verbose = 0;
 my $vp_indent = "";
-my $x;
 my $bmcip = "";
 my $bmcuser = "";
 my $bmcpwd = "";
@@ -161,7 +157,7 @@ printf OUTF $cfgfile_fmt,
 close(OUTF);
 if ($verbose)
 {
-        $tmp = `cat ${cfgfiledir}/${cfgfile}`;
+        my $tmp = `cat ${cfgfiledir}/${cfgfile}`;
         vprint "Config file ${cfgfiledir}/${cfgfile} written:\n";
         vprint $tmp;
 }
