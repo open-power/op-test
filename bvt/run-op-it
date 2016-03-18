@@ -271,25 +271,14 @@ sub runCmdTest
     vprint "<runCmdTest (testrc: $testrc   totalrc: $totalrc)\n";
 }
 
-my $tmpxmlfile = "/tmp/run-op-it-temp-$$.xml";
-
 sub readXml
 {
     my ($xml_path) = @_;
-    my $outstr = "";
-    my $cmd;
 
-    $cmd = "read-op-xml-it $xml_path >$tmpxmlfile";
+    open(my $xml_in, "read-op-xml-it $xml_path |")
+	or die "couldn't run reda-op-xml-it for $xml_path";
 
-    my $rc = system($cmd);
-    $outstr = `cat $tmpxmlfile 2>/dev/null`;
-    system("rm -f $tmpxmlfile");
-    if ($rc)
-    {
-        exit(9);
-    }
-
-    return $outstr;
+    return join '', <$xml_in>;
 }
 
                                                                             ###
