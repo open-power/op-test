@@ -41,7 +41,6 @@ use OpTestInfra;
 my $verbose_str = "";
 my $fvfile = "";
 my $commandline;
-my $mypid = $$;
 
 # Environment
 my $userid = `whoami`;
