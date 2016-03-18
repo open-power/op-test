@@ -31,7 +31,21 @@
 
         <test>
             <testcase>
+                <cmd>op-ci-bmc-run "op_outofband_firmware_update.test_init()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.get_PNOR_level()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipmi_sdr_clear()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
@@ -45,14 +59,7 @@
 
         <test>
             <testcase>
-                <cmd>op-ci-bmc-run "op_outofband_firmware_update.cold_reset()"</cmd>
-                <exitonerror>yes</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_outofband_firmware_update.preserve_network_setting()"</cmd>
+                <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipmi_power_off()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
@@ -60,6 +67,34 @@
         <test>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.code_update()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_outofband_firmware_update.validate_lpar()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipl_wait_for_working_state()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipmi_sel_check()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_outofband_firmware_update.get_PNOR_level()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>

@@ -28,18 +28,29 @@ import os
 import sys
 import op_outofband_firmware_update
 
+def test_init():
+    assert op_outofband_firmware_update.test_init() == 0
+
 def test_get_PNOR_level():
     assert op_outofband_firmware_update.get_PNOR_level() == 0
+
+def test_ipmi_sdr_clear():
+    assert op_outofband_firmware_update.ipmi_sdr_clear() == 0
 
 def test_get_side_activated():
     assert op_outofband_firmware_update.get_side_activated() == 0
 
-def test_cold_reset():
-    assert op_outofband_firmware_update.cold_reset() == 0
-
-def test_preserve_network_setting():
-    assert op_outofband_firmware_update.preserve_network_setting() == 0
+def test_ipmi_power_off():
+    assert op_outofband_firmware_update.ipmi_power_off() == 0
 
 def test_code_update():
     assert op_outofband_firmware_update.code_update() == 0
 
+def test_validate_lpar():
+    assert op_outofband_firmware_update.validate_lpar() == 0
+
+def test_ipl_wait_for_working_state():
+    assert op_outofband_firmware_update.ipl_wait_for_working_state() == 0
+
+def test_ipmi_sel_check():
+    assert op_outofband_firmware_update.ipmi_sel_check() == 0
