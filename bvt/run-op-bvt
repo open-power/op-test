@@ -435,6 +435,8 @@ if ($clear_failsumm)
 
 logprint "Command line: $commandline\n";
 
+File::Path::make_path($savedir);
+
 mergeBvtInputFiles();
 if ($bvtxmlfile eq "")
 {
@@ -446,8 +448,6 @@ if ($bvtxmlfile eq "")
 #-------------------------------------------------------------------------------
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
-File::Path::make_path($savedir);
-
 set_failsumm_log("${savedir}/failsumm.log");
 $ENV{OP_TEST_FAILSUMM_LOG} = "${savedir}/failsumm.log"; # Set so lower-level tools can find it
 
