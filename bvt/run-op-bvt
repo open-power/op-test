@@ -214,108 +214,6 @@ sub getXMLFilePath
     return $outxmlfile;
 }
 
-sub mergeBvtFile
-{
-    my ($fromfile, $tofile) = @_;
-    my $tmpfile1 = "/tmp/merge-bvt-file1-$$.xml";
-    my $tmpfile2 = "/tmp/merge-bvt-file2-$$.xml";
-
-    vprint ">mergeBvtFile($fromfile, $tofile)\n";
-
-    # Remove the front/back-matter from the from XML file
-    $cmd = "grep -v '<?xml' $fromfile | grep -v '<bvts' | grep -v '</bvts' >$tmpfile1";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Remove the end element from the to XML file
-    $cmd = "grep -v '</bvts' $tofile >$tmpfile2";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Assemble the parts
-    $cmd = "cp $tmpfile2 $tofile";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-    $cmd = "cat $tmpfile1 >>$tofile";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Add back the end element in the to XML file
-    $cmd = "echo '</bvts>' >>$tofile";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Clean up
-    unlink $tmpfile1, $tmpfile2;
-
-    vprint "<mergeBvtFile($fromfile, $tofile)\n";
-}
-
-sub mergeBvtInputFiles
-{
-    vprint ">mergeBvtInputFiles()\n";
-    my $filepath;
-    $bvtxmlfile = "";
-    my $file_count = @bvtxmlfiles;
-    if ($file_count == 1)
-    {
-        $bvtxmlfile = $bvtxmlfiles[0];
-    }
-    elsif ($file_count > 1)
-    {
-        # Merge the input files into a single temporary XML file.  This
-        # keeps the logic in the rest of the tool simple AND allows us to
-        # to intelligently schedule the complete set of tests (rather than
-        # treat them sequentially).
-
-        # Prime the temp XML file with the first one from the list
-        $bvtxmlfile = "${savedir}/merged-bvt-$$.xml";
-        $filepath = getXMLFilePath($bvtxmlfiles[0]);
-        if (! -e $filepath)
-        {
-            errprint "ERROR: $filepath does not exist or is not accessible\n";
-            exit(9);
-        }
-        $cmd = "cp $filepath $bvtxmlfile";
-        vprint "cmd: $cmd\n";
-        system($cmd) && die "ERROR: command failed: $cmd\n";
-
-        # Merge in all the other files on the list
-        for(my $i = 1; $i < $file_count; ++$i)
-        {
-            $filepath = getXMLFilePath($bvtxmlfiles[$i]);
-            if (! -e $filepath)
-            {
-                errprint "ERROR: $filepath does not exist or is not accessible\n";
-                exit(9);
-            }
-            mergeBvtFile($filepath, $bvtxmlfile);
-        }
-        $tmp_bvtxmlfile = 1;
-    }
-    vprint "<mergeBvtInputFiles() set bvtxmlfile to $bvtxmlfile\n";
-}
-
 sub checkSkipTest
 {
     my ($bvt_node) = @_;
@@ -437,8 +335,45 @@ logprint "Command line: $commandline\n";
 
 File::Path::make_path($savedir);
 
-mergeBvtInputFiles();
-if ($bvtxmlfile eq "")
+# Merging input files
+# This takes all the bvt nodes from input files and
+# inserts them before the first test of the final input file.
+# this can preserve order.
+sub mergeBvtInputFiles
+{
+    my (@files) = @_;
+    my @docs;
+
+    foreach my $f (@files) {
+	push @docs, XML::LibXML->load_xml(location => $f);
+    }
+
+    my $merged_doc = pop @docs;
+
+    foreach my $d (@docs) {
+	my ($bvt_node) = $merged_doc->findnodes('//*[local-name()="bvt"]');
+	for my $t ($d->findnodes('//*[local-name()="bvt"]')) {
+	    $bvt_node->parentNode->insertBefore($t, $bvt_node);
+	}
+    }
+
+    return $merged_doc->serialize;
+}
+
+if (@bvtxmlfiles > 1)
+{
+    my $bvtxml = mergeBvtInputFiles(@bvtxmlfiles);
+    $bvtxmlfile = "${savedir}/merged-bvt-$$.xml";
+    open(my $f, "> $bvtxmlfile")
+	or die "Cannot open merged bvt XML: $bvtxmlfile";
+    print $f $bvtxml;
+    close $f;
+}
+elsif (@bvtxmlfiles == 1)
+{
+    $bvtxmlfile = shift @bvtxmlfiles;
+}
+else
 {
     errprint "ERROR: you must specify the master BVT XML file\n";
     exit(9);
