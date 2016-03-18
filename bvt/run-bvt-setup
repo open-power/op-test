@@ -91,18 +91,12 @@ hpmimage = %s
 
 ";
 
-################################################################################
-# syntax
-################################################################################
 sub syntax()
 {
         print "$usage";
         exit(1);
 }
 
-################################################################################
-# vprint
-################################################################################
 sub vprint
 {
         my ($str) = @_;
@@ -122,12 +116,7 @@ sub vprint
 
 $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
 
-#-------------------------------------------------------------------------------
-# Get arguments
-#-------------------------------------------------------------------------------
-
 # Parse the arguments
-
 my $help = 0;
 GetOptions("help|?|h" => \$help,
 	   "verbose" => \$verbose,
@@ -154,9 +143,7 @@ vprint "Starting run-bvt-setup\n";
 if ($ffdcdir !~ /\/$/) { $ffdcdir .= "/"; }
 if ($imagedir !~ /\/$/) { $imagedir .= "/"; }
 
-#-------------------------------------------------------------------------------
 # Write the config file
-#-------------------------------------------------------------------------------
 open(OUTF, ">${cfgfiledir}/${cfgfile}") || die "ERROR: unable to open ${cfgfiledir}/${cfgfile} for output: $!";
 printf OUTF $cfgfile_fmt,
         $bmcip,
