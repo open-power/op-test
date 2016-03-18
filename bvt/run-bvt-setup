@@ -145,7 +145,8 @@ printf OUTF $cfgfile_fmt,
 close(OUTF);
 if ($verbose)
 {
-        my $tmp = `cat ${cfgfiledir}/${cfgfile}`;
         vprint "Config file ${cfgfiledir}/${cfgfile} written:\n";
-        vprint $tmp;
+	open(my $t, "< ${cfgfiledir}/${cfgfile}")
+	    or die "Cannot open < ${cfgfiledir}/${cfgfile}";
+	vprint <$t>;
 }
