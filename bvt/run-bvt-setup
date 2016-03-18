@@ -95,19 +95,7 @@ sub syntax()
 
 sub vprint
 {
-        my ($str) = @_;
-        if ($verbose)
-        {
-                if ($str =~ /^\</)
-                {
-                        $vp_indent = substr($vp_indent, 3);
-                }
-                print STDERR "${vp_indent}${str}";
-                if ($str =~ /^\>/)
-                {
-                        $vp_indent .= "   ";
-                }
-        }
+    print @_ if $verbose;
 }
 
 $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
