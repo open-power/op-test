@@ -196,7 +196,7 @@ def validate_lpar():
 
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.sys_bmc_validate_lpar()
+    return opTestSys.sys_bmc_power_on_validate_lpar()
 
 
 def outofband_fwandpnor_update_hpm():

@@ -200,3 +200,37 @@ class OpTestBMC():
                 print l_msg
                 raise OpTestError(l_msg)
 
+    ##
+    # @brief Uses the pflash tool to save the gard image
+    #        Note: Overwrites the good_GUARD_image in the i_gard_image_dir
+    #
+    # @param i_pflash_dir @type string: directory where the pflash tool is stored
+    # @param i_gard_image_dir @type string: directory where the gard image will be stored
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def pflash_save_gard_image(self, i_pflash_dir, i_gard_image_dir):
+
+        # Delete any GARD image found in the directory provided by the user
+        self._cmd_run('rm -rf ' + i_gard_image_dir)
+
+        # Use the pflash tool to save a working gard image
+        cmd = i_pflash_dir + '/pflash -r ' + i_gard_image_dir + ' -P GUARD'
+        self._cmd_run(cmd, timeout=200, logFile='pflash.log')
+
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Uses the pflash tool to write the gard image
+    #
+    # @param i_plash_dir @type string: directory where the gard tool is stored
+    # @param i_gard_image_dir @type string: directory where the gard image must be stored
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    def pflash_write_gard_image(self, i_pflash_dir, i_gard_image_dir):
+
+        # Use the pflash tool to restore the gard image
+        cmd = i_pflash_dir + '/pflash -p ' + i_gard_image_dir + ' -P GUARD -e -f'
+        self._cmd_run(cmd, timeout=200, logFile='pflash.log')
+
+        return BMC_CONST.FW_SUCCESS

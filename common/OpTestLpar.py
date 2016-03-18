@@ -42,6 +42,7 @@ import socket
 import select
 import pty
 import pexpect
+import pxssh
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -55,12 +56,14 @@ class OpTestLpar():
     # @param i_lparip @type string: IP Address of the lpar
     # @param i_lparuser @type string: Userid to log into the lpar
     # @param i_lparpasswd @type string: Password of the userid to log into the lpar
+    # @param i_bmcip @type string: IP Address of the bmc
     #
-    def __init__(self, i_lparip, i_lparuser, i_lparpasswd):
+    def __init__(self, i_lparip, i_lparuser, i_lparpasswd, i_bmcip):
         self.ip = i_lparip
         self.user = i_lparuser
         self.passwd = i_lparpasswd
         self.util = OpTestUtil()
+        self.bmcip = i_bmcip
 
     ##
     #   @brief This method executes the command(i_cmd) on the host using a ssh session
@@ -230,19 +233,22 @@ class OpTestLpar():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def lpar_cold_reset(self):
-        # TODO: cold reset command to os is not too stable
-        l_cmd = BMC_CONST.LPAR_COLD_RESET
-        print ("Applying Cold reset. Wait for "
-                            + str(BMC_CONST.BMC_COLD_RESET_DELAY) + "sec")
-        l_rc = self._ssh_execute(l_cmd)
-        if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
+
+        print ("Applying Cold reset on partition.")
+        l_rc = self._ssh_execute(BMC_CONST.LPAR_COLD_RESET)
+
+        # TODO: enable once defect SW331585 is fixed
+        '''if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
             print l_rc
             time.sleep(BMC_CONST.BMC_COLD_RESET_DELAY)
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Cold reset Failed"
             print l_msg
-            raise OpTestError(l_msg)
+            raise OpTestError(l_msg)'''
+
+        self.util.PingFunc(self.bmcip, BMC_CONST.PING_RETRY_FOR_STABILITY)
+
 
     ##
     # @brief Flashes image using ipmitool
@@ -295,7 +301,6 @@ class OpTestLpar():
     #
     def lpar_run_command(self, i_cmd):
         try:
-            print i_cmd
             l_res = self._ssh_execute(i_cmd)
         except:
             l_msg = "Command execution on lpar failed"
@@ -304,6 +309,322 @@ class OpTestLpar():
             raise OpTestError(l_msg)
         print l_res
         return l_res
+
+    ##
+    # @brief It will check existence of given linux command(i_cmd) on lpar
+    #
+    # @param i_cmd @type string: linux command
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_check_command(self, i_cmd):
+        l_cmd = 'which ' + i_cmd + '; echo $?'
+        print l_cmd
+        l_res = self.lpar_run_command(l_cmd)
+        l_res = l_res.splitlines()
+
+        if (int(l_res[-1]) == 0):
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "%s command is not present on lpar" % i_cmd
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief It will get the linux kernel version on lpar
+    #
+    # @return l_kernel @type string: kernel version of the partition provided
+    #         or raise OpTestError
+    #
+    def lpar_get_kernel_version(self):
+        l_kernel = self._ssh_execute("uname -a | awk {'print $3'}")
+        l_kernel = l_kernel.replace("\r\n", "")
+        print l_kernel
+        return l_kernel
+
+    ##
+    # @brief This function will checks first for config file for a given kernel version on lpar,
+    #        if available then check for config option value and return that value
+    #            whether it is y or m...etc.
+    #        sample config option values:
+    #        CONFIG_CRYPTO_ZLIB=m
+    #        CONFIG_CRYPTO_LZO=y
+    #        # CONFIG_CRYPTO_842 is not set
+    #
+    #
+    # @param i_kernel @type string: kernel version
+    # @param i_config @type string: Which config option want to check in config file
+    #                               Ex:CONFIG_SENSORS_IBMPOWERNV
+    #
+    # @return l_val @type string: It will return config option value y or m,
+    #                             or raise OpTestError if config file is not available on lpar
+    #                             or raise OpTestError if config option is not set in file.
+    #
+    def lpar_check_config(self, i_kernel, i_config):
+        l_file = "/boot/config-%s" % i_kernel
+        l_res = self._ssh_execute("test -e %s; echo $?" % l_file)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Config file is available"
+        else:
+            l_msg = "Config file %s is not available on lpar" % l_file
+            print l_msg
+            raise OpTestError(l_msg)
+        l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
+        print l_cmd
+        l_res = self._ssh_execute(l_cmd)
+        print l_res
+        try:
+            l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
+        except:
+            print l_val
+            l_msg = "config option is not set,exiting..."
+            print l_msg
+            raise OpTestError(l_msg)
+        return l_val
+
+    ##
+    # @brief It will return installed package name for given linux command(i_cmd) on lpar
+    #
+    # @param i_cmd @type string: linux command
+    # @param i_oslevel @type string: OS level
+    #
+    # @return l_pkg @type string: installed package on lpar
+    #
+    def lpar_check_pkg_for_utility(self, i_oslevel, i_cmd):
+        if 'Ubuntu' in i_oslevel:
+            l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd)
+            return l_res
+        else:
+            l_cmd = "rpm -qf `which %s`" % i_cmd
+            l_res = self._ssh_execute(l_cmd)
+            l_pkg = l_res.replace("\r\n", "")
+            print l_pkg
+            return l_pkg
+
+    ##
+    # @brief This function loads ibmpowernv driver only on powernv platform
+    #        and also this function works only in root user mode
+    #
+    # @param i_oslevel @type string: OS level
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_load_ibmpowernv(self, i_oslevel):
+        if "PowerKVM" not in i_oslevel:
+            l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?")
+            l_rc = l_rc.replace("\r\n", "")
+            if int(l_rc) == 0:
+                cmd = "lsmod | grep -i ibmpowernv"
+                response = self._ssh_execute(cmd)
+                if "ibmpowernv" not in response:
+                    l_msg = "ibmpowernv module is not loaded, exiting"
+                    raise OpTestError(l_msg)
+                else:
+                    print "ibmpowernv module is loaded"
+                print cmd
+                print response
+                return BMC_CONST.FW_SUCCESS
+            else:
+                l_msg = "modprobe failed while loading ibmpowernv,exiting..."
+                print l_msg
+                raise OpTestError(l_msg)
+        else:
+            return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function restarts the lm_sensors service on lpar using systemctl utility
+    #        systemctl utility is not present in ubuntu, This function will work in remaining all
+    #        other OS'es i.e redhat, sles and PowerKVM
+    #
+    # @param i_oslevel @type string: OS level
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_start_lm_sensor_svc(self, i_oslevel):
+        if 'Ubuntu' in i_oslevel:
+            pass
+        else:
+            try:
+                # Start the lm_sensors service
+                cmd = "/bin/systemctl stop  lm_sensors.service"
+                self.lpar_run_command(cmd)
+                cmd = "/bin/systemctl start  lm_sensors.service"
+                self.lpar_run_command(cmd)
+                cmd = "/bin/systemctl status  lm_sensors.service"
+                res = self.lpar_run_command(cmd)
+                return BMC_CONST.FW_SUCCESS
+            except:
+                l_msg = "loading lm_sensors service failed"
+                print l_msg
+                raise OpTestError(l_msg)
+
+    ##
+    # @brief It will clone latest linux git repository in i_dir directory
+    #
+    # @param i_dir @type string: directory where linux source will be cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def lpar_clone_linux_source(self, i_dir):
+        l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self._ssh_execute("rm -rf %s" % i_dir)
+        self._ssh_execute("mkdir %s" % i_dir)
+        try:
+            print l_cmd
+            res = self._ssh_execute(l_cmd)
+            print res
+            return BMC_CONST.FW_SUCCESS
+        except:
+            l_msg = "Cloning linux git repository is failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief reads msglog for getting Chip and Core information
+    #
+    # @return @type string: Chip and Core information
+    #        else raise OpTestError
+    def lpar_read_msglog_core(self):
+        try:
+            return self._ssh_execute(BMC_CONST.OS_READ_MSGLOG_CORE)
+        except:
+            l_errmsg = "Can't get msglog data"
+            print l_errmsg
+            raise OpTestError(l_errmsg)
+
+    ##
+    # @brief reads getscom data
+    # example:
+    # Chip ID  | Rev   | Chip type
+    # ---------|-------|--------
+    # 80000005 | DD2.0 | Centaur memory buffer
+    # 80000004 | DD2.0 | Centaur memory buffer
+    # 00000000 | DD2.0 | P8 (Venice) processor
+    #
+    # @param i_xscom_dir @type string: directory where getscom is installed
+    #
+    # @return @type string: getscom data
+    #        else raise OpTestError
+    def lpar_read_getscom_data(self, i_xscom_dir):
+        try:
+            l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_GETSCOM_LIST)
+        except OpTestError as e:
+            l_errmsg = "Can't get getscom data"
+            print l_errmsg
+            raise OpTestError(l_errmsg)
+
+        if("command not found" in l_rc):
+            l_errmsg = "Failed to locate getscom. Make sure it is installed in dir: " + i_xscom_dir
+            print l_errmsg
+            raise OpTestError(l_errmsg)
+
+        return l_rc
+
+
+    ##
+    # @brief injects error using getscom
+    #
+    # @param i_xscom_dir @type string: directory where putscom is installed
+    # param i_error @type string: error to be injected including the location
+    #
+    # @return output generated after executing putscom command or else raise OpTestError
+    #
+    def lpar_putscom(self, i_xscom_dir, i_error):
+
+        print('Injecting Error.')
+        l_rc = self._execute_no_return(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_PUTSCOM_ERROR + i_error)
+
+    ##
+    # @brief Clears the gard records
+    #
+    # @param i_gard_dir @type string: directory where putscom is installed
+    #
+    # @return BMC_CONST.FW_SUCCESS or else raise OpTestError
+    #
+    def lpar_clear_gard_records(self, i_gard_dir):
+
+        l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.CLEAR_GARD_CMD)
+
+        if(BMC_CONST.GARD_CLEAR_SUCCESSFUL not in l_rc):
+            l_msg = l_rc + '. Failed to clear gard'
+            print l_msg
+            raise OpTestError(l_msg)
+
+        # Check to make sure no gard records were left
+        l_result = self.lpar_list_gard_records(i_gard_dir)
+        if(BMC_CONST.NO_GARD_RECORDS not in l_result):
+            l_msg = l_rc + '. Gard records still found after clearing them'
+            print l_msg
+            raise OpTestError(l_msg)
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Lists all gard records
+    #
+    # @param i_gard_dir @type string: directory where putscom is installed
+    #
+    # @return gard records or else raise OpTestError
+    #
+    def lpar_list_gard_records(self, i_gard_dir):
+        try:
+            return self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.LIST_GARD_CMD)
+        except:
+            l_errmsg = "Can't clear gard records"
+            print l_errmsg
+            raise OpTestError(l_errmsg)
+
+
+    ##
+    # @brief  Execute a command on the targeted lpar but don't expect
+    #             any return data.
+    #
+    # @param     i_cmd: @type str: command to be executed
+    # @param     i_timeout: @type int:
+    #
+    # @return   BMC_CONST.FW_SUCCESS or else raise OpTestError
+    #
+    def _execute_no_return(self, i_cmd, i_timeout=60):
+
+        print('Executing command: ' + i_cmd)
+        try:
+            p = pxssh.pxssh()
+            p.login(self.ip, self.user, self.passwd)
+            p.sendline()
+            p.prompt()
+            p.sendline(i_cmd)
+            p.prompt(i_timeout)
+            return BMC_CONST.FW_SUCCESS
+        except:
+            l_msg = "Failed to execute command: " + i_cmd
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief enable/disable cpu states
+    #
+    # @param i_cpu_state @type string: BMC_CONST.CPU_ENABLE_STATE/
+    #                                  BMC_CONST.CPU_DISABLE_STATE
+    #
+    # @return BMC_CONST.FW_SUCCESS or OpTestError
+    #
+    def lpar_disable_enable_cpu_states(self, i_cpu_state):
+        try:
+            self._ssh_execute(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
+                              BMC_CONST.CPU_IDLEMODE_STATE1 + "; do echo " + \
+                              i_cpu_state  + " > $i; done'")
+            self._ssh_execute(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
+                              BMC_CONST.CPU_IDLEMODE_STATE2 + "; do echo " + \
+                              i_cpu_state  + " > $i; done'")
+            return BMC_CONST.FW_SUCCESS
+        except:
+            l_errmsg = "Could not enable/disable cpu idle states"
+            print l_errmsg
+            raise OpTestError(l_errmsg)
+
 
     ##
     # @brief It will check existence of given linux command(i_cmd) on lpar
@@ -761,3 +1082,4 @@ class OpTestLpar():
             l_msg = "gard bin file is not present after make"
             print l_msg
             raise OpTestError(l_msg)
+
