@@ -38,7 +38,6 @@ use File::Path;
 use Getopt::Long qw(:config pass_through);
 use OpTestInfra;
 
-my $version = "1.1";
 my $verbose_str = "";
 my $fvfile = "";
 my $commandline;
@@ -91,7 +90,7 @@ my $test_env = "hw";
 my $restrict_env = "";
 my $test_systems = 0; # "Hidden" option to not run tests, just test --systems dispatching code
 
-my $usage = "Run OpenPower Build Verification Test (BVT) ($version)
+my $usage = "Run OpenPower Build Verification Test (BVT)
 
 Syntax: run-op-bvt [OPTIONS] bvtfile.xml [bvtfile2.xml ...]
 
@@ -412,7 +411,7 @@ if (! -e $fullbvtxmlfile)
     exit(9);
 }
 
-vprint "run-op-bvt ($version)\n";
+vprint "run-op-bvt\n";
 vprint "xmlvars{machine}: $xmlvars{machine}\n";
 vprint "bvtxmlfile: $bvtxmlfile\n";
 vprint "savedir: $savedir\n";
