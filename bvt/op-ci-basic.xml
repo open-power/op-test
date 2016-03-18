@@ -28,7 +28,7 @@
 <integrationtest>
     <platform>
 
-        <include>op-ci-setup.xml</include>
+      <xi:include href="op-ci-setup.xml" parse="xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
 
         <test>
             <testcase>

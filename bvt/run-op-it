@@ -31,6 +31,7 @@
 use strict;
 
 use FindBin;
+use XML::LibXML;
 use lib "$FindBin::Bin";
 
 my $test_env = "";
@@ -275,10 +276,10 @@ sub readXml
 {
     my ($xml_path) = @_;
 
-    open(my $xml_in, "read-op-xml-it $xml_path |")
-	or die "couldn't run reda-op-xml-it for $xml_path";
-
-    return join '', <$xml_in>;
+    my $parser = XML::LibXML->new();
+    my $dom = XML::LibXML->load_xml(location => $xml_path);
+    $parser->process_xincludes($dom);
+    return $dom->serialize;
 }
 
                                                                             ###

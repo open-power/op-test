@@ -234,23 +234,19 @@ else
 # Do the test
 #-------------------------------------------------------------------------------
 # Pre-process: treat all <bvt-xml> tags like <include> tags for complete checking/listing
-$cmd = "cat $xmlfile | sed 's/bvt-xml/include/g' >$tmpbvtfile";
-vprint "cmd: $cmd\n";
-if (system($cmd))
-{
-    print STDERR "ERROR: BVT preprocessing failure\n";
-    exit(1);
+my $parser = XML::LibXML->new();
+my $dom = XML::LibXML->load_xml(location => $xmlfile);
+$parser->process_xincludes($dom);
+
+for my $bvt_xml_node ($dom->findnodes('//*[local-name()="bvt-xml"]')) {
+    # We treat <bvt-xml> as an include
+    # so we grab the content of the file, insert it into the doc.
+    my $bvt_xml_file = XML::LibXML->load_xml(location => $bvt_xml_node->textContent);
+    $parser->process_xincludes($bvt_xml_file);
+    $bvt_xml_node->replaceNode($bvt_xml_file->documentElement());
 }
 
-# Pre-process: expand all <include> tags and do %% variable substitution
-$cmd = "./read-op-xml-it ${verbose_str} $tmpbvtfile >$tmpxmlfile";
-vprint "cmd: $cmd\n";
-if (system($cmd))
-{
-    print STDERR "ERROR: read-op-xml-it failure\n";
-    exit(1);
-}
-unlink $tmpbvtfile;
+$dom->toFile($tmpxmlfile);
 
 # Validate the resulting XML
 $cmd = "which op-it-list";

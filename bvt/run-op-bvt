@@ -357,6 +357,11 @@ sub mergeBvtInputFiles
 	}
     }
 
+    # We process XIncludes now, as we're going to save the result to
+    # a temporary file, which will mess up XInclude paths.
+    my $parser = XML::LibXML->new();
+    $parser->process_xincludes($merged_doc);
+
     return $merged_doc->serialize;
 }
 
