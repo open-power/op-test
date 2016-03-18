@@ -68,8 +68,6 @@ my $machine;
 my $xmldata;
 
 use File::Temp;
-my $tmperrfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-XXXXXX",
-				 SUFFIX => ".err");
 my $tmpxmlfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-XXXXXX",
 				 SUFFIX => ".xml");
 my $tmpbvtfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-bvtXXXXXX",
@@ -249,33 +247,13 @@ for my $bvt_xml_node ($dom->findnodes('//*[local-name()="bvt-xml"]')) {
 $dom->toFile($tmpxmlfile);
 
 # Validate the resulting XML
-$cmd = "which op-it-list";
-vprint "cmd: $cmd\n";
-$tmp = `which op-it-list`;
-$x = rindex($tmp, "/");
-$tmp = substr($tmp, 0, $x);
-$schemafile = "${tmp}/${schemafn}";
-if (! -e $schemafile)
-{
-    print STDERR "ERROR: could not find $schemafn in op-it-list dir ($schemafile).  Unable to do validation.\n";
-    exit(1);
-}
-
-$cmd = "xmllint --schema $schemafile --xinclude --noout $tmpxmlfile 2>$tmperrfile";
-vprint "cmd: $cmd\n";
-if (system($cmd) != 0)
-{
-    system("cat $tmperrfile >&2");
-    print STDERR "ERROR: $xmlfile contains XML errors.  See previous messages for details (expanded XML file: $tmpxmlfile)\n";
-    exit(1);
-}
+my $xmlschema = XML::LibXML::Schema->new(location => $schemafn);
+$xmlschema->validate($dom);
 
 if ($test_type eq "q")
 {
     exit(0);
 }
-system("cat $tmperrfile");
-unlink $tmperrfile;
 
 # Parse and process the XML
 vprint "Instantiating LibXML object...\n";
