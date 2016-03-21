@@ -17,6 +17,9 @@ The ci directory is left over from some legacy continuous integration work.  The
 
 This framework runs on most Linux based systems.  You need python 2.7 or greater.
 You also need expect and pexpect available.
+And also below perl modules are required in order to run this framework.
+on fedora: sudo yum install perl-XML-LibXML-Common
+on ubuntu: sudo aptitude install libxml-libxml-perl
 
 ### Examples ###
 
