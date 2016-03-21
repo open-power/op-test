@@ -85,6 +85,7 @@ restrict_env => '$'
 1;
 
 use OpTestInfra;
+use OPBVTXML;
 
                                                                             ###
 my $filename = "";
@@ -942,9 +943,8 @@ if (is_verbose_enabled())
 exportXmlVars();
 
 # Validate the syntax of the specified XML file
-$cmd = "op-it-list $verbose_str --q $filename";
-if (is_verbose_enabled() || ($debug eq "cmd")) { vprint "Running: $cmd\n"; }
-system($cmd) && die "ERROR: XML file failed validity checking\n";
+OPBVTXML::bvt_xml_is_valid("op-it.xsd", $filename)
+    or die "ERROR: XML file $filename failed validity checking";
 
 #------------------------------------------------------------------------------
 # Run the integration test bucket as defined by the input file
