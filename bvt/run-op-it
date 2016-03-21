@@ -70,6 +70,8 @@ my $verbose_str = "";
                                                                             ###
 package Testcase;
                                                                             ###
+use Time::localtime;
+
 use Class::Struct;
 struct (
 id => '$',
@@ -158,8 +160,7 @@ sub printMsg
     my ($msg) = @_;
     if (! $quiet && ($debug ne "xml"))
     {
-        $timestamp = `date +'%H:%M:%S'`;
-        chomp($timestamp);
+        $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
         print "${timestamp} :: ${logpfxstr}${msg}";
         vprint "${timestamp} :: ${logpfxstr}${msg}";
         add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
@@ -175,8 +176,7 @@ sub printMsg
 sub printErrorMsg
 {
     my ($msg) = @_;
-    $timestamp = `date +'%H:%M:%S'`;
-    chomp($timestamp);
+    $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
     print STDERR "${timestamp} :: ${logpfxstr}${msg}";
     vprint "${timestamp} :: ${logpfxstr}${msg}";
     add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
@@ -654,8 +654,7 @@ sub runAllTests
         $title_text = $chk_title;
     }
 
-    $tmp = `date +'%Y-%B-%d'`;
-    chomp($tmp);
+    $tmp = sprintf("%d-%02d-%02d", localtime->year + 1900, localtime->mon + 1, localtime->mday);
     printMsg("Starting $title_text on $tmp...\n");
 
     # Process each platform
@@ -955,8 +954,8 @@ runAllTests();
 #------------------------------------------------------------------------------
 # Cleanup and exit
 #------------------------------------------------------------------------------
-$tmp = `date +'%Y-%B-%d'`;
-chomp($tmp);
+$tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
+		   localtime->mon + 1, localtime->mday);
 if ($totalrc == 0)
 {
     printMsg("OK: Finished tests on $tmp with no testcase errors.\n");
