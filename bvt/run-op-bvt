@@ -36,6 +36,7 @@ use lib "$FindBin::Bin";
 use XML::LibXML;
 use File::Path;
 use Getopt::Long qw(:config pass_through);
+use Time::localtime;
 use OpTestInfra;
 
 my $verbose_str = "";
@@ -133,8 +134,7 @@ sub runCmd
 sub logprint
 {
     my ($msg, $err) = @_;
-    $timestamp = `date +'%H:%M:%S'`;
-    chomp($timestamp);
+    $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
 
     if (defined($logf))
     {
@@ -319,8 +319,8 @@ syntax() if $help;
 if ($savedir eq "")
 {
     $savedir = "/tmp/${userid}/bvt/";
-    $tmp = `date '+\%F'`;
-    chomp($tmp);
+    $tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
+		   localtime->mon + 1, localtime->mday);
     $savedir .= "${tmp}-$$";
 }
 if ($clear_failsumm)
@@ -394,8 +394,8 @@ File::Path::make_path($logdir) if (! -d "${logdir}");
 
 # Open the log file and print the startup message
 open($logf, ">$logfile") || die "ERROR: unable to open $logfile for write:$!";
-$tmp = `date +'%Y-%B-%d'`;
-chomp($tmp);
+$tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
+	       localtime->mon + 1 , localtime->mday);
 logprint "Starting BVT ($bvtxmlfile) on $tmp...\n";
 logprint "Log file: $logfile\n";
 
@@ -454,8 +454,8 @@ foreach my $bvt ( $xmldata->findnodes('/bvts/bvt') )
 #------------------------------------------------------------------------------
 # Cleanup and exit
 #------------------------------------------------------------------------------
-$tmp = `date +'%Y-%B-%d'`;
-chomp($tmp);
+$tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
+	       localtime->mon + 1 , localtime->mday);
 if ($totalrc == 0)
 {
     logprint "OK: Finished BVT tests on $tmp with no testcase errors.\n";
