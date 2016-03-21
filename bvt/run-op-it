@@ -534,12 +534,6 @@ sub runAllTests
         $xmldata =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
     }
 
-    # If we're just debugging XML, then display it and we're done
-    if ($debug eq "xml")
-    {
-        print "$xmldata\n";
-        exit(0);
-    }
     if (is_verbose_enabled()) { vprint "xmldata:\n"; vprint "$xmldata\n"; }
 
     #------------------------------------------------------------------------------
