@@ -466,9 +466,7 @@ else
     errprint "ERROR: Finished BVT tests on $tmp with $totalrc testcase failures.\n";
 }
 
-$cmd = "cp $logfile ${savedir}/";
-vprint "cmd: $cmd\n";
-system($cmd);
+copy($logfile, "${savedir}/");
 print "All logs and FFDC saved under $savedir\n";
 if ($totalrc)
 {
