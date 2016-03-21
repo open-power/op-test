@@ -44,7 +44,6 @@ Syntax:
    file.xml : the test definition file
 
 OPTIONS is one or more of:
-   --subtest \"tst1[,tst2...]\" : list of <subtest> names to run (default is to run all)
    --debug xml | cmd : instead of running the test, do the specified debug:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
@@ -103,7 +102,6 @@ my $testrc = 0;
 my $totalrc = 0;
 my $tmp;
 my %xmlvars;
-my @subtests;
 my %keyattrs;
 my $debug = "";
 my $title_text = "Integration Test";
@@ -533,75 +531,7 @@ sub runAllTests
     foreach my $key (keys(%xmlvars))
     {
         vprint "substituting template variable: \%\%${key}\%\% -> $xmlvars{$key}\n";
-        $tmp =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
-    }
-
-    #--------------------------------------------------------------------------
-    # Strip out any excluded subtests
-    #--------------------------------------------------------------------------
-    my $subtest_count = @subtests;
-    if ($subtest_count)
-    {
-        my $subtest_requested = 0;
-        my $subtest_name;
-        my $req_subtest_name;
-
-        $tmp = $xmldata;
-        $xmldata = "";
-        my $x = index($tmp, "<subtest>");
-        while($x != -1)
-        {
-            # Add the data up to the next subtest start
-            $xmldata .= substr($tmp, 0, $x);
-
-            # Parse out the subtest name
-            $tmp = substr($tmp, ($x + 9));
-            $x = index($tmp, "<name>");
-            if ($x == -1)
-            {
-                printErrorMsg("ERROR: XML syntax error: no name found in <subtest>\n");
-                exit(1);
-            }
-            $tmp = substr($tmp, ($x + 6));
-            $x = index($tmp, "</name>");
-            if ($x == -1)
-            {
-                printErrorMsg("ERROR: XML syntax error: no end-name element found in <subtest>\n");
-                exit(1);
-            }
-            $subtest_name = substr($tmp, 0, $x);
-            $tmp = substr($tmp, ($x + 7));
-
-            # See if this is one we want
-            $subtest_requested = 0;
-            foreach $req_subtest_name (@subtests)
-            {
-                if ($subtest_name eq $req_subtest_name)
-                {
-                    $subtest_requested = 1;
-                    last;
-                }
-            }
-
-            # Include it or skip it
-            if (!$subtest_requested)
-            {
-                vprint "Skipping subtest $subtest_name\n";
-                $x = index($tmp, "</subtest>");
-                if ($x == -1)
-                {
-                    printErrorMsg("ERROR: XML syntax error: missing </subtest>\n");
-                    exit(1);
-                }
-                $tmp = substr($tmp, ($x + 10));
-            }
-
-            $x = index($tmp, "<subtest>");
-        }
-        $xmldata .= $tmp;
-
-        $xmldata =~ s/\<\/subtest\>//; # Might be some leftovers
-        vprint "XML after processing requested subtests:\n$xmldata\n";
+        $xmldata =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
     }
 
     # If we're just debugging XML, then display it and we're done
@@ -821,12 +751,6 @@ while(@argv)
         $xmlvars{fverbose} = "--fverbose $fvfile";
         next;
     }
-    if ($arg eq "--subtest")
-    {
-        $arg = shift(@argv);
-        @subtests = split(/\,/, $arg);
-        next;
-    }
     if ($arg eq "--debug")
     {
         $debug = shift(@argv);
@@ -898,7 +822,6 @@ if ($xmlvars{machine} ne "")
 
 if (is_verbose_enabled())
 {
-    vprint "subtests: @subtests\n";
     vprint "xmlvars{machine}: $xmlvars{machine}\n";
     vprint "test_env: $test_env\n";
     vprint "OP_TEST env vars:\n";
