@@ -520,13 +520,12 @@ sub runAllTests
     #--------------------------------------------------------------------------
     # Read in the XML file and treat as one big string
     #--------------------------------------------------------------------------
-    $tmp = readXml("$filename");
-    if ($tmp eq "")
+    $xmldata = readXml("$filename");
+    if ($xmldata eq "")
     {
         printErrorMsg("ERROR: unable to read XML file $filename\n");
         exit(1);
     }
-    #$tmp =~ s/\n/ /g; <- messes up <fspscript> values
 
     #--------------------------------------------------------------------------
     # Do the template variable substitution, if any
@@ -536,27 +535,6 @@ sub runAllTests
         vprint "substituting template variable: \%\%${key}\%\% -> $xmlvars{$key}\n";
         $tmp =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
     }
-
-    #--------------------------------------------------------------------------
-    # Strip out all comments
-    #--------------------------------------------------------------------------
-    $xmldata = "";
-    my $x = index($tmp, "<!--");
-    while($x != -1)
-    {
-        $xmldata .= substr($tmp, 0, $x);
-        $tmp = substr($tmp, ($x + 4));
-        $x = index($tmp, "-->");
-        if ($x == -1)
-        {
-            my $tmpmsg = sprintf("ERROR: XML syntax error: unterminated comment found starting with \"<--%s\"\n", substr($tmp, 0, 10));
-            printErrorMsg($tmpmsg);
-            exit(1);
-        }
-        $tmp = substr($tmp, ($x + 3));
-        $x = index($tmp, "<!--");
-    }
-    $xmldata .= $tmp;
 
     #--------------------------------------------------------------------------
     # Strip out any excluded subtests
@@ -570,7 +548,7 @@ sub runAllTests
 
         $tmp = $xmldata;
         $xmldata = "";
-        $x = index($tmp, "<subtest>");
+        my $x = index($tmp, "<subtest>");
         while($x != -1)
         {
             # Add the data up to the next subtest start
