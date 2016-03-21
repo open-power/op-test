@@ -62,7 +62,6 @@ my $xmlvars_it = "";
 
 # Working variables
 my $timestamp;
-my $x;
 my $def_machine = "";
 my $machine;
 my $xml;
