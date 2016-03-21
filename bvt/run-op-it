@@ -505,21 +505,6 @@ sub getNextKey
     return $outstr;
 }
 
-                                                                            ###
-# matchstr
-                                                                            ###
-sub matchstr
-{
-    my ($tstr, $regex) = @_;
-    my $outstr = "";
-    if ($tstr =~ /$regex$/)
-    {
-        $outstr = substr($tstr, $-[0]);
-    }
-    vprint "matchstr(\"$tstr\", \"$regex\") returning \"$outstr\"\n";
-    return $outstr;
-}
-
 END
 {
     if ($? && ($logfile ne ""))
