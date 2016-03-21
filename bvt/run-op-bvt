@@ -38,6 +38,7 @@ use File::Path;
 use Getopt::Long qw(:config pass_through);
 use Time::localtime;
 use OpTestInfra;
+use OPBVTXML;
 
 my $verbose_str = "";
 my $fvfile = "";
@@ -413,10 +414,8 @@ vprint "xmlvars{machine}: $xmlvars{machine}\n";
 vprint "bvtxmlfile: $bvtxmlfile\n";
 vprint "savedir: $savedir\n";
 
-# Validate the syntax of the specified XML file
-$cmd = "op-it-list $verbose_str --q $fullbvtxmlfile";
-vprint "cmd: $cmd\n";
-if (system($cmd))
+
+if (! OPBVTXML::bvt_xml_is_valid("op-it.xsd", $fullbvtxmlfile))
 {
     errprint "ERROR: XML file failed validity checking\n";
     exit(9);

@@ -35,6 +35,7 @@ use lib "$FindBin::Bin";
 use OpTestInfra;
 use XML::LibXML;
 use Getopt::Long;
+use OPBVTXML;
 
 my $cmd;
 my $tmp;
@@ -232,18 +233,7 @@ else
 # Do the test
 #-------------------------------------------------------------------------------
 # Pre-process: treat all <bvt-xml> tags like <include> tags for complete checking/listing
-my $parser = XML::LibXML->new();
-my $dom = XML::LibXML->load_xml(location => $xmlfile);
-$parser->process_xincludes($dom);
-
-for my $bvt_xml_node ($dom->findnodes('//*[local-name()="bvt-xml"]')) {
-    # We treat <bvt-xml> as an include
-    # so we grab the content of the file, insert it into the doc.
-    my $bvt_xml_file = XML::LibXML->load_xml(location => $bvt_xml_node->textContent);
-    $parser->process_xincludes($bvt_xml_file);
-    $bvt_xml_node->replaceNode($bvt_xml_file->documentElement());
-}
-
+my $dom = OPBVTXML::bvt_xml_expand_all($xmlfile);
 $dom->toFile($tmpxmlfile);
 
 # Validate the resulting XML
