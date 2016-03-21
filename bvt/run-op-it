@@ -89,12 +89,7 @@ use OPBVTXML;
 
                                                                             ###
 my $filename = "";
-my $x;
-my $y;
 my $cmd;
-my $cmd_timeout;
-my $timestamp = "";
-my $tmpscriptname = "tmpscript-$$";
 my $rc = 0;
 my $xmldata;
 my $cmd_line_machine;
@@ -161,7 +156,7 @@ sub printMsg
     my ($msg) = @_;
     if (! $quiet && ($debug ne "xml"))
     {
-        $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
+        my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
         print "${timestamp} :: ${logpfxstr}${msg}";
         vprint "${timestamp} :: ${logpfxstr}${msg}";
         add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
@@ -177,7 +172,7 @@ sub printMsg
 sub printErrorMsg
 {
     my ($msg) = @_;
-    $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
+    my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
     print STDERR "${timestamp} :: ${logpfxstr}${msg}";
     vprint "${timestamp} :: ${logpfxstr}${msg}";
     add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
@@ -319,7 +314,7 @@ sub getAttrs
         $attrstr = substr($attrstr, 1);
 
         # Get the value string
-        $x = index($attrstr, "\"");
+        my $x = index($attrstr, "\"");
         if ($x == -1)
         {
             printErrorMsg("ERROR: XML syntax error: all attribute values must end with a double-quote: $saveattrstr\n");
@@ -546,7 +541,7 @@ sub runAllTests
     # Strip out all comments
     #--------------------------------------------------------------------------
     $xmldata = "";
-    $x = index($tmp, "<!--");
+    my $x = index($tmp, "<!--");
     while($x != -1)
     {
         $xmldata .= substr($tmp, 0, $x);
