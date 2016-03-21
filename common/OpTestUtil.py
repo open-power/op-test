@@ -71,16 +71,17 @@ class OpTestUtil():
                 raise OpTestError(l_msg)
 
             if(stdout_value.__contains__("2 received")):
-                print ("Partition is pinging")
+                print (i_ip + " is pinging")
                 return BMC_CONST.PING_SUCCESS
 
             else:
-                print ("Partition is not pinging")
+                print (i_ip + " is not pinging")
                 i_try -= 1
                 time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
 
         print stderr_value
         raise OpTestError(stderr_value)
+
 
     ##
     #   @brief    This method does a scp from local system (where files are found)

@@ -50,8 +50,6 @@ class OpTestIPMI():
     # @param i_bmcUser @type string: Userid to log into the BMC
     # @param i_bmcPwd @type string: Password of the userid to log into the BMC
     # @param i_ffdcDir @type string: Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
     # @param i_lparIP The IP address of the LPAR
     # @param i_lparuser The userid to log into the LPAR
     # @param i_lparPasswd The password of the userid to log into the LPAR with
@@ -114,7 +112,6 @@ class OpTestIPMI():
             output = cmd.communicate()[0]
             return output
 
-
     ##
     # @brief This function clears the sensor data
     #
@@ -145,7 +142,7 @@ class OpTestIPMI():
     #
     def ipmi_power_off(self):
         output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power off')
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+        time.sleep(BMC_CONST.LONG_WAIT_IPL)
         if 'Down/Off' in output:
             return BMC_CONST.FW_SUCCESS
         else:
@@ -161,7 +158,7 @@ class OpTestIPMI():
     #
     def ipmi_power_on(self):
         output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power on')
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+        time.sleep(BMC_CONST.LONG_WAIT_IPL)
         if 'Up/On' in output:
             return BMC_CONST.FW_SUCCESS
         else:
@@ -185,7 +182,6 @@ class OpTestIPMI():
             print l_msg
             raise OpTestError(l_msg)
 
-
     ##
     # @brief This function sends the chassis power cycle ipmitool command
     #
@@ -200,7 +196,6 @@ class OpTestIPMI():
             l_msg = "Power Cycle Failed"
             print l_msg
             raise OpTestError(l_msg)
-
 
     ##
     # @brief Spawns the sol logger expect script as a background process. In order to
@@ -310,8 +305,12 @@ class OpTestIPMI():
     #
     def ipmi_power_status(self):
         l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power status')
-        print l_output
-        return l_output
+        if('on' in l_output):
+            return BMC_CONST.CHASSIS_POWER_ON
+        elif('off' in l_output):
+            return BMC_CONST.CHASSIS_POWER_OFF
+        else:
+            raise OpTestError("Can't recognize chassis power status: " + str(l_output))
 
     ##
     # @brief Performs a cold reset onto the bmc
@@ -321,23 +320,22 @@ class OpTestIPMI():
     def ipmi_cold_reset(self):
 
         l_initstatus = self.ipmi_power_status()
-        print ("Applying Cold reset. Wait for "
-                            + str(BMC_CONST.BMC_COLD_RESET_DELAY) + "sec")
+        print ("Applying Cold reset.")
         rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_COLD_RESET)
         if BMC_CONST.BMC_PASS_COLD_RESET in rc:
-            print rc
-            time.sleep(BMC_CONST.BMC_COLD_RESET_DELAY)
+            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+            self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
             l_finalstatus = self.ipmi_power_status()
-            if(l_finalstatus != l_initstatus):
-                l_msg = "Power status changed during reset"
-                print l_msg
-                raise OpTestError(l_msg)
-
+            if (l_initstatus != l_finalstatus):
+                print('initial status ' + str(l_initstatus))
+                print('final status ' + str(l_finalstatus))
+                print ('Power status changed during cold reset')
+                raise OpTestError('Power status changed')
             return BMC_CONST.FW_SUCCESS
         else:
-            l_msg = "Cold reset Failed"
-            print l_msg
-            raise OpTestError(l_msg)
+            print "Cold reset failed"
+            print rc
+            raise OpTestError(rc)
 
 
     ##
@@ -406,6 +404,7 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
         if(rc.__contains__("Firmware upgrade procedure successful")):
+            self.clear_ssh_keys(self.cv_bmcIP)
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Code Update Failed"
@@ -413,26 +412,46 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
     ##
-    # @brief Verify Primary side activated for both BMC and PNOR
+    # @brief Get information on active sides for both BMC and PNOR
     # example 0x0080 indicates primary side is activated
     #         0x0180 indicates golden side is activated
     #
-    # @return prints and returns BMC_CONST.PRIMARY_SIDE
-    #         or BMC_CONST.GOLDEN_SIDE or raise OpTestError
+    # @return returns the active sides for BMC and PNOR chip (that are either primary of golden)
+    #         l_bmc_side, l_pnor_side or raise OpTestError
     #
     def ipmi_get_side_activated(self):
 
-        rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_ACTIVE_SIDE)
-        if(rc.__contains__(BMC_CONST.PRIMARY_SIDE)):
-            print("Primary side is active")
-            return BMC_CONST.PRIMARY_SIDE
-        elif(BMC_CONST.GOLDEN_SIDE in rc):
-            print ("Golden side is active")
-            return BMC_CONST.GOLDEN_SIDE
-        else:
-            l_msg = "Error determining active side"
-            print l_msg
-            raise OpTestError(l_msg)
+        l_result = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_ACTIVE_SIDE).strip().split('\n')
+
+        for i in range(len(l_result)):
+            if('BIOS' in l_result[i]):
+                if(l_result[i].__contains__(BMC_CONST.PRIMARY_SIDE)):
+                    print("Primary side of PNOR is active")
+                    l_pnor_side = BMC_CONST.PRIMARY_SIDE
+                elif(BMC_CONST.GOLDEN_SIDE in l_result[i]):
+                    print ("Golden side of PNOR is active")
+                    l_pnor_side = BMC_CONST.GOLDEN_SIDE
+                else:
+                    l_msg = "Error determining active side: " + l_result
+                    print l_msg
+                    raise OpTestError(l_msg)
+            elif('BMC' in l_result[i]):
+                if(l_result[i].__contains__(BMC_CONST.PRIMARY_SIDE)):
+                    print("Primary side of BMC is active")
+                    l_bmc_side = BMC_CONST.PRIMARY_SIDE
+                elif(BMC_CONST.GOLDEN_SIDE in l_result[i]):
+                    print ("Golden side of BMC is active")
+                    l_bmc_side = BMC_CONST.GOLDEN_SIDE
+                else:
+                    l_msg = "Error determining active side: " + l_result
+                    print l_msg
+                    raise OpTestError(l_msg)
+            else:
+                l_msg = "Error determining active side: " + + l_result
+                print l_msg
+                raise OpTestError(l_msg)
+
+        return l_bmc_side, l_pnor_side
 
     ##
     # @brief Get PNOR level
@@ -566,6 +585,79 @@ class OpTestIPMI():
         return l_result
 
     ##
+    # @brief This function gets the sel log
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_get_sel_list(self):
+        return self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_SEL_LIST)
+
+    ##
+    # @brief This function gets the sdr list
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_get_sdr_list(self):
+        return self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_SDR_ELIST)
+
+
+    ##
+    # @brief Sets BIOS sensor and BOOT count to boot pnor from the primary side
+    #
+    # @param i_bios_sensor @type string: Id for BIOS Golden Sensor (example habanero=0x5c)
+    # @param i_boot_sensor @type string: Id for BOOT Count Sensor (example habanero=80)
+    #
+    # @return BMC_CONST.FW_SUCCESS or else raise OpTestError if failed
+    #
+    def ipmi_set_pnor_primary_side(self, i_bios_sensor, i_boot_sensor):
+
+        print '\nSetting PNOR to boot into Primary Side'
+
+        #Set the Boot Count sensor to 2
+        l_cmd = BMC_CONST.BMC_BOOT_COUNT_2.replace('xx', i_boot_sensor)
+        self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+
+        #Set the BIOS Golden Side sensor to 0
+        l_cmd = BMC_CONST.BMC_BIOS_GOLDEN_SENSOR_TO_PRIMARY.replace('xx', i_bios_sensor)
+        self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Sets BIOS sensor and BOOT count to boot pnor from the golden side
+    #
+    # @param i_bios_sensor @type string: Id for BIOS Golden Sensor (example habanero=0x5c)
+    # @param i_boot_sensor @type string: Id for BOOT Count Sensor (example habanero=80)
+    #
+    # @return BMC_CONST.FW_SUCCESS or else raise OpTestError if failed
+    #
+    def ipmi_set_pnor_golden_side(self, i_bios_sensor, i_boot_sensor):
+
+        print '\nSetting PNOR to boot into Golden Side'
+
+        #Set the Boot Count sensor to 2
+        l_cmd = BMC_CONST.BMC_BOOT_COUNT_2.replace('xx', i_boot_sensor)
+        self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+
+        #Set the BIOS Golden Side sensor to 1
+        l_cmd = BMC_CONST.BMC_BIOS_GOLDEN_SENSOR_TO_GOLDEN.replace('xx', i_bios_sensor)
+        self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief Clears the SSH keys from the known host file
+    #
+    # @param i_hostname @type string: name of the host to be removed from known host file
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError if failed
+    #
+    def clear_ssh_keys(self, i_hostname):
+        self._ipmitool_cmd_run(BMC_CONST.CLEAR_SSH_KEYS + i_hostname)
+        return BMC_CONST.FW_SUCCESS
+
+    ##
     # @brief This function will deactivates ipmi sol console
     #
     # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
@@ -596,7 +688,7 @@ class OpTestIPMI():
     ##
     # @brief This function waits for getting ipmi sol console activated.
     #
-    # @return l_con @type Object: it is a object of pexpect.spawn class 
+    # @return l_con @type Object: it is a object of pexpect.spawn class
     #         or raise OpTestError in case of not connecting up to 10mins.
     #
     def ipmi_get_console(self):
@@ -618,7 +710,8 @@ class OpTestIPMI():
         return l_con
 
     ##
-    # @brief This function make sure, ipmi console is activated and then login to the lpar if host is already up.
+    # @brief This function make sure, ipmi console is activated and then login to the lpar
+    # if host is already up.
     #
     # @param i_con @type Object: it is a object of pexpect.spawn class
     #        and this is the console object used for ipmi sol console access and for lpar login.
@@ -637,14 +730,14 @@ class OpTestIPMI():
             l_msg = "Error: not able to get IPMI console"
             raise OpTestError(l_msg)
 
-        time.sleep(5)
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         l_con.send("\r")
-        time.sleep(3)
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         l_rc = l_con.expect_exact(BMC_CONST.IPMI_CONSOLE_EXPECT_ENTER_OUTPUT, timeout=120)
         if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_LOGIN:
             l_con.sendline(l_user)
             l_rc = l_con.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
-            time.sleep(5)
+            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
             if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_PASSWORD:
                 l_con.sendline(l_pwd)
             else:
@@ -662,7 +755,7 @@ class OpTestIPMI():
         return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief This function will used for setting the shell prompt to [pexpect]#, so that it can be used for 
+    # @brief This function will used for setting the shell prompt to [pexpect]#, so that it can be used for
     #        running lpar os commands. Each time we can expect for this string [pexpect]#
     #
     # @param i_con @type Object: it is a object of pexpect.spawn class
@@ -683,7 +776,7 @@ class OpTestIPMI():
 
     ##
     # @brief This function will be used for running lpar OS commands through ipmi console and for monitoring ipmi
-    #        console for any system boots and kernel panic's etc. This function will be helpfull when ssh to host or 
+    #        console for any system boots and kernel panic's etc. This function will be helpfull when ssh to host or
     #        network is down. This function should be followed by below functions inorder to work properly.
     #        sys_get_ipmi_console()--> For getting ipmi console
     #        ipmi_lpar_login()---> For login to lpar
@@ -697,17 +790,15 @@ class OpTestIPMI():
     #
     def run_lpar_cmd_on_ipmi_console(self, i_cmd):
         self.l_con.sendline(i_cmd)
-        time.sleep(5)
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         try:
             rc = self.l_con.expect(BMC_CONST.IPMI_LPAR_EXPECT_PEXPECT_PROMPT_LIST, timeout=500)
             if rc == 0:
                 res = self.l_con.before
-                # print self.l_con.before
                 res = res.splitlines()
                 return res
             else:
                 res = self.l_con.before
-                # print self.l_con.before
                 res = res.split(i_cmd)
                 return res[-1].splitlines()
         except pexpect.ExceptionPexpect, e:
