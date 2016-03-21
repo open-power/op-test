@@ -43,8 +43,7 @@ my $fvfile = "";
 my $commandline;
 
 # Environment
-my $userid = `whoami`;
-chomp($userid);
+my $userid = $ENV{USER};
 
 # Files and directories
 my $resdir = "$ENV{HOME}/run-op-bvt";
