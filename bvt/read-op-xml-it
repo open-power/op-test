@@ -23,20 +23,21 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-                                                                                
+
 # Read integration test XML file to stdout and expand include nesting
 #
 # Author: Alan Hlava
-                                                                                
+
 use strict;
 
 use FindBin;
 use lib "$FindBin::Bin";
+use Getopt::Long;
 use OpTestInfra;
+use XML::LibXML;
 
 my $fvfile = "";
 my $verbose_str = "";
-my $version = "1.1";
 
 my $filename = "";
 my $infilename = "";
@@ -45,12 +46,9 @@ my $x;
 my $include_count = 1;
 my $processing_include = 0; # Internal flag to indicate we're processing an <include> rather than the outermost XML file
 
-                                                                                
-# syntax
-                                                                                
 sub syntax()
 {
-    print "Read integration test XML file to stdout and expand include nesting (v${version})\n\n";
+    print "Read integration test XML file to stdout and expand include nesting\n\n";
     print "Syntax: read-op-xml-it [OPTIONS] file.xml\n";
     print "   file.xml : the test definition file\n";
     print "\nWhere OPTIONS is one or more of:\n";
@@ -60,28 +58,16 @@ sub syntax()
     exit(1);
 }
 
-                                                                                
-#                            main
-                                                                                
+my $help = 0;
 
-#-------------------------------------------------------------------------------
-# parse the arguments
-#-------------------------------------------------------------------------------
-my @argv = @ARGV;
-my $arg;
+GetOptions("help|h|?" => \$help,
+	   "verbose" => sub { set_verbose(1); $verbose_str = "--verbose"; },
+	   "fverbose:s" => sub { $fvfile = shift; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" },
+	   "include" => sub { $processing_include = 1; },
+	   "<>" => sub { $filename = shift; }
+    ) or syntax();
 
-while(@argv)
-{
-    $arg = shift(@argv);
-    
-    if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
-    
-    if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
-    if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
-    if ($arg eq "--include") { $processing_include = 1; next; }
-    
-    $filename = $arg;
-}
+syntax() if $help;
 
 if ($filename eq "")
 {
@@ -89,169 +75,12 @@ if ($filename eq "")
     exit(9);
 }
 
-#-------------------------------------------------------------------------------
-# set vars representing execution environment
-#-------------------------------------------------------------------------------
-
-vprint "Starting read-op-xml-it v${version}\n";
+vprint "Starting read-op-xml-it\n";
 vprint "processing_include: $processing_include\n";
 
-# read any %%variable%%'s set by run-fsp-it
-foreach my $key (keys %ENV)
-{
-    if ($key =~ /^xmlvars_/) {
-        vprint "$key: $ENV{$key}\n";
-    }
-
-}
-
-#------------------------------------------------------------------------------
-# Read the XML file and write to STDOUT
-#------------------------------------------------------------------------------
 $infilename = findRelFile($filename);
-open(INF, "<$infilename") || die "ERROR: read-op-xml-it: unable to open $infilename: $!";
-my $line;
-my $incxmlvars = "";
-while(defined($line = <INF>))
-{
-    chomp($line);
-    if ($processing_include)
-    {
-        # Do any xmlvars= substitution from the including XML
-        foreach my $key (keys(%ENV))
-        {
-            #vprint "check env var: \"$key\"\n";
-            if ($key =~ /^incxmlvar_(.*)/)
-            {
-                my $subkey = substr($key, 10);
-                vprint "found incxmlvars_ env var: $key\n";
-                $line =~ s/\%\%${subkey}\%\%/$ENV{$key}/g;
-            }
-        }
-    }
-
-    $x = index($line, "<include");
-    if ($x == -1)
-    {
-        # Fix nested "<?xml" lines so final expanded file passes validation
-        if ($processing_include)
-        {
-            $line =~ s/\<\?xml/\<!-- xml/;
-            $line =~ s/\?\>/ --\>/;
-        }
-        if (defined($ENV{xmlvars_include_i}))
-        {
-            $line =~ s/\%\%include_i\%\%/$ENV{xmlvars_include_i}/g;
-        }
-        if (defined($ENV{CONTEXT}))
-        {
-            $line =~ s/\%\%context\%\%/$ENV{CONTEXT}/g;
-        }
-        print "$line\n";
-        next;
-    }
-    
-    # Get the count, if any
-    $x = index($line, "count=");
-    if ($x != -1)
-    {
-        vprint "found count in <include>\n";
-        my $tmp = substr($line, ($x + 6));
-        $x = index($tmp, ">");
-        if ($x == -1)
-        {
-            print STDERR "ERROR: read-op-xml-it: unable to parse XML include count= attribute: $line\n";
-            exit(1);            
-        }
-        $include_count = substr($tmp, 0, $x);
-        vprint "include_count set to $include_count\n";
-    }
-    else
-    {
-        $include_count = 1;
-    }
-
-    # Process the xmlvars= attribute (if any)
-    $incxmlvars = "";
-    $x = index($line, "xmlvars=\"");
-    if ($x != -1)
-    {
-        vprint "found xmlvars in <include>\n";
-        my $tmp = substr($line, ($x + 9));
-        $x = index($tmp, "\"");
-        if ($x == -1)
-        {
-            print STDERR "ERROR: read-op-xml-it: unable to parse XML include xmlvars= attribute: $line\n";
-            exit(1);            
-        }
-        vprint "tmp=\"$tmp\", x=$x\n";
-        $incxmlvars = substr($tmp, 0, $x);
-        vprint "incxmlvars set to \"$incxmlvars\"\n";
-
-        # Store in env var so passed down to nested read-op-xml-it
-        my @ixvs = split(/ /, $incxmlvars);
-        foreach my $ixv (@ixvs)
-        {
-            my ($newkey, $newval) = split(/\=/, $ixv);
-            vprint "setting env var incxmlvar_${newkey}=$newval\n";
-            $ENV{"incxmlvar_$newkey"} = $newval;
-        }
-    }
-    
-    # Get the included filename
-    $x = index($line, ">");
-    $incfilename = trim(substr($line, ($x + 1)));
-    if ($incfilename eq "")
-    {
-        # Must have put the filename on the next line
-        $incfilename = <INF>;
-        chomp($incfilename);
-    }
-    $x = index($incfilename, "</include>");
-    if ($x == -1)
-    {
-        # See if the ending tag is on the next line
-        $line = <INF>;
-        chomp($line);
-        $x = index($line,  "</include>");
-        if ($x == -1)
-        {
-            print STDERR "ERROR: read-op-xml-it: unable to parse XML include line: $line\n";
-            exit(1);
-        }
-    }
-    else
-    {
-        $incfilename = substr($incfilename, 0, $x);
-    }
-
-    # Substitute %%variable%%'s in the filename and loop count in this <include> tag
-    foreach my $key (keys(%ENV))
-    {
-        if (my ($xmlvars_key) = $key =~ /^xmlvars_(.*)/)
-        {
-            $incfilename =~ s/\%\%${xmlvars_key}\%\%/$ENV{$key}/g;
-            $include_count =~ s/\%\%${xmlvars_key}\%\%/$ENV{$key}/g;
-        }
-    }
-
-    
-    # Expand the file in place of the <include> line(s)
-    vprint "include_count set to $include_count\n";
-    delete $ENV{xmlvars_include_i};
-    for(my $i = 0; $i < $include_count; ++$i)
-    {
-        if ($include_count > 1)
-        {
-            $ENV{xmlvars_include_i} = $i + 1;
-        }
-        vprint "cmd: read-op-xml-it ${verbose_str} --include $incfilename\n";
-        if (system("read-op-xml-it ${verbose_str} --include $incfilename"))
-        {
-            print STDERR "ERROR: read-op-xml-it: failed reading $incfilename\n";
-            exit(1);
-        }
-    }
-}
-close(INF);
+my $parser = XML::LibXML->new();
+my $dom = XML::LibXML->load_xml(location => $infilename);
+$parser->process_xincludes($dom);
+print $dom->serialize;
 exit(0);

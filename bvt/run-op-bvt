@@ -23,27 +23,29 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-                                                                                
+
 # Run OpenPower automated build verification test (BVT)
 #
 # Author: Alan Hlava
-                                                                                
+
 use strict;
 
+use File::Copy;
 use FindBin;
 use lib "$FindBin::Bin";
 use XML::LibXML;
+use File::Path;
+use Getopt::Long qw(:config pass_through);
+use Time::localtime;
 use OpTestInfra;
+use OPBVTXML;
 
-my $version = "1.1";
 my $verbose_str = "";
 my $fvfile = "";
 my $commandline;
-my $mypid = $$;
 
 # Environment
-my $userid = `whoami`;
-chomp($userid);
+my $userid = $ENV{USER};
 
 # Files and directories
 my $resdir = "$ENV{HOME}/run-op-bvt";
@@ -61,7 +63,6 @@ my $xmlvars_it = "";
 
 # Working variables
 my $timestamp;
-my $x;
 my $def_machine = "";
 my $machine;
 my $xml;
@@ -88,7 +89,7 @@ my $test_env = "hw";
 my $restrict_env = "";
 my $test_systems = 0; # "Hidden" option to not run tests, just test --systems dispatching code
 
-my $usage = "Run OpenPower Build Verification Test (BVT) ($version)
+my $usage = "Run OpenPower Build Verification Test (BVT)
 
 Syntax: run-op-bvt [OPTIONS] bvtfile.xml [bvtfile2.xml ...]
 
@@ -115,29 +116,12 @@ Where OPTIONS is zero or more of:
              tests.
 \n";
 
-                                                                                
-# syntax
-                                                                                
 sub syntax()
 {
     print "$usage";
     exit(1);
 }
 
-                                                                                
-# trim
-                                                                                
-sub trim
-{
-    my ($str) = @_;
-    $str =~ s/^\s+//;
-    $str =~ s/\s+$//;
-    return $str;
-}
-
-                                                                                
-# runCmd
-                                                                                
 sub runCmd
 {
     my ($l_cmd) = @_;
@@ -147,14 +131,10 @@ sub runCmd
     return $rc;
 }
 
-                                                                                
-# logprint
-                                                                                
 sub logprint
 {
     my ($msg, $err) = @_;
-    $timestamp = `date +'%H:%M:%S'`;
-    chomp($timestamp);
+    $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
 
     if (defined($logf))
     {
@@ -172,9 +152,6 @@ sub logprint
     add_log_hist("${timestamp} :: $msg");
 }
 
-                                                                                
-# errprint
-                                                                                
 sub errprint
 {
     my ($msg) = @_;
@@ -182,13 +159,10 @@ sub errprint
     write_log_hist("Failure summary from run-op-bvt running $bvtxmlfile");
 }
 
-                                                                                
-# doVarSub
-                                                                                
 sub doVarSub
 {
     my ($value) = @_;
-    
+
     # Do substitution for any xmlvar keys
     foreach my $key (keys %xmlvars)
     {
@@ -197,9 +171,6 @@ sub doVarSub
     return $value;
 }
 
-                                                                                
-# getFileName
-                                                                                
 sub getFileName
 {
     my ($fullpath) = @_;
@@ -212,9 +183,6 @@ sub getFileName
     return $fn;
 }
 
-                                                                                
-# getXMLFilePath
-                                                                                
 sub getXMLFilePath
 {
     my ($inxmlfile) = @_;
@@ -243,117 +211,6 @@ sub getXMLFilePath
     return $outxmlfile;
 }
 
-                                                                                
-# mergeBvtFile
-                                                                                
-sub mergeBvtFile
-{
-    my ($fromfile, $tofile) = @_;
-    my $tmpfile1 = "/tmp/merge-bvt-file1-$$.xml";
-    my $tmpfile2 = "/tmp/merge-bvt-file2-$$.xml";
-
-    vprint ">mergeBvtFile($fromfile, $tofile)\n";
-
-    # Remove the front/back-matter from the from XML file
-    $cmd = "grep -v '<?xml' $fromfile | grep -v '<bvts' | grep -v '</bvts' >$tmpfile1";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Remove the end element from the to XML file
-    $cmd = "grep -v '</bvts' $tofile >$tmpfile2";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Assemble the parts
-    $cmd = "cp $tmpfile2 $tofile";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-    $cmd = "cat $tmpfile1 >>$tofile";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Add back the end element in the to XML file
-    $cmd = "echo '</bvts>' >>$tofile";
-    vprint "cmd: $cmd\n";
-    if (system($cmd))
-    {
-        errprint "ERROR: comand failed: $cmd\n";
-        exit(9);
-    }
-
-    # Clean up
-    unlink $tmpfile1, $tmpfile2;
-
-    vprint "<mergeBvtFile($fromfile, $tofile)\n";
-}
-
-                                                                                
-# mergeBvtInputFiles
-                                                                                
-sub mergeBvtInputFiles
-{
-    vprint ">mergeBvtInputFiles()\n";
-    my $filepath;
-    $bvtxmlfile = "";
-    my $file_count = @bvtxmlfiles;
-    if ($file_count == 1)
-    {
-        $bvtxmlfile = $bvtxmlfiles[0];
-    }
-    elsif ($file_count > 1)
-    {
-        # Merge the input files into a single temporary XML file.  This
-        # keeps the logic in the rest of the tool simple AND allows us to
-        # to intelligently schedule the complete set of tests (rather than
-        # treat them sequentially).
-
-        # Prime the temp XML file with the first one from the list
-        $bvtxmlfile = "${savedir}/merged-bvt-$$.xml";
-        $filepath = getXMLFilePath($bvtxmlfiles[0]);
-        if (! -e $filepath)
-        {
-            errprint "ERROR: $filepath does not exist or is not accessible\n";
-            exit(9);
-        }
-        $cmd = "cp $filepath $bvtxmlfile";
-        vprint "cmd: $cmd\n";
-        system($cmd) && die "ERROR: command failed: $cmd\n";
-
-        # Merge in all the other files on the list
-        for(my $i = 1; $i < $file_count; ++$i)
-        {
-            $filepath = getXMLFilePath($bvtxmlfiles[$i]);
-            if (! -e $filepath)
-            {
-                errprint "ERROR: $filepath does not exist or is not accessible\n";
-                exit(9);
-            }
-            mergeBvtFile($filepath, $bvtxmlfile);
-        }
-        $tmp_bvtxmlfile = 1;
-    }
-    vprint "<mergeBvtInputFiles() set bvtxmlfile to $bvtxmlfile\n";
-}
-
-                                                                                
-# checkSkipTest
-                                                                                
 sub checkSkipTest
 {
     my ($bvt_node) = @_;
@@ -369,9 +226,6 @@ sub checkSkipTest
     return $rc;
 }
 
-                                                                                
-# runTest
-                                                                                
 sub runTest
 {
     my ($test_id, $title, $mach, $relxmlfile) = @_;
@@ -405,60 +259,43 @@ sub runTest
     vprint "<runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
 }
 
-                                                                                
-# cleanUp
-                                                                                
-sub cleanUp
+END
 {
-    my ($errorterm) = @_;
-
-    vprint ">run-op-bvt cleanUp($errorterm)\n";
+    vprint ">run-op-bvt cleanUp($?)\n";
 
     if ($tmp_bvtxmlfile)
     {
         unlink $bvtxmlfile;
     }
 
-    if ($errorterm)
+    if ($?)
     {
-        $cmd = "cp $logfile ${savedir}/";
-        vprint "cmd: $cmd\n";
-        system($cmd);
-
+        copy($logfile, "${savedir}/");
         print "All logs and FFDC saved under $savedir\n";
     }
-    vprint "<run-op-bvt cleanUp($errorterm)\n";
+    vprint "<run-op-bvt cleanUp($?)\n";
 }
 
-                                                                                
-#                            main
-                                                                                
-sub main { }
-
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # parse the arguments
-#-------------------------------------------------------------------------------
-my @argv = @ARGV;
-my $arg;
+#-----------------------------------------------------------------------------
 $| = 1; # Force STDOUT to be unbuffered so we get output in the right order
 
+my $help = 0;
 $commandline = $0 . " ". (join " ", @ARGV);
+GetOptions('help|?|h' => \$help,
+	   'noclrfailsumm' => sub { $clear_failsumm = 0;},
+	   'verbose' => sub { set_verbose(1); $verbose_str = "--verbose"; },
+	   'fverbose=s' => sub { $fvfile = "$_"; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" ;},
+	   'savedir=s' => \$savedir,
+    ) or syntax();
 
-while(@argv)
+my @argv = @ARGV;
+while (my $arg = shift @argv)
 {
-    $arg = shift(@argv);
-    
-    if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
-    
-    if ($arg eq "--noclrfailsumm") { $clear_failsumm = 0; next; }
-    if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
-    if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
-
-    if ($arg eq "--savedir") { $savedir = shift(@argv); next; }
-
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
-    {    
+    {
         $arg = substr($arg, 2);
         $xmlvars{$arg} = shift(@argv);
         if ($arg eq "machine") { $def_machine = $xmlvars{$arg}; }
@@ -466,23 +303,24 @@ while(@argv)
         next;
     }
     if ($arg =~ /^\-/)
-    {    
+    {
         $arg = substr($arg, 1);
         $xmlvars{$arg} = shift(@argv);
         if ($arg eq "machine") { $def_machine = $xmlvars{$arg}; }
         else { $xmlvars_it .= " --$arg $xmlvars{$arg}"; }
         next;
     }
-
-    push(@bvtxmlfiles, $arg);
+    push @bvtxmlfiles, $arg;
 }
+
+syntax() if $help;
 
 # Setup savedir
 if ($savedir eq "")
 {
     $savedir = "/tmp/${userid}/bvt/";
-    $tmp = `date '+\%F'`;    
-    chomp($tmp);
+    $tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
+		   localtime->mon + 1, localtime->mday);
     $savedir .= "${tmp}-$$";
 }
 if ($clear_failsumm)
@@ -492,8 +330,52 @@ if ($clear_failsumm)
 
 logprint "Command line: $commandline\n";
 
-mergeBvtInputFiles();
-if ($bvtxmlfile eq "")
+File::Path::make_path($savedir);
+
+# Merging input files
+# This takes all the bvt nodes from input files and
+# inserts them before the first test of the final input file.
+# this can preserve order.
+sub mergeBvtInputFiles
+{
+    my (@files) = @_;
+    my @docs;
+
+    foreach my $f (@files) {
+	push @docs, XML::LibXML->load_xml(location => $f);
+    }
+
+    my $merged_doc = pop @docs;
+
+    foreach my $d (@docs) {
+	my ($bvt_node) = $merged_doc->findnodes('//*[local-name()="bvt"]');
+	for my $t ($d->findnodes('//*[local-name()="bvt"]')) {
+	    $bvt_node->parentNode->insertBefore($t, $bvt_node);
+	}
+    }
+
+    # We process XIncludes now, as we're going to save the result to
+    # a temporary file, which will mess up XInclude paths.
+    my $parser = XML::LibXML->new();
+    $parser->process_xincludes($merged_doc);
+
+    return $merged_doc->serialize;
+}
+
+if (@bvtxmlfiles > 1)
+{
+    my $bvtxml = mergeBvtInputFiles(@bvtxmlfiles);
+    $bvtxmlfile = "${savedir}/merged-bvt-$$.xml";
+    open(my $f, "> $bvtxmlfile")
+	or die "Cannot open merged bvt XML: $bvtxmlfile";
+    print $f $bvtxml;
+    close $f;
+}
+elsif (@bvtxmlfiles == 1)
+{
+    $bvtxmlfile = shift @bvtxmlfiles;
+}
+else
 {
     errprint "ERROR: you must specify the master BVT XML file\n";
     exit(9);
@@ -503,40 +385,17 @@ if ($bvtxmlfile eq "")
 #-------------------------------------------------------------------------------
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
-system("mkdir -p $savedir") && die "ERROR: unable to create save directory $savedir: $!";
 set_failsumm_log("${savedir}/failsumm.log");
 $ENV{OP_TEST_FAILSUMM_LOG} = "${savedir}/failsumm.log"; # Set so lower-level tools can find it
 
-# Ensure all other needed direectories exist
-if (! -d "${resdir}")
-{
-    if (system("mkdir -p ${resdir}"))
-    {
-        print STDERR "ERROR: unable to create $resdir\n";
-        exit(9);
-    }
-}
-if (! -d "${tmpdir}")
-{
-    if (system("mkdir -p ${tmpdir}"))
-    {
-        print STDERR "ERROR: unable to create $tmpdir\n";
-        exit(9);
-    }
-}
-if (! -d "${logdir}")
-{
-    if (system("mkdir -p ${logdir}"))
-    {
-        print STDERR "ERROR: unable to create $logdir\n";
-        exit(9);
-    }
-}
+File::Path::make_path($resdir) if (! -d "${resdir}");
+File::Path::make_path($tmpdir) if (! -d "${tmpdir}");
+File::Path::make_path($logdir) if (! -d "${logdir}");
 
 # Open the log file and print the startup message
 open($logf, ">$logfile") || die "ERROR: unable to open $logfile for write:$!";
-$tmp = `date +'%Y-%B-%d'`;
-chomp($tmp);
+$tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
+	       localtime->mon + 1 , localtime->mday);
 logprint "Starting BVT ($bvtxmlfile) on $tmp...\n";
 logprint "Log file: $logfile\n";
 
@@ -550,15 +409,13 @@ if (! -e $fullbvtxmlfile)
     exit(9);
 }
 
-vprint "run-op-bvt ($version)\n";
+vprint "run-op-bvt\n";
 vprint "xmlvars{machine}: $xmlvars{machine}\n";
 vprint "bvtxmlfile: $bvtxmlfile\n";
 vprint "savedir: $savedir\n";
 
-# Validate the syntax of the specified XML file
-$cmd = "op-it-list $verbose_str --q $fullbvtxmlfile";
-vprint "cmd: $cmd\n";
-if (system($cmd))
+
+if (! OPBVTXML::bvt_xml_is_valid("op-it.xsd", $fullbvtxmlfile))
 {
     errprint "ERROR: XML file failed validity checking\n";
     exit(9);
@@ -569,7 +426,7 @@ if (system($cmd))
 #------------------------------------------------------------------------------
 $xml = XML::LibXML->new();
 $xmldata = $xml->parse_file("${fullbvtxmlfile}");
-                
+
 #------------------------------------------------------------------------------
 # Run all the tests
 #------------------------------------------------------------------------------
@@ -595,9 +452,8 @@ foreach my $bvt ( $xmldata->findnodes('/bvts/bvt') )
 #------------------------------------------------------------------------------
 # Cleanup and exit
 #------------------------------------------------------------------------------
-cleanUp(0);
-$tmp = `date +'%Y-%B-%d'`;
-chomp($tmp);
+$tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
+	       localtime->mon + 1 , localtime->mday);
 if ($totalrc == 0)
 {
     logprint "OK: Finished BVT tests on $tmp with no testcase errors.\n";
@@ -608,9 +464,7 @@ else
     errprint "ERROR: Finished BVT tests on $tmp with $totalrc testcase failures.\n";
 }
 
-$cmd = "cp $logfile ${savedir}/";
-vprint "cmd: $cmd\n";
-system($cmd);
+copy($logfile, "${savedir}/");
 print "All logs and FFDC saved under $savedir\n";
 if ($totalrc)
 {

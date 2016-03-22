@@ -23,19 +23,20 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-                                                                                
+
 # Syntax-check and list major elements in a OpenPower IT/BVT XML file.
 #
 # Author: Alan Hlava
-                                                                                
+
 use strict;
 
 use FindBin;
 use lib "$FindBin::Bin";
 use OpTestInfra;
 use XML::LibXML;
+use Getopt::Long;
+use OPBVTXML;
 
-my $version = "1.1";
 my $cmd;
 my $tmp;
 my @flds;
@@ -43,7 +44,7 @@ my $verbose_str = "";
 my $fvfile = "";
 my $x;
 
-my $usage = "Syntax-check and list major elements in a OpenPower IT/BVT XML file ($version).
+my $usage = "Syntax-check and list major elements in a OpenPower IT/BVT XML file.
 
 Syntax: op-it-list [OPTIONS] filename.xml
 
@@ -66,35 +67,23 @@ my $test_name;
 my $machine;
 #my $parser;
 my $xmldata;
-my $tmperrfile = "/tmp/fips-it-test-$$.err";
-my $tmpxmlfile = "/tmp/fips-it-test-$$.xml";
-my $tmpbvtfile = "/tmp/fips-it-test-bvt-$$.xml";
-my @tmpfiles;
 
-                                                                                
-# syntax
-                                                                                
+use File::Temp;
+my $tmpxmlfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-XXXXXX",
+				 SUFFIX => ".xml");
+my $tmpbvtfile = File::Temp->new(TEMPLATE => "/tmp/fips-it-test-bvtXXXXXX",
+				 SUFFIX => ".xml");
 sub syntax()
 {
     print "$usage";
     exit(1);
 }
 
-                                                                                
-# cleanTempFiles
-                                                                                
-sub cleanTempFiles
-{
-    unlink @tmpfiles;
-}
-
 my @cmdelmts =
 (
     "cmd",
 );
-                                                                                
-# printTestcase
-                                                                                
+
 sub printTestcase
 {
     vprint ">printTestcase()\n";
@@ -122,9 +111,6 @@ sub printTestcase
     vprint "<printTestcase()\n";
 }
 
-                                                                                
-# getNameOrTitle
-                                                                                
 sub getNameOrTitle
 {
     my ($node) = @_;
@@ -140,9 +126,6 @@ sub getNameOrTitle
     return $name;
 }
 
-                                                                                
-# printIntegrationTest
-                                                                                
 sub printIntegrationTest
 {
     vprint ">printIntegraionTest()\n";
@@ -185,9 +168,6 @@ sub printIntegrationTest
     vprint "<printIntegraionTest()\n";
 }
 
-                                                                                
-# printBVT
-                                                                                
 sub printBVT
 {
     vprint ">printBVT()\n";
@@ -200,54 +180,35 @@ sub printBVT
     my @its = $bvt->findnodes('./integrationtest');
     foreach my $it (@its)
     {
-        printIntegrationTest($it);    
+        printIntegrationTest($it);
     }
     $test_indent = substr($test_indent, 3);
-    
+
     vprint "<printBVT()\n";
 }
-    
-                                                                                
-#                            main
-                                                                                
-sub main() { }
+
 $| = 1; # Force STDOUT to be unbuffered (flush after every print statement)
 
 #-------------------------------------------------------------------------------
 # Get arguments
 #-------------------------------------------------------------------------------
 
-# Parse the arguments
-my @argv = @ARGV;
-my $arg;
-while(@argv)
-{
-    $arg = shift(@argv);
+my $help = 0;
+GetOptions("help|h|?" => \$help,
+	   "list" => sub { $test_type = "list"; },
+	   "q" => sub { $test_type = "q"; },
+	   "verbose" => sub { set_verbose(1); $verbose_str = "--verbose"; },
+	   "fverbose:s" => sub { $fvfile = shift; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; },
+	   "<>" => sub { $xmlfile_arg = shift }
+    ) or syntax();
 
-    if ($arg eq "-?") { syntax(); }
-    if ($arg eq "--help") { syntax(); }
-    if ($arg eq "-h") { syntax(); }
-    
-    if ($arg eq "--list") { $test_type = "list"; next; }
-    if ($arg eq "--q") { $test_type = "q"; next; }
-    if ($arg eq "--verbose") { set_verbose(1); $verbose_str = "--verbose"; next; }
-    if ($arg eq "--fverbose") { $fvfile = shift(@argv); set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; next; }
-    
-    if ($arg =~ /^\-/) { print STDERR "ERROR: unrecognized option: $arg\n"; exit(1); }
+syntax() if $help;
 
-    $xmlfile_arg = $arg;
-}
-
-push(@tmpfiles, $tmperrfile);
-push(@tmpfiles, $tmpxmlfile);
-push(@tmpfiles, $tmpbvtfile);
-
-vprint "Running op-it-list ($version)...\n";
+vprint "Running op-it-list...\n";
 
 if ($xmlfile_arg eq "")
 {
     print STDERR "ERROR: you must specify an XML file to test\n";
-    cleanTempFiles();    
     exit(1);
 }
 
@@ -264,7 +225,6 @@ else
     if ($xmlfile eq "")
     {
         print STDERR "ERROR: could not find $xmlfile_arg relative to op-it-list dir\n";
-        cleanTempFiles();    
         exit(1);
     }
 }
@@ -273,57 +233,17 @@ else
 # Do the test
 #-------------------------------------------------------------------------------
 # Pre-process: treat all <bvt-xml> tags like <include> tags for complete checking/listing
-$cmd = "cat $xmlfile | sed 's/bvt-xml/include/g' >$tmpbvtfile";
-vprint "cmd: $cmd\n";
-if (system($cmd))
-{
-    print STDERR "ERROR: BVT preprocessing failure\n";
-    cleanTempFiles();    
-    exit(1);
-}
-
-# Pre-process: expand all <include> tags and do %% variable substitution
-$cmd = "./read-op-xml-it ${verbose_str} $tmpbvtfile >$tmpxmlfile";
-vprint "cmd: $cmd\n";
-if (system($cmd))
-{
-    print STDERR "ERROR: read-op-xml-it failure\n";
-    cleanTempFiles();    
-    exit(1);
-}
-unlink $tmpbvtfile;
+my $dom = OPBVTXML::bvt_xml_expand_all($xmlfile);
+$dom->toFile($tmpxmlfile);
 
 # Validate the resulting XML
-$cmd = "which op-it-list";
-vprint "cmd: $cmd\n";
-$tmp = `which op-it-list`;
-$x = rindex($tmp, "/");
-$tmp = substr($tmp, 0, $x);
-$schemafile = "${tmp}/${schemafn}";
-if (! -e $schemafile)
-{
-    print STDERR "ERROR: could not find $schemafn in op-it-list dir ($schemafile).  Unable to do validation.\n";
-    cleanTempFiles();    
-    exit(1);
-}
-
-$cmd = "xmllint --schema $schemafile --xinclude --noout $tmpxmlfile 2>$tmperrfile";
-vprint "cmd: $cmd\n";
-if (system($cmd) != 0)
-{
-    system("cat $tmperrfile >&2");
-    print STDERR "ERROR: $xmlfile contains XML errors.  See previous messages for details (expanded XML file: $tmpxmlfile)\n";
-    cleanTempFiles();    
-    exit(1);
-}
+my $xmlschema = XML::LibXML::Schema->new(location => $schemafn);
+$xmlschema->validate($dom);
 
 if ($test_type eq "q")
 {
-    cleanTempFiles();    
     exit(0);
 }
-system("cat $tmperrfile");
-unlink $tmperrfile;
 
 # Parse and process the XML
 vprint "Instantiating LibXML object...\n";
@@ -333,7 +253,7 @@ $xmldata = $xml->parse_file("${tmpxmlfile}");
 #vprint "Doing process_xincludes()...\n";
 #$xml->process_xincludes($xmldata);
 unlink $tmpxmlfile;
-    
+
 my @bvts = $xmldata->findnodes('/bvts/bvt');
 my $bvtcount = @bvts;
 if ($bvtcount == 0)
@@ -341,7 +261,7 @@ if ($bvtcount == 0)
     my @its = $xmldata->findnodes('/integrationtest');
     foreach my $it (@its)
     {
-        printIntegrationTest($it);    
+        printIntegrationTest($it);
     }
 }
 else
@@ -351,4 +271,3 @@ else
         printBVT($bvt);
     }
 }
-cleanTempFiles();    
