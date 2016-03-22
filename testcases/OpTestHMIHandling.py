@@ -67,7 +67,7 @@ class OpTestHMIHandling():
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir, i_lparip, i_lparuser, i_lparPasswd)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd)
+        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd, i_bmcIP)
         self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
                  i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_lparip,
                  i_lparuser, i_lparPasswd)
