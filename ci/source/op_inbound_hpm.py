@@ -56,7 +56,7 @@ def _config_read():
 
 bmcCfg, testCfg, lparCfg = _config_read()
 
-opTestLp = OpTestLpar(lparCfg['lparip'],lparCfg['lparuser'],lparCfg['lparpasswd'])
+opTestLp = OpTestLpar(lparCfg['lparip'],lparCfg['lparuser'],lparCfg['lparpasswd'],bmcCfg['ip'])
 
 def get_OS_Level():
     """This function gets the OS level installed on the machine
