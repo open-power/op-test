@@ -23,6 +23,22 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
+# Below is the procedure for FW Upgrade through Out-of-band method.
+# 1. Get the current PNOR level before upgrade
+# 2. Clear SEL logs
+# 3. Get current working side-->make sure do fw update on primary side(other wise backup golden
+#    image will be overwritten).
+# 4. Do ipmi power off.
+# 5. Issue BMC cold reset to bring BMC to stable point
+# 6. Preserve Network settings of BMC
+# 7. Do a code update for both BMC and PNOR firmwares using hpm image method
+# 8. Bring the system up(Power ON)
+# 9. Wait for working state of system
+# 10. Check for any Non-recoverable errors in SEL logs
+# 11. Get PNOR level again after FW Upgrade.
+#
+# TODO: Gather BMC FW Version info before and after FW upgrade, currently we are getting PNOR version only.
+
 """
 .. module:: op_outofband_firmware_update
     :platform: Linux
@@ -60,8 +76,27 @@ opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
                          bmcCfg['password'],
                          bmcCfg['usernameipmi'],
                          bmcCfg['passwordipmi'],
-                         testCfg['ffdcdir'])
+                         testCfg['ffdcdir'],
+                         lparCfg['lparip'],
+                         lparCfg['lparuser'],
+                         lparCfg['lparpasswd'])
 
+def test_init():
+    """This function validates the test config before running other functions
+    """
+
+    ''' create FFDC dir if it does not exist '''
+    ffdcDir = testCfg['ffdcdir']
+    if not os.path.exists(os.path.dirname(ffdcDir)):
+        os.makedirs(os.path.dirname(ffdcDir))
+
+    ''' make sure hpm image exists '''
+    hpmimage = lparCfg['hpmimage']
+    if not os.path.exists(hpmimage):
+        print "FW HPM image %s does not exist!. Check config file." % hpmimage
+        return 1
+
+    return 0
 
 def get_PNOR_level():
     """This function gets the pnor level of the bmc
@@ -71,6 +106,13 @@ def get_PNOR_level():
     print l_rc
     return 0
 
+def ipmi_sdr_clear():
+    """This function clears the sel log data
+
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.sys_sdr_clear()
+
 def get_side_activated():
     """This function Verify Primary side activated for both BMC and PNOR
     :returns: int -- 0: success, 1: error
@@ -79,23 +121,16 @@ def get_side_activated():
     if(rc.__contains__(BMC_CONST.PRIMARY_SIDE)):
         print("Primary side is active")
     else:
-        print("Primary side is not active")
-
+        l_msg = "Primary side is not active"
+        raise OpTestError(l_msg)
     return 0
 
-def cold_reset():
-    """This function Performs a cold reset onto the lpar
+def ipmi_power_off():
+    """This function sends the chassis power off ipmitool command.
+
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.cv_IPMI.ipmi_cold_reset()
-
-    return 0
-
-def preserve_network_setting():
-    """This function Executes a command on the os of the bmc to protect network setting
-    :returns: int -- 0: success, 1: error
-    """
-    return opTestSys.cv_IPMI.ipmi_preserve_network_setting()
+    return opTestSys.sys_power_off()
 
 def code_update():
     """This function Flashes component 1 Firmware image of hpm file using ipmitool
@@ -105,3 +140,34 @@ def code_update():
 
     return 0
 
+def validate_lpar():
+    """This function validate that the OS/partition can be pinged.
+
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.sys_bmc_power_on_validate_lpar()
+
+def ipl_wait_for_working_state(timeout=10):
+    """This function starts the sol capture and waits for the IPL to end. The
+    marker for IPL completion is the Host Status sensor which reflects the ACPI
+    power state of the system.  When it reads S0/G0: working it means that the
+    petitboot is has began loading.  The overall timeout for the IPL is defined
+    in the test configuration options.
+
+    :param timeout: The number of minutes to wait for IPL to complete, i.e. How
+        long to poll the ACPI sensor for working state before giving up.
+    :type timeout: int.
+    :returns: int -- 0: success, 1: error
+    """
+
+    return opTestSys.sys_ipl_wait_for_working_state()
+
+
+def ipmi_sel_check():
+    """This function dumps the sel log and looks for specific hostboot error
+    log string.
+
+    :returns: int -- 0: success, 1: error
+    """
+    selDesc = 'Transition to Non-recoverable'
+    return opTestSys.sys_sel_check(selDesc)

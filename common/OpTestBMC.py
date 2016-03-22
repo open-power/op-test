@@ -32,8 +32,11 @@
 
 import sys
 import time
-import pxssh
 import pexpect
+try:
+    import pxssh
+except ImportError:
+    from pexpect import pxssh
 import subprocess
 from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST

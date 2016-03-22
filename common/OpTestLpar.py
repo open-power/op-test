@@ -58,7 +58,7 @@ class OpTestLpar():
     # @param i_lparpasswd @type string: Password of the userid to log into the lpar
     # @param i_bmcip @type string: IP Address of the bmc
     #
-    def __init__(self, i_lparip, i_lparuser, i_lparpasswd, i_bmcip):
+    def __init__(self, i_lparip, i_lparuser, i_lparpasswd, i_bmcip=None):
         self.ip = i_lparip
         self.user = i_lparuser
         self.passwd = i_lparpasswd
