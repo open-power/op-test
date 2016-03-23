@@ -70,3 +70,6 @@ def test_hmi_hypervisor_resource_error():
 def test_clearing_gard_entries():
     assert op_opal_fvt.clear_gard_entries() == 0
 
+def test_prd_driver():
+    assert op_opal_fvt.test_prd_driver() == 0
+
