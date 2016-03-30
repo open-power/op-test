@@ -30,6 +30,7 @@
 #  This class encapsulates commands and constants which deals with the BMC in OpenPower
 #  systems
 
+import pexpect
 class OpTestConstants():
 
     # Platforms
@@ -174,16 +175,16 @@ class OpTestConstants():
     IPMI_WAIT_FOR_TERMINATING_SESSION = 10
     IPMI_CON_DELAY_BEFORE_SEND = 0.9
 
-    IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT = "[SOL Session operational.  Use ~? for help]\r\n", \
-        "Error: Unable to establish IPMI v2 / RMCP+ session, pexpect.TIMEOUT, pexpect.EOF"
-    IPMI_CONSOLE_EXPECT_ENTER_OUTPUT = "login: ", "#", "/ #", "Petitboot", "pexpect.TIMEOUT, pexpect.EOF"
+    IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT = ["[SOL Session operational.  Use ~? for help]\r\n", \
+        "Error: Unable to establish IPMI v2 / RMCP+ session", pexpect.TIMEOUT, pexpect.EOF]
+    IPMI_CONSOLE_EXPECT_ENTER_OUTPUT = ["login: ", "#", "/ #", "Petitboot", pexpect.TIMEOUT, pexpect.EOF]
     IPMI_CONSOLE_EXPECT_LOGIN = 0
     IPMI_CONSOLE_EXPECT_PASSWORD = 0
     IPMI_CONSOLE_EXPECT_PETITBOOT = [2,3]
     IPMI_CONSOLE_EXPECT_RANDOM_STATE = [4,5]
     IPMI_LPAR_UNIQUE_PROMPT = "PS1=[pexpect]#"
     IPMI_LPAR_EXPECT_PEXPECT_PROMPT = "[pexpect]#"
-    IPMI_LPAR_EXPECT_PEXPECT_PROMPT_LIST = "\[pexpect\]#$"
+    IPMI_LPAR_EXPECT_PEXPECT_PROMPT_LIST = [r"\[pexpect\]#$", pexpect.TIMEOUT]
 
     # HMI Test case constants
     HMI_PROC_RECV_DONE = 1
