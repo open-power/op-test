@@ -55,6 +55,7 @@ from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 from testcases.OpTestHMIHandling import OpTestHMIHandling
 from testcases.OpTestPrdDriver import OpTestPrdDriver
+from testcases.OpTestIPMILockMode import OpTestIPMILockMode
 
 
 def _config_read():
@@ -144,6 +145,13 @@ opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg['passwordipmi'],
                                   testCfg['ffdcdir'], lparCfg['lparip'],
                                   lparCfg['lparuser'], lparCfg['lparpasswd'])
+
+opTestIPMILockMode = OpTestIPMILockMode(bmcCfg['ip'], bmcCfg['username'],
+                                        bmcCfg['password'],
+                                        bmcCfg['usernameipmi'],
+                                        bmcCfg['passwordipmi'],
+                                        testCfg['ffdcdir'], lparCfg['lparip'],
+                                        lparCfg['lparuser'], lparCfg['lparpasswd'])
 
 
 def test_init():
@@ -257,3 +265,10 @@ def test_prd_driver():
         returns: int 0-success, raises exception-error
     """
     return opTestPrdDriver.testPrdDriver()
+
+
+def test_ipmi_lock_mode():
+    """This function tests IPMI lock mode functionality
+        returns: int 0-success, raises exception-error
+    """
+    return opTestIPMILockMode.test_ipmi_lock_mode()
