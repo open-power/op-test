@@ -42,7 +42,11 @@ import socket
 import select
 import pty
 import pexpect
-import pxssh
+try:
+    import pxssh
+except ImportError:
+    from pexpect import pxssh
+
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
