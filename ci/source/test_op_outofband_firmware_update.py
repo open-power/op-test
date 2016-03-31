@@ -43,6 +43,12 @@ def test_get_side_activated():
 def test_ipmi_power_off():
     assert op_outofband_firmware_update.ipmi_power_off() == 0
 
+def test_cold_reset():
+    assert op_outofband_firmware_update.cold_reset() == 0
+
+def test_preserve_network_setting():
+    assert op_outofband_firmware_update.preserve_network_setting() == 0
+
 def test_code_update():
     assert op_outofband_firmware_update.code_update() == 0
 

@@ -132,6 +132,20 @@ def ipmi_power_off():
     """
     return opTestSys.sys_power_off()
 
+def cold_reset():
+    """This function Performs a cold reset onto the lpar
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.cv_IPMI.ipmi_cold_reset()
+
+    return 0
+
+def preserve_network_setting():
+    """This function Executes a command on the os of the bmc to protect network setting
+    :returns: int -- 0: success, 1: error
+    """
+    return opTestSys.cv_IPMI.ipmi_preserve_network_setting()
+
 def code_update():
     """This function Flashes component 1 Firmware image of hpm file using ipmitool
     :returns: int -- 0: success, 1: error
