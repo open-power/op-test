@@ -257,3 +257,17 @@ def test_prd_driver():
         returns: int 0-success, raises exception-error
     """
     return opTestPrdDriver.testPrdDriver()
+
+
+def test_tfmr_errors():
+    """This function tests timer facility related error injections
+        returns: int 0-success, raises exception-error
+    """
+    return opTestHMIHandling.testHMIHandling(BMC_CONST.TFMR_ERRORS)
+
+
+def test_tod_errors():
+    """This function tests chip TOD error injections
+        returns: int 0-success, raises exception-error
+    """
+    return opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)

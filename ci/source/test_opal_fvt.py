@@ -73,3 +73,8 @@ def test_clearing_gard_entries():
 def test_prd_driver():
     assert op_opal_fvt.test_prd_driver() == 0
 
+def test_tfmr_errors():
+    assert op_opal_fvt.test_tfmr_errors() == 0
+
+def test_tod_errors():
+    assert op_opal_fvt.test_tod_errors() == 0
