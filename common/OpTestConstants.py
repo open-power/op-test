@@ -193,6 +193,44 @@ class OpTestConstants():
     HMI_HYPERVISOR_RESOURCE_ERROR = 4
     HMI_TEST_CASE_SLEEP_TIME = 30
 
+    # Timer facility constants
+    TOD_ERROR_REG = 40031
+    TOD_ERRORS = 5
+    # PSS Hamming Distance
+    PSS_HAMMING_DISTANCE = "0000200000000000"
+    # internal path: delay, step check components: parity error
+    INTERNAL_PATH_OR_PARITY_ERROR = "0000020000000000"
+    # internal path: delay, step check components: parity error
+    # TOD Reg 0x10 data parity error
+    TOD_DATA_PARITY_ERROR = "0000000080000000"
+    # TOD Sync Check error
+    TOD_SYNC_CHECK_ERROR = "0000000040000000"
+    # FSM state parity error
+    FSM_STATE_PARITY_ERROR = "0000000020000000"
+    # Master path control register (0x00): data parity error
+    MASTER_PATH_CONTROL_REGISTER = "8000000000000000"
+    # port-0 primary configuration register (0x01): data parity error
+    PORT_0_PRIMARY_CONFIGURATION_REGISTER = "1000000000000000"
+    # port-1 primary configuration register (0x02): data parity error
+    PORT_1_PRIMARY_CONFIGURATION_REGISTER = "0800000000000000"
+    # port-0 secondary configuration register (0x03): data parity error
+    PORT_0_SECONDARY_CONFIGURATION_REGISTER = "0400000000000000"
+    # port-1 secondary configuration register (0x04): data parity error
+    PORT_1_SECONDARY_CONFIGURATION_REGISTER = "0200000000000000"
+    # slave path control register (0x05): data parity error
+    SLAVE_PATH_CONTROL_REGISTER = "0100000000000000"
+    # internal path control register (0x06): data parity error
+    INTERNAL_PATH_CONTROL_REGISTER = "0080000000000000"
+    # primary/secondary master/slave control register(0x07); data parity error
+    PR_SC_MS_SL_CONTROL_REGISTER = "0040000000000000"
+    TFMR_ERRORS = 6
+    TB_PARITY_ERROR = "0003080000000000"
+    TFMR_PARITY_ERROR = "0001080000000000"
+    TFMR_HDEC_PARITY_ERROR = "0002080000000000"
+    TFMR_DEC_PARITY_ERROR = "0006080000000000"
+    TFMR_PURR_PARITY_ERROR = "0004080000000000"
+    TFMR_SPURR_PARITY_ERROR = "0005080000000000"
+
     # CPU sleep states constants
     GET_CPU_SLEEP_STATE2 = "cat /sys/devices/system/cpu/cpu*/cpuidle/state2/disable"
     GET_CPU_SLEEP_STATE1 = "cat /sys/devices/system/cpu/cpu*/cpuidle/state1/disable"
