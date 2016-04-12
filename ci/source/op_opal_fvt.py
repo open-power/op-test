@@ -55,6 +55,7 @@ from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 from testcases.OpTestHMIHandling import OpTestHMIHandling
 from testcases.OpTestPrdDriver import OpTestPrdDriver
+from testcases.OpTestIPMILockMode import OpTestIPMILockMode
 
 
 def _config_read():
@@ -145,6 +146,13 @@ opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
                                   testCfg['ffdcdir'], lparCfg['lparip'],
                                   lparCfg['lparuser'], lparCfg['lparpasswd'])
 
+opTestIPMILockMode = OpTestIPMILockMode(bmcCfg['ip'], bmcCfg['username'],
+                                        bmcCfg['password'],
+                                        bmcCfg['usernameipmi'],
+                                        bmcCfg['passwordipmi'],
+                                        testCfg['ffdcdir'], lparCfg['lparip'],
+                                        lparCfg['lparuser'], lparCfg['lparpasswd'])
+
 
 def test_init():
     """This function validates the test config before running other functions
@@ -223,6 +231,7 @@ def test_hmi_proc_recv_done():
     """
     return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
 
+
 def test_hmi_proc_recv_error_masked():
     """This function tests HMI recoverable error: proc_recv_error_masked
     returns: int 0-success, raises exception-error
@@ -271,3 +280,10 @@ def test_tod_errors():
         returns: int 0-success, raises exception-error
     """
     return opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
+
+
+def test_ipmi_lock_mode():
+    """This function tests IPMI lock mode functionality
+        returns: int 0-success, raises exception-error
+    """
+    return opTestIPMILockMode.test_ipmi_lock_mode()
