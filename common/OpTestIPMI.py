@@ -112,6 +112,23 @@ class OpTestIPMI():
             output = cmd.communicate()[0]
             return output
 
+
+    ##
+    # @brief Runs an ipmitool command
+    #    The command argument is the last ipmitool command argument, for example:
+    #    'chassis power cycle' or 'sdr elist'.  You can append other shell commands
+    #    to the string, for instance 'sdr elist|grep Host'.
+    #
+    # @param i_cmd @type string: The ipmitool command, for example: chassis power on
+    #
+    # @return l_output @type string: it returns the output of the command or raise OpTestError
+    #
+    def ipmitool_execute_command(self, i_cmd):
+        l_cmd = i_cmd
+        l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+        return l_output
+
+
     ##
     # @brief This function clears the sensor data
     #
