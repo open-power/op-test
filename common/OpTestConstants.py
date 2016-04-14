@@ -250,7 +250,9 @@ class OpTestConstants():
     PBA_FAULT_ISOLATION_REGISTER = "0x02010840"
     PBA_FAULT_ISOLATION_MASK_REGISTER = "0x02010843"
 
+    # Tools, repository and utility paths
     CLONE_SKIBOOT_DIR = "/tmp/skiboot"
+    PFLASH_TOOL_DIR = "/tmp/"
 
     # IPMI commands
     IPMI_LOCK_CMD = "raw 0x32 0xf3 0x4c 0x4f 0x43 0x4b 0x00; echo $?"
