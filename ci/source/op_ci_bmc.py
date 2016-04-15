@@ -31,6 +31,17 @@
 
 .. moduleauthor:: Jay Azurin <jmazurin@us.ibm.com>
 
+PNOR image flash steps.
+1. check for pflash tool availablity in /tmp directory
+2. Do a system ipmi power off
+3. Clear SEL logs
+4. Transfer PNOR image to BMC busy box(/tmp dir).
+5. Flash the pnor image using pflash tool.
+6. Bring the system up.
+7. Check for any error logs in SEL.
+Run some tests after flash.
+
+Note: Assumption is pflash tool available in /tmp directory.
 
 """
 import sys
@@ -43,6 +54,7 @@ sys.path.append(full_path)
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
+from common.OpTestConstants import OpTestConstants as BMC_CONST
 
 
 def _config_read():
@@ -98,6 +110,15 @@ def bmc_reboot():
     return 0
 
 
+def validate_pflash_tool():
+    """This function validates presence of pflash tool, which will be
+    used for pnor image flash.
+
+    :return int -- 0: success, OpTestError: error
+    """
+    return opTestSys.cv_BMC.validate_pflash_tool(BMC_CONST.PFLASH_TOOL_DIR)
+
+
 def pnor_img_transfer():
     """This function copies the PNOR image to the BMC /tmp dir.
 
@@ -108,11 +129,14 @@ def pnor_img_transfer():
 
 
 def pnor_img_flash():
-    """This function flashes the PNOR image.
+    """This function flashes the PNOR image using pflash tool,
+    And this function will work based on the assumption that pflash
+    tool available in '/tmp/'.(user need to mount pflash tool in /tmp dir,
+    as pflash tool removed from BMC)
 
     :returns: int -- the pflash command return code
     """
-    return opTestSys.cv_BMC.pnor_img_flash(testCfg['imagename'])
+    return opTestSys.cv_BMC.pnor_img_flash(BMC_CONST.PFLASH_TOOL_DIR, testCfg['imagename'])
 
 
 def ipmi_sdr_clear():

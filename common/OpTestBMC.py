@@ -167,13 +167,25 @@ class OpTestBMC():
 
 
     ##
-    # @brief This function flashes the PNOR image
-    # @param i_imageName @type string:
+    # @brief This function flashes the PNOR image using pflash tool,
+    #        And this function will work based on the assumption that pflash
+    #        tool available in i_pflash_dir.(user need to mount pflash tool
+    #        as pflash tool removed from BMC)
+    #
+    # @param i_pflash_dir @type string: directory where pflash tool is present.
+    # @param i_imageName @type string: Name of the image file
+    #                         Ex: firestone.pnor or firestone_update.pnor
+    #        Ex:/tmp/pflash -e -f -p /tmp/firestone_update.pnor
+    #           /tmp/pflash -e -f -p /tmp/firestone.pnor
+    #
+    #       Note: -E removed, it will erase entire pnor chip irrespective of
+    #             type of image( *.pnor or *_update.pnor).
+    #             -e will erase flash area only based on the type of image.
     #
     # @return pflash command return code
     #
-    def pnor_img_flash(self,i_imageName):
-        cmd = '/usr/local/bin/pflash -E -f -p /tmp/%s' % i_imageName
+    def pnor_img_flash(self, i_pflash_dir, i_imageName):
+        cmd = i_pflash_dir + '/pflash -e -f -p /tmp/%s' % i_imageName
         rc = self._cmd_run(cmd, timeout=1800, logFile='pflash.log')
         return rc
 
@@ -202,6 +214,26 @@ class OpTestBMC():
                 l_msg = "Error. Failed to execute command onto the BMC"
                 print l_msg
                 raise OpTestError(l_msg)
+
+    ##
+    # @brief This function validates presence of pflash tool, which will be
+    #        used for pnor image flash
+    #
+    # @param i_dir @type string: directory where pflash tool should be present.
+    #
+    # @return BMC_CONST.FW_SUCCESS if pflash tool is available or raise OpTestError
+    #
+    def validate_pflash_tool(self, i_dir):
+        l_cmd = "which " + i_dir + "/pflash"
+        try:
+            l_res = self._cmd_run(l_cmd)
+        except OpTestError:
+            l_msg = "Either pflash tool is not available in BMC or Command execution failed"
+            print l_msg
+            raise OpTestError(l_msg)
+        if l_res == BMC_CONST.FW_SUCCESS:
+            print "pflash tool is available on the BMC"
+            return BMC_CONST.FW_SUCCESS
 
     ##
     # @brief Uses the pflash tool to save the gard image
