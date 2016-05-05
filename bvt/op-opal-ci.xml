@@ -46,6 +46,13 @@
 
         <test>
             <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.get_side_activated()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_off()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
@@ -82,6 +89,13 @@
         <test>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipl_wait_for_working_state()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_ci_bmc.get_side_activated()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>

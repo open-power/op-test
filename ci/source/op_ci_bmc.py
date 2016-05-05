@@ -229,3 +229,16 @@ def outofband_fwandpnor_update_hpm():
     :returns: int -- 0: success, 1: error
     """
     return opTestSys.sys_bmc_outofband_fwandpnor_update_hpm(lparCfg['hpmimage'])
+
+
+def get_side_activated():
+    """This function Verify Primary side activated for both BMC and PNOR
+    :returns: int -- 0: success, 1: error
+    """
+    rc = opTestSys.cv_IPMI.ipmi_get_side_activated()
+    if(rc.__contains__(BMC_CONST.PRIMARY_SIDE)):
+        print("Primary side is active")
+    else:
+        l_msg = "Primary side is not active"
+        print l_msg
+    return 0
