@@ -45,7 +45,13 @@ sub bvt_xml_expand_all
         # so we grab the content of the file, insert it into the doc.
         my $bvt_xml_file = XML::LibXML->load_xml(location => $bvt_xml_node->textContent);
         $parser->process_xincludes($bvt_xml_file);
-        $bvt_xml_node->replaceNode($bvt_xml_file->documentElement());
+	# Due to a bug in the Perl XML::LibXML module,
+	# instead of directly replacing the node, we go and
+	# clone it first. This creates another copy so that when
+	# XML::LibXML gets the reference counting all wrong, we don't segfault.
+	# People don't like /usr/bin/perl segfaulting.
+	my $e = $bvt_xml_file->documentElement()->cloneNode(1);
+        $bvt_xml_node->replaceNode($e);
     }
 
     return $dom;
