@@ -1,0 +1,18 @@
+language: perl
+perl:
+ - "5.22"
+ - "5.20"
+ - "5.18"
+ - "5.16"
+ - "5.14"
+
+before_install:
+ - cpanm XML::LibXML
+
+install: true
+
+script:
+ - cd bvt; PATH=.:$PATH ./run-op-bvt helloworld-bvt.xml
+ - cd bvt; PATH=.:$PATH ./run-op-bvt helloworld2-bvt.xml
+
+
