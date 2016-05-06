@@ -33,12 +33,15 @@
 
 PNOR image flash steps.
 1. check for pflash tool availablity in /tmp directory
-2. Do a system ipmi power off
-3. Clear SEL logs
-4. Transfer PNOR image to BMC busy box(/tmp dir).
-5. Flash the pnor image using pflash tool.
-6. Bring the system up.
-7. Check for any error logs in SEL.
+2. Get side activated, fail on golden side(make sure doing pnor
+   flash when system is in primary side)
+3. Do a system ipmi power off
+4. Clear SEL logs
+5. Transfer PNOR image to BMC busy box(/tmp dir).
+6. Flash the pnor image using pflash tool.
+7. Bring the system up.
+8. Get side activated, fail on golden side
+9. Check for any error logs in SEL.
 Run some tests after flash.
 
 Note: Assumption is pflash tool available in /tmp directory.
@@ -94,6 +97,7 @@ def test_init():
         return 1
 
     return 0
+
 
 def bmc_reboot():
     """This function issues the reboot command on the BMC console.  It then
@@ -215,6 +219,7 @@ def ipmi_sel_check():
     selDesc = 'Transition to Non-recoverable'
     return opTestSys.sys_sel_check(selDesc)
 
+
 def validate_lpar():
     """This function validate that the OS/partition can be pinged.
 
@@ -229,3 +234,23 @@ def outofband_fwandpnor_update_hpm():
     :returns: int -- 0: success, 1: error
     """
     return opTestSys.sys_bmc_outofband_fwandpnor_update_hpm(lparCfg['hpmimage'])
+
+
+def validate_side_activated():
+    """This function Verify Primary side activated for both BMC and PNOR
+    :returns: int -- 0: success, exception: error
+    """
+    l_bmc_side, l_pnor_side = opTestSys.cv_IPMI.ipmi_get_side_activated()
+    if(l_bmc_side.__contains__(BMC_CONST.PRIMARY_SIDE)):
+        print("BMC: Primary side is active")
+    else:
+        l_msg = "BMC: Primary side is not active"
+        print l_msg
+        raise OpTestError(l_msg)
+    if(l_pnor_side.__contains__(BMC_CONST.PRIMARY_SIDE)):
+        print("PNOR: Primary side is active")
+    else:
+        l_msg = "PNOR: Primary side is not active"
+        print l_msg
+        raise OpTestError(l_msg)
+    return 0

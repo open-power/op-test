@@ -79,7 +79,7 @@ class OpTestBMC():
             # http://superuser.com/questions/839878/how-to-solve-python-bug-without-root-permission
             p.login(hostname, self.cv_bmcUser, self.cv_bmcPasswd, login_timeout=timeout, auto_prompt_reset=False)
             p.sendline()
-            p.prompt()
+            p.prompt(timeout=60)
             print 'At BMC %s prompt...' % self.cv_bmcIP
 
             p.sendline(cmdStr)
@@ -96,6 +96,7 @@ class OpTestBMC():
             index = p.expect(['0', pexpect.TIMEOUT])
         except:
             l_msg = "__cmd_run Failed"
+            print sys.exc_info()
             print l_msg
             raise OpTestError(l_msg)
 
