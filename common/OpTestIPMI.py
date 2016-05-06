@@ -215,6 +215,22 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
     ##
+    # @brief This function sends the chassis power reset ipmitool command
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_power_reset(self):
+        l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power reset')
+        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+        if BMC_CONST.CHASSIS_POWER_RESET in l_output:
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Power Reset Failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+
+    ##
     # @brief Spawns the sol logger expect script as a background process. In order to
     #        properly kill the process the caller should call the ipmitool sol
     #        deactivate command, i.e.: ipmitool_cmd_run('sol deactivate'). The sol.log
@@ -286,6 +302,64 @@ class OpTestIPMI():
             l_msg = 'SOL already deactivated'
             print l_msg
             raise OpTestError(l_msg)
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief This function waits for system to reach standby state or soft off. The
+    #        marker for standby state is the Host Status sensor which reflects the ACPI
+    #        power state of the system.  When it reads S5/G2: soft-off it means that the
+    #        system reached standby or soft-off state. The overall timeout for the standby is defined
+    #        in the test configuration options.'''
+    #
+    # @param i_timeout @type int: The number of seconds to wait for system to reach standby,
+    #       i.e. How long to poll the ACPI sensor for soft-off state before giving up.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_wait_for_standby_state(self, i_timeout=120):
+        l_timeout = time.time() + i_timeout
+        l_cmd = 'sdr elist |grep \'Host Status\''
+        while True:
+            l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+            if BMC_CONST.CHASSIS_SOFT_OFF in l_output:
+                print "Host Status is S5/G2: soft-off, system reached standby"
+                break
+            if time.time() > l_timeout:
+                l_msg = "Standby timeout"
+                print l_msg
+                raise OpTestError(l_msg)
+            time.sleep(BMC_CONST.SHORT_WAIT_STANDBY_DELAY)
+
+        return BMC_CONST.FW_SUCCESS
+
+
+    ##
+    # @brief This function waits for the Host OS Boot(IPL) to end. The
+    #        marker for IPL completion is the OS Boot sensor which reflects status
+    #        of host OS Boot. When it reads boot completed it means that the
+    #        Host OS Booted successfully.  The overall timeout for the IPL is defined
+    #        in the test configuration options.'''
+    #
+    # @param i_timeout @type int: The number of minutes to wait for IPL to complete or Boot time,
+    #       i.e. How long to poll the OS Boot sensor for working state before giving up.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_wait_for_os_boot_complete(self, i_timeout=10):
+        l_timeout = time.time() + 60*i_timeout
+        l_cmd = 'sdr elist |grep \'OS Boot\''
+        while True:
+            l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+            if BMC_CONST.OS_BOOT_COMPLETE in l_output:
+                print "Host OS is booted"
+                break
+            if time.time() > l_timeout:
+                l_msg = "IPL timeout"
+                print l_msg
+                raise OpTestError(l_msg)
+            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
 
         return BMC_CONST.FW_SUCCESS
 

@@ -187,6 +187,36 @@ class OpTestSystem():
         return rc
 
     ##
+    # @brief Wait for system to reach standby or[S5/G2: soft-off]
+    #
+    # @param i_timeout @type int: The number of seconds to wait for system to reach standby,
+    #       i.e. How long to poll the ACPI sensor for soft-off state before giving up.
+    #
+    # @return l_rc @type constant BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_wait_for_standby_state(self, i_timeout=120):
+        try:
+            l_rc = self.cv_IPMI.ipmi_wait_for_standby_state(i_timeout)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return l_rc
+
+    ##
+    # @brief Wait for system boot to host OS, It uses OS Boot sensor
+    #
+    # @param i_timeout @type int: The number of minutes to wait for IPL to complete or Boot time,
+    #       i.e. How long to poll the OS Boot sensor for working state before giving up.
+    #
+    # @return l_rc @type constant BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_wait_for_os_boot_complete(self, i_timeout=10):
+        try:
+            l_rc = self.cv_IPMI.ipmi_wait_for_os_boot_complete(i_timeout)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return l_rc
+
+    ##
     # @brief Check for error during IPL that would result in test case failure
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED

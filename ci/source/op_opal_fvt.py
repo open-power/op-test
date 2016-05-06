@@ -56,6 +56,7 @@ from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 from testcases.OpTestHMIHandling import OpTestHMIHandling
 from testcases.OpTestPrdDriver import OpTestPrdDriver
 from testcases.OpTestIPMILockMode import OpTestIPMILockMode
+from testcases.OpTestIPMIPowerControl import OpTestIPMIPowerControl
 
 
 def _config_read():
@@ -147,6 +148,14 @@ opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
                                   lparCfg['lparuser'], lparCfg['lparpasswd'])
 
 opTestIPMILockMode = OpTestIPMILockMode(bmcCfg['ip'], bmcCfg['username'],
+                                        bmcCfg['password'],
+                                        bmcCfg['usernameipmi'],
+                                        bmcCfg['passwordipmi'],
+                                        testCfg['ffdcdir'], lparCfg['lparip'],
+                                        lparCfg['lparuser'], lparCfg['lparpasswd'])
+
+
+opTestIPMIPowerControl = OpTestIPMIPowerControl(bmcCfg['ip'], bmcCfg['username'],
                                         bmcCfg['password'],
                                         bmcCfg['usernameipmi'],
                                         bmcCfg['passwordipmi'],
@@ -287,3 +296,9 @@ def test_ipmi_lock_mode():
         returns: int 0-success, raises exception-error
     """
     return opTestIPMILockMode.test_ipmi_lock_mode()
+
+def test_ipmi_power_control():
+    """This function tests IPMI Power Control Operations
+        returns: int 0-success, raises exception-error
+    """
+    return opTestIPMIPowerControl.testIPMIPowerControl()
