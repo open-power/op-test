@@ -99,3 +99,7 @@ def test_tod_errors():
 
 def test_ipmi_lock_mode():
     assert op_opal_fvt.test_ipmi_lock_mode() == 0
+
+
+def test_oob_ipmi():
+    assert op_opal_fvt.test_oob_ipmi() == 0
