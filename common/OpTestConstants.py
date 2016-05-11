@@ -92,6 +92,7 @@ class OpTestConstants():
     BMC_COLD_RESET_DELAY = 150
     LPAR_BRINGUP_TIME = 80
     SHORT_WAIT_IPL = 10
+    SHORT_WAIT_STANDBY_DELAY = 5
     LONG_WAIT_IPL = 50
     HOST_REBOOT_DELAY = 100
     WEB_UPDATE_DELAY = 600
@@ -99,6 +100,7 @@ class OpTestConstants():
     OCC_ENABLE_WAIT = 200
     OS_TELNET_WAIT = 20
     CHECKSTOP_ERROR_DELAY = 150
+    SYSTEM_STANDBY_STATE_DELAY = 120
 
     PING_RETRY_POWERCYCLE = 7
     PING_RETRY_FOR_STABILITY = 5
@@ -116,6 +118,9 @@ class OpTestConstants():
     GARD_CLEAR_SUCCESSFUL = 'Clearing the entire gard partition...done'
     NO_GARD_RECORDS = 'No GARD entries to display'
     CMD_NOT_FOUND = 'command not found'
+    CHASSIS_POWER_RESET = "Chassis Power Control: Reset"
+    CHASSIS_SOFT_OFF = 'S5/G2: soft-off'
+    OS_BOOT_COMPLETE = 'boot completed'
 
     # BMC ACTIVE SIDES
     PRIMARY_SIDE = "0x0080"
