@@ -42,6 +42,7 @@ import socket
 import select
 import pty
 import pexpect
+import commands
 try:
     import pxssh
 except ImportError:
@@ -62,12 +63,13 @@ class OpTestLpar():
     # @param i_lparpasswd @type string: Password of the userid to log into the lpar
     # @param i_bmcip @type string: IP Address of the bmc
     #
-    def __init__(self, i_lparip, i_lparuser, i_lparpasswd, i_bmcip):
+    def __init__(self, i_lparip, i_lparuser, i_lparpasswd, i_bmcip, i_ffdcDir=None):
         self.ip = i_lparip
         self.user = i_lparuser
         self.passwd = i_lparpasswd
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
+        self.cv_ffdcDir = i_ffdcDir
 
     ##
     #   @brief This method executes the command(i_cmd) on the host using a ssh session
@@ -313,6 +315,26 @@ class OpTestLpar():
             raise OpTestError(l_msg)
         print l_res
         return l_res
+
+    ##
+    # @brief It will gather OPAL Message logs and store the copy in a logfile
+    #        which will be stored in FFDC dir.
+    #
+    # @return BMC_CONST.FW_SUCCESS  or raise OpTestError
+    #
+    def lpar_gather_opal_msg_log(self):
+        try:
+            l_data = self.lpar_run_command(BMC_CONST.OPAL_MSG_LOG)
+        except:
+            l_msg = "Failed to gather OPAL message logs"
+            raise OpTestError(l_msg)
+
+        l_res = commands.getstatusoutput("date +%Y%m%d_%H%M")
+        l_logFile = "Opal_msglog_%s.log" % l_res[1]
+        fn = self.cv_ffdcDir + "/" + l_logFile
+        with open(fn, 'w') as f:
+            f.write(l_data)
+        return BMC_CONST.FW_SUCCESS
 
     ##
     # @brief It will check existence of given linux command(i_cmd) on lpar

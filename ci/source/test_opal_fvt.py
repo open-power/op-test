@@ -103,3 +103,11 @@ def test_ipmi_lock_mode():
 
 def test_ipmi_power_control():
     assert op_opal_fvt.test_ipmi_power_control() == 0
+
+
+def test_mc_cold_reset_boot_sequence():
+    assert op_opal_fvt.test_mc_cold_reset_boot_sequence() == 0
+
+
+def test_mc_warm_reset_boot_sequence():
+    assert op_opal_fvt.test_mc_warm_reset_boot_sequence() == 0
