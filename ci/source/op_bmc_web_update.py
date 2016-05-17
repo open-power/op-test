@@ -49,20 +49,20 @@ def _config_read():
     bmcConfig = ConfigParser.RawConfigParser()
     configFile = os.path.join(os.path.dirname(__file__), 'op_ci_tools.cfg')
     bmcConfig.read(configFile)
-    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')),dict(bmcConfig.items('lpar'))
+    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')),dict(bmcConfig.items('host'))
 
 ''' Read the configuration settings into global space so they can be used by
     other functions '''
 
-bmcCfg, testCfg, lparCfg = _config_read()
+bmcCfg, testCfg, hostCfg = _config_read()
 opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
                          bmcCfg['password'],
                          bmcCfg['usernameipmi'],
                          bmcCfg['passwordipmi'],
                          testCfg['ffdcdir'],
-                         lparCfg['lparip'],
-                         lparCfg['lparuser'],
-                         lparCfg['lparpasswd'])
+                         hostCfg['hostip'],
+                         hostCfg['hostuser'],
+                         hostCfg['hostpasswd'])
 
 
 def test_init():
@@ -88,18 +88,18 @@ def bmc_web_pnor_update_hpm():
 
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.sys_bmc_web_pnor_update_hpm(lparCfg['hpmimage'])
+    return opTestSys.sys_bmc_web_pnor_update_hpm(hostCfg['hpmimage'])
 
 def bmc_web_bmc_update_hpm():
     """This function does a update of BMC using the image provided by the user.
 
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.sys_bmc_web_bmc_update_hpm(lparCfg['hpmimage'])
+    return opTestSys.sys_bmc_web_bmc_update_hpm(hostCfg['hpmimage'])
 
 def bmc_web_bmcandpnor_update_hpm():
     """This function does a complete update of BMC and PNOR using the image provided by the user.
 
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.sys_bmc_web_bmcandpnor_update_hpm(lparCfg['hpmimage'])
+    return opTestSys.sys_bmc_web_bmcandpnor_update_hpm(hostCfg['hpmimage'])

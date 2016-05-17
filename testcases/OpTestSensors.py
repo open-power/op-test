@@ -38,7 +38,7 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
 
 
@@ -52,17 +52,17 @@ class OpTestSensors():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd,i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd,i_bmcIP)
         self.util = OpTestUtil()
 
     ##
@@ -81,56 +81,56 @@ class OpTestSensors():
     def test_hwmon_driver(self):
 
         # Get OS level
-        l_oslevel = self.cv_LPAR.lpar_get_OS_Level()
+        l_oslevel = self.cv_HOST.host_get_OS_Level()
 
         # Get kernel version
-        l_kernel = self.cv_LPAR.lpar_get_kernel_version()
+        l_kernel = self.cv_HOST.host_get_kernel_version()
 
         # Checking for sensors config option CONFIG_SENSORS_IBMPOWERNV
         l_config = "CONFIG_SENSORS_IBMPOWERNV"
 
-        l_val = self.cv_LPAR.lpar_check_config(l_kernel, l_config)
+        l_val = self.cv_HOST.host_check_config(l_kernel, l_config)
         if l_val == "y":
             print "Driver build into kernel itself"
         else:
             print "Driver will be built as module"
 
         # Loading ibmpowernv driver only on powernv platform
-        self.cv_LPAR.lpar_load_ibmpowernv(l_oslevel)
+        self.cv_HOST.host_load_ibmpowernv(l_oslevel)
 
         # Checking for sensors command and lm_sensors package
-        self.cv_LPAR.lpar_check_command("sensors")
+        self.cv_HOST.host_check_command("sensors")
 
-        l_pkg = self.cv_LPAR.lpar_check_pkg_for_utility(l_oslevel, "sensors")
+        l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "sensors")
         print "Installed package: %s" % l_pkg
 
         # Restart the lm_sensor service
-        self.cv_LPAR.lpar_start_lm_sensor_svc(l_oslevel)
+        self.cv_HOST.host_start_lm_sensor_svc(l_oslevel)
 
         # To detect different sensor chips and modules
-        res = self.cv_LPAR.lpar_run_command("yes | sensors-detect")
+        res = self.cv_HOST.host_run_command("yes | sensors-detect")
         print res
 
         # Checking sensors command functionality with different options
-        output = self.cv_LPAR.lpar_run_command("sensors; echo $?")
+        output = self.cv_HOST.host_run_command("sensors; echo $?")
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "sensors not working,exiting...."
             raise OpTestError(l_msg)
         print output
-        output = self.cv_LPAR.lpar_run_command("sensors -f; echo $?")
+        output = self.cv_HOST.host_run_command("sensors -f; echo $?")
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "sensors -f not working,exiting...."
             raise OpTestError(l_msg)
         print output
-        output = self.cv_LPAR.lpar_run_command("sensors -A; echo $?")
+        output = self.cv_HOST.host_run_command("sensors -A; echo $?")
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "sensors -A not working,exiting...."
             raise OpTestError(l_msg)
         print output
-        output = self.cv_LPAR.lpar_run_command("sensors -u; echo $?")
+        output = self.cv_HOST.host_run_command("sensors -u; echo $?")
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "sensors -u not working,exiting...."

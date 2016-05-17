@@ -77,7 +77,7 @@ class OpTestUtil():
             else:
                 print (i_ip + " is not pinging")
                 i_try -= 1
-                time.sleep(BMC_CONST.LPAR_BRINGUP_TIME)
+                time.sleep(BMC_CONST.HOST_BRINGUP_TIME)
 
         print stderr_value
         raise OpTestError(stderr_value)

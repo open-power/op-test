@@ -37,7 +37,7 @@ from OpTestBMC import OpTestBMC
 from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from OpTestLpar import OpTestLpar
+from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
 from OpTestWeb import OpTestWeb
 
@@ -52,17 +52,17 @@ class OpTestSystem():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the Host
+    # @param i_hostuser The userid to log into the Host
+    # @param i_hostPasswd The password of the userid to log into the host with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP,i_bmcUser,i_bmcPasswd,i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd, i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
         self.cv_WEB = OpTestWeb(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi)
         self.util = OpTestUtil()
 
@@ -159,16 +159,16 @@ class OpTestSystem():
         return rc
 
     ##
-    # @brief Cold reset on the LPAR
+    # @brief Cold reset on the Host
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def sys_lpar_cold_reset(self):
+    def sys_host_cold_reset(self):
         try:
-            l_rc = self.sys_bmc_power_on_validate_lpar()
+            l_rc = self.sys_bmc_power_on_validate_host()
             if(l_rc != BMC_CONST.FW_SUCCESS):
                 return BMC_CONST.FW_FAILED
-            self.cv_LPAR.lpar_cold_reset()
+            self.cv_HOST.host_cold_reset()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -248,22 +248,22 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def sys_bmc_power_on_validate_lpar(self):
-        # Check to see if lpar credentials are present
-        if(self.cv_LPAR.ip == None):
+    def sys_bmc_power_on_validate_host(self):
+        # Check to see if host credentials are present
+        if(self.cv_HOST.ip == None):
             l_msg = "Partition credentials not provided"
             print l_msg
             return BMC_CONST.FW_FAILED
 
         # Check if partition is active
         try:
-            self.util.PingFunc(self.cv_LPAR.ip)
+            self.util.PingFunc(self.cv_HOST.ip)
         except OpTestError as e:
             print("Trying to recover partition")
             try:
                 self.cv_IPMI.ipmi_power_off()
                 self.cv_IPMI.ipmi_power_on()
-                self.util.PingFunc(self.cv_LPAR.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+                self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
             except OpTestError as e:
                 return BMC_CONST.FW_FAILED
 
@@ -287,7 +287,7 @@ class OpTestSystem():
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_IPMI.ipmi_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
-            return self.sys_bmc_power_on_validate_lpar()
+            return self.sys_bmc_power_on_validate_host()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -304,7 +304,7 @@ class OpTestSystem():
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_IPMI.ipmi_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
-            return self.sys_bmc_power_on_validate_lpar()
+            return self.sys_bmc_power_on_validate_host()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -321,13 +321,13 @@ class OpTestSystem():
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_IPMI.ipmi_code_update(i_image,BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
-            return self.sys_bmc_power_on_validate_lpar()
+            return self.sys_bmc_power_on_validate_host()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
 
     ##
-    # @brief Update the BMC fw using hpm file using LPAR
+    # @brief Update the BMC fw using hpm file using HOST
     #
     # @param i_image HPM file image including location
     #
@@ -339,11 +339,11 @@ class OpTestSystem():
             #TODO: remove power_off() once DEFECT:SW325477 is fixed
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_cold_reset()
-            l_rc = self.sys_bmc_power_on_validate_lpar()
+            l_rc = self.sys_bmc_power_on_validate_host()
             if(l_rc != BMC_CONST.FW_SUCCESS):
                 return BMC_CONST.FW_FAILED
             self.cv_IPMI.ipmi_preserve_network_setting()
-            self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
+            self.cv_HOST.host_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
             self.cv_IPMI.clear_ssh_keys(self.cv_BMC.cv_bmcIP)
             self.cv_IPMI.ipmi_cold_reset()
         except OpTestError as e:
@@ -355,7 +355,7 @@ class OpTestSystem():
 
 
     ##
-    # @brief Update the BMC pnor using hpm file using LPAR
+    # @brief Update the BMC pnor using hpm file using HOST
     #
     # @param i_image HPM file image including location
     #
@@ -367,12 +367,12 @@ class OpTestSystem():
             #TODO: remove power_off() once DEFECT:SW325477 is fixed
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_cold_reset()
-            l_rc = self.sys_bmc_power_on_validate_lpar()
+            l_rc = self.sys_bmc_power_on_validate_host()
             if(l_rc != BMC_CONST.FW_SUCCESS):
                 return BMC_CONST.FW_FAILED
             self.cv_IPMI.ipmi_preserve_network_setting()
-            self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
-            self.cv_LPAR.lpar_cold_reset()
+            self.cv_HOST.host_code_update(i_image, BMC_CONST.BMC_PNOR_IMAGE_UPDATE)
+            self.cv_HOST.host_cold_reset()
         except OpTestError as e:
             self.sys_cold_reset_bmc()
             return BMC_CONST.FW_FAILED
@@ -381,7 +381,7 @@ class OpTestSystem():
 
 
     ##
-    # @brief Update the BMC fw and pnor using hpm file using LPAR
+    # @brief Update the BMC fw and pnor using hpm file using Host
     #
     # @param i_image HPM file image including location
     #
@@ -393,13 +393,13 @@ class OpTestSystem():
             #TODO: remove power_off() once DEFECT:SW325477 is fixed
             self.cv_IPMI.ipmi_power_off()
             self.cv_IPMI.ipmi_cold_reset()
-            l_rc = self.sys_bmc_power_on_validate_lpar()
+            l_rc = self.sys_bmc_power_on_validate_host()
             if(l_rc != BMC_CONST.FW_SUCCESS):
                 return BMC_CONST.FW_FAILED
             self.cv_IPMI.ipmi_preserve_network_setting()
-            self.cv_LPAR.lpar_code_update(i_image, BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
+            self.cv_HOST.host_code_update(i_image, BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
             self.cv_IPMI.clear_ssh_keys(self.cv_BMC.cv_bmcIP)
-            self.cv_LPAR.lpar_cold_reset()
+            self.cv_HOST.host_cold_reset()
         except OpTestError as e:
             self.sys_cold_reset_bmc()
             return BMC_CONST.FW_FAILED
@@ -666,8 +666,8 @@ class OpTestSystem():
     #
     def sys_read_msglog_core(self):
         try:
-            self.sys_bmc_power_on_validate_lpar()
-            return self.cv_LPAR.lpar_read_msglog_core()
+            self.sys_bmc_power_on_validate_host()
+            return self.cv_HOST.host_read_msglog_core()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -681,8 +681,8 @@ class OpTestSystem():
     #
     def sys_clear_gard_records(self, i_gard_dir):
         try:
-            self.sys_bmc_power_on_validate_lpar()
-            self.cv_LPAR.lpar_clear_gard_records(i_gard_dir)
+            self.sys_bmc_power_on_validate_host()
+            self.cv_HOST.host_clear_gard_records(i_gard_dir)
             return BMC_CONST.FW_SUCCESS
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
@@ -696,8 +696,8 @@ class OpTestSystem():
     #
     def sys_list_gard_records(self, i_gard_dir):
         try:
-            self.sys_bmc_power_on_validate_lpar()
-            return self.cv_LPAR.lpar_list_gard_records(i_gard_dir)
+            self.sys_bmc_power_on_validate_host()
+            return self.cv_HOST.host_list_gard_records(i_gard_dir)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -711,8 +711,8 @@ class OpTestSystem():
     #
     def sys_read_getscom_data(self, i_xscom_dir):
         try:
-            self.sys_bmc_power_on_validate_lpar()
-            return self.cv_LPAR.lpar_read_getscom_data(i_xscom_dir)
+            self.sys_bmc_power_on_validate_host()
+            return self.cv_HOST.host_read_getscom_data(i_xscom_dir)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -726,8 +726,8 @@ class OpTestSystem():
     #
     def sys_putscom(self, i_xscom_dir, i_error):
         try:
-            self.sys_bmc_power_on_validate_lpar()
-            return self.cv_LPAR.lpar_putscom(i_xscom_dir, i_error)
+            self.sys_bmc_power_on_validate_host()
+            return self.cv_HOST.host_putscom(i_xscom_dir, i_error)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
@@ -827,7 +827,7 @@ class OpTestSystem():
         try:
             self.cv_IPMI.ipmi_power_off()
             self.cv_BMC.pflash_write_gard_image(i_pflash_dir, i_gard_image_dir)
-            self.sys_bmc_power_on_validate_lpar()
+            self.sys_bmc_power_on_validate_host()
             return BMC_CONST.FW_SUCCESS
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
@@ -842,8 +842,8 @@ class OpTestSystem():
     #
     def sys_disable_enable_cpu_states(self,i_cpu_state):
         try:
-            self.sys_bmc_power_on_validate_lpar()
-            return self.cv_LPAR.lpar_disable_enable_cpu_states(i_cpu_state)
+            self.sys_bmc_power_on_validate_host()
+            return self.cv_HOST.host_disable_enable_cpu_states(i_cpu_state)
         except OpTestError as e:
             print "Disable/Enable cpu idle states failed. Reason: " + e.Reason
             return BMC_CONST.FW_FAILED

@@ -65,20 +65,20 @@ def _config_read():
     bmcConfig = ConfigParser.RawConfigParser()
     configFile = os.path.join(os.path.dirname(__file__), 'op_ci_tools.cfg')
     bmcConfig.read(configFile)
-    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')),dict(bmcConfig.items('lpar'))
+    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')),dict(bmcConfig.items('host'))
 
 ''' Read the configuration settings into global space so they can be used by
     other functions '''
 
-bmcCfg, testCfg, lparCfg = _config_read()
+bmcCfg, testCfg, hostCfg = _config_read()
 opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
                          bmcCfg['password'],
                          bmcCfg['usernameipmi'],
                          bmcCfg['passwordipmi'],
                          testCfg['ffdcdir'],
-                         lparCfg['lparip'],
-                         lparCfg['lparuser'],
-                         lparCfg['lparpasswd'])
+                         hostCfg['hostip'],
+                         hostCfg['hostuser'],
+                         hostCfg['hostpasswd'])
 
 
 def test_init():
@@ -219,13 +219,12 @@ def ipmi_sel_check():
     selDesc = 'Transition to Non-recoverable'
     return opTestSys.sys_sel_check(selDesc)
 
-
-def validate_lpar():
+def validate_host():
     """This function validate that the OS/partition can be pinged.
 
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.sys_bmc_power_on_validate_lpar()
+    return opTestSys.sys_bmc_power_on_validate_host()
 
 
 def outofband_fwandpnor_update_hpm():
@@ -233,7 +232,7 @@ def outofband_fwandpnor_update_hpm():
 
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.sys_bmc_outofband_fwandpnor_update_hpm(lparCfg['hpmimage'])
+    return opTestSys.sys_bmc_outofband_fwandpnor_update_hpm(hostCfg['hpmimage'])
 
 
 def validate_side_activated():

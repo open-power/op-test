@@ -51,7 +51,7 @@
 
         <test>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.validate_lpar()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.validate_host()"</cmd>
             </testcase>
         </test>
 

@@ -41,7 +41,7 @@ sys.path.append(full_path)
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
 def _config_read():
@@ -49,25 +49,25 @@ def _config_read():
     bmcConfig = ConfigParser.RawConfigParser()
     configFile = os.path.join(os.path.dirname(__file__), 'op_ci_tools.cfg')
     bmcConfig.read(configFile)
-    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')), dict(bmcConfig.items('lpar'))
+    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')), dict(bmcConfig.items('host'))
 
 ''' Read the configuration settings into global space so they can be used by
     other functions '''
 
-bmcCfg, testCfg, lparCfg = _config_read()
+bmcCfg, testCfg, hostCfg = _config_read()
 opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
                          bmcCfg['password'],
                          bmcCfg['usernameipmi'],
                          bmcCfg['passwordipmi'],
                          testCfg['ffdcdir'],
-                         lparCfg['lparip'],lparCfg['lparuser'],lparCfg['lparpasswd'])
+                         hostCfg['hostip'],hostCfg['hostuser'],hostCfg['hostpasswd'])
 
 
-def validate_lpar():
+def validate_host():
     """This function Validates the partition and waits for partition to connect
     :returns: int -- 0: success, 1: error
     """
-    opTestSys.sys_bmc_validate_lpar()
+    opTestSys.sys_bmc_validate_host()
 
     return 0
 
@@ -75,7 +75,7 @@ def outofband_fw_update_hpm():
     """This function Update the BMC fw image using hpm file
     :returns: int -- 0: success, 1: error
     """
-    opTestSys.sys_bmc_outofband_fw_update_hpm(lparCfg['hpmimage'])
+    opTestSys.sys_bmc_outofband_fw_update_hpm(hostCfg['hpmimage'])
 
     return 0
 
@@ -83,23 +83,23 @@ def outofband_pnor_update_hpm():
     """This function Update the BMC pnor image using hpm file
     :returns: int -- 0: success, 1: error
     """
-    opTestSys.sys_bmc_outofband_pnor_update_hpm(lparCfg['hpmimage'])
+    opTestSys.sys_bmc_outofband_pnor_update_hpm(hostCfg['hpmimage'])
 
     return 0
 
 def inband_fw_update_hpm():
-    """This function Update the BMC fw using hpm file using LPAR
+    """This function Update the BMC fw using hpm file using HOST
     :returns: int -- 0: success, 1: error
     """
-    opTestSys.sys_bmc_inband_fw_update_hpm(lparCfg['hpmimage'])
+    opTestSys.sys_bmc_inband_fw_update_hpm(hostCfg['hpmimage'])
 
     return 0
 
 def inband_pnor_update_hpm():
-    """This function Update the BMC pnor using hpm file using LPAR
+    """This function Update the BMC pnor using hpm file using HOST
     :returns: int -- 0: success, 1: error
     """
-    opTestSys.sys_bmc_inband_pnor_update_hpm(lparCfg['hpmimage'])
+    opTestSys.sys_bmc_inband_pnor_update_hpm(hostCfg['hpmimage'])
 
     return 0
 

@@ -31,7 +31,7 @@
 
         <test>
             <testcase>
-                <cmd>op-ci-bmc-run "op_firmware_component_update.validate_lpar()"</cmd>
+                <cmd>op-ci-bmc-run "op_firmware_component_update.validate_host()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
