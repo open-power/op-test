@@ -230,7 +230,6 @@ sub runTest
 {
     my ($test_id, $title, $mach, $relxmlfile) = @_;
     vprint ">runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
-    my $pid = 0;
     my $machine_opt = "";
 
     if ($mach eq "%%default%%")
