@@ -57,6 +57,7 @@ from testcases.OpTestHMIHandling import OpTestHMIHandling
 from testcases.OpTestPrdDriver import OpTestPrdDriver
 from testcases.OpTestIPMILockMode import OpTestIPMILockMode
 from testcases.OpTestIPMIPowerControl import OpTestIPMIPowerControl
+from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 
 
 def _config_read():
@@ -156,6 +157,14 @@ opTestIPMILockMode = OpTestIPMILockMode(bmcCfg['ip'], bmcCfg['username'],
 
 
 opTestIPMIPowerControl = OpTestIPMIPowerControl(bmcCfg['ip'], bmcCfg['username'],
+                                        bmcCfg['password'],
+                                        bmcCfg['usernameipmi'],
+                                        bmcCfg['passwordipmi'],
+                                        testCfg['ffdcdir'], lparCfg['lparip'],
+                                        lparCfg['lparuser'], lparCfg['lparpasswd'])
+
+
+opTestOOBIPMI = OpTestOOBIPMI(bmcCfg['ip'], bmcCfg['username'],
                                         bmcCfg['password'],
                                         bmcCfg['usernameipmi'],
                                         bmcCfg['passwordipmi'],
@@ -297,8 +306,16 @@ def test_ipmi_lock_mode():
     """
     return opTestIPMILockMode.test_ipmi_lock_mode()
 
+
 def test_ipmi_power_control():
     """This function tests IPMI Power Control Operations
         returns: int 0-success, raises exception-error
     """
     return opTestIPMIPowerControl.testIPMIPowerControl()
+
+
+def test_oob_ipmi():
+    """This function tests Out-of-band IPMI functionality
+        returns: int 0-success, raises exception-error
+    """
+    return opTestOOBIPMI.test_oob_ipmi()
