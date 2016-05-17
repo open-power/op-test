@@ -41,7 +41,7 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
 
 
@@ -55,23 +55,23 @@ class OpTestI2Cdriver():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd, i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
         self.util = OpTestUtil()
 
     ##
     # @brief  This function has following test steps
-    #         1. Getting lpar information(OS and kernel info)
-    #         2. Checking the required utilites are present on lpar or not
+    #         1. Getting host information(OS and kernel info)
+    #         2. Checking the required utilites are present on host or not
     #         3. Loading the necessary modules to test I2C device driver functionalites
     #            (i2c_dev, i2c_opal and at24)
     #         4. Getting the list of i2c buses
@@ -88,56 +88,56 @@ class OpTestI2Cdriver():
     def testI2Cdriver(self):
 
         # Get OS level
-        self.cv_LPAR.lpar_get_OS_Level()
+        self.cv_HOST.host_get_OS_Level()
 
         # make sure install "i2c-tools" package in-order to run the test
 
-        # Check whether i2cdump, i2cdetect and hexdump commands are available on lpar
-        self.cv_LPAR.lpar_check_command("i2cdump")
-        self.cv_LPAR.lpar_check_command("i2cdetect")
-        self.cv_LPAR.lpar_check_command("hexdump")
-        self.cv_LPAR.lpar_check_command("i2cget")
-        self.cv_LPAR.lpar_check_command("i2cset")
+        # Check whether i2cdump, i2cdetect and hexdump commands are available on host
+        self.cv_HOST.host_check_command("i2cdump")
+        self.cv_HOST.host_check_command("i2cdetect")
+        self.cv_HOST.host_check_command("hexdump")
+        self.cv_HOST.host_check_command("i2cget")
+        self.cv_HOST.host_check_command("i2cset")
 
         # Get Kernel Version
-        l_kernel = self.cv_LPAR.lpar_get_kernel_version()
+        l_kernel = self.cv_HOST.host_get_kernel_version()
 
         # loading i2c_opal module based on config option
         l_config = "CONFIG_I2C_OPAL"
         l_module = "i2c_opal"
-        self.cv_LPAR.lpar_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # loading i2c_dev module based on config option
         l_config = "CONFIG_I2C_CHARDEV"
         l_module = "i2c_dev"
-        self.cv_LPAR.lpar_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # loading at24 module based on config option
         l_config = "CONFIG_EEPROM_AT24"
         l_module = "at24"
-        self.cv_LPAR.lpar_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # Get information of EEPROM chips
-        self.cv_LPAR.lpar_get_info_of_eeprom_chips()
+        self.cv_HOST.host_get_info_of_eeprom_chips()
 
-        # Get list of i2c buses available on lpar,
+        # Get list of i2c buses available on host,
         # l_list=["0","1"....]
         # l_list1=["i2c-0","i2c-1","i2c-2"....]
-        l_list, l_list1 = self.cv_LPAR.lpar_get_list_of_i2c_buses()
+        l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
 
         # Scanning i2c bus for devices attached to it.
         for l_bus in l_list:
             self.query_i2c_bus(l_bus)
 
-        # Get list of pairs of i2c bus and EEPROM device addresses in the lpar
-        l_chips = self.cv_LPAR.lpar_get_list_of_eeprom_chips()
+        # Get list of pairs of i2c bus and EEPROM device addresses in the host
+        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
         for l_args in l_chips:
             # Accessing the registers visible through the i2cbus using i2cdump utility
             # l_args format: "0 0x51","1 0x53",.....etc
             self.i2c_dump(l_args)
 
         # list i2c adapter conetents
-        l_res = self.cv_LPAR.lpar_run_command("ls -l /sys/class/i2c-adapter; echo $?")
+        l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             pass
@@ -148,7 +148,7 @@ class OpTestI2Cdriver():
 
         # Checking the sysfs entry of each i2c bus
         for l_bus in l_list1:
-            l_res = self.cv_LPAR.lpar_run_command("ls -l /sys/class/i2c-adapter/%s; echo $?" % l_bus)
+            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s; echo $?" % l_bus)
             l_res = l_res.splitlines()
             if int(l_res[-1]) == 0:
                 pass
@@ -176,7 +176,7 @@ class OpTestI2Cdriver():
     #
     def query_i2c_bus(self, i_bus):
         print "Querying the i2c bus for devices attached to it"
-        l_res = self.cv_LPAR.lpar_run_command("i2cdetect -y %i; echo $?" % int(i_bus))
+        l_res = self.cv_HOST.host_run_command("i2cdetect -y %i; echo $?" % int(i_bus))
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return BMC_CONST.FW_SUCCESS
@@ -199,7 +199,7 @@ class OpTestI2Cdriver():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def i2c_dump(self, i_args):
-        l_res = self.cv_LPAR.lpar_run_command("i2cdump -f -y %s; echo $?" % i_args)
+        l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s; echo $?" % i_args)
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return BMC_CONST.FW_SUCCESS
@@ -221,7 +221,7 @@ class OpTestI2Cdriver():
     # @return l_res @type string: data present on data-address or raise OpTestError
     #
     def i2c_get(self, i_args, i_addr):
-        l_res = self.cv_LPAR.lpar_run_command("i2cget -f -y %s %s;echo $?" % (i_args, i_addr))
+        l_res = self.cv_HOST.host_run_command("i2cget -f -y %s %s;echo $?" % (i_args, i_addr))
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return l_res
@@ -244,7 +244,7 @@ class OpTestI2Cdriver():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def i2c_set(self, i_args, i_addr, i_val):
-        l_res = self.cv_LPAR.lpar_run_command("i2cset -f -y %s %s %s;echo $?" % (i_args, i_addr, i_val))
+        l_res = self.cv_HOST.host_run_command("i2cset -f -y %s %s %s;echo $?" % (i_args, i_addr, i_val))
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return BMC_CONST.FW_SUCCESS

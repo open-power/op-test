@@ -40,12 +40,12 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
 
 
 class OpTestMtdPnorDriver():
-    ## Initialize this object and also getting the lpar login credentials to use by scp utility
+    ## Initialize this object and also getting the host login credentials to use by scp utility
     #  @param i_bmcIP The IP address of the BMC
     #  @param i_bmcUser The userid to log into the BMC with
     #  @param i_bmcPasswd The password of the userid to log into the BMC with
@@ -54,27 +54,27 @@ class OpTestMtdPnorDriver():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd, i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
         self.util = OpTestUtil()
-        self.lpar_user = i_lparuser
-        self.lpar_ip = i_lparip
-        self.lpar_Passwd = i_lparPasswd
+        self.host_user = i_hostuser
+        self.host_ip = i_hostip
+        self.host_Passwd = i_hostPasswd
 
     ##
     # @brief  This function has following test steps
-    #         1. Get lpar information(OS and Kernel information)
+    #         1. Get host information(OS and Kernel information)
     #         2. Load the mtd module based on config value
-    #         3. Check /dev/mtd0 character device file existence on lpar
+    #         3. Check /dev/mtd0 character device file existence on host
     #         4. Copying the contents of the flash in a file /tmp/pnor
     #         5. Getting the /tmp/pnor file into local x86 machine using scp utility
     #         6. Remove existing /tmp/ffs directory and
@@ -88,31 +88,31 @@ class OpTestMtdPnorDriver():
     def testMtdPnorDriver(self):
 
         # Get OS level
-        l_oslevel = self.cv_LPAR.lpar_get_OS_Level()
+        l_oslevel = self.cv_HOST.host_get_OS_Level()
 
         # Get Kernel Version
-        l_kernel = self.cv_LPAR.lpar_get_kernel_version()
+        l_kernel = self.cv_HOST.host_get_kernel_version()
 
         # loading mtd module based on config option
         l_config = "CONFIG_MTD_POWERNV_FLASH"
         l_module = "mtd"
-        self.cv_LPAR.lpar_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
-        # Check /dev/mtd0 file existence on lpar
+        # Check /dev/mtd0 file existence on host
         l_cmd = "ls -l /dev/mtd0; echo $?"
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
-            print "/dev/mtd0 character device file exists on lpar"
+            print "/dev/mtd0 character device file exists on host"
         else:
-            l_msg = "/dev/mtd0 character device file doesn't exist on lpar"
+            l_msg = "/dev/mtd0 character device file doesn't exist on host"
             print l_msg
             raise OpTestError(l_msg)
 
         # Copying the contents of the PNOR flash in a file /tmp/pnor
         l_file = "/tmp/pnor"
         l_cmd = "cat /dev/mtd0 > %s; echo $?" % l_file
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             print "Fetched PNOR data from /dev/mtd0 into temp file /tmp/pnor"
@@ -123,7 +123,7 @@ class OpTestMtdPnorDriver():
 
         # Getting the /tmp/pnor file into local x86 machine
         l_path = "/tmp/"
-        self.util.copyFilesToDest(l_path, self.lpar_user, self.lpar_ip, l_file, self.lpar_Passwd, "2", BMC_CONST.SCP_TO_LOCAL)
+        self.util.copyFilesToDest(l_path, self.host_user, self.host_ip, l_file, self.host_Passwd, "2", BMC_CONST.SCP_TO_LOCAL)
         l_list =  commands.getstatusoutput("ls -l %s; echo $?" % l_path)
         print l_list
 

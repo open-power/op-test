@@ -26,7 +26,7 @@
 
 <test>
     <testcase>
-        <cmd>run-bvt-setup --bmcip %%bmcip%% --bmcuser %%bmcuser%% --bmcpwd %%bmcpwd%% --usernameipmi %%usernameipmi%% --passwordipmi %%passwordipmi%% --cfgfiledir %%cfgfiledir%% --ffdcdir %%ffdcdir%% --imagedir %%imagedir%% --imagename %%imagename%% --lparip %%lparip%% --lparuser %%lparuser%% --lparPasswd %%lparPasswd%% --hpmimage %%hpmimage%%</cmd>
+        <cmd>run-bvt-setup --bmcip %%bmcip%% --bmcuser %%bmcuser%% --bmcpwd %%bmcpwd%% --usernameipmi %%usernameipmi%% --passwordipmi %%passwordipmi%% --cfgfiledir %%cfgfiledir%% --ffdcdir %%ffdcdir%% --imagedir %%imagedir%% --imagename %%imagename%% --hostip %%hostip%% --hostuser %%hostuser%% --hostPasswd %%hostPasswd%% --hpmimage %%hpmimage%%</cmd>
         <exitonerror>yes</exitonerror>
     </testcase>
 </test>

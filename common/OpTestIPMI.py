@@ -38,7 +38,7 @@ import sys
 #from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from OpTestLpar import OpTestLpar
+from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
 
 class OpTestIPMI():
@@ -50,12 +50,12 @@ class OpTestIPMI():
     # @param i_bmcUser @type string: Userid to log into the BMC
     # @param i_bmcPwd @type string: Password of the userid to log into the BMC
     # @param i_ffdcDir @type string: Optional param to indicate where to write FFDC
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, i_lparip=None,
-                       i_lparuser=None, i_lparPasswd=None):
+    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, i_hostip=None,
+                       i_hostuser=None, i_hostPasswd=None):
 
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
@@ -64,9 +64,9 @@ class OpTestIPMI():
         self.cv_baseIpmiCmd = 'ipmitool -H %s -I lanplus -U %s -P %s ' \
                       % (self.cv_bmcIP, self.cv_bmcUser, self.cv_bmcPwd)
         self.util = OpTestUtil()
-        self.lpar_ip = i_lparip
-        self.lpar_user = i_lparuser
-        self.lpar_passwd = i_lparPasswd
+        self.host_ip = i_hostip
+        self.host_user = i_hostuser
+        self.host_passwd = i_hostPasswd
 
 
     ##
@@ -801,19 +801,19 @@ class OpTestIPMI():
         return l_con
 
     ##
-    # @brief This function make sure, ipmi console is activated and then login to the lpar
+    # @brief This function make sure, ipmi console is activated and then login to the host
     # if host is already up.
     #
     # @param i_con @type Object: it is a object of pexpect.spawn class
-    #        and this is the console object used for ipmi sol console access and for lpar login.
+    #        and this is the console object used for ipmi sol console access and for host login.
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def ipmi_lpar_login(self, i_con):
+    def ipmi_host_login(self, i_con):
         l_con = i_con
-        l_host = self.lpar_ip
-        l_user = self.lpar_user
-        l_pwd = self.lpar_passwd
+        l_host = self.host_ip
+        l_user = self.host_user
+        l_pwd = self.host_passwd
         l_rc = l_con.expect_exact(BMC_CONST.IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT, timeout=120)
         if l_rc == 0:
             print "IPMI: sol console activated"
@@ -832,7 +832,7 @@ class OpTestIPMI():
             if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_PASSWORD:
                 l_con.sendline(l_pwd)
             else:
-                l_msg = "Error: lpar login failed"
+                l_msg = "Error: host login failed"
                 raise OpTestError(l_msg)
         elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_PETITBOOT:
             l_msg = "Error: system is at petitboot"
@@ -847,17 +847,17 @@ class OpTestIPMI():
 
     ##
     # @brief This function will used for setting the shell prompt to [pexpect]#, so that it can be used for
-    #        running lpar os commands. Each time we can expect for this string [pexpect]#
+    #        running host os commands. Each time we can expect for this string [pexpect]#
     #
     # @param i_con @type Object: it is a object of pexpect.spawn class
     #                            this is the active ipmi sol console object
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def ipmi_lpar_set_unique_prompt(self, i_con):
+    def ipmi_host_set_unique_prompt(self, i_con):
         self.l_con = i_con
-        self.l_con.sendline(BMC_CONST.IPMI_LPAR_UNIQUE_PROMPT)
-        l_rc = self.l_con.expect_exact(BMC_CONST.IPMI_LPAR_EXPECT_PEXPECT_PROMPT)
+        self.l_con.sendline(BMC_CONST.IPMI_HOST_UNIQUE_PROMPT)
+        l_rc = self.l_con.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT)
         if l_rc == 0:
             print "Shell prompt changed"
             return BMC_CONST.FW_SUCCESS
@@ -866,24 +866,24 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
     ##
-    # @brief This function will be used for running lpar OS commands through ipmi console and for monitoring ipmi
+    # @brief This function will be used for running host OS commands through ipmi console and for monitoring ipmi
     #        console for any system boots and kernel panic's etc. This function will be helpfull when ssh to host or
     #        network is down. This function should be followed by below functions inorder to work properly.
     #        sys_get_ipmi_console()--> For getting ipmi console
-    #        ipmi_lpar_login()---> For login to lpar
-    #        ipmi_lpar_set_unique_prompt()--> For setting the unique shell prompt [pexpect]#
-    #        run_lpar_cmd_on_ipmi_console()--> Run the lpar commands and for monitoring ipmi console
+    #        ipmi_host_login()---> For login to host
+    #        ipmi_host_set_unique_prompt()--> For setting the unique shell prompt [pexpect]#
+    #        run_host_cmd_on_ipmi_console()--> Run the host commands and for monitoring ipmi console
     #
-    # @param i_cmd @type string: lpar linux command
+    # @param i_cmd @type string: host linux command
     #
     # @return res @type list: command output-if successfull,
     #                         monitor and returns console output(up to 8 mins)- if fails or raise OpTestError
     #
-    def run_lpar_cmd_on_ipmi_console(self, i_cmd):
+    def run_host_cmd_on_ipmi_console(self, i_cmd):
         self.l_con.sendline(i_cmd)
         time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         try:
-            rc = self.l_con.expect(BMC_CONST.IPMI_LPAR_EXPECT_PEXPECT_PROMPT_LIST, timeout=500)
+            rc = self.l_con.expect(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT_LIST, timeout=500)
             if rc == 0:
                 res = self.l_con.before
                 res = res.splitlines()
@@ -893,7 +893,7 @@ class OpTestIPMI():
                 res = res.split(i_cmd)
                 return res[-1].splitlines()
         except pexpect.ExceptionPexpect, e:
-            l_msg =  "lpar command execution on ipmi sol console failed"
+            l_msg =  "host command execution on ipmi sol console failed"
             print str(e)
             raise OpTestError(l_msg)
 
