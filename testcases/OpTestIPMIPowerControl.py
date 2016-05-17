@@ -38,7 +38,7 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestSystem import OpTestSystem
 from common.OpTestUtil import OpTestUtil
 
@@ -53,20 +53,20 @@ class OpTestIPMIPowerControl():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, i_lparip, i_lparuser, i_lparPasswd)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd, i_bmcIP)
+                                  i_ffdcDir, i_hostip, i_hostuser, i_hostPasswd)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
         self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_lparip,
-                         i_lparuser, i_lparPasswd)
+                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
+                         i_hostuser, i_hostPasswd)
         self.util = OpTestUtil()
 
     ##
@@ -97,7 +97,7 @@ class OpTestIPMIPowerControl():
         # Perform a IPMI Power ON Operation
         self.cv_IPMI.ipmi_power_on()
         self.check_system_status()
-        self.util.PingFunc(self.cv_LPAR.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         print "Performing a IPMI Soft Power OFF Operation"
         # Perform a IPMI Soft Power OFF Operation(Graceful shutdown)
@@ -112,19 +112,19 @@ class OpTestIPMIPowerControl():
         # Perform a IPMI Power ON Operation
         self.cv_IPMI.ipmi_power_on()
         self.check_system_status()
-        self.util.PingFunc(self.cv_LPAR.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         print "Performing a IPMI Power Cycle(Soft reboot) Operation "
         # Perform a IPMI Power Cycle(Soft reboot) Operation only when system is in ON state
         self.cv_IPMI.ipmi_power_cycle()
         self.check_system_status()
-        self.util.PingFunc(self.cv_LPAR.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         print "Performing a IPMI Power Hard Reset Operation"
         # Perform a IPMI Power Hard Reset Operation
         self.cv_IPMI.ipmi_power_reset()
         self.check_system_status()
-        self.util.PingFunc(self.cv_LPAR.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         return BMC_CONST.FW_SUCCESS
 

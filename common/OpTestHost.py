@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-auto-test/common/OpTestLpar.py $
+# $Source: op-auto-test/common/OpTestHost.py $
 #
 # OpenPOWER Automated Test Project
 #
@@ -24,10 +24,10 @@
 #
 # IBM_PROLOG_END_TAG
 
-## @package OpTestLpar
-#  Lpar package which contains all functions related to LPAR communication
+## @package OpTestHost
+#  Host package which contains all functions related to HOST communication
 #
-#  This class encapsulates all function which deals with the Lpar
+#  This class encapsulates all function which deals with the Host
 #  in OpenPower systems
 
 import sys
@@ -52,20 +52,20 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
 
-class OpTestLpar():
+class OpTestHost():
 
     ##
     # @brief Initialize this object
     #
-    # @param i_lparip @type string: IP Address of the lpar
-    # @param i_lparuser @type string: Userid to log into the lpar
-    # @param i_lparpasswd @type string: Password of the userid to log into the lpar
+    # @param i_hostip @type string: IP Address of the host
+    # @param i_hostuser @type string: Userid to log into the host
+    # @param i_hostpasswd @type string: Password of the userid to log into the host
     # @param i_bmcip @type string: IP Address of the bmc
     #
-    def __init__(self, i_lparip, i_lparuser, i_lparpasswd, i_bmcip):
-        self.ip = i_lparip
-        self.user = i_lparuser
-        self.passwd = i_lparpasswd
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip):
+        self.ip = i_hostip
+        self.user = i_hostuser
+        self.passwd = i_hostpasswd
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
 
@@ -211,7 +211,7 @@ class OpTestLpar():
     # @return l_oslevel @type string: OS level of the partition provided
     #         or raise OpTestError
     #
-    def lpar_get_OS_Level(self):
+    def host_get_OS_Level(self):
 
         l_oslevel = self._ssh_execute(BMC_CONST.BMC_GET_OS_RELEASE)
         print l_oslevel
@@ -223,7 +223,7 @@ class OpTestLpar():
     #
     # @return OpTestError if failed
     #
-    def lpar_protect_network_setting(self):
+    def host_protect_network_setting(self):
         try:
             l_rc = self._ssh_execute(BMC_CONST.OS_PRESERVE_NETWORK)
         except:
@@ -232,14 +232,14 @@ class OpTestLpar():
             raise OpTestError(l_errmsg)
 
     ##
-    # @brief Performs a cold reset onto the lpar
+    # @brief Performs a cold reset onto the host
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_cold_reset(self):
+    def host_cold_reset(self):
 
         print ("Applying Cold reset on partition.")
-        l_rc = self._ssh_execute(BMC_CONST.LPAR_COLD_RESET)
+        l_rc = self._ssh_execute(BMC_CONST.HOST_COLD_RESET)
 
         # TODO: enable once defect SW331585 is fixed
         '''if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
@@ -264,18 +264,18 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_code_update(self, i_image, imagecomponent):
+    def host_code_update(self, i_image, imagecomponent):
 
         # Copy the hpm file to the tmp folder in the partition
         try:
             self.util.copyFilesToDest(i_image, self.user,
                                              self.ip, "/tmp/", self.passwd)
         except:
-            l_msg = "Copying hpm file to lpar failed"
+            l_msg = "Copying hpm file to host failed"
             print l_msg
             raise OpTestError(l_msg)
 
-        #self.lpar_protect_network_setting() #writing to partition is not stable
+        #self.host_protect_network_setting() #writing to partition is not stable
         l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
                 + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
         print l_cmd
@@ -296,18 +296,18 @@ class OpTestLpar():
             raise OpTestError(l_msg)
 
     ##
-    # @brief It will run linux command(i_cmd) on lpar using private interface _ssh_execute()
+    # @brief It will run linux command(i_cmd) on host using private interface _ssh_execute()
     #        making this interface is public
     #
     # @param i_cmd @type string: linux command
     #
     # @return command output if command execution is successful else raises OpTestError
     #
-    def lpar_run_command(self, i_cmd):
+    def host_run_command(self, i_cmd):
         try:
             l_res = self._ssh_execute(i_cmd)
         except:
-            l_msg = "Command execution on lpar failed"
+            l_msg = "Command execution on host failed"
             print l_msg
             print sys.exc_info()
             raise OpTestError(l_msg)
@@ -315,39 +315,39 @@ class OpTestLpar():
         return l_res
 
     ##
-    # @brief It will check existence of given linux command(i_cmd) on lpar
+    # @brief It will check existence of given linux command(i_cmd) on host
     #
     # @param i_cmd @type string: linux command
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_check_command(self, i_cmd):
+    def host_check_command(self, i_cmd):
         l_cmd = 'which ' + i_cmd + '; echo $?'
         print l_cmd
-        l_res = self.lpar_run_command(l_cmd)
+        l_res = self.host_run_command(l_cmd)
         l_res = l_res.splitlines()
 
         if (int(l_res[-1]) == 0):
             return BMC_CONST.FW_SUCCESS
         else:
-            l_msg = "%s command is not present on lpar" % i_cmd
+            l_msg = "%s command is not present on host" % i_cmd
             print l_msg
             raise OpTestError(l_msg)
 
     ##
-    # @brief It will get the linux kernel version on lpar
+    # @brief It will get the linux kernel version on host
     #
     # @return l_kernel @type string: kernel version of the partition provided
     #         or raise OpTestError
     #
-    def lpar_get_kernel_version(self):
+    def host_get_kernel_version(self):
         l_kernel = self._ssh_execute("uname -a | awk {'print $3'}")
         l_kernel = l_kernel.replace("\r\n", "")
         print l_kernel
         return l_kernel
 
     ##
-    # @brief This function will checks first for config file for a given kernel version on lpar,
+    # @brief This function will checks first for config file for a given kernel version on host,
     #        if available then check for config option value and return that value
     #            whether it is y or m...etc.
     #        sample config option values:
@@ -361,17 +361,17 @@ class OpTestLpar():
     #                               Ex:CONFIG_SENSORS_IBMPOWERNV
     #
     # @return l_val @type string: It will return config option value y or m,
-    #                             or raise OpTestError if config file is not available on lpar
+    #                             or raise OpTestError if config file is not available on host
     #                             or raise OpTestError if config option is not set in file.
     #
-    def lpar_check_config(self, i_kernel, i_config):
+    def host_check_config(self, i_kernel, i_config):
         l_file = "/boot/config-%s" % i_kernel
         l_res = self._ssh_execute("test -e %s; echo $?" % l_file)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Config file is available"
         else:
-            l_msg = "Config file %s is not available on lpar" % l_file
+            l_msg = "Config file %s is not available on host" % l_file
             print l_msg
             raise OpTestError(l_msg)
         l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
@@ -388,14 +388,14 @@ class OpTestLpar():
         return l_val
 
     ##
-    # @brief It will return installed package name for given linux command(i_cmd) on lpar
+    # @brief It will return installed package name for given linux command(i_cmd) on host
     #
     # @param i_cmd @type string: linux command
     # @param i_oslevel @type string: OS level
     #
-    # @return l_pkg @type string: installed package on lpar
+    # @return l_pkg @type string: installed package on host
     #
-    def lpar_check_pkg_for_utility(self, i_oslevel, i_cmd):
+    def host_check_pkg_for_utility(self, i_oslevel, i_cmd):
         if 'Ubuntu' in i_oslevel:
             l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd)
             return l_res
@@ -414,7 +414,7 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_load_ibmpowernv(self, i_oslevel):
+    def host_load_ibmpowernv(self, i_oslevel):
         if "PowerKVM" not in i_oslevel:
             l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?")
             l_rc = l_rc.replace("\r\n", "")
@@ -437,7 +437,7 @@ class OpTestLpar():
             return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief This function restarts the lm_sensors service on lpar using systemctl utility
+    # @brief This function restarts the lm_sensors service on host using systemctl utility
     #        systemctl utility is not present in ubuntu, This function will work in remaining all
     #        other OS'es i.e redhat, sles and PowerKVM
     #
@@ -445,18 +445,18 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_start_lm_sensor_svc(self, i_oslevel):
+    def host_start_lm_sensor_svc(self, i_oslevel):
         if 'Ubuntu' in i_oslevel:
             pass
         else:
             try:
                 # Start the lm_sensors service
                 cmd = "/bin/systemctl stop  lm_sensors.service"
-                self.lpar_run_command(cmd)
+                self.host_run_command(cmd)
                 cmd = "/bin/systemctl start  lm_sensors.service"
-                self.lpar_run_command(cmd)
+                self.host_run_command(cmd)
                 cmd = "/bin/systemctl status  lm_sensors.service"
-                res = self.lpar_run_command(cmd)
+                res = self.host_run_command(cmd)
                 return BMC_CONST.FW_SUCCESS
             except:
                 l_msg = "loading lm_sensors service failed"
@@ -470,7 +470,7 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_clone_linux_source(self, i_dir):
+    def host_clone_linux_source(self, i_dir):
         l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
         self._ssh_execute("rm -rf %s" % i_dir)
@@ -490,7 +490,7 @@ class OpTestLpar():
     #
     # @return @type string: Chip and Core information
     #        else raise OpTestError
-    def lpar_read_msglog_core(self):
+    def host_read_msglog_core(self):
         try:
             return self._ssh_execute(BMC_CONST.OS_READ_MSGLOG_CORE)
         except:
@@ -511,7 +511,7 @@ class OpTestLpar():
     #
     # @return @type string: getscom data
     #        else raise OpTestError
-    def lpar_read_getscom_data(self, i_xscom_dir):
+    def host_read_getscom_data(self, i_xscom_dir):
         try:
             l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_GETSCOM_LIST)
         except OpTestError as e:
@@ -535,7 +535,7 @@ class OpTestLpar():
     #
     # @return output generated after executing putscom command or else raise OpTestError
     #
-    def lpar_putscom(self, i_xscom_dir, i_error):
+    def host_putscom(self, i_xscom_dir, i_error):
 
         print('Injecting Error.')
         l_rc = self._execute_no_return(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_PUTSCOM_ERROR + i_error)
@@ -547,7 +547,7 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or else raise OpTestError
     #
-    def lpar_clear_gard_records(self, i_gard_dir):
+    def host_clear_gard_records(self, i_gard_dir):
 
         l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.CLEAR_GARD_CMD)
 
@@ -557,7 +557,7 @@ class OpTestLpar():
             raise OpTestError(l_msg)
 
         # Check to make sure no gard records were left
-        l_result = self.lpar_list_gard_records(i_gard_dir)
+        l_result = self.host_list_gard_records(i_gard_dir)
         if(BMC_CONST.NO_GARD_RECORDS not in l_result):
             l_msg = l_rc + '. Gard records still found after clearing them'
             print l_msg
@@ -573,7 +573,7 @@ class OpTestLpar():
     #
     # @return gard records or else raise OpTestError
     #
-    def lpar_list_gard_records(self, i_gard_dir):
+    def host_list_gard_records(self, i_gard_dir):
         try:
             return self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.LIST_GARD_CMD)
         except:
@@ -583,7 +583,7 @@ class OpTestLpar():
 
 
     ##
-    # @brief  Execute a command on the targeted lpar but don't expect
+    # @brief  Execute a command on the targeted host but don't expect
     #             any return data.
     #
     # @param     i_cmd: @type str: command to be executed
@@ -615,7 +615,7 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or OpTestError
     #
-    def lpar_disable_enable_cpu_states(self, i_cpu_state):
+    def host_disable_enable_cpu_states(self, i_cpu_state):
         try:
             self._ssh_execute(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
                               BMC_CONST.CPU_IDLEMODE_STATE1 + "; do echo " + \
@@ -631,39 +631,39 @@ class OpTestLpar():
 
 
     ##
-    # @brief It will check existence of given linux command(i_cmd) on lpar
+    # @brief It will check existence of given linux command(i_cmd) on host
     #
     # @param i_cmd @type string: linux command
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_check_command(self, i_cmd):
+    def host_check_command(self, i_cmd):
         l_cmd = 'which ' + i_cmd + '; echo $?'
         print l_cmd
-        l_res = self.lpar_run_command(l_cmd)
+        l_res = self.host_run_command(l_cmd)
         l_res = l_res.splitlines()
 
         if (int(l_res[-1]) == 0):
             return BMC_CONST.FW_SUCCESS
         else:
-            l_msg = "%s command is not present on lpar" % i_cmd
+            l_msg = "%s command is not present on host" % i_cmd
             print l_msg
             raise OpTestError(l_msg)
 
     ##
-    # @brief It will get the linux kernel version on lpar
+    # @brief It will get the linux kernel version on host
     #
     # @return l_kernel @type string: kernel version of the partition provided
     #         or raise OpTestError
     #
-    def lpar_get_kernel_version(self):
+    def host_get_kernel_version(self):
         l_kernel = self._ssh_execute("uname -a | awk {'print $3'}")
         l_kernel = l_kernel.replace("\r\n", "")
         print l_kernel
         return l_kernel
 
     ##
-    # @brief This function will checks first for config file for a given kernel version on lpar,
+    # @brief This function will checks first for config file for a given kernel version on host,
     #        if available then check for config option value and return that value
     #            whether it is y or m...etc.
     #        sample config option values:
@@ -677,17 +677,17 @@ class OpTestLpar():
     #                               Ex:CONFIG_SENSORS_IBMPOWERNV
     #
     # @return l_val @type string: It will return config option value y or m,
-    #                             or raise OpTestError if config file is not available on lpar
+    #                             or raise OpTestError if config file is not available on host
     #                             or raise OpTestError if config option is not set in file.
     #
-    def lpar_check_config(self, i_kernel, i_config):
+    def host_check_config(self, i_kernel, i_config):
         l_file = "/boot/config-%s" % i_kernel
         l_res = self._ssh_execute("test -e %s; echo $?" % l_file)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Config file is available"
         else:
-            l_msg = "Config file %s is not available on lpar" % l_file
+            l_msg = "Config file %s is not available on host" % l_file
             print l_msg
             raise OpTestError(l_msg)
         l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
@@ -704,14 +704,14 @@ class OpTestLpar():
         return l_val
 
     ##
-    # @brief It will return installed package name for given linux command(i_cmd) on lpar
+    # @brief It will return installed package name for given linux command(i_cmd) on host
     #
     # @param i_cmd @type string: linux command
     # @param i_oslevel @type string: OS level
     #
-    # @return l_pkg @type string: installed package on lpar
+    # @return l_pkg @type string: installed package on host
     #
-    def lpar_check_pkg_for_utility(self, i_oslevel, i_cmd):
+    def host_check_pkg_for_utility(self, i_oslevel, i_cmd):
         if 'Ubuntu' in i_oslevel:
             l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd)
             return l_res
@@ -730,7 +730,7 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_load_ibmpowernv(self, i_oslevel):
+    def host_load_ibmpowernv(self, i_oslevel):
         if "PowerKVM" not in i_oslevel:
             l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?")
             l_rc = l_rc.replace("\r\n", "")
@@ -753,7 +753,7 @@ class OpTestLpar():
             return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief This function restarts the lm_sensors service on lpar using systemctl utility
+    # @brief This function restarts the lm_sensors service on host using systemctl utility
     #        systemctl utility is not present in ubuntu, This function will work in remaining all
     #        other OS'es i.e redhat, sles and PowerKVM
     #
@@ -761,18 +761,18 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_start_lm_sensor_svc(self, i_oslevel):
+    def host_start_lm_sensor_svc(self, i_oslevel):
         if 'Ubuntu' in i_oslevel:
             pass
         else:
             try:
                 # Start the lm_sensors service
                 cmd = "/bin/systemctl stop  lm_sensors.service"
-                self.lpar_run_command(cmd)
+                self.host_run_command(cmd)
                 cmd = "/bin/systemctl start  lm_sensors.service"
-                self.lpar_run_command(cmd)
+                self.host_run_command(cmd)
                 cmd = "/bin/systemctl status  lm_sensors.service"
-                res = self.lpar_run_command(cmd)
+                res = self.host_run_command(cmd)
                 return BMC_CONST.FW_SUCCESS
             except:
                 l_msg = "loading lm_sensors service failed"
@@ -786,7 +786,7 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_clone_linux_source(self, i_dir):
+    def host_clone_linux_source(self, i_dir):
         l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
         self._ssh_execute("rm -rf %s" % i_dir)
@@ -804,12 +804,12 @@ class OpTestLpar():
     ##
     # @brief It will load the module using modprobe and verify whether it is loaded or not
     #
-    # @param i_module @type string: module name, which we want to load on lpar
+    # @param i_module @type string: module name, which we want to load on host
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_load_module(self, i_module):
-        l_res = self.lpar_run_command("modprobe %s; echo $?" % i_module)
+    def host_load_module(self, i_module):
+        l_res = self.host_run_command("modprobe %s; echo $?" % i_module)
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             pass
@@ -817,7 +817,7 @@ class OpTestLpar():
             l_msg = "Error in loading the module %s, modprobe failed" % i_module
             print l_msg
             raise OpTestError(l_msg)
-        l_res = self.lpar_run_command("lsmod | grep -i --color=never %s" % i_module)
+        l_res = self.host_run_command("lsmod | grep -i --color=never %s" % i_module)
         if l_res.__contains__(i_module):
             print "%s module is loaded" % i_module
             return BMC_CONST.FW_SUCCESS
@@ -832,9 +832,9 @@ class OpTestLpar():
     # @return l_res @type string: return hwclock value if command execution successfull
     #           else raise OpTestError
     #
-    def lpar_read_hwclock(self):
+    def host_read_hwclock(self):
         print "Reading the hwclock"
-        l_res = self.lpar_run_command("hwclock -r;echo $?")
+        l_res = self.host_run_command("hwclock -r;echo $?")
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return l_res
@@ -849,9 +849,9 @@ class OpTestLpar():
     # @return l_res @type string: return system time value if command execution successfull
     #           else raise OpTestError
     #
-    def lpar_read_systime(self):
+    def host_read_systime(self):
         print "Reading system time using date utility"
-        l_res = self.lpar_run_command("date;echo $?")
+        l_res = self.host_run_command("date;echo $?")
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return l_res
@@ -868,9 +868,9 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_set_hwclock_time(self, i_time):
+    def host_set_hwclock_time(self, i_time):
         print "Setting the hwclock time to %s" % i_time
-        l_res = self.lpar_run_command("hwclock --set --date \'%s\';echo $?" % i_time)
+        l_res = self.host_run_command("hwclock --set --date \'%s\';echo $?" % i_time)
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return BMC_CONST.FW_SUCCESS
@@ -880,21 +880,21 @@ class OpTestLpar():
             raise OpTestError(l_msg)
 
     ##
-    # @brief This function will load driver module on lpar based on the config option
+    # @brief This function will load driver module on host based on the config option
     #        if config value m: built as a module
     #                        y: driver built into kernel itself
     #        else   raises OpTestError
     #
     # @param i_kernel @type string: kernel version to get config file
     #        i_config @type string: config option to check in config file
-    #        i_module @type string: driver module to load on lpar based on config value
+    #        i_module @type string: driver module to load on host based on config value
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_load_module_based_on_config(self, i_kernel, i_config, i_module):
-        l_val = self.lpar_check_config(i_kernel, i_config)
+    def host_load_module_based_on_config(self, i_kernel, i_config, i_module):
+        l_val = self.host_check_config(i_kernel, i_config)
         if l_val == 'm':
-            self.lpar_load_module(i_module)
+            self.host_load_module(i_module)
         elif l_val == 'y':
             print "Driver built into kernel itself"
         else:
@@ -904,7 +904,7 @@ class OpTestLpar():
         return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief This function will return the list of installed i2c buses on lpar in two formats
+    # @brief This function will return the list of installed i2c buses on host in two formats
     #        list-by number Ex: ["0","1","2",....]
     #        list-by-name  Ex: ["i2c-0","i2c-1","i2c-2"....]
     #
@@ -912,8 +912,8 @@ class OpTestLpar():
     #         l_list1 @type list: list of i2c buses by name
     #         or raise OpTestError if not able to get list of i2c buses
     #
-    def lpar_get_list_of_i2c_buses(self):
-        l_res = self.lpar_run_command("i2cdetect -l;echo $?")
+    def host_get_list_of_i2c_buses(self):
+        l_res = self.host_run_command("i2cdetect -l;echo $?")
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             pass
@@ -921,7 +921,7 @@ class OpTestLpar():
             l_msg = "Not able to get list of i2c buses"
             print l_msg
             raise OpTestError(l_msg)
-        l_res = self.lpar_run_command("i2cdetect -l | awk '{print $1}'")
+        l_res = self.host_run_command("i2cdetect -l | awk '{print $1}'")
         l_res = l_res.splitlines()
         # list by number Ex: ["0","1","2",....]
         l_list = []
@@ -942,16 +942,16 @@ class OpTestLpar():
     # @return l_res @type string: return EEPROM chips information
     #           else raise OpTestError
     #
-    def lpar_get_info_of_eeprom_chips(self):
+    def host_get_info_of_eeprom_chips(self):
         print "Getting the information of EEPROM chips"
-        l_res = self.lpar_run_command("dmesg | grep -i --color=never at24")
+        l_res = self.host_run_command("dmesg | grep -i --color=never at24")
         if l_res.__contains__("at24"):
             pass
         else:
-            l_res = self.lpar_run_command("dmesg -C")
-            self.lpar_run_command("rmmod at24")
-            self.lpar_load_module("at24")
-            l_res = self.lpar_run_command("dmesg | grep -i --color=never at24")
+            l_res = self.host_run_command("dmesg -C")
+            self.host_run_command("rmmod at24")
+            self.host_load_module("at24")
+            l_res = self.host_run_command("dmesg | grep -i --color=never at24")
             if l_res.__contains__("at24"):
                 pass
             else:
@@ -967,8 +967,8 @@ class OpTestLpar():
     # @return l_chips @type list: list having pairs of i2c bus number and eeprom chip address.
     #           else raise OpTestError
     #
-    def lpar_get_list_of_eeprom_chips(self):
-        l_res = self.lpar_run_command("find /sys/ -name eeprom;echo $?")
+    def host_get_list_of_eeprom_chips(self):
+        l_res = self.host_run_command("find /sys/ -name eeprom;echo $?")
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             pass
@@ -1001,8 +1001,8 @@ class OpTestLpar():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     #
-    def lpar_hexdump(self, i_dev):
-        l_res = self.lpar_run_command("hexdump -C %s;echo $?" % i_dev)
+    def host_hexdump(self, i_dev):
+        l_res = self.host_run_command("hexdump -C %s;echo $?" % i_dev)
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return BMC_CONST.FW_SUCCESS
@@ -1018,15 +1018,15 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_clone_skiboot_source(self, i_dir):
+    def host_clone_skiboot_source(self, i_dir):
         l_msg = 'https://github.com/open-power/skiboot.git/'
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self.lpar_run_command("git config --global http.sslverify false")
-        self.lpar_run_command("rm -rf %s" % i_dir)
-        self.lpar_run_command("mkdir %s" % i_dir)
+        self.host_run_command("git config --global http.sslverify false")
+        self.host_run_command("rm -rf %s" % i_dir)
+        self.host_run_command("mkdir %s" % i_dir)
         try:
             print l_cmd
-            l_res = self.lpar_run_command(l_cmd)
+            l_res = self.host_run_command(l_cmd)
             print l_res
             return BMC_CONST.FW_SUCCESS
         except:
@@ -1041,12 +1041,12 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_compile_xscom_utilities(self, i_dir):
+    def host_compile_xscom_utilities(self, i_dir):
         l_cmd = "cd %s/external/xscom-utils; make;" % i_dir
         print l_cmd
-        l_res = self.lpar_run_command(l_cmd)
+        l_res = self.host_run_command(l_cmd)
         l_cmd = "test -f %s/external/xscom-utils/getscom; echo $?" % i_dir
-        l_res = self.lpar_run_command(l_cmd)
+        l_res = self.host_run_command(l_cmd)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Executable binary getscom is available"
@@ -1055,7 +1055,7 @@ class OpTestLpar():
             print l_msg
             raise OpTestError(l_msg)
         l_cmd = "test -f %s/external/xscom-utils/putscom; echo $?" % i_dir
-        l_res = self.lpar_run_command(l_cmd)
+        l_res = self.host_run_command(l_cmd)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Executable binary putscom is available"
@@ -1072,12 +1072,12 @@ class OpTestLpar():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def lpar_compile_gard_utility(self, i_dir):
+    def host_compile_gard_utility(self, i_dir):
         l_cmd = "cd %s/external/gard; make;" % i_dir
         print l_cmd
-        l_res = self.lpar_run_command(l_cmd)
+        l_res = self.host_run_command(l_cmd)
         l_cmd = "test -f %s/external/gard/gard; echo $?" % i_dir
-        l_res = self.lpar_run_command(l_cmd)
+        l_res = self.host_run_command(l_cmd)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Executable binary gard is available"

@@ -52,8 +52,8 @@ def test_preserve_network_setting():
 def test_code_update():
     assert op_outofband_firmware_update.code_update() == 0
 
-def test_validate_lpar():
-    assert op_outofband_firmware_update.validate_lpar() == 0
+def test_validate_host():
+    assert op_outofband_firmware_update.validate_host() == 0
 
 def test_ipl_wait_for_working_state():
     assert op_outofband_firmware_update.ipl_wait_for_working_state() == 0

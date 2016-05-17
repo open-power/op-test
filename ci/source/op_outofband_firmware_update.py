@@ -57,7 +57,7 @@ sys.path.append(full_path)
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
@@ -66,20 +66,20 @@ def _config_read():
     bmcConfig = ConfigParser.RawConfigParser()
     configFile = os.path.join(os.path.dirname(__file__), 'op_ci_tools.cfg')
     bmcConfig.read(configFile)
-    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')), dict(bmcConfig.items('lpar'))
+    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')), dict(bmcConfig.items('host'))
 
 ''' Read the configuration settings into global space so they can be used by
     other functions '''
 
-bmcCfg, testCfg, lparCfg = _config_read()
+bmcCfg, testCfg, hostCfg = _config_read()
 opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
                          bmcCfg['password'],
                          bmcCfg['usernameipmi'],
                          bmcCfg['passwordipmi'],
                          testCfg['ffdcdir'],
-                         lparCfg['lparip'],
-                         lparCfg['lparuser'],
-                         lparCfg['lparpasswd'])
+                         hostCfg['hostip'],
+                         hostCfg['hostuser'],
+                         hostCfg['hostpasswd'])
 
 def test_init():
     """This function validates the test config before running other functions
@@ -91,7 +91,7 @@ def test_init():
         os.makedirs(os.path.dirname(ffdcDir))
 
     ''' make sure hpm image exists '''
-    hpmimage = lparCfg['hpmimage']
+    hpmimage = hostCfg['hpmimage']
     if not os.path.exists(hpmimage):
         print "FW HPM image %s does not exist!. Check config file." % hpmimage
         return 1
@@ -133,7 +133,7 @@ def ipmi_power_off():
     return opTestSys.sys_power_off()
 
 def cold_reset():
-    """This function Performs a cold reset onto the lpar
+    """This function Performs a cold reset onto the host
     :returns: int -- 0: success, 1: error
     """
     return opTestSys.cv_IPMI.ipmi_cold_reset()
@@ -150,16 +150,16 @@ def code_update():
     """This function Flashes component 1 Firmware image of hpm file using ipmitool
     :returns: int -- 0: success, 1: error
     """
-    opTestSys.cv_IPMI.ipmi_code_update(lparCfg['hpmimage'],str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+    opTestSys.cv_IPMI.ipmi_code_update(hostCfg['hpmimage'],str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
 
     return 0
 
-def validate_lpar():
+def validate_host():
     """This function validate that the OS/partition can be pinged.
 
     :returns: int -- 0: success, 1: error
     """
-    return opTestSys.sys_bmc_power_on_validate_lpar()
+    return opTestSys.sys_bmc_power_on_validate_host()
 
 def ipl_wait_for_working_state(timeout=10):
     """This function starts the sol capture and waits for the IPL to end. The
