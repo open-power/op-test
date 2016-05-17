@@ -48,7 +48,6 @@ OPTIONS is one or more of:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
    --testenv xxx : is this test to run only in specific environment with this tag
-         This may be overridden if env variable \$OP_TEST_ENV is set.
    --verbose : display additional debug information while executing
    --fverbose xxxx : Store additional diagnostic and informational messages
          when setting up and running the test in the specified file (default=none)
@@ -548,17 +547,6 @@ if ($filename eq "")
 {
     printErrorMsg("ERROR: you must specify a XML file defining the test\n");
     exit(9);
-}
-
-# Validate test_env
-if ($ENV{OP_TEST_ENV} ne "")
-{
-    $test_env = $ENV{OP_TEST_ENV};
-}
-else
-{
-    # Set env var for all tools/tests running below this script
-    $ENV{OP_TEST_ENV} = $test_env;
 }
 
 # if we were passed a --machine, save it off for checking against individual tests
