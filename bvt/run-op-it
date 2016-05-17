@@ -47,8 +47,6 @@ OPTIONS is one or more of:
    --debug xml | cmd : instead of running the test, do the specified debug:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
-   --logpfx xxxx : the string with which to prefix all log messages (this can be useful
-          if running multiple concurrent run-op-it commands to the same common log)
    --testenv xxx : is this test to run only in specific environment with this tag
          This may be overridden if env variable \$OP_TEST_ENV is set.
    --verbose : display additional debug information while executing
@@ -111,8 +109,6 @@ my @tcs;
 my $cmdtmpfile = "/tmp/run-op-it-cmd-$$.tmp";
 my $logfiledir = "";
 my $logfile = "";
-my $logpfx = "";
-my $logpfxstr = "";
 
 # killtree
 
@@ -155,13 +151,13 @@ sub printMsg
     if (! $quiet && ($debug ne "xml"))
     {
         my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
-        print "${timestamp} :: ${logpfxstr}${msg}";
-        vprint "${timestamp} :: ${logpfxstr}${msg}";
-        add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
+        print "${timestamp} :: ${msg}";
+        vprint "${timestamp} :: ${msg}";
+        add_log_hist("${timestamp} :: ${msg}");
         if ($logfile ne "")
         {
             open(LOGF, ">>$logfile");
-            print LOGF "${timestamp} :: ${logpfxstr}${msg}";
+            print LOGF "${timestamp} :: ${msg}";
             close(LOGF); # Always close/reopen because we have to send shell output to it
         }
     }
@@ -171,13 +167,13 @@ sub printErrorMsg
 {
     my ($msg) = @_;
     my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
-    print STDERR "${timestamp} :: ${logpfxstr}${msg}";
-    vprint "${timestamp} :: ${logpfxstr}${msg}";
-    add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
+    print STDERR "${timestamp} :: ${msg}";
+    vprint "${timestamp} :: ${msg}";
+    add_log_hist("${timestamp} :: ${msg}");
     if ($logfile ne "")
     {
         open(LOGF, ">>$logfile");
-        print LOGF "${timestamp} :: ${logpfxstr}${msg}";
+        print LOGF "${timestamp} :: ${msg}";
         close(LOGF); # Always close/reopen because we have to send shell output to it
     }
     write_log_hist("Failure summary from run-op-it running $filename");
@@ -280,7 +276,7 @@ END
 {
     if ($? && ($logfile ne ""))
     {
-        print "${logpfxstr}Output from this test saved in $logfile\n";
+        print "Output from this test saved in $logfile\n";
     }
 }
 
@@ -490,16 +486,7 @@ sub setLogfileName
 {
     my ($basedir) = @_;
     $logfiledir = $basedir;
-    if ($logpfx eq "")
-    {
-        $logfile = "$logfiledir/run-op-it-$$.log";
-    }
-    else
-    {
-        my $pfx = $logpfx;
-        $pfx =~ s/ /-/g;
-        $logfile = "$logfiledir/$pfx-run-op-it-$$.log";
-    }
+    $logfile = "$logfiledir/run-op-it-$$.log";
 }
 
 # parse the arguments
@@ -536,12 +523,6 @@ while(@argv)
         next;
     }
     if ($arg eq "--testenv") { $test_env = shift(@argv); next; }
-    if ($arg eq "--logpfx")
-    {
-        $logpfx = shift(@argv);
-        $logpfxstr = "${logpfx}: ";
-        next;
-    }
 
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
@@ -591,13 +572,6 @@ if ($xmlvars{machine} ne "")
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
 
-#if ($logpfxstr eq "")
-#{
-    #$logpfxstr = `whoami`;
-    #chomp($logpfxstr);
-    #$logpfxstr .= "-";
-#}
-
 if (is_verbose_enabled())
 {
     vprint "xmlvars{machine}: $xmlvars{machine}\n";
@@ -642,6 +616,6 @@ else
 }
 if ($logfile ne "")
 {
-    print "${logpfxstr}Output from this test saved in $logfile (simics server logs stored in same directory)\n";
+    print "Output from this test saved in $logfile (simics server logs stored in same directory)\n";
 }
 exit($totalrc);
