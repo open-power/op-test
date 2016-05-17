@@ -44,7 +44,7 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
 
 
@@ -58,21 +58,21 @@ class OpTestSwitchEndianSyscall():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd,i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd,i_bmcIP)
         self.util = OpTestUtil()
 
     ##
-    # @brief  If git and gcc commands are availble on lpar, this function will clone linux
+    # @brief  If git and gcc commands are availble on host, this function will clone linux
     #         git repository and check for switch_endian_test directory and make
     #         the required files. And finally execute bin file switch_endian_test.
     #
@@ -81,15 +81,15 @@ class OpTestSwitchEndianSyscall():
     def testSwitchEndianSysCall(self):
 
         # Get OS level
-        self.cv_LPAR.lpar_get_OS_Level()
+        self.cv_HOST.host_get_OS_Level()
 
-        # Check whether git and gcc commands are available on lpar
-        self.cv_LPAR.lpar_check_command("git")
-        self.cv_LPAR.lpar_check_command("gcc")
+        # Check whether git and gcc commands are available on host
+        self.cv_HOST.host_check_command("git")
+        self.cv_HOST.host_check_command("gcc")
 
         # Clone latest linux git repository into l_dir
         l_dir = "/tmp/linux"
-        self.cv_LPAR.lpar_clone_linux_source(l_dir)
+        self.cv_HOST.host_clone_linux_source(l_dir)
 
         # Check for switch_endian test directory.
         self.check_dir_exists(l_dir)
@@ -117,7 +117,7 @@ class OpTestSwitchEndianSyscall():
         l_dir = '%s/tools/testing/selftests/powerpc/switch_endian' % i_dir
         l_cmd = "test -d %s; echo $?" % l_dir
         print l_cmd
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         print l_res
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
@@ -141,9 +141,9 @@ class OpTestSwitchEndianSyscall():
         l_cmd = "cd %s/tools/testing/selftests/powerpc/switch_endian;\
                  make;" % i_dir
         print l_cmd
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         l_cmd = "test -f %s/tools/testing/selftests/powerpc/switch_endian/switch_endian_test; echo $?" % i_dir
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Executable binary switch_endian_test is available"
@@ -165,7 +165,7 @@ class OpTestSwitchEndianSyscall():
         l_cmd = "cd %s/tools/testing/selftests/powerpc/switch_endian/;\
                  ./switch_endian_test" % i_dir
         print l_cmd
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         if (l_res.__contains__('success: switch_endian_test')):
             return 1
         else:

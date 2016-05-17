@@ -42,7 +42,7 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
 
 class OpTestInbandIPMI():
@@ -55,17 +55,17 @@ class OpTestInbandIPMI():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd, i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
         self.util = OpTestUtil()
 
     ##
@@ -81,35 +81,35 @@ class OpTestInbandIPMI():
     def test_ipmi_inband_functionality(self):
 
         # Get OS level
-        l_oslevel = self.cv_LPAR.lpar_get_OS_Level()
+        l_oslevel = self.cv_HOST.host_get_OS_Level()
 
         # Get kernel version
-        l_kernel = self.cv_LPAR.lpar_get_kernel_version()
+        l_kernel = self.cv_HOST.host_get_kernel_version()
 
         # Checking for ipmitool command and lm_sensors package
-        self.cv_LPAR.lpar_check_command("ipmitool")
+        self.cv_HOST.host_check_command("ipmitool")
 
-        l_pkg = self.cv_LPAR.lpar_check_pkg_for_utility(l_oslevel, "ipmitool")
+        l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "ipmitool")
         print "Installed package: %s" % l_pkg
 
 
         # Checking Inband ipmitool command functionality with different options
         l_cmd = "ipmitool sdr; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool sdr not working,exiting...."
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool sdr elist full; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool sdr elist full not working,exiting...."
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool sdr type temperature; echo $?"
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         if l_res.__contains__("Temp"):
             print "ipmitool sdr type temperature is working"
         else:
@@ -118,7 +118,7 @@ class OpTestInbandIPMI():
 
 
         l_cmd = "ipmitool lan print 1; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool lan print command is not working,exiting...."
@@ -126,7 +126,7 @@ class OpTestInbandIPMI():
 
 
         l_cmd = "ipmitool fru print; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool fru print is not working,exiting...."
@@ -134,7 +134,7 @@ class OpTestInbandIPMI():
 
 
         l_cmd = "ipmitool chassis status | grep \"System Power\""
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         if l_res.__contains__("System Power         : on"):
             print "ipmitool Chassis status is working"
         else:
@@ -142,7 +142,7 @@ class OpTestInbandIPMI():
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool chassis identify 1; echo $?"
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         if l_res.__contains__("Chassis identify interval: 1 seconds"):
             print "ipmitool Chassis identify interval is working"
         else:
@@ -150,7 +150,7 @@ class OpTestInbandIPMI():
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool chassis identify force; echo $?"
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         if l_res.__contains__("Chassis identify interval: indefinite"):
             print "ipmitool Chassis identify interval is working"
         else:
@@ -159,7 +159,7 @@ class OpTestInbandIPMI():
 
 
         l_cmd = "ipmitool sensor list; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool sensor list is not working,exiting...."
@@ -167,14 +167,14 @@ class OpTestInbandIPMI():
 
 
         l_cmd = "ipmitool mc info; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool mc info is not working,exiting...."
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool mc selftest; echo $?"
-        l_res = self.cv_LPAR.lpar_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command(l_cmd)
         if l_res.__contains__("Selftest: passed"):
             print "ipmitool mc selftest is passed"
         else:
@@ -182,14 +182,14 @@ class OpTestInbandIPMI():
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool mc getenables; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool mc getenables is not working,exiting...."
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool mc watchdog get; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool mc watchdog get is not working,exiting...."
@@ -198,14 +198,14 @@ class OpTestInbandIPMI():
 
 
         l_cmd = "ipmitool sel info; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool sel info is not working,exiting...."
             raise OpTestError(l_msg)
 
         l_cmd = "ipmitool sel list; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool sel list is not working,exiting...."
@@ -213,10 +213,10 @@ class OpTestInbandIPMI():
 
 
         l_cmd = "ipmitool sel list last 3 | grep \"PCI resource configuration\" | awk \'{ print $1 }\'"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         l_cmd = "ipmitool sel get 0x" + response[1] + "; echo $?"
-        output = self.cv_LPAR.lpar_run_command(l_cmd)
+        output = self.cv_HOST.host_run_command(l_cmd)
         response = output.splitlines()
         if int(response[-1]):
             l_msg = "ipmitool sel get is not working,exiting...."

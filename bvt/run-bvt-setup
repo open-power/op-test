@@ -43,9 +43,9 @@ my $imagedir = "";
 my $ffdcdir = "ffdc/";
 my $imagename = "habanero.pnor";
 my $cfgfiledir = ".";
-my $lparip = "";
-my $lparuser = "";
-my $lparPasswd = "";
+my $hostip = "";
+my $hostuser = "";
+my $hostPasswd = "";
 my $hpmimage = "";
 
 my $usage = "Setup an OP CI BVT test config file per the passed arguments
@@ -78,10 +78,10 @@ ffdcdir = %s
 imagedir = %s
 imagename = %s
 
-[lpar]
-lparip = %s
-lparuser = %s
-lparPasswd = %s
+[host]
+hostip = %s
+hostuser = %s
+hostPasswd = %s
 prompt = \#
 hpmimage = %s
 
@@ -109,9 +109,9 @@ GetOptions("help|?|h" => \$help,
 	   "bmcpwd=s" => \$bmcpwd,
 	   "usernameipmi=s" => \$usernameipmi,
 	   "passwordipmi=s" => \$passwordipmi,
-	   "lparip=s" => \$lparip,
-	   "lparuser=s" => \$lparuser,
-	   "lparPasswd=s" => \$lparPasswd,
+	   "hostip=s" => \$hostip,
+	   "hostuser=s" => \$hostuser,
+	   "hostPasswd=s" => \$hostPasswd,
 	   "hpmimage:s" => \$hpmimage,
 	   "ffdcdir:s" => \$ffdcdir,
 	   "cfgfiledir:s" => \$cfgfiledir,
@@ -138,9 +138,9 @@ printf OUTF $cfgfile_fmt,
         $ffdcdir,
         $imagedir,
         $imagename,
-        $lparip,
-        $lparuser,
-        $lparPasswd,
+        $hostip,
+        $hostuser,
+        $hostPasswd,
         $hpmimage;
 close(OUTF);
 if ($verbose)
