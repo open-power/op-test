@@ -82,6 +82,7 @@ class OpTestConstants():
     SUDO_COMMAND = 'sudo '
     CLEAR_GARD_CMD = '/gard clear all'
     LIST_GARD_CMD = '/gard list'
+    OPAL_MSG_LOG = "cat /sys/firmware/opal/msglog"
 
     # Command to boot into PRIMARY and GOLDEN SIDE
     BMC_BOOT_PRIMARY = "/etc/init.d/boot_into_primary"
