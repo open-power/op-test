@@ -34,68 +34,24 @@ use Fcntl qw(:DEFAULT :flock LOCK_EX LOCK_UN);
 package OpTestInfra;
 
 my $verbose = 0;
-my $verbose_file = "";
 my $vp_indent = "";
-my $ppid = 0;
 
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(set_verbose is_verbose_enabled vprint trim findRelFile);
 @EXPORT_OK = qw($verbose $verbose_file);
 
-# set_verbose
-#    arg1 : 0=no verbose tracing, 1=verbose tracing to STDERRR
-#    arg2 : [optional] instead of STDERR append verbose output to this file
-#           (overrides arg1)
-
 sub set_verbose
 {
-    my ($vval, $vfile) = @_;
+    my ($vval) = @_;
     $verbose = $vval;
-    $verbose_file = $vfile;
-    $ppid = getppid();
-}
-
-sub is_verbose_enabled
-{
-    return( $verbose || ($verbose_file ne "") );
 }
 
 sub vprint
 {
     my ($str) = @_;
 
-    if ($verbose_file ne "")
-    {
-        if ($str =~ /^\</)
-        {
-            $vp_indent = substr($vp_indent, 3);
-        }
-        if (open(VF, ">>$verbose_file"))
-        {
-            flock(VF, Fcntl::LOCK_EX) || die "ERROR: could not lock $verbose_file : $!";
-            printf VF "%6d|%6d|${vp_indent}${str}", $ppid, $$;
-            flock(VF, Fcntl::LOCK_UN) || die "ERROR: could not unlock $verbose_file : $!";
-            close(VF);
-        }
-        if ($str =~ /^\>/)
-        {
-            $vp_indent .= "   ";
-        }
-    }
-    elsif ($verbose)
-    {
-        if ($str =~ /^\</)
-        {
-            $vp_indent = substr($vp_indent, 3);
-        }
-        printf STDERR "%6d|%6d|${vp_indent}${str}", $ppid, $$;
-        if ($str =~ /^\>/)
-        {
-            $vp_indent .= "   ";
-        }
-    }
-
+    print STDERR $0,": ",$str if $verbose;
 }
 
 sub trim
