@@ -37,15 +37,10 @@ my $verbose = 0;
 my $verbose_file = "";
 my $vp_indent = "";
 my $ppid = 0;
-my $failsumm_log = "";
-
-my @log_hist;
-my $log_hist_lim = 15;
-my $log_hist_count = 0;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(set_verbose is_verbose_enabled vprint set_failsumm_log clear_log_hist add_log_hist add_log_hist_file write_log_hist trim findRelFile);
+@EXPORT = qw(set_verbose is_verbose_enabled vprint trim findRelFile);
 @EXPORT_OK = qw($verbose $verbose_file);
 
 # set_verbose
@@ -101,96 +96,6 @@ sub vprint
         }
     }
 
-}
-
-# set_failsumm_log
-#    arg1 : Fully qualiified name of fail summary file
-#    arg2 : [optional] Size of log history to print in the fail summary file
-sub set_failsumm_log
-{
-    my ($fn, $lim) = @_;
-    $failsumm_log = $fn;
-    vprint "failsumm_log set to: $failsumm_log\n";
-    if (($lim ne "") && ($lim != 0))
-    {
-        $log_hist_lim = $lim;
-    }
-    $ppid = getppid();
-}
-
-sub clear_log_hist
-{
-    @log_hist = ();
-    $log_hist_count = 0;
-}
-
-sub add_log_hist
-{
-    my ($msg) = @_;
-    push(@log_hist, $msg);
-    if ($log_hist_count == $log_hist_lim)
-    {
-        shift(@log_hist);
-    }
-    else
-    {
-        ++$log_hist_count;
-    }
-}
-
-sub add_log_hist_file
-{
-    my ($msg_file) = @_;
-    my $msg_lines = `tail -${log_hist_lim} ${msg_file}`;
-    chomp($msg_lines);
-    my @msgs = split(/\n/, $msg_lines);
-    foreach my $msg (@msgs)
-    {
-        add_log_hist("$msg\n");
-    }
-}
-
-# write_log_hist
-#    arg1 : Write history separator line? (blank=no, non-blank=yes, and use this text in it)
-sub write_log_hist
-{
-    my ($septitle) = @_;
-
-    if ($failsumm_log eq "")
-    {
-        return;
-    }
-
-    my $mach_var = $ENV{xmlvars_machine};
-
-    # Append log history to failsumm_log file
-    if (open(FSL, ">>$failsumm_log"))
-    {
-        if ($septitle ne "")
-        {
-            if ($mach_var ne "")
-            {
-                print FSL "\n----- $septitle (machine: $ENV{xmlvars_machine}) -----\n";
-            }
-            else
-            {
-                print FSL "\n----- $septitle -----\n";
-            }
-
-        }
-        foreach my $msg (@log_hist)
-        {
-            print FSL "$msg";
-        }
-        close(FSL);
-    }
-    else
-    {
-        vprint "Unable to open $failsumm_log to write log history!  Continuing on...\n";
-    }
-
-    # Clear history for next write
-    clear_log_hist();
 }
 
 sub trim

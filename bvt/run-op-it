@@ -149,7 +149,6 @@ sub printMsg
         my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
         print "${timestamp} :: ${msg}";
         vprint "${timestamp} :: ${msg}";
-        add_log_hist("${timestamp} :: ${msg}");
         if ($logfile ne "")
         {
             open(LOGF, ">>$logfile");
@@ -165,14 +164,12 @@ sub printErrorMsg
     my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
     print STDERR "${timestamp} :: ${msg}";
     vprint "${timestamp} :: ${msg}";
-    add_log_hist("${timestamp} :: ${msg}");
     if ($logfile ne "")
     {
         open(LOGF, ">>$logfile");
         print LOGF "${timestamp} :: ${msg}";
         close(LOGF); # Always close/reopen because we have to send shell output to it
     }
-    write_log_hist("Failure summary from run-op-it running $filename");
 }
 
 sub runCmd
@@ -208,7 +205,6 @@ sub runCmd
         {
             vprint "Running: cat $cmdtmpfile\n";
             system("cat $cmdtmpfile");
-            add_log_hist_file($cmdtmpfile);
             vprint "Running: cat $cmdtmpfile >>$logfile\n";
             system("cat $cmdtmpfile >>$logfile");
         }
@@ -574,7 +570,6 @@ if ($totalrc == 0)
 else
 {
     $totalrc = 1;
-    set_failsumm_log(""); # Turn off so don't get final exit msg in summary
     printErrorMsg("ERROR: Finished tests on $tmp with one or more testcase errors.\n");
 }
 if ($logfile ne "")
