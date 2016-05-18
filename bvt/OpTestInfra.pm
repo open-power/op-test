@@ -223,16 +223,8 @@ sub findRelFile
     }
     else
     {
-        if ($ENV{OP_TEST_BASE_TEST_DIR} ne "")
-        {
-            $fullname = $ENV{OP_TEST_BASE_TEST_DIR};
-            $fullname .= "/${relname}";
-        }
-        else
-        {
-            # Assume it's in $PATH
-            $fullname = $relname;
-        }
+	# Assume it's in $PATH
+	$fullname = $relname;
     }
 
     vprint "<findRelFile($relname) returning: $fullname\n";

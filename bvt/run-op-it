@@ -55,7 +55,6 @@ OPTIONS is one or more of:
           \"yyy\" when processing the file.  This enables the .xml file
           to be used as a template that can be used to run a variety of
           tests.
-   Env var OP_TEST_FAILSUMM_LOG : If set, log failure summary data to specified file.
 ";
 my $quiet = 0; # Do not display standard messages?
 my $fvfile = "";
@@ -527,10 +526,6 @@ while(@argv)
     $filename = $arg;
 }
 
-if ($ENV{OP_TEST_FAILSUMM_LOG} ne "")
-{
-    set_failsumm_log($ENV{OP_TEST_FAILSUMM_LOG});
-}
 
 if ($filename eq "")
 {
@@ -553,15 +548,6 @@ if (is_verbose_enabled())
 {
     vprint "xmlvars{machine}: $xmlvars{machine}\n";
     vprint "test_env: $test_env\n";
-    vprint "OP_TEST env vars:\n";
-    if ($fvfile ne "")
-    {
-        system("env | grep OP_TEST_ >>$fvfile");
-    }
-    else
-    {
-        system("env | grep OP_TEST_");
-    }
 }
 
 # export %%variables%% for read-op-xml-it (which is run under fips-it-list)
