@@ -382,7 +382,6 @@ else
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
 set_failsumm_log("${savedir}/failsumm.log");
-$ENV{OP_TEST_FAILSUMM_LOG} = "${savedir}/failsumm.log"; # Set so lower-level tools can find it
 
 File::Path::make_path($resdir) if (! -d "${resdir}");
 File::Path::make_path($tmpdir) if (! -d "${tmpdir}");
