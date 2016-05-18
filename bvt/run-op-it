@@ -258,9 +258,9 @@ sub runCmdTest
     }
 
     # Convert relative path (if any) to absolute path
-    my $x86_script_file = findRelFile($testcase);
+    my $test_script_file = findRelFile($testcase);
 
-    $testrc = runCmd("$x86_script_file $args", 1);
+    $testrc = runCmd("$test_script_file $args", 1);
     $totalrc += $testrc;
 
     vprint "<runCmdTest (testrc: $testrc   totalrc: $totalrc)\n";
