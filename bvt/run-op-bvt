@@ -83,7 +83,6 @@ my $test_state;
 my $test_xml;
 my $rc = 0;
 my $savedir = "";
-my $clear_failsumm = 1;
 
 my $test_env = "hw";
 my $restrict_env = "";
@@ -99,15 +98,10 @@ Where OPTIONS is zero or more of:
    --savedir /path/to/savedir : specifies the directory under which to save all
              BVT log and FFDC data.  Subdirectories will be created under this
              directory as needed:
-                 failsumm.log : Failure summary log (suitable for including in failure notifications)
                  xxx_bvt_N : base dir for each sandbox created/used
                  xxx_bvt_N/debug : dir containing /nfs/debug capture (normally, FFDC)
              If this option is not specified, /tmp/userid/bvt/20yy-mm-dd-pid is used.
-   --noclrfailsumm : indicates to not clear the failsumm.log file befoe starting, just
-             append to it.  The default is to clear it and then append during the test execution.
    --verbose : Display extra debug statements during execution
-   --fverbose xxxx : Store additional diagnostic and informational messages
-         when setting up and running the test in the specified file (default=none)
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
              to be a .xml file substitution variable. In this case, all
              instances of \"%%xxx%%\" in the .xml file will be replaced by
@@ -149,14 +143,12 @@ sub logprint
     {
         print "${timestamp} :: $msg";
     }
-    add_log_hist("${timestamp} :: $msg");
 }
 
 sub errprint
 {
     my ($msg) = @_;
     logprint("$msg", 1);
-    write_log_hist("Failure summary from run-op-bvt running $bvtxmlfile");
 }
 
 sub doVarSub
@@ -230,7 +222,6 @@ sub runTest
 {
     my ($test_id, $title, $mach, $relxmlfile) = @_;
     vprint ">runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
-    my $pid = 0;
     my $machine_opt = "";
 
     if ($mach eq "%%default%%")
@@ -284,9 +275,7 @@ $| = 1; # Force STDOUT to be unbuffered so we get output in the right order
 my $help = 0;
 $commandline = $0 . " ". (join " ", @ARGV);
 GetOptions('help|?|h' => \$help,
-	   'noclrfailsumm' => sub { $clear_failsumm = 0;},
 	   'verbose' => sub { set_verbose(1); $verbose_str = "--verbose"; },
-	   'fverbose=s' => sub { $fvfile = "$_"; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" ;},
 	   'savedir=s' => \$savedir,
     ) or syntax();
 
@@ -322,10 +311,6 @@ if ($savedir eq "")
     $tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
 		   localtime->mon + 1, localtime->mday);
     $savedir .= "${tmp}-$$";
-}
-if ($clear_failsumm)
-{
-    unlink "${savedir}/failsumm.log", $fvfile;
 }
 
 logprint "Command line: $commandline\n";
@@ -385,9 +370,6 @@ else
 #-------------------------------------------------------------------------------
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
-set_failsumm_log("${savedir}/failsumm.log");
-$ENV{OP_TEST_FAILSUMM_LOG} = "${savedir}/failsumm.log"; # Set so lower-level tools can find it
-
 File::Path::make_path($resdir) if (! -d "${resdir}");
 File::Path::make_path($tmpdir) if (! -d "${tmpdir}");
 File::Path::make_path($logdir) if (! -d "${logdir}");
@@ -460,15 +442,9 @@ if ($totalrc == 0)
 }
 else
 {
-    clear_log_hist(); # Clear local history because individual tests have already logged any failures
     errprint "ERROR: Finished BVT tests on $tmp with $totalrc testcase failures.\n";
 }
 
 copy($logfile, "${savedir}/");
 print "All logs and FFDC saved under $savedir\n";
-if ($totalrc)
-{
-    add_log_hist("All logs and FFDC saved under $savedir\n");
-    write_log_hist();
-}
 exit $totalrc;

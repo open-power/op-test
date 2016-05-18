@@ -53,8 +53,6 @@ sub syntax()
     print "   file.xml : the test definition file\n";
     print "\nWhere OPTIONS is one or more of:\n";
     print "   --verbose : display additional debug information while executing\n";
-    print "   --fverbose xxxx : Store additional diagnostic and informational messages\n";
-    print "         when setting up and running the test in the specified file (default=none)\n";
     exit(1);
 }
 
@@ -62,7 +60,6 @@ my $help = 0;
 
 GetOptions("help|h|?" => \$help,
 	   "verbose" => sub { set_verbose(1); $verbose_str = "--verbose"; },
-	   "fverbose:s" => sub { $fvfile = shift; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" },
 	   "include" => sub { $processing_include = 1; },
 	   "<>" => sub { $filename = shift; }
     ) or syntax();

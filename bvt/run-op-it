@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015-2016
 # [+] International Business Machines Corp.
 #
 #
@@ -47,20 +47,14 @@ OPTIONS is one or more of:
    --debug xml | cmd : instead of running the test, do the specified debug:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
-   --logpfx xxxx : the string with which to prefix all log messages (this can be useful
-          if running multiple concurrent run-op-it commands to the same common log)
    --testenv xxx : is this test to run only in specific environment with this tag
-         This may be overridden if env variable \$OP_TEST_ENV is set.
    --verbose : display additional debug information while executing
-   --fverbose xxxx : Store additional diagnostic and informational messages
-         when setting up and running the test in the specified file (default=none)
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
           to be a .xml file substitution variable. In this case, all
           instances of \"%%xxx%%\" in the .xml file will be replaced by
           \"yyy\" when processing the file.  This enables the .xml file
           to be used as a template that can be used to run a variety of
           tests.
-   Env var OP_TEST_FAILSUMM_LOG : If set, log failure summary data to specified file.
 ";
 my $quiet = 0; # Do not display standard messages?
 my $fvfile = "";
@@ -111,8 +105,6 @@ my @tcs;
 my $cmdtmpfile = "/tmp/run-op-it-cmd-$$.tmp";
 my $logfiledir = "";
 my $logfile = "";
-my $logpfx = "";
-my $logpfxstr = "";
 
 # killtree
 
@@ -155,13 +147,12 @@ sub printMsg
     if (! $quiet && ($debug ne "xml"))
     {
         my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
-        print "${timestamp} :: ${logpfxstr}${msg}";
-        vprint "${timestamp} :: ${logpfxstr}${msg}";
-        add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
+        print "${timestamp} :: ${msg}";
+        vprint "${timestamp} :: ${msg}";
         if ($logfile ne "")
         {
             open(LOGF, ">>$logfile");
-            print LOGF "${timestamp} :: ${logpfxstr}${msg}";
+            print LOGF "${timestamp} :: ${msg}";
             close(LOGF); # Always close/reopen because we have to send shell output to it
         }
     }
@@ -171,16 +162,14 @@ sub printErrorMsg
 {
     my ($msg) = @_;
     my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
-    print STDERR "${timestamp} :: ${logpfxstr}${msg}";
-    vprint "${timestamp} :: ${logpfxstr}${msg}";
-    add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
+    print STDERR "${timestamp} :: ${msg}";
+    vprint "${timestamp} :: ${msg}";
     if ($logfile ne "")
     {
         open(LOGF, ">>$logfile");
-        print LOGF "${timestamp} :: ${logpfxstr}${msg}";
+        print LOGF "${timestamp} :: ${msg}";
         close(LOGF); # Always close/reopen because we have to send shell output to it
     }
-    write_log_hist("Failure summary from run-op-it running $filename");
 }
 
 sub runCmd
@@ -216,7 +205,6 @@ sub runCmd
         {
             vprint "Running: cat $cmdtmpfile\n";
             system("cat $cmdtmpfile");
-            add_log_hist_file($cmdtmpfile);
             vprint "Running: cat $cmdtmpfile >>$logfile\n";
             system("cat $cmdtmpfile >>$logfile");
         }
@@ -280,7 +268,7 @@ END
 {
     if ($? && ($logfile ne ""))
     {
-        print "${logpfxstr}Output from this test saved in $logfile\n";
+        print "Output from this test saved in $logfile\n";
     }
 }
 
@@ -311,7 +299,8 @@ sub runAllTests
         $xmldata =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
     }
 
-    if (is_verbose_enabled()) { vprint "xmldata:\n"; vprint "$xmldata\n"; }
+    vprint "xmldata:\n";
+    vprint "$xmldata\n";
 
     my $dom = XML::LibXML->load_xml(string => $xmldata);
 
@@ -490,23 +479,13 @@ sub setLogfileName
 {
     my ($basedir) = @_;
     $logfiledir = $basedir;
-    if ($logpfx eq "")
-    {
-        $logfile = "$logfiledir/run-op-it-$$.log";
-    }
-    else
-    {
-        my $pfx = $logpfx;
-        $pfx =~ s/ /-/g;
-        $logfile = "$logfiledir/$pfx-run-op-it-$$.log";
-    }
+    $logfile = "$logfiledir/run-op-it-$$.log";
 }
 
 # parse the arguments
 my @argv = @ARGV;
 my $arg;
 $xmlvars{verbose} = "";
-$xmlvars{fverbose} = "";
 
 while(@argv)
 {
@@ -521,14 +500,6 @@ while(@argv)
         $xmlvars{verbose} = "--verbose";
         next;
     }
-    if ($arg eq "--fverbose")
-    {
-        $fvfile = shift(@argv);
-        set_verbose(1, $fvfile);
-        $verbose_str = "--fverbose $fvfile";
-        $xmlvars{fverbose} = "--fverbose $fvfile";
-        next;
-    }
     if ($arg eq "--debug")
     {
         $debug = shift(@argv);
@@ -536,12 +507,6 @@ while(@argv)
         next;
     }
     if ($arg eq "--testenv") { $test_env = shift(@argv); next; }
-    if ($arg eq "--logpfx")
-    {
-        $logpfx = shift(@argv);
-        $logpfxstr = "${logpfx}: ";
-        next;
-    }
 
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
@@ -558,26 +523,11 @@ while(@argv)
     $filename = $arg;
 }
 
-if ($ENV{OP_TEST_FAILSUMM_LOG} ne "")
-{
-    set_failsumm_log($ENV{OP_TEST_FAILSUMM_LOG});
-}
 
 if ($filename eq "")
 {
     printErrorMsg("ERROR: you must specify a XML file defining the test\n");
     exit(9);
-}
-
-# Validate test_env
-if ($ENV{OP_TEST_ENV} ne "")
-{
-    $test_env = $ENV{OP_TEST_ENV};
-}
-else
-{
-    # Set env var for all tools/tests running below this script
-    $ENV{OP_TEST_ENV} = $test_env;
 }
 
 # if we were passed a --machine, save it off for checking against individual tests
@@ -591,27 +541,8 @@ if ($xmlvars{machine} ne "")
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
 
-#if ($logpfxstr eq "")
-#{
-    #$logpfxstr = `whoami`;
-    #chomp($logpfxstr);
-    #$logpfxstr .= "-";
-#}
-
-if (is_verbose_enabled())
-{
-    vprint "xmlvars{machine}: $xmlvars{machine}\n";
-    vprint "test_env: $test_env\n";
-    vprint "OP_TEST env vars:\n";
-    if ($fvfile ne "")
-    {
-        system("env | grep OP_TEST_ >>$fvfile");
-    }
-    else
-    {
-        system("env | grep OP_TEST_");
-    }
-}
+vprint "xmlvars{machine}: $xmlvars{machine}\n";
+vprint "test_env: $test_env\n";
 
 # export %%variables%% for read-op-xml-it (which is run under fips-it-list)
 exportXmlVars();
@@ -637,11 +568,10 @@ if ($totalrc == 0)
 else
 {
     $totalrc = 1;
-    set_failsumm_log(""); # Turn off so don't get final exit msg in summary
     printErrorMsg("ERROR: Finished tests on $tmp with one or more testcase errors.\n");
 }
 if ($logfile ne "")
 {
-    print "${logpfxstr}Output from this test saved in $logfile (simics server logs stored in same directory)\n";
+    print "Output from this test saved in $logfile (simics server logs stored in same directory)\n";
 }
 exit($totalrc);
