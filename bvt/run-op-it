@@ -299,7 +299,8 @@ sub runAllTests
         $xmldata =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
     }
 
-    if (is_verbose_enabled()) { vprint "xmldata:\n"; vprint "$xmldata\n"; }
+    vprint "xmldata:\n";
+    vprint "$xmldata\n";
 
     my $dom = XML::LibXML->load_xml(string => $xmldata);
 
@@ -540,11 +541,8 @@ if ($xmlvars{machine} ne "")
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
 
-if (is_verbose_enabled())
-{
-    vprint "xmlvars{machine}: $xmlvars{machine}\n";
-    vprint "test_env: $test_env\n";
-}
+vprint "xmlvars{machine}: $xmlvars{machine}\n";
+vprint "test_env: $test_env\n";
 
 # export %%variables%% for read-op-xml-it (which is run under fips-it-list)
 exportXmlVars();
