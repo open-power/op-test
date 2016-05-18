@@ -51,8 +51,6 @@ Syntax: op-it-list [OPTIONS] filename.xml
 Where OPTIONS is zero or more of:
    --q : (quiet) Do validation only but do not list the contents
    --verbose : Display extra debug statements during execution
-   --fverbose xxxx : Store additional diagnostic and informational messages
-         when setting up and running the test in the specified file (default=none)
 \n";
 
 my $schemafn = "op-it.xsd";
@@ -198,7 +196,6 @@ GetOptions("help|h|?" => \$help,
 	   "list" => sub { $test_type = "list"; },
 	   "q" => sub { $test_type = "q"; },
 	   "verbose" => sub { set_verbose(1); $verbose_str = "--verbose"; },
-	   "fverbose:s" => sub { $fvfile = shift; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile"; },
 	   "<>" => sub { $xmlfile_arg = shift }
     ) or syntax();
 

@@ -106,8 +106,6 @@ Where OPTIONS is zero or more of:
    --noclrfailsumm : indicates to not clear the failsumm.log file befoe starting, just
              append to it.  The default is to clear it and then append during the test execution.
    --verbose : Display extra debug statements during execution
-   --fverbose xxxx : Store additional diagnostic and informational messages
-         when setting up and running the test in the specified file (default=none)
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
              to be a .xml file substitution variable. In this case, all
              instances of \"%%xxx%%\" in the .xml file will be replaced by
@@ -285,7 +283,6 @@ $commandline = $0 . " ". (join " ", @ARGV);
 GetOptions('help|?|h' => \$help,
 	   'noclrfailsumm' => sub { $clear_failsumm = 0;},
 	   'verbose' => sub { set_verbose(1); $verbose_str = "--verbose"; },
-	   'fverbose=s' => sub { $fvfile = "$_"; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" ;},
 	   'savedir=s' => \$savedir,
     ) or syntax();
 

@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015-2016
 # [+] International Business Machines Corp.
 #
 #
@@ -49,8 +49,6 @@ OPTIONS is one or more of:
           cmd : just display all commands instead of running them
    --testenv xxx : is this test to run only in specific environment with this tag
    --verbose : display additional debug information while executing
-   --fverbose xxxx : Store additional diagnostic and informational messages
-         when setting up and running the test in the specified file (default=none)
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
           to be a .xml file substitution variable. In this case, all
           instances of \"%%xxx%%\" in the .xml file will be replaced by
@@ -492,7 +490,6 @@ sub setLogfileName
 my @argv = @ARGV;
 my $arg;
 $xmlvars{verbose} = "";
-$xmlvars{fverbose} = "";
 
 while(@argv)
 {
@@ -505,14 +502,6 @@ while(@argv)
         set_verbose(1);
         $verbose_str = "--verbose";
         $xmlvars{verbose} = "--verbose";
-        next;
-    }
-    if ($arg eq "--fverbose")
-    {
-        $fvfile = shift(@argv);
-        set_verbose(1, $fvfile);
-        $verbose_str = "--fverbose $fvfile";
-        $xmlvars{fverbose} = "--fverbose $fvfile";
         next;
     }
     if ($arg eq "--debug")
