@@ -26,7 +26,8 @@
 
 # Read integration test XML file to stdout and expand include nesting
 #
-# Author: Alan Hlava
+# Author: Stewart Smith
+# Based on earlier work by: Alan Hlava
 
 use strict;
 
@@ -36,15 +37,7 @@ use Getopt::Long;
 use OpTestInfra;
 use XML::LibXML;
 
-my $fvfile = "";
-my $verbose_str = "";
-
 my $filename = "";
-my $infilename = "";
-my $incfilename = "";
-my $x;
-my $include_count = 1;
-my $processing_include = 0; # Internal flag to indicate we're processing an <include> rather than the outermost XML file
 
 sub syntax()
 {
@@ -52,19 +45,15 @@ sub syntax()
     print "Syntax: read-op-xml-it [OPTIONS] file.xml\n";
     print "   file.xml : the test definition file\n";
     print "\nWhere OPTIONS is one or more of:\n";
-    print "   --verbose : display additional debug information while executing\n";
-    print "   --fverbose xxxx : Store additional diagnostic and informational messages\n";
-    print "         when setting up and running the test in the specified file (default=none)\n";
+    print "   --help : this message\n";
     exit(1);
 }
 
 my $help = 0;
 
 GetOptions("help|h|?" => \$help,
-	   "verbose" => sub { set_verbose(1); $verbose_str = "--verbose"; },
-	   "fverbose:s" => sub { $fvfile = shift; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" },
-	   "include" => sub { $processing_include = 1; },
-	   "<>" => sub { $filename = shift; }
+	   "<>" => sub { die "Specify only one filename" if($filename);
+			 $filename = shift; }
     ) or syntax();
 
 syntax() if $help;
@@ -75,10 +64,7 @@ if ($filename eq "")
     exit(9);
 }
 
-vprint "Starting read-op-xml-it\n";
-vprint "processing_include: $processing_include\n";
-
-$infilename = findRelFile($filename);
+my $infilename = findRelFile($filename);
 my $parser = XML::LibXML->new();
 my $dom = XML::LibXML->load_xml(location => $infilename);
 $parser->process_xincludes($dom);
