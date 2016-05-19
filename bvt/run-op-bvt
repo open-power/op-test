@@ -236,7 +236,7 @@ sub runTest
 
     # Run the test
     logprint "Starting \"${test_title}\" ($test_xml)\n";
-    $cmd = "run-op-it $verbose_str --logpfx ${test_id} --testenv $test_env $machine_opt $xmlvars_it $relxmlfile";
+    $cmd = "run-op-it $verbose_str --testenv $test_env $machine_opt $xmlvars_it $relxmlfile";
     if (runCmd($cmd))
     {
         errprint "ERROR: \"${test_title}\" ($test_xml) finished with one or more errors\n";

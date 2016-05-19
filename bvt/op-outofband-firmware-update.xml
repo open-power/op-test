@@ -27,8 +27,6 @@
 <integrationtest>
     <platform>
 
-        <xi:include href="op-ci-setup.xml" parse="xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
-
         <test>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.test_init()"</cmd>

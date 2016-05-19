@@ -21,18 +21,43 @@ And also below perl modules are required in order to run this framework.
 on fedora: sudo yum install perl-XML-LibXML-Common
 on ubuntu: sudo aptitude install libxml-libxml-perl
 
-### Examples ###
+You will also need (recent) ipmiutil - 1.8.15 or above should be adequate.
 
+### Preparation ###
 
-**BVT**
+**Machine Configuration**
 
-Run the op-ci-basic-bvt.xml which will update the BMC and PNOR images on the BMC, validate the partition comes up, and also validate a variety of reboots and IPMI commands.
+Copy the bvt/op-machines-example.xml file and use its layout (specified
+in bvt/op-machines.xsd) to specify the machines in your test lab.
 
-    ./run-op-bvt --bmcip <bmc ip> --bmcuser <bmc userid> --bmcpwd <bmc passwd> --usernameipmi <ipmi login> --passwordipmi <ipmi passwd> --cfgfiledir "../ci/source/" --imagedir <dir of pnor image> --imagename palmetto.pnor ./op-ci-basic-bvt.xml
+The machines.xml should be kept *private* as it will contain passwords
+for machines.
+
+**Known good firmware**
+
+It's good to supply known good firmware so that if everything goes horribly
+wrong running the regression tests, the test suite can attempt to un-brick
+the machine with known good firmware.
+
+This is useful in a lab environment where the machines are shared.
+
+**Firmware to test**
+
+Firmware to test can either already be on the target machine, or can be
+flashed by the test harness.
+
+Put firmware in firmware-to-test/platform/
+
+For example, for ibm,garrison platform, firmware-to-test/ibm,garrison/ would
+be the directory to place the firmware for a Garrison machine. In this case,
+it would be the garrison.pnor and/or HPM files.
+
+### Running the tests ###
+
+    ./run --machines machines.xml --machine my-openpower-box
 
 ### Notes ###
 
-- Code Update works using the IPMITOOL.
 - You need to have the bvt directory in your PATH
 
 

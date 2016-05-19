@@ -88,10 +88,12 @@ def test_init():
         os.makedirs(os.path.dirname(ffdcDir))
 
     ''' make sure PNOR image exists '''
-    pnorImg = testCfg['imagedir'] + testCfg['imagename']
-    if not os.path.exists(pnorImg):
-        print "PNOR image %s does not exist!. Check config file." % pnorImg
-        return 1
+    try:
+        pnorImg = testCfg['imagedir'] + testCfg['imagename']
+        if not os.path.exists(pnorImg):
+            print "WARNING: PNOR image %s does not exist!. Check config file." % pnorImg
+    except KeyError:
+        print "WARNING: No PNOR image specified!"
 
     return 0
 
