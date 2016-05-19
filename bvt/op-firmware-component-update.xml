@@ -27,8 +27,6 @@
 <integrationtest>
     <platform>
 
-        <include>op-ci-setup.xml</include>
-
         <test>
             <testcase>
                 <cmd>op-ci-bmc-run "op_firmware_component_update.validate_host()"</cmd>

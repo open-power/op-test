@@ -1,0 +1,234 @@
+#!/usr/bin/perl
+# OpenPOWER Automated Test Project
+#
+# Contributors Listed Below - COPYRIGHT 2016
+# [+] International Business Machines Corp.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+
+# Runs the test suite on machine(s)
+
+# Author: Stewart Smith
+
+use strict;
+
+use XML::LibXML;
+use Getopt::Long;
+use Cwd;
+
+my $verbose = 0;
+
+my $usage = "Run OpenPower tests on machine(s).
+
+Syntax: run [OPTIONS]
+
+Where OPTIONS is zero or more of:
+   --help : Display this message
+   --verbose : Run in verbose mode
+   --machines filexml : machines tests can run on
+   --machine name : run test on machine only
+   --noflash : Prevents flashing of firmware (i.e. use what's already there)
+   --suite file.xml : the BVT test suite to run
+   --test-firmware dir/ : the firmware to test. Path to where .pnor file is
+   --good-firmware dir/ : known good firmware. Path to where .pnor file is
+\n";
+
+my $schema_filename = "bvt/op-machines.xsd";
+
+sub syntax()
+{
+    print "$usage";
+    exit(1);
+}
+
+my $help = 0;
+my $machines_xml = "machines.xml";
+my $machine;
+my $noflash = 0;
+my $suite = "op-ci-basic-bvt.xml";
+my $test_firmware;
+my $good_firmware;
+my $test_result = "out";
+
+GetOptions("help|h|?" => \$help,
+	   "verbose" => \$verbose,
+	   "machines=s" => \$machines_xml,
+	   "machine=s" => \$machine,
+	   "suite=s" => \$suite,
+	   "noflash" => \$noflash,
+	   "test-firmware=s" => \$test_firmware,
+	   "good-firmware=s" => \$good_firmware,
+	   "test-result=s" => \$test_result,
+    ) or syntax();
+
+syntax() if $help;
+
+die "The directory '$test_result' already exists!
+Remove previous test results and run again." if -e $test_result;
+
+mkdir $test_result;
+
+if ($machines_xml eq "")
+{
+    print STDERR "ERROR: you must specify a machines XML file to test\n";
+    exit(1);
+}
+
+my $parser = XML::LibXML->new();
+my $dom = XML::LibXML->load_xml(location => $machines_xml);
+$parser->process_xincludes($dom);
+
+# Validate the resulting XML
+my $xmlschema = XML::LibXML::Schema->new(location => $schema_filename);
+my $valid = eval { $xmlschema->validate($dom) };
+die if $valid ne 0;
+my $xmldata = $parser->parse_file($machines_xml);
+
+sub validate_firmware {
+    my ($platform, $firmware) = @_;
+
+    return 0 if $noflash;
+
+    return 0 if -f $firmware;
+
+    # TODO: Make this less hacky
+    die "Flashing firenze is unsupported" if ($platform eq "ibm,firenze");
+
+    if ($platform eq "tyan,palmetto" or
+	$platform eq "tyan,habanero" or
+	$platform eq "ibm,firestone" or
+	$platform eq "ibm,garrison")
+    {
+	my $pnorname = get_firmware_image_name($platform);
+	my $pnordir = get_firmware_path($firmware,$platform);
+	die if ! $pnorname;
+	die "Not found: $pnordir/$pnorname" if ! -e "$pnordir/$pnorname";
+	return 0;
+    }
+
+    die "Need to update test script with new platform $platform";
+}
+
+sub get_firmware_path {
+    my ($dir, $platform) = @_;
+
+    return "$dir/$platform/";
+}
+
+sub get_firmware_image_name {
+    my ($platform) = @_;
+
+    if ($platform eq "tyan,palmetto" ||
+	$platform eq "tyan,habanero" ||
+	$platform eq "ibm,firestone" ||
+	$platform eq "ibm,garrison")
+    {
+	my $pnorname = (split ',',$platform)[1];
+	return $pnorname.".pnor";
+    }
+
+    die "We don't know what the firmware image name is for this platform";
+}
+
+sub print_init_param {
+    my ($f,$a,$m,$p) = @_;
+    my $value = ($m->findnodes($p))->to_literal;
+    print $f "$a = ".$value."\n" if $value;
+}
+
+sub create_config_file {
+    my ($platform, $m,$filename) = @_;
+    my $f;
+    open $f,'>',$filename or die;
+    print $f "[bmc]\n";
+    print_init_param($f,'ip',$m,'./bmc/hostname');
+    print_init_param($f,'username',$m,'./bmc/user');
+    print_init_param($f,'password',$m,'./bmc/password');
+    print_init_param($f,'usernameipmi',$m,'./bmc/ipmi-user');
+    print_init_param($f,'passwordipmi',$m,'./bmc/ipmi-password');
+    print $f "prompt = \\#\n";
+    print $f "\n";
+    print $f "[test]\n";
+    print $f "ffdcdir = ".cwd()."\n";
+    my $firmware_path = get_firmware_path($test_firmware, $platform);
+    my $firmware_image = get_firmware_image_name($platform);
+    unless ($noflash) {
+	print $f "imagedir = ".cwd()."/$firmware_path\n";
+	print $f "imagename = $firmware_image\n";
+    }
+    print $f "\n";
+    print $f "[host]\n";
+    print_init_param($f,'hostip',$m,'./host/hostname');
+    print_init_param($f,'hostuser',$m,'./host/user');
+    print_init_param($f,'hostPasswd',$m,'./host/password');
+    print $f "prompt = \\#\n";
+    #hpmimage = %s
+    print $f "\n";
+    close $f;
+}
+
+sub cmd_param {
+    my ($a,$m,$p) = @_;
+    my $value = ($m->findnodes($p))->to_literal;
+    return " --$a ".$value if $value;
+    return "";
+}
+
+my @machines = $xmldata->findnodes('/machines/machine');
+foreach my $m (@machines)
+{
+    my $name = ($m->findnodes('./name'))->to_literal;
+    my $platform = ($m->findnodes('./platform'))->to_literal;
+    next if ($machine ne $name);
+
+    if (!$noflash) {
+	$good_firmware = "good-firmware/" unless $good_firmware;
+	$test_firmware = "firmware-to-test/" unless $test_firmware;
+
+	die "Didn't find valid good firmware" if validate_firmware($platform, $good_firmware);
+	die "Didn't find valid firmware to test" if validate_firmware($platform, $test_firmware);
+    }
+
+    # We now output the commands to run the BVT on this machine
+    # In theory, machines can have > 1 host IP and > 1 BMC
+    # This code is currently likely broken for that.
+
+    my $cmd = "(cd bvt; PATH=.:\$PATH ./run-op-bvt ";
+
+    print "# Running test for $platform on $name\n";
+    $cmd .= cmd_param('bmcip',$m,'./bmc/hostname');
+    $cmd .= cmd_param('bmcuser',$m,'./bmc/user');
+    $cmd .= cmd_param('bmcpwd',$m,'./bmc/password');
+    $cmd .= cmd_param('usernameipmi',$m,'./bmc/ipmi-user');
+    $cmd .= cmd_param('passwordipmi',$m,'./bmc/ipmi-password');
+    $cmd .= cmd_param('hostip',$m,'./host/hostname');
+    $cmd .= cmd_param('hostuser',$m,'./host/user');
+    $cmd .= cmd_param('hostPasswd',$m,'./host/password');
+    $cmd .= " $suite)\n";
+
+    #--ffdcdir %%ffdcdir%%
+    if ($test_firmware) {
+	my $image_name = get_firmware_image_name($platform);
+	$cmd .= " --imagedir $test_firmware";
+	$cmd .= " --imagename $image_name";
+    }
+    #--hpmimage %%hpmimage%%
+
+    create_config_file($platform, $m, 'ci/source/op_ci_tools.cfg');
+
+    print $cmd if $verbose;
+
+    my $rc = system($cmd);
+    exit $rc;
+}

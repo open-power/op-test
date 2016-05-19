@@ -27,9 +27,6 @@
 
 <integrationtest>
     <platform>
-
-      <xi:include href="op-ci-setup.xml" parse="xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
-
         <test>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.test_init()"</cmd>
