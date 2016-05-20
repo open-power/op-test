@@ -103,3 +103,7 @@ def test_ipmi_lock_mode():
 
 def test_ipmi_power_control():
     assert op_opal_fvt.test_ipmi_power_control() == 0
+
+
+def test_oob_ipmi():
+    assert op_opal_fvt.test_oob_ipmi() == 0
