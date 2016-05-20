@@ -24,13 +24,10 @@
 #
 # IBM_PROLOG_END_TAG
 # Logs the SOL output to both stdout and log file.  Requires command line args:
-set bmcIP  [lindex  $argv 0]
-set bmcUser [lindex  $argv 1]
-set bmcPwd [lindex  $argv 2]
-set solLogFileName  [lindex $argv 3]
+set solLogFileName  [lindex $argv 0]
 
 log_file -noappend $solLogFileName
-spawn ipmitool -H $bmcIP -I lanplus -U $bmcUser -P $bmcPwd sol activate
+eval spawn [lrange $argv 1 $argc] sol activate
 set timeout -1
 expect {
     eof {
