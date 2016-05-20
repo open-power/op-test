@@ -250,11 +250,8 @@ class OpTestIPMI():
             print 'SOL already deactivated'
         time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
-        cmd = os.getcwd() + '/../common/sol_logger.exp %s %s %s %s' % (
-            self.cv_bmcIP,
-            self.cv_bmcUser,
-            self.cv_bmcPwd,
-            logFile)
+        cmd = os.getcwd() + "/../common/sol_logger.exp %s %s" % (
+            logFile, self.cv_baseIpmiCmd)
         print cmd
         try:
             solChild = subprocess.Popen(cmd, shell=True)
