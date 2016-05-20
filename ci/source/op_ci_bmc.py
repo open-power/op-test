@@ -68,10 +68,11 @@ def _config_read():
     other functions '''
 
 bmcCfg, testCfg, hostCfg = _config_read()
+
 opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
                          bmcCfg['password'],
-                         bmcCfg['usernameipmi'],
-                         bmcCfg['passwordipmi'],
+                         bmcCfg.get('usernameipmi'),
+                         bmcCfg.get('passwordipmi'),
                          testCfg['ffdcdir'],
                          hostCfg['hostip'],
                          hostCfg['hostuser'],

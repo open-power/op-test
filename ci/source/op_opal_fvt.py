@@ -73,16 +73,16 @@ def _config_read():
 bmcCfg, testCfg, hostCfg = _config_read()
 opTestSensors = OpTestSensors(bmcCfg['ip'], bmcCfg['username'],
                               bmcCfg['password'],
-                              bmcCfg['usernameipmi'],
-                              bmcCfg['passwordipmi'],
+                              bmcCfg.get('usernameipmi'),
+                              bmcCfg.get('passwordipmi'),
                               testCfg['ffdcdir'], hostCfg['hostip'],
                               hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestSwitchEndianSyscall = OpTestSwitchEndianSyscall(bmcCfg['ip'],
                                                       bmcCfg['username'],
                                                       bmcCfg['password'],
-                                                      bmcCfg['usernameipmi'],
-                                                      bmcCfg['passwordipmi'],
+                                                      bmcCfg.get('usernameipmi'),
+                                                      bmcCfg.get('passwordipmi'),
                                                       testCfg['ffdcdir'],
                                                       hostCfg['hostip'],
                                                       hostCfg['hostuser'],
@@ -91,8 +91,8 @@ opTestSwitchEndianSyscall = OpTestSwitchEndianSyscall(bmcCfg['ip'],
 opTestRTCdriver = OpTestRTCdriver(bmcCfg['ip'],
                                   bmcCfg['username'],
                                   bmcCfg['password'],
-                                  bmcCfg['usernameipmi'],
-                                  bmcCfg['passwordipmi'],
+                                  bmcCfg.get('usernameipmi'),
+                                  bmcCfg.get('passwordipmi'),
                                   testCfg['ffdcdir'],
                                   hostCfg['hostip'],
                                   hostCfg['hostuser'],
@@ -100,65 +100,65 @@ opTestRTCdriver = OpTestRTCdriver(bmcCfg['ip'],
 
 opTestAt24driver = OpTestAt24driver(bmcCfg['ip'], bmcCfg['username'],
                                     bmcCfg['password'],
-                                    bmcCfg['usernameipmi'],
-                                    bmcCfg['passwordipmi'],
+                                    bmcCfg.get('usernameipmi'),
+                                    bmcCfg.get('passwordipmi'),
                                     testCfg['ffdcdir'], hostCfg['hostip'],
                                     hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestI2Cdriver = OpTestI2Cdriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg['password'],
-                                  bmcCfg['usernameipmi'],
-                                  bmcCfg['passwordipmi'],
+                                  bmcCfg.get('usernameipmi'),
+                                  bmcCfg.get('passwordipmi'),
                                   testCfg['ffdcdir'], hostCfg['hostip'],
                                   hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestHeartbeat = OpTestHeartbeat(bmcCfg['ip'], bmcCfg['username'],
                               bmcCfg['password'],
-                              bmcCfg['usernameipmi'],
-                              bmcCfg['passwordipmi'],
+                              bmcCfg.get('usernameipmi'),
+                              bmcCfg.get('passwordipmi'),
                               testCfg['ffdcdir'], hostCfg['hostip'],
                               hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestMtdPnorDriver = OpTestMtdPnorDriver(bmcCfg['ip'], bmcCfg['username'],
                                           bmcCfg['password'],
-                                          bmcCfg['usernameipmi'],
-                                          bmcCfg['passwordipmi'],
+                                          bmcCfg.get('usernameipmi'),
+                                          bmcCfg.get('passwordipmi'),
                                           testCfg['ffdcdir'], hostCfg['hostip'],
                                           hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestInbandIPMI = OpTestInbandIPMI(bmcCfg['ip'], bmcCfg['username'],
                               bmcCfg['password'],
-                              bmcCfg['usernameipmi'],
-                              bmcCfg['passwordipmi'],
+                              bmcCfg.get('usernameipmi'),
+                              bmcCfg.get('passwordipmi'),
                               testCfg['ffdcdir'], hostCfg['hostip'],
                               hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestHMIHandling = OpTestHMIHandling(bmcCfg['ip'], bmcCfg['username'],
                                           bmcCfg['password'],
-                                          bmcCfg['usernameipmi'],
-                                          bmcCfg['passwordipmi'],
+                                          bmcCfg.get('usernameipmi'),
+                                          bmcCfg.get('passwordipmi'),
                                           testCfg['ffdcdir'], hostCfg['hostip'],
                                           hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg['password'],
-                                  bmcCfg['usernameipmi'],
-                                  bmcCfg['passwordipmi'],
+                                  bmcCfg.get('usernameipmi'),
+                                  bmcCfg.get('passwordipmi'),
                                   testCfg['ffdcdir'], hostCfg['hostip'],
                                   hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestIPMILockMode = OpTestIPMILockMode(bmcCfg['ip'], bmcCfg['username'],
                                         bmcCfg['password'],
-                                        bmcCfg['usernameipmi'],
-                                        bmcCfg['passwordipmi'],
+                                        bmcCfg.get('usernameipmi'),
+                                        bmcCfg.get('passwordipmi'),
                                         testCfg['ffdcdir'], hostCfg['hostip'],
                                         hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 
 opTestIPMIPowerControl = OpTestIPMIPowerControl(bmcCfg['ip'], bmcCfg['username'],
                                         bmcCfg['password'],
-                                        bmcCfg['usernameipmi'],
-                                        bmcCfg['passwordipmi'],
+                                        bmcCfg.get('usernameipmi'),
+                                        bmcCfg.get('passwordipmi'),
                                         testCfg['ffdcdir'], hostCfg['hostip'],
                                         hostCfg['hostuser'], hostCfg['hostpasswd'])
 
