@@ -61,8 +61,12 @@ class OpTestIPMI():
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd
         self.cv_ffdcDir = i_ffdcDir
-        self.cv_baseIpmiCmd = 'ipmitool -H %s -I lanplus -U %s -P %s ' \
-                      % (self.cv_bmcIP, self.cv_bmcUser, self.cv_bmcPwd)
+        self.cv_baseIpmiCmd = 'ipmitool -H %s -I lanplus' % (self.cv_bmcIP)
+        if self.cv_bmcUser:
+            self.cv_baseIpmiCmd += ' -U %s' % (self.cv_bmcUser)
+        if self.cv_bmcPwd:
+            self.cv_baseIpmiCmd += ' -P %s' % (self.cv_bmcPwd)
+        self.cv_baseIpmiCmd += ' '
         self.util = OpTestUtil()
         self.host_ip = i_hostip
         self.host_user = i_hostuser
