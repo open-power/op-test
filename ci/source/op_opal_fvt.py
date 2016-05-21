@@ -58,6 +58,7 @@ from testcases.OpTestPrdDriver import OpTestPrdDriver
 from testcases.OpTestIPMILockMode import OpTestIPMILockMode
 from testcases.OpTestIPMIPowerControl import OpTestIPMIPowerControl
 from testcases.OpTestOOBIPMI import OpTestOOBIPMI
+from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
 
 
 def _config_read():
@@ -170,6 +171,13 @@ opTestOOBIPMI = OpTestOOBIPMI(bmcCfg['ip'], bmcCfg['username'],
                                         bmcCfg['passwordipmi'],
                                         testCfg['ffdcdir'], lparCfg['lparip'],
                                         lparCfg['lparuser'], lparCfg['lparpasswd'])
+
+opTestSystemBootSequence = OpTestSystemBootSequence(bmcCfg['ip'], bmcCfg['username'],
+                                                    bmcCfg['password'],
+                                                    bmcCfg['usernameipmi'],
+                                                    bmcCfg['passwordipmi'],
+                                                    testCfg['ffdcdir'], lparCfg['lparip'],
+                                                    lparCfg['lparuser'], lparCfg['lparpasswd'])
 
 
 def test_init():
@@ -319,3 +327,17 @@ def test_oob_ipmi():
         returns: int 0-success, raises exception-error
     """
     return opTestOOBIPMI.test_oob_ipmi()
+
+
+def test_mc_cold_reset_boot_sequence():
+    """This function tests MC Cold reset boot sequence
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testMcColdResetBootSequence()
+
+
+def test_mc_warm_reset_boot_sequence():
+    """This function tests MC Warm reset boot sequence
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testMcWarmResetBootSequence()
