@@ -64,7 +64,7 @@ opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
 
 
 def validate_host():
-    """This function Validates the partition and waits for partition to connect
+    """This function Validates the host and waits for host to connect
     :returns: int -- 0: success, 1: error
     """
     opTestSys.sys_bmc_validate_host()

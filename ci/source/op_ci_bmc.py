@@ -220,7 +220,7 @@ def ipmi_sel_check():
     return opTestSys.sys_sel_check(selDesc)
 
 def validate_host():
-    """This function validate that the OS/partition can be pinged.
+    """This function validate that the host OS can be pinged.
 
     :returns: int -- 0: success, 1: error
     """

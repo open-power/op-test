@@ -208,7 +208,7 @@ class OpTestHost():
     ##
     # @brief Get and Record Ubunto OS level
     #
-    # @return l_oslevel @type string: OS level of the partition provided
+    # @return l_oslevel @type string: OS level of the host provided
     #         or raise OpTestError
     #
     def host_get_OS_Level(self):
@@ -238,7 +238,7 @@ class OpTestHost():
     #
     def host_cold_reset(self):
 
-        print ("Applying Cold reset on partition.")
+        print ("Applying Cold reset on host.")
         l_rc = self._ssh_execute(BMC_CONST.HOST_COLD_RESET)
 
         # TODO: enable once defect SW331585 is fixed
@@ -266,7 +266,7 @@ class OpTestHost():
     #
     def host_code_update(self, i_image, imagecomponent):
 
-        # Copy the hpm file to the tmp folder in the partition
+        # Copy the hpm file to the tmp folder in the host
         try:
             self.util.copyFilesToDest(i_image, self.user,
                                              self.ip, "/tmp/", self.passwd)
@@ -275,7 +275,7 @@ class OpTestHost():
             print l_msg
             raise OpTestError(l_msg)
 
-        #self.host_protect_network_setting() #writing to partition is not stable
+        #self.host_protect_network_setting() #writing to host is not stable
         l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
                 + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
         print l_cmd
@@ -337,7 +337,7 @@ class OpTestHost():
     ##
     # @brief It will get the linux kernel version on host
     #
-    # @return l_kernel @type string: kernel version of the partition provided
+    # @return l_kernel @type string: kernel version of the host provided
     #         or raise OpTestError
     #
     def host_get_kernel_version(self):
@@ -653,7 +653,7 @@ class OpTestHost():
     ##
     # @brief It will get the linux kernel version on host
     #
-    # @return l_kernel @type string: kernel version of the partition provided
+    # @return l_kernel @type string: kernel version of the host provided
     #         or raise OpTestError
     #
     def host_get_kernel_version(self):
