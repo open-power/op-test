@@ -215,6 +215,7 @@ foreach my $m (@machines)
     $cmd .= cmd_param('hostip',$m,'./host/hostname');
     $cmd .= cmd_param('hostuser',$m,'./host/user');
     $cmd .= cmd_param('hostPasswd',$m,'./host/password');
+    $cmd .= " --result ".cwd()."/out/";
     $cmd .= " $suite)\n";
 
     #--ffdcdir %%ffdcdir%%
