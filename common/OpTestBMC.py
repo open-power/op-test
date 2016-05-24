@@ -93,7 +93,7 @@ class OpTestBMC():
                     f.write(p.before)
 
             p.sendline('echo $?')
-            index = p.expect(['0', pexpect.TIMEOUT])
+            index = p.expect(['0', '1', pexpect.TIMEOUT])
         except:
             l_msg = "__cmd_run Failed"
             print sys.exc_info()
@@ -102,7 +102,11 @@ class OpTestBMC():
 
         if index == 0:
             rc = 0
-        if index == 1:
+        elif index == 1:
+            l_msg = "pflash not on BMC"
+            print l_msg
+            raise OpTestError(l_msg)
+        elif index == 2:
             l_msg = 'Non-zero return code detected, command failed'
             print l_msg
             raise OpTestError(l_msg)
