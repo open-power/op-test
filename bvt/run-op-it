@@ -24,9 +24,10 @@
 #
 # IBM_PROLOG_END_TAG
 
-# Run simics/FSP automated integration test
+# Run OpenPOWER automated integration test
 #
-# Author: Alan Hlava
+# Original Author: Alan Hlava
+# Heavily reworked by Stewart Smith
 
 use strict;
 
@@ -77,6 +78,7 @@ restrict_env => '$'
 
 1;
 
+use Getopt::Long qw(:config pass_through);
 use OpTestInfra;
 use OPBVTXML;
 
@@ -103,8 +105,7 @@ my $testcaseid = "";
 my @tcs;
 
 my $cmdtmpfile = "/tmp/run-op-it-cmd-$$.tmp";
-my $logfiledir = "";
-my $logfile = "";
+my $logfile;
 
 # killtree
 
@@ -475,39 +476,26 @@ sub exportXmlVars
     }
 }
 
-sub setLogfileName
-{
-    my ($basedir) = @_;
-    $logfiledir = $basedir;
-    $logfile = "$logfiledir/run-op-it-$$.log";
-}
-
 # parse the arguments
-my @argv = @ARGV;
-my $arg;
 $xmlvars{verbose} = "";
 
-while(@argv)
+my $help;
+my $resdir;
+
+GetOptions('help|?|h' => \$help,
+	   'verbose' => sub { set_verbose(1);
+			      $verbose_str = "--verbose";
+			      $xmlvars{verbose} = "--verbose"; },
+	   'debug=s' => sub { $debug = shift; set_verbose(1); },
+	   'testenv=s' => \$test_env,
+	   'result=s' => \$resdir,
+    ) or syntax();
+
+syntax() if $help;
+
+my @argv = @ARGV;
+while (my $arg = shift @argv)
 {
-    $arg = shift(@argv);
-
-    if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
-
-    if ($arg eq "--verbose")
-    {
-        set_verbose(1);
-        $verbose_str = "--verbose";
-        $xmlvars{verbose} = "--verbose";
-        next;
-    }
-    if ($arg eq "--debug")
-    {
-        $debug = shift(@argv);
-        set_verbose(1); # Debug stmts done using vprint, so need to enable it!
-        next;
-    }
-    if ($arg eq "--testenv") { $test_env = shift(@argv); next; }
-
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
     {
@@ -529,6 +517,8 @@ if ($filename eq "")
     printErrorMsg("ERROR: you must specify a XML file defining the test\n");
     exit(9);
 }
+
+$logfile = "$resdir/$filename.log" if $resdir;
 
 # if we were passed a --machine, save it off for checking against individual tests
 if ($xmlvars{machine} ne "")
