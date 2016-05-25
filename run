@@ -48,7 +48,7 @@ my $schema_filename = "bvt/op-machines.xsd";
 
 sub syntax()
 {
-    print "$usage";
+    print STDERR "$usage";
     exit(1);
 }
 
