@@ -40,7 +40,9 @@ use Getopt::Long qw(:config pass_through);
 use Time::localtime;
 use OpTestInfra;
 use OPBVTXML;
+use Test::More;
 
+my $quiet;
 my $verbose_str = "";
 my $fvfile = "";
 my $commandline;
@@ -94,6 +96,7 @@ Where bvtfile.xml is the master BVT XML file.
 
 Where OPTIONS is zero or more of:
    --verbose : Display extra debug statements during execution
+   --quiet : Be very quiet, only emit TAP.
    --result dir : Directory to output all results and logs to
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
              to be a .xml file substitution variable. In this case, all
@@ -134,7 +137,7 @@ sub logprint
     }
     else
     {
-        print "${timestamp} :: $msg";
+        print "${timestamp} :: $msg" unless $quiet;
     }
 }
 
@@ -230,16 +233,19 @@ sub runTest
     # Run the test
     logprint "Starting \"${test_title}\" ($test_xml)\n";
     $cmd = "run-op-it $verbose_str ";
+    $cmd .= " --quiet" if $quiet;
     $cmd .= " --result $resdir" if $resdir;
     $cmd .= " --testenv $test_env $machine_opt $xmlvars_it $relxmlfile";
     if (runCmd($cmd))
     {
         errprint "ERROR: \"${test_title}\" ($test_xml) finished with one or more errors\n";
+	diag("FAILED processing($test_title)");
         $totalrc += 1;
     }
     else
     {
         logprint "OK: \"${test_title}\" ($test_xml) finished successfully\n";
+	diag("Done processing $test_title");
     }
 
     vprint "<runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
@@ -271,6 +277,7 @@ $commandline = $0 . " ". (join " ", @ARGV);
 GetOptions('help|?|h' => \$help,
 	   'verbose' => sub { set_verbose(1); $verbose_str = "--verbose"; },
 	   'result=s' => \$resdir,
+	   'quiet' => \$quiet,
     ) or syntax();
 
 $logdir = "${resdir}/logs" unless $logdir;
@@ -431,5 +438,5 @@ else
     errprint "ERROR: Finished BVT tests on $tmp with $totalrc testcase failures.\n";
 }
 
-print "All logs and FFDC saved under $resdir\n";
+diag "All logs and FFDC saved under $resdir\n";
 exit $totalrc;
