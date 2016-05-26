@@ -185,6 +185,7 @@ sub cmd_param {
     return "";
 }
 
+my $cmd;
 my @machines = $xmldata->findnodes('/machines/machine');
 foreach my $m (@machines)
 {
@@ -204,9 +205,9 @@ foreach my $m (@machines)
     # In theory, machines can have > 1 host IP and > 1 BMC
     # This code is currently likely broken for that.
 
-    my $cmd = "(cd bvt; PATH=.:\$PATH ./run-op-bvt ";
-
     print "# Running test for $platform on $name\n";
+    $cmd = "(cd bvt; PATH=.:\$PATH ./run-op-bvt ";
+    $cmd .= " --quiet" unless $verbose;
     $cmd .= cmd_param('bmcip',$m,'./bmc/hostname');
     $cmd .= cmd_param('bmcuser',$m,'./bmc/user');
     $cmd .= cmd_param('bmcpwd',$m,'./bmc/password');
@@ -216,20 +217,33 @@ foreach my $m (@machines)
     $cmd .= cmd_param('hostuser',$m,'./host/user');
     $cmd .= cmd_param('hostPasswd',$m,'./host/password');
     $cmd .= " --result ".cwd()."/out/";
-    $cmd .= " $suite)\n";
 
     #--ffdcdir %%ffdcdir%%
     if ($test_firmware) {
 	my $image_name = get_firmware_image_name($platform);
 	$cmd .= " --imagedir $test_firmware";
 	$cmd .= " --imagename $image_name";
+	#--hpmimage %%hpmimage%%
     }
-    #--hpmimage %%hpmimage%%
+
+    $cmd .= " $suite)\n";
 
     create_config_file($platform, $m, 'ci/source/op_ci_tools.cfg');
 
     print $cmd if $verbose;
 
-    my $rc = system($cmd);
-    exit $rc;
+    last;
 }
+
+use TAP::Harness;
+open(my $cmdfh, "-|", $cmd);
+my %args = (
+    "exec" => sub { return $cmdfh; },
+    color => 1,
+    timer => 1,
+    show_count => 1,
+    comments => 1,
+    );
+my $harness = TAP::Harness->new(\%args);
+$harness->runtests("$suite");
+close $cmdfh;
