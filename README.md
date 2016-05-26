@@ -15,8 +15,6 @@ The **bvt** directory is where the test executions are defined.  These tests are
 
 The ci directory is left over from some legacy continuous integration work.  The BVT's currently use CI as a pass through to execute the tests.  We have a TODO to remove the CI function eventually.
 
-
-
 ### Requirements ###
 
 This framework runs on most Linux based systems.  You need python 2.7 or greater.
@@ -70,6 +68,9 @@ You can get more information about invoking the tests with:
 
     ./run --help
 
+By default, we will run the op-ci-basic-bvt.xml (in bvt/) test suite.
+To run a different suite, use the --suite paramater.
+
 ### Notes ###
 
 - You need to have the bvt directory in your PATH
@@ -80,5 +81,4 @@ You can get more information about invoking the tests with:
 - Should have the BVT tool call the common library directly (instead of going through CI)
 - Should make the common code more generic to support alternative BMC's
 - Should have bvt call the python code more directly (remove op-ci-bmc-run)
-- Should use perl built-in's where available instead of using system() call
 - Standardize on just expect or pexepect
