@@ -25,6 +25,7 @@
 <!-- IBM_PROLOG_END_TAG                                                     -->
 
 <test>
+  <name>hello_INCLUDED_world</name>
   <testcase>
     <cmd>echo "Hello, INCLUDED world!"</cmd>
   </testcase>

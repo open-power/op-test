@@ -28,6 +28,7 @@
     <platform>
         <xi:include href="helloworld-include.xml" parse="xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
         <test>
+            <name>helloworld</name>
             <testcase>
                 <cmd>echo "Hello, world!"</cmd>
             </testcase>

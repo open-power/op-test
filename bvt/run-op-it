@@ -364,7 +364,7 @@ sub runAllTests
 		my $restrict_env = ${$testcase->findnodes('./restrict_env')}[0];
 		$restrict_env = $restrict_env->textContent if $restrict_env;
 
-                push(@testcases_to_run, new Testcase(id=>"$$-$testcase_index",
+                push(@testcases_to_run, new Testcase(id=>"$testgrp.$testcase_index",
 					cmd=>$cmd, arg=>$arg, ffdc=>$ffdc,
 					exitonerror=>$exitonerror,
 					restrict_env=>$restrict_env));

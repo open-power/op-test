@@ -27,6 +27,7 @@
 <integrationtest>
     <platform>
         <test>
+            <title>helloworldCAPS</title>
             <testcase>
                 <cmd>echo "HELLO WORLD!"</cmd>
             </testcase>
