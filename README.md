@@ -71,6 +71,16 @@ You can get more information about invoking the tests with:
 By default, we will run the op-ci-basic-bvt.xml (in bvt/) test suite.
 To run a different suite, use the --suite paramater.
 
+### Test Suites ###
+
+You can run the following suites:
+
+* op-ci-basic-bvt.xml : Firmware code update(HPM Based upgradation), IPL and IPMI power control commands
+* op-opal-ci-bvt.xml:  Flash PNOR FW and IPL
+* op-firmware-component-update-bvt.xml : For Out-of-band FW upgrade(using hpm upgrade)
+* op-inbound-basic-bvt.xml :  For in-band FW upgrade(hpm upgrade)
+* op-opal-fvt-bvt.xml : For OPAL Functional tests
+
 ### Notes ###
 
 - You need to have the bvt directory in your PATH
