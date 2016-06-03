@@ -42,7 +42,7 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
 
 
@@ -56,22 +56,22 @@ class OpTestAt24driver():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd,i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd,i_bmcIP)
         self.util = OpTestUtil()
 
     ##
     # @brief  This function has following test steps
-    #         1. Getting the lpar infromation(OS and kernel information)
+    #         1. Getting the host infromation(OS and kernel information)
     #         2. Loading the necessary modules to test at24 device driver functionalites
     #            (i2c_dev, i2c_opal and at24)
     #         3. Getting the list of i2c buses and eeprom chip addresses
@@ -83,42 +83,42 @@ class OpTestAt24driver():
     def testAt24driver(self):
 
         # Get OS level
-        self.cv_LPAR.lpar_get_OS_Level()
+        self.cv_HOST.host_get_OS_Level()
 
-        # Check whether i2cdump and hexdump commands are available on lpar
-        self.cv_LPAR.lpar_check_command("i2cdump")
-        self.cv_LPAR.lpar_check_command("hexdump")
+        # Check whether i2cdump and hexdump commands are available on host
+        self.cv_HOST.host_check_command("i2cdump")
+        self.cv_HOST.host_check_command("hexdump")
 
         # Get Kernel Version
-        l_kernel = self.cv_LPAR.lpar_get_kernel_version()
+        l_kernel = self.cv_HOST.host_get_kernel_version()
 
         # Loading i2c_opal module based on config option
         l_config = "CONFIG_I2C_OPAL"
         l_module = "i2c_opal"
-        self.cv_LPAR.lpar_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # Loading i2c_dev module based on config option
         l_config = "CONFIG_I2C_CHARDEV"
         l_module = "i2c_dev"
-        self.cv_LPAR.lpar_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # Loading at24 module based on config option
         l_config = "CONFIG_EEPROM_AT24"
         l_module = "at24"
-        self.cv_LPAR.lpar_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # Get infomtion of EEPROM chips
-        self.cv_LPAR.lpar_get_info_of_eeprom_chips()
+        self.cv_HOST.host_get_info_of_eeprom_chips()
 
-        # Get list of pairs of i2c bus and EEPROM device addresses in the lpar
-        l_chips = self.cv_LPAR.lpar_get_list_of_eeprom_chips()
+        # Get list of pairs of i2c bus and EEPROM device addresses in the host
+        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
         for l_args in l_chips:
             # Accessing the registers visible through the i2cbus using i2cdump utility
             # l_args format: "0 0x51","1 0x53",.....etc
             self.i2c_dump(l_args)
 
         # Getting the list of sysfs eeprom interfaces
-        l_res = self.cv_LPAR.lpar_run_command("find /sys/ -name eeprom; echo $?")
+        l_res = self.cv_HOST.host_run_command("find /sys/ -name eeprom; echo $?")
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             pass
@@ -129,7 +129,7 @@ class OpTestAt24driver():
         for l_dev in l_res:
             if l_dev.__contains__("eeprom"):
                 # Getting the eeprom device data using hexdump utility in hex + Ascii format
-                self.cv_LPAR.lpar_hexdump(l_dev)
+                self.cv_HOST.host_hexdump(l_dev)
             else:
                 pass
         return BMC_CONST.FW_SUCCESS
@@ -148,7 +148,7 @@ class OpTestAt24driver():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def i2c_dump(self, i_args):
-        l_res = self.cv_LPAR.lpar_run_command("i2cdump -f -y %s; echo $?" % i_args)
+        l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s; echo $?" % i_args)
         l_res = l_res.splitlines()
         if int(l_res[-1]) == 0:
             return BMC_CONST.FW_SUCCESS

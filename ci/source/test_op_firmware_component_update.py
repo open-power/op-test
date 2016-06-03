@@ -28,8 +28,8 @@ import os
 import sys
 import op_firmware_component_update
 
-def test_validate_lpar():
-    assert op_firmware_component_update.validate_lpar() == 0
+def test_validate_host():
+    assert op_firmware_component_update.validate_host() == 0
 
 def test_outofband_fw_update_hpm():
     assert op_firmware_component_update.outofband_fw_update_hpm() == 0

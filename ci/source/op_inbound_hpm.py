@@ -26,7 +26,7 @@
 """
 .. module:: op_inbound_hpm
     :platform: Unix
-    :synopsis: This module contains the test functions for enabling LPAR communication in OpenPower systems.
+    :synopsis: This module contains the test functions for enabling HOST communication in OpenPower systems.
 
 .. moduleauthor:: Pavaman Subramaniyam <pavsubra@linux.vnet.ibm.com>
 
@@ -41,7 +41,7 @@ sys.path.append(full_path)
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
 def _config_read():
@@ -49,20 +49,20 @@ def _config_read():
     bmcConfig = ConfigParser.RawConfigParser()
     configFile = os.path.join(os.path.dirname(__file__), 'op_ci_tools.cfg')
     bmcConfig.read(configFile)
-    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')), dict(bmcConfig.items('lpar'))
+    return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')), dict(bmcConfig.items('host'))
 
 ''' Read the configuration settings into global space so they can be used by
     other functions '''
 
-bmcCfg, testCfg, lparCfg = _config_read()
+bmcCfg, testCfg, hostCfg = _config_read()
 
-opTestLp = OpTestLpar(lparCfg['lparip'],lparCfg['lparuser'],lparCfg['lparpasswd'],bmcCfg['ip'])
+opTestLp = OpTestHost(hostCfg['hostip'],hostCfg['hostuser'],hostCfg['hostpasswd'],bmcCfg['ip'])
 
 def get_OS_Level():
     """This function gets the OS level installed on the machine
     :returns: int -- 0: success, 1: error
     """
-    opTestLp.lpar_get_OS_Level()
+    opTestLp.host_get_OS_Level()
 
     return 0
 
@@ -70,13 +70,13 @@ def protect_network_setting():
     """This function Executes a command on the os of the bmc to protect network setting
     :returns: int -- 0: success, 1: error
     """
-    return opTestLp.lpar_protect_network_setting()
+    return opTestLp.host_protect_network_setting()
 
 def cold_reset():
-    """This function Performs a cold reset onto the lpar
+    """This function Performs a cold reset onto the host
     :returns: int -- 0: success, 1: error
     """
-    opTestLp.lpar_cold_reset()
+    opTestLp.host_cold_reset()
 
     return 0
 
@@ -84,7 +84,7 @@ def code_update():
     """This function Flashes component 1 Firmware image of hpm file using ipmitool
     :returns: int -- 0: success, 1: error
     """
-    opTestLp.lpar_code_update(lparCfg['hpmimage'],str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+    opTestLp.host_code_update(hostCfg['hpmimage'],str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
 
     return 0
 

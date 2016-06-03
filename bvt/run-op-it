@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015-2016
 # [+] International Business Machines Corp.
 #
 #
@@ -24,9 +24,10 @@
 #
 # IBM_PROLOG_END_TAG
 
-# Run simics/FSP automated integration test
+# Run OpenPOWER automated integration test
 #
-# Author: Alan Hlava
+# Original Author: Alan Hlava
+# Heavily reworked by Stewart Smith
 
 use strict;
 
@@ -47,22 +48,16 @@ OPTIONS is one or more of:
    --debug xml | cmd : instead of running the test, do the specified debug:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
-   --logpfx xxxx : the string with which to prefix all log messages (this can be useful
-          if running multiple concurrent run-op-it commands to the same common log)
+   --quiet : be quiet and just output TAP
    --testenv xxx : is this test to run only in specific environment with this tag
-         This may be overridden if env variable \$OP_TEST_ENV is set.
    --verbose : display additional debug information while executing
-   --fverbose xxxx : Store additional diagnostic and informational messages
-         when setting up and running the test in the specified file (default=none)
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
           to be a .xml file substitution variable. In this case, all
           instances of \"%%xxx%%\" in the .xml file will be replaced by
           \"yyy\" when processing the file.  This enables the .xml file
           to be used as a template that can be used to run a variety of
           tests.
-   Env var OP_TEST_FAILSUMM_LOG : If set, log failure summary data to specified file.
 ";
-my $quiet = 0; # Do not display standard messages?
 my $fvfile = "";
 my $verbose_str = "";
 
@@ -83,10 +78,12 @@ restrict_env => '$'
 
 1;
 
+use Getopt::Long qw(:config pass_through);
 use OpTestInfra;
 use OPBVTXML;
+use Test::More;
 
-                                                                            ###
+my $quiet;
 my $filename = "";
 my $cmd;
 my $rc = 0;
@@ -95,10 +92,8 @@ my $cmd_line_machine;
 my $machine;
 my $testgrp = "";
 my $restrict_env = "";
-my $testcase = "";
 my $exitonerror = 0;
 my $args = "";
-my $testrc = 0;
 my $totalrc = 0;
 my $tmp;
 my %xmlvars;
@@ -106,13 +101,8 @@ my %keyattrs;
 my $debug = "";
 my $title_text = "Integration Test";
 my $testcaseid = "";
-my @tcs;
 
-my $cmdtmpfile = "/tmp/run-op-it-cmd-$$.tmp";
-my $logfiledir = "";
-my $logfile = "";
-my $logpfx = "";
-my $logpfxstr = "";
+my $logfile;
 
 # killtree
 
@@ -127,7 +117,7 @@ sub killtree
     }
     if ($killpid != $$)
     {
-        print "sending process $killpid signal $sig\n";
+        diag "sending process $killpid signal $sig\n";
         system("kill -${sig} ${killpid}");
     }
 }
@@ -135,7 +125,7 @@ sub killtree
 $SIG{'TERM'} = 'sigtermHandler';
 sub sigtermHandler
 {
-    print "\nrun-op-it received SIGTERM, so terminating!\n";
+    diag "\nrun-op-it received SIGTERM, so terminating!\n";
 
     # Clean up all child processes that may be left-over
     killtree($$, "SIGTERM");
@@ -145,25 +135,22 @@ sub sigtermHandler
 
 sub syntax()
 {
-    print "$usage";
+    print STDERR "$usage";
     exit(1);
 }
 
 sub printMsg
 {
     my ($msg) = @_;
-    if (! $quiet && ($debug ne "xml"))
+    my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
+    print "${timestamp} :: ${msg}" unless $quiet;
+
+    vprint "${timestamp} :: ${msg}";
+    if ($logfile ne "")
     {
-        my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
-        print "${timestamp} :: ${logpfxstr}${msg}";
-        vprint "${timestamp} :: ${logpfxstr}${msg}";
-        add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
-        if ($logfile ne "")
-        {
-            open(LOGF, ">>$logfile");
-            print LOGF "${timestamp} :: ${logpfxstr}${msg}";
-            close(LOGF); # Always close/reopen because we have to send shell output to it
-        }
+	open(LOGF, ">>$logfile");
+	print LOGF "${timestamp} :: ${msg}";
+	close(LOGF); # Always close/reopen because we have to send shell output to it
     }
 }
 
@@ -171,16 +158,14 @@ sub printErrorMsg
 {
     my ($msg) = @_;
     my $timestamp = sprintf "%02d:%02d:%02d", localtime->hour, localtime->min, localtime->sec;
-    print STDERR "${timestamp} :: ${logpfxstr}${msg}";
-    vprint "${timestamp} :: ${logpfxstr}${msg}";
-    add_log_hist("${timestamp} :: ${logpfxstr}${msg}");
+    diag "${timestamp} :: ${msg}";
+    vprint "${timestamp} :: ${msg}";
     if ($logfile ne "")
     {
         open(LOGF, ">>$logfile");
-        print LOGF "${timestamp} :: ${logpfxstr}${msg}";
+        print LOGF "${timestamp} :: ${msg}";
         close(LOGF); # Always close/reopen because we have to send shell output to it
     }
-    write_log_hist("Failure summary from run-op-it running $filename");
 }
 
 sub runCmd
@@ -208,22 +193,14 @@ sub runCmd
         }
         if (($logfile ne "") && ($has_redirection == 0))
         {
-            $cmd .= " >$cmdtmpfile 2>&1";
+            $cmd .= " >>$logfile 2>&1";
         }
         vprint "cmd: $cmd\n";
         $cmdrc = system($cmd);
-        if (($logfile ne "") && ($has_redirection == 0))
-        {
-            vprint "Running: cat $cmdtmpfile\n";
-            system("cat $cmdtmpfile");
-            add_log_hist_file($cmdtmpfile);
-            vprint "Running: cat $cmdtmpfile >>$logfile\n";
-            system("cat $cmdtmpfile >>$logfile");
-        }
     }
     else
     {
-        print "Running: $cmd\n";
+        diag "Running: $cmd\n";
     }
     if ($cmdtmpprogfile ne "")
     {
@@ -246,6 +223,7 @@ sub runCmd
 
 sub runCmdTest
 {
+    my ($testcase, $testcaseid) = @_;
     vprint ">runCmdTest\n";
     my $x;
 
@@ -258,12 +236,13 @@ sub runCmdTest
     }
 
     # Convert relative path (if any) to absolute path
-    my $x86_script_file = findRelFile($testcase);
+    my $test_script_file = findRelFile($testcase);
 
-    $testrc = runCmd("$x86_script_file $args", 1);
+    my $testrc = runCmd("$test_script_file $args", 1);
     $totalrc += $testrc;
 
     vprint "<runCmdTest (testrc: $testrc   totalrc: $totalrc)\n";
+    return $testrc;
 }
 
 sub readXml
@@ -280,7 +259,7 @@ END
 {
     if ($? && ($logfile ne ""))
     {
-        print "${logpfxstr}Output from this test saved in $logfile\n";
+        print "Output from this test saved in $logfile\n";
     }
 }
 
@@ -291,6 +270,7 @@ sub runAllTests
     my @ffdc_scripts;
     my $ffdc_script = "";
     my $ffdc_script_count = 0;
+    my @testcases_to_run;
 
     #--------------------------------------------------------------------------
     # Read in the XML file and treat as one big string
@@ -311,7 +291,8 @@ sub runAllTests
         $xmldata =~ s/\%\%${key}\%\%/$xmlvars{$key}/g;
     }
 
-    if (is_verbose_enabled()) { vprint "xmldata:\n"; vprint "$xmldata\n"; }
+    vprint "xmldata:\n";
+    vprint "$xmldata\n";
 
     my $dom = XML::LibXML->load_xml(string => $xmldata);
 
@@ -352,7 +333,7 @@ sub runAllTests
         {
 	    $testnr++;
 
-            $restrict_env = ${$test->findnodes('./restrict-env')}[0];
+            my $restrict_env = ${$test->findnodes('./restrict-env')}[0];
 	    $restrict_env = $restrict_env->textContent if $restrict_env;
 
             $testgrp = ${$test->findnodes('./name')}[0];
@@ -369,7 +350,6 @@ sub runAllTests
             printMsg("Starting Test: $testgrp\n");
 
             # Create the contained testcases
-            @tcs = ();
             foreach my $testcase ($test->findnodes('./testcase'))
             {
                 ++$testcase_index;
@@ -384,95 +364,97 @@ sub runAllTests
 		my $restrict_env = ${$testcase->findnodes('./restrict_env')}[0];
 		$restrict_env = $restrict_env->textContent if $restrict_env;
 
-                push(@tcs, new Testcase(id=>"$$-$testcase_index",
+                push(@testcases_to_run, new Testcase(id=>"$testgrp.$testcase_index",
 					cmd=>$cmd, arg=>$arg, ffdc=>$ffdc,
 					exitonerror=>$exitonerror,
 					restrict_env=>$restrict_env));
             }
+	}
+    }
 
-            # Process each testcase within the group
-            foreach my $tc_ref (@tcs)
-            {
-                $testcaseid = $tc_ref->id;
-                vprint "testcaseid: $testcaseid\n";
+    plan tests => scalar @testcases_to_run;
 
-                # Check for env restriction at <testcase> level
-                $restrict_env = $tc_ref->restrict_env;
-                if (($restrict_env ne "") && ($restrict_env ne $test_env))
-                {
-                    printMsg("Skipping testcase $testcase_index due to not running in $restrict_env environment\n");
-                    next;
-                }
+    foreach my $tc_ref (@testcases_to_run)
+    {
+	$testcaseid = $tc_ref->id;
+	vprint "testcaseid: $testcaseid\n";
 
-                # Get exit-on-error specification (if any)
-                $exitonerror = 0; # default is "no"
-                $tmp = $tc_ref->exitonerror;
-                if ($tmp ne "")
-                {
-                    $tmp =~ tr/A-Z/a-z/;
-                    if (($tmp eq "n") || ($tmp eq "no"))
-                    {
-                        $exitonerror = 0;
-                    }
-                    elsif (($tmp eq "y") || ($tmp eq "yes"))
-                    {
-                        $exitonerror = 1;
-                    }
-                    else
-                    {
-                        printErrorMsg("ERROR: unrecognized value in <exitonerror>: $tmp\n");
-                        exit(1);
-                    }
-                }
+	# Check for env restriction at <testcase> level
+	my $restrict_env = $tc_ref->restrict_env;
+	if (($restrict_env ne "") && ($restrict_env ne $test_env))
+	{
+	    skip("Skipping testcase $testcase_index due to not running in $restrict_env environment\n", 1, 1);
+	    next;
+	}
 
-                # Get the command arguments (if specified separately)
-                $testcase = $tc_ref->cmd;
-                $args = $tc_ref->arg;
-                $testcase =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
-                $args =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
+	# Get exit-on-error specification (if any)
+	$exitonerror = 0; # default is "no"
+	$tmp = $tc_ref->exitonerror;
+	if ($tmp ne "")
+	{
+	    $tmp =~ tr/A-Z/a-z/;
+	    if (($tmp eq "n") || ($tmp eq "no"))
+	    {
+		$exitonerror = 0;
+	    }
+	    elsif (($tmp eq "y") || ($tmp eq "yes"))
+	    {
+		$exitonerror = 1;
+	    }
+	    else
+	    {
+		printErrorMsg("ERROR: unrecognized value in <exitonerror>: $tmp\n");
+		exit(1);
+	    }
+	}
 
-                # Get the FFDC script(s) (if any)
-                $tmp = $tc_ref->ffdc;
-                $tmp =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
-                @ffdc_scripts = split(/\,/, $tmp);
-                $ffdc_script_count = @ffdc_scripts;
+	# Get the command arguments (if specified separately)
+	my $testcase = $tc_ref->cmd;
+	$args = $tc_ref->arg;
+	$testcase =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
+	$args =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
 
-                # Run the command
-                runCmdTest();
+	# Get the FFDC script(s) (if any)
+	$tmp = $tc_ref->ffdc;
+	$tmp =~ s/\%\%testcaseid\%\%/${testcaseid}/g;
+	@ffdc_scripts = split(/\,/, $tmp);
+	$ffdc_script_count = @ffdc_scripts;
 
-                # Handle testcase errors
-                if ($testrc)
-                {
-                    # Capture FFDC if requested
-                    if ($ffdc_script_count != 0)
-                    {
-                        printMsg("Capturing FFDC from test\n");
-                        foreach $ffdc_script (@ffdc_scripts)
-                        {
-                            $testcase = "$ffdc_script";
-                            $args = "";
+	# Run the command
+	diag("Starting $testcaseid");
+	my $testrc = runCmdTest($testcase, $testcaseid);
+	diag ($testrc);
+	# Handle testcase errors
+	ok($testrc eq 0, $testcaseid);
 
-                            runCmdTest();
+	if ($testrc)
+	{
+	    # Capture FFDC if requested
+	    if ($ffdc_script_count != 0)
+	    {
+		printMsg("Capturing FFDC from test\n");
+		foreach $ffdc_script (@ffdc_scripts)
+		{
+		    $testcase = "$ffdc_script";
+		    $args = "";
 
-                            # reset, so we won't pass this --timeout option on the next command
-                            if ($testrc != 0)
-                            {
-                                printErrorMsg("ERROR: FFDC capture failed.  Partial data may be stored (see previous messages)\n");
-                            }
-                        }
-                    }
+		    runCmdTest();
 
-                    # Clean up and terminate if requested
-                    if ($exitonerror)
-                    {
-                        printErrorMsg("ERROR: terminating test\n");
-                        exit(1);
-                    }
-                }
-            }
+		    # reset, so we won't pass this --timeout option on the next command
+		    if ($testrc != 0)
+		    {
+			printErrorMsg("ERROR: FFDC capture failed.  Partial data may be stored (see previous messages)\n");
+		    }
+		}
+	    }
 
-            printMsg("Finished Test: $testgrp\n");
-        }
+	    # Clean up and terminate if requested
+	    if ($exitonerror)
+	    {
+		printErrorMsg("ERROR: terminating test\n");
+		exit(1);
+	    }
+	}
     }
 }
 
@@ -486,63 +468,27 @@ sub exportXmlVars
     }
 }
 
-sub setLogfileName
-{
-    my ($basedir) = @_;
-    $logfiledir = $basedir;
-    if ($logpfx eq "")
-    {
-        $logfile = "$logfiledir/run-op-it-$$.log";
-    }
-    else
-    {
-        my $pfx = $logpfx;
-        $pfx =~ s/ /-/g;
-        $logfile = "$logfiledir/$pfx-run-op-it-$$.log";
-    }
-}
-
 # parse the arguments
-my @argv = @ARGV;
-my $arg;
 $xmlvars{verbose} = "";
-$xmlvars{fverbose} = "";
 
-while(@argv)
+my $help;
+my $resdir;
+
+GetOptions('help|?|h' => \$help,
+	   'verbose' => sub { set_verbose(1);
+			      $verbose_str = "--verbose";
+			      $xmlvars{verbose} = "--verbose"; },
+	   'debug=s' => sub { $debug = shift; set_verbose(1); },
+	   'testenv=s' => \$test_env,
+	   'result=s' => \$resdir,
+	   'quiet' => \$quiet,
+    ) or syntax();
+
+syntax() if $help;
+
+my @argv = @ARGV;
+while (my $arg = shift @argv)
 {
-    $arg = shift(@argv);
-
-    if (($arg eq "-?") || ($arg eq "-h") || ($arg eq "--help")) { syntax(); }
-
-    if ($arg eq "--verbose")
-    {
-        set_verbose(1);
-        $verbose_str = "--verbose";
-        $xmlvars{verbose} = "--verbose";
-        next;
-    }
-    if ($arg eq "--fverbose")
-    {
-        $fvfile = shift(@argv);
-        set_verbose(1, $fvfile);
-        $verbose_str = "--fverbose $fvfile";
-        $xmlvars{fverbose} = "--fverbose $fvfile";
-        next;
-    }
-    if ($arg eq "--debug")
-    {
-        $debug = shift(@argv);
-        set_verbose(1); # Debug stmts done using vprint, so need to enable it!
-        next;
-    }
-    if ($arg eq "--testenv") { $test_env = shift(@argv); next; }
-    if ($arg eq "--logpfx")
-    {
-        $logpfx = shift(@argv);
-        $logpfxstr = "${logpfx}: ";
-        next;
-    }
-
     # Arguments representing XML substitution variables...
     if ($arg =~ /^\-\-/)
     {
@@ -558,10 +504,6 @@ while(@argv)
     $filename = $arg;
 }
 
-if ($ENV{OP_TEST_FAILSUMM_LOG} ne "")
-{
-    set_failsumm_log($ENV{OP_TEST_FAILSUMM_LOG});
-}
 
 if ($filename eq "")
 {
@@ -569,16 +511,7 @@ if ($filename eq "")
     exit(9);
 }
 
-# Validate test_env
-if ($ENV{OP_TEST_ENV} ne "")
-{
-    $test_env = $ENV{OP_TEST_ENV};
-}
-else
-{
-    # Set env var for all tools/tests running below this script
-    $ENV{OP_TEST_ENV} = $test_env;
-}
+$logfile = "$resdir/$filename.log" if $resdir;
 
 # if we were passed a --machine, save it off for checking against individual tests
 if ($xmlvars{machine} ne "")
@@ -591,27 +524,8 @@ if ($xmlvars{machine} ne "")
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
 
-#if ($logpfxstr eq "")
-#{
-    #$logpfxstr = `whoami`;
-    #chomp($logpfxstr);
-    #$logpfxstr .= "-";
-#}
-
-if (is_verbose_enabled())
-{
-    vprint "xmlvars{machine}: $xmlvars{machine}\n";
-    vprint "test_env: $test_env\n";
-    vprint "OP_TEST env vars:\n";
-    if ($fvfile ne "")
-    {
-        system("env | grep OP_TEST_ >>$fvfile");
-    }
-    else
-    {
-        system("env | grep OP_TEST_");
-    }
-}
+vprint "xmlvars{machine}: $xmlvars{machine}\n";
+vprint "test_env: $test_env\n";
 
 # export %%variables%% for read-op-xml-it (which is run under fips-it-list)
 exportXmlVars();
@@ -637,11 +551,10 @@ if ($totalrc == 0)
 else
 {
     $totalrc = 1;
-    set_failsumm_log(""); # Turn off so don't get final exit msg in summary
     printErrorMsg("ERROR: Finished tests on $tmp with one or more testcase errors.\n");
 }
 if ($logfile ne "")
 {
-    print "${logpfxstr}Output from this test saved in $logfile (simics server logs stored in same directory)\n";
+    diag "Output from this test saved in $logfile (simics server logs stored in same directory)\n";
 }
 exit($totalrc);

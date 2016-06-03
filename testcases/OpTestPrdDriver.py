@@ -48,7 +48,7 @@ from common.OpTestBMC import OpTestBMC
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestLpar import OpTestLpar
+from common.OpTestHost import OpTestHost
 from common.OpTestSystem import OpTestSystem
 from common.OpTestUtil import OpTestUtil
 
@@ -63,25 +63,25 @@ class OpTestPrdDriver():
     #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
-    # @param i_lparIP The IP address of the LPAR
-    # @param i_lparuser The userid to log into the LPAR
-    # @param i_lparPasswd The password of the userid to log into the LPAR with
+    # @param i_hostIP The IP address of the HOST
+    # @param i_hostuser The userid to log into the HOST
+    # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_lparip=None,
-                 i_lparuser=None, i_lparPasswd=None):
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, i_lparip, i_lparuser, i_lparPasswd)
-        self.cv_LPAR = OpTestLpar(i_lparip, i_lparuser, i_lparPasswd, i_bmcIP)
+                                  i_ffdcDir, i_hostip, i_hostuser, i_hostPasswd)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
         self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_lparip,
-                 i_lparuser, i_lparPasswd)
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
+                 i_hostuser, i_hostPasswd)
         self.util = OpTestUtil()
 
     ##
     # @brief This function performs below steps
-    #        1. Initially connecting to lpar and ipmi consoles for execution.
+    #        1. Initially connecting to host and ipmi consoles for execution.
     #        2. check for IPOLL mask register value to see whether opal-prd is running or not
     #           if it is 0-->opal-prd is running-->continue
     #           else start opal-prd service again
@@ -93,18 +93,18 @@ class OpTestPrdDriver():
     def testPrdDriver(self):
         self.test_init()
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_lpar_login(l_con)
-        self.cv_IPMI.ipmi_lpar_set_unique_prompt(l_con)
-        self.cv_IPMI.run_lpar_cmd_on_ipmi_console("cd %s/external/xscom-utils/;" % BMC_CONST.CLONE_SKIBOOT_DIR)
+        self.cv_IPMI.ipmi_host_login(l_con)
+        self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
+        self.cv_IPMI.run_host_cmd_on_ipmi_console("cd %s/external/xscom-utils/;" % BMC_CONST.CLONE_SKIBOOT_DIR)
 
         # check for IPOLL mask register value to check opal-prd is running or not
         l_cmd = "./getscom -c 0x0 %s" % BMC_CONST.IPOLL_MASK_REGISTER
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
         if l_res[-1] == "0":
             print "Opal-prd is running"
         else:
-            self.cv_IPMI.run_lpar_cmd_on_ipmi_console("service opal-prd start")
-            l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+            self.cv_IPMI.run_host_cmd_on_ipmi_console("service opal-prd start")
+            l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
             if l_res[-1] == "0":
                 print "Opal-prd is running"
             else:
@@ -146,11 +146,11 @@ class OpTestPrdDriver():
         print "OPAL-PRD: Injecting error 0x%x on FIR: %s" % (ERROR, FIR)
         # Read Local Fault Isolation register
         l_cmd = "./getscom -c %s %s" % (chip_id, FIR)
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
 
         # Reading Local Fault Isolation mask register
         l_cmd = "./getscom -c %s %s" % (chip_id, FIMR)
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
         print l_res
 
         # Changing the FIMR value to un-masked value.
@@ -160,17 +160,17 @@ class OpTestPrdDriver():
 
         # Writing the same value to Local Fault Isolation mask register again
         l_cmd = "./putscom -c %s %s %s" % (chip_id, BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER, l_val)
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
 
         # Inject a core error on FIR
         l_cmd = "./putscom -c %s %s %s" % (chip_id, FIR, hex(ERROR))
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
 
         time.sleep(30)
 
         # Read Local Fault Isolation register again
         l_cmd = "./getscom -c %s %s" % (chip_id, FIR)
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
         print l_res
 
         # Check FIR got cleared by opal-prd
@@ -183,12 +183,12 @@ class OpTestPrdDriver():
 
         # Reading the Local Fault Isolation Mask Register again
         l_cmd = "./getscom -c %s %s" % (chip_id, FIMR)
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
         print l_res
 
         # check for IPOLL mask register value to see opal-prd cleared the value
         l_cmd = "./getscom -c %s %s" % (chip_id, BMC_CONST.IPOLL_MASK_REGISTER)
-        l_res = self.cv_IPMI.run_lpar_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
         if l_res[-1] == "0":
             print "Opal-prd cleared the IPOLL MASK REGISTER"
             return BMC_CONST.FW_SUCCESS
@@ -200,7 +200,7 @@ class OpTestPrdDriver():
     ##
     # @brief This is a common function for all the PRD test cases. This will be executed before
     #        any test case starts. Basically this provides below requirements.
-    #        1. Validates all required lpar commands
+    #        1. Validates all required host commands
     #        2. It will clone skiboot source repository
     #        3. Compile the necessary tools -xscom-utils(getscom and putscom)
     #        4. Get the list Of Chips.
@@ -211,20 +211,20 @@ class OpTestPrdDriver():
     #
     def test_init(self):
         # Get OS level
-        self.cv_LPAR.lpar_get_OS_Level()
+        self.cv_HOST.host_get_OS_Level()
 
-        # Check whether git and gcc commands are available on lpar
-        self.cv_LPAR.lpar_check_command("git")
-        self.cv_LPAR.lpar_check_command("gcc")
+        # Check whether git and gcc commands are available on host
+        self.cv_HOST.host_check_command("git")
+        self.cv_HOST.host_check_command("gcc")
 
         # It will clone skiboot source repository 
-        self.cv_LPAR.lpar_clone_skiboot_source(BMC_CONST.CLONE_SKIBOOT_DIR)
+        self.cv_HOST.host_clone_skiboot_source(BMC_CONST.CLONE_SKIBOOT_DIR)
 
         # Compile the necessary tools xscom-utils and gard utility
-        self.cv_LPAR.lpar_compile_xscom_utilities(BMC_CONST.CLONE_SKIBOOT_DIR)
+        self.cv_HOST.host_compile_xscom_utilities(BMC_CONST.CLONE_SKIBOOT_DIR)
 
         # Getting list of processor chip Id's(executing getscom -l to get chip id's)
-        l_res = self.cv_LPAR.lpar_run_command("cd %s/external/xscom-utils/; ./getscom -l" % BMC_CONST.CLONE_SKIBOOT_DIR)
+        l_res = self.cv_HOST.host_run_command("cd %s/external/xscom-utils/; ./getscom -l" % BMC_CONST.CLONE_SKIBOOT_DIR)
         l_res = l_res.splitlines()
         l_chips = []
         for line in l_res:
@@ -239,5 +239,5 @@ class OpTestPrdDriver():
         self.random_chip = random.choice(l_chips)
 
         # Below will be useful for debug purposes to compare chip information
-        l_res = self.cv_LPAR.lpar_read_msglog_core()
+        l_res = self.cv_HOST.host_read_msglog_core()
         print l_res

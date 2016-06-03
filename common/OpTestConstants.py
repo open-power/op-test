@@ -77,8 +77,8 @@ class OpTestConstants():
     OS_PUTSCOM_ERROR = "/putscom -c "
     OS_READ_MSGLOG_CORE = 'cat /sys/firmware/opal/msglog | grep -i chip | grep -i core'
     OS_PRESERVE_NETWORK = "ipmitool -I usb raw 0x32 0xba 0x18 0x00"
-    LPAR_COLD_RESET = "ipmitool -I usb mc reset cold"
-    LPAR_WARM_RESET = "ipmitool -I usb mc reset warm"
+    HOST_COLD_RESET = "ipmitool -I usb mc reset cold"
+    HOST_WARM_RESET = "ipmitool -I usb mc reset warm"
     SUDO_COMMAND = 'sudo '
     CLEAR_GARD_CMD = '/gard clear all'
     LIST_GARD_CMD = '/gard list'
@@ -90,7 +90,7 @@ class OpTestConstants():
     # TIME DELAYS & RETRIES
     BMC_WARM_RESET_DELAY = 150
     BMC_COLD_RESET_DELAY = 150
-    LPAR_BRINGUP_TIME = 80
+    HOST_BRINGUP_TIME = 80
     SHORT_WAIT_IPL = 10
     SHORT_WAIT_STANDBY_DELAY = 5
     LONG_WAIT_IPL = 50
@@ -187,9 +187,9 @@ class OpTestConstants():
     IPMI_CONSOLE_EXPECT_PASSWORD = 0
     IPMI_CONSOLE_EXPECT_PETITBOOT = [2,3]
     IPMI_CONSOLE_EXPECT_RANDOM_STATE = [4,5]
-    IPMI_LPAR_UNIQUE_PROMPT = "PS1=[pexpect]#"
-    IPMI_LPAR_EXPECT_PEXPECT_PROMPT = "[pexpect]#"
-    IPMI_LPAR_EXPECT_PEXPECT_PROMPT_LIST = [r"\[pexpect\]#$", pexpect.TIMEOUT]
+    IPMI_HOST_UNIQUE_PROMPT = "PS1=[pexpect]#"
+    IPMI_HOST_EXPECT_PEXPECT_PROMPT = "[pexpect]#"
+    IPMI_HOST_EXPECT_PEXPECT_PROMPT_LIST = [r"\[pexpect\]#$", pexpect.TIMEOUT]
 
     # HMI Test case constants
     HMI_PROC_RECV_DONE = 1
@@ -266,39 +266,39 @@ class OpTestConstants():
     IPMI_MC_WATCHDOG_GET = "mc watchdog get"
     IPMI_SDR_GET_WATCHDOG = "sdr get \'Watchdog\'"
     # IPMI White listed commands
-    LPAR_GET_DEVICE_ID = "ipmitool raw 0x06 0x01; echo $?"
-    LPAR_GET_DEVICE_GUID = "ipmitool raw 0x06 0x08; echo $?"
-    LPAR_GET_SYSTEM_GUID = "ipmitool raw 0x06 0x37; echo $?"
-    LPAR_RESET_WATCHDOG = "ipmitool raw 0x06 0x22; echo $?"
-    LPAR_GET_SEL_INFO = "ipmitool raw 0x0a 0x40; echo $?"
-    LPAR_GET_SEL_TIME_RAW = "ipmitool raw 0x0a 0x48; echo $?"
-    LPAR_GET_LAN_PARAMETERS = "ipmitool raw 0x0c 0x02 0x01 0x00 0x00 0x00; echo $?"
-    LPAR_GET_SYSTEM_BOOT_OPTIONS = "ipmitool raw 0x00 0x09 0x05 0x00 0x00; echo $?"
-    LPAR_SET_SYTEM_BOOT_OPTIONS = "ipmitool raw 0x00 0x08 0x05; echo $?"
-    LPAR_RESERVE_SEL = "ipmitool  raw 0x0a 0x42; echo $?"
-    LPAR_GET_SEL_TIME = "ipmitool sel time get"
-    LPAR_SET_SEL_TIME = "ipmitool sel time set"
-    LPAR_GET_BMC_GLOBAL_ENABLES = "ipmitool mc getenables"
-    LPAR_GET_BMC_GLOBAL_ENABLES_RAW = "ipmitool raw 0x06 0x2f; echo $?"
-    LPAR_SET_BMC_GLOBAL_ENABLES_SEL_OFF = "ipmitool mc setenables system_event_log=off; echo $?"
-    LPAR_SET_BMC_GLOBAL_ENABLES_SEL_ON = "ipmitool mc setenables system_event_log=on; echo $?"
-    LPAR_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF = "ipmitool raw 0x06 0x57 0x00; echo $?"
-    LPAR_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS = "ipmitool raw 0x06 0x57 0x01; echo $?"
-    LPAR_GET_MESSAGE_FLAGS = "ipmitool raw 0x06 0x31; echo $?"
-    LPAR_GET_BT_CAPABILITIES = "ipmitool raw 0x06 0x36; echo $?"
-    LPAR_CLEAR_MESSAGE_FLAGS = "ipmitool raw 0x06 0x30 0xeb; echo $?"
-    LPAR_PNOR_ACCESS_STATUS_DENY = "ipmitool raw 0x3a 0x07 0x00; echo $?"
-    LPAR_PNOR_ACCESS_STATUS_GRANT = "ipmitool raw 0x3a 0x07 0x01; echo $?"
-    LPAR_PNOR_ACCESS_RESPONSE = "ipmitool raw 0x3a 0x08; echo $?"
-    LPAR_ADD_SEL_ENTRY = "ipmitool raw 0x0a 0x44 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00; echo $?"
-    LPAR_SET_ACPI_POWER_STATE = "ipmitool raw 0x06 0x06 0xaa 0x00; echo $?"
-    LPAR_GET_ACPI_POWER_STATE = "ipmitool raw 0x06 0x07; echo $?"
-    LPAR_SET_WATCHDOG = "ipmitool raw 0x06 0x24 0x44 0x00 0x00 0x10 0xc8 0x00; echo $?"
-    LPAR_GET_SENSOR_TYPE_FOR_WATCHDOG = "ipmitool raw 0x04 0x2f"
-    LPAR_GET_SENSOR_READING = "ipmitool raw 0x04 0x2d"
-    LPAR_PLATFORM_EVENT = "ipmitool raw 0x04 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00; echo $?"
-    LPAR_CHASSIS_POWER_ON = "ipmitool raw 0x00 0x02 0x01; echo $?"
-    LPAR_GET_CHANNEL_AUTH_CAP = "ipmitool raw 0x06 0x38 0x81 0x04; echo $?"
+    HOST_GET_DEVICE_ID = "ipmitool raw 0x06 0x01; echo $?"
+    HOST_GET_DEVICE_GUID = "ipmitool raw 0x06 0x08; echo $?"
+    HOST_GET_SYSTEM_GUID = "ipmitool raw 0x06 0x37; echo $?"
+    HOST_RESET_WATCHDOG = "ipmitool raw 0x06 0x22; echo $?"
+    HOST_GET_SEL_INFO = "ipmitool raw 0x0a 0x40; echo $?"
+    HOST_GET_SEL_TIME_RAW = "ipmitool raw 0x0a 0x48; echo $?"
+    HOST_GET_LAN_PARAMETERS = "ipmitool raw 0x0c 0x02 0x01 0x00 0x00 0x00; echo $?"
+    HOST_GET_SYSTEM_BOOT_OPTIONS = "ipmitool raw 0x00 0x09 0x05 0x00 0x00; echo $?"
+    HOST_SET_SYTEM_BOOT_OPTIONS = "ipmitool raw 0x00 0x08 0x05; echo $?"
+    HOST_RESERVE_SEL = "ipmitool  raw 0x0a 0x42; echo $?"
+    HOST_GET_SEL_TIME = "ipmitool sel time get"
+    HOST_SET_SEL_TIME = "ipmitool sel time set"
+    HOST_GET_BMC_GLOBAL_ENABLES = "ipmitool mc getenables"
+    HOST_GET_BMC_GLOBAL_ENABLES_RAW = "ipmitool raw 0x06 0x2f; echo $?"
+    HOST_SET_BMC_GLOBAL_ENABLES_SEL_OFF = "ipmitool mc setenables system_event_log=off; echo $?"
+    HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON = "ipmitool mc setenables system_event_log=on; echo $?"
+    HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF = "ipmitool raw 0x06 0x57 0x00; echo $?"
+    HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS = "ipmitool raw 0x06 0x57 0x01; echo $?"
+    HOST_GET_MESSAGE_FLAGS = "ipmitool raw 0x06 0x31; echo $?"
+    HOST_GET_BT_CAPABILITIES = "ipmitool raw 0x06 0x36; echo $?"
+    HOST_CLEAR_MESSAGE_FLAGS = "ipmitool raw 0x06 0x30 0xeb; echo $?"
+    HOST_PNOR_ACCESS_STATUS_DENY = "ipmitool raw 0x3a 0x07 0x00; echo $?"
+    HOST_PNOR_ACCESS_STATUS_GRANT = "ipmitool raw 0x3a 0x07 0x01; echo $?"
+    HOST_PNOR_ACCESS_RESPONSE = "ipmitool raw 0x3a 0x08; echo $?"
+    HOST_ADD_SEL_ENTRY = "ipmitool raw 0x0a 0x44 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00; echo $?"
+    HOST_SET_ACPI_POWER_STATE = "ipmitool raw 0x06 0x06 0xaa 0x00; echo $?"
+    HOST_GET_ACPI_POWER_STATE = "ipmitool raw 0x06 0x07; echo $?"
+    HOST_SET_WATCHDOG = "ipmitool raw 0x06 0x24 0x44 0x00 0x00 0x10 0xc8 0x00; echo $?"
+    HOST_GET_SENSOR_TYPE_FOR_WATCHDOG = "ipmitool raw 0x04 0x2f"
+    HOST_GET_SENSOR_READING = "ipmitool raw 0x04 0x2d"
+    HOST_PLATFORM_EVENT = "ipmitool raw 0x04 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00; echo $?"
+    HOST_CHASSIS_POWER_ON = "ipmitool raw 0x00 0x02 0x01; echo $?"
+    HOST_GET_CHANNEL_AUTH_CAP = "ipmitool raw 0x06 0x38 0x81 0x04; echo $?"
 
     # Kernel Config Options
     CONFIG_IPMI_DEVICE_INTERFACE = "CONFIG_IPMI_DEVICE_INTERFACE"

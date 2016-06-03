@@ -27,10 +27,8 @@
 
 <integrationtest>
     <platform>
-
-      <xi:include href="op-ci-setup.xml" parse="xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
-
         <test>
+            <name>Test Init</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.test_init()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -38,54 +36,63 @@
         </test>
 
         <test>
+            <name>IPMI SDR Clear</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sdr_clear()"</cmd>
             </testcase>
         </test>
 
         <test>
+            <name>Out-of-band BMC and Host firmware update with HPM</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.outofband_fwandpnor_update_hpm()"</cmd>
             </testcase>
         </test>
 
         <test>
+            <name>Validate host booted</name>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.validate_lpar()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.validate_host()"</cmd>
             </testcase>
         </test>
 
         <test>
+            <name>IPL and wait for working state</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipl_wait_for_working_state()"</cmd>
             </testcase>
         </test>
 
         <test>
+            <name>Check SELs</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sel_check()"</cmd>
             </testcase>
         </test>
 
         <test>
+            <name>Warm Reset</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_warm_reset()"</cmd>
             </testcase>
         </test>
 
         <test>
+            <name>IPMI soft power off</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_soft()"</cmd>
             </testcase>
         </test>
 
         <test>
+            <name>IPMI BMC reboot</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.bmc_reboot()"</cmd>
             </testcase>
         </test>
         
         <test>
+            <name>IPMI Host Power off</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_off()"</cmd>
             </testcase>

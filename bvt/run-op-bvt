@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015-2016
 # [+] International Business Machines Corp.
 #
 #
@@ -26,7 +26,8 @@
 
 # Run OpenPower automated build verification test (BVT)
 #
-# Author: Alan Hlava
+# Original Author: Alan Hlava
+# Reworked heavily by Stewart Smith
 
 use strict;
 
@@ -39,7 +40,9 @@ use Getopt::Long qw(:config pass_through);
 use Time::localtime;
 use OpTestInfra;
 use OPBVTXML;
+use Test::More;
 
+my $quiet;
 my $verbose_str = "";
 my $fvfile = "";
 my $commandline;
@@ -47,12 +50,10 @@ my $commandline;
 # Environment
 my $userid = $ENV{USER};
 
-# Files and directories
 my $resdir = "$ENV{HOME}/run-op-bvt";
-my $tmpdir = "/tmp";
-
-my $logdir = "${resdir}/logs";
-my $logfile = "${logdir}/run-op-bvt.log";
+my $logdir;
+my $logfile;
+my $tmpdir;
 my $logf;
 my @bvtxmlfiles;
 my $tmp_bvtxmlfile = 0;
@@ -82,8 +83,6 @@ my $test_machine;
 my $test_state;
 my $test_xml;
 my $rc = 0;
-my $savedir = "";
-my $clear_failsumm = 1;
 
 my $test_env = "hw";
 my $restrict_env = "";
@@ -96,18 +95,9 @@ Syntax: run-op-bvt [OPTIONS] bvtfile.xml [bvtfile2.xml ...]
 Where bvtfile.xml is the master BVT XML file.
 
 Where OPTIONS is zero or more of:
-   --savedir /path/to/savedir : specifies the directory under which to save all
-             BVT log and FFDC data.  Subdirectories will be created under this
-             directory as needed:
-                 failsumm.log : Failure summary log (suitable for including in failure notifications)
-                 xxx_bvt_N : base dir for each sandbox created/used
-                 xxx_bvt_N/debug : dir containing /nfs/debug capture (normally, FFDC)
-             If this option is not specified, /tmp/userid/bvt/20yy-mm-dd-pid is used.
-   --noclrfailsumm : indicates to not clear the failsumm.log file befoe starting, just
-             append to it.  The default is to clear it and then append during the test execution.
    --verbose : Display extra debug statements during execution
-   --fverbose xxxx : Store additional diagnostic and informational messages
-         when setting up and running the test in the specified file (default=none)
+   --quiet : Be very quiet, only emit TAP.
+   --result dir : Directory to output all results and logs to
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
              to be a .xml file substitution variable. In this case, all
              instances of \"%%xxx%%\" in the .xml file will be replaced by
@@ -118,7 +108,7 @@ Where OPTIONS is zero or more of:
 
 sub syntax()
 {
-    print "$usage";
+    print STDERR "$usage";
     exit(1);
 }
 
@@ -147,16 +137,14 @@ sub logprint
     }
     else
     {
-        print "${timestamp} :: $msg";
+        print "${timestamp} :: $msg" unless $quiet;
     }
-    add_log_hist("${timestamp} :: $msg");
 }
 
 sub errprint
 {
     my ($msg) = @_;
     logprint("$msg", 1);
-    write_log_hist("Failure summary from run-op-bvt running $bvtxmlfile");
 }
 
 sub doVarSub
@@ -230,7 +218,6 @@ sub runTest
 {
     my ($test_id, $title, $mach, $relxmlfile) = @_;
     vprint ">runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
-    my $pid = 0;
     my $machine_opt = "";
 
     if ($mach eq "%%default%%")
@@ -245,15 +232,20 @@ sub runTest
 
     # Run the test
     logprint "Starting \"${test_title}\" ($test_xml)\n";
-    $cmd = "run-op-it $verbose_str --logpfx ${test_id} --testenv $test_env $machine_opt $xmlvars_it $relxmlfile";
+    $cmd = "run-op-it $verbose_str ";
+    $cmd .= " --quiet" if $quiet;
+    $cmd .= " --result $resdir" if $resdir;
+    $cmd .= " --testenv $test_env $machine_opt $xmlvars_it $relxmlfile";
     if (runCmd($cmd))
     {
         errprint "ERROR: \"${test_title}\" ($test_xml) finished with one or more errors\n";
+	diag("FAILED processing($test_title)");
         $totalrc += 1;
     }
     else
     {
         logprint "OK: \"${test_title}\" ($test_xml) finished successfully\n";
+	diag("Done processing $test_title");
     }
 
     vprint "<runTest($test_id, \"$title\", $mach, $relxmlfile)\n";
@@ -270,8 +262,7 @@ END
 
     if ($?)
     {
-        copy($logfile, "${savedir}/");
-        print "All logs and FFDC saved under $savedir\n";
+        print "All logs and FFDC saved under $resdir\n";
     }
     vprint "<run-op-bvt cleanUp($?)\n";
 }
@@ -284,11 +275,14 @@ $| = 1; # Force STDOUT to be unbuffered so we get output in the right order
 my $help = 0;
 $commandline = $0 . " ". (join " ", @ARGV);
 GetOptions('help|?|h' => \$help,
-	   'noclrfailsumm' => sub { $clear_failsumm = 0;},
 	   'verbose' => sub { set_verbose(1); $verbose_str = "--verbose"; },
-	   'fverbose=s' => sub { $fvfile = "$_"; set_verbose(1, $fvfile); $verbose_str = "--fverbose $fvfile" ;},
-	   'savedir=s' => \$savedir,
+	   'result=s' => \$resdir,
+	   'quiet' => \$quiet,
     ) or syntax();
+
+$logdir = "${resdir}/logs" unless $logdir;
+$logfile = "${logdir}/run-op-bvt.log" unless $logfile;
+$tmpdir = "$resdir/tmp" unless $tmpdir;
 
 my @argv = @ARGV;
 while (my $arg = shift @argv)
@@ -315,22 +309,7 @@ while (my $arg = shift @argv)
 
 syntax() if $help;
 
-# Setup savedir
-if ($savedir eq "")
-{
-    $savedir = "/tmp/${userid}/bvt/";
-    $tmp = sprintf("%d-%02d-%02d", localtime->year + 1900,
-		   localtime->mon + 1, localtime->mday);
-    $savedir .= "${tmp}-$$";
-}
-if ($clear_failsumm)
-{
-    unlink "${savedir}/failsumm.log", $fvfile;
-}
-
 logprint "Command line: $commandline\n";
-
-File::Path::make_path($savedir);
 
 # Merging input files
 # This takes all the bvt nodes from input files and
@@ -365,7 +344,7 @@ sub mergeBvtInputFiles
 if (@bvtxmlfiles > 1)
 {
     my $bvtxml = mergeBvtInputFiles(@bvtxmlfiles);
-    $bvtxmlfile = "${savedir}/merged-bvt-$$.xml";
+    $bvtxmlfile = "${resdir}/merged-bvt-$$.xml";
     open(my $f, "> $bvtxmlfile")
 	or die "Cannot open merged bvt XML: $bvtxmlfile";
     print $f $bvtxml;
@@ -385,9 +364,6 @@ else
 #-------------------------------------------------------------------------------
 # set vars representing execution environment
 #-------------------------------------------------------------------------------
-set_failsumm_log("${savedir}/failsumm.log");
-$ENV{OP_TEST_FAILSUMM_LOG} = "${savedir}/failsumm.log"; # Set so lower-level tools can find it
-
 File::Path::make_path($resdir) if (! -d "${resdir}");
 File::Path::make_path($tmpdir) if (! -d "${tmpdir}");
 File::Path::make_path($logdir) if (! -d "${logdir}");
@@ -412,7 +388,6 @@ if (! -e $fullbvtxmlfile)
 vprint "run-op-bvt\n";
 vprint "xmlvars{machine}: $xmlvars{machine}\n";
 vprint "bvtxmlfile: $bvtxmlfile\n";
-vprint "savedir: $savedir\n";
 
 
 if (! OPBVTXML::bvt_xml_is_valid("op-it.xsd", $fullbvtxmlfile))
@@ -460,15 +435,8 @@ if ($totalrc == 0)
 }
 else
 {
-    clear_log_hist(); # Clear local history because individual tests have already logged any failures
     errprint "ERROR: Finished BVT tests on $tmp with $totalrc testcase failures.\n";
 }
 
-copy($logfile, "${savedir}/");
-print "All logs and FFDC saved under $savedir\n";
-if ($totalrc)
-{
-    add_log_hist("All logs and FFDC saved under $savedir\n");
-    write_log_hist();
-}
+diag "All logs and FFDC saved under $resdir\n";
 exit $totalrc;

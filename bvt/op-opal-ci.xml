@@ -28,9 +28,8 @@
 <integrationtest>
     <platform>
 
-      <xi:include href="op-ci-setup.xml" parse="xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
-
         <test>
+            <name>Test Init</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.test_init()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -38,6 +37,7 @@
         </test>
 
         <test>
+            <name>Validate pflash binary on BMC</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.validate_pflash_tool()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -45,6 +45,7 @@
         </test>
 
         <test>
+            <name>Validate host PNOR flash side</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.validate_side_activated()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -52,6 +53,7 @@
         </test>
 
         <test>
+            <name>IPMI Power off host</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_off()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -59,6 +61,7 @@
         </test>
 
         <test>
+            <name>IPMI SDR Clear</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sdr_clear()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -66,6 +69,7 @@
         </test>
 
         <test>
+            <name>Copy PNOR image to BMC</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.pnor_img_transfer()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -73,6 +77,7 @@
         </test>
 
         <test>
+            <name>Use pflash to flash PNOR to host PNOR</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.pnor_img_flash()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -80,13 +85,15 @@
         </test>
 
         <test>
+            <name>Validate host</name>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.validate_lpar()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.validate_host()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
 
         <test>
+            <name>IPL and Wait for working state</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipl_wait_for_working_state()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -94,6 +101,7 @@
         </test>
 
         <test>
+            <name>Validate side activated</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.validate_side_activated()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -101,6 +109,7 @@
         </test>
 
         <test>
+            <name>Check SEL</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_sel_check()"</cmd>
                 <exitonerror>yes</exitonerror>

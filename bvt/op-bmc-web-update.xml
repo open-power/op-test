@@ -27,9 +27,8 @@
 <integrationtest>
     <platform>
 
-      <xi:include href="op-ci-setup.xml" parse="xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
-
         <test>
+            <name>op_bmc_web_update.test_init</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_bmc_web_update.test_init()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -37,6 +36,7 @@
         </test>
 
         <test>
+            <name>Update host PNOR from BMC Web UI with HPM</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_bmc_web_update.bmc_web_pnor_update_hpm()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -44,6 +44,7 @@
         </test>
 
         <test>
+            <name>Update BMC over BMC Web UI with HPM</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_bmc_web_update.bmc_web_bmc_update_hpm()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -51,6 +52,7 @@
         </test>
 
         <test>
+            <name>Update BMC and Host firmware with BMC Web UI with HPM</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_bmc_web_update.bmc_web_bmcandpnor_update_hpm()"</cmd>
                 <exitonerror>yes</exitonerror>
