@@ -61,13 +61,16 @@ class OpTestHost():
     # @param i_hostuser @type string: Userid to log into the host
     # @param i_hostpasswd @type string: Password of the userid to log into the host
     # @param i_bmcip @type string: IP Address of the bmc
+    # @param i_ffdcDir @type string:specifies the directory under which to save all FFDC data
     #
-    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip):
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_ffdcDir=None):
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
+        self.cv_ffdcDir = i_ffdcDir
+
 
     ##
     #   @brief This method executes the command(i_cmd) on the host using a ssh session
@@ -313,6 +316,25 @@ class OpTestHost():
             raise OpTestError(l_msg)
         print l_res
         return l_res
+
+    # @brief It will gather OPAL Message logs and store the copy in a logfile
+    #        which will be stored in FFDC dir.
+    #
+    # @return BMC_CONST.FW_SUCCESS  or raise OpTestError
+    #
+    def host_gather_opal_msg_log(self):
+        try:
+            l_data = self.host_run_command(BMC_CONST.OPAL_MSG_LOG)
+        except OpTestError:
+            l_msg = "Failed to gather OPAL message logs"
+            raise OpTestError(l_msg)
+
+        l_res = commands.getstatusoutput("date +%Y%m%d_%H%M")
+        l_logFile = "Opal_msglog_%s.log" % l_res[1]
+        fn = self.cv_ffdcDir + "/" + l_logFile
+        with open(fn, 'w') as f:
+            f.write(l_data)
+        return BMC_CONST.FW_SUCCESS
 
     ##
     # @brief It will check existence of given linux command(i_cmd) on host

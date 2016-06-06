@@ -739,6 +739,23 @@ class OpTestIPMI():
 
 
     ##
+    # @brief Sets auto-reboot policy with given policy(i_policy)
+    #
+    # @param i_policy @type string: type of policy to be set(chassis policy <i_policy>)
+    #                               always-off
+    #                               always-on
+    #                               previous
+    #
+    # @return BMC_CONST.FW_SUCCESS or else raise OpTestError if failed
+    #
+    def ipmi_set_power_policy(self, i_policy):
+        print "IPMI: Setting the power policy to %s" % i_policy
+        l_cmd = "chassis policy %s" % i_policy
+        l_res = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+        print l_res
+
+
+    ##
     # @brief Clears the SSH keys from the known host file
     #
     # @param i_hostname @type string: name of the host to be removed from known host file

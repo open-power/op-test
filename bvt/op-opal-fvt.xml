@@ -165,5 +165,19 @@
             </testcase>
         </test>
 
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_mc_cold_reset_boot_sequence()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_mc_warm_reset_boot_sequence()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
     </platform>
 </integrationtest>
