@@ -556,6 +556,185 @@ class OpTestIPMI():
         return l_rc
 
     ##
+    # @brief This function gets the BMC golden side version.
+    #
+    # @return l_rc @type str: BMC golden side version
+    #         or raise OpTestError
+    #
+    def ipmi_get_bmc_golden_side_version(self):
+        print "IPMI: Getting the BMC Golden side version"
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_GET_BMC_GOLDEN_SIDE_VERSION)
+        return l_rc
+
+    ##
+    # @brief This function gets the size of pnor partition
+    #
+    # @param i_part @type str: partition name to retrieve the size.
+    #
+    # @return l_rc @type str: size of partition raise OpTestError when fails
+    #
+    def ipmi_get_pnor_partition_size(self, i_part):
+        print "IPMI: Getting the size of %s PNOR Partition" % i_part
+        if i_part == "NVRAM":
+            l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                          BMC_CONST.IPMI_GET_NVRAM_PARTITION_SIZE )
+        elif i_part == "GUARD":
+            l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                          BMC_CONST.IPMI_GET_GUARD_PARTITION_SIZE )
+        elif i_part == "BOOTKERNEL":
+            l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                          BMC_CONST.IPMI_GET_BOOTKERNEL_PARTITION_SIZE)
+        else:
+            l_msg = "please provide valid partition eye catcher name"
+            print l_rc
+            raise OpTestError(l_msg)
+        return l_rc
+
+    ##
+    # @brief This function is used to check whether BMC Completed Booting.
+    #
+    # @return l_res @type str: output of command or raise OpTestError
+    #
+    def ipmi_get_bmc_boot_completion_status(self):
+        print "IPMI: Getting the BMC Boot completion status"
+        l_res = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_HAS_BMC_BOOT_COMPLETED)
+        return l_res
+
+    ##
+    # @brief This command is used to get the State of Fault RollUP LED.
+    #        Fault RollUP LED      0x00
+    #
+    # @return l_res @type str: output of command or raise OpTestError
+    #
+    def ipmi_get_fault_led_state(self):
+        print "IPMI: Getting the fault rollup LED state"
+        l_res = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_GET_LED_STATE_FAULT_ROLLUP)
+        return l_res
+
+    ##
+    # @brief This command is used to get the State of Power ON LED.
+    #        Power ON LED      0x01
+    #
+    # @return l_res @type str: output of command or raise OpTestError
+    #
+    def ipmi_get_power_on_led_state(self):
+        print "IPMI: Getting the Power ON LED state"
+        l_res = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_GET_LED_STATE_POWER_ON)
+        return l_res
+
+    ##
+    # @brief This command is used to get the State of Host Status LED.
+    #        Host Status LED       0x02
+    #
+    # @return l_res @type str: output of command or raise OpTestError
+    #
+    def ipmi_get_host_status_led_state(self):
+        print "IPMI: Getting the Host status LED state"
+        l_res = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_GET_LED_STATE_HOST_STATUS)
+        return l_res
+
+    ##
+    # @brief This command is used to get the State of Chassis Identify LED.
+    #        Chassis Identify LED  0x03
+    #
+    # @return l_res @type str: output of command or raise OpTestError
+    #
+    def ipmi_get_chassis_identify_led_state(self):
+        print "IPMI: Getting the Chassis Identify LED state"
+        l_res = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_GET_LED_STATE_CHASSIS_IDENTIFY)
+        return l_res
+
+    ##
+    # @brief This function is used to set the state of a given LED.
+    #
+    # @param i_led @type str: led number to set the state.
+    #        EX: LED Number Table to use.
+    #            Fault RollUP LED      0x00
+    #            Power ON LED          0x01
+    #            Host Status LED       0x02
+    #            Chassis Identify LED  0x03
+    #
+    # @param i_state @type str: state of led to set.
+    #           LED State to be set.
+    #               0x0  LED OFF
+    #               0x1  LED ON
+    #               0x2  LED Standby Blink Rate
+    #               0x3  LED Slow Blink rate.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_set_led_state(self, i_led, i_state):
+        l_led = i_led
+        l_state = i_state
+        print "IPMI: Setting the %s LED with %s state" % (l_led, l_state)
+        l_cmd = self.cv_baseIpmiCmd + "raw 0x3a 0x03 %s %s" % (l_led, l_state)
+        l_res = self._ipmitool_cmd_run(l_cmd)
+        if "00" in l_res:
+            print "Set LED state got success"
+            return BMC_CONST.FW_SUCCESS
+        elif "0x90" in l_res:
+            print "Invalid LED number"
+        else:
+            l_msg = "IPMI: Set LED state failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+
+    ##
+    # @brief This function is used to enable Fan control Task thread running on BMC
+    #        Ex: ipmitool raw 0x3a 0x12 0x01
+    #
+    # @return raise OpTestError when fails
+    #
+    def ipmi_enable_fan_control_task_command(self):
+        print "IPMI: Enabling the Fan control task thread state"
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_ENABLE_FAN_CONTROL_TASK_THREAD)
+        print l_rc
+        return l_rc
+
+    ##
+    # @brief This function is used to disable Fan control Task thread running on BMC
+    #        Ex: ipmitool raw 0x3a 0x12 0x00
+    #
+    # @return raise OpTestError when fails
+    #
+    def ipmi_disable_fan_control_task_command(self):
+        print "IPMI: Disabling the Fan control task thread state"
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_DISABLE_FAN_CONTROL_TASK_THREAD)
+        print l_rc
+        return l_rc
+
+    ##
+    # @brief This function is used to get the state of fan control task thread.
+    #        Ex: ipmitool raw 0x3a 0x13
+    #
+    # @return l_state @type str: raise OpTestError when fails
+    #
+    def ipmi_get_fan_control_task_state_command(self):
+        print "IPMI: Getting the state of fan control task thread"
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd +
+                                      BMC_CONST.IPMI_FAN_CONTROL_TASK_THREAD_STATE)
+        print l_rc
+        if BMC_CONST.IPMI_FAN_CONTROL_THREAD_NOT_RUNNING in l_rc:
+            print "IPMI: Fan control task thread state is not running"
+            l_state = BMC_CONST.IPMI_FAN_CONTROL_THREAD_NOT_RUNNING
+        elif BMC_CONST.IPMI_FAN_CONTROL_THREAD_RUNNING in l_rc:
+            print "IPMI: Fan control task thread state is running"
+            l_state = BMC_CONST.IPMI_FAN_CONTROL_THREAD_RUNNING
+        else:
+            l_msg = "IPMI: Invalid response from fan control thread state command"
+            raise OpTestError(l_msg)
+        return l_state
+
+    ##
     # @brief set power limit of bmc
     #
     # @param i_powerlimit @type int: power limit to be set at BMC

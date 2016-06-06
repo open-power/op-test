@@ -107,3 +107,11 @@ def test_ipmi_power_control():
 
 def test_oob_ipmi():
     assert op_opal_fvt.test_oob_ipmi() == 0
+
+
+def test_fan_control_enable_functionality():
+    assert op_opal_fvt.test_fan_control_enable_functionality() == 0
+
+
+def test_fan_control_disable_functionality():
+    assert op_opal_fvt.test_fan_control_disable_functionality() == 0

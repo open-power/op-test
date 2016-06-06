@@ -167,5 +167,19 @@
             </testcase>
         </test>
 
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_fan_control_enable_functionality()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_fan_control_disable_functionality()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
     </platform>
 </integrationtest>
