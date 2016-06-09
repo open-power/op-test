@@ -270,6 +270,27 @@ class OpTestSystem():
         return BMC_CONST.FW_SUCCESS
 
 
+    ##
+    # @brief This function will check for system status and wait for
+    #        FW and Host OS Boot progress to complete.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def sys_check_host_status(self):
+        if int(self.sys_ipl_wait_for_working_state()) == BMC_CONST.FW_SUCCESS:
+            print "System booted to working state"
+        else:
+            l_msg = "System failed to boot"
+            raise OpTestError(l_msg)
+        if int(self.sys_wait_for_os_boot_complete()) == BMC_CONST.FW_SUCCESS:
+            print "System booted to Host OS"
+        else:
+            l_msg = "System failed to boot Host OS"
+            raise OpTestError(l_msg)
+
+        return BMC_CONST.FW_SUCCESS
+
+
     ###########################################################################
     # CODE-UPDATE INTERFACES
     ###########################################################################
