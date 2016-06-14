@@ -115,3 +115,11 @@ def test_mc_cold_reset_boot_sequence():
 
 def test_mc_warm_reset_boot_sequence():
     assert op_opal_fvt.test_mc_warm_reset_boot_sequence() == 0
+
+
+def test_fan_control_enable_functionality():
+    assert op_opal_fvt.test_fan_control_enable_functionality() == 0
+
+
+def test_fan_control_disable_functionality():
+    assert op_opal_fvt.test_fan_control_disable_functionality() == 0
