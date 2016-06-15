@@ -36,6 +36,13 @@
 
         <test>
             <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_inband_usb_interface()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_oob_ipmi()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
