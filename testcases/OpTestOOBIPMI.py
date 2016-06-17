@@ -128,6 +128,197 @@ class OpTestOOBIPMI():
         self.test_raw()
         print "OOB IPMI: exec tests"
         self.test_exec()
+        print "OOB IPMI: Get BMC Golden side Version Test"
+        self.test_bmc_golden_side_version()
+        print "OOB IPMI: Get size of PNOR partition Test"
+        self.test_get_pnor_partition_size_cmd()
+        print "OOB IPMI: Get BMC boot completion status Test"
+        self.test_bmc_boot_completed_cmd()
+        print "OOB IPMI: Get state of various LED's"
+        self.test_get_led_state_cmd()
+        print "OOB IPMI: Set LED state of various LED's"
+        self.test_set_led_state_cmd()
+        print self.cv_IPMI.ipmi_get_bmc_golden_side_version()
+        print self.cv_IPMI.ipmi_get_pnor_partition_size("NVRAM")
+        print self.cv_IPMI.ipmi_get_pnor_partition_size("GUARD")
+        print self.cv_IPMI.ipmi_get_pnor_partition_size("BOOTKERNEL")
+        print self.cv_IPMI.ipmi_get_bmc_boot_completion_status()
+        print self.cv_IPMI.ipmi_get_fault_led_state()
+        print self.cv_IPMI.ipmi_get_power_on_led_state()
+        print self.cv_IPMI.ipmi_get_host_status_led_state()
+        print self.cv_IPMI.ipmi_get_chassis_identify_led_state()
+        self.cv_IPMI.ipmi_enable_fan_control_task_command()
+        self.cv_IPMI.ipmi_get_fan_control_task_state_command()
+        self.cv_IPMI.ipmi_disable_fan_control_task_command()
+        self.cv_IPMI.ipmi_get_fan_control_task_state_command()
+
+    ##
+    # @brief  This function is used to get the bmc golden image version.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_bmc_golden_side_version(self):
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_BMC_GOLDEN_SIDE_VERSION)
+
+    ##
+    # @brief This function is used to get partition size of given PNOR Partition.
+    #        Currently added NVRAM,GUARD and BOOTKERNEL partitions.
+    #        TODO: Add all the necessary partitions to get the size.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_get_pnor_partition_size_cmd(self):
+        print "OOB IPMI: Getting the size of NVRAM partition"
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_NVRAM_PARTITION_SIZE)
+        print "OOB IPMI: Getting the size of GUARD partition"
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_GUARD_PARTITION_SIZE)
+        print "OOB IPMI: Getting the size of BOOTKERNEL partition"
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_BOOTKERNEL_PARTITION_SIZE)
+
+    ##
+    # @brief This function is used to test reading of pnor partition data
+    #        via ipmitool command. Here it will currently read NVRAM
+    #        and FIRDATA partition's data of size 254 bytes.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_read_pnor_partition_data(self):
+        self.run_ipmi_cmd(BMC_CONST.IPMI_READ_NVRAM_PARTITION_DATA)
+        self.run_ipmi_cmd(BMC_CONST.IPMI_READ_FIRDATA_PARTITION_DATA)
+
+    ##
+    # @brief This function is used to check whether BMC Completed Booting.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_bmc_boot_completed_cmd(self):
+        self.run_ipmi_cmd(BMC_CONST.IPMI_HAS_BMC_BOOT_COMPLETED)
+
+    ##
+    # @brief This command is used to get the State of below Supported LED.
+    #        LED Number Table:
+    #        Fault RollUP LED      0x00
+    #        Power ON LED          0x01
+    #        Host Status LED       0x02
+    #        Chassis Identify LED  0x03
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_get_led_state_cmd(self):
+        print "LED: Fault RollUP LED      0x00"
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_LED_STATE_FAULT_ROLLUP)
+        print "LED: Power ON LED          0x01"
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_LED_STATE_POWER_ON)
+        print "LED: Host Status LED       0x02"
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_LED_STATE_HOST_STATUS)
+        print "LED: Chassis Identify LED  0x03"
+        self.run_ipmi_cmd(BMC_CONST.IPMI_GET_LED_STATE_CHASSIS_IDENTIFY)
+
+    ##
+    # @brief This function is used to test set LED state feature.
+    #        LED Number Table:
+    #        Fault RollUP LED      0x00
+    #        Power ON LED          0x01
+    #        Host Status LED       0x02
+    #        Chassis Identify LED  0x03
+    #        LED State Table:
+    #        LED State to be set.
+    #               0x0  LED OFF
+    #               0x1  LED ON
+    #               0x2  LED Standby Blink Rate
+    #               0x3  LED Slow Blink rate.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_set_led_state_cmd(self):
+        self.cv_IPMI.ipmi_set_led_state("0x00", "0x0")
+        self.cv_IPMI.ipmi_get_fault_led_state()
+        self.cv_IPMI.ipmi_set_led_state("0x00", "0x1")
+        self.cv_IPMI.ipmi_get_fault_led_state()
+        self.cv_IPMI.ipmi_set_led_state("0x00", "0x2")
+        self.cv_IPMI.ipmi_get_fault_led_state()
+        self.cv_IPMI.ipmi_set_led_state("0x00", "0x3")
+        self.cv_IPMI.ipmi_get_fault_led_state()
+        self.cv_IPMI.ipmi_set_led_state("0x01", "0x0")
+        self.cv_IPMI.ipmi_get_power_on_led_state()
+        self.cv_IPMI.ipmi_set_led_state("0x01", "0x1")
+        self.cv_IPMI.ipmi_get_power_on_led_state()
+        self.cv_IPMI.ipmi_set_led_state("0x01", "0x2")
+        self.cv_IPMI.ipmi_get_power_on_led_state()
+        self.cv_IPMI.ipmi_set_led_state("0x01", "0x3")
+        self.cv_IPMI.ipmi_get_power_on_led_state()
+
+    ##
+    # @brief Step 1: Stop Fan Control Thread:
+    #           ipmitool -I lanplus -U admin -P admin -H <BMC IP> raw 0x3a 0x12 0x00
+    #        Step 2: Fan Control STOPPED OEM SEL created
+    #           ipmitool -I lanplus -U admin -P admin -H <BMC IP> sel list |grep OEM
+    #           7b | 04/20/2015 | 03:03:14 | OEM record c0 | 000000 | 3a1100ffffff
+    #        Step 3: #Run IsFanRunning OEM Command
+    #           ipmitool -I lanplus -U admin -P admin -H <BMC IP> raw 0x3a 0x13
+    #           00
+    #
+    # @return return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def test_fan_control_algorithm_1(self):
+        print "OOB IPMI: Testing Fan control disable functionality"
+        self.cv_IPMI.ipmi_enable_fan_control_task_command()
+        self.cv_IPMI.ipmi_sdr_clear()
+        l_state = self.cv_IPMI.ipmi_get_fan_control_task_state_command()
+        if str(BMC_CONST.IPMI_FAN_CONTROL_THREAD_RUNNING) in l_state:
+            self.cv_IPMI.ipmi_disable_fan_control_task_command()
+            l_state = self.cv_IPMI.ipmi_get_fan_control_task_state_command()
+            if str(BMC_CONST.IPMI_FAN_CONTROL_THREAD_NOT_RUNNING) in l_state:
+                l_output = self.cv_IPMI.ipmi_get_sel_list()
+                print l_output
+                if "OEM" in l_output:
+                    print "IPMI: Disabling of fan control creates an OEM SEL event"
+                    return BMC_CONST.FW_SUCCESS
+                else:
+                    l_msg = "IPMI: Disabling of fan control doesn't create an OEM SEL event"
+                    raise OpTestError(l_msg)
+            else:
+                l_msg = "IPMI: Fan control thread still running, disable failed"
+                raise OpTestError(l_msg)
+        else:
+            l_msg = "IPMI: Fan control thread still in not running state, enable failed"
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief Step 1: Start Fan Control Thread:
+    #           ipmitool -I lanplus -U admin -P admin -H <BMC IP> raw 0x3a 0x12 0x01
+    #        Step 2: Fan Control STOPPED OEM SEL created
+    #           ipmitool -I lanplus -U admin -P admin -H <BMC IP> sel list |grep OEM
+    #           7b | 04/20/2015 | 03:03:14 | OEM record c0 | 000000 | 3a1100ffffff
+    #        Step 3: #Run IsFanRunning OEM Command
+    #           ipmitool -I lanplus -U admin -P admin -H <BMC IP> raw 0x3a 0x13
+    #           01
+    #
+    # @return return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def test_fan_control_algorithm_2(self):
+        print "OOB IPMI: Testing Fan control enable functionality"
+        self.cv_IPMI.ipmi_disable_fan_control_task_command()
+        self.cv_IPMI.ipmi_sdr_clear()
+        l_state = self.cv_IPMI.ipmi_get_fan_control_task_state_command()
+        if l_state == str(BMC_CONST.IPMI_FAN_CONTROL_THREAD_NOT_RUNNING):
+            self.cv_IPMI.ipmi_enable_fan_control_task_command()
+            l_state = self.cv_IPMI.ipmi_get_fan_control_task_state_command()
+            if l_state == str(BMC_CONST.IPMI_FAN_CONTROL_THREAD_RUNNING):
+                l_output = self.cv_IPMI.ipmi_get_sel_list()
+                print l_output
+                if "OEM" in l_output:
+                    print "IPMI: Enabling of fan control creates an OEM SEL event"
+                    return BMC_CONST.FW_SUCCESS
+                else:
+                    l_msg = "IPMI: Enabling of fan control doesn't create an OEM SEL event"
+                    raise OpTestError(l_msg)
+            else:
+                l_msg = "IPMI: Fan control thread still in not running state, enable failed"
+                raise OpTestError(l_msg)
+        else:
+            l_msg = "IPMI: Fan control thread still running, disable failed"
+            raise OpTestError(l_msg)
 
     ##
     # @brief  It will check basic channel functionalities: info and authentication capabilities.
