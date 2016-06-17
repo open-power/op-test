@@ -341,3 +341,24 @@ def test_mc_warm_reset_boot_sequence():
         returns: int 0-success, raises exception-error
     """
     return opTestSystemBootSequence.testMcWarmResetBootSequence()
+
+
+def test_system_power_restore_policy_always_on():
+    """This function tests System Power Policy always-on
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testSystemPowerPolicyOn()
+
+
+def test_system_power_restore_policy_always_off():
+    """This function tests System Power Policy always-off
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testSystemPowerPolicyOff()
+
+
+def test_system_power_restore_policy_previous():
+    """This function tests System Power Policy previous
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testSystemPowerPolicyPrevious()

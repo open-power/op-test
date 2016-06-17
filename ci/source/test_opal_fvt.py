@@ -115,3 +115,15 @@ def test_mc_cold_reset_boot_sequence():
 
 def test_mc_warm_reset_boot_sequence():
     assert op_opal_fvt.test_mc_warm_reset_boot_sequence() == 0
+
+
+def test_system_power_restore_policy_always_on():
+    assert op_opal_fvt.test_system_power_restore_policy_always_on() == 0
+
+
+def test_system_power_restore_policy_always_off():
+    assert op_opal_fvt.test_system_power_restore_policy_always_off() == 0
+
+
+def test_system_power_restore_policy_previous():
+    assert op_opal_fvt.test_system_power_restore_policy_previous() == 0
