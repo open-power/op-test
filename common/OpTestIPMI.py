@@ -431,6 +431,33 @@ class OpTestIPMI():
 
 
     ##
+    # @brief Performs a cold reset onto the bmc
+    #
+    # @return BMC_CONST.FW_SUCCESS if power status not changed after BMC cold reset
+    #       or BMC_CONST.FW_FAILED if power status changed after BMC cold reset
+    #
+    def ipmi_issue_cold_reset(self):
+
+        l_initstatus = self.ipmi_power_status()
+        print ("Applying Cold reset.")
+        l_rc = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + BMC_CONST.BMC_COLD_RESET)
+        if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
+            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+            self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
+            l_finalstatus = self.ipmi_power_status()
+            if (l_initstatus != l_finalstatus):
+                print('initial status ' + str(l_initstatus))
+                print('final status ' + str(l_finalstatus))
+                print ('Power status changed during cold reset')
+                return BMC_CONST.FW_FAILED
+            return BMC_CONST.FW_SUCCESS
+        else:
+            print "Cold reset failed"
+            print l_rc
+            raise OpTestError(l_rc)
+
+
+    ##
     # @brief Performs a warm reset onto the bmc
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
