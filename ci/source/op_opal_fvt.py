@@ -369,3 +369,24 @@ def test_fan_control_disable_functionality():
         returns: int 0-success, raises exception-error
     """
     return opTestOOBIPMI.test_fan_control_algorithm_1()
+
+
+def test_system_power_restore_policy_always_on():
+    """This function tests System Power Policy always-on
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testSystemPowerPolicyOn()
+
+
+def test_system_power_restore_policy_always_off():
+    """This function tests System Power Policy always-off
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testSystemPowerPolicyOff()
+
+
+def test_system_power_restore_policy_previous():
+    """This function tests System Power Policy previous
+        returns: int 0-success, raises exception-error
+    """
+    return opTestSystemBootSequence.testSystemPowerPolicyPrevious()
