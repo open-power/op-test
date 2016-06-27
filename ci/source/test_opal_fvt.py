@@ -127,3 +127,15 @@ def test_fan_control_enable_functionality():
 
 def test_fan_control_disable_functionality():
     assert op_opal_fvt.test_fan_control_disable_functionality() == 0
+
+
+def test_system_power_restore_policy_always_on():
+    assert op_opal_fvt.test_system_power_restore_policy_always_on() == 0
+
+
+def test_system_power_restore_policy_always_off():
+    assert op_opal_fvt.test_system_power_restore_policy_always_off() == 0
+
+
+def test_system_power_restore_policy_previous():
+    assert op_opal_fvt.test_system_power_restore_policy_previous() == 0

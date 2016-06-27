@@ -200,5 +200,26 @@
             </testcase>
         </test>
 
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_always_on()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_always_off()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_previous()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
     </platform>
 </integrationtest>

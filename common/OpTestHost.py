@@ -42,6 +42,7 @@ import socket
 import select
 import pty
 import pexpect
+import commands
 try:
     import pxssh
 except ImportError:
