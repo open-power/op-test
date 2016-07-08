@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-auto-test/testcases/OpTestRTCdriver.py $
+# $Source: op-test-framework/testcases/OpTestRTCdriver.py $
 #
 # OpenPOWER Automated Test Project
 #

@@ -1,7 +1,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-auto-test/ci/source/opCIConfigure.py $
+# $Source: op-test-framework/ci/source/opCIConfigure.py $
 #
 # OpenPOWER Automated Test Project
 #

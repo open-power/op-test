@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-auto-test/ci/source/op_opal_fvt.py $
+# $Source: op-test-framework/ci/source/op_opal_fvt.py $
 #
 # OpenPOWER Automated Test Project
 #
