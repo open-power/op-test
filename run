@@ -80,13 +80,11 @@ syntax() if $help;
 die "The directory '$test_result' already exists!
 Remove previous test results and run again." if -e $test_result;
 
-mkdir $test_result;
+die "ERROR: you must specify a machines XML file to test\n" if ($machines_xml eq "");
 
-if ($machines_xml eq "")
-{
-    print STDERR "ERROR: you must specify a machines XML file to test\n";
-    exit(1);
-}
+die "No machine specified to run test on." unless (defined $machine);
+
+mkdir $test_result;
 
 my $parser = XML::LibXML->new();
 my $dom = XML::LibXML->load_xml(location => $machines_xml);
