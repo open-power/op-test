@@ -35,7 +35,7 @@ use FindBin;
 use XML::LibXML;
 use lib "$FindBin::Bin";
 
-my $test_env = "";
+my %test_env = {};
 
 my $usage = "Run OpenPower Automated Integration Test
 
@@ -49,7 +49,7 @@ OPTIONS is one or more of:
           xml : just display the resulting XML after include processing and variable substitution
           cmd : just display all commands instead of running them
    --quiet : be quiet and just output TAP
-   --testenv xxx : is this test to run only in specific environment with this tag
+   --testenv x,y,z : Specifies test environment properties
    --verbose : display additional debug information while executing
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
           to be a .xml file substitution variable. In this case, all
@@ -73,7 +73,7 @@ cmd => '$',
 arg => '$',
 ffdc   => '$',
 exitonerror => '$',
-restrict_env => '$'
+restrict_env => '@'
 );
 
 1;
@@ -333,20 +333,22 @@ sub runAllTests
         {
 	    $testnr++;
 
-            my $restrict_env = ${$test->findnodes('./restrict-env')}[0];
-	    $restrict_env = $restrict_env->textContent if $restrict_env;
-
             $testgrp = ${$test->findnodes('./name')}[0];
 	    $testgrp = ${$test->findnodes('./title')}[0] if !$testgrp;
 	    $testgrp = $testgrp->textContent if $testgrp;
 	    $testgrp = $testnr if !$testgrp;
 
-            # Check for env restriction at <test> level
-            if (($restrict_env ne "") && ($restrict_env ne $test_env))
-            {
-                printMsg("Skipping test due to not running in $restrict_env environment: $testgrp\n");
-                next;
-            }
+	    my @skip;
+	    foreach my $r_node ($test->findnodes('./restrict-env'))
+	    {
+		my $restriction = $r_node->textContent;
+		push @skip, $restriction if ! defined $test_env{$restriction};
+	    }
+	    if (@skip) {
+		printMsg("Skipping $testgrp due to restricitons: ".join(',', @skip)."\n");
+		next;
+	    }
+
             printMsg("Starting Test: $testgrp\n");
 
             # Create the contained testcases
@@ -361,13 +363,16 @@ sub runAllTests
 		$ffdc = $ffdc->textContent if $ffdc;
 		my $exitonerror = ${$testcase->findnodes('./exitonerror')}[0];
 		$exitonerror = $exitonerror->textContent if $exitonerror;
-		my $restrict_env = ${$testcase->findnodes('./restrict_env')}[0];
-		$restrict_env = $restrict_env->textContent if $restrict_env;
+		my @restrict_env;
+		foreach my $r_node ($testcase->findnodes('./restrict_env'))
+		{
+		    push @restrict_env, $r_node->textContent;
+		}
 
                 push(@testcases_to_run, new Testcase(id=>"$testgrp.$testcase_index",
 					cmd=>$cmd, arg=>$arg, ffdc=>$ffdc,
 					exitonerror=>$exitonerror,
-					restrict_env=>$restrict_env));
+					restrict_env=>\@restrict_env));
             }
 	}
     }
@@ -380,10 +385,13 @@ sub runAllTests
 	vprint "testcaseid: $testcaseid\n";
 
 	# Check for env restriction at <testcase> level
-	my $restrict_env = $tc_ref->restrict_env;
-	if (($restrict_env ne "") && ($restrict_env ne $test_env))
+	my @skip;
+	foreach my $restriction (@{$tc_ref->restrict_env})
 	{
-	    skip("Skipping testcase $testcase_index due to not running in $restrict_env environment\n", 1, 1);
+	    push @skip, $restriction if ! defined $test_env{$restriction};
+	}
+	if (@skip) {
+	    printMsg("Skipping $testcaseid due to restricitons: ".join(',',@skip)."\n");
 	    next;
 	}
 
@@ -473,6 +481,7 @@ $xmlvars{verbose} = "";
 
 my $help;
 my $resdir;
+my $test_env;
 
 GetOptions('help|?|h' => \$help,
 	   'verbose' => sub { set_verbose(1);
@@ -485,6 +494,8 @@ GetOptions('help|?|h' => \$help,
     ) or syntax();
 
 syntax() if $help;
+
+$test_env{$_} = 1 foreach (split /,/,$test_env);
 
 my @argv = @ARGV;
 while (my $arg = shift @argv)

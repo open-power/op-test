@@ -167,9 +167,9 @@ sub create_config_file {
     print $f "\n";
     print $f "[test]\n";
     print $f "ffdcdir = ".cwd()."\n";
-    my $firmware_path = get_firmware_path($test_firmware, $platform);
-    my $firmware_image = get_firmware_image_name($platform);
     unless ($noflash) {
+	my $firmware_path = get_firmware_path($test_firmware, $platform);
+	my $firmware_image = get_firmware_image_name($platform);
 	print $f "imagedir = ".cwd()."/$firmware_path\n";
 	print $f "imagename = $firmware_image\n";
     }
@@ -214,12 +214,18 @@ foreach my $m (@machines)
     # In theory, machines can have > 1 host IP and > 1 BMC
     # This code is currently likely broken for that.
 
+    my @testenv;
+    push (@testenv, ($m->findnodes('./bmc/bmc-type'))->to_literal);
+    push (@testenv, 'noflash') if $noflash;
+    push (@testenv, 'flash') if !$noflash;
+
     print "# Running test for $platform on $name\n";
     $cmd = "(cd bvt; PATH=.:\$PATH ./run-op-bvt ";
     $cmd .= " --quiet" unless $verbose;
     $cmd .= cmd_param('bmcip',$m,'./bmc/hostname');
     $cmd .= cmd_param('bmcuser',$m,'./bmc/user');
     $cmd .= cmd_param('bmcpwd',$m,'./bmc/password');
+    $cmd .= " --testenv ".join(',', @testenv);
     $cmd .= cmd_param('usernameipmi',$m,'./bmc/ipmi-user');
     $cmd .= cmd_param('passwordipmi',$m,'./bmc/ipmi-password');
     $cmd .= cmd_param('hostip',$m,'./host/hostname');
