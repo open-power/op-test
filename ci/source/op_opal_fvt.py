@@ -167,22 +167,22 @@ opTestIPMIPowerControl = OpTestIPMIPowerControl(bmcCfg['ip'], bmcCfg['username']
 
 opTestInbandUsbInterface = OpTestInbandUsbInterface(bmcCfg['ip'], bmcCfg['username'],
                                                     bmcCfg['password'],
-                                                    bmcCfg['usernameipmi'],
-                                                    bmcCfg['passwordipmi'],
+                                                    bmcCfg.get('usernameipmi'),
+                                                    bmcCfg.get('passwordipmi'),
                                                     testCfg['ffdcdir'], hostCfg['hostip'],
                                                     hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestOOBIPMI = OpTestOOBIPMI(bmcCfg['ip'], bmcCfg['username'],
                                         bmcCfg['password'],
-                                        bmcCfg['usernameipmi'],
-                                        bmcCfg['passwordipmi'],
+                                        bmcCfg.get('usernameipmi'),
+                                        bmcCfg.get('passwordipmi'),
                                         testCfg['ffdcdir'], hostCfg['hostip'],
                                         hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestSystemBootSequence = OpTestSystemBootSequence(bmcCfg['ip'], bmcCfg['username'],
                                                     bmcCfg['password'],
-                                                    bmcCfg['usernameipmi'],
-                                                    bmcCfg['passwordipmi'],
+                                                    bmcCfg.get('usernameipmi'),
+                                                    bmcCfg.get('passwordipmi'),
                                                     testCfg['ffdcdir'], hostCfg['hostip'],
                                                     hostCfg['hostuser'], hostCfg['hostpasswd'])
 
