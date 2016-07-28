@@ -43,16 +43,26 @@
         </test>
 
         <test>
-            <name>Out-of-band BMC and Host firmware update with HPM</name>
+            <name>IPMI Host Power off</name>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.outofband_fwandpnor_update_hpm()"</cmd>
+                <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_off()"</cmd>
             </testcase>
         </test>
 
         <test>
-            <name>Validate host booted</name>
+          <name>Out-of-band BMC and Host firmware update with HPM</name>
+	  <restrict-env>astbmc</restrict-env>
+	  <restrict-env>flash</restrict-env>
+          <testcase>
+            <cmd>op-ci-bmc-run "op_ci_bmc.outofband_fwandpnor_update_hpm()"</cmd>
+          </testcase>
+        </test>
+
+        <test>
+            <name>Power on and validate host booted</name>
             <testcase>
-                <cmd>op-ci-bmc-run "op_ci_bmc.validate_host()"</cmd>
+	      <cmd>op-ci-bmc-run "op_ci_bmc.ipmi_power_on()"</cmd>
+              <cmd>op-ci-bmc-run "op_ci_bmc.validate_host()"</cmd>
             </testcase>
         </test>
 
