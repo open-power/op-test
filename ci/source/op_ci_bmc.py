@@ -212,6 +212,15 @@ def ipl_wait_for_working_state(timeout=10):
 
     return opTestSys.sys_ipl_wait_for_working_state()
 
+def ipmi_ipl_wait_for_login(timeout=10):
+    """On IPL, wait for either the Petitboot prompt or a linux login: prompt.
+    This is used as a work-around for systems that cannot use the 'Boot Status'
+    IPMI sensor (e.g. IBM FSP based systems).
+    Similar to ipl_wait_for_working_state.
+
+    :returns: int -- 0: success, non-zero: error
+    """
+    return opTestSys.sys_ipmi_ipl_wait_for_login()
 
 def ipmi_sel_check():
     """This function dumps the sel log and looks for specific hostboot error
