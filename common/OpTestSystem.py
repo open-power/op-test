@@ -186,6 +186,14 @@ class OpTestSystem():
             return BMC_CONST.FW_FAILED
         return rc
 
+    def sys_ipmi_ipl_wait_for_login(self,i_timeout=10):
+        l_con = self.sys_get_ipmi_console()
+        try:
+            rc = self.cv_IPMI.ipmi_ipl_wait_for_login(l_con, i_timeout)
+        except OpTestError as e:
+            return BMC_CONST.FW_FAILED
+        return rc
+
     ##
     # @brief Wait for system to reach standby or[S5/G2: soft-off]
     #
