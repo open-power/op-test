@@ -212,6 +212,8 @@ def ipl_wait_for_working_state(timeout=10):
 
     return opTestSys.sys_ipl_wait_for_working_state()
 
+def ipmi_ipl_wait_for_login(timeout=10):
+    return opTestSys.sys_ipmi_ipl_wait_for_login()
 
 def ipmi_sel_check():
     """This function dumps the sel log and looks for specific hostboot error
