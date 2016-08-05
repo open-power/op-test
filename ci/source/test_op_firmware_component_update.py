@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-auto-test/ci/source/test_op_firmware_component_update.py $
+# $Source: op-test-framework/ci/source/test_op_firmware_component_update.py $
 #
 # OpenPOWER Automated Test Project
 #
