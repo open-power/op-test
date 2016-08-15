@@ -2,7 +2,7 @@
 <!-- IBM_PROLOG_BEGIN_TAG                                                   -->
 <!-- This is an automatically generated prolog.                             -->
 <!--                                                                        -->
-<!-- $Source: op-test-framework/bvt/op-opal-fvt-bvt.xml $                   -->
+<!-- $Source: op-test-framework/bvt/op-occ-fvt-bvt.xml $                    -->
 <!--                                                                        -->
 <!-- OpenPOWER Automated Test Project                                       -->
 <!--                                                                        -->
@@ -24,13 +24,6 @@
 <!--                                                                        -->
 <!-- IBM_PROLOG_END_TAG                                                     -->
 <bvts>
-
-<bvt>
-    <id>op-opal-fvt</id>
-    <title>OP OPAL FVT BVT</title>
-    <bvt-xml>op-opal-fvt.xml</bvt-xml>
-    <coverage/>
-</bvt>
 
 <bvt>
     <id>op-occ-fvt</id>
