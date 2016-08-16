@@ -396,6 +396,7 @@ class OpTestConstants():
     IPMI_PEF_LIST = "pef list; echo $?"
     IPMI_RAW_POH = "-v raw 0x0 0xf; echo $?"
     IPMI_SDR_GET = "sdr get "
+    IPMI_SEL_LIST_ENTRIES = "3"
 
     # Power Architecture Specific IPMI Commands
     IPMI_GET_BMC_GOLDEN_SIDE_VERSION = "raw 0x3a 0x1a; echo $?"
@@ -424,3 +425,8 @@ class OpTestConstants():
     HOST_FWTS_PRD_INFO = "fwts prd_info;echo $?"
     HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG = "rm -f results.log"
     HOST_FWTS_RESULTS_LOG = "cat results.log; echo $?"
+
+    # Sensor id's
+    SENSOR_HOST_STATUS = "Host Status"
+    SENSOR_OS_BOOT = "OS Boot"
+    SENSOR_OCC_ACTIVE = "OCC Active"
