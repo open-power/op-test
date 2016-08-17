@@ -92,7 +92,7 @@ class OpTestConstants():
     BMC_WARM_RESET_DELAY = 150
     BMC_COLD_RESET_DELAY = 150
     HOST_BRINGUP_TIME = 80
-    SHORT_WAIT_IPL = 5
+    SHORT_WAIT_IPL = 10
     SHORT_WAIT_STANDBY_DELAY = 5
     LONG_WAIT_IPL = 50
     HOST_REBOOT_DELAY = 100
@@ -247,6 +247,7 @@ class OpTestConstants():
 
     # PRD driver specific registers
     IPOLL_MASK_REGISTER = "0x01020013"
+    IPOLL_MASK_REGISTER_CONTENT = "0000000000000000"
     # PBAFIR_OCI_APAR_ERR: OCI Address Parity Error Det Address parity
     # error detected by PBA OCI Slave logic for any valid address.
     PBAFIR_OCI_APAR_ERR = 0x8000000000000000
@@ -255,6 +256,7 @@ class OpTestConstants():
     PBAFIR_PB_RDADRERR_FW = 0x6000000000000000
     PBA_FAULT_ISOLATION_REGISTER = "0x02010840"
     PBA_FAULT_ISOLATION_MASK_REGISTER = "0x02010843"
+    FAULT_ISOLATION_REGISTER_CONTENT = "0000000000000000"
 
     # Tools, repository and utility paths
     CLONE_SKIBOOT_DIR = "/tmp/skiboot"
@@ -396,7 +398,6 @@ class OpTestConstants():
     IPMI_PEF_LIST = "pef list; echo $?"
     IPMI_RAW_POH = "-v raw 0x0 0xf; echo $?"
     IPMI_SDR_GET = "sdr get "
-    IPMI_SEL_LIST_ENTRIES = "3"
 
     # Power Architecture Specific IPMI Commands
     IPMI_GET_BMC_GOLDEN_SIDE_VERSION = "raw 0x3a 0x1a; echo $?"
@@ -425,8 +426,3 @@ class OpTestConstants():
     HOST_FWTS_PRD_INFO = "fwts prd_info;echo $?"
     HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG = "rm -f results.log"
     HOST_FWTS_RESULTS_LOG = "cat results.log; echo $?"
-
-    # Sensor id's
-    SENSOR_HOST_STATUS = "Host Status"
-    SENSOR_OS_BOOT = "OS Boot"
-    SENSOR_OCC_ACTIVE = "OCC Active"
