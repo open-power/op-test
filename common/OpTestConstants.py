@@ -83,6 +83,9 @@ class OpTestConstants():
     CLEAR_GARD_CMD = '/gard clear all'
     LIST_GARD_CMD = '/gard list'
     OPAL_MSG_LOG = "cat /sys/firmware/opal/msglog"
+    NVRAM_PRINT_CFG = "nvram --print-config"
+    NVRAM_UPDATE_CONFIG_TEST_DATA = "nvram --update-config test-name=test-value"
+    NVRAM_TEST_DATA = "test-name=test-value"
 
     # Command to boot into PRIMARY and GOLDEN SIDE
     BMC_BOOT_PRIMARY = "/etc/init.d/boot_into_primary"
@@ -260,6 +263,7 @@ class OpTestConstants():
     CLONE_SKIBOOT_DIR = "/tmp/skiboot"
     PFLASH_TOOL_DIR = "/tmp/"
     OLOG_JSON_DIR = "/root/skiboot/external/fwts/"
+    GARD_TOOL_DIR = "/tmp/skiboot/external/gard"
 
     # IPMI commands
     IPMITOOL_USB = "ipmitool -I usb "
@@ -302,6 +306,8 @@ class OpTestConstants():
     HOST_PLATFORM_EVENT = "ipmitool raw 0x04 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00; echo $?"
     HOST_CHASSIS_POWER_ON = "ipmitool raw 0x00 0x02 0x01; echo $?"
     HOST_GET_CHANNEL_AUTH_CAP = "ipmitool raw 0x06 0x38 0x81 0x04; echo $?"
+    HOST_IPMI_REPROVISION_REQUEST = "ipmitool raw 0x3A 0x1C; echo $?"
+    HOST_IPMI_REPROVISION_PROGRESS = "ipmitool raw 0x3A 0x1D; echo $?"
 
     # Kernel Config Options
     CONFIG_IPMI_DEVICE_INTERFACE = "CONFIG_IPMI_DEVICE_INTERFACE"

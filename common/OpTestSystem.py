@@ -291,6 +291,41 @@ class OpTestSystem():
         return BMC_CONST.FW_SUCCESS
 
 
+    ##
+    # @brief Issue IPMI PNOR Reprovision request command
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_issue_ipmi_pnor_reprovision_request(self):
+        try:
+            self.cv_HOST.host_run_command(BMC_CONST.HOST_IPMI_REPROVISION_REQUEST)
+        except OpTestError as e:
+            print "Failed to issue ipmi pnor reprovision request"
+            return BMC_CONST.FW_FAILED
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Wait for IPMI PNOR Reprovision to complete(response to 00)
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def sys_wait_for_ipmi_pnor_reprovision_to_complete(self, timeout=10):
+        l_res = ""
+        timeout = time.time() + 60*timeout
+        while True:
+            l_res = self.cv_HOST.host_run_command(BMC_CONST.HOST_IPMI_REPROVISION_PROGRESS)
+            if "00" in l_res:
+                print "IPMI: Reprovision completed"
+                break
+            if time.time() > timeout:
+                l_msg = "Reprovision timeout, progress not reaching to 00"
+                print l_msg
+                raise OpTestError(l_msg)
+            time.sleep(10)
+        return BMC_CONST.FW_SUCCESS
+
+
+
     ###########################################################################
     # CODE-UPDATE INTERFACES
     ###########################################################################

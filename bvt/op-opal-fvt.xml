@@ -221,5 +221,19 @@
             </testcase>
         </test>
 
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_nvram_ipmi_reprovision()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_gard_ipmi_reprovision()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
     </platform>
 </integrationtest>
