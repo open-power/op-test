@@ -390,3 +390,17 @@ def test_system_power_restore_policy_previous():
         returns: int 0-success, raises exception-error
     """
     return opTestSystemBootSequence.testSystemPowerPolicyPrevious()
+
+
+def test_nvram_ipmi_reprovision():
+    """This function tests NVRAM Partition-IPMI Reprovision.
+        returns: int 0-success, raises exception-error
+    """
+    return opTestIPMIReprovision.test_nvram_ipmi_reprovision()
+
+
+def test_gard_ipmi_reprovision():
+    """This function tests GARD Partition-IPMI Reprovision
+        returns: int 0-success, raises exception-error
+    """
+    return opTestIPMIReprovision.test_gard_ipmi_reprovision()
