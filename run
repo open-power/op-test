@@ -42,6 +42,7 @@ Where OPTIONS is zero or more of:
    --suite file.xml : the BVT test suite to run
    --test-firmware dir/ : the firmware to test. Path to where .pnor file is
    --good-firmware dir/ : known good firmware. Path to where .pnor file is
+   --hpmimage file.hpm : full path of hpm file to install
 \n";
 
 my $schema_filename = "bvt/op-machines.xsd";
@@ -59,6 +60,7 @@ my $noflash = 0;
 my $suite = "op-ci-basic-bvt.xml";
 my $test_firmware;
 my $good_firmware;
+my $hpmimage;
 my $test_result = "out";
 
 GetOptions("help|h|?" => \$help,
@@ -70,6 +72,7 @@ GetOptions("help|h|?" => \$help,
 	   "test-firmware=s" => \$test_firmware,
 	   "good-firmware=s" => \$good_firmware,
 	   "test-result=s" => \$test_result,
+	   "hpmimage=s" => \$hpmimage,
     ) or syntax();
 
 syntax() if $help;
@@ -118,6 +121,11 @@ sub validate_firmware {
     }
 
     die "Need to update test script with new platform $platform";
+}
+
+sub validate_hpmpath {
+    die "Not found: $hpmimage" if ! -e "$hpmimage";
+    return 0;
 }
 
 sub get_firmware_path {
@@ -172,6 +180,9 @@ sub create_config_file {
     print_init_param($f,'hostip',$m,'./host/hostname');
     print_init_param($f,'hostuser',$m,'./host/user');
     print_init_param($f,'hostPasswd',$m,'./host/password');
+    if ($hpmimage) {
+	print $f "hpmimage = $hpmimage\n";
+    }
     print $f "prompt = \\#\n";
     #hpmimage = %s
     print $f "\n";
@@ -226,6 +237,10 @@ foreach my $m (@machines)
 	#--hpmimage %%hpmimage%%
     }
 
+    if ($hpmimage) {
+	die "Didn't find hpmimage full path" if validate_hpmpath();
+        $cmd .= " --hpmimage $hpmimage";
+    }
     $cmd .= " $suite)\n";
 
     create_config_file($platform, $m, 'ci/source/op_ci_tools.cfg');
