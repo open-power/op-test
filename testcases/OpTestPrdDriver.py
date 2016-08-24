@@ -100,12 +100,12 @@ class OpTestPrdDriver():
         # check for IPOLL mask register value to check opal-prd is running or not
         l_cmd = "./getscom -c 0x0 %s" % BMC_CONST.IPOLL_MASK_REGISTER
         l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-        if l_res[-1] == "0":
+        if l_res[-1] == BMC_CONST.IPOLL_MASK_REGISTER_CONTENT:
             print "Opal-prd is running"
         else:
             self.cv_IPMI.run_host_cmd_on_ipmi_console("service opal-prd start")
             l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-            if l_res[-1] == "0":
+            if l_res[-1] == BMC_CONST.IPOLL_MASK_REGISTER_CONTENT:
                 print "Opal-prd is running"
             else:
                 l_msg = "IPOLL MASK REGISTER is not getting cleared by opal-prd"
@@ -113,18 +113,22 @@ class OpTestPrdDriver():
 
         # test for PBA FIR with different core errors
         # 1.PBAFIR_OCI_APAR_ERR-->OCI Address Parity Error
+        print "PRD: Test for PBAFIR_OCI_APAR_ERR-->OCI Address Parity Error"
         self.test_prd_for_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
                               BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
                               BMC_CONST.PBAFIR_OCI_APAR_ERR)
         # 2.PBAFIR_PB_CE_FW-->PB Read Data CE Error for Forwarded Request
+        print "PRD: Test for PBAFIR_PB_CE_FW-->PB Read Data CE Error for Forwarded Request"
         self.test_prd_for_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
                               BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
                               BMC_CONST.PBAFIR_PB_CE_FW)
         # 3.PBAFIR_PB_RDDATATO_FW-->PB Read Data Timeout for Forwarded Request
+        print "PRD: Test for PBAFIR_PB_RDDATATO_FW-->PB Read Data Timeout for Forwarded Request"
         self.test_prd_for_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
                               BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
                               BMC_CONST.PBAFIR_PB_RDDATATO_FW)
         # 4.PBAFIR_PB_RDADRERR_FW-->PB CRESP Addr Error Received for Forwarded Read Request
+        print "PRD: Test for PBAFIR_PB_RDADRERR_FW-->PB CRESP Addr Error Received for Forwarded Read Request"
         self.test_prd_for_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
                               BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
                               BMC_CONST.PBAFIR_PB_RDADRERR_FW)
@@ -174,7 +178,7 @@ class OpTestPrdDriver():
         print l_res
 
         # Check FIR got cleared by opal-prd
-        if l_res[-1] == "0":
+        if l_res[-1] == BMC_CONST.FAULT_ISOLATION_REGISTER_CONTENT:
             print "Opal-prd handles core hardware error"
         else:
             l_msg = "Opal-prd not clearing hardware errors in runtime"
@@ -189,7 +193,7 @@ class OpTestPrdDriver():
         # check for IPOLL mask register value to see opal-prd cleared the value
         l_cmd = "./getscom -c %s %s" % (chip_id, BMC_CONST.IPOLL_MASK_REGISTER)
         l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-        if l_res[-1] == "0":
+        if l_res[-1] == BMC_CONST.IPOLL_MASK_REGISTER_CONTENT:
             print "Opal-prd cleared the IPOLL MASK REGISTER"
             return BMC_CONST.FW_SUCCESS
         else:

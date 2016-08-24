@@ -361,14 +361,14 @@ def test_fan_control_enable_functionality():
     """This function tests Fan control enable functionality
         returns: int 0-success, raises exception-error
     """
-    return opTestOOBIPMI.test_fan_control_algorithm_2()
+    return opTestOOBIPMI.test_fan_control_algorithm_2(opTestOOBIPMI)
 
 
 def test_fan_control_disable_functionality():
     """This function tests Fan control disable functionality
         returns: int 0-success, raises exception-error
     """
-    return opTestOOBIPMI.test_fan_control_algorithm_1()
+    return opTestOOBIPMI.test_fan_control_algorithm_1(opTestOOBIPMI)
 
 
 def test_system_power_restore_policy_always_on():

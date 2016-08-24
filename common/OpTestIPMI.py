@@ -36,6 +36,7 @@ import subprocess
 import os
 import pexpect
 import sys
+import commands
 #from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -180,7 +181,6 @@ class OpTestIPMI():
     #
     def ipmi_power_on(self):
         output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power on')
-        time.sleep(BMC_CONST.LONG_WAIT_IPL)
         if 'Up/On' in output:
             return BMC_CONST.FW_SUCCESS
         else:
@@ -250,7 +250,11 @@ class OpTestIPMI():
         except OpTestError:
             print 'SOL already deactivated'
         time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-        logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
+
+        l_res = commands.getstatusoutput("date +%Y%m%d_%H%M")
+
+        logFile = self.cv_ffdcDir + '/' + 'host_sol_%s.log' % l_res[1]
+        print "Time: %s, logfile: %s" % (l_res, logFile)
         cmd = os.getcwd() + "/../common/sol_logger.exp %s %s" % (
             logFile, self.cv_baseIpmiCmd)
         print cmd

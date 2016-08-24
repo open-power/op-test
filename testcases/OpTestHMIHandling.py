@@ -69,7 +69,7 @@ class OpTestHMIHandling():
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir, i_hostip, i_hostuser, i_hostPasswd)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP, i_ffdcDir)
         self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
                  i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
                  i_hostuser, i_hostPasswd)
@@ -90,7 +90,7 @@ class OpTestHMIHandling():
     #
     def test_init(self):
         # Get OS level
-        self.cv_HOST.host_get_OS_Level()
+        self.l_oslevel = self.cv_HOST.host_get_OS_Level()
 
         # Check whether git and gcc commands are available on the host
         self.cv_HOST.host_check_command("git")
@@ -158,6 +158,13 @@ class OpTestHMIHandling():
         self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE1)
         self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE0)
 
+        if "Ubuntu" in self.l_oslevel:
+            self.cv_HOST.host_run_command("service kdump-tools stop")
+            self.cv_HOST.host_run_command("service kdump-tools status")
+        else:
+            self.cv_HOST.host_run_command("service kdump stop")
+            self.cv_HOST.host_run_command("service kdump status")
+
     ##
     # @brief This function is mainly used to clear hardware gard entries.
     #        It will perform below steps
@@ -178,6 +185,13 @@ class OpTestHMIHandling():
 
         # Clearing gard entries after host comes up
         self.cv_HOST.host_get_OS_Level()
+        # It will clone skiboot source repository
+        l_dir = "/tmp/skiboot"
+        self.cv_HOST.host_clone_skiboot_source(l_dir)
+        # Compile the necessary tools xscom-utils and gard utility
+        self.cv_HOST.host_compile_xscom_utilities(l_dir)
+        self.cv_HOST.host_compile_gard_utility(l_dir)
+
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)
         self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
@@ -224,9 +238,6 @@ class OpTestHMIHandling():
         self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("service kdump status")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("service kdump stop")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("service kdump status")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cd %s/external/xscom-utils/;" % self.l_dir)
         self.cv_IPMI.run_host_cmd_on_ipmi_console("lscpu")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -D")
@@ -273,6 +284,8 @@ class OpTestHMIHandling():
             l_msg = "Please provide valid test case"
             raise OpTestError(l_msg)
         self.cv_SYSTEM.sys_ipmi_close_console(l_con)
+        print "Gathering the OPAL msg logs"
+        self.cv_HOST.host_gather_opal_msg_log()
         return BMC_CONST.FW_SUCCESS
 
     ##
@@ -295,6 +308,10 @@ class OpTestHMIHandling():
                 time.sleep(10)
                 if l_res[-1] == "0":
                     print "Injected thread hang recoverable error"
+                elif l_res[-1] == "1":
+                    # putscom returns -5 when it is trying to read from write only access register,
+                    # In these cases we should not exit and we will contiue with other error injetions
+                    continue
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
                         l_msg = "Processor recovery failed: Kernel got panic"
@@ -336,6 +353,8 @@ class OpTestHMIHandling():
                 time.sleep(10)
                 if l_res[-1] == "0":
                     print "Injected thread hang recoverable error"
+                elif l_res[-1] == "1":
+                    continue
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
                         l_msg = "Processor recovery failed: Kernel got panic"
@@ -449,6 +468,8 @@ class OpTestHMIHandling():
                 time.sleep(10)
                 if l_res[-1] == "0":
                     print "Injected TFMR error %s" % l_error
+                elif l_res[-1] == "1":
+                    continue
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
                         l_msg = "TFMR error injection: Kernel got panic"
