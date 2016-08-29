@@ -28,6 +28,7 @@
     <platform>
 
         <test>
+            <name>Test Init</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_init()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -35,6 +36,7 @@
         </test>
 
         <test>
+            <name>Test Inband IPMI USB Interface Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_inband_usb_interface()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -42,6 +44,7 @@
         </test>
 
         <test>
+            <name>Test Out-of-band IPMI</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_oob_ipmi()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -49,6 +52,7 @@
         </test>
 
         <test>
+            <name>Test IPMI System Power Control</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_power_control()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -56,60 +60,63 @@
         </test>
 
         <test>
+            <name>Test IPMI Lock/Unlock Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_lock_mode()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
+
         <test>
+            <name>Test Timer Facility Error Injections</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_tfmr_errors()"</cmd>
                 <exitonerror>no</exitonerror>
             </testcase>
         </test>
+
         <test>
+            <name>Test Chip TOD Error Injections</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_tod_errors()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
+
         <test>
+            <name>Test PRD(Processor Runtime Diagnostics) Driver</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_prd_driver()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
+
         <test>
+            <name>Test HMI Processor Recovery Done</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_proc_recv_done()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
+
         <test>
+            <name>Test HMI Processor Recovery Error Masked</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_proc_recv_error_masked()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
+
         <test>
+            <name>Test HMI Malfunction Alert</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_malfunction_alert()"</cmd>
                 <exitonerror>yes</exitonerror>
             </testcase>
         </test>
+
         <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_opal_fvt.clear_gard_entries()"</cmd>
-                <exitonerror>yes</exitonerror>
-            </testcase>
-        </test>
-        <test>
-            <testcase>
-                <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_hypervisor_resource_error()"</cmd>
-                <exitonerror>yes</exitonerror>
-            </testcase>
-        </test>
-        <test>
+            <name>Test Clear Gard Entries</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.clear_gard_entries()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -117,6 +124,23 @@
         </test>
 
         <test>
+            <name>Test HMI Hypervisor Resource Error</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_hypervisor_resource_error()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Clear Gard Entries</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.clear_gard_entries()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test I2C Driver Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_i2c_driver()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -124,6 +148,7 @@
         </test>
 
         <test>
+            <name>Test Atmel(at24) Driver Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_at24_driver()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -131,6 +156,7 @@
         </test>
 
         <test>
+            <name>Test RTC Driver Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_real_time_clock()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -138,6 +164,7 @@
         </test>
 
         <test>
+            <name>Test Hwmon Driver Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_sensors()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -145,6 +172,7 @@
         </test>
 
         <test>
+            <name>Test Swicth Endian Syscall</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_switch_endian_syscall()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -152,6 +180,7 @@
         </test>
 
         <test>
+            <name>Test IPMI Heartbeat Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_heartbeat()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -159,6 +188,7 @@
         </test>
 
         <test>
+            <name>Test MTD PNOR Driver Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_mtd_pnor_driver()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -166,6 +196,7 @@
         </test>
 
         <test>
+            <name>Test In-band IPMI Open Interface Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_inband_functionality()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -173,6 +204,7 @@
         </test>
 
         <test>
+            <name>Test BMC Cold Reset Boot Sequence</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_mc_cold_reset_boot_sequence()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -180,6 +212,7 @@
         </test>
 
         <test>
+            <name>Test BMC Warm Reset Boot Sequence</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_mc_warm_reset_boot_sequence()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -187,6 +220,7 @@
         </test>
 
         <test>
+            <name>Test Fan Control Enable Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_fan_control_enable_functionality()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -194,6 +228,7 @@
         </test>
 
         <test>
+            <name>Test Fan Control Disable Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_fan_control_disable_functionality()"</cmd>
                 <exitonerror>no</exitonerror>
@@ -201,6 +236,7 @@
         </test>
 
         <test>
+            <name>Test System Power Restore Policy always_on</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_always_on()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -208,6 +244,7 @@
         </test>
 
         <test>
+            <name>Test System Power Restore Policy always_off</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_always_off()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -215,6 +252,7 @@
         </test>
 
         <test>
+            <name>Test System Power Restore Policy previous</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_previous()"</cmd>
                 <exitonerror>yes</exitonerror>

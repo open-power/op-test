@@ -28,6 +28,7 @@
     <platform>
 
         <test>
+            <name>Test Init</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.test_init()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -35,6 +36,7 @@
         </test>
 
         <test>
+            <name>Get Current PNOR Level</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.get_PNOR_level()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -42,6 +44,7 @@
         </test>
 
         <test>
+            <name>IPMI SDR Clear</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipmi_sdr_clear()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -49,6 +52,7 @@
         </test>
 
         <test>
+            <name>Validate host PNOR flash side</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.get_side_activated()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -56,6 +60,7 @@
         </test>
 
         <test>
+            <name>IPMI Power off host</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipmi_power_off()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -63,6 +68,7 @@
         </test>
 
         <test>
+            <name>BMC Cold Reset</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.cold_reset()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -70,6 +76,7 @@
         </test>
 
         <test>
+            <name>IPMI Preserve Network Settings</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.preserve_network_setting()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -77,6 +84,7 @@
         </test>
 
         <test>
+            <name>OOB HPM Upgrade</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.code_update()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -84,6 +92,7 @@
         </test>
 
         <test>
+            <name>Validate host</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.validate_host()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -91,6 +100,7 @@
         </test>
 
         <test>
+            <name>IPL Wait for working state</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipl_wait_for_working_state()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -98,6 +108,7 @@
         </test>
 
         <test>
+            <name>Check SEL</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.ipmi_sel_check()"</cmd>
                 <exitonerror>yes</exitonerror>
@@ -105,6 +116,7 @@
         </test>
 
         <test>
+            <name>Get Updated PNOR Level</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_outofband_firmware_update.get_PNOR_level()"</cmd>
                 <exitonerror>yes</exitonerror>
