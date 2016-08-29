@@ -375,6 +375,7 @@ class OpTestConstants():
     IPMI_LAN_STATS_GET = "lan stats get; echo $?"
     IPMI_SEL_INFO = "sel info; echo $?"
     IPMI_SEL_LIST = "sel list; echo $?"
+    IPMI_SEL_LIST_ENTRIES = "3"
     IPMI_SEL_ELIST = "sel elist; echo $?"
     IPMI_SEL_TIME_GET = "sel time get; echo $?"
     IPMI_SEL_CLEAR = "sel clear; echo $?"
@@ -426,3 +427,8 @@ class OpTestConstants():
     HOST_FWTS_PRD_INFO = "fwts prd_info;echo $?"
     HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG = "rm -f results.log"
     HOST_FWTS_RESULTS_LOG = "cat results.log; echo $?"
+
+    # Sensor names
+    SENSOR_HOST_STATUS = "Host Status"
+    SENSOR_OS_BOOT = "OS Boot"
+    SENSOR_OCC_ACTIVE = "OCC Active"
