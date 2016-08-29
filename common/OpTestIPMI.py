@@ -1187,3 +1187,47 @@ class OpTestIPMI():
             l_msg = "IPMI: failed to close ipmi console"
             raise OpTestError(l_msg)
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function will get the platform name and returns it
+    #
+    # @return BMC_CONST.HABANERO for habanero plaform
+    #         BMC_CONST.FIRESTONE for firestone platform
+    #         BMC_CONST.GARRISON for garrison platform
+    #         or raise OpTestError
+    #
+    def ipmi_get_platform_name(self):
+        print "IPMI: Getting the platform name from fru info"
+        l_res = self.ipmitool_execute_command("fru print")
+        if BMC_CONST.HABANERO in l_res:
+            return BMC_CONST.HABANERO
+        elif BMC_CONST.FIRESTONE in l_res:
+            return BMC_CONST.FIRESTONE
+        elif BMC_CONST.GARRISON in l_res:
+            return BMC_CONST.GARRISON
+        else:
+            l_msg = "IPMI: May be new plaform or machine fru is not available"
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief This function will get the platform name and returns power limits for that platform
+    #
+    # @return l_power_limit_low lower platform power limit
+    #         l_power_limit_high higher platform power limit
+    #         or raise OpTestError if it is a new platform
+    #
+    def ipmi_get_platform_power_limits(self):
+        l_platform = self.ipmi_get_platform_name()
+        if BMC_CONST.HABANERO in l_platform:
+            l_power_limit_high = BMC_CONST.HABANERO_POWER_LIMIT_HIGH
+            l_power_limit_low = BMC_CONST.HABANERO_POWER_LIMIT_LOW
+        elif BMC_CONST.FIRESTONE in l_platform:
+            l_power_limit_high = BMC_CONST.FIRESTONE_POWER_LIMIT_HIGH
+            l_power_limit_low = BMC_CONST.FIRESTONE_POWER_LIMIT_LOW
+        elif BMC_CONST.GARRISON in l_platform:
+            l_power_limit_high = BMC_CONST.GARRISON_POWER_LIMIT_HIGH
+            l_power_limit_low = BMC_CONST.GARRISON_POWER_LIMIT_LOW
+        else:
+            l_msg = "New platform, add power limit support to this platform and retry"
+            raise OpTestError(l_msg)
+        return l_power_limit_low, l_power_limit_high
