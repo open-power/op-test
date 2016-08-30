@@ -116,6 +116,13 @@ def test_occ_reset_functionality():
     return opTestOCC.test_occ_reset_functionality()
 
 
+def test_occ_reset_n_times():
+    """This function tests OCC Reset(n>3) functionality using opal-prd tool.
+    returns: int 0-success, raises exception-error
+    """
+    return opTestOCC.test_occ_reset_n_times()
+
+
 def test_occ_enable_disable_functionality():
     """This function tests the OCC Enable/Disable functionality using opal-prd tool.
     returns: int 0-success, raises exception-error
