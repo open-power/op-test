@@ -51,3 +51,11 @@ def test_occ_reset_functionality():
 
 def test_occ_enable_disable_functionality():
     assert op_occ_fvt.test_occ_enable_disable_functionality() == 0
+
+
+def test_cpu_freq_states():
+    assert op_occ_fvt.test_cpu_freq_states() == 0
+
+
+def test_cpu_idle_states():
+    assert op_occ_fvt.test_cpu_idle_states() == 0

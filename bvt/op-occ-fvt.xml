@@ -36,6 +36,22 @@
         </test>
 
         <test>
+            <name>Test cpu idle states</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_occ_fvt.test_cpu_idle_states()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test cpu frequency states</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_occ_fvt.test_cpu_freq_states()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test Energy scale at Standby state</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_energy_scale_at_standby_state()"</cmd>
