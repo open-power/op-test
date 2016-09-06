@@ -84,6 +84,14 @@
         </test>
 
         <test>
+            <name>Test OCC Reset(n>3) Functionality</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_occ_fvt.test_occ_reset_n_times()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test OCC Enable/Disable Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_occ_enable_disable_functionality()"</cmd>

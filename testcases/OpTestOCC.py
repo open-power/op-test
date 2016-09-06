@@ -136,6 +136,60 @@ class OpTestOCC():
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)
 
+    ##
+    # @brief This function is used to test OCC Reset funtionality in BMC based systems.
+    #        OCC Reset reload can be done more than 3 times per full power cycle, by
+    #        resetting OCC resetreload count.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def test_occ_reset_n_times(self):
+        print "Performing a IPMI Power OFF Operation"
+        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
+        self.cv_IPMI.ipmi_power_off()
+        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+            print "System is in standby/Soft-off state"
+        else:
+            l_msg = "System failed to reach standby/Soft-off state"
+            raise OpTestError(l_msg)
+        self.cv_IPMI.ipmi_power_on()
+        self.cv_SYSTEM.sys_check_host_status()
+        if self.check_occ_status() == BMC_CONST.FW_FAILED:
+            l_msg = "OCC's are not in active state after rebooting"
+            raise OpTestError(l_msg)
+
+        for i in range(1, BMC_CONST.OCC_RESET_RELOAD_COUNT):
+            print "*******************OCC Reset count %d*******************" % i
+            print "OPAL-PRD: OCC Enable"
+            self.cv_HOST.host_run_command(BMC_CONST.OCC_ENABLE)
+            print "OPAL-PRD: OCC DISABLE"
+            self.cv_HOST.host_run_command(BMC_CONST.OCC_DISABLE)
+            print "OPAL-PRD: OCC RESET"
+            self.cv_HOST.host_run_command(BMC_CONST.OCC_RESET)
+            time.sleep(60)
+            if self.check_occ_status() == BMC_CONST.FW_FAILED:
+                l_msg = "OCC's are not in active state"
+                raise OpTestError(l_msg)
+            print "OPAL-PRD: occ query reset reload count"
+            self.cv_HOST.host_run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+            print "OPAL-PRD: occ reset reset/reload count"
+            self.cv_HOST.host_run_command(BMC_CONST.OCC_SET_RESET_RELOAD_COUNT)
+            print "OPAL-PRD: occ query reset reload count"
+            self.cv_HOST.host_run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+
+        print "Performing a IPMI Power OFF Operation"
+        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
+        self.cv_IPMI.ipmi_power_off()
+        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+            print "System is in standby/Soft-off state"
+        else:
+            l_msg = "System failed to reach standby/Soft-off state"
+            raise OpTestError(l_msg)
+        self.cv_IPMI.ipmi_power_on()
+        self.cv_SYSTEM.sys_check_host_status()
+        if self.check_occ_status() == BMC_CONST.FW_FAILED:
+            l_msg = "OCC's are not in active state after rebooting"
+            raise OpTestError(l_msg)
 
     ##
     # @brief This function is used to test OCC Enable and Disable funtionality in BMC based systems.

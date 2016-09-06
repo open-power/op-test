@@ -83,6 +83,11 @@ class OpTestConstants():
     CLEAR_GARD_CMD = '/gard clear all'
     LIST_GARD_CMD = '/gard list'
     OPAL_MSG_LOG = "cat /sys/firmware/opal/msglog"
+    OCC_ENABLE = "opal-prd occ enable"
+    OCC_DISABLE = "opal-prd occ disable"
+    OCC_RESET = "opal-prd occ reset"
+    OCC_QUERY_RESET_COUNTS = "opal-prd --expert-mode htmgt-passthru 1"
+    OCC_SET_RESET_RELOAD_COUNT = "opal-prd --expert-mode htmgt-passthru 4"
 
     # Command to boot into PRIMARY and GOLDEN SIDE
     BMC_BOOT_PRIMARY = "/etc/init.d/boot_into_primary"
@@ -98,6 +103,7 @@ class OpTestConstants():
     HOST_REBOOT_DELAY = 100
     WEB_UPDATE_DELAY = 600
     WEB_DRIVER_WAIT = 20
+    OCC_RESET_RELOAD_COUNT = 15
     OCC_ENABLE_WAIT = 200
     OS_TELNET_WAIT = 20
     CHECKSTOP_ERROR_DELAY = 150
@@ -122,6 +128,7 @@ class OpTestConstants():
     CHASSIS_POWER_RESET = "Chassis Power Control: Reset"
     CHASSIS_SOFT_OFF = 'S5/G2: soft-off'
     OS_BOOT_COMPLETE = 'boot completed'
+    OCC_DEVICE_ENABLED = "Device Enabled"
 
     # BMC ACTIVE SIDES
     PRIMARY_SIDE = "0x0080"

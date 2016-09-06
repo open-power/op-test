@@ -49,6 +49,10 @@ def test_occ_reset_functionality():
     assert op_occ_fvt.test_occ_reset_functionality() == 0
 
 
+def test_occ_reset_n_times():
+    assert op_occ_fvt.test_occ_reset_n_times() == 0
+
+
 def test_occ_enable_disable_functionality():
     assert op_occ_fvt.test_occ_enable_disable_functionality() == 0
 
