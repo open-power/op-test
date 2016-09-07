@@ -63,15 +63,15 @@ def _config_read():
 bmcCfg, testCfg, hostCfg = _config_read()
 opTestEnergyScale = OpTestEnergyScale(bmcCfg['ip'], bmcCfg['username'],
                                       bmcCfg['password'],
-                                      bmcCfg['usernameipmi'],
-                                      bmcCfg['passwordipmi'],
+                                      bmcCfg.get('usernameipmi'),
+                                      bmcCfg.get('passwordipmi'),
                                       testCfg['ffdcdir'], hostCfg['hostip'],
                                       hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestOCC = OpTestOCC(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg['password'],
-                      bmcCfg['usernameipmi'],
-                      bmcCfg['passwordipmi'],
+                      bmcCfg.get('usernameipmi'),
+                      bmcCfg.get('passwordipmi'),
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'])
 
