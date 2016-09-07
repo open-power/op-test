@@ -39,6 +39,14 @@ class OpTestConstants():
     PALMETTO = "palmetto"
     GARRISON = 'garrison'
 
+    # Platform power limits in watts for different platforms taken from MRW xml file
+    HABANERO_POWER_LIMIT_LOW = "1000"
+    HABANERO_POWER_LIMIT_HIGH = "1100"
+    FIRESTONE_POWER_LIMIT_LOW = "1240"
+    FIRESTONE_POWER_LIMIT_HIGH = "1820"
+    GARRISON_POWER_LIMIT_LOW = "1240"
+    GARRISON_POWER_LIMIT_HIGH = "2880"
+
     # BMC COMMANDS
     BMC_COLD_RESET = " mc reset cold"
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"

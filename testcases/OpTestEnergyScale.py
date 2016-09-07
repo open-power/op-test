@@ -57,7 +57,7 @@ class OpTestEnergyScale():
     # @param i_hostPasswd The password of the userid to log into the HOST with
     #
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
+                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_platName=None, i_hostip=None,
                  i_hostuser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
@@ -66,7 +66,33 @@ class OpTestEnergyScale():
         self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
                          i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
                          i_hostuser, i_hostPasswd)
+        self.cv_PLATFORM = i_platName
         self.util = OpTestUtil()
+
+    ##
+    # @brief This function will get and return platform power limits for supported machine
+    #
+    # @param i_platform type: str platform name to get the power limits
+    #
+    # @return l_power_limit_low lower platform power limit
+    #         l_power_limit_high higher platform power limit
+    #         or raise OpTestError if it is a new platform
+    #
+    def get_platform_power_limits(self, i_platform):
+        l_platform = i_platform
+        if BMC_CONST.HABANERO in l_platform:
+            l_power_limit_high = BMC_CONST.HABANERO_POWER_LIMIT_HIGH
+            l_power_limit_low = BMC_CONST.HABANERO_POWER_LIMIT_LOW
+        elif BMC_CONST.FIRESTONE in l_platform:
+            l_power_limit_high = BMC_CONST.FIRESTONE_POWER_LIMIT_HIGH
+            l_power_limit_low = BMC_CONST.FIRESTONE_POWER_LIMIT_LOW
+        elif BMC_CONST.GARRISON in l_platform:
+            l_power_limit_high = BMC_CONST.GARRISON_POWER_LIMIT_HIGH
+            l_power_limit_low = BMC_CONST.GARRISON_POWER_LIMIT_LOW
+        else:
+            l_msg = "New platform, add power limit support to this platform and retry"
+            raise OpTestError(l_msg)
+        return l_power_limit_low, l_power_limit_high
 
     ##
     # @brief  This function will test Energy scale features at standby state
@@ -91,6 +117,8 @@ class OpTestEnergyScale():
     #
     def test_energy_scale_at_standby_state(self):
         print "Energy Scale Test 1: Get, Set, activate and deactivate platform power limit at power off"
+        l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
+
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
@@ -102,17 +130,17 @@ class OpTestEnergyScale():
         self.cv_IPMI.ipmi_sdr_clear()
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_activate_power_limit()
-        self.cv_IPMI.ipmi_set_power_limit(BMC_CONST.PLATFORM_POWER_LIMIT_HIGH)
+        self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_activate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()
-        self.cv_IPMI.ipmi_set_power_limit(BMC_CONST.PLATFORM_POWER_LIMIT_LOW)
+        self.cv_IPMI.ipmi_set_power_limit(l_power_limit_low)
         self.cv_IPMI.ipmi_activate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
-        self.cv_IPMI.ipmi_set_power_limit(BMC_CONST.PLATFORM_POWER_LIMIT_HIGH)
+        self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_get_power_limit()
         print "Get All dcmi readings at power off"
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
@@ -170,6 +198,8 @@ class OpTestEnergyScale():
     #
     def test_energy_scale_at_runtime_state(self):
         print "Energy Scale Test 2: Get, Set, activate and deactivate platform power limit at runtime"
+        l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
+
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
@@ -202,14 +232,14 @@ class OpTestEnergyScale():
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)
         print self.cv_IPMI.ipmi_get_power_limit()
-        self.cv_IPMI.ipmi_set_power_limit(BMC_CONST.PLATFORM_POWER_LIMIT_HIGH)
+        self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_activate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
-        self.cv_IPMI.ipmi_set_power_limit(BMC_CONST.PLATFORM_POWER_LIMIT_LOW)
+        self.cv_IPMI.ipmi_set_power_limit(l_power_limit_low)
         self.cv_IPMI.ipmi_activate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()

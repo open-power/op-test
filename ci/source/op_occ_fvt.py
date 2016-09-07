@@ -66,7 +66,7 @@ opTestEnergyScale = OpTestEnergyScale(bmcCfg['ip'], bmcCfg['username'],
                                       bmcCfg['password'],
                                       bmcCfg['usernameipmi'],
                                       bmcCfg['passwordipmi'],
-                                      testCfg['ffdcdir'], hostCfg['hostip'],
+                                      testCfg['ffdcdir'], testCfg['platformname'], hostCfg['hostip'],
                                       hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestOCC = OpTestOCC(bmcCfg['ip'], bmcCfg['username'],
