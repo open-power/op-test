@@ -139,3 +139,11 @@ def test_system_power_restore_policy_always_off():
 
 def test_system_power_restore_policy_previous():
     assert op_opal_fvt.test_system_power_restore_policy_previous() == 0
+
+
+def test_nvram_ipmi_reprovision():
+    assert op_opal_fvt.test_nvram_ipmi_reprovision() == 0
+
+
+def test_gard_ipmi_reprovision():
+    assert op_opal_fvt.test_gard_ipmi_reprovision() == 0
