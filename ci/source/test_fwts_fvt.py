@@ -55,3 +55,7 @@ def test_oops():
 
 def test_olog():
     assert op_fwts_fvt.test_olog() == 0
+
+
+def test_mtd_info():
+    assert op_fwts_fvt.test_mtd_info() == 0

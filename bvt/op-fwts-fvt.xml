@@ -48,7 +48,7 @@
             <name>FWTS: Test Pre init</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_fwts_fvt.test_pre_init()"</cmd>
-                <exitonerror>no</exitonerror>
+                <exitonerror>yes</exitonerror>
             </testcase>
         </test>
 
@@ -73,6 +73,14 @@
             <name>FWTS: prd_info test</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_fwts_fvt.test_prd_info()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>FWTS: mtd_info test</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_fwts_fvt.test_mtd_info()"</cmd>
                 <exitonerror>no</exitonerror>
             </testcase>
         </test>

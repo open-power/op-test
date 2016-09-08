@@ -430,6 +430,28 @@ class OpTestHost():
             return l_pkg
 
     ##
+    # @brief It will check whether a package is installed in a host OS
+    #
+    # @param i_oslevel @type string: OS level
+    # @param i_package @type string: package name
+    #
+    # @return BMC_CONST.FW_SUCCESS if package is available
+    #         raise OpTestError if package is not available
+    #
+    def host_check_pkg_availability(self, i_oslevel, i_package):
+        if 'Ubuntu' in i_oslevel:
+            l_res = self.host_run_command("dpkg -l %s;echo $?" % i_package)
+        else:
+            l_cmd = "rpm -qa | grep -i %s" % i_package
+            l_res = self.host_run_command(l_cmd)
+        l_res = l_res.splitlines()
+        if (int(l_res[-1]) == 0):
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "Package %s is not there in host OS" % i_package
+            raise OpTestError(l_msg)
+
+    ##
     # @brief This function loads ibmpowernv driver only on powernv platform
     #        and also this function works only in root user mode
     #
@@ -1110,3 +1132,72 @@ class OpTestHost():
             print l_msg
             raise OpTestError(l_msg)
 
+    ##
+    # @brief This function generates olog.json file from skiboot which is used for
+    #        fwts olog test: Run OLOG scan and analysis checks.
+    #
+    # @param i_dir @type string: directory where skiboot source was cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_generate_fwts_olog_json(self, i_dir):
+        l_cmd = "%s/external/fwts/generate-fwts-olog %s/ -o %s/olog.json" % (i_dir, i_dir, i_dir)
+        print l_cmd
+        l_res = self.host_run_command(l_cmd)
+        l_cmd = "test -f %s/olog.json; echo $?" % i_dir
+        l_res = self.host_run_command(l_cmd)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "olog.json is available in working directory %s" % i_dir
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "olog.json file is failed to create from skiboot"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief It will clone latest fwts git repository in i_dir directory
+    #
+    # @param i_dir @type string: directory where fwts source will be cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_clone_fwts_source(self, i_dir):
+        l_msg = 'git://kernel.ubuntu.com/hwe/fwts.git'
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self.host_run_command("git config --global http.sslverify false")
+        self.host_run_command("rm -rf %s" % i_dir)
+        self.host_run_command("mkdir %s" % i_dir)
+        try:
+            print l_cmd
+            l_res = self.host_run_command(l_cmd)
+            print l_res
+            return BMC_CONST.FW_SUCCESS
+        except:
+            l_msg = "Cloning fwts git repository is failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief This function is used to build fwts tool in the fwts directory
+    #        which was cloned in i_dir directory
+    #
+    # @param i_dir @type string: directory where fwts source was cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_build_fwts_tool(self, i_dir):
+        l_cmd = "cd %s/;autoreconf -ivf;./configure; make;" % i_dir
+        print l_cmd
+        l_res = self.host_run_command(l_cmd)
+        l_cmd = "test -f %s/src/fwts; echo $?" % i_dir
+        l_res = self.host_run_command(l_cmd)
+        print l_res
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Executable binary fwts is available"
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "fwts bin file is not present after make"
+            print l_msg
+            raise OpTestError(l_msg)
