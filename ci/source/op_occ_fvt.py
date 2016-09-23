@@ -47,6 +47,7 @@ import ConfigParser
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from testcases.OpTestEnergyScale import OpTestEnergyScale
 from testcases.OpTestOCC import OpTestOCC
+from testcases.OpTestEM import OpTestEM
 
 
 def _config_read():
@@ -65,8 +66,11 @@ opTestEnergyScale = OpTestEnergyScale(bmcCfg['ip'], bmcCfg['username'],
                                       bmcCfg['password'],
                                       bmcCfg.get('usernameipmi'),
                                       bmcCfg.get('passwordipmi'),
-                                      testCfg['ffdcdir'], hostCfg['hostip'],
-                                      hostCfg['hostuser'], hostCfg['hostpasswd'])
+                                      testCfg['ffdcdir'],
+                                      testCfg['platformname'],
+                                      hostCfg['hostip'],
+                                      hostCfg['hostuser'],
+                                      hostCfg['hostpasswd'])
 
 opTestOCC = OpTestOCC(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg['password'],
@@ -74,6 +78,13 @@ opTestOCC = OpTestOCC(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg.get('passwordipmi'),
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestEM = OpTestEM(bmcCfg['ip'], bmcCfg['username'],
+                    bmcCfg['password'],
+                    bmcCfg['usernameipmi'],
+                    bmcCfg['passwordipmi'],
+                    testCfg['ffdcdir'], hostCfg['hostip'],
+                    hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 
 def test_init():
@@ -116,8 +127,29 @@ def test_occ_reset_functionality():
     return opTestOCC.test_occ_reset_functionality()
 
 
+def test_occ_reset_n_times():
+    """This function tests OCC Reset(n>3) functionality using opal-prd tool.
+    returns: int 0-success, raises exception-error
+    """
+    return opTestOCC.test_occ_reset_n_times()
+
+
 def test_occ_enable_disable_functionality():
     """This function tests the OCC Enable/Disable functionality using opal-prd tool.
     returns: int 0-success, raises exception-error
     """
     return opTestOCC.test_occ_enable_disable_functionality()
+
+
+def test_cpu_freq_states():
+    """This function tests the CPU Frequency states by changing and verifying those frequencies
+    returns: int 0-success, raises exception-error
+    """
+    return opTestEM.test_cpu_freq_states()
+
+
+def test_cpu_idle_states():
+    """This function tests the CPU idle states by enable and disabling them.
+    returns: int 0-success, raises exception-error
+    """
+    return opTestEM.test_cpu_idle_states()

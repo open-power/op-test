@@ -81,6 +81,34 @@ You can run the following suites:
 * op-inbound-basic-bvt.xml :  For in-band FW upgrade(hpm upgrade)
 * op-opal-fvt-bvt.xml : For OPAL Functional tests
 
+Flash PNOR Firmware and IPL:
+
+	./run --machines machines.xml --machine openpower-box --suite op-opal-ci-bvt.xml
+
+Out-of-band HPM Upgrade using ipmitool:
+
+	./run --machines machines.xml --machine openpower-box --suite op-outofband-firmware-update-bvt.xml
+
+In-band HPM Upgrade using ipmitool:
+
+	./run --machines machines.xml --machine openpower-box --suite op-inbound-basic-bvt.xml
+
+Web based HPM Upgrade:
+
+	./run --machines machines.xml --machine openpower-box --suite op-bmc-web-update-bvt.xml
+
+OPAL FVT:
+
+	./run --machines machines.xml --machine openpower-box --noflash --suite op-opal-fvt-bvt.xml
+
+OCC FVT:
+
+	./run --machines machines.xml --machine openpower-box --noflash --suite op-occ-fvt-bvt.xml
+
+FWTS FVT:
+
+	./run --machines machines.xml --machine openpower-box --noflash --suite op-fwts-fvt-bvt.xml
+
 ### Notes ###
 
 - You need to have the bvt directory in your PATH

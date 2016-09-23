@@ -147,6 +147,22 @@ sub get_firmware_image_name {
     die "We don't know what the firmware image name is for this platform";
 }
 
+sub get_platform_name {
+    my ($platform) = @_;
+
+    if ($platform eq "tyan,palmetto" ||
+        $platform eq "tyan,habanero" ||
+        $platform eq "ibm,firestone" ||
+        $platform eq "ibm,garrison")
+    {
+        my $platformname = (split ',',$platform)[1];
+        return $platformname;
+    }
+
+    die "We don't know what the platform name for this machine";
+}
+
+
 sub print_init_param {
     my ($f,$a,$m,$p) = @_;
     my $value = ($m->findnodes($p))->to_literal;
@@ -173,6 +189,8 @@ sub create_config_file {
 	print $f "imagedir = ".cwd()."/$firmware_path\n";
 	print $f "imagename = $firmware_image\n";
     }
+    my $platform_name = get_platform_name($platform);
+    print $f "platformname = $platform_name\n";
     print $f "\n";
     print $f "[host]\n";
     print_init_param($f,'hostip',$m,'./host/hostname');

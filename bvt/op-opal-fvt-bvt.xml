@@ -39,4 +39,11 @@
     <coverage/>
 </bvt>
 
+<bvt>
+    <id>op-fwts-fvt</id>
+    <title>OP FWTS FVT BVT</title>
+    <bvt-xml>op-fwts-fvt.xml</bvt-xml>
+    <coverage/>
+</bvt>
+
 </bvts>

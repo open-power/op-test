@@ -39,6 +39,14 @@ class OpTestConstants():
     PALMETTO = "palmetto"
     GARRISON = 'garrison'
 
+    # Platform power limits in watts for different platforms taken from MRW xml file
+    HABANERO_POWER_LIMIT_LOW = "1000"
+    HABANERO_POWER_LIMIT_HIGH = "1100"
+    FIRESTONE_POWER_LIMIT_LOW = "1240"
+    FIRESTONE_POWER_LIMIT_HIGH = "1820"
+    GARRISON_POWER_LIMIT_LOW = "1240"
+    GARRISON_POWER_LIMIT_HIGH = "2880"
+
     # BMC COMMANDS
     BMC_COLD_RESET = " mc reset cold"
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"
@@ -86,6 +94,11 @@ class OpTestConstants():
     NVRAM_PRINT_CFG = "nvram --print-config"
     NVRAM_UPDATE_CONFIG_TEST_DATA = "nvram --update-config test-name=test-value"
     NVRAM_TEST_DATA = "test-name=test-value"
+    OCC_ENABLE = "opal-prd occ enable"
+    OCC_DISABLE = "opal-prd occ disable"
+    OCC_RESET = "opal-prd occ reset"
+    OCC_QUERY_RESET_COUNTS = "opal-prd --expert-mode htmgt-passthru 1"
+    OCC_SET_RESET_RELOAD_COUNT = "opal-prd --expert-mode htmgt-passthru 4"
 
     # Command to boot into PRIMARY and GOLDEN SIDE
     BMC_BOOT_PRIMARY = "/etc/init.d/boot_into_primary"
@@ -101,6 +114,7 @@ class OpTestConstants():
     HOST_REBOOT_DELAY = 100
     WEB_UPDATE_DELAY = 600
     WEB_DRIVER_WAIT = 20
+    OCC_RESET_RELOAD_COUNT = 15
     OCC_ENABLE_WAIT = 200
     OS_TELNET_WAIT = 20
     CHECKSTOP_ERROR_DELAY = 150
@@ -125,6 +139,7 @@ class OpTestConstants():
     CHASSIS_POWER_RESET = "Chassis Power Control: Reset"
     CHASSIS_SOFT_OFF = 'S5/G2: soft-off'
     OS_BOOT_COMPLETE = 'boot completed'
+    OCC_DEVICE_ENABLED = "Device Enabled"
 
     # BMC ACTIVE SIDES
     PRIMARY_SIDE = "0x0080"
@@ -382,6 +397,7 @@ class OpTestConstants():
     IPMI_LAN_STATS_GET = "lan stats get; echo $?"
     IPMI_SEL_INFO = "sel info; echo $?"
     IPMI_SEL_LIST = "sel list; echo $?"
+    IPMI_SEL_LIST_ENTRIES = "3"
     IPMI_SEL_ELIST = "sel elist; echo $?"
     IPMI_SEL_TIME_GET = "sel time get; echo $?"
     IPMI_SEL_CLEAR = "sel clear; echo $?"
@@ -434,3 +450,8 @@ class OpTestConstants():
     HOST_FWTS_MTD_INFO = "export PATH=/root/fwts/src/:$PATH; fwts mtd_info;echo $?"
     HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG = "rm -f results.log"
     HOST_FWTS_RESULTS_LOG = "cat results.log; echo $?"
+
+    # Sensor names
+    SENSOR_HOST_STATUS = "Host Status"
+    SENSOR_OS_BOOT = "OS Boot"
+    SENSOR_OCC_ACTIVE = "OCC Active"
