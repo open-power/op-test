@@ -29,6 +29,7 @@
 #
 #   bmc_info    BMC Info
 #   prd_info    Run OLOG(OPAL Log) scan and analysis checks.
+#   mtd_info    OPAL MTD Info
 #   oops        Scan kernel log for Oopses.
 #   olog        OPAL Processor Recovery Diagnostics Info
 #
@@ -56,8 +57,10 @@
 #       ./generate-fwts-olog
 #       sudo fwts olog -j /root/skiboot/external/fwts/
 #
-#   Checking of fwts tool installed or not, is not added in this version, will add that check later once
-#   that fwts tool contains all the above tests in the distro(ubuntu) released tool.
+#   All the above steps are for manual execution, This OpTestFWTS package removes the above all
+#   dependencies and user needs to do just installation of below packages.
+#   sudo apt-get install autoconf automake libglib2.0-dev libtool libpcre3-dev libjson0-dev flex bison dkms libfdt-dev
+#   python module pyparsing --> which is required for generating olog.json file
 #
 
 
@@ -134,6 +137,12 @@ class OpTestFWTS():
     #        2. It will check for kernel version installed on the Open Power Machine
     #        3. It will check for ipmitool command existence and ipmitool package
     #        4. Load the necessary ipmi modules based on config values
+    #        5. Check for python module pyparsing existence on test machine which
+    #           is actually required to genrate fwts olog.json file from skiboot source
+    #        6. It will check for necessary packages existence which are required to
+    #           use fwts source
+    #        7. Clone both skiboot and fwts source codes.
+    #        8. Generate olog.json file and build fwts tool
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
@@ -158,6 +167,25 @@ class OpTestFWTS():
                                                       BMC_CONST.IPMI_POWERNV)
         self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
                                                       BMC_CONST.IPMI_MSG_HANDLER)
+
+        # Check the necessary packages are available to build fwts tool
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "autoconf")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "automake")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "libglib2.0-dev")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "libtool")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "libpcre3-dev")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "libjson0-dev")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "flex")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "bison")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "dkms")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "libfdt-dev")
+        self.cv_HOST.host_check_pkg_availability(l_oslevel, "device-tree-compiler")
+
+        # Do the necessary setup clone skiboot,fwts and build olog.json and fwts tool
+        self.cv_HOST.host_clone_skiboot_source(BMC_CONST.SKIBOOT_WORKING_DIR)
+        self.cv_HOST.host_generate_fwts_olog_json(BMC_CONST.SKIBOOT_WORKING_DIR)
+        self.cv_HOST.host_clone_fwts_source(BMC_CONST.FWTS_WORKING_DIR)
+        self.cv_HOST.host_build_fwts_tool(BMC_CONST.FWTS_WORKING_DIR)
 
 
     ##
@@ -207,11 +235,8 @@ class OpTestFWTS():
     ##
     # @brief This function will execute FWTS:olog test
     #        Run OLOG scan and analysis checks.
-    #        In-order to work this test user needs to generate olog.json file in below directory.
-    #        git clone https://github.com/open-power/skiboot
-    #        cd ~/skiboot/external/fwts
-    #        ./generate-fwts-olog
-    #        sudo ./fwts olog -j /root/skiboot/external/fwts/
+    #        This test will execute below command
+    #        fwts olog -j /root/skiboot/
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
@@ -222,7 +247,7 @@ class OpTestFWTS():
         self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
         self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG)
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_FWTS_OLOG + BMC_CONST.OLOG_JSON_DIR + ";echo $?")
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_FWTS_OLOG + BMC_CONST.SKIBOOT_WORKING_DIR + ";echo $?")
         self.read_results_log()
         if int(l_res[-1]):
             l_msg = "FWTS olog test failed"
@@ -248,6 +273,27 @@ class OpTestFWTS():
         self.read_results_log()
         if int(l_res[-1]):
             l_msg = "FWTS oops test failed"
+            raise OpTestError(l_msg)
+        self.cv_IPMI.ipmi_close_console(l_con)
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function will execute FWTS:mtd_info test
+    #        OPAL MTD Info
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def test_mtd_info(self):
+        print "FWTS: Running mtd_info test"
+        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_IPMI.ipmi_host_login(l_con)
+        self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
+        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
+        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG)
+        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_FWTS_OOPS)
+        self.read_results_log()
+        if int(l_res[-1]):
+            l_msg = "FWTS mtd_info test failed"
             raise OpTestError(l_msg)
         self.cv_IPMI.ipmi_close_console(l_con)
         return BMC_CONST.FW_SUCCESS

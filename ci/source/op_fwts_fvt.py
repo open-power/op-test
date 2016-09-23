@@ -126,3 +126,11 @@ def test_olog():
         returns: int 0-success, raises exception-error
     """
     return opTestFWTS.test_olog()
+
+
+def test_mtd_info():
+    """This function tests FWTS mtd_info test
+    OPAL MTD Info
+        returns: int 0-success, raises exception-error
+    """
+    return opTestFWTS.test_mtd_info()

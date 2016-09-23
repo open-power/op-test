@@ -264,8 +264,9 @@ class OpTestConstants():
     # Tools, repository and utility paths
     CLONE_SKIBOOT_DIR = "/tmp/skiboot"
     PFLASH_TOOL_DIR = "/tmp/"
-    OLOG_JSON_DIR = "/root/skiboot/external/fwts/"
     GARD_TOOL_DIR = "/tmp/skiboot/external/gard"
+    SKIBOOT_WORKING_DIR = "/root/skiboot"
+    FWTS_WORKING_DIR = "/root/fwts"
 
     # IPMI commands
     IPMITOOL_USB = "ipmitool -I usb "
@@ -426,9 +427,10 @@ class OpTestConstants():
     PNOR_GUARD_PART = "GUARD"
     PNOR_BOOTKERNEL_PART = "BOOTKERNEL"
 
-    HOST_FWTS_BMC_INFO = "fwts bmc_info;echo $?"
-    HOST_FWTS_OLOG = "fwts olog -j"
-    HOST_FWTS_OOPS = "fwts oops;echo $?"
-    HOST_FWTS_PRD_INFO = "fwts prd_info;echo $?"
+    HOST_FWTS_BMC_INFO = "export PATH=/root/fwts/src/:$PATH; fwts bmc_info;echo $?"
+    HOST_FWTS_OLOG = "export PATH=/root/fwts/src/:$PATH; fwts olog -j "
+    HOST_FWTS_OOPS = "export PATH=/root/fwts/src/:$PATH; fwts oops;echo $?"
+    HOST_FWTS_PRD_INFO = "export PATH=/root/fwts/src/:$PATH; fwts prd_info;echo $?"
+    HOST_FWTS_MTD_INFO = "export PATH=/root/fwts/src/:$PATH; fwts mtd_info;echo $?"
     HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG = "rm -f results.log"
     HOST_FWTS_RESULTS_LOG = "cat results.log; echo $?"

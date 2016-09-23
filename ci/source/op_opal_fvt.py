@@ -60,6 +60,7 @@ from testcases.OpTestIPMIPowerControl import OpTestIPMIPowerControl
 from testcases.OpTestInbandUsbInterface import OpTestInbandUsbInterface
 from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
+from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
 
 
 def _config_read():
@@ -185,6 +186,13 @@ opTestSystemBootSequence = OpTestSystemBootSequence(bmcCfg['ip'], bmcCfg['userna
                                                     bmcCfg.get('passwordipmi'),
                                                     testCfg['ffdcdir'], hostCfg['hostip'],
                                                     hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestIPMIReprovision = OpTestIPMIReprovision(bmcCfg['ip'], bmcCfg['username'],
+                                              bmcCfg['password'],
+                                              bmcCfg.get('usernameipmi'),
+                                              bmcCfg.get('passwordipmi'),
+                                              testCfg['ffdcdir'], hostCfg['hostip'],
+                                              hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 
 def test_init():
