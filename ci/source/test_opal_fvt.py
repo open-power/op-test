@@ -147,3 +147,11 @@ def test_nvram_ipmi_reprovision():
 
 def test_gard_ipmi_reprovision():
     assert op_opal_fvt.test_gard_ipmi_reprovision() == 0
+
+
+def test_dropbear_safety():
+    assert op_opal_fvt.test_dropbear_safety() == 0
+
+
+def test_bmc_cold_reset_effects():
+    assert op_opal_fvt.test_bmc_cold_reset_effects() == 0

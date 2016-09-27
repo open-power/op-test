@@ -36,6 +36,22 @@
         </test>
 
         <test>
+            <name>Test Skiroot Dropbear Safety Functionality</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_dropbear_safety()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test BMC Cold reset vs Host FW Functionality</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_bmc_cold_reset_effects()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test Inband IPMI USB Interface Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_inband_usb_interface()"</cmd>

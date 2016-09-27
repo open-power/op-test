@@ -61,13 +61,14 @@ from testcases.OpTestInbandUsbInterface import OpTestInbandUsbInterface
 from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
 from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
+from testcases.OpTestDropbearSafety import OpTestDropbearSafety
+from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
 
 
 def _config_read():
     """ returns bmc system and test config options """
     bmcConfig = ConfigParser.RawConfigParser()
     configFile = os.path.join(os.path.dirname(__file__), 'op_ci_tools.cfg')
-    print configFile
     bmcConfig.read(configFile)
     return dict(bmcConfig.items('bmc')), dict(bmcConfig.items('test')), dict(bmcConfig.items('host'))
 
@@ -81,6 +82,13 @@ opTestSensors = OpTestSensors(bmcCfg['ip'], bmcCfg['username'],
                               bmcCfg.get('passwordipmi'),
                               testCfg['ffdcdir'], hostCfg['hostip'],
                               hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestMCColdResetEffects = OpTestMCColdResetEffects(bmcCfg['ip'], bmcCfg['username'],
+                                                    bmcCfg['password'],
+                                                    bmcCfg.get('usernameipmi'),
+                                                    bmcCfg.get('passwordipmi'),
+                                                    testCfg['ffdcdir'], hostCfg['hostip'],
+                                                    hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestSwitchEndianSyscall = OpTestSwitchEndianSyscall(bmcCfg['ip'],
                                                       bmcCfg['username'],
@@ -193,6 +201,13 @@ opTestIPMIReprovision = OpTestIPMIReprovision(bmcCfg['ip'], bmcCfg['username'],
                                               bmcCfg.get('passwordipmi'),
                                               testCfg['ffdcdir'], hostCfg['hostip'],
                                               hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestDropbearSafety = OpTestDropbearSafety(bmcCfg['ip'], bmcCfg['username'],
+                                            bmcCfg['password'],
+                                            bmcCfg.get('usernameipmi'),
+                                            bmcCfg.get('passwordipmi'),
+                                            testCfg['ffdcdir'], hostCfg['hostip'],
+                                            hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 
 def test_init():
@@ -412,3 +427,18 @@ def test_gard_ipmi_reprovision():
         returns: int 0-success, raises exception-error
     """
     return opTestIPMIReprovision.test_gard_ipmi_reprovision()
+
+
+def test_dropbear_safety():
+    """This function tests for Dropbear. They are very dangerous and may attack
+       at any time. We must deal with them.
+        returns: int 0-success, raises exception-error
+    """
+    return opTestDropbearSafety.test_dropbear_running()
+
+
+def test_bmc_cold_reset_effects():
+    """This function tests BMC Cold reset versus host FW functionality
+        returns: int 0-success, raises exception-error
+    """
+    return opTestMCColdResetEffects.test_bmc_cold_reset_effects()

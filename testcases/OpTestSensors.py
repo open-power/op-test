@@ -94,9 +94,8 @@ class OpTestSensors():
             print "Driver build into kernel itself"
         else:
             print "Driver will be built as module"
-
-        # Loading ibmpowernv driver only on powernv platform
-        self.cv_HOST.host_load_ibmpowernv(l_oslevel)
+            # Loading ibmpowernv driver only on powernv platform
+            self.cv_HOST.host_load_ibmpowernv(l_oslevel)
 
         # Checking for sensors command and lm_sensors package
         self.cv_HOST.host_check_command("sensors")

@@ -266,6 +266,7 @@ class OpTestSystem():
         # Check if partition is active
         try:
             self.util.PingFunc(self.cv_HOST.ip)
+            self.cv_HOST.host_get_OS_Level()
         except OpTestError as e:
             print("Trying to recover partition")
             try:
