@@ -27,6 +27,22 @@
 <xs:element name="password" type="xs:string">
   <xs:annotation><xs:documentation>Username</xs:documentation></xs:annotation>
 </xs:element>
+<xs:element name="data" type="xs:string">
+  <xs:annotation><xs:documentation>Text file contains test data</xs:documentation></xs:annotation>
+</xs:element>
+
+<xs:element name="lspci">
+  <xs:annotation>
+    <xs:documentation>
+    'lspci -mm -n' output of a machine to compare detected pci devices b/w different test results against different test firmwares
+    </xs:documentation>
+  </xs:annotation>
+  <xs:complexType>
+    <xs:all>
+      <xs:element name="data" minOccurs="1" maxOccurs="1"/>
+    </xs:all>
+  </xs:complexType>
+</xs:element>
 
 <xs:element name="host">
   <xs:annotation>
@@ -95,6 +111,7 @@
       <xs:element name="unlock-command" minOccurs="0" maxOccurs="1"/>
       <xs:element name="host" minOccurs="1" maxOccurs="unbounded"/>
       <xs:element name="bmc" minOccurs="1" maxOccurs="unbounded"/>
+      <xs:element name="lspci" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
   </xs:complexType>
 </xs:element>

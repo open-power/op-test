@@ -280,6 +280,27 @@ class OpTestSystem():
 
 
     ##
+    # @brief This function reboots the system(Power off/on) and
+    #        check for system status and wait for
+    #        FW and Host OS Boot progress to complete.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def sys_hard_reboot(self):
+        print "Performing a IPMI Power OFF Operation"
+        self.cv_IPMI.ipmi_power_off()
+        if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+            print "System is in standby/Soft-off state"
+        else:
+            l_msg = "System failed to reach standby/Soft-off state"
+            raise OpTestError(l_msg)
+        print "Performing a IPMI Power ON Operation"
+        self.cv_IPMI.ipmi_power_on()
+        self.sys_check_host_status()
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        return BMC_CONST.FW_SUCCESS
+
+    ##
     # @brief This function will check for system status and wait for
     #        FW and Host OS Boot progress to complete.
     #

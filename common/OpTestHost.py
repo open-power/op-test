@@ -1201,3 +1201,36 @@ class OpTestHost():
             l_msg = "fwts bin file is not present after make"
             print l_msg
             raise OpTestError(l_msg)
+
+    ##
+    # @brief This function is used to get detected pci devices in different user/machine readable formats
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_list_pci_devices(self):
+        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES1)
+        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES2)
+        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES3)
+        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES4)
+        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES5)
+        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES6)
+        self.host_run_command(BMC_CONST.HOST_LIST_PCI_SYSFS_DEVICES)
+
+    ##
+    # @brief This function is used to get more pci devices info in verbose mode
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_get_pci_verbose_info(self):
+        l_res = self.host_run_command(BMC_CONST.HOST_LIST_PCI_VERBOSE)
+        return l_res
+
+    ##
+    # @brief This function is used to get minimum usb devices info
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_list_usb_devices(self):
+        self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES1)
+        self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES2)
+        self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES3)

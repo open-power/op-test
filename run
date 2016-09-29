@@ -196,6 +196,7 @@ sub create_config_file {
     print_init_param($f,'hostip',$m,'./host/hostname');
     print_init_param($f,'hostuser',$m,'./host/user');
     print_init_param($f,'hostPasswd',$m,'./host/password');
+    print_init_param($f,'lspci',$m,'./lspci/data');
     if ($hpmimage) {
 	print $f "hpmimage = $hpmimage\n";
     }
