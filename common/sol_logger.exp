@@ -27,11 +27,21 @@
 set solLogFileName  [lindex $argv 0]
 
 log_file -noappend $solLogFileName
-eval spawn [lrange $argv 1 $argc] sol activate
-set timeout -1
-expect {
-    eof {
-        send_user "\n\nEOF detected\n\n"
-        exit
+
+set max_tries 10
+
+set tries 0
+
+while {$tries <= $max_tries} {
+    incr tries
+    eval spawn [lrange $argv 1 $argc] sol activate
+    set timeout -1
+    expect {
+	eof {
+	    send_user "\n\nEOF detected ($tries / $max_tries attempts)\n\n"
+	    eval spawn [lrange $argv 1 $argc] sol deactivate
+	    expect { eof {} }
+	    continue
+	}
     }
 }
