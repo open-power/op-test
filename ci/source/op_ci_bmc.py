@@ -57,6 +57,7 @@ sys.path.append(full_path)
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
+from common.OpTestError import OpTestError
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
 

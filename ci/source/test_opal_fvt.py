@@ -33,6 +33,10 @@ def test_config_check():
     assert op_opal_fvt.test_init() == 0
 
 
+def test_list_pci_device_info():
+    assert op_opal_fvt.test_list_pci_device_info() == 0
+
+
 def test_sensors():
     assert op_opal_fvt.test_sensors() == 0
 

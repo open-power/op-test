@@ -165,7 +165,7 @@ class OpTestBMC():
         rsync.logfile = sys.stdout
         rsync.expect('assword: ')
         rsync.sendline(self.cv_bmcPasswd)
-        rsync.expect('total size is', timeout=60)
+        rsync.expect('total size is', timeout=150)
         rsync.expect(pexpect.EOF)
         rsync.close()
         return rsync.exitstatus
