@@ -89,6 +89,8 @@ class OpTestHMIHandling():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_init(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+
         # Get OS level
         self.l_oslevel = self.cv_HOST.host_get_OS_Level()
 
@@ -175,6 +177,7 @@ class OpTestHMIHandling():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def clearGardEntries(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         # Power off and on the system.
         self.cv_IPMI.ipmi_power_off()
         self.cv_IPMI.ipmi_power_on()

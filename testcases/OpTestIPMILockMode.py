@@ -88,6 +88,8 @@ class OpTestIPMILockMode():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_ipmi_lock_mode(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
 

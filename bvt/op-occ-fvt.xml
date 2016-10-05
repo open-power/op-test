@@ -39,7 +39,7 @@
             <name>Test cpu idle states</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_cpu_idle_states()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -47,7 +47,7 @@
             <name>Test cpu frequency states</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_cpu_freq_states()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -55,7 +55,7 @@
             <name>Test Energy scale at Standby state</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_energy_scale_at_standby_state()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -63,7 +63,7 @@
             <name>Test Energy scale at Runtime state</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_energy_scale_at_runtime_state()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -71,7 +71,7 @@
             <name>Test DCMI at Standby/Runtime States</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_dcmi_at_standby_and_runtime_states()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -79,7 +79,7 @@
             <name>Test OCC Reset Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_occ_reset_functionality()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -87,7 +87,7 @@
             <name>Test OCC Reset(n>3) Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_occ_reset_n_times()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -95,7 +95,7 @@
             <name>Test OCC Enable/Disable Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_occ_fvt.test_occ_enable_disable_functionality()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 

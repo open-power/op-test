@@ -80,6 +80,7 @@ class OpTestOCC():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_occ_reset_functionality(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
@@ -144,6 +145,7 @@ class OpTestOCC():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_occ_reset_n_times(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
@@ -198,6 +200,7 @@ class OpTestOCC():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_occ_enable_disable_functionality(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()

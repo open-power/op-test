@@ -45,6 +45,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
 from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
+from common.OpTestSystem import OpTestSystem
 
 
 class OpTestOOBIPMI():
@@ -68,6 +69,9 @@ class OpTestOOBIPMI():
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
         self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
+        self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
+                                      i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
+                                      i_hostuser, i_hostPasswd)
         self.util = OpTestUtil()
 
     ##
@@ -78,6 +82,7 @@ class OpTestOOBIPMI():
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_oob_ipmi(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
          # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
 
