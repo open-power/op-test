@@ -63,6 +63,7 @@ from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
 from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
 from testcases.OpTestDropbearSafety import OpTestDropbearSafety
 from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
+from testcases.OpTestPCI import OpTestPCI
 
 
 def _config_read():
@@ -76,6 +77,7 @@ def _config_read():
     other functions '''
 
 bmcCfg, testCfg, hostCfg = _config_read()
+
 opTestSensors = OpTestSensors(bmcCfg['ip'], bmcCfg['username'],
                               bmcCfg['password'],
                               bmcCfg.get('usernameipmi'),
@@ -208,6 +210,13 @@ opTestDropbearSafety = OpTestDropbearSafety(bmcCfg['ip'], bmcCfg['username'],
                                             bmcCfg.get('passwordipmi'),
                                             testCfg['ffdcdir'], hostCfg['hostip'],
                                             hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestPCI = OpTestPCI(bmcCfg['ip'], bmcCfg['username'],
+                      bmcCfg['password'],
+                      bmcCfg.get('usernameipmi'),
+                      bmcCfg.get('passwordipmi'),
+                      testCfg['ffdcdir'], hostCfg['hostip'],
+                      hostCfg['hostuser'], hostCfg['hostpasswd'], hostCfg['lspci'])
 
 
 def test_init():
@@ -442,3 +451,11 @@ def test_bmc_cold_reset_effects():
         returns: int 0-success, raises exception-error
     """
     return opTestMCColdResetEffects.test_bmc_cold_reset_effects()
+
+
+def test_list_pci_device_info():
+    """This function just tests detected pci devices at petitboot and host OS
+        known good output data
+        returns: int 0-success, raises exception-error
+    """
+    return opTestPCI.test_host_pci_devices_info()

@@ -280,6 +280,27 @@ class OpTestSystem():
 
 
     ##
+    # @brief This function reboots the system(Power off/on) and
+    #        check for system status and wait for
+    #        FW and Host OS Boot progress to complete.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def sys_hard_reboot(self):
+        print "Performing a IPMI Power OFF Operation"
+        self.cv_IPMI.ipmi_power_off()
+        if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+            print "System is in standby/Soft-off state"
+        else:
+            l_msg = "System failed to reach standby/Soft-off state"
+            raise OpTestError(l_msg)
+        print "Performing a IPMI Power ON Operation"
+        self.cv_IPMI.ipmi_power_on()
+        self.sys_check_host_status()
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        return BMC_CONST.FW_SUCCESS
+
+    ##
     # @brief This function will check for system status and wait for
     #        FW and Host OS Boot progress to complete.
     #
@@ -961,3 +982,36 @@ class OpTestSystem():
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function is used to boot the system up to petitboot
+    #        So any petitboot related test cases can use this function
+    #        to setupt the petitboot
+    #
+    # @param i_con @type Object: it is a object of pexpect.spawn class
+    #                            this is the active ipmi sol console object
+    #
+    # @return BMC_CONST.FW_SUCCESS or return BMC_CONST.FW_FAILED
+    #
+    def sys_ipmi_boot_system_to_petitboot(self, i_console):
+        self.console = i_console
+        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
+        self.cv_IPMI.ipmi_power_off()
+        if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+            print "System is in standby/Soft-off state"
+        else:
+            l_msg = "System failed to reach standby/Soft-off state"
+            raise OpTestError(l_msg)
+        self.cv_IPMI.ipmi_power_on()
+
+        # Exiting to petitboot shell
+        self.console.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
+        time.sleep(20)
+        # Exiting to petitboot
+        self.console.sendcontrol('l')
+        self.console.send('\x1b[B')
+        self.console.send('\x1b[B')
+        self.console.send('\r')
+        self.console.expect('Exiting petitboot')
+        self.console.send('\r')
+        self.console.send('\x08')

@@ -15,6 +15,7 @@
       <ipmi-user>ADMIN</ipmi-user>
       <ipmi-password>admin</ipmi-password>
     </bmc>
+    <lspci>lspci.txt</lspci>
   </machine>
   <machine>
     <name>barreleye1</name>
@@ -30,6 +31,7 @@
       <user>root</user>
       <password>abc123</password>
     </bmc>
+    <lspci>lspci.txt</lspci>
   </machine>
   <machine>
     <name>p86</name>

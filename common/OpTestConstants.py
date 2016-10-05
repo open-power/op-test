@@ -99,6 +99,17 @@ class OpTestConstants():
     OCC_RESET = "opal-prd occ reset"
     OCC_QUERY_RESET_COUNTS = "opal-prd --expert-mode htmgt-passthru 1"
     OCC_SET_RESET_RELOAD_COUNT = "opal-prd --expert-mode htmgt-passthru 4"
+    HOST_LIST_PCI_DEVICES1 = "lspci -mm -n"
+    HOST_LIST_PCI_DEVICES2 = "lspci -m"
+    HOST_LIST_PCI_DEVICES3 = "lspci -t"
+    HOST_LIST_PCI_DEVICES4 = "lspci -n"
+    HOST_LIST_PCI_DEVICES5 = "lspci -nn"
+    HOST_LIST_PCI_DEVICES6 = "cat /proc/bus/pci/devices"
+    HOST_LIST_PCI_SYSFS_DEVICES = "ls /sys/bus/pci/devices/ -l"
+    HOST_LIST_PCI_VERBOSE = "lspci -vvxxx"
+    HOST_LIST_USB_DEVICES1 = "lsusb"
+    HOST_LIST_USB_DEVICES2 = "lsusb -t"
+    HOST_LIST_USB_DEVICES3 = "lsusb -v"
 
     # Command to boot into PRIMARY and GOLDEN SIDE
     BMC_BOOT_PRIMARY = "/etc/init.d/boot_into_primary"

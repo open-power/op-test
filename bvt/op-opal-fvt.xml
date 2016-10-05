@@ -36,6 +36,14 @@
         </test>
 
         <test>
+            <name>Test Gather PCI Subsystem Info</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_opal_fvt.test_list_pci_device_info()"</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test Skiroot Dropbear Safety Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_dropbear_safety()"</cmd>
