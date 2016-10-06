@@ -130,7 +130,6 @@ class OpTestEnergyScale():
             raise OpTestError(l_msg)
         self.cv_IPMI.ipmi_sdr_clear()
         print self.cv_IPMI.ipmi_get_power_limit()
-        self.cv_IPMI.ipmi_activate_power_limit()
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()
