@@ -40,6 +40,7 @@ Where OPTIONS is zero or more of:
    --machine name : run test on machine only
    --noflash : Prevents flashing of firmware (i.e. use what's already there)
    --suite file.xml : the BVT test suite to run
+   --test testname : the one test to run
    --test-firmware dir/ : the firmware to test. Path to where .pnor file is
    --good-firmware dir/ : known good firmware. Path to where .pnor file is
    --hpmimage file.hpm : full path of hpm file to install
@@ -58,6 +59,7 @@ my $machines_xml = "machines.xml";
 my $machine;
 my $noflash = 0;
 my $suite = "op-ci-basic-bvt.xml";
+my $testname;
 my $test_firmware;
 my $good_firmware;
 my $hpmimage;
@@ -68,6 +70,7 @@ GetOptions("help|h|?" => \$help,
 	   "machines=s" => \$machines_xml,
 	   "machine=s" => \$machine,
 	   "suite=s" => \$suite,
+	   "test=s" => \$testname,
 	   "noflash" => \$noflash,
 	   "test-firmware=s" => \$test_firmware,
 	   "good-firmware=s" => \$good_firmware,
@@ -263,6 +266,7 @@ foreach my $m (@machines)
 	die "Didn't find hpmimage full path" if validate_hpmpath();
         $cmd .= " --hpmimage $hpmimage";
     }
+    $cmd .= " --test \"$testname\"" if $testname;
     $cmd .= " $suite)\n";
 
     create_config_file($platform, $m, 'ci/source/op_ci_tools.cfg');
