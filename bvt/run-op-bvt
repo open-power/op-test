@@ -87,6 +87,7 @@ my $rc = 0;
 my $test_env = "hw";
 my $restrict_env = "";
 my $test_systems = 0; # "Hidden" option to not run tests, just test --systems dispatching code
+my $testname;
 
 my $usage = "Run OpenPower Build Verification Test (BVT)
 
@@ -98,6 +99,7 @@ Where OPTIONS is zero or more of:
    --verbose : Display extra debug statements during execution
    --quiet : Be very quiet, only emit TAP.
    --result dir : Directory to output all results and logs to
+   --test testname : only run testname
    --xxx yyy : any \"--\" option other than the ones listed above is assumed
              to be a .xml file substitution variable. In this case, all
              instances of \"%%xxx%%\" in the .xml file will be replaced by
@@ -235,6 +237,7 @@ sub runTest
     $cmd = "run-op-it $verbose_str ";
     $cmd .= " --quiet" if $quiet;
     $cmd .= " --result $resdir" if $resdir;
+    $cmd .= " --test=\"$testname\"" if $testname;
     $cmd .= " --testenv $test_env $machine_opt $xmlvars_it $relxmlfile";
     if (runCmd($cmd))
     {
@@ -277,6 +280,7 @@ $commandline = $0 . " ". (join " ", @ARGV);
 GetOptions('help|?|h' => \$help,
 	   'verbose' => sub { set_verbose(1); $verbose_str = "--verbose"; },
 	   'result=s' => \$resdir,
+	   'test=s' => \$testname,
 	   'quiet' => \$quiet,
     ) or syntax();
 

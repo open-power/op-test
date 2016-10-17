@@ -101,6 +101,7 @@ my %keyattrs;
 my $debug = "";
 my $title_text = "Integration Test";
 my $testcaseid = "";
+my $testname;
 
 my $logfile;
 
@@ -331,6 +332,8 @@ sub runAllTests
 	my $testnr = 0;
         foreach my $test ($platform->findnodes('./test'))
         {
+	    next if $testname && $testname ne ${$test->findnodes('./name')}[0]->textContent;
+
 	    $testnr++;
 
             $testgrp = ${$test->findnodes('./name')}[0];
@@ -490,6 +493,7 @@ GetOptions('help|?|h' => \$help,
 	   'debug=s' => sub { $debug = shift; set_verbose(1); },
 	   'testenv=s' => \$test_env,
 	   'result=s' => \$resdir,
+	   'test=s' => \$testname,
 	   'quiet' => \$quiet,
     ) or syntax();
 
