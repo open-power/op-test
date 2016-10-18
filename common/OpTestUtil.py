@@ -57,27 +57,24 @@ class OpTestUtil():
     #           raise OpTestError when FAILED
     #
     def PingFunc(self, i_ip, i_try=1):
-
-        arglist = "ping -c 2 " + str(i_ip)
+	sleepTime = 0;
         while(i_try != 0):
-
-            try:
-                p1 = subprocess.Popen(
-                    arglist, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-                stdout_value, stderr_value = p1.communicate()
-            except:
-                l_msg = "Ping Test Failed."
-                print l_msg
-                raise OpTestError(l_msg)
+            p1 = subprocess.Popen(["ping", "-c 2", str(i_ip)],
+                                  stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE)
+            stdout_value, stderr_value = p1.communicate()
 
             if(stdout_value.__contains__("2 received")):
                 print (i_ip + " is pinging")
                 return BMC_CONST.PING_SUCCESS
 
             else:
-                print (i_ip + " is not pinging")
-                i_try -= 1
-                time.sleep(BMC_CONST.HOST_BRINGUP_TIME)
+                print "%s is not pinging (Waited %d of %d, %d tries remaining)" % (i_ip, sleepTime, BMC_CONST.HOST_BRINGUP_TIME, i_try)
+		time.sleep(1)
+		sleepTime += 1
+		if (sleepTime == BMC_CONST.HOST_BRINGUP_TIME):
+			i_try -= 1
+			sleepTime = 0
 
         print stderr_value
         raise OpTestError(stderr_value)
