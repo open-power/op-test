@@ -103,7 +103,7 @@ class OpTestBMC():
         if index == 0:
             rc = 0
         elif index == 1:
-            l_msg = "pflash not on BMC"
+            l_msg = "Command not on BMC or failed"
             print l_msg
             raise OpTestError(l_msg)
         elif index == 2:
