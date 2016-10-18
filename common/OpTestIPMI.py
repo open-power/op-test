@@ -277,18 +277,8 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipl_wait_for_working_state(self, timeout=10):
-
-        ''' WORKAROUND FOR AMI BUG
-         A sleep is required here because Host status sensor is set incorrectly
-         to working state right after power on '''
         sol = self._ipmi_sol_capture()
-        time.sleep(60)
-
         timeout = time.time() + 60*timeout
-
-        ''' AMI BUG is fixed now
-         After updating the AMI level the Host Status sensor works as expected.
-         '''
         cmd = 'sdr elist |grep \'Host Status\''
         while True:
             output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + cmd)
