@@ -260,7 +260,11 @@ class OpTestIPMI():
 
         logFile = self.cv_ffdcDir + '/' + 'host_sol_%s.log' % l_res[1]
         print "Time: %s, logfile: %s" % (l_res, logFile)
-        cmd = os.getcwd() + "/../common/sol_logger.exp %s %s" % (
+        cmd = os.getcwd() + "/../common/sol_logger.exp"
+        if (not os.path.isfile(cmd)):
+            cmd = os.getcwd() + "/common/sol_logger.exp"
+
+        cmd += " %s %s" % (
             logFile, self.cv_baseIpmiCmd)
         print cmd
         try:
@@ -299,11 +303,12 @@ class OpTestIPMI():
 
         try:
             self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sol deactivate')
+            sol.terminate()
         except subprocess.CalledProcessError:
             l_msg = 'SOL already deactivated'
             print l_msg
+            sol.terminate()
             raise OpTestError(l_msg)
-
         return BMC_CONST.FW_SUCCESS
 
 

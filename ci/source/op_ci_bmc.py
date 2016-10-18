@@ -266,3 +266,78 @@ def validate_side_activated():
         print l_msg
         raise OpTestError(l_msg)
     return 0
+
+
+import os
+import unittest
+
+import ConfigParser
+from common.OpTestSystem import OpTestSystem
+from common.OpTestError import OpTestError
+from common.OpTestConstants import OpTestConstants as BMC_CONST
+import ci.source.op_inbound_hpm as op_inbound_hpm
+import ci.source.op_opal_fvt as op_opal_fvt
+import ci.source.op_occ_fvt as op_occ_fvt
+import ci.source.op_fwts_fvt as op_fwts_fvt
+import ci.source.op_outofband_firmware_update as op_outofband_firmware_update
+import ci.source.op_firmware_component_update as op_firmware_component_update
+import ci.source.op_bmc_web_update as op_bmc_web_update
+
+class TestIPL(unittest.TestCase):
+    def test_ipl_and_validate(self):
+        self.assertEqual(ipmi_power_off(), 0)
+        self.assertEqual(ipmi_sdr_clear(), 0)
+        self.assertEqual(ipmi_power_on(), 0)
+        self.assertEqual(validate_host(), 0)
+        self.assertEqual(ipmi_sel_check(), 0)
+
+    def test_outofband_fwandpnor_update_hpm(self):
+        self.assertEqual(ipmi_power_off(), 0)
+        self.assertEqual(ipmi_sdr_clear(), 0)
+        self.assertEqual(outofband_fwandpnor_update_hpm(), 0)
+        self.assertEqual(ipmi_sel_check(), 0)
+
+    def test_ipl_wait_for_working_state(self):
+        self.assertEqual(ipmi_power_off(), 0)
+        self.assertEqual(ipmi_sdr_clear(), 0)
+        self.assertEqual(ipmi_power_on(), 0)
+        self.assertEqual(ipl_wait_for_working_state(), 0)
+        self.assertEqual(ipmi_sel_check(), 0)
+
+    def test_ipl_wait_for_login(self):
+        self.assertEqual(ipmi_power_off(), 0)
+        self.assertEqual(ipmi_sdr_clear(), 0)
+        self.assertEqual(ipmi_power_on(), 0)
+        self.assertEqual(ipmi_ipl_wait_for_login(), 0)
+        self.assertEqual(ipmi_sel_check(), 0)
+
+    def test_warm_reset(self):
+        # It'd be better if we could say "ensure system was on"
+        self.assertEqual(ipmi_warm_reset(), 0)
+
+    def test_power_soft(self):
+        # It'd be better if we could say "ensure system was on"
+        self.assertEqual(ipmi_power_soft(), 0)
+
+    def test_bmc_reboot(self):
+        # It'd be better if we could say "ensure system was on"
+        self.assertEqual(bmc_reboot(), 0)
+
+    def test_power_off(self):
+        # It'd be better if we could say "ensure system was on"
+        self.assertEqual(ipmi_power_off(), 0)
+
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
+                         bmcCfg['password'],
+                         bmcCfg.get('usernameipmi'),
+                         bmcCfg.get('passwordipmi'),
+                         testCfg['ffdcdir'],
+                         hostCfg['hostip'],
+                         hostCfg['hostuser'],
+                         hostCfg['hostpasswd'])
+
+
+if __name__ == '__main__':
+        unittest.main()
