@@ -165,7 +165,6 @@ class OpTestIPMI():
     #
     def ipmi_power_off(self):
         output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis power off')
-        time.sleep(BMC_CONST.LONG_WAIT_IPL)
         if 'Down/Off' in output:
             return BMC_CONST.FW_SUCCESS
         else:
