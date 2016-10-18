@@ -144,14 +144,20 @@ class OpTestIPMI():
 
         output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sel clear')
         if 'Clearing SEL' in output:
-            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-            output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sel elist')
-            if 'no entries' in output:
-                return BMC_CONST.FW_SUCCESS
-            else:
-                l_msg = "Sensor data still has entries!"
-                print l_msg
-                raise OpTestError(l_msg)
+            # FIXME: This code should instead check for 'erasure completed'
+            #        and the status of the erasure, rather than this crude loop
+            retries = 20
+            while (retries > 0):
+                output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sel elist')
+                if 'no entries' in output:
+                    return BMC_CONST.FW_SUCCESS
+                else:
+                    l_msg = "Sensor data still has entries!"
+                    print l_msg
+                    retries -= 1
+                    if (retries == 0):
+                        raise OpTestError(l_msg)
+                    time.sleep(1)
         else:
             l_msg = "Clearing the sensor data Failed"
             print l_msg
