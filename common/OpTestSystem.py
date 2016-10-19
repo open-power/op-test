@@ -1008,7 +1008,7 @@ class OpTestSystem():
 
         # Exiting to petitboot shell
         self.console.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
-        time.sleep(20)
+        self.console.expect('x=exit', timeout=10)
         # Exiting to petitboot
         self.console.sendcontrol('l')
         self.console.send('\x1b[B')
