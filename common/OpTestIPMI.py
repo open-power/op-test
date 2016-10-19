@@ -1206,3 +1206,14 @@ class OpTestIPMI():
             l_msg = "IPMI: failed to close ipmi console"
             raise OpTestError(l_msg)
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief Set boot device to be boot to BIOS (i.e. petitboot)
+    # @return 0 for success or throws exception
+    #
+    def ipmi_set_boot_to_petitboot(self):
+        l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis bootdev bios')
+        if('Set Boot Device to bios' in l_output):
+            return 0
+        else:
+            raise OpTestError("Failure setting bootdev to bios: " + str(l_output))

@@ -1002,6 +1002,8 @@ class OpTestSystem():
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
+
+        self.cv_IPMI.ipmi_set_boot_to_petitboot()
         self.cv_IPMI.ipmi_power_on()
 
         # Exiting to petitboot shell
