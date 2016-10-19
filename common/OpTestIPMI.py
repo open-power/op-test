@@ -1062,6 +1062,7 @@ class OpTestIPMI():
         print  "running:%s sol activate" % self.cv_baseIpmiCmd
         try:
             l_con = pexpect.spawn('%s sol activate' % self.cv_baseIpmiCmd)
+            l_con.expect('SOL Session operational.  Use .. for help.')
         except pexpect.ExceptionPexpect:
             l_msg = "IPMI: sol activate failed"
             raise OpTestError(l_msg)
@@ -1075,10 +1076,7 @@ class OpTestIPMI():
     #
     def ipmi_get_console(self):
         self.ipmi_sol_deactivate()
-        # Waiting for a small time interval as latter versions of ipmi takes a bit of time to deactivate.
-        time.sleep(BMC_CONST.IPMI_SOL_DEACTIVATE_TIME)
         l_con = self.ipmi_sol_activate()
-        time.sleep(BMC_CONST.IPMI_SOL_ACTIVATE_TIME)
         count = 0
         while (not l_con.isalive()):
             l_con = self.ipmi_sol_activate()
