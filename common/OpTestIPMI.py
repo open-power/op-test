@@ -1172,7 +1172,6 @@ class OpTestIPMI():
     #
     def run_host_cmd_on_ipmi_console(self, i_cmd):
         self.l_con.sendline(i_cmd)
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         try:
             rc = self.l_con.expect(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT_LIST, timeout=500)
             if rc == 0:
