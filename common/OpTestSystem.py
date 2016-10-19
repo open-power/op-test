@@ -268,7 +268,7 @@ class OpTestSystem():
             self.util.PingFunc(self.cv_HOST.ip)
             self.cv_HOST.host_get_OS_Level()
         except OpTestError as e:
-            print("Trying to recover partition")
+            print("Trying to recover partition after error: %s" % (e) )
             try:
                 self.cv_IPMI.ipmi_power_off()
                 self.cv_IPMI.ipmi_power_on()
