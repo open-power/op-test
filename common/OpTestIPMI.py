@@ -1050,13 +1050,8 @@ class OpTestIPMI():
     # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
     #
     def ipmi_sol_deactivate(self):
-        print "running:%s sol deactivate" % self.cv_baseIpmiCmd
-        try:
-            l_con = pexpect.spawn('%s sol deactivate' % self.cv_baseIpmiCmd)
-        except pexpect.ExceptionPexpect:
-            l_msg = "IPMI: sol deactivate failed"
-            raise OpTestError(l_msg)
-        return l_con
+        self._ipmitool_cmd_run('%s sol deactivate' % self.cv_baseIpmiCmd)
+        return 0
 
     ##
     # @brief This function will activates ipmi sol console
