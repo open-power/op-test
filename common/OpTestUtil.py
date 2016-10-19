@@ -56,7 +56,7 @@ class OpTestUtil():
     # @return   BMC_CONST.PING_SUCCESS when PASSED or
     #           raise OpTestError when FAILED
     #
-    def PingFunc(self, i_ip, i_try=1):
+    def PingFunc(self, i_ip, i_try=1, totalSleepTime=BMC_CONST.HOST_BRINGUP_TIME):
 	sleepTime = 0;
         while(i_try != 0):
             p1 = subprocess.Popen(["ping", "-c 2", str(i_ip)],
@@ -69,10 +69,10 @@ class OpTestUtil():
                 return BMC_CONST.PING_SUCCESS
 
             else:
-                print "%s is not pinging (Waited %d of %d, %d tries remaining)" % (i_ip, sleepTime, BMC_CONST.HOST_BRINGUP_TIME, i_try)
+                print "%s is not pinging (Waited %d of %d, %d tries remaining)" % (i_ip, sleepTime, totalSleepTime, i_try)
 		time.sleep(1)
 		sleepTime += 1
-		if (sleepTime == BMC_CONST.HOST_BRINGUP_TIME):
+		if (sleepTime == totalSleepTime):
 			i_try -= 1
 			sleepTime = 0
 
