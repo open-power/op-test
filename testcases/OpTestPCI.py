@@ -98,7 +98,6 @@ class OpTestPCI():
         with open(filename, 'r') as f:
             self.pci_good_data = f.read().replace('\n', '')
         print self.pci_good_data
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         self.test_skiroot_pci_devices()
         self.test_host_pci_devices()
 
