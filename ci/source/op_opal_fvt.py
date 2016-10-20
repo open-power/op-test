@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015,2016
 # [+] International Business Machines Corp.
 #
 #
@@ -31,7 +31,6 @@
                features will be adding in testcases directory
 
 .. moduleauthor:: Pridhiviraj Paidipeddi <ppaidipe@in.ibm.com>
-
 
 """
 import sys
@@ -459,3 +458,29 @@ def test_list_pci_device_info():
         returns: int 0-success, raises exception-error
     """
     return opTestPCI.test_host_pci_devices_info()
+
+
+import os
+import unittest
+
+import ConfigParser
+from common.OpTestSystem import OpTestSystem
+from common.OpTestError import OpTestError
+from common.OpTestConstants import OpTestConstants as BMC_CONST
+import ci.source.op_inbound_hpm as op_inbound_hpm
+import ci.source.op_occ_fvt as op_occ_fvt
+import ci.source.op_fwts_fvt as op_fwts_fvt
+import ci.source.op_outofband_firmware_update as op_outofband_firmware_update
+import ci.source.op_firmware_component_update as op_firmware_component_update
+import ci.source.op_bmc_web_update as op_bmc_web_update
+
+class OpalPCI(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_pci_device_presence(self):
+        test_list_pci_device_info()
+
+if __name__ == '__main__':
+    unittest.main()
