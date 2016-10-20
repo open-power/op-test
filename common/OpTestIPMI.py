@@ -1079,8 +1079,9 @@ class OpTestIPMI():
         l_con = self.ipmi_sol_activate()
         count = 0
         while (not l_con.isalive()):
+            if (count > 0):
+                time.sleep(BMC_CONST.IPMI_SOL_ACTIVATE_TIME)
             l_con = self.ipmi_sol_activate()
-            time.sleep(BMC_CONST.IPMI_SOL_ACTIVATE_TIME)
             count += 1
             if count > 120:
                 l_msg = "IPMI: not able to get sol console"
