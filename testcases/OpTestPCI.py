@@ -95,10 +95,12 @@ class OpTestPCI():
         filename = os.path.join(os.path.dirname(__file__).split('testcases')[0], self.lspci_file)
         if not os.path.isfile(filename):
             raise OpTestError("lspci file %s not found in top level directory" % filename)
-        with open(filename, 'r') as f:
-            self.pci_good_data = f.read().replace('\n', '')
-        print self.pci_good_data
+        self.pci_good_data_file = filename
         self.test_skiroot_pci_devices()
+        self.cv_IPMI.ipmi_set_boot_to_disk()
+        self.cv_IPMI.ipmi_power_off()
+        self.cv_IPMI.ipmi_power_on()
+        self.cv_IPMI.ipl_wait_for_working_state()
         self.test_host_pci_devices()
 
     ##
@@ -116,13 +118,14 @@ class OpTestPCI():
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
         res = self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
         self.cv_SYSTEM.sys_ipmi_close_console(self.console)
-        self.pci_data_petitboot = ''.join(res[1:])
-        print self.pci_data_petitboot
-        if self.pci_good_data == self.pci_data_petitboot:
+        self.pci_data_petitboot = '\n'.join(res[1:])
+        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)
+        diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_petitboot + '\n')
+        r = diff_process.wait()
+        if r == 0:
             print "All the pci devices are detected at petitboot"
         else:
-            result = list(Differ().compare(self.pci_good_data, self.pci_data_petitboot))
-            pprint(result)
+            print diff_stdout
             raise OpTestError("There is a mismatch b/w known good output and tested petitboot lspci output")
 
     ##
@@ -132,19 +135,18 @@ class OpTestPCI():
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def test_host_pci_devices(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-        self.cv_SYSTEM.sys_hard_reboot()
         self.cv_HOST.host_check_command("lspci")
         self.cv_HOST.host_check_command("lsusb")
         self.cv_HOST.host_list_pci_devices()
         self.cv_HOST.host_get_pci_verbose_info()
         self.cv_HOST.host_list_usb_devices()
         l_res = self.cv_HOST.host_run_command("lspci -mm -n")
-        self.pci_data_hostos = l_res.replace("\r\n", "")
-        if self.pci_good_data == self.pci_data_hostos:
-            print "All the pci devices are detected by firmware"
+        self.pci_data_hostos = l_res.replace("\r\n", "\n")
+        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)
+        diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
+        r = diff_process.wait()
+        if r == 0:
+            print "All the pci devices are detected in host OS"
         else:
-            print self.pci_data_hostos
-            result = list(Differ().compare(self.pci_good_data, self.pci_data_hostos))
-            pprint(result)
-            raise OpTestError("There is a mismatch b/w known good output and tested host lspci output")
+            print diff_stdout
+            raise OpTestError("There is a mismatch b/w known good output and tested host OS lspci output")
