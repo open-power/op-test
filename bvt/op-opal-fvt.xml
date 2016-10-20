@@ -38,8 +38,8 @@
         <test>
             <name>Test Gather PCI Subsystem Info</name>
             <testcase>
-                <cmd>op-ci-bmc-run "op_opal_fvt.test_list_pci_device_info()"</cmd>
-                <exitonerror>no</exitonerror>
+              <cmd>../ci/source/op_opal_fvt.py OpalPCI.test_pci_device_presence</cmd>
+              <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
