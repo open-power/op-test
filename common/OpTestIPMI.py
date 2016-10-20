@@ -1081,6 +1081,7 @@ class OpTestIPMI():
         while (not l_con.isalive()):
             if (count > 0):
                 time.sleep(BMC_CONST.IPMI_SOL_ACTIVATE_TIME)
+            self.ipmi_sol_deactivate()
             l_con = self.ipmi_sol_activate()
             count += 1
             if count > 120:
