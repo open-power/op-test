@@ -89,38 +89,13 @@ class OpTestDropbearSafety():
     def test_dropbear_running(self):
         print "Test Dropbear running in Petitboot"
         print "Performing IPMI Power Off Operation"
-        try:
-            # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-            self.cv_IPMI.ipmi_power_off()
-            if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-                print "System is in standby/Soft-off state"
-            else:
-                l_msg = "System failed to reach standby/Soft-off state"
-                raise OpTestError(l_msg)
-            self.cv_IPMI.ipmi_power_on()
-            self.console = self.cv_SYSTEM.sys_get_ipmi_console()
-
-            # Exiting to petitboot shell
-            self.console.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
-            # Exiting to petitboot
-            self.console.sendcontrol('l')
-            self.console.send('\x1b[B')
-            self.console.send('\x1b[B')
-            self.console.send('\r')
-            self.console.expect('Exiting petitboot')
-            self.console.send('\r')
-            self.console.send('\x08')
-            self.cv_IPMI.ipmi_host_set_unique_prompt(self.console)
-            self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-            res = self.cv_IPMI.run_host_cmd_on_ipmi_console("ps")
-            if res[-1] == '0':
-                print 'ps command worked'
-            else:
-                raise OpTestError('failed to run ps command')
-
-        except OpTestError:
-            self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+        self.console = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.sys_ipmi_boot_system_to_petitboot(self.console)
+        self.cv_IPMI.ipmi_host_set_unique_prompt(self.console)
+        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
+        # we don't grep for 'dropbear' so that our naive line.count
+        # below doesn't hit a false positive.
+        res = self.cv_IPMI.run_host_cmd_on_ipmi_console("ps|grep drop")
         print res
         for line in res:
             if line.count('dropbear'):

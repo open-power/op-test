@@ -482,5 +482,13 @@ class OpalPCI(unittest.TestCase):
     def test_pci_device_presence(self):
         test_list_pci_device_info()
 
+class PetitbootEnvironmentTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_dropbear_not_running(self):
+        opTestDropbearSafety.test_dropbear_running()
+
 if __name__ == '__main__':
     unittest.main()
