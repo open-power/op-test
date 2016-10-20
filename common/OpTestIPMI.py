@@ -1214,3 +1214,14 @@ class OpTestIPMI():
             return 0
         else:
             raise OpTestError("Failure setting bootdev to bios: " + str(l_output))
+
+    ##
+    # @brief Set boot device to be boot to disk (i.e. OS)
+    # @return 0 for success or throws exception
+    #
+    def ipmi_set_boot_to_disk(self):
+        l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + 'chassis bootdev disk')
+        if('Set Boot Device to disk' in l_output):
+            return 0
+        else:
+            raise OpTestError("Failure setting bootdev to disk: " + str(l_output))
