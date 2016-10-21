@@ -52,6 +52,14 @@
         </test>
 
         <test>
+            <name>Test Fast reset</name>
+            <testcase>
+              <cmd>../ci/source/op_opal_fvt.py FastResetTests.test_opal_fast_reboot</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test BMC Cold reset vs Host FW Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_bmc_cold_reset_effects()"</cmd>
