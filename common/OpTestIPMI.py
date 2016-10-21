@@ -1062,7 +1062,6 @@ class OpTestIPMI():
         print  "running:%s sol activate" % self.cv_baseIpmiCmd
         try:
             l_con = pexpect.spawn('%s sol activate' % self.cv_baseIpmiCmd)
-            l_con.expect('SOL Session operational.  Use .. for help.')
         except pexpect.ExceptionPexpect:
             l_msg = "IPMI: sol activate failed"
             raise OpTestError(l_msg)
