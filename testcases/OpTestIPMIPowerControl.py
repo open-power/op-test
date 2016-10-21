@@ -83,6 +83,7 @@ class OpTestIPMIPowerControl():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def testIPMIPowerControl(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
 
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)

@@ -116,6 +116,7 @@ class OpTestEnergyScale():
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def test_energy_scale_at_standby_state(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Energy Scale Test 1: Get, Set, activate and deactivate platform power limit at power off"
         l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
 
@@ -129,7 +130,6 @@ class OpTestEnergyScale():
             raise OpTestError(l_msg)
         self.cv_IPMI.ipmi_sdr_clear()
         print self.cv_IPMI.ipmi_get_power_limit()
-        self.cv_IPMI.ipmi_activate_power_limit()
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()
@@ -197,6 +197,7 @@ class OpTestEnergyScale():
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def test_energy_scale_at_runtime_state(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Energy Scale Test 2: Get, Set, activate and deactivate platform power limit at runtime"
         l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
 
@@ -301,6 +302,7 @@ class OpTestEnergyScale():
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def test_dcmi_at_standby_and_runtime_states(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Energy scale Test 3: Get Sensors, Temperature and Power reading's at power off and runtime"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)

@@ -147,6 +147,7 @@ class OpTestFWTS():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_init(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
 

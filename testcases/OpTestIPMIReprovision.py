@@ -90,6 +90,7 @@ class OpTestIPMIReprovision():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_nvram_ipmi_reprovision(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         self.cv_HOST.host_run_command("uname -a")
         self.cv_HOST.host_run_command(BMC_CONST.NVRAM_PRINT_CFG)
         print "IPMI_Reprovision: Updating the nvram partition with test cfg data"
@@ -136,6 +137,7 @@ class OpTestIPMIReprovision():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_gard_ipmi_reprovision(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "IPMI_Reprovision: Injecting system core checkstop to guard the phyisical cpu"
         self.opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
         print "IPMI_Reprovision: Performing a IPMI Power OFF Operation"

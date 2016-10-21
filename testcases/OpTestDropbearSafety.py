@@ -87,6 +87,7 @@ class OpTestDropbearSafety():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_dropbear_running(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Test Dropbear running in Petitboot"
         print "Performing IPMI Power Off Operation"
         self.console = self.cv_SYSTEM.sys_get_ipmi_console()

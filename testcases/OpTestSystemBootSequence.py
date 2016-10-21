@@ -97,7 +97,7 @@ class OpTestSystemBootSequence():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def testMcColdResetBootSequence(self):
-
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Testing MC Cold reset boot sequence"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
@@ -136,6 +136,7 @@ class OpTestSystemBootSequence():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def testMcWarmResetBootSequence(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Testing MC Warm reset boot sequence"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
@@ -175,6 +176,7 @@ class OpTestSystemBootSequence():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def testSystemPowerPolicyOff(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Testing System Power Policy:always-off"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
@@ -218,6 +220,7 @@ class OpTestSystemBootSequence():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def testSystemPowerPolicyOn(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Testing System Power Policy:Always-ON"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
@@ -261,6 +264,7 @@ class OpTestSystemBootSequence():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def testSystemPowerPolicyPrevious(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Testing System Power Policy:previous"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)

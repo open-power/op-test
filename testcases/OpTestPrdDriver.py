@@ -91,6 +91,7 @@ class OpTestPrdDriver():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def testPrdDriver(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         self.test_init()
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)

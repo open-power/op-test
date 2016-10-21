@@ -71,7 +71,7 @@
             <name>Test Out-of-band IPMI</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_oob_ipmi()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -79,7 +79,7 @@
             <name>Test IPMI System Power Control</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_power_control()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -87,7 +87,7 @@
             <name>Test IPMI Lock/Unlock Functionality</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_ipmi_lock_mode()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -103,7 +103,7 @@
             <name>Test Chip TOD Error Injections</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_tod_errors()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -111,7 +111,7 @@
             <name>Test PRD(Processor Runtime Diagnostics) Driver</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_prd_driver()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -119,7 +119,7 @@
             <name>Test HMI Processor Recovery Done</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_proc_recv_done()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -127,7 +127,7 @@
             <name>Test HMI Processor Recovery Error Masked</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_proc_recv_error_masked()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -135,7 +135,7 @@
             <name>Test HMI Malfunction Alert</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_malfunction_alert()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -143,7 +143,7 @@
             <name>Test Clear Gard Entries</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.clear_gard_entries()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -151,7 +151,7 @@
             <name>Test HMI Hypervisor Resource Error</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_hmi_hypervisor_resource_error()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -159,7 +159,7 @@
             <name>Test Clear Gard Entries</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.clear_gard_entries()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -231,7 +231,7 @@
             <name>Test BMC Cold Reset Boot Sequence</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_mc_cold_reset_boot_sequence()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -239,7 +239,7 @@
             <name>Test BMC Warm Reset Boot Sequence</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_mc_warm_reset_boot_sequence()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -263,7 +263,7 @@
             <name>Test System Power Restore Policy always_on</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_always_on()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -271,7 +271,7 @@
             <name>Test System Power Restore Policy always_off</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_always_off()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
@@ -279,21 +279,23 @@
             <name>Test System Power Restore Policy previous</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_system_power_restore_policy_previous()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
         <test>
+            <name>Test System NVRAM IPMI Reprovision</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_nvram_ipmi_reprovision()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
         <test>
+            <name>Test System GARD IPMI Reprovision</name>
             <testcase>
                 <cmd>op-ci-bmc-run "op_opal_fvt.test_gard_ipmi_reprovision()"</cmd>
-                <exitonerror>yes</exitonerror>
+                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 

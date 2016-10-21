@@ -271,7 +271,9 @@ class OpTestSystem():
             print("Trying to recover partition after error: %s" % (e) )
             try:
                 self.cv_IPMI.ipmi_power_off()
+                self.sys_cold_reset_bmc()
                 self.cv_IPMI.ipmi_power_on()
+                self.sys_check_host_status()
                 self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
             except OpTestError as e:
                 return BMC_CONST.FW_FAILED
