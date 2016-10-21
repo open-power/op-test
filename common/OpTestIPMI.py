@@ -1062,7 +1062,6 @@ class OpTestIPMI():
         print  "running:%s sol activate" % self.cv_baseIpmiCmd
         try:
             l_con = pexpect.spawn('%s sol activate' % self.cv_baseIpmiCmd)
-            l_con.expect('SOL Session operational.  Use .. for help.')
         except pexpect.ExceptionPexpect:
             l_msg = "IPMI: sol activate failed"
             raise OpTestError(l_msg)
@@ -1172,6 +1171,13 @@ class OpTestIPMI():
     #
     def run_host_cmd_on_ipmi_console(self, i_cmd):
         self.l_con.sendline(i_cmd)
+        '''Fix me
+        Need to remopve this sleep.
+        And just this function should return the correct o/p of command
+        As of now for first two commands it will return in-correct o/p.
+        Only from third command it will return correct output
+        '''
+        time.sleep(2)
         try:
             rc = self.l_con.expect(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT_LIST, timeout=500)
             if rc == 0:

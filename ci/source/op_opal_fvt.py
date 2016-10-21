@@ -63,6 +63,7 @@ from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
 from testcases.OpTestDropbearSafety import OpTestDropbearSafety
 from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
 from testcases.OpTestPCI import OpTestPCI
+from testcases.OpTestFastReboot import OpTestFastReboot
 
 
 def _config_read():
@@ -217,7 +218,12 @@ opTestPCI = OpTestPCI(bmcCfg['ip'], bmcCfg['username'],
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'], hostCfg['lspci'])
 
-
+opTestFastReboot = OpTestFastReboot(bmcCfg['ip'], bmcCfg['username'],
+                      bmcCfg['password'],
+                      bmcCfg.get('usernameipmi'),
+                      bmcCfg.get('passwordipmi'),
+                      testCfg['ffdcdir'], hostCfg['hostip'],
+                      hostCfg['hostuser'], hostCfg['hostpasswd'])
 def test_init():
     """This function validates the test config before running other functions
     """
@@ -489,6 +495,15 @@ class PetitbootEnvironmentTests(unittest.TestCase):
 
     def test_dropbear_not_running(self):
         opTestDropbearSafety.test_dropbear_running()
+
+class FastResetTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_opal_fast_reboot(self):
+        opTestFastReboot.test_opal_fast_reboot()
+
 
 if __name__ == '__main__':
     unittest.main()

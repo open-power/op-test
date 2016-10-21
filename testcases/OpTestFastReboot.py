@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-test-framework/testcases/OpTestDropbearSafety.py $
+# $Source: op-test-framework/testcases/OpTestFastReboot.py $
 #
 # OpenPOWER Automated Test Project
 #
@@ -24,15 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 #
-#  @package OpTestDropbearSafety.py
+#  @package OpTestFastReboot.py
 #
-#   Test Dropbear SSH is not present in skiroot
+#   Issue fast reboot in petitboot and host OS, on a system having
+#   skiboot 5.4 rc1(which has fast-reset feature). Any further tests
+#   on fast-reset system will be added here
 #
-# The skiroot (pettiboot environment) firmware contains dropbear for it's ssh
-# client functioanlity. We do not want to enable network accessable system in
-# the environemnt for security reasons.
-#
-# This test ensures that the ssh server is not running at boot
 
 import time
 import subprocess
@@ -49,7 +46,7 @@ from common.OpTestSystem import OpTestSystem
 from common.OpTestUtil import OpTestUtil
 
 
-class OpTestDropbearSafety():
+class OpTestFastReboot():
     ##  Initialize this object
     #  @param i_bmcIP The IP address of the BMC
     #  @param i_bmcUser The userid to log into the BMC with
@@ -76,30 +73,46 @@ class OpTestDropbearSafety():
         self.util = OpTestUtil()
 
     ##
-    # @brief  This function will tests Dropbear running functionality in skiroot
-    #         1. Power Off the system
-    #         2. Power on the system
-    #         3. Exit to the petitboot shell
-    #         4. Execute ps command
-    #         5. test will fail incase dropbear is running and listed out by ps
-    #         6. At the end of test reboot the system to OS.
+    # @brief  This function tests fast reset of power systems.
+    #         It will check booting sequence when reboot command
+    #         getting executed in both petitboot and host OS
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def test_dropbear_running(self):
+    def test_opal_fast_reboot(self):
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-        print "Test Dropbear running in Petitboot"
-        print "Performing IPMI Power Off Operation"
-        self.console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.sys_ipmi_boot_system_to_petitboot(self.console)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(self.console)
+        self.cv_HOST.host_run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
+        res = self.cv_HOST.host_run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
+        if "feeling-lucky" in res:
+            print "Setting the fast-reset mode successful"
+        else:
+            raise OpTestError("Failed to set the fast-reset mode")
+        self.con = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_IPMI.ipmi_host_login(self.con)
+        self.cv_IPMI.ipmi_host_set_unique_prompt(self.con)
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        # we don't grep for 'dropbear' so that our naive line.count
-        # below doesn't hit a false positive.
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console("ps|grep drop")
-        print res
+        self.cv_IPMI.ipmi_set_boot_to_petitboot()
+        self.con.sendline("reboot")
+        self.con.expect(" RESET: Initiating fast reboot", timeout=60)
+        # Exiting to petitboot shell
+        self.con.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
+        self.con.expect('x=exit', timeout=10)
+        # Exiting to petitboot
+        self.con.sendcontrol('l')
+        self.con.send('\x1b[B')
+        self.con.send('\x1b[B')
+        self.con.send('\r')
+        self.con.expect('Exiting petitboot')
+        self.con.send('\r')
+        self.con.send('\x08')
+        self.cv_IPMI.ipmi_host_set_unique_prompt(self.con)
+        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
+        self.con.sendline("reboot")
+        self.con.expect(" RESET: Initiating fast reboot", timeout=60)
+        # Exiting to petitboot shell
+        self.con.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
+        self.con.expect('x=exit', timeout=10)
+        print "fast-reset boots the system to runtime"
         self.cv_IPMI.ipmi_set_boot_to_disk()
-        for line in res:
-            if line.count('dropbear'):
-                raise OpTestError("drobear is running in the skiroot")
         return BMC_CONST.FW_SUCCESS
+
