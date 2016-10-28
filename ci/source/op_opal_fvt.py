@@ -64,6 +64,7 @@ from testcases.OpTestDropbearSafety import OpTestDropbearSafety
 from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
 from testcases.OpTestPCI import OpTestPCI
 from testcases.OpTestFastReboot import OpTestFastReboot
+from testcases.OpTestNVRAM import OpTestNVRAM
 
 
 def _config_read():
@@ -224,6 +225,14 @@ opTestFastReboot = OpTestFastReboot(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg.get('passwordipmi'),
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestNVRAM = OpTestNVRAM(bmcCfg['ip'], bmcCfg['username'],
+                          bmcCfg['password'],
+                          bmcCfg.get('usernameipmi'),
+                          bmcCfg.get('passwordipmi'),
+                          testCfg['ffdcdir'], hostCfg['hostip'],
+                          hostCfg['hostuser'], hostCfg['hostpasswd'])
+
 def test_init():
     """This function validates the test config before running other functions
     """
@@ -504,6 +513,13 @@ class FastResetTests(unittest.TestCase):
     def test_opal_fast_reboot(self):
         opTestFastReboot.test_opal_fast_reboot()
 
+class OpalNVRAM(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_nvram_configuration(self):
+        opTestNVRAM.test_nvram_configuration()
 
 if __name__ == '__main__':
     unittest.main()

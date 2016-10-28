@@ -36,6 +36,14 @@
         </test>
 
         <test>
+            <name>Test NVRAM Configuration</name>
+            <testcase>
+              <cmd>../ci/source/op_opal_fvt.py OpalNVRAM.test_nvram_configuration</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test Gather PCI Subsystem Info</name>
             <testcase>
               <cmd>../ci/source/op_opal_fvt.py OpalPCI.test_pci_device_presence</cmd>
