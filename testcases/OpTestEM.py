@@ -143,7 +143,7 @@ class OpTestEM():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def set_cpu_freq(self, i_freq):
-        l_cmd = "cpupower frequency-set -f %s" % i_freq
+        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_setspeed; do echo %s > $i; done" % i_freq
         self.cv_HOST.host_run_command(l_cmd)
 
     ##
@@ -170,7 +170,7 @@ class OpTestEM():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def set_cpu_gov(self, i_gov):
-        l_cmd = "cpupower frequency-set -g %s" % i_gov
+        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo %s > $i; done" % i_gov
         self.cv_HOST.host_run_command(l_cmd)
 
     ##
