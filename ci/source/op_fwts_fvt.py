@@ -134,3 +134,41 @@ def test_mtd_info():
         returns: int 0-success, raises exception-error
     """
     return opTestFWTS.test_mtd_info()
+
+
+import os
+import unittest
+
+import ConfigParser
+from common.OpTestSystem import OpTestSystem
+from common.OpTestError import OpTestError
+from common.OpTestConstants import OpTestConstants as BMC_CONST
+
+class OpalFWTSTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_system_reboot(self):
+        opTestFWTS.test_system_reboot()
+
+    def test_pre_init(self):
+        opTestFWTS.test_init()
+
+    def test_bmc_info(self):
+        opTestFWTS.test_bmc_info()
+
+    def test_oops(self):
+        opTestFWTS.test_oops()
+
+    def test_prd_info(self):
+        opTestFWTS.test_prd_info()
+
+    def test_mtd_info(self):
+        opTestFWTS.test_mtd_info()
+
+    def test_olog(self):
+        opTestFWTS.test_olog()
+
+if __name__ == '__main__':
+    unittest.main()
