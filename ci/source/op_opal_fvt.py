@@ -521,5 +521,125 @@ class OpalNVRAM(unittest.TestCase):
     def test_nvram_configuration(self):
         opTestNVRAM.test_nvram_configuration()
 
+class BMCvsHostTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_bmc_cold_reset_effects(self):
+        opTestMCColdResetEffects.test_bmc_cold_reset_effects()
+
+class OpalIPMI(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_oob_ipmi(self):
+        opTestOOBIPMI.test_oob_ipmi()
+
+    def test_ipmi_inband_usb_interface(self):
+        opTestInbandUsbInterface.test_ipmi_inband_usb_interface()
+
+    def test_ipmi_inband_open_interface(self):
+        opTestInbandIPMI.test_ipmi_inband_functionality()
+
+    def test_ipmi_power_control(self):
+        opTestIPMIPowerControl.testIPMIPowerControl()
+
+    def test_ipmi_lock_mode(self):
+        opTestIPMILockMode.test_ipmi_lock_mode()
+
+    def test_ipmi_heartbeat(self):
+        opTestHeartbeat.test_kopald_service()
+
+    def test_fan_control_enable_functionality(self):
+        opTestOOBIPMI.test_fan_control_algorithm_2(opTestOOBIPMI)
+
+    def test_fan_control_disable_functionality(self):
+        opTestOOBIPMI.test_fan_control_algorithm_1(opTestOOBIPMI)
+
+class OpalHMI(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_tfmr_errors(self):
+        opTestHMIHandling.testHMIHandling(BMC_CONST.TFMR_ERRORS)
+
+    def test_tod_errors(self):
+        opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
+
+    def test_hmi_proc_recv_done(self):
+        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
+
+    def test_hmi_proc_recv_error_masked(self):
+        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_ERROR_MASKED)
+
+    def test_hmi_malfunction_alert(self):
+        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
+
+    def test_hmi_hypervisor_resource_error(self):
+        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
+
+    def test_clear_gard_entries(self):
+        opTestHMIHandling.clearGardEntries()
+
+class OpalDrivers(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_prd_driver(self):
+        opTestPrdDriver.testPrdDriver()
+
+    def test_i2c_driver(self):
+        opTestI2Cdriver.testI2Cdriver()
+
+    def test_at24_driver(self):
+        opTestAt24driver.testAt24driver()
+
+    def test_real_time_clock(self):
+        opTestRTCdriver.test_RTC_driver()
+
+    def test_sensors(self):
+        opTestSensors.test_hwmon_driver()
+
+    def test_mtd_pnor_driver(self):
+        opTestMtdPnorDriver.testMtdPnorDriver()
+
+    def test_switch_endian_syscall(self):
+        opTestSwitchEndianSyscall.testSwitchEndianSysCall()
+
+class OpalBootTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_mc_cold_reset_boot_sequence(self):
+        opTestSystemBootSequence.testMcColdResetBootSequence()
+
+    def test_mc_warm_reset_boot_sequence(self):
+        opTestSystemBootSequence.testMcWarmResetBootSequence()
+
+    def test_system_power_restore_policy_previous(self):
+        opTestSystemBootSequence.testSystemPowerPolicyPrevious()
+
+    def test_system_power_restore_policy_always_on(self):
+        opTestSystemBootSequence.testSystemPowerPolicyOn()
+
+    def test_system_power_restore_policy_always_off(self):
+        opTestSystemBootSequence.testSystemPowerPolicyOff()
+
+class OpalReprovisionTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_nvram_ipmi_reprovision(self):
+        opTestIPMIReprovision.test_nvram_ipmi_reprovision()
+
+    def test_gard_ipmi_reprovision(self):
+        opTestIPMIReprovision.test_gard_ipmi_reprovision()
+
 if __name__ == '__main__':
     unittest.main()

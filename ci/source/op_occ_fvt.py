@@ -153,3 +153,43 @@ def test_cpu_idle_states():
     returns: int 0-success, raises exception-error
     """
     return opTestEM.test_cpu_idle_states()
+
+import os
+import unittest
+
+import ConfigParser
+from common.OpTestSystem import OpTestSystem
+from common.OpTestError import OpTestError
+from common.OpTestConstants import OpTestConstants as BMC_CONST
+
+class OpalOCCTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_cpu_idle_states(self):
+        opTestEM.test_cpu_idle_states()
+
+    def test_cpu_freq_states(self):
+        opTestEM.test_cpu_freq_states()
+
+    def test_energy_scale_at_standby_state(self):
+        opTestEnergyScale.test_energy_scale_at_standby_state()
+
+    def test_energy_scale_at_runtime_state(self):
+        opTestEnergyScale.test_energy_scale_at_runtime_state()
+
+    def test_dcmi_at_standby_and_runtime_states(self):
+        opTestEnergyScale.test_dcmi_at_standby_and_runtime_states()
+
+    def test_occ_reset_functionality(self):
+        opTestOCC.test_occ_reset_functionality()
+
+    def test_occ_reset_n_times(self):
+        opTestOCC.test_occ_reset_n_times()
+
+    def test_occ_enable_disable_functionality(self):
+        opTestOCC.test_occ_enable_disable_functionality()
+
+if __name__ == '__main__':
+    unittest.main()

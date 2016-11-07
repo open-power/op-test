@@ -98,7 +98,7 @@ class OpTestFWTS():
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir, i_hostip, i_hostuser, i_hostPasswd)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP, i_ffdcDir)
         self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
                  i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
                  i_hostuser, i_hostPasswd)
@@ -175,7 +175,6 @@ class OpTestFWTS():
         self.cv_HOST.host_check_pkg_availability(l_oslevel, "libglib2.0-dev")
         self.cv_HOST.host_check_pkg_availability(l_oslevel, "libtool")
         self.cv_HOST.host_check_pkg_availability(l_oslevel, "libpcre3-dev")
-        self.cv_HOST.host_check_pkg_availability(l_oslevel, "libjson0-dev")
         self.cv_HOST.host_check_pkg_availability(l_oslevel, "flex")
         self.cv_HOST.host_check_pkg_availability(l_oslevel, "bison")
         self.cv_HOST.host_check_pkg_availability(l_oslevel, "dkms")
