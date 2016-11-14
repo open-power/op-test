@@ -88,52 +88,11 @@ def test_system_reboot():
     return opTestFWTS.test_system_reboot()
 
 
-def test_pre_init():
-    """This function tests initial setup for FWTS to work i.e checking ipmitool,
-    packages, Loading necessary modules.
+def test_fwts():
+    """This function just executes all FWTS Tests
         returns: int 0-success, raises exception-error
     """
-    return opTestFWTS.test_init()
-
-
-def test_bmc_info():
-    """This function tests FWTS bmc_info test
-    BMC Info
-        returns: int 0-success, raises exception-error
-    """
-    return opTestFWTS.test_bmc_info()
-
-
-def test_prd_info():
-    """This function tests FWTS prd_info test
-    OPAL Processor Recovery Diagnostics Info
-        returns: int 0-success, raises exception-error
-    """
-    return opTestFWTS.test_prd_info()
-
-
-def test_oops():
-    """This function tests FWTS oops test
-    Scan kernel log for Oopses.
-        returns: int 0-success, raises exception-error
-    """
-    return opTestFWTS.test_oops()
-
-
-def test_olog():
-    """This function tests FWTS olog test
-    Run OLOG scan and analysis checks(opal msg log).
-        returns: int 0-success, raises exception-error
-    """
-    return opTestFWTS.test_olog()
-
-
-def test_mtd_info():
-    """This function tests FWTS mtd_info test
-    OPAL MTD Info
-        returns: int 0-success, raises exception-error
-    """
-    return opTestFWTS.test_mtd_info()
+    return opTestFWTS.test_fwts()
 
 
 import os
@@ -152,23 +111,8 @@ class OpalFWTSTests(unittest.TestCase):
     def test_system_reboot(self):
         opTestFWTS.test_system_reboot()
 
-    def test_pre_init(self):
-        opTestFWTS.test_init()
-
-    def test_bmc_info(self):
-        opTestFWTS.test_bmc_info()
-
-    def test_oops(self):
-        opTestFWTS.test_oops()
-
-    def test_prd_info(self):
-        opTestFWTS.test_prd_info()
-
-    def test_mtd_info(self):
-        opTestFWTS.test_mtd_info()
-
-    def test_olog(self):
-        opTestFWTS.test_olog()
+    def test_fwts(self):
+        opTestFWTS.test_fwts()
 
 if __name__ == '__main__':
     unittest.main()
