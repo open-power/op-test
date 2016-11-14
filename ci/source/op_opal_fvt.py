@@ -301,7 +301,7 @@ def test_ipmi_inband_functionality():
     """This function tests whether the kopald service is running in platform OS
     returns: int 0-success, raises exception-error
     """
-    return opTestInbandIPMI.test_ipmi_inband_functionality()
+    return opTestInbandIPMI.test_ipmi_inband_open_interface()
 
 
 def test_hmi_proc_recv_done():
@@ -541,7 +541,7 @@ class OpalIPMI(unittest.TestCase):
         opTestInbandUsbInterface.test_ipmi_inband_usb_interface()
 
     def test_ipmi_inband_open_interface(self):
-        opTestInbandIPMI.test_ipmi_inband_functionality()
+        opTestInbandIPMI.test_ipmi_inband_open_interface()
 
     def test_ipmi_power_control(self):
         opTestIPMIPowerControl.testIPMIPowerControl()

@@ -299,6 +299,7 @@ class OpTestConstants():
 
     # IPMI commands
     IPMITOOL_USB = "ipmitool -I usb "
+    IPMITOOL_OPEN = "ipmitool "
     IPMI_LOCK_CMD = "raw 0x32 0xf3 0x4c 0x4f 0x43 0x4b 0x00; echo $?"
     IPMI_UNLOCK_CMD = "raw 0x32 0xF4 0x55 0x4e 0x4c 0x4f 0x43 0x4b 0x00"
     IPMI_LIST_LAST_SEL_EVENT = "sel list last 1"
