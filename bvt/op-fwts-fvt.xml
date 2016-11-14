@@ -45,51 +45,10 @@
         </test>
 
         <test>
-            <name>FWTS: Test Pre init</name>
+            <name>FWTS: Test FWTS</name>
             <testcase>
-                <cmd>../ci/source/op_fwts_fvt.py OpalFWTSTests.test_pre_init</cmd>
+                <cmd>../ci/source/op_fwts_fvt.py OpalFWTSTests.test_fwts</cmd>
                 <exitonerror>yes</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>FWTS: bmc_info test</name>
-            <testcase>
-                <cmd>../ci/source/op_fwts_fvt.py OpalFWTSTests.test_bmc_info</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-
-        <test>
-            <name>FWTS: oops test</name>
-            <testcase>
-                <cmd>../ci/source/op_fwts_fvt.py OpalFWTSTests.test_oops</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>FWTS: prd_info test</name>
-            <testcase>
-                <cmd>../ci/source/op_fwts_fvt.py OpalFWTSTests.test_prd_info</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>FWTS: mtd_info test</name>
-            <testcase>
-                <cmd>../ci/source/op_fwts_fvt.py OpalFWTSTests.test_mtd_info</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>FWTS: olog test</name>
-            <testcase>
-                <cmd>../ci/source/op_fwts_fvt.py OpalFWTSTests.test_olog</cmd>
-                <exitonerror>no</exitonerror>
             </testcase>
         </test>
 
