@@ -135,8 +135,7 @@ class OpTestPCI():
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def test_host_pci_devices(self):
-        self.cv_HOST.host_check_command("lspci")
-        self.cv_HOST.host_check_command("lsusb")
+        self.cv_HOST.host_check_command("lspci", "lsusb")
         self.cv_HOST.host_list_pci_devices()
         self.cv_HOST.host_get_pci_verbose_info()
         self.cv_HOST.host_list_usb_devices()

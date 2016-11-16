@@ -97,11 +97,8 @@ class OpTestI2Cdriver():
         # make sure install "i2c-tools" package in-order to run the test
 
         # Check whether i2cdump, i2cdetect and hexdump commands are available on host
-        self.cv_HOST.host_check_command("i2cdump")
-        self.cv_HOST.host_check_command("i2cdetect")
-        self.cv_HOST.host_check_command("hexdump")
-        self.cv_HOST.host_check_command("i2cget")
-        self.cv_HOST.host_check_command("i2cset")
+        self.cv_HOST.host_check_command("i2cdump", "i2cdetect", "hexdump",
+                                        "i2cget", "i2cset")
 
         # Get Kernel Version
         l_kernel = self.cv_HOST.host_get_kernel_version()

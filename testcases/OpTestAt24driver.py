@@ -90,8 +90,7 @@ class OpTestAt24driver():
         self.cv_HOST.host_get_OS_Level()
 
         # Check whether i2cdump and hexdump commands are available on host
-        self.cv_HOST.host_check_command("i2cdump")
-        self.cv_HOST.host_check_command("hexdump")
+        self.cv_HOST.host_check_command("i2cdump", "hexdump")
 
         # Get Kernel Version
         l_kernel = self.cv_HOST.host_get_kernel_version()

@@ -338,14 +338,14 @@ class OpTestHost():
         return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief It will check existence of given linux command(i_cmd) on host
+    # @brief Check if one or more binaries are present on host
     #
-    # @param i_cmd @type string: linux command
+    # @param i_cmd @type string: binaries to check for
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def host_check_command(self, i_cmd):
-        l_cmd = 'which ' + i_cmd + '; echo $?'
+    def host_check_command(self, *i_cmd):
+        l_cmd = 'which ' + ' '.join(i_cmd) + '; echo $?'
         print l_cmd
         l_res = self.host_run_command(l_cmd)
         l_res = l_res.splitlines()
@@ -353,7 +353,7 @@ class OpTestHost():
         if (int(l_res[-1]) == 0):
             return BMC_CONST.FW_SUCCESS
         else:
-            l_msg = "%s command is not present on host" % i_cmd
+            l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (','.join(i_cmd), l_cmd, '\n'.join(l_res))
             print l_msg
             raise OpTestError(l_msg)
 

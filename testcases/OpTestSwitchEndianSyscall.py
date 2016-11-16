@@ -88,8 +88,7 @@ class OpTestSwitchEndianSyscall():
         self.cv_HOST.host_get_OS_Level()
 
         # Check whether git and gcc commands are available on host
-        self.cv_HOST.host_check_command("git")
-        self.cv_HOST.host_check_command("gcc")
+        self.cv_HOST.host_check_command("git", "gcc")
 
         # Clone latest linux git repository into l_dir
         l_dir = "/tmp/linux"
