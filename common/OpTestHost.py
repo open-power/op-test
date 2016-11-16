@@ -674,27 +674,6 @@ class OpTestHost():
             print l_errmsg
             raise OpTestError(l_errmsg)
 
-
-    ##
-    # @brief It will check existence of given linux command(i_cmd) on host
-    #
-    # @param i_cmd @type string: linux command
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_check_command(self, i_cmd):
-        l_cmd = 'which ' + i_cmd + '; echo $?'
-        print l_cmd
-        l_res = self.host_run_command(l_cmd)
-        l_res = l_res.splitlines()
-
-        if (int(l_res[-1]) == 0):
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "%s command is not present on host" % i_cmd
-            print l_msg
-            raise OpTestError(l_msg)
-
     ##
     # @brief It will get the linux kernel version on host
     #
