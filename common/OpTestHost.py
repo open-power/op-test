@@ -88,8 +88,6 @@ class OpTestHost():
         l_output = ''
         ssh_ver = '-2'
 
-        self.util.PingFunc(l_host, BMC_CONST.PING_RETRY_FOR_STABILITY)
-
         # Flush everything out prior to forking
         sys.stdout.flush()
 
