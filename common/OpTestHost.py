@@ -79,9 +79,10 @@ class OpTestHost():
     #   @brief This method executes the command(i_cmd) on the host using a ssh session
     #
     #   @param i_cmd: @type string: Command to be executed on host through a ssh session
+    #   @param timeout: @type int: Seconds timeout. default 5min
     #   @return command output if command execution is successful else raises OpTestError
     #
-    def _ssh_execute(self, i_cmd):
+    def _ssh_execute(self, i_cmd, timeout=300):
 
         l_host = self.ip
         l_user = self.user
@@ -129,12 +130,12 @@ class OpTestHost():
                     x = os.read(fd, 1024)
                     #print "ssh x= " + x
                     end_time = time.time()
-                    if(end_time - start_time > 1500):
+                    if(end_time - start_time > timeout):
                         if(i_cmd.__contains__('updlic') or i_cmd.__contains__('update_flash')):
                             continue
                         else:
-                            l_msg = "Timeout occured/SSH request " \
-                                    "un-responded even after 25 minutes"
+                            l_msg = "Timeout occured/SSH request unresponsive"\
+                                    " even after %i seconds" % timeout
                             print l_msg
                             raise OpTestError(l_msg)
 
@@ -217,7 +218,7 @@ class OpTestHost():
     #
     def host_get_OS_Level(self):
 
-        l_oslevel = self._ssh_execute(BMC_CONST.BMC_GET_OS_RELEASE)
+        l_oslevel = self._ssh_execute(BMC_CONST.BMC_GET_OS_RELEASE, timeout=60)
         print l_oslevel
         return l_oslevel
 
@@ -229,7 +230,7 @@ class OpTestHost():
     #
     def host_protect_network_setting(self):
         try:
-            l_rc = self._ssh_execute(BMC_CONST.OS_PRESERVE_NETWORK)
+            l_rc = self._ssh_execute(BMC_CONST.OS_PRESERVE_NETWORK, timeout=60)
         except:
             l_errmsg = "Can't preserve network setting"
             print l_errmsg
@@ -243,7 +244,7 @@ class OpTestHost():
     def host_cold_reset(self):
 
         print ("Applying Cold reset on host.")
-        l_rc = self._ssh_execute(BMC_CONST.HOST_COLD_RESET)
+        l_rc = self._ssh_execute(BMC_CONST.HOST_COLD_RESET, timeout=60)
 
         # TODO: enable once defect SW331585 is fixed
         '''if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
@@ -284,9 +285,9 @@ class OpTestHost():
                 + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
         print l_cmd
         try:
-            l_rc = self._ssh_execute(l_cmd)
+            l_rc = self._ssh_execute(l_cmd, timeout=1500)
             print l_rc
-            self._ssh_execute("rm -rf /tmp/" + i_image.rsplit("/", 1)[1])
+            self._ssh_execute("rm -rf /tmp/" + i_image.rsplit("/", 1)[1],timeout=120)
         except subprocess.CalledProcessError:
             l_msg = "Code Update Failed"
             print l_msg
@@ -309,7 +310,7 @@ class OpTestHost():
     #
     def host_run_command(self, i_cmd):
         try:
-            l_res = self._ssh_execute(i_cmd)
+            l_res = self._ssh_execute(i_cmd, timeout=1500)
         except:
             l_msg = "Command execution on host failed"
             print l_msg
@@ -366,7 +367,7 @@ class OpTestHost():
     #         or raise OpTestError
     #
     def host_get_kernel_version(self):
-        l_kernel = self._ssh_execute("uname -a | awk {'print $3'}")
+        l_kernel = self._ssh_execute("uname -a | awk {'print $3'}", timeout=60)
         l_kernel = l_kernel.replace("\r\n", "")
         print l_kernel
         return l_kernel
@@ -391,7 +392,7 @@ class OpTestHost():
     #
     def host_check_config(self, i_kernel, i_config):
         l_file = "/boot/config-%s" % i_kernel
-        l_res = self._ssh_execute("test -e %s; echo $?" % l_file)
+        l_res = self._ssh_execute("test -e %s; echo $?" % l_file, timeout=60)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Config file is available"
@@ -401,7 +402,7 @@ class OpTestHost():
             raise OpTestError(l_msg)
         l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
         print l_cmd
-        l_res = self._ssh_execute(l_cmd)
+        l_res = self._ssh_execute(l_cmd, timeout=60)
         print l_res
         try:
             l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
@@ -422,11 +423,11 @@ class OpTestHost():
     #
     def host_check_pkg_for_utility(self, i_oslevel, i_cmd):
         if 'Ubuntu' in i_oslevel:
-            l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd)
+            l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd, timeout=60)
             return l_res
         else:
             l_cmd = "rpm -qf `which %s`" % i_cmd
-            l_res = self._ssh_execute(l_cmd)
+            l_res = self._ssh_execute(l_cmd, timeout=60)
             l_pkg = l_res.replace("\r\n", "")
             print l_pkg
             return l_pkg
@@ -463,11 +464,11 @@ class OpTestHost():
     #
     def host_load_ibmpowernv(self, i_oslevel):
         if "PowerKVM" not in i_oslevel:
-            l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?")
+            l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?",timeout=60)
             l_rc = l_rc.replace("\r\n", "")
             if int(l_rc) == 0:
                 cmd = "lsmod | grep -i ibmpowernv"
-                response = self._ssh_execute(cmd)
+                response = self._ssh_execute(cmd, timeout=60)
                 if "ibmpowernv" not in response:
                     l_msg = "ibmpowernv module is not loaded, exiting"
                     raise OpTestError(l_msg)
@@ -520,11 +521,11 @@ class OpTestHost():
     def host_clone_linux_source(self, i_dir):
         l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self._ssh_execute("rm -rf %s" % i_dir)
-        self._ssh_execute("mkdir %s" % i_dir)
+        self._ssh_execute("rm -rf %s" % i_dir, timeout=300)
+        self._ssh_execute("mkdir %s" % i_dir, timeout=60)
         try:
             print l_cmd
-            res = self._ssh_execute(l_cmd)
+            res = self._ssh_execute(l_cmd, timeout=1500)
             print res
             return BMC_CONST.FW_SUCCESS
         except:
@@ -539,7 +540,7 @@ class OpTestHost():
     #        else raise OpTestError
     def host_read_msglog_core(self):
         try:
-            return self._ssh_execute(BMC_CONST.OS_READ_MSGLOG_CORE)
+            return self._ssh_execute(BMC_CONST.OS_READ_MSGLOG_CORE, timeout=60)
         except:
             l_errmsg = "Can't get msglog data"
             print l_errmsg
@@ -560,7 +561,7 @@ class OpTestHost():
     #        else raise OpTestError
     def host_read_getscom_data(self, i_xscom_dir):
         try:
-            l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_GETSCOM_LIST)
+            l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_GETSCOM_LIST, timeout=60)
         except OpTestError as e:
             l_errmsg = "Can't get getscom data"
             print l_errmsg
@@ -596,7 +597,7 @@ class OpTestHost():
     #
     def host_clear_gard_records(self, i_gard_dir):
 
-        l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.CLEAR_GARD_CMD)
+        l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.CLEAR_GARD_CMD, timeout=60)
 
         if(BMC_CONST.GARD_CLEAR_SUCCESSFUL not in l_rc):
             l_msg = l_rc + '. Failed to clear gard'
@@ -622,7 +623,7 @@ class OpTestHost():
     #
     def host_list_gard_records(self, i_gard_dir):
         try:
-            return self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.LIST_GARD_CMD)
+            return self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.LIST_GARD_CMD, timeout=60)
         except:
             l_errmsg = "Can't clear gard records"
             print l_errmsg
@@ -666,27 +667,15 @@ class OpTestHost():
         try:
             self._ssh_execute(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
                               BMC_CONST.CPU_IDLEMODE_STATE1 + "; do echo " + \
-                              i_cpu_state  + " > $i; done'")
+                              i_cpu_state  + " > $i; done'", timeout=60)
             self._ssh_execute(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
                               BMC_CONST.CPU_IDLEMODE_STATE2 + "; do echo " + \
-                              i_cpu_state  + " > $i; done'")
+                              i_cpu_state  + " > $i; done'", timeout=60)
             return BMC_CONST.FW_SUCCESS
         except:
             l_errmsg = "Could not enable/disable cpu idle states"
             print l_errmsg
             raise OpTestError(l_errmsg)
-
-    ##
-    # @brief It will get the linux kernel version on host
-    #
-    # @return l_kernel @type string: kernel version of the host provided
-    #         or raise OpTestError
-    #
-    def host_get_kernel_version(self):
-        l_kernel = self._ssh_execute("uname -a | awk {'print $3'}")
-        l_kernel = l_kernel.replace("\r\n", "")
-        print l_kernel
-        return l_kernel
 
     ##
     # @brief This function will checks first for config file for a given kernel version on host,
@@ -708,7 +697,7 @@ class OpTestHost():
     #
     def host_check_config(self, i_kernel, i_config):
         l_file = "/boot/config-%s" % i_kernel
-        l_res = self._ssh_execute("test -e %s; echo $?" % l_file)
+        l_res = self._ssh_execute("test -e %s; echo $?" % l_file, timeout=60)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Config file is available"
@@ -718,7 +707,7 @@ class OpTestHost():
             raise OpTestError(l_msg)
         l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
         print l_cmd
-        l_res = self._ssh_execute(l_cmd)
+        l_res = self._ssh_execute(l_cmd, timeout=60)
         print l_res
         try:
             l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
@@ -728,104 +717,6 @@ class OpTestHost():
             print l_msg
             raise OpTestError(l_msg)
         return l_val
-
-    ##
-    # @brief It will return installed package name for given linux command(i_cmd) on host
-    #
-    # @param i_cmd @type string: linux command
-    # @param i_oslevel @type string: OS level
-    #
-    # @return l_pkg @type string: installed package on host
-    #
-    def host_check_pkg_for_utility(self, i_oslevel, i_cmd):
-        if 'Ubuntu' in i_oslevel:
-            l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd)
-            return l_res
-        else:
-            l_cmd = "rpm -qf `which %s`" % i_cmd
-            l_res = self._ssh_execute(l_cmd)
-            l_pkg = l_res.replace("\r\n", "")
-            print l_pkg
-            return l_pkg
-
-    ##
-    # @brief This function loads ibmpowernv driver only on powernv platform
-    #        and also this function works only in root user mode
-    #
-    # @param i_oslevel @type string: OS level
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_load_ibmpowernv(self, i_oslevel):
-        if "PowerKVM" not in i_oslevel:
-            l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?")
-            l_rc = l_rc.replace("\r\n", "")
-            if int(l_rc) == 0:
-                cmd = "lsmod | grep -i ibmpowernv"
-                response = self._ssh_execute(cmd)
-                if "ibmpowernv" not in response:
-                    l_msg = "ibmpowernv module is not loaded, exiting"
-                    raise OpTestError(l_msg)
-                else:
-                    print "ibmpowernv module is loaded"
-                print cmd
-                print response
-                return BMC_CONST.FW_SUCCESS
-            else:
-                l_msg = "modprobe failed while loading ibmpowernv,exiting..."
-                print l_msg
-                raise OpTestError(l_msg)
-        else:
-            return BMC_CONST.FW_SUCCESS
-
-    ##
-    # @brief This function restarts the lm_sensors service on host using systemctl utility
-    #        systemctl utility is not present in ubuntu, This function will work in remaining all
-    #        other OS'es i.e redhat, sles and PowerKVM
-    #
-    # @param i_oslevel @type string: OS level
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_start_lm_sensor_svc(self, i_oslevel):
-        if 'Ubuntu' in i_oslevel:
-            pass
-        else:
-            try:
-                # Start the lm_sensors service
-                cmd = "/bin/systemctl stop  lm_sensors.service"
-                self.host_run_command(cmd)
-                cmd = "/bin/systemctl start  lm_sensors.service"
-                self.host_run_command(cmd)
-                cmd = "/bin/systemctl status  lm_sensors.service"
-                res = self.host_run_command(cmd)
-                return BMC_CONST.FW_SUCCESS
-            except:
-                l_msg = "loading lm_sensors service failed"
-                print l_msg
-                raise OpTestError(l_msg)
-
-    ##
-    # @brief It will clone latest linux git repository in i_dir directory
-    #
-    # @param i_dir @type string: directory where linux source will be cloned
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_clone_linux_source(self, i_dir):
-        l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
-        l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self._ssh_execute("rm -rf %s" % i_dir)
-        self._ssh_execute("mkdir %s" % i_dir)
-        try:
-            print l_cmd
-            res = self._ssh_execute(l_cmd)
-            print res
-            return BMC_CONST.FW_SUCCESS
-        except:
-            l_msg = "Cloning linux git repository is failed"
-            print l_msg
-            raise OpTestError(l_msg)
 
     ##
     # @brief It will load the module using modprobe and verify whether it is loaded or not
