@@ -45,6 +45,10 @@ from common.OpTestHost import OpTestHost
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpTestSystem
 
+class OpTestI2CDetectUnsupported(Exception):
+    """Asked to do i2c detect on a bus that doesn't support detection
+    """
+    pass
 
 class OpTestI2Cdriver():
     ## Initialize this object
@@ -128,7 +132,10 @@ class OpTestI2Cdriver():
 
         # Scanning i2c bus for devices attached to it.
         for l_bus in l_list:
-            self.query_i2c_bus(l_bus)
+            try:
+                self.query_i2c_bus(l_bus)
+            except OpTestI2CDetectUnsupported:
+                print "Unsupported i2cdetect on bus %s" % l_bus
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
         l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
@@ -176,9 +183,20 @@ class OpTestI2Cdriver():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def query_i2c_bus(self, i_bus):
-        print "Querying the i2c bus for devices attached to it"
+        print "Querying the i2c bus %s for devices attached to it" % i_bus
         l_res = self.cv_HOST.host_run_command("i2cdetect -y %i; echo $?" % int(i_bus))
         l_res = l_res.splitlines()
+
+        if int(l_res[-1]) != 0:
+            l_res = self.cv_HOST.host_run_command("i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes; echo $?" % int(i_bus))
+            l_res = l_res.splitlines()
+            if int(l_res[-1]) != 0:
+                print "i2c bus %i doesn't support query" % int(i_bus)
+                raise OpTestI2CDetectUnsupported;
+            else:
+                l_res = self.cv_HOST.host_run_command("i2cdetect -y -r %i; echo $?" % int(i_bus))
+                l_res = l_res.splitlines()
+
         if int(l_res[-1]) == 0:
             return BMC_CONST.FW_SUCCESS
         else:
