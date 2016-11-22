@@ -569,6 +569,10 @@ class OpalHMI(unittest.TestCase):
     def test_tod_errors(self):
         opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
 
+    def test_tod_errors_on_single_core(self):
+        opTestHMIHandling.host_enable_single_core()
+        opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
+
     def test_hmi_proc_recv_done(self):
         opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
 

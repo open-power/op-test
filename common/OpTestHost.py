@@ -1211,3 +1211,11 @@ class OpTestHost():
         self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES1)
         self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES2)
         self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES3)
+
+    ##
+    # @brief This function enable only a single core
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_enable_single_core(self):
+        self.host_run_command("ppc64_cpu --cores-on=1")
