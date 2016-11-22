@@ -65,6 +65,7 @@ from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
 from testcases.OpTestPCI import OpTestPCI
 from testcases.OpTestFastReboot import OpTestFastReboot
 from testcases.OpTestNVRAM import OpTestNVRAM
+from testcases.OpTestEEH import OpTestEEH
 
 
 def _config_read():
@@ -232,6 +233,13 @@ opTestNVRAM = OpTestNVRAM(bmcCfg['ip'], bmcCfg['username'],
                           bmcCfg.get('passwordipmi'),
                           testCfg['ffdcdir'], hostCfg['hostip'],
                           hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestEEH = OpTestEEH(bmcCfg['ip'], bmcCfg['username'],
+                      bmcCfg['password'],
+                      bmcCfg.get('usernameipmi'),
+                      bmcCfg.get('passwordipmi'),
+                      testCfg['ffdcdir'], hostCfg['hostip'],
+                      hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 def test_init():
     """This function validates the test config before running other functions
@@ -640,6 +648,17 @@ class OpalReprovisionTests(unittest.TestCase):
 
     def test_gard_ipmi_reprovision(self):
         opTestIPMIReprovision.test_gard_ipmi_reprovision()
+
+class OpalEEH(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_basic_fenced_phb(self):
+        opTestEEH.test_basic_fenced_phb()
+
+    def test_max_fenced_phb(self):
+        opTestEEH.test_max_fenced_phb()
 
 if __name__ == '__main__':
     unittest.main()

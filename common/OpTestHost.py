@@ -1211,3 +1211,62 @@ class OpTestHost():
         self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES1)
         self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES2)
         self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES3)
+
+
+    ##
+    # @brief This function is used to get list of PCI PHB domains.
+    #
+    # @return self.pci_domains list of PHB domains @type list or raise OpTestError
+    #
+    def host_get_list_of_pci_domains(self):
+        self.pci_domains = []
+        res = self.host_run_command("lspci | awk {'print $1'} | sed 's/:/\ /g' | awk {'print $1'} | sort | uniq")
+        print res
+        res = res.splitlines()
+        for line in res:
+            if not line:
+                continue
+            domain = 'PCI' + line
+            self.pci_domains.append(domain)
+        return self.pci_domains
+
+
+    ##
+    # @brief This function is used to get the PHB domain of root port where
+    #        the filesystem is mounted(We need to skip this in EEH tests as recovery
+    #        will fail on this domain is expected)
+    #
+    # @return boot_domain root PHB @type string or raise OpTestError
+    #
+    def host_get_root_phb(self):
+        cmd = "df -h /boot | awk 'END {print $1}'"
+        res = self.host_run_command(cmd)
+        boot_disk = res.split("/dev/")[1]
+        boot_disk = boot_disk.replace("\r\n", "")
+        cmd  = "ls -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
+        res = self.host_run_command(cmd)
+        matchObj = re.search(r"\d{4}(?!\d)", res, re.S)
+        if not matchObj:
+            raise OpTestError("Not able to find out root phb domain")
+        boot_domain = 'PCI' + matchObj.group(0)
+        return  boot_domain
+
+    #
+    # @brief It will gather kernel dmesg logs and store the copy in a logfile
+    #        which will be stored in FFDC dir.
+    #
+    # @return BMC_CONST.FW_SUCCESS  or raise OpTestError
+    #
+    def host_gather_kernel_log(self):
+        try:
+            l_data = self.host_run_command("dmesg")
+        except OpTestError:
+            l_msg = "Failed to gather kernel dmesg log"
+            raise OpTestError(l_msg)
+
+        l_res = commands.getstatusoutput("date +%Y%m%d_%H%M")
+        l_logFile = "Kernel_dmesg_log_%s.log" % l_res[1]
+        fn = self.cv_ffdcDir + "/" + l_logFile
+        with open(fn, 'w') as f:
+            f.write(l_data)
+        return BMC_CONST.FW_SUCCESS
