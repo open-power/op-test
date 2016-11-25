@@ -148,6 +148,14 @@
         </test>
 
         <test>
+            <name>Test Chip TOD Error Injections with single core</name>
+            <testcase>
+                <cmd>../ci/source/op_opal_fvt.py OpalHMI.test_tod_errors_on_single_core</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test HMI Processor Recovery Done</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalHMI.test_hmi_proc_recv_done</cmd>

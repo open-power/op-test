@@ -543,3 +543,11 @@ class OpTestHMIHandling():
             raise OpTestError(l_msg)
         time.sleep(BMC_CONST.HMI_TEST_CASE_SLEEP_TIME)
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function enables a single core
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_enable_single_core(self):
+        self.cv_HOST.host_enable_single_core()
