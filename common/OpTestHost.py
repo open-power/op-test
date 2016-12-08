@@ -395,7 +395,7 @@ class OpTestHost():
             l_msg = "Config file %s is not available on host" % l_file
             print l_msg
             raise OpTestError(l_msg)
-        l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
+        l_cmd = "cat %s | grep -i -w --color=never %s" % (l_file, i_config)
         print l_cmd
         l_res = self._ssh_execute(l_cmd)
         print l_res
@@ -712,7 +712,7 @@ class OpTestHost():
             l_msg = "Config file %s is not available on host" % l_file
             print l_msg
             raise OpTestError(l_msg)
-        l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
+        l_cmd = "cat %s | grep -i -w --color=never %s" % (l_file, i_config)
         print l_cmd
         l_res = self._ssh_execute(l_cmd)
         print l_res
