@@ -1180,6 +1180,110 @@ class OpTestHost():
             raise OpTestError(l_msg)
 
     ##
+    # @brief Check that host has a CAPI FPGA card
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_has_capi_fpga_card(self):
+        l_cmd = "lspci -d \"1014:0477\""
+        print l_cmd
+        l_res = self.host_run_command(l_cmd)
+        print l_res
+        if (l_res.__contains__('IBM Device 0477')):
+            l_msg = "Host has a CAPI FPGA card"
+            print l_msg
+        else:
+            l_msg = "Host has no CAPI FPGA card"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief Clone latest cxl-tests git repository in i_dir directory
+    #
+    # @param i_dir @type string: directory where cxl-tests will be cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_clone_cxl_tests(self, i_dir):
+        l_msg = "https://github.com/ibm-capi/cxl-tests.git"
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self.host_run_command("git config --global http.sslverify false")
+        self.host_run_command("rm -rf %s" % i_dir)
+        self.host_run_command("mkdir %s" % i_dir)
+        try:
+            print l_cmd
+            l_res = self.host_run_command(l_cmd)
+            print l_res
+            return BMC_CONST.FW_SUCCESS
+        except:
+            l_msg = "Cloning cxl-tests git repository is failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief Build cxl-tests (and libcxl) in the cxl-test directory which was cloned in i_dir directory
+    #
+    # @param i_dir @type string: directory where cxl-tests source was cloned
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_build_cxl_tests(self, i_dir):
+        l_cmd = "cd %s; make" % i_dir
+        print l_cmd
+        l_res = self.host_run_command(l_cmd)
+        l_cmd = "test -x %s/libcxl/libcxl.so; echo $?" % i_dir
+        l_res = self.host_run_command(l_cmd)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Executable library libcxl.so is available"
+        else:
+            l_msg = "libcxl.so lib file is not present after make"
+            print l_msg
+            raise OpTestError(l_msg)
+        l_cmd = "test -x %s/libcxl_tests; echo $?" % i_dir
+        l_res = self.host_run_command(l_cmd)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Executable binary libcxl_tests is available"
+        else:
+            l_msg = "libcxl_tests bin file is not present after make"
+            print l_msg
+            raise OpTestError(l_msg)
+        l_cmd = "test -x %s/memcpy_afu_ctx; echo $?" % i_dir
+        l_res = self.host_run_command(l_cmd)
+        l_res = l_res.replace("\r\n", "")
+        if int(l_res) == 0:
+            print "Executable binary memcpy_afu_ctx is available"
+            return BMC_CONST.FW_SUCCESS
+        else:
+            l_msg = "memcpy_afu_ctx bin file is not present after make"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    ##
+    # @brief Check that an executable file is available on host
+    #
+    # @param i_dir @type string: directory that contains the binary file
+    #
+    # @param i_file @type string: binary file name
+    #
+    # @return True or False
+    #
+    def host_check_binary(self, i_dir, i_file):
+        l_cmd = "test -x %s/%s; echo $?" % (i_dir, i_file)
+        print l_cmd
+        l_res = self.host_run_command(l_cmd)
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            l_msg = "Executable file %s/%s is available" % (i_dir, i_file)
+            print l_msg
+            return True
+
+        l_msg = "Executable file %s/%s is not present" % (i_dir, i_file)
+        print l_msg
+        return False
+
+    ##
     # @brief This function is used to get detected pci devices in different user/machine readable formats
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
