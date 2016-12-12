@@ -91,6 +91,7 @@ class OpTestConstants():
     CLEAR_GARD_CMD = '/gard clear all'
     LIST_GARD_CMD = '/gard list'
     OPAL_MSG_LOG = "cat /sys/firmware/opal/msglog"
+    OPAL_MSG_LOG_FILE = "/sys/firmware/opal/msglog"
     NVRAM_PRINT_CFG = "nvram --print-config"
     NVRAM_UPDATE_CONFIG_TEST_DATA = "nvram --update-config test-name=test-value"
     NVRAM_TEST_DATA = "test-name=test-value"
@@ -470,3 +471,45 @@ class OpTestConstants():
     SENSOR_HOST_STATUS = "Host Status"
     SENSOR_OS_BOOT = "OS Boot"
     SENSOR_OCC_ACTIVE = "OCC Active"
+
+    # Secure mode and Trusted mode
+    STB_NOT_SUPPORTED = "STB: secure and trusted boot not supported"
+    # First bit 'on' - Secure mode
+    SB_MASK = 0x8000000000000000
+    # Second bit 'on' - Trusted mode
+    TB_MASK = 0x4000000000000000
+    RE_TIMESTAMP = "\[.*\] (.*)"
+    NEWLINE = "\n"
+    SECURE_MODE = "STB: secure mode"
+    TRUSTED_MODE = "STB: trusted mode"
+    SECURE_MODE_ON = "STB: secure mode on"
+    SECURE_MODE_OFF = "STB: secure mode off"
+    TRUSTED_MODE_ON = "STB: trusted mode on"
+    TRUSTED_MODE_OFF = "STB: trusted mode off"
+    CAPP_MEASURED = "STB: CAPP sha"
+    CAPP_PAR_MEASURED = "CAPP partition measured"
+    CAPP_PAR_NOT_MEASURED = "CAPP partition not measured"
+    BOOTKERNEL_MEASURED = "STB: BOOTKERNEL sha"
+    BOOTKERNEL_PAR_MEASURED = "BOOTKERNEL partition measured"
+    BOOTKERNEL_PAR_NOT_MEASURED = "BOOTKERNEL partition not measured"
+    CAPP_VERIFIED = "STB: CAPP verified"
+    CAPP_PAR_VERIFIED = "CAPP partition verified"
+    CAPP_PAR_NOT_VERIFIED = "CAPP partition not verified"
+    BOOTKERNEL_VERIFIED = "STB: BOOTKERNEL verified"
+    BOOTKERNEL_PAR_VERIFIED = "BOOTKERNEL partition verified"
+    BOOTKERNEL_PAR_NOT_VERIFIED = "BOOTKERNEL partition not verified"
+    CAPP_LOADED = "CAPP ucode lid loaded"
+    CAPP_PAR_LOADED = "CAPP partition loaded"
+    CAPP_PAR_NOT_LOADED = "CAPP partition not loaded"
+    BOOTKERNEL_LOADED = "INIT: Kernel loaded"
+    BOOTKERNEL_PAR_LOADED = "BOOTKERNEL partition loaded"
+    BOOTKERNEL_PAR_NOT_LOADED = "BOOTKERNEL partition not loaded"
+    ON = "on"
+    OFF = "off"
+    TB_SKIPPED = "STB: tb_measure skipped resource"
+    SB_SKIPPED = "STB: sb_verify skipped resource"
+    LOADED = "loaded"
+    NOT_LOADED = "not loaded"
+    # Device-tree entries
+    TB_DT_ENTRY = "/proc/device-tree/ibm,secureboot/trusted-enabled"
+    SB_DT_ENTRY = "/proc/device-tree/ibm,secureboot/secure-enabled"

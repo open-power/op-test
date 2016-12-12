@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- IBM_PROLOG_BEGIN_TAG                                                   -->
+<!-- This is an automatically generated prolog.                             -->
+<!--                                                                        -->
+<!-- $Source: op-test-framework/bvt/op-stb-fvt.xml $                       -->
+<!--                                                                        -->
+<!-- OpenPOWER Automated Test Project                                       -->
+<!--                                                                        -->
+<!-- Contributors Listed Below - COPYRIGHT 2015,2016                        -->
+<!-- [+] International Business Machines Corp.                              -->
+<!--                                                                        -->
+<!--                                                                        -->
+<!-- Licensed under the Apache License, Version 2.0 (the "License");        -->
+<!-- you may not use this file except in compliance with the License.       -->
+<!-- You may obtain a copy of the License at                                -->
+<!--                                                                        -->
+<!--     http://www.apache.org/licenses/LICENSE-2.0                         -->
+<!--                                                                        -->
+<!-- Unless required by applicable law or agreed to in writing, software    -->
+<!-- distributed under the License is distributed on an "AS IS" BASIS,      -->
+<!-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or        -->
+<!-- implied. See the License for the specific language governing           -->
+<!-- permissions and limitations under the License.                         -->
+<!--                                                                        -->
+<!-- IBM_PROLOG_END_TAG                                                     -->
+
+<integrationtest>
+    <platform>
+
+        <test>
+            <name>Test Init</name>
+            <testcase>
+                <cmd>op-ci-bmc-run "op_stb_fvt.test_init()"</cmd>
+                <exitonerror>yes</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Hardware Secure boot mode</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_hw_sb_support</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Hardware Trusted boot mode</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_hw_tb_support</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test OPAL Secure boot mode</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_secure_boot_mode</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test OPAL Trusted boot mode</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_trusted_boot_mode</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test CAPP partition Measured</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_capp_measured</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test BOOTKERNEL partition Measured</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_bootkernel_measured</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test CAPP partition Verified</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_capp_verified</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test BOOTKERNEL partition Verified</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_bootkernel_verified</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test CAPP partition Loaded</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_capp_loaded</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test BOOTKERNEL partition Loaded</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_bootkernel_loaded</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Secure boot device-tree entry</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_proc_sb_verify</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Trusted boot device-tree entry</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_proc_tb_verify</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Secure boot mode with SSR value and OPAL value</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_cross_check_hw_opal_sb</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Trusted boot mode with SSR value and OPAL value</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_cross_check_hw_opal_tb</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Secure and Trusted boot modes cross check with measured, verified and loaded</name>
+            <testcase>
+              <cmd>../ci/source/op_stb_fvt.py OpalSTB.test_cross_check_stb</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+    </platform>
+</integrationtest>
