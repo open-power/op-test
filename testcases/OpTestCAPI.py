@@ -81,7 +81,8 @@ class OpTestCAPI():
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
 
         # Check that host has a CAPI FPGA card
-        self.cv_HOST.host_has_capi_fpga_card()
+        if (self.cv_HOST.host_has_capi_fpga_card() != True):
+            return BMC_CONST.FW_SUCCESS
 
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
@@ -120,7 +121,8 @@ class OpTestCAPI():
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
 
         # Check that host has a CAPI FPGA card
-        self.cv_HOST.host_has_capi_fpga_card()
+        if (self.cv_HOST.host_has_capi_fpga_card() != True):
+            return BMC_CONST.FW_SUCCESS
 
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
@@ -170,7 +172,8 @@ class OpTestCAPI():
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
 
         # Check that host has a CAPI FPGA card
-        self.cv_HOST.host_has_capi_fpga_card()
+        if (self.cv_HOST.host_has_capi_fpga_card() != True):
+            return BMC_CONST.FW_SUCCESS
 
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
@@ -212,7 +215,7 @@ class OpTestCAPI():
     #        2. Check for os level and get kernel version
     #        3. Load the cxl module if required
     #        If the card PSL supports timebase sync:
-    #                5. Clone an build cxl-tests (along with libcxl)
+    #           5. Clone an build cxl-tests (along with libcxl)
     #           6. Verify timebase sync with memcpy_afu_ctx -t
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
@@ -221,7 +224,8 @@ class OpTestCAPI():
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
 
         # Check that host has a CAPI FPGA card
-        self.cv_HOST.host_has_capi_fpga_card()
+        if (self.cv_HOST.host_has_capi_fpga_card() != True):
+            return BMC_CONST.FW_SUCCESS
 
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()

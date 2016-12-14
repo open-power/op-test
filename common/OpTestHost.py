@@ -1182,7 +1182,7 @@ class OpTestHost():
     ##
     # @brief Check that host has a CAPI FPGA card
     #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    # @return True or False
     #
     def host_has_capi_fpga_card(self):
         l_cmd = "lspci -d \"1014:0477\""
@@ -1192,10 +1192,11 @@ class OpTestHost():
         if (l_res.__contains__('IBM Device 0477')):
             l_msg = "Host has a CAPI FPGA card"
             print l_msg
+            return True
         else:
-            l_msg = "Host has no CAPI FPGA card"
+            l_msg = "Host has no CAPI FPGA card; skipping test"
             print l_msg
-            raise OpTestError(l_msg)
+            return False
 
     ##
     # @brief Clone latest cxl-tests git repository in i_dir directory
