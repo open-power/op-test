@@ -1219,3 +1219,35 @@ class OpTestHost():
     #
     def host_enable_single_core(self):
         self.host_run_command("ppc64_cpu --cores-on=1")
+
+    ##
+    # @brief This function disables kdump service
+    #
+    # @param os_level: string output of /etc/os-release
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_disable_kdump_service(self, os_level):
+        if "Ubuntu" in os_level:
+            self.host_run_command("service kdump-tools stop")
+            self.host_run_command("service kdump-tools status")
+        else:
+            self.host_run_command("service kdump stop")
+            self.host_run_command("service kdump status")
+
+    ##
+    # @brief This function disables kdump service
+    #
+    # @param os_level: string output of /etc/os-release
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_enable_kdump_service(self, os_level):
+        if "Ubuntu" in os_level:
+            self.host_run_command("service kdump-tools stop")
+            self.host_run_command("service kdump-tools start")
+            self.host_run_command("service kdump-tools status")
+        else:
+            self.host_run_command("service kdump stop")
+            self.host_run_command("service kdump start")
+            self.host_run_command("service kdump status")

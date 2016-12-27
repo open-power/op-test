@@ -323,5 +323,21 @@
             </testcase>
         </test>
 
+        <test>
+            <name>Test Kernel Crash plus full IPL</name>
+            <testcase>
+                <cmd>../ci/source/op_opal_fvt.py OpalKernelCrashTests.test_kernel_crash_kdump_disable</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test Crash kernel plus full IPL</name>
+            <testcase>
+                <cmd>../ci/source/op_opal_fvt.py OpalKernelCrashTests.test_kernel_crash_kdump_enable</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
     </platform>
 </integrationtest>
