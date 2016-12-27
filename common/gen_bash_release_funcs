@@ -1,0 +1,2303 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define release/build/driver functions like valid_fips_release_name, fips_releases, etc.
+
+# Change log:
+# 2014/06/11 mlhollan - Removed "-r" flag from sed command. Determined that it was not necessary in this case and allows us to run in aix.
+# 2014/06/13 mlhollan - num_fips_drivers: When running from w3.rchland.ibm.com web application, the wc -l produces extra spaces.  Fixed with a sed command.
+# 2014/06/13 mlhollan - Pass new db parms to connect_to_db.
+# 2014/06/13 Mike Walsh (xzy0065) - I added code to see if latest_valid_fips_driver failure is due to the fact that the user in question does not belong to the right pts group.
+# 2014/07/30 Maggie Hollander (mlhollan) - Switching to .nfs_tardone instead of .tardone.
+# 2014/08/06 Maggie Hollander (mlhollan) - Split up database query to make it run more accurately, and excluded environmental failures from dashboard. 
+#change
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_valid_funcs
+
+##
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+# 2015/01/13 Mike Walsh (xzy0065) - I added a call to tokens_func in latest_valid_fips_driver_by_release.  Most of my programs don't automatically source gen_bash_afs_funcs.  Therefore, I'll source it here on their behalf.
+if ! type afs_cell >/dev/null 2>&1 ; then
+  if [ "${HOSTNAME}" = "w3.rchland.ibm.com" -o "${HOSTNAME}" = "w3dev.rchland.ibm.com" ] ; then
+    afs_filepath=$(type gen_bash_afs_funcs | sed -e 's#.* ##') || { echo '**ERROR** Failed to find one of the source files.' >&2 ; exit 1 ; }
+  else
+    afs_filepath=$(/usr/bin/which gen_bash_afs_funcs 2>/dev/null) || afs_filepath=${BASH_SOURCE%/*}/gen_bash_afs_funcs
+  fi
+  source $afs_filepath || exit 1
+fi
+
+
+if ! test "${valid_release_type_list+defined}" ; then
+  readonly valid_release_type_list="fips:op"
+  readonly release_type_globex="${valid_release_type_list//:/|}"
+  readonly release_type_space_globex="|${release_type_globex}"
+  readonly valid_branch_list="master:master_next"
+fi
+# #(CDT) 2015/05/12 12:03:20.244896 -    0.080501 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do valid_release_type release_type ; done
+# total_seconds:                                    0.498092000
+# seconds_each:                                     0.000049809
+# count_per_second:                                 20077
+################################################################################
+function valid_release_type {
+  # local release_type_var="${1}"
+  # local allow_blank="${2:-0}"
+
+  # This function will validate that the variable passed in release_type_var contains a valid release type.  If the value is valid, this function will return 0.  Otherwise, this function will return non-zero and print an error message to stderr.
+  # If the allow_blank flag is set, then a blank release_type will be considered valid.
+  # IMPORTANT: When modifying this function or the associated release_type_globex, make sure that the added release type really is supported by the general function set as you define it to be "valid".
+
+  case "${!1}" in
+    @(${release_type_globex}))
+      # release_type is valid.
+      return 0
+      ;;
+    "")
+      # Did the caller even provide a var name for release_type_var?  Normally, I'd check this at the beginning of this function but this way is faster.
+      case "${1}" in "")
+        { print_error "Programmer error - Parameter \"release_type_var\" has an invalid value of \"${1}\".  It must contain a valid variable name." ; echo ; } | process_error_message
+        return 1
+        ;;
+      esac
+      (( ${2} )) && return 0
+      ;;
+  esac
+
+  { print_error ; echo "Variable \"${1}\" has a value of \"${!1}\" which was not found in the valid value list (\"${valid_release_type_list}\")." ; } | process_error_message
+  return 1
+
+}
+################################################################################
+
+
+
+function valid_fips_release_name { valid_release_name "${@}" ; }
+################################################################################
+function valid_release_name {
+  # local release="${1}"
+  # local release_type="${2}"
+
+  # This function will validate that release contains a valid release.  If the value is valid, this function will return 0.  Otherwise, this function will return non-zero and print an error message to stderr.
+  # release_type indicates what type of release (e.g. "op", fips") the release value is.  If release_type is blank, then the release is valid if it conforms to the naming pattern for any release type that we support.
+
+  # A valid release adheres to the name pattern of a fips or op release.
+  # An example of a valid fips release name would be: fips720.  The format is: fips[3 digit release].
+
+
+  case "${2}" in
+    "")
+      case "${1}" in @(${release_type_globex})[0-9][0-9][0-9]) return 0 ; esac
+      local buffer="<${valid_release_type_list//:/ or }>"
+
+      local loc_release_type=""
+      ;;
+    *)
+      local release_type="${2}"
+      valid_release_type release_type || return 1
+      case "${1}" in ${2}[0-9][0-9][0-9]) return 0 ; esac
+
+      local buffer=${2}
+      local loc_release_type=" ${2}"
+      ;;
+  esac 
+  { print_error ; echo "Release name \"${1}\" is not a valid${loc_release_type} release name, i.e. it does not adhere to the established pattern for${loc_release_type} release names.  The correct format is: ${buffer}<3 digit release>." ; } | process_error_message
+  return 1
+
+}
+################################################################################
+
+
+
+################################################################################
+function release_type {
+  local given_data="${1}" ; shift
+  local given_data_type="${1}" ; shift
+  local release_type_var="${1}" ; shift
+  
+  #this function will tell you the release type of the given_data
+  #given_data must be a build or a release or a build_dir, this must be specified in given_data_type
+  #if it can not determine the release_type it will set release_var blank, it will NOT ERROR!
+  #for determining validity seek one of the *valid* funcs
+  
+  valid_value given_data || return 1
+  
+  local _loc_release_type_
+  local fips_build_regex="(^b[0-9]{4}[a-z]_[0-9]{4}\.[0-9]{3}$)|(^c[0-9]{4}[a-z]_fips[0-9]{3}$)"
+  local op_build_regex="^[0-9]{3}\.[0-9]{4}\.[0-9]{8}[a-z]$"
+  local fips_release_regex="^fips[0-9]{3}$"
+  local op_release_regex="^op[0-9]{3}$"
+  local fips_build_dir_regex="/(b[0-9]{4}[a-z]_[0-9]{4}\.[0-9]{3})|(c[0-9]{4}[a-z]_fips[0-9]{3})"
+  local op_build_dir_regex="/[0-9]{3}\.[0-9]{4}\.[0-9]{8}[a-z]"
+  
+  case "${given_data_type}" in
+    build)
+      if regexp "${given_data}" "${fips_build_regex}" ; then
+        _loc_release_type_="fips"
+      elif regexp "${given_data}" "${op_build_regex}" ; then
+        _loc_release_type_="op"
+      else
+        _loc_release_type_=""
+      fi
+      ;;
+    release)
+      if regexp "${given_data}" "${fips_release_regex}" ; then
+        _loc_release_type_="fips"
+      elif regexp "${given_data}" "${op_release_regex}" ; then
+        _loc_release_type_="op"
+      else
+        _loc_release_type_=""
+      fi
+      ;;
+    build_dir)
+      if regexp "${given_data}" "${fips_build_dir_regex}" ; then
+        _loc_release_type_="fips"
+      elif regexp "${given_data}" "${op_build_dir_regex}" ; then
+        _loc_release_type_="op"
+      else
+        _loc_release_type_=""
+      fi
+      ;;
+    *)
+      valid_value given_data_type "" "build:release:build_dir" || return 1
+      ;; 
+  esac
+
+  if [ -z "${release_type_var}" ] ; then
+    printf "$_loc_release_type_\n"
+  else
+    eval $release_type_var=$_loc_release_type_
+  fi
+  
+}
+################################################################################
+
+
+
+################################################################################
+function valid_branch {
+  local branch="${1}" ; shift
+  local allow_blank="${1:-0}" ; shift
+  
+  if (( allow_blank )) ; then
+    [ -z "${branch}" ] && return 0
+  fi
+  
+  #Self explanatory function - validates the given branch.
+  #Created this function so that if the valid values for branch ever change, there will only be one place to update...
+
+  valid_value branch "" "${valid_branch_list}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function build_cell {
+  local cell_var="${1}" ; shift || :
+
+  # This function will pick a build cell based on your actual cell.  If your afs cell contains a build cell, that is the cell that will be assigned.  Otherwise, "austin" will be assigned.
+  # If cell_var contains a valid variable name, the resulting cell name will be put into that variable.  Otherwise, the resulting cell name will be printed to stdout.
+
+  local cmd_buf
+  local _loc_afs_cell_
+  local _loc_build_cell_
+
+  cmd_buf="afs_cell _loc_afs_cell_"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf || return 1
+
+  case "${_loc_afs_cell_}" in
+    austin|rchland)
+      _loc_build_cell_=$_loc_afs_cell_
+      ;;
+    *)
+      _loc_build_cell_=austin
+      ;;
+  esac
+
+  if [ -z "${cell_var}" ] ; then
+    printf "$_loc_build_cell_\n"
+  else
+    eval $cell_var=$_loc_build_cell_
+  fi
+
+}
+################################################################################
+# Call this function once upon sourcing this file to set loc_dft_build_cell.
+if ! test "${loc_dft_build_cell+defined}" ; then
+  build_cell build_cell
+  readonly loc_dft_build_cell=${build_cell}
+fi
+
+
+
+function fips_release_exists { release_exists "${@}" ; }
+################################################################################
+function release_exists {
+  local release="${1}" ; shift
+  local afs_cell="${1:-${loc_dft_build_cell}}" ; shift
+  local release_type_var="${1}" ; shift
+
+  case "${release}" in "")
+    valid_value release || return 1
+  esac
+
+  local esw_projects_dir_path=/afs/${afs_cell}.ibm.com/projects/esw/
+
+  if [ ! -d ${esw_projects_dir_path}${release} ] ; then
+    valid_release_name "${release}" || { rm ${temp_filename}; return 1 ; }
+    { print_error ; echo "Release \"${release}\" does not exist.  The list of existing releases is:" ; releases "${afs_cell}" "" ; } | process_error_message
+    return 1
+  fi
+  
+  #if a variable was specified for release type, then put it here
+  if [ -n "${release_type_var}" ] ; then
+    eval $release_type_var=${release%%[0-9]*}
+  fi
+}
+################################################################################
+
+
+
+function fips_releases { releases "${@}" ; }
+################################################################################
+function releases {
+  local afs_cell="${1:-${loc_dft_build_cell}}" ; shift
+  local release_type="${1}" ; shift
+  local release_list_var="${1}" ; shift
+  local num_releases_var="${1}" ; shift
+
+  # This function will print the names of all the valid releases for the given release_type for the afs_cell passed.
+  # 2015/05/12 Mike Walsh (xzy0065) - release_type is a new parameter.  Therefore, if the caller does not specify any value for release type, it will default to "fips".  This causes this function to behave as it always has as in the example below:
+  # release "austin"
+  # However, if the caller explicitly calls with release type of "", then releases of all types will be shown.  Example:
+  # release "austin" ""
+  # The caller may also specify "all" as the release_type to achieve the same affect.  Of course, the caller may also specify any valid release_type (e.g. "fips", "op").
+  # If release_list_var is set, the results will be placed into the variable named in release_list_var.  Otherwise, the results are written to stdout.
+
+  local loc_release_type_globex
+
+  case "${release_type}" in
+    "")
+      if (( ${BASH_ARGC[0]} < 2 )) ; then
+        # The caller has not passed a release_type var at all so we'll make it behave the tradional way by setting release_type to "fips".
+        release_type=fips
+        loc_release_type_globex=fips
+      else
+        # Explicitly specifying a blank release_type means the caller wishes to see all release types.
+        loc_release_type_globex=${release_type_globex}
+      fi
+      ;;
+    @(${release_type_globex}))
+      loc_release_type_globex=${release_type}
+      # Release type is valid.
+      ;;
+    all)
+      loc_release_type_globex=${release_type_globex}
+      ;;
+    *)
+      valid_release_type release_type || return 1
+      ;;
+  esac
+
+  local esw_projects_dir_path=/afs/${afs_cell}.ibm.com/projects/esw/
+  local save_PWD=${PWD:=$(pwd)}
+
+  if [ "${PWD}" != "${esw_projects_dir_path}" ] ; then
+    if ! cd ${esw_projects_dir_path} 2>/dev/null ; then
+      { print_error ; echo "Directory ${esw_projects_dir_path} does not exist.  It is possible that the caller's \"afs_cell\" parameter value of \"${afs_cell}\" is invalid." ; } | process_error_message
+      return 1
+    fi
+  fi
+
+  # 2015/07/24 Gunnar Mills (gmills) - For older versions of bash (e.g. 2.05), declaring a local array variable and assigning it a value all on the same line does NOT work.
+  local releases_arr
+  releases_arr=(@(${loc_release_type_globex})[0-9][0-9][0-9])
+
+  local _r_loc_num_releases_=${#releases_arr[@]}
+  [ ! -z "${num_releases_var}" ] && eval ${num_releases_var}=${_r_loc_num_releases_}
+  local IFS=$'\n'
+  case "${release_list_var}" in
+    "")
+      echo "${releases_arr[*]}"
+      ;;
+    *)
+      local cmd_buf
+       eval ${release_list_var}="$(echo \"\${releases_arr[*]}\")"
+      ;;
+  esac
+
+  [ "${PWD}" != "${save_PWD}" ] && cd ${save_PWD} || :
+
+  return
+
+
+
+
+# Old code...
+  if [ ! -d "${esw_projects_dir_path}" ] ; then
+    { print_error ; echo "Directory ${esw_projects_dir_path} does not exist.  It is possible that the caller's \"afs_cell\" parameter value of \"${afs_cell}\" is invalid." ; } | process_error_message
+    return 1
+  fi
+
+
+  local cmd_buf
+
+  local color_parm_string=""
+  if [ "${u_name:=$(uname)}" != "AIX" ] ; then color_parm_string=" --color=never" ; fi
+  cmd_buf="ls${color_parm_string} ${esw_projects_dir_path}"' | egrep "^${release_type}...$"'
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  if [ "$?" != "0" ] ; then
+    { print_error ; echo "The following bash command failed." ; echo $cmd_buf ; echo ; echo "The current directory is $(pwd)." ; } | process_error_message
+    return 1
+  fi
+
+  return
+
+
+
+
+  # Old code.
+
+  cmd_buf="cd /afs/${afs_cell}.ibm.com/projects/esw/"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  if [ "$?" != "0" ] ; then
+    { print_error ; echo "The following bash command failed." ; echo $cmd_buf ; echo ; echo "It is possible that the caller's \"afs_cell\" parameter value of \"${afs_cell}\" is invalid." ; } | process_error_message
+    return 1
+  fi
+
+  # I had at least one user where the colors in the ls output were not getting stripped off by functions like fips_release_exists.  Not sure why but we don't need color so I use the --color=never parm.
+  # Using 'ls --color=never -d fips???' can fail with "ls: fips320: Connection timed out".  So I changed to the current way.
+  local color_parm_string=""
+  if [ "${u_name:=$(uname)}" != "AIX" ] ; then color_parm_string=" --color=never" ; fi
+  cmd_buf="ls${color_parm_string}"' | egrep "^fips...$"'
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  if [ "$?" != "0" ] ; then
+    { print_error ; echo "The following bash command failed." ; echo $cmd_buf ; echo ; echo "The current directory is $(pwd)." ; } | process_error_message
+    return 1
+  fi
+
+}
+################################################################################
+
+
+function num_fips_releases { num_releases "${@}" ; }
+################################################################################
+function num_releases {
+  local afs_cell="${1}" ; shift
+  local release_type="${1}" ; shift
+  local num_releases_var="${1}" ; shift
+
+  #Similarly to how releases works above, if release_type is specified as "" then num_releases will return the total for all release types, but if it is left unspecified then it will default to fips in order to preserve old functionality
+
+  local _nr_loc_num_releases_
+  local loc_release_type_globex
+
+  case "${release_type}" in
+    "")
+      if (( ${BASH_ARGC[0]} < 2 )) ; then
+        # The caller has not passed a release_type var at all so we'll make it behave the tradional way by setting release_type to "fips".
+        release_type=fips
+      fi
+      ;;
+    @(${release_type_globex}))
+      #Caller passed a valid release type
+      ;;
+    *)
+      #It wasn't in the release_type globex so either we missed it in the globex (oops) or more likely it isn't a valid release type and this will catch that.
+      valid_release_type release_type || return 1
+      ;;
+  esac
+  
+  releases "${afs_cell}" "${release_type}" "" _nr_loc_num_releases_ >/dev/null || return 1
+
+  case "${num_releases_var}" in
+    "")
+      echo $_nr_loc_num_releases_
+      ;;
+    *)
+      eval $num_releases_var=$_nr_loc_num_releases_
+      ;;
+  esac
+
+}
+################################################################################
+
+
+function latest_fips_release { latest_release "${@}" ; }
+################################################################################
+function latest_release {
+  local pos_from_last="${1:-1}" ; shift
+  local afs_cell="${1:-${loc_dft_build_cell}}" ; shift
+  local release_type="${1}" ; shift
+  local release_var="${1}" ; shift
+
+  # This function will print the name of the latest (or pos_from_last) fips release.  If the value of pos_from_last from last is greater than the number of fips releases existing, the farthest entry from last will be returned, i.e. the first fips release to have been created.
+  #As with the two previous functions, to preserve the original functionality, anytime that the release type is not specified at all, it will default to fips, if it is specified directly as "" then it will match all release types, and if otherwise specified it must match a specific release type.
+
+  case "${pos_from_last#[+]}" in [1-9]*([0-9])) ;; *)
+    { print_error ; echo "For \"pos_from_last\" you specified an invalid value of \"${pos_from_last}\".  You must pass an integer that is greater than 0." ; } | process_error_message
+    return 1
+    ;;
+  esac
+
+  case "${release_type}" in
+    "")
+      if (( ${BASH_ARGC[0]} < 3 )) ; then
+        # The caller has not passed a release_type var at all so we'll make it behave the tradional way by setting release_type to "fips".
+        release_type=fips
+      fi
+      ;;
+    @(${release_type_globex}))
+      #Caller passed a valid release type
+      ;;
+    *)
+      #It wasn't in the release_type globex so either we missed it in the globex (oops) or more likely it isn't a valid release type and this will catch that.
+      valid_release_type release_type || return 1
+      ;;
+  esac
+
+  local temp_filename=/tmp/${FUNCNAME}_$RANDOM
+
+  # releases "${afs_cell}" "${release_type}" > ${temp_filename}
+  cmd_buf="releases \"${afs_cell}\" \"${release_type}\" > ${temp_filename}"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  if [ "$?" != "0" ] ; then
+    rm ${temp_filename}
+    return 1
+  fi
+
+  if (( DEBUG )) ; then
+    cmd_buf="cat ${temp_filename}"
+    issuing >&2
+    eval ${cmd_buf}
+  fi
+
+  case "${release_var}" in
+    "")
+      tail -n ${pos_from_last} ${temp_filename} | head -n 1
+      ;;
+    *)
+      eval ${release_var}=$(tail -n ${pos_from_last} ${temp_filename} | head -n 1)
+      ;;
+  esac
+
+  rm ${temp_filename} &
+
+}
+################################################################################
+
+
+
+function fips_drivers { fips_builds "${@}" ; }
+function fips_builds { builds "${@}" ; }
+################################################################################
+function builds {
+  local release="${1}" ; shift
+  local build_type="${1}" ; shift
+  local afs_cell="${1:-${loc_dft_build_cell}}" ; shift
+  local driver="${1:-????}" ; shift
+  local level="${1:-Builds}" ; shift
+  local branch="${1}" ; shift
+
+  # This function will print the names of all the valid builds for the release passed.
+
+  # Search http://w3.austin.ibm.com/afs/austin/projects/esw/PMnotes/PMnotes.htm#Creating_Levels for the word "shark" to see the possible values for build_type.  In addition to the values defined there, we define some of our own:
+  # "dvt"       This is the range of builds for which build verification tests will be done.
+  # branch is a parameter that will only apply to op builds - the two valid options are either master, master_next. branch refers to the specific branch in github that the builds source code comes from (either "master" or "master next").
+  
+  #release type from release_exists can be trusted since it uses valid_release_name and valid_release_type
+  local release_type
+  local cmd_buf
+  cmd_buf="release_exists \"${release}\" \"${afs_cell}\" \"release_type\""
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf} || return 1
+  
+  #validate the build type
+  local type_expr
+  local begin_range
+  local end_range
+  
+  case "${release_type}" in 
+    op)
+      [ -z "${build_type}" ] && build_type="all"
+      valid_value level "" "Builds" || return 1
+      case "${branch}" in
+        master)
+          case "${build_type}" in
+            dvt)
+              type_expr='[a-e]'
+              ;;
+            all)
+              type_expr='[a-m]'
+              ;;
+            *)
+              valid_value build_type "" "all:dvt" || return 1
+              ;;
+          esac  
+          ;;
+        master_next)
+          case "${build_type}" in
+            dvt)
+              type_expr='[n-r]'
+              ;;
+            all)
+              type_expr='[n-z]'
+              ;;
+            *)
+              valid_value build_type "" "all:dvt" || return 1
+              ;;
+          esac
+          ;;
+        *)
+          if [ -z "${branch}" ] ; then
+            type_expr='[a-z]'
+            valid_value build_type "" "all:dvt" || return 1
+          else
+            valid_branch "${branch}" || return 1
+          fi
+          ;;
+      esac
+      ;;
+    fips)
+      [ -z "${build_type}" ] && build_type="normal"
+      valid_value level "" "Builds:Current" || return 1
+      if [ "${branch}" != "" ] ; then
+        { print_error ; echo "Branch should be blank for fips - was \"${branch}\"."; } | process_error_message
+        return 1
+      fi
+      case "${build_type}" in
+        all)
+          type_expr='[a-z]'
+          ;;
+        shark)
+          type_expr='[s]'
+          ;;
+        test)
+          type_expr='[t-w]'
+          ;;
+        build_team)
+          type_expr='[x-z]'
+          ;;
+        normal)
+          type_expr='[a-r]'
+          ;;
+        dvt)
+          # This is the range of builds for which build verification tests will be done.  Note this is an autoipl tool suite convention.  This range is not explicitly recognized by the build team.
+          type_expr='[a-e]'
+          ;;
+        *)
+          valid_value build_type "" "all:shark:test:build_team:normal:dvt" || return 1
+          ;;
+      esac
+      ;;
+    *)
+      valid_release_type release_type || return 1
+      ;;
+  esac
+  
+  local globex
+  
+  case "${release_type}" in 
+    op)
+      globex="${release//[a-z]}.${driver}.????????${type_expr}/OP_driver.conf"
+      ;;
+    fips)
+      globex="b????${type_expr}_${driver}.???/driver.conf"
+      if [ "${level}" == "Current" ] ;then
+        globex="c????${type_expr}_${release}/driver.conf"
+      fi
+      ;;
+    *)
+      { print_error ; echo "Programmer error - We've already validated release_type so we should not reach this leg of code."; } | process_error_message
+       return 1
+      ;;
+  esac
+  
+  # I made changes to avoid doing a cd in order to respect the caller's PWD location.
+  local release_dir_path=/afs/${afs_cell}.ibm.com/projects/esw/${release}/${level}/
+  if [ ! -d "${release_dir_path}" ] ; then
+    # If we get to this point, we are certain that the release exists.  If the Builds dir does not exist, it means that the release is so new that no builds have been done.  In that case we simply return without printing anything.
+    # { print_error ; echo "bash command failed." ; } | process_error_message
+    return 0
+  fi
+
+  # Sorting on build name is not good enough.  E.g. b1225a_1103.740 was built in 2010 for a release on the 3rd week of 2011.  b0104a_1103.740 was built in 2011.  Sorting by name would make b0104a_1103.740 appear to be older.  The new way will examine the date stamp in the driver.conf file.  Note: --with-filename is necessary for the case where there is only one build.
+  local linux_egrep_parms=""
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    # 2015/09/02 Mike Walsh (xzy0065) - AIX's version of egrep doesn't support the --with-filename option which is a problem if we are egrepping a list containing just one file.  To get around this problem, I'll add the phantom "/dev/null" file to the list of files to be grepped.  That will force the egrep to print filenames because it thinks it is processing a list with more than one file in it.
+    globex="${globex} /dev/null"
+  else
+    linux_egrep_parms=" -a --with-filename"
+  fi
+  # 2014/06/11 mlhollan - Removed "-r" flag from sed command. Determined that it was not necessary in this case and allows us to run in aix.
+  #cmd_buf="egrep${linux_egrep_parms} \"^start_time=\" ${release_dir_path}${globex} 2>/dev/null | sed -re 's#${release_dir_path}##' | sort -k 1.40,1.59 | cut -f 1 -d /"
+  cmd_buf="egrep${linux_egrep_parms} \"^start_time=\" ${release_dir_path}${globex} 2>/dev/null | sed -e 's#${release_dir_path}##' | sort -k 1.40,1.59 | cut -f 1 -d /"
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf}
+
+  return
+
+
+
+  # Old way...
+
+  cmd_buf="cd /afs/${afs_cell}.ibm.com/projects/esw/${release}/${level} 2>/dev/null"
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf}
+  if [ "$?" != "0" ] ; then
+    # If we get to this point, we are certain that the release exists.  If the Builds dir does not exist, it means that the release is so new that no builds have been done.  In that case we simply return without printing anything.
+    # { print_error ; echo "bash command failed." ; } | process_error_message
+    return 0
+  fi
+
+  # cmd_buf="ls -rtd b????${type_expr}_????.??? 2>/dev/null"
+  # builds like b0519a_8888.720 (with 8888 in them) are cc test builds and should be ignored.
+  # cmd_buf="ls -d b????${type_expr}_${driver}.??? 2>/dev/null | egrep -v "_8888\." | sort -k 1.8,1.9 -k 1.2,1.5 -k 1.10,1.11"
+  # Sorting on build name is not good enough.  E.g. b1225a_1103.740 was built in 2010 for a release on the 3rd week of 2011.  b0104a_1103.740 was built in 2011.  Sorting by name would make b0104a_1103.740 appear to be older.  The new way will examine the date stamp in the driver.conf file.  Note: --with-filename is necessary for the case where there is only one build.
+  local linux_egrep_parms=""
+  if [ "${u_name:=$(uname)}" != "AIX" ] ; then
+    linux_egrep_parms=" -a --with-filename"
+  fi
+
+  cmd_buf="egrep${linux_egrep_parms} \"^start_time=\" ${globex} 2>/dev/null | sort -k 1.40,1.59 | cut -f 1 -d /"
+  (( DEBUG )) && issuing >&2
+#  cmd_buf="ls -d b????${type_expr}_????.??? 2>/dev/null | egrep -v "_8888\." | sort -k 1.8,1.9 -k 1.2,1.5 -k 1.10,1.11"
+  eval ${cmd_buf}
+
+}
+################################################################################
+
+
+
+function valid_fips_driver_num { valid_fips_driver "${@}" ; }
+function valid_fips_driver { valid_driver "${@}" ; }
+################################################################################
+function valid_driver {
+  local driver_var="${1}" ; shift
+
+  # This function will return 0 if the variable named in driver_var contains a valid driver number and 1 if it is not valid.  By valid, we mean that it adheres to the pattern of a valid release type driver.
+
+  # An example of a valid driver would be: 1126.  The format is: <2 digit year - 0 through 99><2 digit week - 0 through 99>.
+
+#  if ! [[ "${!driver_var}" =~ "^[0-9]{4}$" ]] ; then
+  if ! echo "${!driver_var}" | egrep -q "^[0-9]{4}$" 2>/dev/null ; then
+    { print_error ; echo "${driver_var} contains an invalid value of \"${!driver_var}\", i.e. it does not adhere to the established pattern for drivers.  The correct format is: 4 digits." ; } | process_error_message
+      return 1
+  fi
+
+}
+################################################################################
+
+
+
+function valid_fips_driver_name { valid_fips_build_name "${@}" ; }
+function valid_fips_build_name { valid_build_name "${@}" ; }
+################################################################################
+function valid_build_name {
+  local build="${1}" ; shift
+  local release_type_var="${1}" ; shift
+  
+  # This function will return 0 if build is a valid build name and 1 if it is not valid.  By valid, we mean that it adheres to the name pattern build.
+
+  # An example of a valid build name would be: b0930a_0939.720.  The format is: b[mm][dd][char]_[yy][ww].[3 digit release].  The following regular expression checks for this format.
+
+  if [ -z "${build}" ] ; then valid_value build "" || return 1 ; fi
+  
+  local matches=0
+  local loc_rel_type
+  local fips_builds_regex="^b(0[1-9]|1[0-2])([0][1-9]|[12][0-9]|3[0-1])[a-z]_[0-9]{4}\.[0-9]{3}$"
+  local fips_current_regex="^c(0[1-9]|1[0-2])([0][1-9]|[12][0-9]|3[0-1])[a-z]_fips[0-9]{3}$"
+  local op_regex="^[0-9]{3}\.[0-9]{4}\.(1|2)[0-9]{3}(0[1-9]|1[0-2])([0][1-9]|[12][0-9]|3[0-1])[a-z]$"
+  
+  #VALID PATTERNS
+  #  b<mm><dd><char>_<yy><ww>.<3 digit release>        -  fips (Builds)
+  #  c<mm><dd><char>_fips<3 digit release>              - fips (Current)
+  #  <3 digit release>.<yy><ww>.<yyyy><mm><dd><char>    - op
+  
+  case "${build:0:1}" in 
+    b)
+      if regexp "${build}" "${fips_builds_regex}" ; then
+        ((matches++))
+        loc_rel_type=fips
+      fi
+      ;;
+    c)
+      if regexp "${build}" "${fips_current_regex}" ; then
+        ((matches++))
+        loc_rel_type=fips
+      fi
+      ;;
+  esac
+  
+  if regexp "${build}" "${op_regex}" ; then
+    ((matches++))
+    loc_rel_type=op
+  fi
+  
+  if [ "${matches}" -lt "1" ] ; then
+    { print_error ; echo "Build name \"${build}\" does not adhere to any of the defined patterns for build names." ; } | process_error_message
+    return 1
+  fi
+  
+  #if a variable was specified for release type, then put it here
+  if [ -n "${release_type_var}" ] ; then
+    eval $release_type_var=${loc_rel_type}
+  fi
+
+}
+################################################################################
+
+
+
+function fips_release { release "${@}" ; }
+################################################################################
+function release {
+  local build="${1}" ; shift
+  local release_var="${1}" ; shift
+
+  # This function will print the name of the release given the build name.
+  # If release_var contains a variable name, the result will be put into that variable.  Otherwise, the result will be printed to stdout.
+
+  # Perf: On AIX, this takes .007.
+#time  valid_fips_build_name "${build}" || return 1
+
+  local rel_type
+  
+  #5/14/15 - kjpoole - adding a check to validate the build name passed
+  valid_build_name "${build}" "rel_type" || return 1
+
+  local loc_release_num
+  local op_release_num_regex="^([0-9]{3})\."
+  local fips_builds_release_num_regex="\.([0-9]{3})$"
+  local fips_current_release_num_regex="_fips([0-9]{3})$"
+  
+  # 2015/09/02 Mike Walsh (xzy0065) - BASH_REMATCH is not available in AIX so we must avoid using it.
+  case "${rel_type}" in
+    op)
+      if regexp "${build}" "${op_release_num_regex}" ; then
+        #loc_release_num=${BASH_REMATCH[1]}
+        loc_release_num=${build%%.*}
+      fi
+      ;;
+    fips)
+      if regexp "${build}" "${fips_builds_release_num_regex}" ; then
+        #loc_release_num=${BASH_REMATCH[1]}
+        loc_release_num=${build##*.}
+      elif regexp "${build}" "${fips_current_release_num_regex}" ; then
+        #loc_release_num=${BASH_REMATCH[1]}
+        loc_release_num=${build##*fips}
+      fi
+      ;;
+    *)
+      { print_error ; echo "Unknown how to identify release with release_type \"${rel_type}\"." ; } | process_error_message
+      return 1
+      ;;
+  esac
+  
+  if [ -z "${release_var}" ] ; then
+    echo "${rel_type}${loc_release_num}"
+  else
+    eval ${release_var}=${rel_type}${loc_release_num}
+  fi
+}
+################################################################################
+
+
+
+function fips_driver_exists { fips_build_exists "${@}" ; }
+function fips_build_exists { build_exists "${@}" ; }
+################################################################################
+function build_exists {
+  local build="${1}" ; shift
+  local afs_cell="${1}" ; shift
+
+  # This function will verify that build is valid, i.e. is found in the list of fips builds for the release given.
+
+  local branch
+  local master_branch_regex="[a-m]$"
+  local master_next_branch_regex="[n-z]$"
+  if regexp "${build}" "${master_branch_regex}" ; then
+    branch=master
+  elif regexp "${build}" "${master_next_branch_regex}" ; then
+    branch=master_next
+  else
+    branch=""
+  fi
+
+  local release
+  local cmd_buf
+  local rc
+  #release=$(fips_release ${build}) || return 1
+  cmd_buf="release '${build}' release"
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf} || return 1
+
+print_vars release >&2
+
+  #Defaulting to Builds will still work with open power
+  local level=Builds
+  [ "${build:0:1}" == "c" ] && level=Current
+
+  local temp_filename=/tmp/${FUNCNAME}_$RANDOM
+  cmd_buf="builds \"${release}\" \"all\" \"${afs_cell}\" \"\" \"${level}\" \"${branch}\" > ${temp_filename}"
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf}
+  rc="${?}"
+  (( DEBUG )) && cat ${temp_filename} >&2
+  if [ "${rc}" != "0" ] ; then
+    rm ${temp_filename}
+    return 1
+  fi
+
+  cmd_buf="egrep -q \"^${build}$\" ${temp_filename}"
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf}
+  if [ "$?" != "0" ] ; then
+    { print_error ; echo "Build \"${build}\" does not exist in release \"${release}\"." ; } | process_error_message
+    rm ${temp_filename}
+    return 1
+  fi
+
+  rm ${temp_filename} &
+
+}
+################################################################################
+
+
+
+# 2015/05/07 Mike Walsh (xzy0065) - Renaming this functions without breaking callers.
+# Old naming convention:
+# b0506a_1520.840 is a driver and 1520 is a driver number.
+# New naming convention:
+# b0506a_1520.840 is a build and 1520 is a driver.
+function driver_dir_base_path { build_dir_base_path "${@}" ; }
+################################################################################
+function build_dir_base_path {
+  local build="${1}" ; shift
+  local build_must_exist="${1:-1}" ; shift
+  local afs_cell="${1:-${loc_dft_build_cell}}" ; shift
+  local use_esw_links="${1:-0}" ; shift
+
+  # Given the build name (e.g. b1206a_1052.730), this function will print the build dir base path to stdout (e.g. /afs/austin/projects/esw/fips730/Builds/b1206a_1052.730).
+  # If build_must_exist is set, this function will fail if the build path does not exist.
+  # afs_cell indicates which cell should be used in the composition of the path.
+  # If use_esw_links, this function will use the local /esw/<release> links if they are present.  Otherwise, it will pick the local afs cell and assemble the build path accordingly.  This function returns 0 if successful and 1 otherwise.
+
+  local release
+  # release=$(fips_release ${build}) || return 1
+  release ${build} release || return 1
+  
+  local branch
+  local master_branch_regex="[a-m]$"
+  local master_next_branch_regex="[n-z]$"
+  if regexp "${build}" "${master_branch_regex}" ; then
+    branch=master
+  elif regexp "${build}" "${master_next_branch_regex}" ; then
+    branch=master_next
+  else
+    branch=""
+  fi
+  
+  local cmd_buf
+
+  if (( build_must_exist )) ; then
+    cmd_buf="build_exists \"${build}\" \"${afs_cell}\" \"${branch}\""
+    (( DEBUG )) && issuing >&2
+    eval ${cmd_buf} || return 1
+  fi
+  local build_dir_base_path
+
+  local level=Builds
+  [ "${build:0:1}" == "c" ] && level=Current
+
+  if [ ${use_esw_links} -eq 1 -a -d /esw/${release} ] ; then
+    build_dir_base_path=/esw/${release}/${level}/${build}/
+  else
+    build_dir_base_path=/afs/${afs_cell}.ibm.com/projects/esw/${release}/${level}/${build}/
+  fi
+
+  if [ ! -d "${build_dir_base_path}" -a "${build_must_exist}" == "1" ] ; then
+    { print_error ; echo "Build directory path \"${build_dir_base_path}\" does not exist." ; } >&2
+    print_call_stack >&2
+    return 1
+  fi
+
+  echo "${build_dir_base_path}"
+
+}
+################################################################################
+
+
+
+function num_fips_drivers { num_fips_builds "${@}" ; }
+function num_fips_builds { num_builds "${@}" ; }
+################################################################################
+function num_builds {
+  local release="${1}" ; shift
+  local build_type="${1}" ; shift
+  local afs_cell="${1}" ; shift
+  local driver="${1}" ; shift
+  local branch="${1}" ; shift
+  
+  #branch is only relevant for op builds - valid options are "master" and "master_next"
+  #allow blank branch to support calling functions - treat as "all"
+  
+  #5/14/15 - kjpoole - adding a check to validate the driver passed
+  case "${driver}" in !(""))
+    valid_driver driver || return 1
+  esac
+
+  if regexp "${release}" "^fips" && [ -n "${branch}" ] ; then
+    { print_error ; echo "Branch should be blank for fips - was \"${branch}\"."; } | process_error_message
+    return 1
+  elif regexp "${release}" "^op" ; then
+    valid_branch "${branch}" "1" || return 1
+  fi
+
+  # Given a release, this function will print the number of fips builds.
+
+  local cmd_buf
+
+  local temp_filename=/tmp/${FUNCNAME}_$RANDOM
+  #fips_builds "${release}" "${build_type}" "${afs_cell}" "${driver}" > ${temp_filename}
+  cmd_buf="builds \"${release}\" \"${build_type}\" \"${afs_cell}\" \"${driver}\" \"\" \"${branch}\" > ${temp_filename}"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  local fips_builds_rc=${?}
+  if (( DEBUG )) ; then
+    {
+      print_var fips_builds_rc
+      cmd_buf="cat ${temp_filename}"
+      issuing
+      eval $cmd_buf
+    } >&2
+  fi
+  if [ "${fips_builds_rc}" != "0" ] ; then
+    rm ${temp_filename}
+    return 1
+  fi
+
+  #cat ${temp_filename} | wc -l
+  # When running from w3.rchland.ibm.com web application, the wc -l produces extra spaces.  Fixed with a sed command.
+  cat ${temp_filename} | wc -l | sed -e 's/ //g'
+  if [ "$?" != "0" ] ; then
+    { print_error ; echo "bash command failed." ; } | process_error_message
+    rm ${temp_filename}
+    return 1
+  fi
+
+  rm ${temp_filename}
+
+}
+################################################################################
+
+
+
+function latest_fips_driver { latest_fips_build "${@}" ; }
+function latest_fips_build { latest_build "${@}" ; }
+################################################################################
+function latest_build {
+  local release="${1}" ; shift
+  local pos_from_last="${1:-1}" ; shift
+  local build_type="${1}" ; shift
+  local afs_cell="${1}" ; shift
+  local driver="${1}" ; shift
+  local branch="${1}" ; shift
+  #branch is only relevant for op builds - valid options are "master" and "master_next"
+  
+  local build
+  local cmd_buf
+
+  # Given a release, this function will print the name of the latest (or pos_from_last) fips build.  If no build can be found, this function returns non-zero.  If the value of pos_from_last from last is greater than the number of fips builds existing for the releast, the farthest entry from last will be returned, i.e. the first fips build to have been created.
+
+  if regexp "${release}" "^fips" && [ ! -z "${branch}" ] ; then
+    { print_error ; echo "Branch should be blank for fips - was \"${branch}\"."; } | process_error_message
+    return 1
+  elif regexp "${release}" "^op" ; then
+    valid_branch "${branch}" "1" || return 1
+  fi
+
+  if (( pos_from_last < 1 )) ; then
+    { print_error ; echo "Invalid \"pos_from_last\" parameter value of \"$pos_from_last\"." ; } | process_error_message
+    return 1
+  fi
+
+  local temp_filename=/tmp/${FUNCNAME}_$RANDOM
+  cmd_buf="builds \"${release}\" \"${build_type}\" \"${afs_cell}\" \"${driver}\" \"\" \"${branch}\" > ${temp_filename}"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  if [ "$?" != "0" ] ; then
+    rm ${temp_filename}
+    return 1
+  fi
+
+  build=$(tail -n ${pos_from_last} ${temp_filename} | head -n 1)
+  rm ${temp_filename}
+
+  if [ -z "${build}" ] ; then
+    { print_error ; echo "No builds for release \"${release}\" could be found, given the parameters to this function." ; } | process_error_message
+    return 1
+  fi
+
+  echo "${build}"
+
+}
+################################################################################
+
+
+
+function fips_driver_ready { fips_build_ready "${@}" ; }
+function fips_build_ready { build_ready "${@}" ; }
+################################################################################
+function build_ready {
+  local build="${1}" ; shift || :
+  local sim="${1}" ; shift || :
+  local afs_cell="${1:-${loc_dft_build_cell}}" ; shift || :
+  local mode="${1}" ; shift || :
+  local print_option="${1}" ; shift || :
+  local check_tarball="${1:-1}" ; shift || :
+
+#cmd_buf="build_ready \"${build}\" \"${sim}\" \"${afs_cell}\" \"new\" \"1\" \"${check_tarball}\" > ${temp_misc_file}"
+
+  # This function will determine if a build is ready to be used (i.e. to be e-flashed, etc.).  If mode is "" this function returns 0 if the build is ready.  If the build is not ready, it prints to stderr and returns 1.  If mode is "new", this function prints 1 if the build is ready and 0 if it is not.  In "new" mode, if print_option is "1", it also prints a message to stderr if the build is not ready.  No other values for mode are allowed.
+  # The criterion for readiness is different for simics use than for general use.  The caller must pass a sim value of "1", if he/she wishes to check for simics readiness.  This function returns 0 on success and non-zero on error.
+
+  local build_must_exist=1
+  local build_dir_base_path
+  local build_completion_file_path
+  local error_addendum
+  
+  local cmd_buf
+  cmd_buf="build_dir_base_path=\$(build_dir_base_path \"${build}\" \"${build_must_exist}\" \"${afs_cell}\")"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf || return 1
+  #build_dir_base_path=$(build_dir_base_path "${build}" "${build_must_exist}" "${afs_cell}") || return 1
+  (( DEBUG )) && print_var build_dir_base_path >&2
+  
+  local release_type
+  release_type "${build_dir_base_path}" "build_dir" release_type
+
+  valid_value mode "" ":new" || return 1
+  
+  if (( sim )) ; then
+    error_addendum=" by simics"
+    build_completion_file_path="${build_dir_base_path}.rsyncForSimicsDone"
+    [ "${release_type}" == "op" ] && build_completion_file_path="${build_dir_base_path}.rsyncFULLcompleted"
+  else
+    build_completion_file_path="${build_dir_base_path}.5ppc:packaging";
+    error_addendum=""
+    [ "${release_type}" == "op" ] && build_completion_file_path="${build_dir_base_path}.buildComplete*"
+  fi
+
+  # 2015/09/02 Mike Walsh (xzy0065) - For older versions of bash (e.g. 2.05), declaring a local array variable and assigning it a value all on the same line does NOT work.
+  local file_list
+  file_list=(${build_completion_file_path})
+  if [ ! -f "${file_list[0]}" ] ; then
+    local message="File \"${build_completion_file_path}\" was not found.  This indicates that build ${build} is not ready for use${error_addendum} yet."
+    if [ "${mode}" == "" ] ; then
+      { print_error ; echo "$message" ; } | process_error_message
+      return 1
+    else
+      (( print_option )) && { print_error ; echo $message ; } | process_error_message
+      echo 0
+      return 0
+    fi
+  fi
+
+
+  # 2014/05/09 For our purposes, fspremote is part of the tarball so we needn't check for it if the caller doesn't care about the tarball.
+  if (( check_tarball )) ; then
+    
+    local release_num
+    local level=Builds
+    local op_release_num_regex="^([0-9]{3})\."
+    
+    #Set release num and level
+    if [ "${release_type}" == "op" ] ; then
+      # 2015/09/02 Mike Walsh (xzy0065) - BASH_REMATCH is not available in AIX so we must avoid using it.
+      #regexp "${build}" "${op_release_num_regex}" && release_num=${BASH_REMATCH[1]}
+      regexp "${build}" "${op_release_num_regex}" && release_num=${build%%.*}
+    else
+      [ "${build:0:1}" == "c" ] && level=Current
+
+      if [ "${level}" == "Builds" ] ; then
+        release_num=${build##*.}
+      else
+        release_num=${build##*fips}
+      fi
+    fi
+
+    #fspremote is only relevant for fips
+    if [ ${release_type} == "fips" ] ; then
+
+      local fspremote_file_path="${build_dir_base_path}images/nfs/x86.nfp/bin/fspremote"
+
+      local cmd_buf
+      if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+        cmd_buf="[ \"${release_num}\" -lt 300 ]"
+      else
+        cmd_buf="(( release_num \< 300 ))"
+      fi
+      (( DEBUG )) && issuing >&2
+      if eval $cmd_buf ; then
+      #if (( release_num \< 300 )) ; then
+        # Squadrons release
+        fspremote_file_path="${build_dir_base_path}images/nfs/x86linux/bin/fspremote"
+      fi
+
+      cmd_buf="[ ! -f \"${fspremote_file_path}\" ]"
+      (( DEBUG )) && issuing >&2
+      # The fspremote command must be ready.
+      if eval ${cmd_buf} ; then
+        local message="File \"${fspremote_file_path}\" was not found.  This indicates that build ${build} is not ready for use${error_addendum} yet."
+        if [ "${mode}" == "" ] ; then
+          { print_error ; echo "$message" ; } | process_error_message
+          return 1
+        else
+          (( print_option )) && { print_error ; echo $message ; } | process_error_message
+          echo 0
+          return 0
+        fi
+      fi
+    fi
+
+    # 2014/07/30 Maggie Hollander (mlhollan) - Switching to .nfs_tardone 
+    #local tarfile_file_path="${build_dir_base_path}.tardone"
+    local tarfile_file_path="${build_dir_base_path}.nfs_tardone"
+    
+    if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+      cmd_buf="[ \"${release_num}\" -lt 300 ]"
+    else
+      cmd_buf="(( release_num \< 300 ))"
+    fi
+    (( DEBUG )) && issuing >&2
+    if eval $cmd_buf ; then
+    #if (( release_num \< 300 )) ; then
+    #if echo "${build}" | egrep -q "\.2" 2>/dev/null ; then
+      # If release number begins with a "2" (e.g. b0810a_0618.242), then this is a Squadrons release.
+      tarfile_file_path="${build_dir_base_path}images/ppc/tarballs/nfs.tarz"
+    fi
+
+    #was switched to nfs_tardone, but tardone is going to be used for op
+    [ "${release_type}" == "op" ] && tarfile_file_path="${build_dir_base_path}.tardone"
+
+    # The tarfile command must be ready.
+    cmd_buf="[ ! -f \"${tarfile_file_path}\" ]"
+    (( DEBUG )) && issuing >&2
+    if eval ${cmd_buf} ; then
+      local message="File \"${tarfile_file_path}\" was not found.  This indicates that build ${build} is not ready for use${error_addendum} yet."
+      if [ "${mode}" == "" ] ; then
+        { print_error ; echo "$message" ; } | process_error_message
+        return 1
+      else
+        #(( print_option )) && { print_error ; echo $message ; } >&2
+        (( print_option )) && { print_error ; echo $message ; } | process_error_message
+        echo 0
+        return 0
+      fi
+    fi
+  fi
+
+  if [ "${mode}" == "new" ] ; then
+    echo 1
+  fi
+
+}
+################################################################################
+
+
+
+function fips_driver_valid { fips_build_valid "${@}" ; }
+function fips_build_valid { build_valid "${@}" ; }
+################################################################################
+function build_valid {
+  local build="${1}" ; shift
+  local sim="${1}" ; shift
+  local afs_cell="${1:-${loc_dft_build_cell}}" ; shift
+  local color_req="${1}" ; shift
+  local check_sniff="${1:-0}" ; shift
+  local check_tarball="${1:-1}" ; shift
+
+  # This function will return 0 if build is valid.  To be considered valid the following conditions must be met:
+  # Valid build name
+  # Build is ready to be used (see fips_build_ready for details).
+  # If color_req was specified, the build has to be marked with the appropriate color (green, etc.).
+  # Build has no compilation errors in the ppc context.
+  # If check_sniff is specified, the build must have done at least one "Panel power on, norm".  To use this option, the caller must source db_bash_funcs.
+
+  local fips_build_ready
+  local cmd_buf
+
+  #fips_build_ready=$(fips_build_ready "${build}" "${sim}" "${afs_cell}" "new" "1" "${check_tarball}") || return 1
+
+  local temp_misc_file
+  # create_temp_file_name temp_misc_file "" 1
+  # Perf: To improve AIX performance, we'll create our own temp file name.
+  temp_misc_file=/tmp/${USER:-$(whoami)}/${PGM_NAME}:main:line_${LINENO}:pid_${$}:${RANDOM}${RANDOM}${RANDOM}:
+  #cleanup_file_list="${cleanup_file_list} ${temp_misc_file}"
+
+  cmd_buf="build_ready \"${build}\" \"${sim}\" \"${afs_cell}\" \"new\" \"1\" \"${check_tarball}\" > ${temp_misc_file}"
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf}
+  if [ "${?}" != "0" ] ; then
+    # cleanup_temp_file "${temp_misc_file}" "" 1
+    rm -f ${temp_misc_file} &
+    return 1
+  fi
+  read fips_build_ready < ${temp_misc_file}
+
+  rm -f ${temp_misc_file} &
+  #cleanup_temp_file "${temp_misc_file}" "" 1
+
+  # 2011/10/28 - For the sake of my_resb getting a better error message, I changed the mode parm to "" (i.e. old way).
+  #fips_build_ready=$(fips_build_ready "${build}" "${sim}" "${afs_cell}" "" "1") || return 1
+  (( fips_build_ready )) || return 1
+
+  # The next section checks for build compile errors.
+
+  local build_must_exist=1
+  local build_dir_base_path
+  # The call to fips_build_ready above already ensured that build exists.
+  #build_dir_base_path=$(build_dir_base_path "${build}" "${build_must_exist}" "${afs_cell}") || return 1
+  build_dir_base_path=$(build_dir_base_path "${build}" "0" "${afs_cell}") || return 1
+  
+  local op_regex="\/op[0-9]{3}\/"
+  local release_type=fips
+  regexp "${build_dir_base_path}" "${op_regex}" && release_type="op"
+    
+  # No need to cd.  cd'ing can mess up the caller if they expect to be in a certain dir.
+  #cmd_buf="cd ${build_dir_path}"
+  #(( DEBUG )) && issuing >&2
+  #eval ${cmd_buf} || return 1
+
+  local level=Builds
+  [ "${build:0:1}" == "c" ] && level=Current
+
+  if [ ! -z "${color_req}" ] ; then
+    egrep --max-count=1 -q "status=${color_req}" /afs/austin.ibm.com/projects/esw/$(fips_release ${build})/${level}/${build}/logs/userlogs/userNotes.txt
+    if [ "$?" != "0" ] ; then
+      { print_error ; echo "Build \"${build}\" does not have a status of \"${color_req}\", as requested." ; } | process_error_message
+      return 1
+    fi
+  fi
+
+  #this section only relevant for fips
+  if [ "${release_type}" == "fips" ] ; then
+
+    local build_dir_path=${build_dir_base_path}/logs/ppc/html
+    if [ ! -d "${build_dir_path}" ] ; then
+      { print_error ; echo "Build directory path \"${build_dir_path}\" does not exist." ; } | process_error_message
+      return 1
+    fi
+
+    local rc
+    #ls | grep failures | grep -v packaging | grep -v othererrors 1>&2
+    local failed_comp_list
+    #cmd_buf="failed_comp_list=\$(ls | grep failures | grep -v packaging | grep -v othererrors)"
+    cmd_buf="failed_comp_list=\$(ls ${build_dir_path} | grep failures | grep -v packaging | grep -v othererrors)"
+    (( DEBUG )) && issuing >&2
+    eval ${cmd_buf}
+    rc="${?}"
+    if [ "${rc}" == "0" ] ; then
+      # Successfully found errors.
+      { print_error ; echo "Build ${build} had compile errors in the components listed below:" ; echo ${failed_comp_list} ; } | process_error_message
+      return 1
+    fi
+    
+  elif [ "${release_type}" == "op" ] ; then
+    
+    local success_glob="${build_dir_base_path}.build.SUCCESSFUL*"
+    local failed_glob="${build_dir_base_path}.build.FAILED*"
+    
+    local failed_list=(${failed_glob})
+    local success_list=(${success_glob})
+    
+    if [ -f ${failed_list[0]} ] ; then
+      { print_error ; echo "Build \"${build}\" is indicated as failed." ; } | process_error_message
+      return 1
+    fi
+    
+    if [ ! -f ${success_list[0]} ] ; then
+      { print_error ; echo "Build \"${build}\" is not indicated as successful." ; } | process_error_message
+      return 1
+    fi
+    
+  fi
+
+  if (( check_sniff )) ; then
+
+    if [ "${release_type}" == "op" ] ; then
+      { print_error ; echo "Check sniff option not supported with OP." ; } | process_error_message
+      return 1
+    fi
+
+    local we_connected_to_fspipl
+
+    if ! (( fspipl_connection )) ; then
+      type connect_to_db >/dev/null 2>&1
+      if [ "${?}" != "0" ] ; then
+        { print_error ; echo "Caller has specified the \"check_sniff\" parameter to this function.  However, the connect_to_db function is not defined.  As specified in this function's prolog, you must source db_bash_funcs in order to use the \"check_sniff\" option." ; } | process_error_message
+        return 1
+      fi
+
+      # print_time ; echo "Connecting to db."
+      # If caller hasn't connected to db for us.
+      connect_to_db >/dev/null || return 1
+      we_connected_to_fspipl=1
+    fi
+
+    local ipl_type_desc="Panel power on, norm"
+
+    local select_statement
+    select_statement="select sum(ipl_success) as pass, sum(abs(ipl_success-1)) as fail from testdata, ipldata where testdata.mch_ser_num = ipldata.mch_ser_num and testdata.mch_type_model = ipldata.mch_type_model and testdata.start_test_time = ipldata.start_test_time and ipl_type_desc = '${ipl_type_desc}' and record_type = 1 and build_name = '${build}' and sim_host_name = '' and testdata.userid = 'csptest'"
+
+    # print_var select_statement
+
+    local temp_misc_file=/tmp/${PGM_NAME}_${FUNCNAME}_${RANDOM}_${RANDOM}
+
+    local sniff_failure_mesage="Build \"${build}\" has not been successfully sniffed, as requested.  Specifically, this means that it has not completed at least one \"${ipl_type_desc}\" on real hardware under the test team userid (csptest)."
+
+    db2 -x "${select_statement}" > $temp_misc_file
+    if [ "$?" == "1" ] ; then
+      # http://publib.boulder.ibm.com/infocenter/db2luw/v8/index.jsp?topic=/com.ibm.db2.udb.doc/core/r0010411.htm
+      # 1 means that "SELECT or FETCH statement returned no rows".  This means that there has been no successful sniff of the ${build}.
+      { print_error ; echo "${sniff_failure_mesage}" ; } | process_error_message
+      rm -f $temp_misc_file
+      (( we_connected_to_fspipl )) && { disconnect_from_db >/dev/null || return 1 ; }
+      return 1
+    fi
+
+    if [ "$?" != "0" ] ; then
+      # Some other kind of db problem..
+      { print_error ; echo "In trying to determine whether build \"${build}\" has been successfully sniffed, a db2 error was encountered." ; } | process_error_message
+      rm -f $temp_misc_file
+      (( we_connected_to_fspipl )) && { disconnect_from_db >/dev/null || return 1 ; }
+      return 1
+    fi
+
+    (( we_connected_to_fspipl )) && { disconnect_from_db >/dev/null || return 1 ; }
+
+    local pass
+    local fail
+    read pass fail < $temp_misc_file
+    # print_var pass ; print_var fail
+    rm -f $temp_misc_file
+    if [ "${pass}" == "-" -o "${pass}" == "0" ] ; then
+      { print_error ; echo "${sniff_failure_mesage}" ; } | process_error_message
+      return 1
+    fi
+  fi
+
+}
+################################################################################
+
+
+
+function latest_valid_fips_driver_by_release { latest_valid_fips_build_by_release "${@}" ; }
+function latest_valid_fips_build_by_release { latest_valid_build_by_release "${@}" ; }
+################################################################################
+function latest_valid_build_by_release {
+  local release="${1}" ; shift
+  local sim="${1}" ; shift
+  local build_type="${1}" ; shift
+  local pos_from_last="${1:-1}" ; shift
+  local afs_cell="${1}" ; shift
+  local color_req="${1}" ; shift
+  local driver="${1}" ; shift
+  local check_tarball="${1:-1}" ; shift
+  local branch="${1}" ; shift
+  local check_sniff="${1}" ; shift
+
+  if regexp "${release}" "^fips" && [ ! -z "${branch}" ] ; then
+    { print_error ; echo "Branch should be blank for fips - was \"${branch}\"."; } | process_error_message
+    return 1
+  elif regexp "${release}" "^op" ; then
+    #allow branch to be blank, treat it as "all branches"
+    valid_branch "${branch}" "1" || return 1
+  fi
+
+  # 2013/06/04 pos_from_last may be an integer or a range.
+
+  local num_fips_builds
+  local build_name
+  local rc
+  local cmd_buf
+
+  local low_bound
+  local high_bound
+  if ! valid_range pos_from_last low_bound high_bound 2>/dev/null ; then
+    low_bound=${pos_from_last}
+    high_bound=${pos_from_last}
+  fi
+
+  if (( low_bound < 1 )) ; then
+    { print_error ; echo "Invalid \"pos_from_last\" parameter value of \"$pos_from_last\"." ; } | process_error_message
+    return 1
+  fi
+
+  cmd_buf="num_fips_builds=\$(num_fips_builds \"${release}\" \"${build_type}\" \"${afs_cell}\" \"${driver}\" \"${branch}\")"
+  (( DEBUG )) && issuing >&2
+  eval $cmd_buf
+  local num_fips_builds_rc="${?}"
+  (( DEBUG )) && print_var num_fips_builds_rc >&2
+  [ "${num_fips_builds_rc}" != "0" ] && return 1
+
+  #DEBUG=0
+  (( DEBUG )) && print_vars low_bound high_bound num_fips_builds >&2
+
+  if [ -z "${high_bound}" ] ; then
+    high_bound=${num_fips_builds}
+  elif (( num_fips_builds < high_bound )) ; then
+    high_bound=${num_fips_builds}
+  fi
+
+  local num_found=0
+  local loc_pos_from_last
+
+  local temp_misc_file
+  create_temp_file_name temp_misc_file "" 0
+  for (( loc_pos_from_last = 1; loc_pos_from_last <= num_fips_builds ; loc_pos_from_last++ )) ; do
+    cmd_buf="build_name=\$(latest_build \"${release}\" \"${loc_pos_from_last}\" \"${build_type}\" \"${afs_cell}\" \"${driver}\" \"${branch}\" 2>/dev/null)"
+    (( DEBUG )) && issuing >&2
+    eval $cmd_buf || { rm -f ${temp_misc_file} & return 1 ; }
+    #cmd_buf="build_valid \"${build_name}\" \"${sim}\" \"${afs_cell}\" \"${color_req}\" \"\" \"${check_tarball}\" 2>/dev/null"
+    cmd_buf="build_valid \"${build_name}\" \"${sim}\" \"${afs_cell}\" \"${color_req}\" \"${check_sniff}\" \"${check_tarball}\" 2>${temp_misc_file}"
+    (( DEBUG )) && issuing >&2
+    eval $cmd_buf
+    if [ "$?" == "0" ] ; then
+      (( DEBUG )) && cat ${temp_misc_file} >&2
+      let num_found++
+      # (( num_found >= pos_from_last)) && break
+      #(( num_found > high_bound)) && break
+      (( num_found >= low_bound )) && echo ${build_name}
+      # 2013/12/06 Correction:
+      (( num_found >= high_bound)) && break
+    else
+      # No build found.  This is necessary for those cases where there are no valid builds in the list.
+      if (( DEBUG )) ; then
+        local bad_build=${build_name}
+        {
+          cat ${temp_misc_file}
+          print_var bad_build
+        } >&2
+      fi
+      build_name=""
+    fi
+  done
+
+  rm -f ${temp_misc_file} &
+
+  (( DEBUG )) && print_var num_found >&2
+
+  #if [ -z "${build_name}" ] ; then
+  if (( num_found == 0 )) ; then
+    local token_string=$(tokens_func "${afs_cell}" 0)
+    {
+      print_error ; echo -n "A valid build for release \"${release}\" could not be found, given the parameters to this function."
+      if [ -z "${token_string}" ] ; then
+        echo "  This is most likely because you lack afs tokens for the \"${afs_cell}\" cell:"
+        tokens
+        echo
+        echo "Please do a 'klog -c ${afs_cell}' to obtain tokens and then retry your command."
+      else
+        echo
+      fi
+    } | process_error_message
+    return 2
+  fi
+
+#  echo ${build_name}
+
+}
+################################################################################
+
+
+
+function latest_valid_fips_driver { latest_valid_fips_build "${@}" ; }
+function latest_valid_fips_build { latest_valid_build "${@}" ; }
+################################################################################
+function latest_valid_build {
+  local sim="${1}" ; shift
+  local build_type="${1}" ; shift
+#  local pos_from_last="${1:-1}" ; shift
+  local afs_cell="${1}" ; shift
+  local color_req="${1}" ; shift
+  local driver="${1}" ; shift
+  local check_tarball="${1:-1}" ; shift
+  local branch="${1}" ; shift
+  local release_type="${1}" ; shift
+  local check_sniff="${1}" ; shift
+
+  local num_fips_releases
+  local release
+  local build_name
+  local rc
+  local cmd_buf
+
+#  cmd_buf="num_fips_releases=\$(num_fips_releases \"${afs_cell}\")"
+#  (( DEBUG )) && issuing >&2
+#  eval ${cmd_buf} || return 1
+
+#  (( DEBUG )) && print_var num_fips_releases >&2
+
+  [ -z "${release_type}" ] && release_type="fips"
+
+  local release_list
+  local reverse_program
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    reverse_program="tail -r"
+  else
+    reverse_program=tac
+  fi
+  cmd_buf="release_list=\$(releases \"${afs_cell}\" \"${release_type}\" | ${reverse_program})"
+  (( DEBUG )) && issuing >&2
+  eval ${cmd_buf}
+  (( DEBUG )) && print_var release_list >&2
+
+  local temp_misc_file=/tmp/${PGM_NAME}_${FUNCNAME}_${RANDOM}_${RANDOM}
+  
+  if [ "${release_type}" == "op" ] ; then
+    #validate the branch, allowing blank
+    valid_branch "${branch}" "1" || return 1
+  else
+    branch=""
+  fi
+  for release in ${release_list} ; do
+
+  # for release in $(fips_releases "${afs_cell}" | tac) ; do
+    (( DEBUG )) && print_var release >&2
+    # build_name=$(latest_valid_build_by_release "${release}" "${sim}" "${build_type}" 1 "${afs_cell}" 2>/dev/null)
+    # I had one user fail because he didn't have permission to some of the fips releases.  With the old way (above) it was not very obvious to the user.
+    #build_name=$(latest_valid_build_by_release "${release}" "${sim}" "${build_type}" 1 "${afs_cell}" "${color_req}" "${driver}" 2>&1)
+    #cmd_buf="build_name=\$(latest_valid_build_by_release \"${release}\" \"${sim}\" \"${build_type}\" 1 \"${afs_cell}\" \"${color_req}\" \"${driver}\" 2>&1)"
+    
+    cmd_buf="build_name=\$(latest_valid_build_by_release \"${release}\" \"${sim}\" \"${build_type}\" 1 \"${afs_cell}\" \"${color_req}\" \"${driver}\" \"${check_tarball}\" \"${branch}\" \"${check_sniff}\" 2> $temp_misc_file)"
+    (( DEBUG )) && issuing >&2
+    eval $cmd_buf
+    rc=$?
+    (( DEBUG )) && { print_var rc ; cat ${temp_misc_file} ; } >&2
+    if [ "${rc}" == "2" ] ; then
+      build_name=""
+      rm -f $temp_misc_file
+      continue
+    fi
+    if [ "${rc}" != "0" ] ; then
+      #echo "${build_name}" >&2
+      cat $temp_misc_file >&2
+      build_name=""
+      rm -f $temp_misc_file
+      return 1
+    fi
+    rm -f $temp_misc_file
+    if [ ! -z "${build_name}" ] ; then break ; fi
+  done
+
+  if [ -z "${build_name}" ] ; then
+    local pts_group=fspbld:fspdev
+    if pts membership ${pts_group} | egrep -q ${USER:-$(whoami)} ; then
+      { print_error ; echo "A valid build could not be found, given the parameters to this function." ; } | process_error_message
+    else
+      { print_error ; echo "User \"${USER}\" needs to be added to group \"${pts_group}\" in order to obtain build and release information." ; } | process_error_message
+    fi
+    return 1
+  fi
+
+  echo ${build_name}
+
+}
+################################################################################
+
+
+
+################################################################################
+function req_ipl_list_help {
+  local INDENT="${1:-${INDENT:=4}}" ; shift || :
+  local COLUMN_WIDTH="${1:-${COLUMN_WIDTH:=35}}" ; shift || :
+
+  printf "\n"
+  printf "%${INDENT}sThe request list file must be formatted as follows:\n"
+  printf "\n"
+  let INDENT+=2
+
+  local comment_indent
+  let comment_indent+=INDENT+2
+  let COLUMN_WIDTH-=INDENT
+  printf "%${INDENT}s- Comment lines are allowed in the file.\n"
+  comment_help_text ${comment_indent}
+
+  printf -- "%${INDENT}s- Field data is separated by \"${req_ipl_field_delim}\" chars.\n"
+  printf -- "%${INDENT}s- White space surrounding field values will be discarded.  White space within field values will be preserved.\n"
+  printf "\n"
+  printf -- "%${INDENT}s- The field definitions are as follows:\n"
+  printf "%${INDENT}s%-${COLUMN_WIDTH}s%s\n" "" "  type_description" "Either an IPL test or an IPL test category description.  This is a required field.  For reference, all valid IPL descriptions can be found in /afs/rch/projects/esw/dvt/autoipl/apolloprep/ipl_lists.<release_num>/All file.  All valid IPL category descriptions are equivalent to the file names found in the /afs/rch/projects/esw/dvt/autoipl/apolloprep/ipl_lists.<release_num> directory."
+  printf "%${INDENT}s%-${COLUMN_WIDTH}s%s\n" "" "  min_pass" "The minimum number of passing IPL tests of this type which are required for the build to be considered valid.  If no value is found in this field, the default min_pass provided to the program will be used as the default value."
+  printf "%${INDENT}s%-${COLUMN_WIDTH}s%s\n" "" "  min_percent_pass" "The minimum percentage of passing IPL tests of this type which are required for the build to be considered valid.  If no value is found in this field, the default min_percent provided to the program will be used as the default value."
+  printf "%${INDENT}s%-${COLUMN_WIDTH}s%s\n" "" "  max_fail" "The maximum number of failing IPL tests of this type which are permitted for the build to be considered valid.  If no value is found in this field, the default max_fail provided to the program will be used as the default value."
+  printf "\n"
+  printf "\n"
+  printf -- "%${INDENT}s- Each requirement in each requirement line of the req_ipl_list must be satisfied for a given build to be considered valid.\n"
+  printf "\n"
+  printf -- "%${INDENT}s- Here is a sample of some req_ipl_list data:\n"
+  printf -- "%${INDENT}s  # This file defines the minimum requirements to determine what constitutes a good build.  Fields are as follows (see latest_good_build help text for details):\n"
+  printf -- "%${INDENT}s  # type_desc${req_ipl_field_delim}min_pass${req_ipl_field_delim}min_percent_pass${req_ipl_field_delim}max_fail\n"
+  printf "\n"
+  printf -- "%${INDENT}s  # There must be at least 5 successful Power_on IPLs.\n"
+  printf -- "%${INDENT}s  Power_on${req_ipl_field_delim}5\n"
+  printf -- "%${INDENT}s  # There must be at least 10 successful \"Panel power on, norm\" IPLs.\n"
+  printf -- "%${INDENT}s  Panel power on, norm${req_ipl_field_delim}10\n"
+  printf -- "%${INDENT}s  # There must be at least 4 successful \"Tool initiated reset\" IPLs, 50%% of all such tests must succeed and there may be no more than 5 failures for this test type.\n"
+  printf -- "%${INDENT}s  Tool initiated reset${req_ipl_field_delim}4${req_ipl_field_delim}50${req_ipl_field_delim}5\n"
+  printf -- "%${INDENT}s  # There must be \"default_min_pass\" Re_IPL IPLs.  The defaults for min_percent_pass and max_fail impose no limits.\n"
+  printf -- "%${INDENT}s  Re_IPL\n"
+  printf "\n"
+
+}
+################################################################################
+
+
+
+# Other functions should use this field list when reading data directly from the db_build_results file.  Doing so will prevent function breakage due to a change in the fields included in the file.
+if ! test "${db_build_results_field_list+defined}" ; then
+  readonly db_build_results_field_list="pass fail total percent ipl_type_desc"
+
+  # Define general error and requirements error.
+  readonly gen_error=1
+  readonly req_error=2
+fi
+################################################################################
+function populate_db_build_results_file { std_func_header
+  local db_build_results_file_path="${1}" ; shift || :
+  local build_name="${1}" ; shift || :
+  local platform_list="${1}" ; shift || :
+  local invert_platform_list="${1}" ; shift || :
+  local sim_platform_list="${1}" ; shift || :
+  local invert_sim_platform_list="${1}" ; shift || :
+  local db_userid="${1}" ; shift || :
+  local db_password_file="${1}" ; shift || :
+  local extra_where_phrase_file_path="${1}" ; shift || :
+  local userids="${1:-csptest}" ; shift || :
+
+  valid_value db_build_results_file_path || return ${gen_error}
+  valid_fips_build_name "${build_name}" || return ${gen_error}
+
+  # This function will populate the db_build_results_file by querying the data base for the given build_name.  The fields included in the report are listed in the db_build_results_field_list, defined globally, above.
+
+  # For every value in the platform lists, we will add the appropriate code to the where clause.
+
+  # Note that the query only includes records for IPLs that have occurred, i.e. the total field will never be 0.
+  # This function will return ${gen_error} for general errors.  It will return ${req_error} if no db records are found for the given criteria.
+
+  local global_var_list="fspipl_connection fspipl_must_disconnect"
+  local rc
+  local cmd_buf
+  local sim_platform_where_clause
+  local platform_where_clause
+
+  valid_boolean invert_sim_platform_list || return ${gen_error}
+  valid_boolean invert_platform_list || return ${gen_error}
+
+  local sim_platform
+  local platform
+  local sim_where_boolean
+  local sim_where_comparison_operator
+
+  if (( invert_platform_list )) ; then
+    where_boolean=" and "
+    where_comparison_operator="!="
+  else
+    where_boolean=" or "
+    where_comparison_operator="="
+  fi
+
+  # Only supported for lists of one element
+  local num_fsps
+
+  if [ "${platform_list}" != "${platform_list/-}" ] ; then
+    #Platform list entry has a colon, e.g. BR-1
+    num_fsps="${platform_list#*-}"
+    valid_value num_fsps "" "1:2" || return 1
+    platform_list=${platform_list%-*}
+  fi
+
+ if (( invert_sim_platform_list )) ; then
+    sim_where_boolean=" and "
+    sim_where_comparison_operator="!="
+  else
+    sim_where_boolean=" or "
+    sim_where_comparison_operator="="
+  fi
+
+  local globex_hardware_keyword="${hardware_keyword}"
+  escape_metachars globex_hardware_keyword
+
+  for platform in ${platform_list} ; do
+    # add_list_element "platform ${where_comparison_operator} '${platform//\[hdw\]/}'" platform_where_clause back "${where_boolean}"
+    add_list_element "platform ${where_comparison_operator} '${platform//${globex_hardware_keyword}/}'" platform_where_clause back "${where_boolean}"
+  done
+  [ ! -z "${platform_where_clause}" ] && platform_where_clause=" and (${platform_where_clause})"
+
+  # 2015/07/22 Mike Walsh (xzy0065) - For op, sim_platform is not being set (i.e. it is null).  So we needed a special case here.
+  if [ "${sim_platform_list}" == "${hardware_keyword}" ] ; then
+    sim_platform_where_clause="sim_platform = '' or sim_platform is null"
+  else
+    for sim_platform in ${sim_platform_list} ; do
+      # add_list_element "sim_platform ${sim_where_comparison_operator} '${sim_platform//\[hdw\]/}'" sim_platform_where_clause back "${sim_where_boolean}"
+      add_list_element "sim_platform ${sim_where_comparison_operator} '${sim_platform//${globex_hardware_keyword}/}'" sim_platform_where_clause back "${sim_where_boolean}"
+    done
+  fi
+  [ ! -z "${sim_platform_where_clause}" ] && sim_platform_where_clause=" and (${sim_platform_where_clause})"
+
+  #local select_statement="select sum(ipl_success) as pass, sum(abs(ipl_success-1)) as fail, sum(ipl_success + abs(ipl_success-1)) as total, (sum(ipl_success) * 100 / sum(ipl_success + abs(ipl_success-1))) as percent, ipl_type_desc from ipldata, testdata where ipldata.mch_ser_num = testdata.mch_ser_num and ipldata.mch_type_model = testdata.mch_type_model and ipldata.start_test_time = testdata.start_test_time and record_type = 1 and build_name = '${build_name}' and ipldata.userid = 'csptest'${sim_platform_where_clause} group by ipl_type_desc"
+
+  local select_phrase="select sum(ipl_success) as pass, sum(abs(ipl_success-1)) as fail, sum(ipl_success + abs(ipl_success-1)) as total, (sum(ipl_success) * 100 / sum(ipl_success + abs(ipl_success-1))) as percent, ipl_type_desc"
+  local join_testdata_phrase=" ipldata.mch_ser_num = testdata.mch_ser_num and ipldata.mch_type_model = testdata.mch_type_model and ipldata.start_test_time = testdata.start_test_time"
+  local join_mchdata_phrase=" and ipldata.mch_ser_num = mchdata.mch_ser_num and ipldata.mch_type_model = mchdata.mch_type_model"
+  local join_phrase=" ${join_testdata_phrase}${join_mchdata_phrase}"
+
+  local from_phrase=" from ipldata, testdata, mchdata"
+  # special_where_phrase is for special cases to exclude illegitimate failures:
+  # 11007221 means the lab was too hot, i.e. failures are usually due to environmental failures rather than fips code failures
+  # local special_where_phrase=" and src_word_11 != '11007221'"
+  # 2015/03/02 Mike Walsh (xzy0065) - cur_volt_setting is the "ignore" field.  build_dashboard users can set it to cause a particular ipl record to be ignored by this program.
+  local special_where_phrase=" and src_word_11 != '11007221' and cur_volt_setting = 0"
+  if [ ! -z "${extra_where_phrase_file_path}" ] ; then
+    valid_file_path extra_where_phrase_file_path || return 1
+
+    # local special_where_phrase=" and src_word_11 != '11007221' and sibling_name != ''"
+    local _mr_discard_comment_lines_=1
+    while my_read "" extra_where_phrase ; do
+      #print_var extra_where_phrase
+      special_where_phrase="${special_where_phrase} ${extra_where_phrase}"
+    done < ${extra_where_phrase_file_path}
+  fi
+
+  local sibling_where_phrase
+  if [ "${num_fsps}" == "1" ] ; then
+    sibling_where_phrase=" and sibling_name = ''"
+  elif [ "${num_fsps}" == "2" ] ; then
+    sibling_where_phrase=" and sibling_name != ''"
+  fi
+
+  local userid
+  local userid_where_phrase
+  for userid in $userids ; do
+    add_list_element "ipldata.userid = '$userid'" userid_where_phrase back " or " || return 1
+  done
+  [ ! -z "${userid_where_phrase}" ] && userid_where_phrase=" and (${userid_where_phrase})"
+
+  #local where_phrase=" where${join_phrase} and record_type = 1 and build_name = '${build_name}' and ipldata.userid = 'csptest'${special_where_phrase}${platform_where_clause}${sim_platform_where_clause}${sibling_where_phrase}"
+  local where_phrase=" where${join_phrase} and record_type = 1 and build_name = '${build_name}'${userid_where_phrase}${special_where_phrase}${platform_where_clause}${sim_platform_where_clause}${sibling_where_phrase}"
+  local group_phrase=" group by ipl_type_desc"
+  #  local select_statement="${select_phrase}${from_phrase}${where_phrase}${group_phrase}"
+  # 2015/04/06 Mike Walsh (xzy0065) - sum_build_result_records requires "order by ipl_type_desc".
+  local select_statement="${select_phrase}${from_phrase}${where_phrase}${group_phrase} order by ipl_type_desc"
+
+  # (( ! fspipl_connection )) && { connect_to_db || return ${gen_error} ; }
+  # 2014/06/13 mlhollan - Pass new db parms to connect_to_db.
+  #print_time ; echo "About to connect_to_db."
+  (( ! fspipl_connection )) && { connect_to_db "" "${db_userid}" "${db_password_file}" || return ${gen_error} ; }
+
+  cmd_buf="db2 -x '$(escape_quotes select_statement single 1)' > ${db_build_results_file_path}"
+  (( ! quiet )) && issuing "${cmd_buf}"
+  eval "${cmd_buf}"
+  rc="${?}"
+  if [ "${rc}" != "0" ] ; then
+    if [ "${rc}" = "1" ] ; then
+      return ${req_error}
+    else
+      { print_error ; echo "DB error." ; print_var rc ; cat ${db_build_results_file_path} ; } | process_error_message
+      return ${gen_error}
+    fi
+  fi
+
+  # 2015/04/16 Mike Walsh - This file may be compared against a sorted flat file.  I don't trust db2 to sort the same way bash does so I'll sort it myself.
+  local temp_misc_file
+  create_temp_file_name temp_misc_file "" 0
+  # We must use the same collating rules as sum_build_result_records and process_req_ipl_record use.
+  local LC_ALL
+  export LC_ALL=C
+  cmd_buf="sort -u -k 1.49,1.78 ${db_build_results_file_path} > ${temp_misc_file} && mv ${temp_misc_file} ${db_build_results_file_path}"
+  #(( ! quiet )) && issuing
+  eval "${cmd_buf}"
+
+  cleanup_temp_file "${temp_file_list}" "" 0 || :
+
+std_func_footer
+}
+################################################################################
+
+
+
+if ! test "${_rbrr_field_list_+defined}" ; then
+  readonly _rbrr_field_list_="_rbrr_loc_${db_build_results_field_list// /_ _rbrr_loc_}_"
+fi
+################################################################################
+function read_build_result_record { #std_func_header
+  # 2014/10/02 Mike Walsh (xzy0065) - Perf: I really need this function to perform so I'm using parm numbers instead of names.
+  # local ipl_type_desc_required="${1}"
+  # local db_build_results_file_path="${2}"
+  # local pass_var="${3}"
+  # local fail_var="${4}"
+  # local total_var="${5}"
+  # local percent_var="${6}"
+
+  # This function will look in the db_build_results file for the record that matches the ipl_type_desc_required and use it to set the caller's "_var" variables.  It is the caller's responsibility to populate the db_build_results file via a call to populate_db_build_results_file.  If there is no record matching the specified ipl_type_desc_required, it means that the IPL in question has not been attempted, therefore, the "_var" variables will be set as follows:
+  # pass = 0
+  # fail = 0
+  # total = 0
+  # percent = 0
+  # ipl_type_desc = "${ipl_type_desc_required}"
+
+  # Perf note: If the caller creates temp file name _rbrr_temp_misc_file_, it will greatly spead up this function.
+
+  #local global_var_list="${pass_var} ${fail_var} ${total_var} ${percent_var}"
+
+  # 2014/10/02 Mike Walsh (xzy0065) - Perf: This function is currently only called by sum_build_result_records so in the interest of performance I'm going to trust that the parms are valid and forego parm validation.
+  # valid_value ipl_type_desc_required || return 1
+  # valid_file_path db_build_results_file_path || return 1
+  # valid_value pass_var || return 1 
+  # valid_value fail_var || return 1 
+  # valid_value total_var || return 1
+  # valid_value percent_var || return 1
+
+  # Declare local variables that correspond to the db fields in the db_build_results_file.  Use names that aren't likely to collide with the values in the "_var" variables passed by the caller.
+  # 2014/10/02 Mike Walsh (xzy0065) - Perf: Since this calculation results in the same thing every time this function runs, I moved the declaration of the var outside of the function.
+  # local _rbrr_loc_pass_ _rbrr_loc_fail_ _rbrr_loc_total_ _rbrr_loc_percent_ _rbrr_loc_ipl_type_desc_
+  # local field_name
+  # local _rbrr_field_list_
+  # local var_name
+  # for field_name in ${db_build_results_field_list} ; do
+    # var_name=_rbrr_loc_${field_name}_
+    # add_list_element "${var_name}" _rbrr_field_list_
+    # _rbrr_field_list_="${_rbrr_field_list_}_rbrr_loc_${field_name}_ "
+  # done
+  # 2014/10/02 Mike Walsh (xzy0065) - Perf: I'm going to rely on names like _rbrr_loc_pass_ being unique to this function so I won't declare them as local.
+  # eval local ${_rbrr_field_list_}
+
+  # Read each build results file record until we find a match on ipl_type_desc_required.
+  #while read _rbrr_loc_pass_ _rbrr_loc_fail_ _rbrr_loc_total_ _rbrr_loc_percent_ _rbrr_loc_ipl_type_desc_ ; do
+
+
+  [ -z "${_rbrr_temp_misc_file_}" ] && create_temp_file_name _rbrr_temp_misc_file_ "" 1
+
+  # I'm choosing grep vs egrep so we don't have an issue with metachars in the expression (e.g. "Panel power on, norm (upd)").
+  local _rbrr_loc_ipl_type_desc_
+  if grep " ${1}[ ]*$" ${2} > ${_rbrr_temp_misc_file_} ; then
+    read ${3} ${4} ${5} ${6} _rbrr_loc_ipl_type_desc_ < ${_rbrr_temp_misc_file_}
+  else
+    eval "${3}='0' ; ${4}='0' ; ${5}='0' ; ${6}='0'"
+  fi
+
+  return 0
+
+
+# Old, slower ways.
+  while read ${_rbrr_field_list_} ; do
+    # print_vars ${_rbrr_field_list_}
+    # If we have a match, then break out of the loop.
+    #[ "${ipl_type_desc_required}" == "${_rbrr_loc_ipl_type_desc_}" ] && break
+    [ "${1}" == "${_rbrr_loc_ipl_type_desc_}" ] && break
+  #done < ${db_build_results_file_path}
+  done < ${2}
+
+  # local cmd_buf
+
+  # If eof, then _rbrr_loc_pass_ will be "", in which case the caller's vars should be set to the values described in the prolog.
+  # eval "${pass_var}='${_rbrr_loc_pass_:-0}' ; ${fail_var}='${_rbrr_loc_fail_:-0}' ; ${total_var}='${_rbrr_loc_total_:-0}' ; ${percent_var}='${_rbrr_loc_percent_:-0}'"
+  eval "${3}='${_rbrr_loc_pass_:-0}' ; ${4}='${_rbrr_loc_fail_:-0}' ; ${5}='${_rbrr_loc_total_:-0}' ; ${6}='${_rbrr_loc_percent_:-0}'"
+
+
+  return 0
+
+  # If eof, then _rbrr_loc_pass_ will be "", in which case the caller's vars should be set to the values described in the prolog.
+  if [ -z "${_rbrr_loc_pass_}" ] ; then
+    cmd_buf="${pass_var}='0' ; ${fail_var}='0' ; ${total_var}='0' ; ${percent_var}='0'"
+    cmd_buf="${pass_var}='0' ; ${fail_var}='0' ; ${total_var}='0' ; ${percent_var}='0'"
+    eval ${cmd_buf}
+    return 1
+  else
+   # Copy local fields to user's "_var" variables.
+    eval "${pass_var}='${_rbrr_loc_pass_}' ; ${fail_var}='${_rbrr_loc_fail_}' ; ${total_var}='${_rbrr_loc_total_}' ; ${percent_var}='${_rbrr_loc_percent_}'"
+#    cmd_buf="${pass_var}='${_rbrr_loc_pass_}' ; ${fail_var}='${_rbrr_loc_fail_}' ; ${total_var}='${_rbrr_loc_total_}' ; ${percent_var}='${_rbrr_loc_percent_}'"
+#    eval ${cmd_buf}
+  fi
+
+  return 0
+
+
+# Experiment: I thought this would run faster but it didn't.
+  while read ${pass_var} ${fail_var} ${total_var} ${percent_var} _rbrr_loc_ipl_type_desc_ ; do
+    # print_vars ${_rbrr_field_list_}
+    # If we have a match, then break out of the loop.
+    [ "${ipl_type_desc_required}" == "${_rbrr_loc_ipl_type_desc_}" ] && break
+  done < ${db_build_results_file_path}
+
+  # If eof, then pass_var will be "", in which case the caller's vars should be set to the values described in the prolog.
+  if [ -z "${!pass_var}" ] ; then
+    eval "${pass_var}='0' ; ${fail_var}='0' ; ${total_var}='0' ; ${percent_var}='0'"
+    return 1
+  fi
+
+  return 0
+
+#std_func_footer
+}
+################################################################################
+
+
+
+################################################################################
+function sum_build_result_records { # std_func_header
+  local ipl_type_category_file_path="${1}" ; shift || :
+  local db_build_results_file_path="${1}" ; shift || :
+  local pass_var="${1}" ; shift || :
+  local fail_var="${1}" ; shift || :
+  local total_var="${1}" ; shift || :
+  local percent_var="${1}" ; shift || :
+
+  # This function will get summary results for the IPL category defined by the ipl_type_category_file_path file and return them in the caller's "_var" variables.  It is the caller's responsibility to populate the db_build_results file via a call to populate_db_build_results_file.  This will be accomplished by calling read_build_result_record for each record in the ipl_type_category_file_path and tallying the results.
+
+  # Note: ipl_type_category_file_path and db_build_results_file_path must both be sorted by ipl_type_desc.
+
+  local global_var_list="${pass_var} ${fail_var} ${total_var} ${percent_var}"
+
+  # 2014/10/02 Mike Walsh (xzy0065) - Perf: This function is currently only called by process_req_ipl_record so in the interest of performance I'm going to trust that the parms are valid and forego parm validation.
+  # valid_file_path ipl_type_category_file_path || return 1
+  # valid_file_path db_build_results_file_path || return 1
+  # valid_value pass_var || return 1 
+  # valid_value fail_var || return 1 
+  # valid_value total_var || return 1
+  # valid_value percent_var || return 1
+
+  # Variables to receive data from read_build_result_record function.  Use names that aren't likely to collide with the values in the "_var" variables passed by the caller.
+  # 2014/10/02 Mike Walsh (xzy0065) - Perf: I'm going to rely on names like _rbrr_loc_pass_ being unique to this function so I won't declare them as local.
+  # local _sbrrs_loc_pass_
+  # local _sbrrs_loc_fail_
+  # local _sbrrs_loc_total_
+  # local _sbrrs_loc_percent_
+
+  # Variables for tallying total results.
+  local pass_sum=0
+  local fail_sum=0
+  local total_sum=0
+  local overall_percent
+
+  # Perf: I tried several approaches:
+  #  - The old approach was to loop through ipl_type_category_file_path call read_build_result_record for each record.
+  #  - Create a big regular expression that included every line from the ipl_type_category_file_path.
+  #  - Process both the ipl_type_category_file_path and the db_build_results_file_path in this function.  This proved to be the fastest.
+
+  local debug=0
+  local ipl_type_desc_category
+
+  # We must use the same collating rules as were used to sort the 2 files we are processing.
+  local LC_ALL
+  export LC_ALL=C
+
+  {
+    # In my comments, I'll refer to ipl_type_category_file_path or ipl_type_desc from ipl_type_category_file_path as "A" and db_build_results_file_path or the ipl_type_desc from db_build_results_file_path as "B".  I think the short hand makes it easier to understand.
+
+    # Assertion: both A and B are sorted by ipl_type_desc.
+    # General description: I read a record from A and try to find a matchine record in B.  Whenever, I find a matching record, I add to the sum fields.
+
+    # Priming read of file B.
+    read _sbrrs_loc_pass_ _sbrrs_loc_fail_ _sbrrs_loc_total_ _sbrrs_loc_percent_ _sbrrs_ipl_type_desc_ <&4
+    (( debug )) && print_vars _sbrrs_ipl_type_desc_
+
+    # While there are still records in A, read.
+    while read ipl_type_desc_category <&3 ; do
+      (( debug )) && print_vars ipl_type_desc_category
+      # Read records from A while A < B.
+      while [ "${ipl_type_desc_category}" \< "${_sbrrs_ipl_type_desc_}" ] ; do
+        read ipl_type_desc_category <&3 || break
+        (( debug )) && print_vars ipl_type_desc_category
+      done
+
+      # At this point A is >= B...
+      # If A is exactly equal to B, add to sums.
+      if [ "${ipl_type_desc_category}" == "${_sbrrs_ipl_type_desc_}" ] ; then
+        (( debug )) && echo 'Sum 1'
+        (( pass_sum += _sbrrs_loc_pass_ ))
+        (( fail_sum += _sbrrs_loc_fail_ ))
+        (( total_sum += _sbrrs_loc_total_ ))
+      fi
+
+      # Read records from B while ! B < A (i.e. while B >= A).
+      while ! [ "${ipl_type_desc_category}" \< "${_sbrrs_ipl_type_desc_}" ] ; do
+        read _sbrrs_loc_pass_ _sbrrs_loc_fail_ _sbrrs_loc_total_ _sbrrs_loc_percent_ _sbrrs_ipl_type_desc_ <&4 || break
+        (( debug )) && print_vars _sbrrs_ipl_type_desc_
+        if [ "${ipl_type_desc_category}" == "${_sbrrs_ipl_type_desc_}" ] ; then
+          (( debug )) && echo 'Sum 2'
+          (( pass_sum += _sbrrs_loc_pass_ ))
+          (( fail_sum += _sbrrs_loc_fail_ ))
+          (( total_sum += _sbrrs_loc_total_ ))
+        fi
+      done
+    done
+
+  } 3< $ipl_type_category_file_path 4< $db_build_results_file_path
+
+  if (( total_sum == 0 )) ; then
+    overall_percent=0
+  else
+    # let overall_percent=pass_sum*100/total_sum
+    # Perf: This was is much faster.
+    (( overall_percent = pass_sum*100/total_sum ))
+  fi
+
+   # Copy local fields to user's "_var" variables.
+  local cmd_buf="${pass_var}='${pass_sum}' ; ${fail_var}='${fail_sum}' ; ${total_var}='${total_sum}' ; ${percent_var}='${overall_percent}'"
+  #issuing
+  eval ${cmd_buf}
+
+#std_func_footer
+}
+################################################################################
+
+
+
+################################################################################
+function process_req_ipl_record { std_func_header
+  local type_description_parm="${1}" ; shift || :
+
+  # This function will process 1 record from the req_ipl_list.  This function is designed to be called by process_build_requirements which must guarantee that the record indicated by type_description_parm exists in the req_ipl_list_path.
+  # This function relies heavily on variables set in process_build_requirements.
+
+  local ret_code=0
+
+  # requirements_file field vars.  They are defined as arrays so that the print_report functions can print them.
+  local type_description=("" s 29)
+  local min_pass=(0 i)
+  local min_percent_pass=(0 i)
+  local max_fail=(0 i)
+  local filler
+
+  # Variables to receive data from read_build_result_record function.  They are defined as arrays so that the print_report functions can print them.
+  local pass=(0 i 8)
+  local fail=(0 i 8)
+  local total=(0 i)
+  local percent_pass=(0 i 16)
+
+  # If quiet is not set, we print results in report format.
+  local req_field_list="type_description min_pass min_percent_pass max_fail"
+  local result_field_list="type_description pass percent_pass fail total"
+
+  # To make the output look nicer, we use strings to help us make singular vs plural grammer correct.
+  local to_be_string
+  local test_string
+  local test_string2
+
+  local ipl_list_path
+
+  while my_read '|' type_description min_pass min_percent_pass max_fail filler ; do
+    [ "${type_description}" == "${type_description_parm}" ] && break
+  done < ${req_ipl_list_path}
+
+  trim_chars type_description ' '
+  trim_chars min_pass ' '
+  trim_chars min_percent_pass ' '
+  trim_chars max_fail ' '
+  # Assign default values to empty fields.
+  [ -z "${min_pass}" ] && min_pass=${default_min_pass}
+  [ -z "${min_percent_pass}" ] && min_percent_pass=${default_min_percent_pass}
+  [ -z "${max_fail}" ] && max_fail=${default_max_fail}
+
+  # Make sure each field is valid (type_description is checked further down in this function).
+  valid_integer min_pass "0.." || return ${gen_error}
+  valid_integer min_percent_pass "0..100" || return ${gen_error}
+  valid_integer max_fail "0.." || return ${gen_error}
+  if (( ! quiet )); then
+    echo
+    echo "Requirements:"
+    print_report_header ${req_field_list}
+    print_report_line ${req_field_list}
+    echo
+  fi
+  if [ "${format}" == "dashboard" ] ; then
+    echo "Requirements:"
+    print_vars type_description 2 2
+    print_vars min_pass 2 2
+    print_vars min_percent_pass 2 2
+    print_vars max_fail 2 2
+  fi
+
+  # This file will be used by sum_build_result_records.  I create it here to improve the performance of sum_build_result_records.
+
+
+  # See if type_description is a category by looking to see if a file by the same name can be found in the appropriate ipl_lists directory.
+  ipl_list_path="${ipl_lists_path}${type_description}"
+  if [ -f "${ipl_list_path}" ] ; then
+    # type_description is a category rather than a specific IPL test type.
+    # Perf: .186 seconds.
+    # sum_build_result_records ${ipl_list_path} "${db_build_results_file_path}" pass fail total percent_pass
+    # We must use the same collating rules as sum_build_result_records and populate_db_build_results_file use.
+    local LC_ALL
+    export LC_ALL=C
+    # 2014/10/07 Mike Walsh (xzy0065) - I added code to do a unique sort of the ipl_list in case it has duplicate entries.
+    local _sbrr_temp_misc_file_
+    create_temp_file_name _sbrr_temp_misc_file_ "" 0
+    sort -u ${ipl_list_path} > ${_sbrr_temp_misc_file_}
+    sum_build_result_records ${_sbrr_temp_misc_file_} "${db_build_results_file_path}" pass fail total percent_pass
+    # 2015/06/09 Mike Walsh (xzy0065) - I forgot to cleanup temp file.  Fixed.
+    rm -rf ${_sbrr_temp_misc_file_} &
+  else
+    # type_description is not an IPL type category so we'll see if it is a valid IPL type.
+    valid_ipl_type_desc "${type_description}" "${ipl_lists_path}All" || return ${gen_error}
+    # type_description is a particular IPL test type.
+    read_build_result_record "${type_description}" "${db_build_results_file_path}" pass fail total percent_pass
+  fi
+
+  if (( ! quiet )) ; then
+    echo "Results:"
+    print_report_header ${result_field_list}
+    print_report_line ${result_field_list}
+    echo
+  fi
+
+indent=2
+col1_width=${indent}
+  if [ "${format}" == "dashboard" ] ; then
+    echo "Results:"
+    print_vars type_description ${indent} ${col1_width}
+    print_vars total ${indent} ${col1_width}
+    print_vars pass ${indent} ${col1_width}
+    print_vars percent_pass ${indent} ${col1_width}
+    print_vars fail ${indent} ${col1_width}
+  fi
+
+  # Compare results to requirements.  Return non-zero if any requirements are not satisfied.
+  # 2015/05/07 Mike Walsh (xzy0065) - Perf: It is quite normal to get requirements errors, i.e. this is not really an error path in the sense that the user messed up, etc.  Performance is quite important here and process_error_message is too slow so we'll just write errors to stderr and forego the use of process_error_message.
+  if (( pass < min_pass )) ; then
+    if (( ! quiet )) || [ "${format}" == "dashboard" ] ; then
+      (( pass == 1 )) && { to_be_string=was ; test_string=test ; } || { to_be_string=were ; test_string=tests ; }
+      (( min_pass == 1 )) && { test_string2=test ; } || { test_string2=tests ; }
+      #{ print_error ; echo "There ${to_be_string} only ${pass} successful \"${type_description}\" ${test_string} done on the ${build_name} build which does not meet the user's requirement of ${min_pass} successful \"${type_description}\" ${test_string2}." ; } | process_error_message
+      { print_error ; echo "There ${to_be_string} only ${pass} successful \"${type_description}\" ${test_string} done on the ${build_name} build which does not meet the user's requirement of ${min_pass} successful \"${type_description}\" ${test_string2}." ; } >&2
+    fi
+    if (( stop_on_error )) ; then
+      return ${req_error}
+    else
+      ret_code=${req_error}
+    fi
+  elif (( percent_pass < min_percent_pass )) ; then
+    if (( ! quiet )) || [ "${format}" == "dashboard" ] ; then
+      (( pass == 1 )) && { to_be_string=was ; test_string=test ; } || { to_be_string=were ; test_string=tests ; }
+      (( min_pass == 1 )) && { test_string2=test ; } || { test_string2=tests ; }
+      # Perf: .1 seconds.
+      #{ print_error ; echo "Only ${percent_pass}% of the \"${type_description}\" tests done on the ${build_name} build were successful.  This does not meet the user's requirement of ${min_percent_pass}% successful \"${type_description}\" tests." ; } | process_error_message
+      { print_error ; echo "Only ${percent_pass}% of the \"${type_description}\" tests done on the ${build_name} build were successful.  This does not meet the user's requirement of ${min_percent_pass}% successful \"${type_description}\" tests." ; } >&2
+    fi
+    if (( stop_on_error )) ; then
+      return ${req_error}
+    else
+      ret_code=${req_error}
+    fi
+  elif (( fail > max_fail )) ; then
+    if (( ! quiet )) || [ "${format}" == "dashboard" ] ; then
+      (( fail == 1 )) && { to_be_string=was ; test_string=test ; } || { to_be_string=were ; test_string=tests ; }
+      (( max_fail == 1 )) && { test_string2=test ; } || { test_string2=tests ; }
+      #{ print_error ; echo "There ${to_be_string} ${fail} failing \"${type_description}\" ${test_string} done on the ${build_name} build which exceeds the user's maximum of ${max_fail} failing \"${type_description}\" ${test_string2}." ; } | process_error_message
+      { print_error ; echo "There ${to_be_string} ${fail} failing \"${type_description}\" ${test_string} done on the ${build_name} build which exceeds the user's maximum of ${max_fail} failing \"${type_description}\" ${test_string2}." ; } >&2
+    fi
+     if (( stop_on_error )) ; then
+      return ${req_error}
+    else
+      ret_code=${req_error}
+    fi
+    
+  else
+    if (( ! quiet )) || [ "${format}" == "dashboard" ] ; then
+      print_time ; echo "For the \"${type_description}\" record, all of the user's requirements have been met."
+    fi
+  fi
+
+  return ${ret_code}
+
+std_func_footer
+}
+################################################################################
+
+
+
+################################################################################
+function process_build_requirements { std_func_header
+  local req_ipl_list_path="${1}" ; shift || :
+  local db_build_results_file_path="${1}" ; shift || :
+  local build_name="${1}" ; shift || :
+  local default_min_pass="${1:-2}" ; shift || :
+  local default_min_percent_pass="${1:-0}" ; shift || :
+  local default_max_fail="${1:-${unlimited}}" ; shift || :
+  local format="${1:-normal}" ; shift || :
+  local stop_on_error="${1:-1}" ; shift || :
+  local ipl_lists_path="${1:-/afs/rch/projects/esw/dvt/autoipl/${AUTOIPL_VERSION}/ipl_lists.${release_num}/}" ; shift || :
+
+  # This function will process the requirements as found in the requirements_file whose path is specified in req_ipl_list_path.  For details on the structure of the requirements file, please see the outtput of the req_ipl_list_help function
+  # It is the caller's responsibility to populate the db_build_results file for the build_name given via a call to populate_db_build_results_file.
+  # build_name indicates which build we are examining.  This is required to accurately locate ipl_lists files and for correct reporting of results.
+
+  # It is the caller's responsibility to populate the db_build_results file via a call to populate_db_build_results_file.
+  # If a given requirements record does not specify a min_pass value, default_min_pass will be used.
+  # If a given requirements record does not specify a min_percent_pass value, default_min_percent_pass will be used.
+  # If a given requirements record does not specify a max_fail value, default_max_fail will be used.
+
+  # Return codes from this function:
+  # 0                   Successful
+  # ${gen_error}        General error (e.g. invalid parms, bad data in requirements file, etc.).
+  # ${req_error}        Some requirements found in the requirements file were not met.
+
+  valid_file_path req_ipl_list_path || return ${gen_error}
+  valid_file_path db_build_results_file_path || return ${gen_error}
+  valid_fips_build_name "${build_name}" || return ${gen_error}
+  valid_integer default_min_pass || return ${gen_error}
+  valid_integer default_min_percent_pass || return ${gen_error}
+  valid_integer default_max_fail || return ${gen_error}
+
+  local release_num=${build_name##*.}
+
+  # This var tells my_read to continue reading until we have a non-comment, non-blank line.
+  local _mr_discard_comment_lines_=1
+
+  # For each type_description, we check to see if it is actually a category rather than an IPL type.  We do this by seeing if there is a corresponding file name in the ipl_lists_path.
+  #local ipl_lists_path=$HOME/autoipl/ipl_lists.${release_num}/
+  if [ ! -d "${ipl_lists_path}" ] ; then
+    ipl_lists_path=/afs/rch/projects/esw/dvt/autoipl/${AUTOIPL_VERSION:-apolloprep}/ipl_lists.${release_num}/
+  fi
+
+  local type_descriptions
+  # Get all of the type_descriptions from the req_ipl_list and put them in a variable.
+  type_descriptions=$(while my_read '|' type_description filler ; do echo -n "${type_description}|" ; done < ${req_ipl_list_path})
+
+  local headers
+  #(( ! quiet )) || [ "${format}" == "dashboard" ] && headers=1
+  (( ! quiet )) && headers=1 || headers=0
+
+  local rc_list=""
+  local composite_rc=0
+  cmd_fnc_u no_prt_err "multi_cmd_func \"process_req_ipl_record '[]'\" \"${type_descriptions}\" \"${headers}\" \"\" \"\" \"\" rc_list \"|\""
+  (( ! quiet )) || [ "${format}" == "dashboard" ] && print_vars rc_list
+  if search_list "${gen_error}" rc_list " " ; then
+    composite_rc=${gen_error}
+  elif search_list "${req_error}" rc_list " " ; then
+    composite_rc=${req_error}
+  fi
+
+  (( ! quiet )) || [ "${format}" == "dashboard" ] && print_vars composite_rc
+
+  return ${composite_rc}
+
+std_func_footer
+}
+################################################################################
+
+
+

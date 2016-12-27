@@ -1,0 +1,15 @@
+[BMC_name] habsysname
+[BMC_Password] password
+[BMC_user] user
+[OS_Host] habosname
+[OS_user] userid
+[OS_Password] password
+[FFDC_Path] /mnt/FFDC
+[Status_Path] /mnt/status
+[stop_on_error] no
+[wait_state_timeout] 100
+[DB] 
+[FSP] 
+[cronus] 
+[IPLS] BMC Host reboot;BMC Power Off;BMC Power Reset;BMC Power Cycle;BMC AC Cycle;BMC MC Reset warm;BMC Power on;BMC Power Soft
+[SOL_wrk_around] 1

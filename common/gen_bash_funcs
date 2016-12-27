@@ -1,0 +1,198 @@
+#!/bin/bash
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/gen_bash_funcs 1.89 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2009,2012 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+
+# 2007/12/07 - Mike Walsh
+# This file contains some general purpose functions for use by other bash scripts.
+
+# 2011/10/10 Mike Walsh - In an effort to keep this file from getting too big, I broke it down into source files containing logically related functions.  All such files are of the format gen_bash_*_funcs.  All files are source by this file to prevent breaking any users who use this file.
+
+# This file is currently checked in under release/component esw_dev_tools/esw_aipl.  It is also referenced by a link in /afs/rch/projects/esw/dvt/include.  While it belongs to the esw_aipl component, it can and will be used by other programs (plug-in programs, Auto IPL users, etc.).  Therefore, do not ever remove this file from /afs/rch/projects/esw/dvt/include without making sure that the dependent files have been adjusted accordingly.
+# Current directories with links to /afs/rch/projects/esw/dvt/include/gen_bash_funcs:
+# /afs/rch/projects/esw/dvt/include
+# /afs/rch/projects/esw/dvt/autoipl
+# /afs/rch/projects/esw/dvt/autoipl/private/bin
+# /afs/rchland.ibm.com/rel/common/share/csptest/scripts
+
+
+# Note, because this file is sourced, I want to be careful about using variable names that may be in use by the sourcing code (like cmd_buf).  I'll name all variables with _gbf_ prefix.
+
+
+# Defining a few functions just for use in this file.
+################################################################################
+function print_time {
+
+  # This function will print the time (with no newline) like this:
+  # #(CST) 2007/12/07 16:03:42 - 
+  # The caller can provide a string (with or without newline that will also be printed.  Example:
+  # #(CST) 2007/12/07 16:03:42 - Testing.
+
+  # Perf note: I thought that if date could refrain from writing cr/lf, I could use it w/o printf and without subshell (caused by backticks).  I did some comparisons and found that the time savings would be minimal to non-existent.
+
+  if (( NANOSECONDS )) ; then
+    printf "%s" "`date +\"#(%Z) %Y/%m/%d %H:%M:%S.%N - \"`$1"
+  else
+    printf "%s" "`date +\"#(%Z) %Y/%m/%d %H:%M:%S - \"`$1"
+  fi
+
+}
+################################################################################
+
+
+
+(( trace_perf )) && { print_time ; echo "Start" ; } >&2
+
+(( trace_perf )) && { print_time ; echo "function _gen_bash_funcs_print_var_" ; } >&2
+################################################################################
+function _gbf_print_var_ {
+  local var_name="${1}"
+
+  local COL1_WIDTH=39
+  local loc_cmd_buf
+
+  loc_cmd_buf="printf \"%-${COL1_WIDTH}s %s\n\" \"$var_name:\" \"\${$var_name}\""
+  #{ print_time ; echo "Issuing: $loc_cmd_buf" ; } >&2
+  eval $loc_cmd_buf || return 1
+
+}
+################################################################################
+
+
+
+
+# This file has been broken into subfiles which all are named gen_bash_X_funcs.
+# 2011/10/10 Sourcing all files whose functions were previously included in this file.
+# Important note: gen_bash_debug_funcs must be the first file sourced because it contains aliases (like std_func_header) which must be defined before they are used by functions in other files.
+(( trace_perf )) && { print_time ; echo "gen_bash_subfile_list=" ; } >&2
+_gbf_subfile_list_="gen_bash_debug_funcs gen_bash_quote_funcs gen_bash_print_funcs gen_bash_opt_funcs gen_bash_valid_funcs gen_bash_misc_funcs gen_bash_cmd_funcs gen_bash_report_funcs gen_bash_pid_funcs gen_bash_list_funcs gen_bash_release_funcs gen_bash_sb_funcs gen_bash_dns_funcs"
+
+(( trace_perf )) && { print_time ; echo "op_system" ; } >&2
+[ -z "${op_system}" ] && op_system=${u_name:=$(uname)}
+
+(( trace_perf )) && { print_time ; echo "_gbf_default_dir_path_=" ; } >&2
+
+_gbf_default_dir_path_="/afs/rch/projects/esw/dvt/autoipl/apollotest/bin/"
+_gbf_save_dir_=${PWD}
+
+# Get the full path name to this file.
+if [ "${op_system}" == "AIX" ] ; then
+  # For AIX, getting the file path is tricky because ${BASH_SOURCE} isn't supported.
+  _gbf_source_file_path_=$(history | tail -n 1 | sed -e "s/.* source //g")
+  if echo ${_gbf_source_file_path_} | egrep -q 'which' ; then
+    eval _gbf_source_file_path_=\"${_gbf_source_file_path_}\"
+    _gbf_source_file_path_=$(echo "${_gbf_source_file_path_}" | head -n 1)
+  fi
+  if [ ! -z "${_gbf_source_file_path_}" ] ; then
+    _gbf_source_file_path_="$(dirname $_gbf_source_file_path_)/gen_bash_funcs"
+  else
+    if [ "${0}" == "bash" ] ; then
+      _gbf_source_file_path_=/afs/rch/projects/esw/dvt/autoipl/gen_bash_funcs
+    else
+      # The "history" command gives nothing if it is called from within a program.  We'll make some assumptions here:
+      # That the program calling (probably autosetup) is sourcing gen_bash_funcs from the same dir that it occupies.
+      # I hate to hard-code gen_bash_funcs in the following line but I know of no other way in AIX.
+      _gbf_source_file_path_="$(dirname $0)/gen_bash_funcs"
+    fi
+  fi
+else
+  _gbf_source_file_path_=${BASH_SOURCE}
+fi
+
+_gbf_source_file_dir_path_=${_gbf_source_file_path_%/*}/
+_gbf_source_file_name_=${_gbf_source_file_path_#${_gbf_source_file_dir_path_}}
+
+if (( trace_perf )) ; then
+  {
+    echo
+    _gbf_print_var_ _gbf_save_dir_
+    echo
+    _gbf_print_var_ _gbf_source_file_path_
+    _gbf_print_var_ _gbf_source_file_dir_path_
+    _gbf_print_var_ _gbf_source_file_name_
+    echo
+  } >&2
+fi
+
+# If _gbf_source_file_path_ is a link, we will follow it until we get to the real source file.
+# We cd to the _gbf_source_file_dir_path_ because the source file may be a relative link.
+(( trace_perf )) && { print_time ; echo "cd $_gbf_source_file_dir_path_" ; } >&2
+cd $_gbf_source_file_dir_path_
+(( trace_perf )) && { print_time ; echo "while link..." ; } >&2
+while [ -h "${_gbf_source_file_name_}" ] ; do
+  _gbf_source_file_path_=$(ls -l $_gbf_source_file_name_ | sed -e 's/.*-> //g')
+  _gbf_source_file_dir_path_=${_gbf_source_file_path_%/*}
+  if (( trace_perf )) ; then
+    {
+      echo "After re-assignments in link while loop."
+      _gbf_print_var_ _gbf_source_file_path_
+      _gbf_print_var_ _gbf_source_file_dir_path_
+    } >&2
+  fi
+  cd $_gbf_source_file_dir_path_
+done
+
+if (( trace_perf )) ; then
+  {
+    echo
+    print_time ; echo "Converting relative paths to absolute paths."
+  } >&2
+fi
+# If path is relative, this will convert it to absolute.
+_gbf_source_file_dir_path_=${PWD:=$(pwd)}/
+_gbf_source_file_path_=${_gbf_source_file_dir_path_}${_gbf_source_file_name_}
+
+# Return to caller's dir.
+cd "${_gbf_save_dir_}"
+
+_gbf_dir_path_=${_gbf_source_file_path_%/*}
+[ ! -z "${_gbf_dir_path_}" ] && _gbf_dir_path_=${_gbf_dir_path_}/
+
+if (( trace_perf )) ; then
+  {
+    echo
+    _gbf_print_var_ _gbf_source_file_path_
+    _gbf_print_var_ _gbf_source_file_dir_path_
+    _gbf_print_var_ _gbf_source_file_name_
+    echo
+    _gbf_print_var_ _gbf_dir_path_
+    echo
+  } >&2
+fi
+
+for _gbf_subfile_name_ in ${_gbf_subfile_list_} ; do
+  if (( trace_perf )) ; then
+    {
+      #print_time ; echo "In loop."
+      _gbf_print_var_ _gbf_subfile_name_
+    } >&2
+  fi
+  # The first place to look is in the same directory as the gen_bash_funcs file (the real thing, not the link).  If I've coded the above stuff right, I think we should always find the sub files here.
+  if [ -f ${_gbf_dir_path_}${_gbf_subfile_name_} ] ; then
+    _gbf_subfile_path_=${_gbf_dir_path_}${_gbf_subfile_name_}
+  else
+    # If the file is not found in the same dir as gen_bash_funcs, see if can be found in the PATH using which or type.
+    #_gbf_subfile_path_=$(which $_gbf_subfile_name_ 2>/dev/null | head -n 1 || type $_gbf_subfile_name_ | cut -f 3 -d ' ') && _gbf_subfile_path_=${_gbf_subfile_path_}/
+    # 2012/03/01 Shouldn't add trailing slash because it is a FILE name.
+    _gbf_subfile_path_=$(which $_gbf_subfile_name_ 2>/dev/null | head -n 1 || type $_gbf_subfile_name_ | cut -f 3 -d ' ') && _gbf_subfile_path_=${_gbf_subfile_path_}
+  fi
+
+  # If the source file still has not been found, go to the default directory.
+  [ -z "${_gbf_subfile_path_}" ] && _gbf_subfile_path_=${_gbf_default_dir_path_}${_gbf_subfile_name_}
+
+  source $_gbf_subfile_path_
+done
+

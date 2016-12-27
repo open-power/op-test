@@ -1,0 +1,1853 @@
+#!/usr/bin/expect --
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/jrcmd 1.1 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2015 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+#
+# This script is intended to be an alternative to rexec. It telnets/sshs to the target host using the userid, password and command string specified by the user.  The intent is to make it do everything that rexec does (and more - e.g. ability to specify a port number, or to time out after a specified time).  There are some drawbacks to rexec that we are trying to overcome, namely 1) we have FSPs that do not have native rexec support 2) For rexec to work, the target must be able to translate the DNS name of the client.
+# Run "jrcmd", "jrcmd -h" or "jrcmd --help for current usage.
+#
+################################################################################
+# Change log:
+# none  v2aic232 Jeff Whitlock 09/10/14: Chopping out extra pieces
+################################################################################
+
+regsub {.*/} $argv0 {} program_name
+set pid [pid]
+
+# Source include files (from the same directory as this file).
+# source [file dirname [info script]]/gen_tcl_print_funcs 
+
+# Performance notes:
+# For a simple command to an FSP, I've achieved times of as low as .166 seconds (i.e. 6 per second).
+
+# Parm argument variables.
+set userid				""
+set password			""
+set password_file_path  ""
+# Note: The default time-out is forever.
+set command_timeout		-1
+set debug				0
+set ssh					0
+set pv					""
+set su					0
+set rootpw				"passw0rd"
+set pre_cmd             ""
+# Positional parms...
+set host_name			""
+set host_short_name		""
+set port				0
+set rrc					0
+set use_rcmdc			0
+set command				""
+
+# Global variables:
+set telnet_response		""
+set host_response		""
+set prompt				""
+set prompt_type         ""
+
+# 2011/08/23 Changed from 20 to 30 for the sake of "su -" on LCBs.
+set general_timeout		30
+
+# State variables.
+set telnet_connection 	0
+set logged_in 			0
+set command_executed 	0
+set command_response_processed 0
+set su_logged_in 		0
+
+set rmt_ret_code 		0
+
+
+# We have some special handling for vterm consoles.
+set vterm_console       0
+set raw_prompt		"# "
+set vterm_PS1 "Console> "
+set vterm_prompt "$vterm_PS1"
+
+
+
+# 2012/11/09 I removed the valid_ip function (see older cmvc versions if interested).
+# General expect procedures.
+################################################################################
+proc set_expect_start_time {  } {
+
+  global debug
+
+  if { ! $debug } { return; }
+
+  global expect_start_time
+
+  set expect_start_time [clock seconds]
+  #set expect_start_time [exec date +%s]
+
+}
+################################################################################
+
+
+################################################################################
+proc sprint_err { } {
+
+  # This function will return a standardized error message.
+
+  return "[sprint_time]**ERROR** "
+
+}
+################################################################################
+
+
+
+################################################################################
+proc print_error { buffer } {
+
+  # This function will print a standardized error message.
+
+  puts -nonewline stderr "[sprint_err]$buffer"
+
+}
+################################################################################
+
+
+################################################################################
+proc sprint_time { } {
+
+  
+  #global NANOSECONDS
+  global _sprint_time_last_seconds_
+    
+  set cur_time_seconds [clock seconds]
+  set date_buffer [clock format $cur_time_seconds -format "#(%Z) %Y/%m/%d %H:%M:%S - "]
+  set _sprint_time_last_seconds_ $cur_time_seconds
+
+  return $date_buffer
+
+}
+################################################################################
+
+
+################################################################################
+proc set_expect_end_time {  } {
+
+  global debug
+
+  if { ! $debug } { return; }
+
+  global expect_end_time
+  #set expect_end_time [exec date +%s]
+  set expect_end_time [clock seconds]
+
+}
+################################################################################
+
+
+
+################################################################################
+proc print_expect_total_time {  } {
+
+  global debug
+
+  if { ! $debug } { return; }
+
+  global debug
+  global expect_total_time
+
+  # puts "\n[sprint_time]expect_total_time: $expect_total_time"
+  print_var expect_total_time
+
+}
+################################################################################
+
+
+
+################################################################################
+proc set_expect_total_time {  } {
+
+  global debug
+
+  if { ! $debug } { return; }
+
+  global expect_start_time
+  global expect_end_time
+  global expect_total_time
+
+  set_expect_end_time
+
+  set expect_total_time [expr $expect_end_time - $expect_start_time]
+
+}
+################################################################################
+
+
+
+################################################################################
+proc handle_timeout { callers_timeout message } {
+
+  # This function is a global timeout handler.
+
+  # Force a match to print the output using the following command:
+  set timeout 0
+  expect -re .+ 
+  if { [info exists expect_out(buffer) ] } {
+#puts "expect_out exists"
+    set returned_data $expect_out(buffer)
+  } else {
+#puts "expect_out doesn't exist"
+    set returned_data ""
+  }
+
+  print_error "Did not get ${message} after $callers_timeout seconds.\n"
+  puts "The data returned by the spawned process is:\n$returned_data"
+  exit 1
+
+}
+################################################################################
+
+
+
+################################################################################
+proc handle_eof { message } {
+
+  # This function is a global end of file handler.
+
+  # I use uplevel to be able to access expect_out(buffer).
+  uplevel {
+    print_error "Reached end of file before getting $message.\n"
+    puts "The data returned by the spawned process is:\n$expect_out(buffer)"
+    exit 1
+  }
+
+}
+################################################################################
+
+
+
+# Program procedures.
+################################################################################
+proc print_help {  } {
+
+  # This procedure will print the help text for this program.
+
+  global program_name
+  global general_timeout
+
+  puts ""
+  puts "Usage: ${program_name} \[ OPTIONS \] \[ HOST\[:PORT\] \] \[ COMMAND \]"
+  puts ""
+  puts "  -l userid:			The userid (login name) for the remote host."
+  puts "  -p password:			The password for the remote host."
+  puts "  -pf password_file_path:	The path to a file that contains the password for the remote host."
+  puts "  -t command time out:		Timeout value for the response from the command sent to the remote host."
+  puts "  -gt:				General timeout for things like waiting for a login prompt.  The default value is $general_timeout."
+  puts "  -d:				Print debug information."
+  puts "  -s:				Use ssh rather than telnet."
+  puts "  -pv:				Specifies which protocol version to use with ssh.  The default value is \"\" which means that ssh will choose the protocol version.  This parm is ignored if \"-s\" is not specified."
+  puts "  -su:				Switch to root before running command."
+  puts "  -rp password:			The root password for the remote host."
+  puts "  -pre command:			A command which will be run on the target prior to running the main command.  For example, you could specify -pre 'bash' to have the bash command run prior to running your main command."
+
+  puts "  -rrc:				This means that ${program_name} should determine the return value of the remote command and return it to the user.  This parameter is only valid if the remote system is running a unix or linux operating system."
+  puts "  -c:				Use rcmdc/rcmd_server (see the help text for rcmdc)."
+  puts "  host\[:port\]:			Name or IP address of the target system:port number if specified.  The host is required.  The port defaults to 22 if \"-ssh\" is specified and to 23 otherwise."
+  puts ""
+  puts "  Example usage:"
+  puts ""
+  puts "    ${program_name} -l myid -p mypw mysystem 'date;date;date'"
+  puts ""
+
+}
+################################################################################
+
+
+
+################################################################################
+proc get_options { } {
+
+  # This function will get command line option args and put them into global variables.
+
+  global argc
+  global argv
+  global argv0
+
+  # Declare all global parameter variables.
+  global userid
+  global password
+  global password_file_path
+  global command_timeout
+  global debug
+  global ssh
+  global pv
+  global su
+  global rootpw
+  global pre_cmd
+  global rrc
+  global use_rcmdc
+  global general_timeout
+
+  global host_name
+  global port
+  global command
+
+  if { $debug } { print_proc_name }
+
+  if {$argc == 0} { 
+    print_help
+    exit 0
+  }
+
+  set pos_parm_num 0
+
+  for { set i 0 } { $i < $argc } { incr i } {
+
+    set parm [lindex $argv $i]
+    set parm_value [lindex $argv [expr $i + 1]]
+    #print_var parm
+    #print_var parm_value
+
+    if { $parm == "-h" || $parm == "--help" } {
+		print_help
+		exit 0
+    } elseif { $parm == "-l" } {
+		incr i
+		set userid $parm_value
+    } elseif { $parm == "-c" } {
+		set use_rcmdc 1
+    } elseif { $parm == "-p" } {
+		incr i
+		set password $parm_value
+    } elseif { $parm == "-pf" } {
+		incr i
+		set password_file_path $parm_value
+    } elseif { $parm == "-t" } {
+		incr i
+		set command_timeout $parm_value
+    } elseif { $parm == "-gt" } {
+		incr i
+		set general_timeout $parm_value
+    } elseif { $parm == "-d" } {
+		set debug 1
+    } elseif { $parm == "-s" } {
+		set ssh 1
+    } elseif { $parm == "-pv" } {
+		incr i
+		set pv $parm_value
+    } elseif { $parm == "-su" } {
+		set su 1
+    } elseif { $parm == "-rp" } {
+		incr i
+		set rootpw $parm_value
+    } elseif { $parm == "-pre" } {
+		incr i
+		set pre_cmd $parm_value
+    } elseif { $parm == "-rrc" } {
+		set rrc 1
+    } elseif { [string match "\-*" $parm] } {
+        print_error "\"$parm\" is not a valid parameter.\n"
+		exit 1
+    } else {
+		incr pos_parm_num
+		if { $pos_parm_num == "1" } {
+			# Positional parm 1 is the host.
+			global ipv6_address
+
+			# If the host has 2 or more colons, it may possibly be an ipv6 address and can't possibly be a valid dns name or ipv4 address.  If host has zero or one colons it can't possibly be an ipv6 address and must be either a dns name or an ipv4 address.  This assessment isn't the final word on whether the host is valid but it is enough for us to be able to process the "<host:port>" (dns/ipv4) or <host.port>" (ipv6) formats allowed by this program.
+			if { [regexp -expanded {.*:.*:.*} $parm ] } {
+				set ipv6_address 1
+				set delim "."
+				} else {
+					set ipv6_address 0
+					set delim ":"
+				}
+
+				if {[string match "*${delim}*" $parm]} {
+				# Need to split the port from the system name.
+					set port [string range $parm [expr [string first "${delim}" $parm]+1] end]
+					set pos [string first "${delim}" $parm]
+					set host_name [string range $parm 0 [expr [string first "${delim}" $parm] - 1] ] 
+				} else {
+					set host_name $parm
+				}
+			} elseif { $pos_parm_num == "2" } {
+				set command $parm
+			} else {
+				print_error "\"$parm\" is positional parameter number ${pos_parm_num}.  Only 2 positional parameters are allowed.\n"
+				exit 1
+			}
+		}
+	}
+
+	if { $debug } {
+		# Set command_line for use later in print_parms.
+		global command_line
+		set command_line $argv0
+		for  { set i 0 }  { $i < $argc }  { incr i } {
+			# Decide whether the arg needs quotes.
+			if { [string match "*\[ ;]*" [lindex  $argv  $i ]] } {
+				set command_line "$command_line '[lindex  $argv  $i ]'"
+			} else {
+				set command_line "$command_line [lindex  $argv  $i ]"
+			}
+		}
+	}
+
+}
+################################################################################
+
+
+
+################################################################################
+proc validate_parms {  } {
+
+  # This function will validate the global parameter variables.
+
+  # Declare all global parameter variables.
+  global userid
+  global password
+  global password_file_path
+  global command_timeout
+  global general_timeout
+  global debug
+  global ssh
+  global pv
+  global su
+  global rootpw
+  global pre_cmd
+
+  global host_name
+  global host_short_name
+  global port
+  global command
+  global ipv6_address
+
+  if { $debug } { print_proc_name }
+
+#  if { $ipv6_address } { set arg_val 6 } else { set arg_val 4 }
+
+  if { $host_name == "" } {
+    print_error "No host name was specified.\n"
+    exit 1
+  }
+
+  set cmd_buf "host $host_name"
+  #set cmd_buf "host_dns_name=\$(mhost --ipv=${arg_val} $host_name | grep host_dns_name) ; echo \${host_dns_name##* }"
+  #set cmd_buf "host_dns_name=\$(mhost $host_name | grep host_dns_name) ; echo \${host_dns_name##* }"
+  if { $debug } { issuing }
+
+  # 2013/04/25 Sometimes mhost fails...
+  if { [catch "set dns_name [exec bash -c $cmd_buf]" result] } {
+    # So we'll try to get it with "host".
+    set cmd_buf "host $host_name | cut -f 1 -d ' '"
+    set dns_name [exec bash -c $cmd_buf]"
+  }
+
+  if { ${dns_name} != "" } {
+    set First_dot [string first "." $dns_name]
+    if { $First_dot != -1 } {
+      set host_short_name [string range $dns_name 0 [expr $First_dot - 1] ] 
+    } else {
+      set host_short_name $host_name
+    }
+  } else {
+    # $host_name doesn't not translate.  It could be a private IP.
+    set dns_name ""
+    set host_short_name $host_name
+  }
+
+  # Set default port values.
+  if { $port == "0" } {
+    if { $ssh } {
+      set port 22
+    } else {
+      set port 23
+    }
+  }
+
+  # log_user 0 means that output from the spawned process will not go to stdout.
+  if { $debug } {
+    # Note that "log_user 1" alone will add about 1 second to our runtime.
+    # I think I have enough debug that I don't need to set this to 1.
+    log_user 0
+  } else {
+    log_user 0
+  }
+
+  # Parameter error checking
+  # 2011/08/18 Dave Shaw asked for CME_debug support.  This interface requires no userid/password.
+  if { $password_file_path != "" } {
+    # set password [exec cat $password_file_path]
+    # Performance change.
+    set fp [open "$password_file_path" r]
+    set password [read -nonewline $fp]
+    close $fp
+  }
+  if { $command == "" } {
+    print_error "No command was specified.\n"
+    exit 1
+  }
+
+  global vterm_console
+  #global simics
+  # To recover from a failed eflash due to "Couldn't start maintenance mode", the user telnet's to the FSP's port 31337 and issues a "rst" command.
+  if { $port == "23" || $port == "22" || $port == "30000" || $port == "30002" || $port == "31337" } {
+    # We are talking to real hardware (vs. simics) via telnet or ssh.
+    if { $port == "30002" } {
+      if { $debug } { puts "[sprint_time]port is $port so this will be assumed to be a vterm console."}
+      set vterm_console 1
+    } else {
+      if { $debug } { puts "[sprint_time]The port number ($port) indicates that the target system is real hardware."}
+    }
+  } else {
+    # We are talking to simics.
+    if { $debug } { puts "[sprint_time]The port number ($port) indicates that the target system is a simics machine."}
+    set simics 1
+  }
+
+  # This isn't a perfect solution but if the user says the Timeout is 30 and simics_gen_timeout is 240, I'd say we're not abiding by their wishes.  With this solution, the total time of the command can still exceed the user value, it is much more in line with their wishes. 
+  #global simics_gen_timeout
+  #if { $command_timeout > -1 } {
+    #if { $simics_gen_timeout > $command_timeout } {
+    #  set simics_gen_timeout $command_timeout
+    #}
+  #}
+
+  # Add passwords to hidden_text_list to keep them from printing out.
+  global hidden_text_list
+  if { $password != "" } {
+    set hidden_text_list [lappend hidden_text_list $password]
+  }
+
+  if { $rootpw != "" } {
+    set hidden_text_list [lappend hidden_text_list $rootpw]
+  }
+
+  #if { $debug } { puts "[sprint_time]End of validate_parms." }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc print_parms {  } {
+
+  global command_line
+  global pid
+
+  # Declare all global parameter variables.
+  global userid
+  global password
+  global password_file_path
+  global command_timeout
+  global general_timeout
+  global debug
+  global ssh
+  global pv
+  global su
+  global rootpw
+  global pre_cmd
+  global rrc
+
+  global host_name
+  global host_short_name
+  global port
+  global command
+
+  if { ! $debug} { return; }
+
+  puts "[sprint_time]Program parameter values, etc.:"
+  puts ""
+
+  print_var command_line
+  print_var pid
+
+  print_var userid
+
+  global hidden_text_list
+  set save_password $password
+  replace_hidden_text $hidden_text_list password
+  print_var password
+  set password $save_password
+
+  print_var password_file_path
+  print_var command_timeout
+  print_var general_timeout
+  print_var debug
+  print_var ssh
+  print_var pv
+  print_var su
+
+  set save_rootpw $rootpw
+  replace_hidden_text $hidden_text_list rootpw
+  print_var rootpw
+  set rootpw $save_rootpw
+  print_var rrc
+
+  print_var pre_cmd
+  print_var host_name
+  print_var host_short_name
+  print_var port
+  print_var command
+
+  puts ""
+
+}
+################################################################################
+
+
+
+################################################################################
+proc ping_ip { host_name } {
+
+  global debug
+  global ipv6_address
+
+  if { $debug } { print_proc_name }
+
+  if { $ipv6_address } { set cmd_name ping6 } else { set cmd_name ping }
+
+  # Ping system to see if it's alive.
+  # Performance note: I changed from -w 2 to -w 1 for faster response on non-talking IPs.  I did this with scan_mgr in mind.  If this change turns out to not be good for everyone, I'll make ping_timeout a parm.
+  set cmd_buf "${cmd_name} -c 1 -w 1 $host_name"
+
+  if { $debug } { issuing }
+
+  if {[catch "exec $cmd_buf" result]} {
+    if { [string match "ping: unknown host *" $result] } {
+      print_error "DNS name \"$host_name\" could not be translated to an IP address.  Standard error text from ping command:\n$result\n"
+    } else {
+      print_error "System \"$host_name\" does not respond to pings.  Please fix system or change system name/IP address.\n"
+    }
+    exit 1
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc spawn_process { } {
+
+  # This function will spawn the telnet or ssh child process.
+
+  # Performance note: The spawn will take about 0.015 seconds.
+
+  global debug
+  global userid
+  global ssh
+  global port
+  global host_name
+  global pv
+
+  global env
+  global spawn_id
+  global stty_init
+
+match_max 100000
+
+  if { $debug } { print_proc_name }
+
+  # Setting term and stty cols seems to help keep most noxious characters out of the output stream when this program is called by another program.
+  set env(TERM) vt100
+  set stty_init "cols 100000"
+
+  set HOME $env(HOME)
+
+  # Note that "log_user 1" makes the spawn command echo to stdout.
+  if { $ssh } {
+    # StrictHostKeyChecking=no will prevent ssh from giving us the following prompt:
+    #The authenticity of host 'bu145rch2.austin.ibm.com (9.3.116.231)' can't be established.
+    #RSA key fingerprint is c9:ad:c4:95:0b:81:c9:d3:1d:5e:64:1b:41:96:01:59.
+    #Are you sure you want to continue connecting (yes/no)? 
+    #On the new Apollo LCBs, ssh is trying to use /afs/awd/usr/u2/csptest/.ssh/config rather than ~/.ssh/config.  The ssh man page says it will use ~/.ssh/config so it appears to not be working right.  I added the -F parm to correct that.
+    # 2011/04/08 - Adding "-1" to use protocol version 1 only.
+    # spawn -nottycopy ssh -1 -F $HOME/.ssh/config -oStrictHostKeyChecking=no -p $port $userid@$host_name
+    if { $pv == "" } {
+      #spawn -nottycopy /usr/bin/ssh -F $HOME/.ssh/config -oStrictHostKeyChecking=no -p $port $userid@$host_name
+      set cmd_buf "spawn -nottycopy /usr/bin/ssh -k -F $HOME/.ssh/config -oStrictHostKeyChecking=no -p $port $userid@$host_name"
+    } else {
+      #spawn -nottycopy /usr/bin/ssh -${pv} -F $HOME/.ssh/config -oStrictHostKeyChecking=no -p $port $userid@$host_name
+      set cmd_buf "spawn -nottycopy /usr/bin/ssh -${pv} -k -F $HOME/.ssh/config -oStrictHostKeyChecking=no -p $port $userid@$host_name"
+    }
+    # 2011/05/13 I now specify the full path to ssh.  On at least one system, thorx, the PATH had us pointing to /usr/site/bin/ssh which tries to bring up xterm, etc.
+  } else {
+    # We need a version of telnet that supports the port option so we have chosen /usr/bin/telnet rather than /usr/site/bin/telnet
+    #spawn -nottycopy /usr/bin/telnet $host_name $port
+    set cmd_buf "spawn -nottycopy /usr/bin/telnet $host_name $port"
+  }
+
+  if { $debug } { issuing }
+  eval $cmd_buf
+
+  if { $debug } { print_var spawn_id }
+
+  # The following command is necessary to prevent this script from removing null characters from the output received during the spawn command.
+  remove_nulls 0
+
+}
+################################################################################
+
+
+
+################################################################################
+proc quit_telnet_session { } {
+
+  global debug
+  global general_timeout
+  global telnet_connection
+
+  if { $debug } { print_proc_name }
+
+  # This function will get to the telnet prompt and send a "quit" command.
+
+  if { $telnet_connection } {
+
+    # Send the <control><right square bracket> to get to the telnet prompt.
+    send -- "\035"
+
+    set timeout $general_timeout
+
+    if { $debug } { set_expect_start_time }
+    set message "a telnet prompt"
+    if { $debug } { puts "[sprint_time]Looking for ${message}."}
+    expect {
+      # When going to FSP port 31337, the "telnet prompt" is "^]".
+      -re "telnet> |\\^\]\$" {
+        if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nWe are now at a telnet prompt."}
+      }
+      timeout {
+        handle_timeout "$timeout" "$message"
+      }
+      eof {
+        handle_eof "$message"
+      }
+    }
+    if { $debug } { set_expect_total_time ; print_expect_total_time }
+
+    # Send the "quit" command.
+    send -- "quit\r"
+    set expect_string "Connection closed."
+
+    if { $debug } { set_expect_start_time }
+    set message "Connection closed"
+    if { $debug } { puts "[sprint_time]Looking for ${message}."}
+    expect {
+      -re $expect_string {
+        if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nThis is proof that the telnet connection is closed."}
+      }
+      timeout {
+        handle_timeout "$timeout" "$message"
+      }
+      eof {
+        handle_eof "$message"
+      }
+    }
+    if { $debug } { set_expect_total_time ; print_expect_total_time }
+
+    set telnet_connection 0
+  # End if telnet_connection
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc confirm_telnet_connection { logged_in } {
+  upvar $logged_in ref_logged_in
+
+  # This procedure will verify that a telnet connection has been established.
+  # Performance note: This takes about .001 seconds when there is a connection.
+
+  # Initialize.
+  set ref_logged_in 0
+
+  global debug
+  global port
+  global prompt
+  global prompt_type
+  global vterm_console
+  global telnet_connection
+  global timeout
+#global expect_out
+
+  # 2012/12/14 Lateley we've been seeing LOTs of time-outs in austin causing us to have to restart many systems manually.
+  #set timeout 5
+  set timeout 15
+
+  if { $debug } { set_expect_start_time }
+  set message "confirmation of telnet connection"
+  if { $debug } { puts "[sprint_time]Looking for ${message}."}
+  expect {
+    # "Trying.*Connected to .*Escape character is '\\^\]'\.\[\r\]+\[\n\]\$"
+    # Performance change.
+    -re "Escape character is '\\^\]'\.\[\r\]+\[\n\]\$" {
+      if { $debug } { puts "[sprint_time]Found the following:\n$expect_out(buffer)<eod>"}
+      if { $debug } { puts "[sprint_time]Telnet connection was successful."}
+      # In most (but not all) cases when you have a login prompt, sending a \r doesn't hurt anything.  It simply causes the prompt to be re-displayed.  In the case of vterm consoles, it is possible that we are not at a login screen.  In this case, the \r is necessary to make the prompt appear.
+      set telnet_connection 1
+      if { $vterm_console } { send -- "\r" }
+    }
+    timeout {
+      handle_timeout "$timeout" "$message"
+    }
+    eof {
+      handle_eof "$message"
+    }
+  }
+
+  if { $debug } { set_expect_total_time ; print_expect_total_time }
+  if { $port == "31337" } {
+    if { $debug } { puts "[sprint_time]port is 31337 so this is all the logon confirmation we will get."}
+    set prompt ""
+    set prompt_type 'none' 
+    set ref_logged_in 1
+    return 0
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc debug_telnet_response {array element op} {
+
+  # This function is called every time expect_out(buffer) is modified.  It will append expect_out(buffer) to debug_telnet_response
+
+  uplevel {
+    global debug_telnet_response
+    set debug_telnet_response "$debug_telnet_response$expect_out(buffer)"
+  }
+}
+################################################################################
+
+
+
+################################################################################
+proc logon_host { l_userid l_password l_userid_prompt } {
+
+  global debug
+  global prompt
+  global raw_prompt
+  global userid
+  global host_short_name
+  global rootpw
+  global vterm_console
+  global simics
+  global port
+  global general_timeout
+  #global simics_gen_timeout
+  global vterm_prompt
+  global vterm_PS1
+  global telnet_connection
+  global prompt_type
+  global logged_in
+
+#global expect_out
+
+  set logged_in 0
+
+  # Initialize
+  set prompt $raw_prompt
+
+  if { $debug } { print_proc_name }
+
+ # if { $simics } {
+    # I increased this from 30 to 60 for the sake of SIMICs.  I have now changed it to $Timeout
+ #   set timeout $simics_gen_timeout
+ # } else {
+    set timeout $general_timeout
+  #}
+
+  if { $l_userid == "" } {
+    set l_userid_prompt 0
+  }
+
+  # The caller of this function indicates whether they expect a userid prompt.
+  if { $l_userid_prompt || $port == "31337" } {
+
+    confirm_telnet_connection logged_in
+
+    if { $port == "31337" } {
+      # For port 31337 we get no login prompt, password prompt or command line prompt.
+      return 0
+    }
+	
+	
+    # Setting login prompt time-outs.  We Try at least once for a login prompt.  If we timeout, we send a "\r" and re-try.
+    #if { $simics } {
+    #  set original_timeout $simics_gen_timeout
+      # A re-try is hardly worthwhile with simics since we've already given it such a long time.
+    #  set retry_timeout 5
+    #} elseif { $vterm_console } {
+    #  set original_timeout $general_timeout
+      # Going through the vterm console causes many sockets to be opened on the FSP.  It can take them a while to shut down which makes subsequent attempts to get a login take a long time.
+      # The worst expect time I saw while testing was 117.  So I'll round to 120 and add 30 seconds.
+    #  set retry_timeout 150
+    #} else {
+      set original_timeout $general_timeout
+      set retry_timeout $general_timeout
+    #}
+
+    set timeout $original_timeout
+    for { set ix 0 } { $ix < 2 } { incr ix } {
+      # Performance note: This takes about .023 seconds on an FSP.
+      if { $debug } { set_expect_start_time }
+      set message "a login prompt"
+      if { $debug } { puts "[sprint_time]Looking for ${message}."}
+      expect {
+        -re "$raw_prompt" {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nThis indicates that we may be working with a vterm console."}
+          set vterm_console 1
+          set logged_in 1
+        }
+        -re "$vterm_prompt" {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nThis is a vterm console prompt and indicates that the last rcmd attempt did not cleanup."}
+          set vterm_console 1
+          set prompt $vterm_prompt
+          # If we've gotten here, then clearly the vterm pre processing has been done by a prior run of this program.
+          set logged_in 1
+        }
+        -re "Open Session Failed for Partion Id .*, session Id ,*" {
+          # Looks like we are working with a vterm console.
+          print_error "It looks like phyp is not up yet and you are trying to talk to a vterm console.  Wait for phyp to come up first.\n"
+          puts "The data returned by the spawned process is:\n$expect_out(buffer)"
+          exit 1
+        }
+        # "Command Time expired.*Connection closed by foreign host\."
+        -re "Connection closed by foreign host\." {
+          # Looks like we are working with a vterm console.
+          print_error "If you are trying to talk to a vterm partition, you may need to open the vtty port with fspremote.\n"
+          puts "The data returned by the spawned process is:\n$expect_out(buffer)"
+          exit 1
+        }
+        -re "max connection reachedClose Session Failed: with status eConnection closed by foreign host." {
+          # Looks like we are working with a vterm console.
+          print_error "If you are trying to talk to a vterm partition, you may have locked yourself out with too many attempts.\n"
+          puts "The data returned by the spawned process is:\n$expect_out(buffer)"
+          exit 1
+        }
+        -re "Console login: " {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nThis is taken to be a vterm console.  Sending userid \"$l_userid\"."}
+          # Looks like we are working with a vterm console.
+          set vterm_console 1
+          send -- "$l_userid\r"
+        }
+        "Connection refused" {
+          print_error "Connection refused: the port may be closed.\n"
+          exit 1
+        }
+        -re "login: |username: |Username: " {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nSending userid \"$l_userid\"."}
+          send -- "$l_userid\r"
+        }
+        timeout {
+          if { $ix == 0 } {
+            # On rare occasions, an extra "\r" may be the remedy we need to loosen up the terminal.
+            if { $debug } { puts "[sprint_time]Timed out after $timeout seconds.  Re-trying by sending a <cr>."}
+            set timeout $retry_timeout
+            send -- "\r"
+            continue
+          } else {
+	    set total_timeout [expr $original_timeout+$retry_timeout]
+            handle_timeout "$total_timeout" "$message"
+          }
+        }
+        eof {
+          handle_eof "$message"
+        }
+
+        # End expect body.
+      }
+
+      if { $debug } { set_expect_total_time ; print_expect_total_time }
+      if { $logged_in } {
+        return 0
+      }
+
+      # If we make it to this point, we are done.
+      break
+      # End for loop
+    }
+    # End if l_userid_prompt
+  }
+
+  # Take care to put the more complex prompts at the top so you match those first.
+
+  if { "$host_short_name" == "" } {
+    set HMC_prompt "$userid@.+:.*>[ ]?$"
+  } else {
+    set HMC_prompt "$userid@$host_short_name:.*>[ ]?$"
+  }
+  set HMC_prompt2 "IBM DEVELOPMENT USE ONLY \\\[$userid@$host_short_name .*\\\] \[$#\] "
+  set HMC_root_prompt "$host_short_name:.* # $"
+  # I saw this on one odd system.
+  set HMC_root_prompt2 "root @ $host_short_name:.* # $"
+  set HMC_root_prompt2 "\[\n\]\\(\[0-9\]+\\) root @ $host_short_name: \[^\n\]*\[\n\]# $"
+  set HMC_root_prompt3 "IBM DEVELOPMENT USE ONLY \\\[root@$host_short_name .*\\\] \[$#\] "
+  # PMC root prompt has color chars which means I have to work around them.
+  set PMC_root_prompt "$host_short_name:.* # \[^\r]*$"
+  set AIX_partition_root_prompt "\n\[(].*$userid @ $host_short_name:.*\n# $"
+  # At least for sim sandbox machines, the prompt may have a dir name in place of the "~".
+  #set apollo_LCB_prompt "\\\[$userid@$host_short_name ~\\\]\[$] $"
+  # 2014/07/22 Mike Walsh (xzy0065) - I've seen some systems (e.g. gfw1.austin.ibm.com) that have the hostname in upper case.
+  set upper_host_short_name [string toupper $host_short_name]
+  set apollo_LCB_prompt "\\\[$userid@($host_short_name|$upper_host_short_name) (~|\[^ ]+)\\\]\[$] $"
+  #set root_LCB_prompt "\\\[root@$host_short_name ~\\\]\[#$] $"
+  # The "~" is actually the dir name which could be anything so...
+  set root_LCB_prompt "\\\[root@$host_short_name .*\\\]\[#$] $"
+  # Example of a bash prompt for on an LCB.
+  #.../usr8/csptest> 
+  set apollo_LCB_bash_prompt "\[^\n\r]+> $"
+  set MM_prompt "system> $"
+  set FSP_bad_pw_prompt "Login incorrect"
+  set bad_root_pw_prompt "su: incorrect password"
+  set gen_bad_pw_prompt "Failed login\..*"
+  set CME_debug "~ # $"
+  # 2012/05/11 I made this change for Dave Shaw.
+  #set CMM_debug_shell_prompt "/tmp/mnt/rootfs/usr/share/rdoc # $"
+  # 2014/05/06 Prompt has changed yet again.
+  set CMM_debug_shell_prompt "\[^\n\r\]*/tmp/mnt/rootfs/usr/share/rdoc \[#>\][ ]?$"
+  set old_FSP_prompt "# $"
+  set FSP_prompt "\[$] $"
+
+#set timeout 2
+#set local_vars [info locals ]
+#print_var local_vars
+#set global_vars [info globals ]
+#print_var global_vars
+#puts ""
+
+  set pw_prompt_count 0
+  for {set ix 0} {$ix < 2} {incr ix } {
+    # Performance note: This takes about .034 seconds on an FSP.
+    if { $debug } { puts "[sprint_time]Password prompt loop iteration: $ix."}
+    if { $debug } { set_expect_start_time }
+    set message "either a password prompt or a host system prompt"
+    if { $debug } { puts "[sprint_time]Looking for ${message}."}
+    expect {
+      # With ssh we may or may not get a password prompt.  It depends on whether there is a /home/<userid>/.ssh/authorized_keys2 set up on the target.  If we get it a second time, that means that the password we're using is bad.
+      -re "Your account is locked. Maximum amount of failed attempts was reached." {
+          puts stderr "$expect_out(buffer)<eod>"
+          print_error "Account ${l_userid} is locked.\n"
+          exit 1
+      }
+      -re $FSP_bad_pw_prompt {
+          puts stderr "$expect_out(buffer)<eod>"
+          print_error "Invalid password.\n"
+          exit 1
+      }
+      -re $bad_root_pw_prompt {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>."}
+          print_error "Invalid root password.\n"
+          exit 1
+      }
+      -re $gen_bad_pw_prompt {
+          if { $debug } { puts "" }
+          print_error "Invalid userid or password.\n"
+          exit 1
+      }
+      -re "root's Password: " {
+        # This prompt is further evidence that we're dealing with vterm console.
+        set vterm_console 1
+        incr pw_prompt_count
+        if { $pw_prompt_count == 1 } {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nSending password."}
+          send -- "$l_password\r"
+        } else {
+          puts stderr "$expect_out(buffer)<eod>"
+          print_error "Invalid password.\n"
+          exit 1
+        }
+      }
+      -re "AFS Password:" {
+        # This looks like an LCB.  On bad days, I've seen some really slow access to LCBs.  I've personally witnessed 105 seconds.
+#        set timeout 180
+        incr pw_prompt_count
+        if { $pw_prompt_count == 1 } {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nSending password."}
+          send -- "$l_password\r"
+        } else {
+          puts stderr "$expect_out(buffer)<eod>"
+          print_error "Invalid password.\n"
+          exit 1
+        }
+      }
+      -re "\[Pp\]assword:( )?|Password for " {
+        incr pw_prompt_count
+        if { $pw_prompt_count == 1 } {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nSending password."}
+          send -- "$l_password\r"
+        } else {
+          puts stderr "$expect_out(buffer)<eod>"
+          print_error "Invalid password.\n"
+          exit 1
+        }
+      }
+      # Once we've figured out which prompt is returned, we'll set the global "prompt" variable so that the rest of the program will be more precise.
+      -re "$HMC_prompt" {
+        set prompt $HMC_prompt
+        set prompt_type HMC_prompt
+        set logged_in 1
+      }
+      -re "$HMC_prompt2" {
+        set prompt $HMC_prompt2
+        set prompt_type HMC_prompt2
+        set logged_in 1
+      }
+      -re "$HMC_root_prompt" {
+        set prompt $HMC_root_prompt
+        set prompt_type HMC_root_prompt
+        set logged_in 1
+      }
+      -re "$HMC_root_prompt2" {
+        set prompt $HMC_root_prompt2
+        set prompt_type HMC_root_prompt2
+        set logged_in 1
+      }
+      -re "$HMC_root_prompt3" {
+        set prompt $HMC_root_prompt3
+        set prompt_type HMC_root_prompt3
+        set logged_in 1
+      }
+      -re "$PMC_root_prompt" {
+        set prompt $PMC_root_prompt
+        set prompt_type PMC_root_prompt
+        set logged_in 1
+          send -- "PS1='\\h:\\w # '\r"
+
+        expect {
+          -re "$PMC_root_prompt" {
+            if { $debug } { puts "[sprint_time]Found modified PMC root prompt."}
+          }
+          timeout {
+            handle_timeout "$timeout" "$message"
+          }
+        }
+      }
+      -re "$AIX_partition_root_prompt" {
+        set prompt $AIX_partition_root_prompt
+        set prompt_type AIX_partition_root_prompt
+        set logged_in 1
+      }
+      -re "$apollo_LCB_prompt" {
+        set prompt $apollo_LCB_prompt
+        set prompt_type apollo_LCB_prompt
+        set logged_in 1
+      }
+      -re "$root_LCB_prompt" {
+        set prompt $root_LCB_prompt
+        set prompt_type root_LCB_prompt
+        set logged_in 1
+      }
+      -re "$MM_prompt" {
+        set prompt $MM_prompt
+        set prompt_type MM_prompt
+        set logged_in 1
+      }
+      -re "$apollo_LCB_bash_prompt" {
+        set prompt $apollo_LCB_bash_prompt
+        set prompt_type apollo_LCB_bash_prompt
+        set logged_in 1
+      }
+      -re "$CME_debug" {
+        set prompt $CME_debug
+        set prompt_type CME_debug
+        set logged_in 1
+      }
+      -re "$CMM_debug_shell_prompt" {
+        set prompt $CMM_debug_shell_prompt
+        set prompt_type CMM_debug_shell_prompt
+        set logged_in 1
+      }
+      -re "$old_FSP_prompt" {
+        set prompt $old_FSP_prompt
+        set prompt_type old_FSP_prompt
+        set logged_in 1
+      }
+      -re "$FSP_prompt" {
+        set prompt $FSP_prompt
+        set prompt_type FSP_prompt
+        set logged_in 1
+      }
+      timeout {
+        handle_timeout "$timeout" "$message"
+      }
+      eof {
+        handle_eof "$message"
+      }
+    }
+    if { $debug } { set_expect_total_time ; print_expect_total_time }
+    if { $logged_in } {
+      if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>"}
+      if { $debug } { puts "[sprint_time]We are now logged in."}
+      return 0
+    }
+  }
+
+  set logged_in 1
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+proc get_prompt { timeoutsecs } {
+
+  global debug
+  global expect_out
+  global prompt
+  global prompt_type
+
+  if { $debug } { print_proc_name }
+
+  # This function will wait for the prompt found in the global variable "prompt".  This value should have been set prior to calling.
+  # Performance note: This takes about .035 seconds on an FSP.
+
+  set timeout $timeoutsecs
+
+  if { $debug } { set_expect_start_time }
+  set message "prompt"
+  expect {
+    -re "$prompt" {
+      if { $debug } {print_expect_total_time ; puts "[sprint_time]Got the following $prompt_type:\n$expect_out(0,string)<eod>" ; puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\n"}
+    }
+    "Connection closed by foreign host\." {
+      print_error "The connection was closed prematurely.\n"
+      puts "The data returned by the spawned process is:\n$expect_out(buffer)"
+      exit 1
+    }
+    timeout {
+      handle_timeout "$timeout" "$message"
+    }
+    eof {
+      handle_eof "$message"
+    }
+  }
+  if { $debug } { set_expect_total_time ; print_expect_total_time }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc vterm_console_pre_processing { } {
+
+  global debug
+  global prompt
+  global raw_prompt
+  global vterm_console
+  global general_timeout
+  global vterm_prompt
+  global vterm_PS1
+
+  if { $debug } { print_proc_name }
+
+  if { ! $vterm_console } { return }
+
+  # It is assumed that we are now signed on to a vterm console.  vterm consoles have some funny behavior that we want to eliminate before proceeding.
+  # 1) We need to set telnet to "mode character" to keep the console from echoing commands and printing double prompts.
+  # 2) We want to set the prompt ourselves so it is easy to interpret.
+
+
+  # Send the <control><right square bracket> to get to the telnet prompt.
+  send -- "\035"
+
+  set timeout $general_timeout
+
+  if { $debug } { set_expect_start_time }
+  set message "a telnet prompt"
+  if { $debug } { puts "[sprint_time]Looking for ${message}."}
+  expect {
+    -re "telnet> " {
+      if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nWe are now at a telnet prompt."}
+    }
+    timeout {
+      handle_timeout "$timeout" "$message"
+    }
+    eof {
+      handle_eof "$message"
+    }
+  }
+  if { $debug } { set_expect_total_time ; print_expect_total_time }
+
+  if { $debug } { puts "[sprint_time]Sending \"mode character\" command to get out of line mode."}
+  # Send the "mode character" command.  The extra "\r" should get us back to the partition prompt.
+  send -- "mode character\r\r"
+
+  if { $debug } { set_expect_start_time }
+  set message "a raw host system prompt"
+  if { $debug } { puts "[sprint_time]Looking for ${message}."}
+  expect {
+    -re "$raw_prompt|$vterm_prompt" {
+      if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nWe are now at a host prompt."}
+    }
+    timeout {
+      handle_timeout "$timeout" "$message"
+    }
+    eof {
+      handle_eof "$message"
+    }
+  }
+  if { $debug } { set_expect_total_time ; print_expect_total_time }
+
+  # If the prompt already equals vterm_prompt then we don't need to set it.
+  if { $prompt != $vterm_prompt } {
+
+    set loc_command "export PS1='$vterm_PS1'"
+
+    if { $debug } { puts "[sprint_time]Setting the prompt to \"$vterm_prompt\"."}
+    # We now want to set the prompt to our liking.
+    send -- "$loc_command\r"
+
+    # Look for our echoed command.
+    if { $debug } { set_expect_start_time }
+    set message "command \"$loc_command\" echoed in the output"
+    if { $debug } { puts "[sprint_time]Looking for ${message}."}
+    expect {
+      $loc_command {
+       if { $debug } { puts "[sprint_time]Found our echoed command."}
+        set prompt $vterm_prompt
+      }
+      timeout {
+        handle_timeout "$timeout" "$message"
+      }
+      eof {
+        handle_eof "$message"
+      }
+    }
+    if { $debug } { set_expect_total_time ; print_expect_total_time }
+  }
+
+  # And now get to the console's shell prompt.
+  get_prompt $general_timeout
+
+}
+################################################################################
+
+
+
+################################################################################
+proc process_su { } {
+
+  global debug
+  global su
+  global userid
+  global rootpw
+  global su_logged_in
+
+  if { $debug } { print_proc_name }
+
+  if { ! $su } { return }
+
+  set loc_command "su -"
+  if { $debug } { puts "[sprint_time]Sending command: $loc_command<eod>" }
+
+  send -- "$loc_command\r"
+  logon_host $userid $rootpw 0
+  set su_logged_in 1
+
+}
+################################################################################
+
+
+
+################################################################################
+proc process_ls { } {
+
+  # The busybox "ls" command on an FSP will produce formatting characters (color codes) by default whereas on most systems the default is to NOT produce these characters.  We need to remove these characters because our users won't be expecting them.
+  # If I detect an "ls" in the $command, and if I detect that we're running on an FSP (/opt/extucode is present), I will strip the color characters from the output by generating a short program which will pipe the ls output into a cat.  I will then alias the ls command to this temporary program.
+
+  global debug
+  global simics
+  global command
+  #global simics_gen_timeout
+  global prompt_type
+
+  if { $debug } { print_proc_name }
+
+  if { $prompt_type != "old_FSP_prompt" && $prompt_type != "FSP_prompt" } { return 0 }
+
+  set common_file_name_chars ".A-Za-z0-9_-"
+
+  set embedded_ls [ regexp (^|\[^$common_file_name_chars\])(ls)(\[^$common_file_name_chars\]|$) $command]
+
+  if { ! $embedded_ls } { return 0 }
+
+  # $prompt_type == "FSP_prompt"
+  if { $prompt_type == "FSP_prompt" } {
+    # Performance change: For modern FSPs, I simply add the "-1" parm to all ls commands.
+    regsub -all {(^|[ /;]+)(ls)( |$)} $command {\1\2 -1 } command
+    if { $debug } { print_var command }
+    return
+  }
+
+  # I detected an "ls" command in the $command string
+  set alias_dir "/opt/extucode/bin"
+  send -- "if \[ -d /opt/extucode \] ; then mkdir -p $alias_dir ; (echo 'temp_file=`date \"+/tmp/ls.\%Y\%m\%d.\%H\%M\%S\"`' ; echo 'ls \"$@\" > \$temp_file || exit $?' ; echo 'cat \$temp_file ; rm \$temp_file') > $alias_dir/xx ; chmod +x $alias_dir/xx ; alias ls=$alias_dir/xx ; fi\r"
+  # 2011/03/08 I saw this timeout at 20 seconds on a simics last night.  Bumping from $general_timeout (20) to 60.
+ # if { $simics } {
+ #   get_prompt $simics_gen_timeout
+ # } else { 
+    get_prompt 30
+ # }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc process_pre_cmd { } {
+
+  # This function will process the user's pre_cmd (if there is one).
+
+  global debug
+  global pre_cmd
+  global debug
+  global userid
+  global rootpw
+
+  if { $debug } { print_proc_name }
+
+  if { $pre_cmd == "" } { return }
+
+  if { $debug } { puts "[sprint_time]Running pre_cmd: $pre_cmd<eod>" }
+  send -- "$pre_cmd\r"
+  logon_host $userid $rootpw 0
+
+}
+################################################################################
+
+
+
+################################################################################
+proc append_telnet_response {array element op} {
+
+  # This function is called every time expect_out(buffer) is modified.  It will append expect_out(buffer) to telnet_response.
+
+  uplevel {
+    global telnet_response
+    set telnet_response "$telnet_response$expect_out(buffer)"
+  }
+}
+################################################################################
+
+
+
+################################################################################
+proc send_command { } {
+
+  # This function will send the user's command to the spawned process.
+
+  global debug
+  global command
+  global port
+  global command_timeout
+  global telnet_response
+  global command_executed
+  global expect_out
+  global rrc
+
+  if { $debug } { print_proc_name }
+  if { $debug } { puts "[sprint_time]Sending command: $command<eod>" }
+
+  if { $rrc } {
+    set command "$command ; echo Rmt_ret_code = \$?"
+  }
+  send -- "$command\r"
+
+  set command_executed 1
+
+  # We trace expect_out(buffer) so that we can keep all of the data that it receives from this point on in telnet_response even after it has left the internal buffer.
+  trace variable expect_out(buffer) w append_telnet_response
+
+  if { $port != "31337" } {
+    get_prompt $command_timeout
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc process_p8_FSP_line_breaks { } {
+
+  # The new p8 FSPs are inserting "\r\r\n" as some kind of line break in the echoed command portion of the response. I observed the following pattern consistently: After 78 characters, one "\r\r\n" was inserted.  Then, after every 80 characters one "\r\r\n" was inserted.  I'm trying to be careful not to break existing functionality since rcmd is used to talk to so many kinds of machines.  So, I'll list what appear to be the unique characteristics of this situation so that I don't remove a legitimate "\r\r\n" (though I'm not sure how you'd get a legitimate one).
+  # - I've only seen this on p8 FSPs.  Though I don't test for release, I can at least narrow this down to prompt_type of "FSP_prompt" type only.
+  # - The command length must be at least 78 characters for this to be an issue.
+  # - If the beginning of the host_response contains the "command" field exactly, we don't have an issue, (for example, a fips760 real hardware FSP does not give us this problem).  The only exception to this is that if the command length is exactly 78, we may still see the exact command in the host_response but it will be followed by "\r\r\n".
+
+  # Another strange and interesting problem that I see only with p8 FSP: Commands longer than 1022 chars simply get cut off at 1022.  I even experienced this when trying to manually paste a 1024 char command into a p8 FSP telnet window.  It cuts it to 1022 and you can't type additional chars.  So, if this function detects that we do have p8 FSP line breaks and a command string greater than 1022 bytes, it will cause the entire program to fail.
+
+  global debug
+  global host_response
+  global prompt_type
+  global prompt
+  global command
+
+  set line_break "\r\r\n"
+
+  if { $debug } { print_proc_name }
+
+  # 2012/08/31 Reed Frandsen was testing a private fips810 build.  The prompt for the FSP was old_FSP_prompt vs the normal FSP_prompt.  That causes us to bail out of this function even though the processing done in this function is still necessary.  Reed and I agreed that my changing this may be covering an issue but he wants to be able to proceed with testing so I'm making the change.
+  if { $prompt_type != "old_FSP_prompt" && $prompt_type != "FSP_prompt" } { return 0 }
+  # if { $prompt_type != "FSP_prompt" } { return }
+
+  set command_length "[string length $command]"
+
+  if { $command_length < 78 } { return }
+
+  if { $debug } { print_var command_length }
+
+  # See if the beginning of host_response contains our exact "command".
+  set response_has_exact_command [expr ![string compare -length $command_length $command $host_response]]
+  if { $debug } { print_var response_has_exact_command }
+
+  # See if we have a solitary post-78-char-line-break.
+  set solo_post_78_line_break [expr { [expr $command_length == 78] && [string range $host_response 78 80] == $line_break } ]
+  if { $debug } { print_var solo_post_78_line_break }
+
+  # If the host_response contains the exact string (note the exception: 78 char command followed by the "line break"), we do not have the issue.
+  if { $response_has_exact_command && ! $solo_post_78_line_break } { return }
+
+  if { $debug } { puts "[sprint_time]Removing any \"p8 line breaks\" found in the host_response." }
+
+  # I want the remedy also to be as narrowly constructed as possible so that we don't break this program for established uses.
+
+  # If we've made it this far, the command has at least 78 characters.  We will now calculate the potential number of line breaks - one for the first 78 characters and one for each 80 characters beyond that.
+  set max_num_line_breaks [expr ( ( $command_length - 78 ) / 80) + 1]
+  if { $debug } { print_var max_num_line_breaks }
+
+  # The first "line break" is found after 78 chars.  The next 11 line breaks are found after every additional 80 characters.  We want to remove these and only these "line breaks".  "num_preceding_chars" means the number of characters expected between the start of host_response and the potential line break.  Each time through the loop, the regsub may remove a line break.  Then we increment num_preceding_chars by 80 to prepare for the next loop iteration.
+
+  set replacements_done 0
+  set num_preceding_chars 78
+  for { set ix 0 } { $ix < $max_num_line_breaks } { incr ix } {
+    #print_var num_preceding_chars
+    # Note that I tried using regsub but I'd get "invalid repetition count" for num_preceding_chars exceeding 250.  In other words, it won't work on long strings due to TCL limitations.
+    # regsub "^(.{$num_preceding_chars})\r\r\n" $host_response {\1} host_response
+
+    # Get the substring which is $num_preceding_chars from the beginning of the host_response string.
+    set sub_str [string range $host_response $num_preceding_chars [expr $num_preceding_chars + 2]]
+    set found_line_break [expr ![string compare -length 3 $sub_str $line_break]]
+    if { $found_line_break } {
+      # We found a line break at the expected location so we will remove it.
+      set host_response [string replace $host_response $num_preceding_chars [expr $num_preceding_chars + 2]]
+      set replacements_done 1
+    }
+
+    incr num_preceding_chars 80
+  }
+
+  if { $replacements_done && $command_length > 1022 } { 
+    print_error "p8 FSP line breaks were found in the host_response AND your command string was greater than 1022 characters in length.  1022 is the maximum length allowed for p8 FSP and beyond.\n"
+    exit 1
+  }
+
+}
+################################################################################
+
+
+
+################################################################################
+proc process_command_response { } {
+
+  # This function will process the response to the user's command.
+
+  global debug
+  global host_response
+  global telnet_response
+  global vterm_console
+  global prompt_type
+  global prompt
+  global command
+  global rrc
+  global rmt_ret_code
+  global command_response_processed
+
+  if { $debug } { print_proc_name }
+
+  set command_length "[string length $command]"
+  if { $debug } { print_var command_length }
+
+  set host_response $telnet_response
+
+  process_p8_FSP_line_breaks
+
+  # Remove command from the response.
+  if { $vterm_console } {
+    # If your command is beyond a certain length, vterm throws all kinds of spaces, backspaces, etc.  I wasn't able to detect a pattern in the output other than observing that no strange characters were found in the actual output from the command.  So, instead, I'm simply discarding all characters up to and including the first <cr/lf>.  Note the "?" in the following expression says to do a non-greedy or lazy match, i.e. 1 or more of any character up to the first <cr/lf>.  This may be the preferred way for all uses of rcmd (not just vterm) but the old way is working so I won't disturb it now.
+    regsub {.+?\r\n} $host_response {} host_response
+  } elseif { $prompt_type == "apollo_LCB_prompt" } {
+    regsub {.+?\r\n} $host_response {} host_response
+  } else {
+    # The following command is unnecessary now that I've found a means to suppress line breaks inserted by the terminal.  Well, I thought I did but I'm having problems when ssh'ing to an AIX partition.  I still get the space/backspace.
+    # The telnet program inserts " [\b]" (space,backspace) characters wherever it thinks there ought to be a line feed.  This generally appears to be a mere nuisance but actually causes problems if telnet replaces the line feed that ought to follow $command with " [\b]".  In this case the first line of output generated by command on the target system winds up on the same line as command in the output.  Because this program throws away that first line (in order to exclude command from the returned data), this situation is unacceptable.
+    # Ideally, I would have liked to have found a way to get the telnet session to stop inserting this combination of characters in the first place.  I was unable to do this.  As an alternative, I'm manipulating the data after the fact by removing all " [\b]", then removing $command and finally removing "\n" from the beginning of the string (if present).
+    # Remove all " \b"s from the response.
+    regsub -all { \b} $host_response {} host_response
+
+    if { $prompt_type == "CMM_debug_shell_prompt" } {
+      # 2012/08/24 I discovered this problem on "CMM_debug_shell_prompt" so I'll only fix it for that prompt type.  This had been working fine until now.  Today I saw a "\r\r\n" stuck in the middle of the echoed command:
+      # ls -l /usr/share/htdocs/private/cores/ | busybo\r\r\n
+      # x grep core.*
+      regsub -all {\r\r\n} $host_response {} host_response
+    }
+  
+    #regsub "(?q)$command" $host_response {} host_response
+    # The "(?q)" above doesn't work on AIX so I changed to the following command.
+    #set host_response [string range $host_response [string length $command] [expr [string length $host_response] - 1]]
+    set host_response [string range $host_response $command_length end]
+  }
+
+  if { [string first "\n" $host_response] == "1" } {
+    # I couldn't get the "^" or "\A" (beginning anchors) to work with regsub so I had to use the preceding if statement to identify a leading "\n".  The following command removes the first "\n" found.
+    #regsub {\n} $host_response {} host_response
+    # The "(?q)" above doesn't work on AIX so I changed to the following command.
+    set host_response [string range $host_response 2 [expr [string length $host_response] - 1]]
+  }
+
+  # "\r"s are neither necessary nor expected by the caller.
+  # This still doesn't work in AIX.  I need an alternative.
+  regsub -all {\r} $host_response {} host_response
+  # Remove the trailing prompt.
+  regsub $prompt $host_response {} host_response
+
+  if { $rrc } {
+    regsub {.*Rmt_ret_code = } $host_response {} rmt_ret_code
+    regsub {Rmt_ret_code = .*} $host_response {} host_response
+    set command_response_processed 1
+    if { $rmt_ret_code != 0 } { exit $rmt_ret_code }
+  }
+
+  if { $debug } {
+    set host_response_length "[string length $host_response]"
+    print_var host_response_length
+  }
+
+  set command_response_processed 1
+
+}
+################################################################################
+
+
+
+################################################################################
+proc vterm_console_cleanup { } {
+
+  global debug
+  global prompt
+  global vterm_console
+  global general_timeout
+  global telnet_connection
+  global logged_in
+
+  if { $debug } { print_proc_name }
+
+  if { ! $vterm_console } { return }
+
+  # Depending on the progress so far we may need to do the following...
+  # 1) Logout and wait for the Console login prompt.
+  # 2) Get to the telnet prompt and send a "quit" command.
+
+  # The following code is necessary to "shut down" properly so that the user can run rcmds back-to-back without failing for lack of a login prompt.
+
+  if { $logged_in } {
+
+    send -- "logout\r"
+
+    set retry 0
+    # The worst expect time I saw while testing was 117.  So I'll round to 120 and add 30 seconds.
+    set timeout 150
+    while { ! $retry } {
+      if { $debug } { set_expect_start_time }
+      set message "a final console prompt"
+      if { $debug } { puts "[sprint_time]Looking for ${message}."}
+      expect {
+        -re "INIT: Command is respawning too rapidly. Check for possible errors." {
+          # Waiting and/or sending <cr>s doesn't seem to help.
+          set retry 0
+          continue
+        }
+        -re "Console login: " {
+          if { $debug } { puts "\n[sprint_time]Found the following:\n$expect_out(buffer)<eod>\nThis is proof that we are logged out."}
+        }
+        timeout {
+          handle_timeout "$timeout" "$message"
+        }
+        eof {
+          handle_eof "$message"
+        }
+      }
+      if { $debug } { set_expect_total_time ; print_expect_total_time }
+      set retry 1
+      set timeout $general_timeout
+    }
+
+    set logged_in 0
+  # End if logged_in
+  }
+
+  quit_telnet_session
+
+}
+################################################################################
+
+
+
+################################################################################
+proc exit_function { } {
+
+  global debug
+  global vterm_console
+  global port
+  global command_executed
+  global su_logged_in
+  global logged_in
+  global prompt
+  global prompt_type
+  global telnet_response
+  global host_response
+  global rrc
+  global rmt_ret_code
+  global command_response_processed
+
+  if { $debug } { print_proc_name }
+
+  if { $su_logged_in } {
+    # Exit from root shell.
+    send -- "exit\r"
+  }
+
+  if { $logged_in } {
+    if { $vterm_console } {
+      vterm_console_cleanup
+    } elseif { $port == "31337" } {
+      quit_telnet_session
+    } else {
+      send -- "exit\r"
+    }
+  }
+
+  if { $command_executed } {
+    # command was executed so display the results.
+    if { $debug } {
+      puts "\n"
+
+      puts "prompt:"
+      puts "$prompt"
+      print_var prompt_type
+      puts "telnet_response:"
+      puts $telnet_response
+      if { $rrc } {
+        print_var rmt_ret_code
+      }
+      puts "=============================== Output String ==================================";
+    }
+
+    #if {[string length $host_response] == 0} {
+    #  set host_response \n
+    #}
+
+    if { $command_response_processed || $debug } {
+      send_user -- "$host_response"
+    }
+
+    if { $debug } {
+      send_user -- "================================================================================\n";
+    }
+
+  # End if command_executed.
+  }
+
+  #set sleep_time 1
+  #if { $debug } { puts "[sprint_time]sleep ${sleep_time}."}
+  #sleep ${sleep_time}
+
+  if { $debug } { puts "[sprint_time]End of exit_function."}
+
+}
+################################################################################
+
+
+
+################################################################################
+# Start of the main                                                            #
+################################################################################
+
+  if { $debug } { puts "[sprint_time]Start of main." }
+
+  get_options
+
+  validate_parms
+
+  if { $use_rcmdc } {
+    set cmd_buf "rcmdc -t ${timeout} -d ${debug} -l ${userid} -p '${password}' -f '${password_file_path}' ${host_name}:${port} '$command'"
+    if { $debug } { issuing }
+    if {[catch {set out_buf [exec bash -c "$cmd_buf"]} result]} {
+      puts stderr "${result}"
+      exit 1
+    }
+    puts "${out_buf}"
+    exit 0
+  }
+
+  print_parms
+
+  if { $debug } { puts "[sprint_time]Setting exit_function as exit handler." }
+
+  exit -onexit exit_function
+
+  ping_ip $host_name
+
+#  set debug_telnet_response ""
+#  trace variable expect_out(buffer) w debug_telnet_response
+
+  spawn_process
+
+  logon_host $userid $password [expr !$ssh]
+
+  vterm_console_pre_processing
+
+  process_su
+
+  process_ls
+
+  process_pre_cmd
+
+  send_command
+
+  if { $port == "31337" } {
+    # For port 31337 we get no login prompt, password prompt or command line prompt.
+    exit 0
+  }
+
+  process_command_response
+
+  # See exit_function for wrapup/cleanup, etc.
+
+#print_var debug_telnet_response
+
+  if { $debug } { puts "[sprint_time]End of main." }
+
+################################################################################

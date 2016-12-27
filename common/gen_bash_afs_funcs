@@ -1,0 +1,170 @@
+#!/bin/bash
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/gen_bash_afs_funcs 1.2 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2014,2015 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+
+# This file contains functions that help with afs.
+
+
+
+################################################################################
+function afs_cell {
+  local cell_var="${1}" ; shift || :
+
+  # This function will determine the local afs cell.  Example afs cell: rchland.
+  # If cell_var is null, this function will write the answer to stdout.  Otherwise, it will put the answer in the variable named in cell_var.
+
+  #hostname | cut -f 2 -d .
+  # 2012/01/11 Performance improvements.
+  local loc_hostname=${HOSTNAME:=$(hostname)}
+  loc_hostname=${loc_hostname#*.}
+  #loc_hostname=${loc_hostname%%.*}
+  loc_hostname=${loc_hostname%.ibm.com}
+  # 2012/01/25 Systems in India ("in") and Taiwan ("tw") are supposed to look and feel just like an austin system.  So, we'll play along.
+
+  # Remove ".stglabs" from "pok.stglabs".
+  loc_hostname=${loc_hostname%.stglabs}
+  if [ "${loc_hostname}" == "in" ] ; then loc_hostname=austin ; fi
+  if [ "${loc_hostname}" == "tw" ] ; then loc_hostname=austin ; fi
+  if [ "${loc_hostname}" == "rch" ] ; then loc_hostname=rchland ; fi
+  if [ "${loc_hostname}" == "aus" ] ; then loc_hostname=austin ; fi
+  if [ -z "${cell_var}" ] ; then
+    printf "$loc_hostname\n"
+  else
+    eval $cell_var=$loc_hostname
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function afs_user {
+  local afs_id_var="${1:-afs_id}" ; shift
+  local afs_name_var="${1:-afs_name}" ; shift
+  local afs_cell="${1}" ; shift
+  local data_file_dir_path="${1}" ; shift
+  local quiet="${1:-1}" ; shift
+
+  # This function will get the afs id and name for the given cell.  If afs_cell is passed as an empty string, this function will assign it the local cell value.
+  # data_file_dir_path  This is a directory where the afs_user data can be stored as file "${afs_cell}_afs_info".  If such a file already exists, the afs user info will be read from it.  If you specify the keyword "[default]" for this, it will be expanded to "${HOME}/private/".  The directory specified must already exist.  The objective of providing this parameter is to allow this function to run faster if the data has already been obtained.
+
+  [ -z "${afs_cell}" ] && afs_cell afs_cell
+
+  local data_file_path
+
+  [ "${data_file_dir_path}" == "[default]" ] && data_file_dir_path=${HOME}/private/
+
+  if [ ! -z "${data_file_dir_path}" ] ; then
+    if [ ! -d "${data_file_dir_path}" ] ; then
+      { print_error ; echo "Directory \"${data_file_dir_path}\", specified in parameter \"data_file_dir_path\", does not exist." ; } | process_error_message
+      return 1
+    fi
+    # Add trailing slash.
+    data_file_dir_path=${data_file_dir_path%/}/
+    data_file_path=${data_file_dir_path}${afs_cell}_afs_info
+    if [ -f "${data_file_path}" ] ; then
+      read ${afs_id_var} ${afs_name_var}  < ${data_file_path}
+      # If one of the values is not valid then the data is bad and we must re-obtain it.
+      if [ ! -z "${!afs_id_var}" -a ! -z "${!afs_name_var}" ] ; then
+        return
+      fi
+    fi
+  fi
+
+  local cmd_buf
+  local line
+
+  local temp_misc_file
+  local add_to_cleanup_file_list=0
+  create_temp_file_name temp_misc_file "" ${add_to_cleanup_file_list}
+
+
+  cmd_buf="tokens > ${temp_misc_file}"
+  (( ! quiet )) && issuing
+  eval ${cmd_buf}
+  # Find the line with our cell information.
+  while read line ; do [ "${line}" != "${line/${afs_cell}.ibm.com}" ] && break ; done < ${temp_misc_file}
+  if [ -z "${line}" ] ; then
+    { print_error ; echo "You do not have tokens for afs cell \"${afs_cell}\".  Function \"${FUNCNAME}\" requires that you have tokens." ; } | process_error_message
+    cleanup_temp_file "${temp_misc_file}" ${add_to_cleanup_file_list} "${quiet}"
+    return 1
+  fi
+
+  # Extract afs id from line of text.
+  line=${line#*AFS ID } ; line=${line%)*}
+  eval ${afs_id_var}=${line}
+
+  cmd_buf="pts examine -nameorid ${!afs_id_var} -cell ${afs_cell} > ${temp_misc_file}"
+  (( ! quiet )) && issuing
+  eval ${cmd_buf}
+
+  read line < ${temp_misc_file}
+  # Extract afs name from line of text.
+  line=${line#Name: } ; line=${line%%,*}
+  eval ${afs_name_var}=${line}
+
+  cleanup_temp_file "${temp_misc_file}" ${add_to_cleanup_file_list} "${quiet}"
+
+  if [ ! -z "${data_file_path}" ] ; then
+     echo "${!afs_id_var} ${!afs_name_var}" > ${data_file_path}
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function tokens_func {
+  local cell_list="${1}" ; shift
+  local headers="${1:-1}" ; shift
+  local quiet="${1:-1}" ; shift
+
+  # This function offers some functionality over and above just calling tokens.
+  # cell_list   A space or "|" delimited list of cells (e.g. "rchland austin").  If you specify a list, only the entries for the given cells will be shown in the output.
+  # headers     If you specify "1", headers will appear (as they normally would).  If you specify "0", only the token information lines for the cells will be output.
+
+  # Example:
+  # tokens_func "" 0
+  # User's (AFS ID 30982) tokens for afs@austin.ibm.com [Expires Feb 11 17:55]
+  # User's (AFS ID 30982) tokens for afs@rchland.ibm.com [Expires Feb 11 17:55]
+
+  # Strip the cell qualifiers.
+  cell_list=${cell_list//.ibm.com/}
+  # Convert spaces to pipe symbols to create a cell regular expression.
+  local cell_regex=${cell_list// /\|}
+  # The header contains blank lines plus the header and footer lines.
+  local header_regex="^$|Tokens held by the Cache Manager|End of list"
+
+  local cmd_buf=tokens
+  if [ ! -z "${cell_list}" ] ; then
+    cmd_buf="${cmd_buf} | egrep '(${header_regex}|tokens for afs@(${cell_regex})\.ibm\.com)'"
+  fi
+  if (( ! headers )) ; then
+    cmd_buf="${cmd_buf} | egrep -v '${header_regex}'"
+  fi
+  (( ! quiet )) && issuing
+  eval ${cmd_buf}
+
+  return 0
+
+}
+################################################################################
+
+
+

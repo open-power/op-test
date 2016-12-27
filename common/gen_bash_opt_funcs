@@ -1,0 +1,1798 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define basic bash program functions like gen_get_options, gen_print_parms, etc.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_valid_funcs
+# gen_bash_list_funcs
+# gen_bash_misc_funcs
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+
+################################################################################
+function longoptions {
+
+  # This function will populate the global longoptions with the values specified as parameters to this function.  The advantage this offers in comparision to setting the field yourself is that this function will also interpret assignment instructions.
+  # Examples:
+  # Instead of this:
+  # longoptions="var1: var2: quiet:"
+  # var2=hi
+  # quiet=y
+  # You can now specify this:
+  # longoptions var1: var2:=hi quiet:=y
+  #
+  # Your longoptions will look like this when this function is finished:
+  # longoptions="var1: var2: quiet:"
+  #
+  # In other words, it is ready to be used by gen_get_options.
+
+  local parm_rec
+  local quoted_quote="'\''"
+  local cmd_buf
+
+  # Initialize global longoptions.
+  longoptions=''
+
+  shopt -s extglob
+
+  for parm_rec in "${@}" ; do
+    if [ "${parm_rec}" != "${parm_rec/=/}" ] ; then
+      # An equal sign was found in the string which indicates that the caller has specified an initial value to be assigned to the parm name variable.
+      # Remove any ":" chars.
+      # cmd_buf="${parm_rec//:/}"
+      # 2014/12/04 Mike Walsh (xzy0065) - Correction: Just remove the first one or 2 ":" chars preceding the first "=" sign.  Otherwise, we may remove ":" chars that are part of the data being put in the var.
+      cmd_buf="${parm_rec/?(:):=/=}"
+      # Replace single quotes with quoted quotes.
+      cmd_buf="${cmd_buf//\'/${quoted_quote}}"
+      # Quote everything to the left of the "=" sign.
+      cmd_buf=${cmd_buf/=/=\'}\'
+      #issuing
+      eval ${cmd_buf}
+      # Remove "=" sign and initial value from string.
+      parm_rec="${parm_rec%%=*}"
+    fi
+    # Add the parm field to longoptions.
+    [ -z "${longoptions}" ] && longoptions="${parm_rec}" || longoptions="${longoptions} ${parm_rec}"
+  done
+
+}
+################################################################################
+
+
+
+# 2011/10/07 I performance tuned gen_get_arg.
+# 2011/12/08 More perf tuning.
+if ! test "${gen_get_arg_failed+defined}" ; then readonly gen_get_arg_failed=255 ; fi
+################################################################################
+function gen_get_arg {
+  # Perf: .00007 to get here.
+  # Perf: I reference "${1}" directly (vs assigning it to "parm_name").
+  # local parm_name="${1}"
+  # Perf: I reference "${2}" directly (vs assigning it to "argument").
+  # local argument="${2}"
+  # Perf: Another .00002 to get here.
+
+  # This function can be used to help process parameters to your program.
+  # parm_name must contain the name of a parameter (with or without leading slashes).
+  # This function will determine whether parm_name has an argument specified in "${argument}".  If so, it will set the global variable named in "${parm_name}" to the value of "${argument}".  If not, it will consider the parameter named in "${parm_name}" to be a flag and will therefore set it to "1".
+
+  # This function was designed expressly for use by the gen_get_options function.  See that function for an example of its proper use.
+  # 
+  # This function should be called like this:
+  # gen_get_arg "$@"
+
+  # Global variables:
+  # It is assumed that the longoptions global variable is set and was used on the getopt call as follows:
+  # getopt ... --longoptions="${longoptions}"
+  # It is assumed that the values passed to this function were processed by getopt.
+  # This function uses longoptions to determine whether an arg is required.
+
+  # This function assumes that parm_name is prefixed with a single or double dash but it does not require this.
+
+  # This function will set the following global variables:
+  # parm        This will be set with the parm name passed as the first arg to this function (sans leading dashes).
+  # <parm_name> This will be set with the arg value which is the 2nd arg to this function.  If args are not required for this parm, the parm will be assumed to be a flag and will be set to 1.
+  #
+  # For example, let's say your expanded call looks like this:
+  # gen_get_arg --weather nice
+  # The global variable "parm" will be set to "weather".  The global variable "weather" will be set to "nice".
+  #
+  # For another example, let's say your expanded call looks like this where flag1 doesn't require an argument:
+  # gen_get_arg --flag1
+  # The global variable "parm" will be set to "flag1".  The global variable "flag1" will be set to 1.
+  #
+  # This function will print error messages to stderr.  The return codes have the following meanings.
+  # ${gen_get_arg_failed}       The get_arg function has failed.
+  # 0                           The function succeeded.  The parm required no arguments.
+  # 1                           The function succeeded.  An argument was found.
+  # The calling function should use the return code to decide whether to "shift".
+
+  # Assign global variable "parm" (strip off the leading dashes).
+  #local parm=$(echo ${parm_name} | sed -re "s/^[-]*//g")
+  # local parm=${parm_name#--}
+  local parm=${1#--}
+  # Perf: Another .00002 to get here.
+  local delimiter=" "
+  local arg_exists
+  local arg_exists_cmd_buf
+  local arg_optional
+  local arg_optional_cmd_buf
+  # Perf: Another .00003 to get here.
+
+  #local arg_exists_regex
+  # AIX's bash doesn't support the [[ ]] test which is much faster.
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    arg_exists_cmd_buf="echo \"\${longoptions}\" | egrep -q \"(^|\${delimiter})\${parm}:[:]?(\${delimiter}|\$)\" 2>/dev/null"
+    #arg_exists_regex="(^|\${delimiter})\${parm}:[:]?(\${delimiter}|\$)"
+  else
+    # Perf: Another .00003 to get here.
+    #arg_exists_cmd_buf="[[ \"\${longoptions}\" =~ \"(^|\${delimiter})\${parm}:[:]?(\${delimiter}|\$)\" ]]"
+    # This way is faster.
+    arg_exists_cmd_buf="[[ \"\${longoptions}\" =~ \"(^|\${delimiter})\${parm}:(:|)(\${delimiter}|\$)\" ]]"
+    #arg_exists_regex="(^|\${delimiter})\${parm}:(:|)(\${delimiter}|\$)"
+    # Perf: Another .00004 to get here.
+  fi
+  # Look up the parm in the global variable "longoptions" to determine whether arguments are either optional (::) or required (:).  Note that for the case of optional args, the getopt will pass an arg of "" if the user does not specify an arg.  So for this function, an arg will be expected in both the case of optional or required args.
+  # To improve performance, I forego the use of search_list and instead do the work inline.
+  #if search_list "${parm}::" longoptions || search_list "${parm}:" longoptions ; then
+
+  # Perf note: I hate to duplicate logic that is already in regexp (by checking reset_max) but calling regexp is much slower than evaluating arg_exists_cmd_buf.
+  if [ -z "${reset_max}" ] ; then
+    # Assertion: The caller has used getopt and therefore, we can be sure that the parm is included in longoptions.
+    # Perf note: The eval takes from about 0.00015 to 0.00023 seconds.  I tried "for element in $longoptions ; do" which was much slower.
+    #issuing "${arg_exists_cmd_buf}"
+    eval ${arg_exists_cmd_buf} && arg_exists=1 || arg_exists=0
+  else
+    regexp "\${longoptions}" "(^|\${delimiter})\${parm}:[:]?(\${delimiter}|\$)" 1 && arg_exists=1 || arg_exists=0
+  fi
+  if (( arg_exists )) ; then
+    # Perf: Another .00002 to get here.
+    # Argument is optional or required.  Therefore, there is an arg.
+    #if ! test "${2+defined}" ; then
+      # If the caller is using getopt (which is required for use of this function), we should never get to this statement.
+    #   { print_error "Function ${FUNCNAME}, line ${LINENO}: Programming error - parameter \"${1}\" requires an argument." ; echo ; } >&2
+    #   print_call_stack >&2
+    #   return ${gen_get_arg_failed}
+    # fi
+    # Perf: Another .00001 to get here.
+    # Set global variable ${parm}.
+    #local argument="${2}"
+    #eval ${parm}="\${argument}"
+    eval ${parm}="\${2}"
+    if [ -z "${2}" ] ; then
+      # If we are dealing with an optional arg, we should be setting it to "1" rather than "".
+      # For our purposes, parms with optional args will be treated as boolean.
+      if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+        arg_optional_cmd_buf="echo \"\${longoptions}\" | egrep -q \"(^|\${delimiter})\${parm}::(\${delimiter}|\$)\" 2>/dev/null"
+      else
+        arg_optional_cmd_buf="[[ \"\${longoptions}\" =~ \"(^|\${delimiter})\${parm}::(\${delimiter}|\$)\" ]]"
+      fi
+      #issuing "${arg_optional_cmd_buf}"
+      eval ${arg_optional_cmd_buf} && arg_optional=1 || arg_optional=0
+      (( arg_optional )) && eval ${parm}=1
+    fi
+    # Perf: Another .00004 to get here.
+    # See prolog for return code meanings.
+    return 1
+  else
+    # Perf: Another .00002 to get here.
+    # No argument is required so set the global parm to 1 indicating that a flag was specified by the program user.
+    # Set global variable ${parm}.
+    eval ${parm}=1
+    # See prolog for return code meanings.
+    return 0
+
+  # Perf: The following code will not run due to the preceding return statement.  I used to have it as the first thing in this else leg.  This check for "parm not found in longoptions" takes about 0.00028 which is significant.  The only known user of this function is gen_get_options which (barring bugs) will not call this function with a parm that is not in longoptions.
+
+    #search_list "${parm}" longoptions
+    #if ! search_list "${parm}" longoptions ; then
+
+    local parm_found_cmd_buf
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      parm_found_cmd_buf="echo \"\${longoptions}\" | egrep -q \"(^|\${delimiter})\${parm}(\${delimiter}|\$)\" 2>/dev/null"
+    else
+      # Perf: Another .00003 to get here.
+      parm_found_cmd_buf="[[ \"\${longoptions}\" =~ \"(^|\${delimiter})\${parm}(\${delimiter}|\$)\" ]]"
+      # Perf: Another .00003 to get here.
+    fi
+    eval ${parm_found_cmd_buf} && parm_found=1 || parm_found=0
+    if ! (( parm_found )) ; then
+      # If the caller is using longoptions on their getopt (as required) we should never get to this statement.
+      { print_error "Function ${FUNCNAME}, line ${LINENO}: Programming error - parameter \"${parm}\" was not found in the global variable \"longoptions\".  Incorrect use of this function." ; echo ; print_call_stack ; } >&2
+      return ${gen_get_arg_failed}
+    fi
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function process_pos_parm {
+  # This function will process positional parms for gen_get_options.  It manipulates gen_get_options' local variables as global.
+
+  # The caller must declare pos_parm_name.
+  # The caller must set loc_positional_parm_names which will be manipulated by this function.  Ex.
+  # local loc_positional_parm_names="${positional_parm_names}"
+  # The caller must initialize pos_parm_num to 0 before its first call to this function Ex.
+  # local pos_parm_num=0
+
+  local index
+  local parm_value=""
+
+  let pos_parm_num++
+
+  # Validate: The user of the program can't exceed the number of positional parms allowed by the program.
+  if [ -z "${pos_parm_name}" ] ; then
+    retrieve_list_element pos_parm_name loc_positional_parm_names "front" " " 1 || return 1
+    if [ -z "${pos_parm_name}" ] ; then
+      local max_pos_parms
+      max_pos_parms=$(num_list_elements positional_parm_names)
+      if (( max_pos_parms == 0 )) ; then
+        { print_error ; echo "Positional parameter \"${parm}\" was found.  ${PGM_NAME:=$(basename $0)} does not allow any positional parameters." ; print_call_stack ; } >&2
+      elif (( max_pos_parms == 1 )) ; then
+        { print_error ; echo "\"${parm}\" was found as positional parameter ${pos_parm_num}.  ${PGM_NAME:=$(basename $0)} only allows ${max_pos_parms} positional parameter, \"${positional_parm_names}\"." ; print_call_stack ; } >&2
+      else
+        { print_error ; echo "\"${parm}\" was found as positional parameter ${pos_parm_num}.  ${PGM_NAME:=$(basename $0)} only allows ${max_pos_parms} positional parameters, \"${positional_parm_names}\"." ; print_call_stack ; } >&2
+      fi
+      return 1
+    fi
+  fi
+
+  # 2015/07/14 Mike Walsh (xzy0065) - Set global pgm_explicit_parm_list.
+  add_list_element "${pos_parm_name}" pgm_explicit_parm_list back " " 1 || return 1
+
+  # See if the positional parm name ends in "_list".
+  local parm_list_specified=0
+  let index=${#pos_parm_name}-5
+  if (( index >= 0 )) && [ "${pos_parm_name:${index}:5}" == "_list" ] ; then
+    parm_list_specified=1
+  fi
+
+  # 2012/08/23 Not sure why I was quoting (vs simple assignment).  We just want to be sure that the parm gets assigned to the parm variable with no alteration.  This should do it.
+  # 2014/04/25 I found an example where we need to quote:
+  # a_cp --target='dir with space' xzy0065
+  # Without quoting:
+  # cp_parm_list:                --target=dir with space xzy0065
+  # With quoting:
+  # cp_parm_list:                --target='dir with space' xzy0065
+
+  # Here is a case where I don't want quotes:
+  # multi_cmd --quiet=n "LCB_down_prep []" jnd4afsp pfdp7b08 pfdp7b12 s97a tul308fp
+  # gen_cmd:                     'LCB_down_prep []'
+
+  # So to summarize, the case I cited above where I need quotes is only when the parm_value is an element of the list which is named by pos_parm_name.
+
+  if (( parm_list_specified )) ; then
+    quote_parm_list parm_value "${parm}" || return 1
+    # If we are processing a parm list, we simply add each new parm value to the list.
+    if [ -z "${!pos_parm_name}" ] ; then
+      eval ${pos_parm_name}=\"\${parm_value}\"
+    else
+      eval ${pos_parm_name}=\"\${${pos_parm_name}} \${parm_value}\"
+    fi
+    # We avoid clearing pos_parm_name because all additional parms on the command line will be added to the list.
+  else
+    parm_value="${parm}"
+    #eval ${pos_parm_name}="${parm_value}"
+    eval ${pos_parm_name}=\"\${parm_value}\"
+    # Clear pos_parm_name because we are done processing the current parm.  The next call to this function will start by retrieving the next pos parm name from loc_positional_parm_names.
+    pos_parm_name=""
+  fi
+
+}
+################################################################################
+
+
+
+# 2011/10/07 I performance tuned gen_get_options.
+# 2011/12/08 More perf tuning.
+################################################################################
+function gen_get_options {
+
+  # This function will process the command line options specified by the caller.  The function should be called as follows:
+  # gen_get_options "$@" || exit 1
+  #
+  # This function uses the following global variables:
+  # longoptions         This should contain your list of longoptions.  See the getopt man pages for details on how to specify --longoptions.  There is no need to include "help" in this list.  This function will process the -h or --help parms by calling a function called help.  This function must be defined by the caller.
+  # New:
+  # positional_parm_names       This should contain variable names for each positional parm you want.  For example, if positional_parm_names equals "filename", the first positional parm value is assigned to filename.  Any positional parms found with no corresponding parm name in positional_parm_names will be rejected as an error.  New feature: If your nth positional parm name ends in "_list", the nth parm and all subsequent parms will put into that variable with spaces separating the elements.  Any pos parm ending in "_list" should be the last parm in your positional_parm_names list.
+  # 
+
+  # This function will set the following global variables:
+  # command_line                This will contain the full command line call which includes the fully qualified program name, the parameters and their args (re-quoted when necessary).
+  # parm_list                   This is your longoptions without the ":" characters.
+  # parm variables              Every value in the parm_list and positional_parm_names will be considered a global variable to be set.
+  # additional_parms            All parms specified after " -- " on the command line will be put in this variable.
+  # 2015/07/14 Mike Walsh (xzy0065) - I added code to set the following global variables which may prove useful to callers:
+  # pgm_parm_list               This is simply a space-delimited list of all parms to this program (including positional parms).
+  # pgm_explicit_parm_list.     This is a space-delimited list of all parms explicitly specified by the caller of this program (including positional parms).
+
+  # Example:
+  # The program call:
+  # /tmp/my_pgm --var1=value1 -- --extra_parm
+  #
+  # longoptions contains "var1: var2:"
+  #
+  # The expanded call to this function looks like this:
+  # gen_get_options --var1=value1 -- --extra_parm
+  # In this case, 
+  # command_line        /path/program_name --var1=value1 -- --extra_parm
+  # parm_list           var1 var2
+  # var1                
+  # var2                ""
+  # additional_parms    --extra_parm
+
+  # This var is set by gen_get_arg
+  local rc
+  local parm
+  local defined
+  local cmd_buf
+  local index
+
+  # 2015/07/14 Mike Walsh (xzy0065) - Set global pgm_parm_list.
+  pgm_parm_list=${longoptions//:/}" ${positional_parm_names}"
+
+  local quote_type="single"
+  local calling_function=${FUNCNAME[1]}
+  # ${FUNCNAME[1] returns nothing on our AIX machines.
+  [ -z "${calling_function}" ] && calling_function=main
+  local program_path=$0
+  local program_name=${program_path##*\/}
+  local program_dir=${program_path%${program_name}}
+  local save_pwd=${PWD:=$(pwd)}
+
+  # Convert relative to absolute path name.
+  # program_dir="$(cd $program_dir ; pwd)/"
+  # Faster way...
+
+  # Perf note: This takes .001 seconds or less.
+  {
+    if [ -d $program_dir -a -d "${save_pwd}" ] ; then
+      cd $program_dir && program_dir=${PWD}/ && cd "${save_pwd}"
+    fi
+  }
+
+  local caller_string
+  local caller_is_func=0
+  local _name_
+
+  # These global variables are used by other gen_ functions.  Because this function can be called by functions (e.g. exec_cmd), I only set these globals if _gbof_Start_time_ is blank.
+  if [ "${calling_function}" == "main" ] ; then
+  # if [ -z "${_gbof_Start_time_}" ] ; then
+    INDENT=0
+    # 2013/07/11 Let print_var set this.
+    #COL1_WIDTH=28
+    # Convert relative path where this program exists into absolute path.
+    PGM_DIRNAME=${program_dir}
+    PGM_NAME=${program_name}
+    # Perf: I moved _gbof_Start_time_ setting to later so I can check "quiet" first.
+  fi
+
+  if [ "${calling_function}" == "main" ] ; then
+    caller_string=$0
+    _name_=${program_name}
+  else
+    caller_is_func=1
+    caller_string=${calling_function}
+    _name_=${calling_function}
+  fi
+
+  # Set command_line for the caller.
+  # 2012/02/27 By testing for additional parms I can possibly avoid the call to quote_parm_list.
+  if [ $# -gt 0 ] ; then
+    local parm_line
+    # Perf note: This takes at least .002 seconds for a list with 8 parms.
+    # Perf note: With a long parm list (e.g. a file_list) it can take much longer.  In one case, I had 543 parms which took 2.172 seconds to process.
+    quote_parm_list parm_line "$@"
+    command_line="${caller_string} ${parm_line}"
+  else
+    command_line="${caller_string}"
+  fi
+
+  # Set parm_list for the user.
+  parm_list=${longoptions//:/}
+
+  # 2012/07/05 Perf improvement:
+  # If a parm requires no arg and the caller has not already initialized it, we will initialize it to "0".
+  local element
+  for element in ${longoptions} ; do
+    parm=${element//:/}
+    if [ ${#element} != ${#parm} ] ; then continue ; fi
+    #cmd_buf="test \"\${${parm}+defined}\" && defined=1 || defined=0"
+    cmd_buf="test \"\${${parm}+defined}\" || ${parm}=0"
+    eval $cmd_buf
+    # ! (( defined )) && search_list "${parm}" longoptions && eval ${parm}=0
+  done
+
+  # Old way: If a parm requires no arg and the caller has not already initialized it, we will initialize it to "0".
+  #parm_list=$(echo ${longoptions} | sed -re "s/://g")
+  shopt -s extglob
+  # Bash var name rules: Variable name must begin with alphanumeric character or underscore character (_), followed by one or more alphanumeric or underscore characters.
+  # no_arg_parm_list="${longoptions//[A-Za-z_]*([0-9A-Za-z_]):/}"
+
+  #for parm in ${no_arg_parm_list} ; do
+    #cmd_buf="test \"\${${parm}+defined}\" && defined=1 || defined=0"
+  #  cmd_buf="test \"\${${parm}+defined}\" || ${parm}=0"
+  #  eval $cmd_buf
+    # ! (( defined )) && search_list "${parm}" longoptions && eval ${parm}=0
+  #done
+
+  # Though "getopt" is supposed to be deprecated, I've chosen to use it because it supports longoptions whereas the replacement, "getopts", does not.
+
+  local OPT_LIST
+  local parm_list_specified=0
+  let index=${#positional_parm_names}-5
+  if (( index >= 0 )) && [ "${positional_parm_names:${index}:5}" == "_list" ] ; then
+    parm_list_specified=1
+  fi
+
+  local help_func_defined=0
+
+  local arg
+  local found_double_dash=0
+  local temp_misc_file=/tmp/${PGM_NAME}_${FUNCNAME}_${RANDOM}_${RANDOM}
+
+  local delimiter=" "
+  # The command to see if a given parm is found in longoptions.
+  # local parm_found_cmd_buf="[[ \"\${longoptions}\" =~ \"(^|\${delimiter})\${parm#--}[:]?[:]?(\${delimiter}|\$)\" ]]"
+  # 2014/04/16 This change allows us to handle abbreviated parms (i.e. "--test" instead of the full "--test_mode").
+
+  #  local parm_found_cmd_buf="[[ \"\${longoptions}\" =~ \"(^|\${delimiter})(\${parm#--}[^ ]*[:]?[:]?)(\${delimiter}|\$)\" ]]"
+  local parm_found_cmd_buf
+  local user_parm_found_cmd_buf
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    parm_found_cmd_buf="echo \"\${longoptions}\" | egrep -q \"(^|\${delimiter})(\${parm#--}[^ ]*[:]?[:]?)(\${delimiter}|\$)\" 2>/dev/null"
+  else
+    parm_found_cmd_buf="[[ \"\${longoptions}\" =~ \"(^|\${delimiter})(\${parm#--}[^ ]*[:]?[:]?)(\${delimiter}|\$)\" ]]"
+  fi
+  #local user_parm_found_cmd_buf="[[ \"\${parm_list}\" =~ \"(^|\${delimiter})(\${short_user_parm}[^ ]*)(\${delimiter}|\$)\" ]]"
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    user_parm_found_cmd_buf="echo \"\${parm_list}\" | egrep -q \"(^|\${delimiter})(\${pgm_parm_regex}[^ ]*)(\${delimiter}|\$)\" 2>/dev/null"
+  else
+    user_parm_found_cmd_buf="[[ \"\${parm_list}\" =~ \"(^|\${delimiter})(\${pgm_parm_regex}[^ ]*)(\${delimiter}|\$)\" ]]"
+  fi
+  local parm_found=1
+
+  # Use getopt to check options and produce an option list.
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    # This is a pretty stripped down substitute for getopt.
+    while [ $# -gt 0 ] ; do
+      quote_parm_list parm "${1}"
+      if (( found_double_dash )) ; then
+        OPT_LIST="${OPT_LIST} ${parm}"
+      elif echo "${parm}" | grep -q "^\--$" 2>/dev/null ; then
+        # The parm is "--"...
+        found_double_dash=1
+        OPT_LIST="${OPT_LIST} ${parm}"
+      elif echo "${parm}" | grep -q "^\--" 2>/dev/null ; then
+        # The parm begins with "--"...
+        arg="${parm#*=}"
+        parm="${parm%%=*}"
+        OPT_LIST="${OPT_LIST} ${parm} ${arg}"
+      else
+        OPT_LIST="${OPT_LIST} ${parm}"
+      fi
+      shift || :
+    done
+
+    rc="${?}"
+    #OPT_LIST=$(echo "$@" | sed -e 's/=/ /g')
+  else
+    # Perf note: getopt takes about .003 to .004 seconds.
+    # OPT_LIST=$(getopt --name=${_name_} -a --longoptions="help ${longoptions}" --options="-h" -- "$@")
+    #getopt --name=${_name_} -a --longoptions="help ${longoptions}" --options="-h" -- "$@" > $temp_misc_file
+    #read OPT_LIST < $temp_misc_file
+
+    local output_spec=""
+    # If a parm list is specified in positional_parm_names, we allow the elements of that list to begin with dashes.  However, getopt would see those and complain (e.g. "a_cp: unrecognized option `-a'").  An example is my a_cp program which accepts a cp_parm_list which is a list of parms to be passed to the "cp" command.  Here is what you'd see if you ran this from the command line:
+    # a_cp file1 targ_dir -a
+    # rc:                          1
+    # OPT_LIST:                    'file1' 'targ_dir' --
+    # a_cp: unrecognized option `-a'
+
+    # If a parm list is specified in positional_parm_names, we still use getopt to flag errors like "a_cp_new: option `--test' doesn't allow an argument".  We ignore getopt errors like "unrecognized option" because those options will simply be added to the list specified by the caller.  Furthermore, we will not rely on getopt to prepare OPT_LIST (since it would throw away all "unrecognized options).  We'll do it ourselves.
+
+    # We do provide support for abbreviated parms (--test=y as short for --test_mode=y).
+    # Another caveat for the user to be aware of: If an element intended to be in the parm list happens to be a legitimate option specified in the longoptions global variable, it will of course be processed as an option and will NOT be included in the parm list.  So, the programmer has to take care to not have longoptions that would conflict with a pos parm list element.  If we use the above example of the a_cp program, the "cp" command accepts a "--interactive" parameter.  So, if the a_cp program had a longoption of "interactive", we could have a conflict.
+
+    if (( parm_list_specified )) ; then
+      output_spec=" 2>$temp_misc_file"
+    fi
+
+    cmd_buf="OPT_LIST=\$(getopt --name=${_name_} -a --longoptions=\"help ${longoptions}\" --options=\"-h\" -- \"\$@\"${output_spec})"
+    #issuing
+    eval $cmd_buf
+    rc="${?}"
+    #print_var rc
+    if (( parm_list_specified )) ; then
+      if [ "${rc}" != "0" ] ; then
+        # We don't care about ": unrecognized option " error so we're grepping for anything but that and routing the output to stderr.  If we successfully find anything but ": unrecognized option ", that means getopt found an error so we set rc to 1.
+        egrep -v ": unrecognized option " $temp_misc_file >&2 && rc=1 || rc=0
+      fi
+      rm -f $temp_misc_file
+    fi
+
+    if (( parm_list_specified )) ; then
+      # Perf note: With a long parm list (e.g. a file_list) it can take much longer.  In one case, I had 543 parms which took 2.172 seconds to process.
+
+      # As stated previously, we're in this leg because a parm_list has been specified which means we're NOT using getopt to process our parms.  Therefore, we will put the parm list back into OPT_LIST, replacing the "=" signs that seperate our parms from our arguments (just as getopt would have done).
+
+      # quote_parm_list OPT_LIST "${@}" || return 1
+      # OPT_LIST="${OPT_LIST//=/ }"
+      # 2013/07/03 This method (above) was incorrectly removing equal signs WITHIN arguments.  Take the following as an example:
+      # --cmd='my_cmd --parm=1'
+
+      # The prior method replaces all "=" characters, yielding this incorrect result:
+      # --cmd 'my_cmd --parm 1'
+
+      # The correct result for this example should be:
+      # --cmd 'my_cmd --parm=1'
+
+      OPT_LIST=""
+      local quoted_parm
+
+      local pgm_parm
+      local pgm_arg
+      # More changes to handle abbreviated parms like "--test=y" in place of "--test_mode=y".
+      local full_user_parm pgm_parm_regex
+      # 2014/08/01 Mike Walsh (xzy0065) - Wasn't processing additional parms correctly.  Fixed.
+      local additional_parms_found
+      for parm in "${@}" ; do
+        # print_var parm >&2
+        [ "${parm}" == "--" ] && additional_parms_found=1
+        quote_parm_list quoted_parm "${parm}" || return 1
+        if ! (( additional_parms_found )) && [ "${quoted_parm##-}" != "${quoted_parm}" ] ;then
+          # This parm begins with "-" so it may be a normal longoptions parm rather than a positional parm.
+
+          # Get the parm portion of the string.
+          pgm_parm=${quoted_parm%%=*}
+          # Strip the leading dash or dashes.
+          pgm_parm=${pgm_parm#-} ; pgm_parm=${pgm_parm#-}
+
+          # Get the argument portion of the string, if any.
+          [ "${quoted_parm/=}" != "${quoted_parm}" ] && pgm_arg=${quoted_parm#*=} || pgm_arg=''
+          pgm_parm_regex="${pgm_parm}"
+          # escape_metachars pgm_parm_regex
+          # pgm_parm of "h" is a special case because we include "h" as an option in the getopt call above.  Because of that, we need to make sure that "h" doesn't get promoted to a longer parm name that happens to begin with "h".
+          if [ "${pgm_parm}" != "h" ] && eval ${user_parm_found_cmd_buf} ; then
+            # The parm was found in longoptions.
+            # Make sure the full parm name is used.
+            pgm_parm=${BASH_REMATCH[2]}
+            # Reconstruct the quoted_parm.  It will have double dashes and no equal sign.  Example: "-quiet=0" is now "--quiet 0".
+            [ -z "${pgm_arg}" ] && quoted_parm="--${pgm_parm}" || quoted_parm="--${pgm_parm} ${pgm_arg}"
+          fi
+        fi
+        OPT_LIST="${OPT_LIST} ${quoted_parm}"
+      done
+    fi
+  fi
+
+  if [ "${rc}" != "0" ] ; then
+    type help | grep -q "is a function" && help_func_defined=1
+    if (( help_func_defined )) ; then
+      help
+    else
+      if (( caller_is_func )) ; then
+        { print_error ; echo "Programmer error: Invalid option to function $caller_string." ; print_call_stack ; } >&2
+      else
+        { echo "There is no help text available for ${program_name}." ; } >&2
+      fi
+    fi
+    return 1
+  fi
+
+  # Alter $@ to be the results of getopt.  "eval" is used to handle the quotes generated by getopt.
+  # 2011/06/07 - I'm quoting $OPT_LIST to keep this from expanding glob chars in a quoted additional parms string.
+  #eval set -- $OPT_LIST
+  eval set -- "$OPT_LIST"
+
+  local pos_parm_name
+  # loc_positional_parm_names will be processed by process_pos_parm.
+  local pos_parm_num=0
+  local loc_positional_parm_names="${positional_parm_names}"
+  while [ $# -gt 0 ] ; do
+    parm="${1}"
+    # print_var parm >&2
+    case "${parm}" in
+      -h|--help)
+        type help | grep -q "is a function" && help_func_defined=1
+        (( help_func_defined )) && help || echo "There is no help text available for ${program_name}."
+        exit 0
+        ;;
+      --)
+        shift || :
+        break
+        ;;
+      --*)
+        if (( parm_list_specified )) ; then
+          eval ${parm_found_cmd_buf} && parm_found=1 || parm_found=0
+        else
+          parm_found=1
+        fi
+        if (( parm_found )) ; then
+          # Perf note: This takes about 0.00142 seconds.
+          # gen_get_arg "$@"
+          # Perf note: Specifying 2 parms (vs all parms) can save .00007 seconds per call.
+          # 2015/07/14 Mike Walsh (xzy0065) - Set global pgm_explicit_parm_list.
+          add_list_element "${parm#--}" pgm_explicit_parm_list back " " 1 || return 1
+          gen_get_arg "${1}" "${2}"
+          rc="${?}"
+          [ "${rc}" == "${gen_get_arg_failed}" ] && return 1
+          (( rc )) && { shift || : ; }
+         else
+           process_pos_parm || return 1
+         fi
+        ;;
+      *)
+        process_pos_parm || return 1
+        ;;
+    esac
+    shift || :
+  done
+
+  if test "${quiet+defined}" ; then
+    process_boolean_arg quiet 1 || return 1
+    if [ -z "${stat}" ] ; then (( quiet )) && stat=n || stat=y ; fi
+  fi
+
+  if (( ! quiet )) && [ "${calling_function}" == "main" -a -z "${_gbof_Start_time_}" ] ; then
+    # Perf note: This takes about .005 seconds mostly owing to the date command.
+    _gbof_Start_time_=$(date +%s.%4N)
+    #date +%s.%4N > $temp_misc_file
+    #read _gbof_Start_time_ < $temp_misc_file
+  fi
+
+  # Set additional_parms for the user.
+  additional_parms=""
+  if [ $# -gt 0 ] ; then
+    # Perf note: This takes about .002 seconds.
+    quote_parm_list additional_parms "$@" || return 1
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function gen_print_parms {
+  local parm_list="${1}" ; shift
+  local INDENT="${1:-0}" ; shift
+  local COL1_WIDTH="${1}" ; shift
+  local header="${1:-0}" ; shift
+  local include_pgid="${1:-1}" ; shift
+  local quiet="${1:-${quiet}}" ; shift
+
+  # This is a general purpose function to print parms.  The advantage of using this function is that it follows certain conventions such as:
+  # Standardized header line
+  # Prints command_line.
+  # Prints pid and pgid.
+  # Prints all values in parm_list (which is set by gen_get_options).
+  # Prints additional_parms.
+
+  # If quiet is set, this function does nothing.
+
+  if (( quiet )) ; then return 0 ; fi
+
+  local calling_function=${FUNCNAME[1]}
+  local program_name=${PGM_NAME:-${0##*/}}
+  local caller_string
+  # 2015/04/07 Don't know why we need to set caller_is_func.
+  #local caller_is_func=0
+  local _name_
+  if [ "${calling_function}" == "gen_print_header" ] ; then
+    calling_function=${FUNCNAME[2]}
+  fi
+
+  # if [ "${calling_function}" == "main" -o "${calling_function}" == "process_error_message" -o "${header}" == "1" ] ; then
+    _name_=${program_name}
+  # fi
+
+  # Convert name to a valid var name.
+  local pgm_var_name=${_name_//-/_}
+  pgm_var_name=${pgm_var_name//\./_}
+
+  local pid_varname="${pgm_var_name}_pid"
+  local pgid_varname="${pgm_var_name}_pgid"
+  local $pid_varname=$$
+  local $pgid_varname
+
+  # Perf: pgid takes about .06 to run.
+  if (( include_pgid )) && [ "${op_system:=$(uname)}" != "AIX" ] ; then
+    eval $pgid_varname=$(pgid)
+  #else
+    #pgid_varname=''
+  fi
+
+  # 2015/07/23 Mike Walsh (xzy0065) - I had a case where host_name was a program parm and this name conflicted with it.  Making a change to resolve this issue.  This could happen with any program parm so a bigger solution might be called for but for now...
+  local saved_host_name=${host_name}
+  local host_name=${HOSTNAME:=$(hostname)}
+
+  if (( header )) ; then
+    echo
+    local prefix
+    [ ! -z "${PLUG_IN_PACKAGE_NAME}" ] && prefix=${PLUG_IN_PACKAGE_NAME}/
+    # On aix, print_time is nice and slow.  This takes .009+ seconds.
+    local time_string
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      time_string="$(print_time)"
+      printf "%${INDENT}s" "" ; echo "${time_string}Running ${prefix}${PGM_NAME:-$(basename $0)}."
+      printf "%${INDENT}s" "" ; echo "${time_string}Program parameter values, etc.:"
+    else
+      printf "%${INDENT}s" "" ; print_time ; echo "Running ${prefix}${PGM_NAME:-$(basename $0)}."
+      printf "%${INDENT}s" "" ; print_time ; echo "Program parameter values, etc.:"
+    fi
+    echo
+  fi
+
+  # One print_var_list vs several print_var has a slight performance advantage.
+  #print_var command_line $INDENT $COL1_WIDTH
+  #print_var $pid_varname $INDENT $COL1_WIDTH
+  #print_var $pgid_varname $INDENT $COL1_WIDTH
+
+  #print_var_list "command_line $pid_varname $pgid_varname" $INDENT $COL1_WIDTH
+  # 2015/04/07 Mike Walsh (xzy0065) - Individual commands run faster.
+  print_var command_line $INDENT $COL1_WIDTH
+  print_var $pid_varname $INDENT $COL1_WIDTH
+  print_var $pgid_varname $INDENT $COL1_WIDTH
+
+  # Get user and group info
+
+  if (( FULL_ID)) ; then
+    # On some systems, id can run more than a minute.  So, we only do the full "id" if FULL_ID is set by the caller.
+    if type id >/dev/null 2>&1 ; then
+      local id=$(id)
+      print_var id $INDENT $COL1_WIDTH
+    fi
+  else
+    # 2012/02/24 Perf: The id command with no parms can take 3 seconds on austin sb machines.
+    local uid gid
+    # { id -u ; id -g ; } | \
+    # {
+    #   read uid
+    #   read gid
+    #   uid="${uid} (${USER:=$(whoami)})"
+    #   gid="${gid} (${USER:=$(whoami)})"
+    #   print_var_list "uid gid" $INDENT $COL1_WIDTH
+    # }
+
+    # 2013/01/30 Perf improvements.
+    uid="${EUID} (${USER:=$(whoami)})"
+    gid="${GROUPS} (${USER:=$(whoami)})"
+    print_var uid $INDENT $COL1_WIDTH
+    print_var gid $INDENT $COL1_WIDTH
+  fi
+
+  #print_var host_name $INDENT $COL1_WIDTH
+  #print_var DISPLAY $INDENT $COL1_WIDTH
+  #print_var_list "${parm_list}" $INDENT $COL1_WIDTH
+  #print_var_list additional_parms $INDENT $COL1_WIDTH
+  # Perf: .005
+  # 2015/04/07 Perf: Individual calls to print_var is faster than print_vars or print_var_list.
+  #print_var_list "${id_var_list} host_name DISPLAY ${parm_list} additional_parms" $INDENT $COL1_WIDTH
+
+  print_var host_name $INDENT $COL1_WIDTH
+  print_var DISPLAY $INDENT $COL1_WIDTH
+  host_name=${saved_host_name}
+  local parm_name
+  for parm_name in ${parm_list} ; do print_var $parm_name $INDENT $COL1_WIDTH ; done
+  print_var additional_parms $INDENT $COL1_WIDTH
+
+  echo
+
+}
+################################################################################
+
+
+
+################################################################################
+function gen_print_header {
+  local parm_list="${1:-${parm_list} ${positional_parm_names}}"
+  local INDENT="${2:-0}"
+  local COL1_WIDTH="${3}"
+  local header="${4:-1}"
+
+  # This is a general purpose print header function. 
+  if (( ! quiet )) ; then
+    gen_print_parms "${parm_list}" "${INDENT}" "${COL1_WIDTH}" "${header}"
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function gen_exit_function_setup {
+
+  # This function will do any setup for your exit_function.
+
+  # Your exit_function would typically look like this:
+  # gen_exit_function_setup
+  # Your cleanup code here.
+  # gen_exit_function
+
+
+  # 2014/01/17 Scenario:  A program exits normally and is running its exit_function which contains code to unlock a file.  It gets a TERM signal in the middle of the unlock code and thus leaves a sema4 file (which is bad).  It seems that a good policy is to ignore TERM and INT signals while running exit_function.
+  trap "" TERM
+  trap "" INT
+
+}
+################################################################################
+
+
+
+################################################################################
+function gen_exit_function {
+
+  # This function will do any cleanup necessary when exit is called.
+
+  # This function will delete all files in cleanup_file_list.  Other parts of this program are responsible for populating this list.
+
+  # If quiet is not set, this function will print terminating info.
+
+  local cmd_buf
+  local Seconds
+  # local Total_runtime
+  local runtime_var="${PGM_NAME:-$(basename $0)}_runtime"
+  runtime_var=${runtime_var//-/_}
+  runtime_var=${runtime_var//\./_}
+  eval local ${runtime_var}
+  local End_time
+
+  # If a db connection is open and this program opened it.
+  if (( fspipl_connection && fspipl_must_disconnect )) ; then
+    if (( quiet )) ; then
+      disconnect_from_db >/dev/null || { print_call_stack ; } >&2
+    else
+      disconnect_from_db
+    fi
+  fi
+
+  if [ ! -z "${cleanup_file_list}" ] ; then
+    cmd_buf="rm -rf ${cleanup_file_list}"
+    eval $cmd_buf
+  fi
+
+  if (( ! quiet )) ; then
+    {
+      echo
+      local prefix
+      [ ! -z "${PLUG_IN_PACKAGE_NAME}" ] && prefix=${PLUG_IN_PACKAGE_NAME}/
+      print_time ; echo "Finished running ${prefix}${PGM_NAME:-$(basename $0)}." 
+      echo
+    }
+
+    # 2012/02/27 Perf tuned.
+    if [ "${op_system:=$(uname)}" != "AIX" -a ! -z "${_gbof_Start_time_}" ] ; then
+      local End_time_int Start_time_int
+      local temp_misc_file=/tmp/${PGM_NAME}_${FUNCNAME}_${RANDOM}_${RANDOM}
+      # End_time=$(date +%s.%4N)
+      # Perf note: date takes about .003 to .004 seconds.
+      date +%s > $temp_misc_file
+      read End_time_int < $temp_misc_file
+
+      # Truncate
+      Start_time_int=${_gbof_Start_time_%.*}
+
+      # Seconds=$(printf "%1.${scale:=4}f" $(calc $End_time-$_gbof_Start_time_))
+      Seconds=$((End_time_int - Start_time_int))
+
+      # local truncated_seconds=$(echo $Seconds | cut -f 1 -d .)
+      # truncated_seconds=${Seconds%.*}
+      # Calculate the number of seconds it took to run this program.  The printf is used to make sure we have at least one digit to the left of the decimal, even if it is a zero.
+      # The following sed command gets rid of the leading space that is reserved for a sign (+/-).
+      # Total_runtime=$(convert_secs_to_dhms "$truncated_seconds" | sed -re 's/^ //g') || return 1
+      # Perf note: convert_secs_to_dhms takes about .001 to .003 seconds.
+      convert_secs_to_dhms "$Seconds" > $temp_misc_file || return 1
+      #read Total_runtime < $temp_misc_file
+      read ${runtime_var} < $temp_misc_file
+      # Perf note: "rm -f $temp_misc_file" takes about .002 to .003 seconds.
+      rm -f $temp_misc_file
+
+      # print_var_list "End_time_int Start_time_int Seconds"
+      # print_var Total_runtime
+      print_var ${runtime_var}
+      echo
+    fi
+  fi
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function gen_validate_parms {
+
+  # This is a general purpose parm validation function.  Generally your call to it should be the last line in your validate_parms function.  However, if you call subfunctions that rely on exit_function for cleanup (e.g. functions with std_func_header), you should call this function first.
+  # Moved the "quiet" processing to gen_get_options.
+
+  # If the caller has boolean_list defined, every variable named in the list will be passed to process_boolean_arg_list.  By default they will all be converted to boolean (.i.e. 1/0 vs y/n).  If convert_to_bool is set to 0, the boolean conversion will not take place.  ":" and "=" + args will be stripped out.  For example, the following value for boolean list is acceptable:
+  # var1:=y
+
+  if test "${test_mode+defined}" ; then
+    process_boolean_arg test_mode 1 || return 1
+  fi
+
+  if test "${debug+defined}" ; then
+    process_boolean_arg debug 1 || return 1
+  fi
+
+  local parm_rec
+  for parm_rec in ${boolean_list} ; do
+    process_boolean_arg ${parm_rec%%[=:]*} "${convert_to_bool:-1}" || return 1
+  done
+
+  # Tips for callers:
+  # setsid can be used to start a command in a new process group.  This will make it immune to control c done in the window for the original program.
+
+  # This should be last so we don't call exit_function before validating user's parms.
+  local signal=EXIT
+  trap "exit_function $signal \$?" $signal
+
+  return
+
+  # Without this next part, when the program receives one of these signals, it ultimately returns non-zero.  We want to trap a TERM and end with a zero rc.
+  #local signal_list="INT TERM"
+  local signal_list="TERM"
+  for signal in $signal_list ; do
+    trap "exit 0" $signal
+  done
+
+#print_var PGM_NAME
+#trap
+#return
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_usage {
+  local COLUMN_WIDTH="${1:-${COLUMN_WIDTH:=35}}" ; shift || :
+  local optional_pos_parms="${1}" ; shift || :
+
+  # This function will print a usage statement like the following:
+  # Usage: <program name> [OPTIONS] <capitalized version of your positional_parm_names>
+  #
+  # Example:
+  # Usage: cp_flash_file [OPTIONS] SOURCE_PATH TARGET_PATH
+  #
+  # It is designed to be called from your help print function.
+  # Note this function will also set PGM_NAME for the caller (if it hasn't already been set).
+
+  # optional_pos_parms      A space delimited list of parms (which must also be found in positional_parm_names) that are considered optional.  Such parms are to be printed in square brackets.
+
+  local _loc_positional_parm_names_="${positional_parm_names}"
+  local pos_parm_string
+
+  local parm_name
+  for parm_name in ${optional_pos_parms} ; do
+    _loc_positional_parm_names_=$(echo "${_loc_positional_parm_names_}" | sed -re "s/(^| )(${parm_name})( |$)/\1[\2]\3/")
+  done
+
+  if type tr >/dev/null 2>&1 ; then
+    pos_parm_string=$(echo "${_loc_positional_parm_names_}" | tr '[:lower:]' '[:upper:]')
+  else
+    pos_parm_string="${_loc_positional_parm_names_}"
+    change_case pos_parm_string 1
+  fi
+  # Add leading space for non-null pos_parm_string.
+  [ ! -z "${pos_parm_string}" ] && pos_parm_string=" ${pos_parm_string}"
+
+  # Presumably, if you're calling this, you are providing a "-h" or "--help" options so this function will unconditionally include the " [OPTIONS]" string in the output.
+
+  printf "\n%s\n\n" "Usage: ${PGM_NAME:=$(basename $0)} [OPTIONS]${pos_parm_string}"
+
+}
+################################################################################
+
+
+
+if ! test "${valid_arg_types+defined}" ; then
+  readonly valid_arg_types="string:decimal:hex:boolean"
+  readonly valid_arg_requirements="No argument:Required argument:Optional argument"
+fi
+################################################################################
+function long_parm_help {
+  local Long_option="${1}" ; shift 1 || :
+  local Short_option="${1}" ; shift 1 || :
+  local Help_text="${1}" ; shift 1 || :
+  local Arg_type="${1}" ; shift 1 || :
+  local Arg_requirement="${1}" ; shift 1 || :
+  local Allowed_Arg_vals="${1}" ; shift 1 || :
+  local Null_allowed="${1}" ; shift 1 || :
+  local print_default_text="${1:-1}" ; shift 1 || :
+  local allowed_arg_vals_delim="${1:-|}" ; shift 1 || :
+  local arg_val_record_delim="${1:-:}" ; shift 1 || :
+  local INDENT="${1:-2}" ; shift 1 || :
+  local COL1_WIDTH="${1:-35}" ; shift 1 || :
+
+  # This function prints the long form help for a paramter in the style used by autoipl.
+
+  # Example:  A call like this...
+  # long_parm_help "bmc_host" "" "The DNS name or IP of the bmc." "string" ":" "<host>:DNS name/IP address[:port number]" "n" "1"
+
+  # Would produce the following results.
+
+  # Options:
+  #     Long_option:                   --bmc_host
+  #     Short_option:                  
+  #     Help_text:                     The DNS name or IP of the bmc.
+  #     Arguments:                     
+  #       Arg_type:                    string
+  #       Arg_requirement:             Required argument
+  #       Allowed Arg_vals:
+  #         Value:                     <host>
+  #         Help_text:                 DNS name/IP address[:port number]
+  #       Null_allowed:                No
+  #       Arg_default_val:             
+
+  # Parm description:
+  # Long_option                 This parm may be specified with or without the leading dashes (e.g. "--bmc_host" or "bmc_host").
+  # Short_option                Single character short option which may be specified with or without the leading dashes (e.g. "-b" or "b").
+  # Help_text                   The basic help text to be displayed.  This value is mandatory.
+  # Arg_type                    See the valid arg types defined in valid_arg_types (above).
+  # Arg_requirement             This may be specified either as "", ":" or "::" (like getopt does) or by using the values in valid_arg_requirements defined above.
+  # Allowed_Arg_vals            This is a list of records.  This list is delimited by the value in allowed_arg_vals_delim.  Each records elements are delimited by arg_val_record_delim.
+  # Null_allowed                y/n indicating whether a blank value is allowed for the parameter.
+  # print_default_text
+  # allowed_arg_vals_delim      See Allowed_Arg_vals above.
+  # arg_val_record_delim        See Allowed_Arg_vals above.
+  # INDENT                      The number of characters to indent the output.
+  # COL1_WIDTH                  The width of column 1.
+
+  if [ -z "${Long_option}${Short_option}" ] ; then
+    { print_error ; echo "You must provide a value for either the Long_option parameter or the Short_option parameter."; } | process_error_message
+    return 1
+  fi
+
+  # Remove leading dash...
+  Short_option="${Short_option#-}"
+
+  if [ "${#Short_option}" -gt "1" ] ; then
+    { print_error ; echo "You specified \"${Short_option}\" for Short_option.  It may only be a single character."; } | process_error_message
+    return 1
+  fi
+
+  valid_value Help_text || return 1
+
+  valid_value Arg_type "" "${valid_arg_types}" || return 1
+  # Convert getopt style to our style.
+  case "${Arg_requirement}" in
+    "")
+      Arg_requirement="No argument"
+      ;;
+    ":")
+      Arg_requirement="Required argument"
+      ;;
+    "::")
+      Arg_requirement="Optional argument"
+      ;;
+  esac
+  valid_value Arg_requirement "" "${valid_arg_requirements}" || return 1
+
+  process_boolean_arg Null_allowed 0 1 || return 1
+  valid_integer INDENT "0.." || return 1
+  valid_integer COL1_WIDTH "0.." || return 1
+
+  local Arguments=''
+  shopt -s extglob
+  # Remove caller's leading dashes and add our dashes.
+  [ ! -z "${Long_option}" ] && Long_option="--${Long_option##+(-)}"
+  [ ! -z "${Short_option}" ] && Short_option="-${Short_option}"
+
+  print_var Long_option $INDENT $COL1_WIDTH
+  print_var Short_option $INDENT $COL1_WIDTH
+  print_var Help_text $INDENT $COL1_WIDTH
+  print_var Arguments $INDENT $COL1_WIDTH
+  (( INDENT += 2 ))
+  print_var Arg_type $INDENT $COL1_WIDTH
+  print_var Arg_requirement $INDENT $COL1_WIDTH
+  indent $INDENT ; echo "Allowed Arg_vals:"
+  (( INDENT += 2 ))
+  local record
+  local Value
+  local Help_text
+  local saved_IFS="${IFS}"
+  local IFS="${allowed_arg_vals_delim}"
+  for record in ${Allowed_Arg_vals} ; do
+    IFS="${saved_IFS}"
+    while my_read "${arg_val_record_delim}" Value Help_text ; do
+      print_vars Value Help_text ${INDENT} ${COL1_WIDTH}
+    done <<< ${record}
+    IFS="${allowed_arg_vals_delim}"
+  done
+  IFS="${saved_IFS}"
+  (( INDENT -= 2 ))
+  print_var Null_allowed $INDENT $COL1_WIDTH
+  local Arg_default_val
+  Long_option="${Long_option##+(-)}"
+  (( print_default_text )) && Arg_default_val="${!Long_option}" || Arg_default_val=""
+  print_var Arg_default_val $INDENT $COL1_WIDTH
+
+  echo
+
+}
+################################################################################
+
+
+
+################################################################################
+function parm_help {
+  local parm_name="${1}" ; shift || :
+  local parm_data_desc="${1}" ; shift || :
+  local parm_help_text="${1}" ; shift || :
+  local print_default_text="${1:-1}" ; shift || :
+  local COLUMN_WIDTH="${1:-${COLUMN_WIDTH:=35}}" ; shift || :
+
+  # This function will print the supplied help text for the parm named in parm_name.
+  # parm_name           The name of the parameter.
+  # parm_data_desc      The kind of data for the parameters argument.  Examples: "y/n", "hostname" or "1..100".
+  # parm_help_text      The help text you wish to have printed.
+  # print_default_text  A boolean (1/0) indicating whether you wish to have a line like this appended to your help text:
+  #                       The default value is "x".
+  # COLUMN_WIDTH        The width of the column containing parm_name=<$parm_data_desc>
+
+  local default_text=""
+  local parm_data_desc_text=""
+
+  if (( print_default_text )) ; then
+    default_text="  The default value is \"${!parm_name}\"."
+  fi
+
+  if [ ! -z "${parm_data_desc}" ] ; then
+    parm_data_desc_text="=<${parm_data_desc}>"
+  fi
+
+  printf "%-${COLUMN_WIDTH}s%s\n" "  --${parm_name}${parm_data_desc_text}" "${parm_help_text}${default_text}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function pos_parm_help {
+  local parm_name="${1}" ; shift || :
+  local parm_help_text="${1}" ; shift || :
+  local print_default_text="${1:-1}" ; shift || :
+  local COLUMN_WIDTH="${1:-${COLUMN_WIDTH:=35}}" ; shift || :
+
+  # This function will print the supplied help text for the parm named in parm_name.
+  # parm_name           The name of the parameter.
+  # parm_data_desc      The kind of data for the parameters argument.  Examples: "y/n", "hostname" or "1..100".
+  # parm_help_text      The help text you wish to have printed.
+  # print_default_text  A boolean (1/0) indicating whether you wish to have a line like this appended to your help text:
+  #                       The default value is "x".
+  # COLUMN_WIDTH        The width of the column containing parm_name=<$parm_data_desc>
+
+  local default_text=""
+
+  if (( print_default_text )) ; then
+    default_text="  The default value is \"${!parm_name}\"."
+  fi
+
+  if type tr >/dev/null 2>&1 ; then
+    parm_name=$(echo $parm_name | tr '[:lower:]' '[:upper:]')
+  else
+    change_case parm_name 1
+  fi
+
+  printf "%-${COLUMN_WIDTH}s%s\n" "  ${parm_name}" "${parm_help_text}${default_text}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_test_help_text {
+
+  # "quiet" is an oft used parm.  This function will print help text for it.
+
+  parm_help test "y/n" "This parameter indicates that testing is being done.  This program should go through all the motions but not actually do anything."
+
+}
+################################################################################
+
+
+
+if ! test "${test_mode_help_text+defined}" ; then
+  readonly test_mode_help_text="This means that \${PGM_NAME} should go through all the motions but not actually do anything substantial.  This is mainly to be used by the developer of \${PGM_NAME}."
+  readonly quiet_help_text="If this parameter is set to \\\"y\\\", \${PGM_NAME} will print only essential information, i.e. it will not echo parameters, echo commands, print the total run time, etc."
+  readonly debug_help_text="If this parameter is set to \\\"y\\\", \${PGM_NAME} will print additional debug information.  This is mainly to be used by the developer of \${PGM_NAME}."
+fi
+
+################################################################################
+function print_test_mode_help_text {
+
+  # "test_mode" is an oft used parm.  This function will print help text for it.
+
+  #printf "%-${COLUMN_WIDTH}s%s\n" "  --test_mode=<y/n>" "This means that ${PGM_NAME} should go through all the motions but not actually do anything substantial.  This is mainly to be used by the developer of ${PGM_NAME}.  The default value is \"${test_mode}\"."
+
+  local cmd_buf="parm_help \"test_mode\" \"y/n\" \"${test_mode_help_text}\" 1 \"${COLUMN_WIDTH}\""
+  # issuing
+  eval "${cmd_buf}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_long_test_mode_help_text {
+
+  # "test_mode" is an oft used parm.  This function will print help text for it.
+
+  local cmd_buf="long_parm_help \"test_mode\" \"\" \"${test_mode_help_text}\" \"boolean\" \":\" \"<boolean>:A value of \"Yes\", \"No\", \"Y\" or \"N\" (case insensitive).\" \"n\""
+  # issuing
+  eval "${cmd_buf}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_quiet_help_text {
+
+  # "quiet" is an oft used parm.  This function will print help text for it.
+
+  #printf "%-${COLUMN_WIDTH}s%s\n" "  --quiet=<y/n>" "If this parameter is set to \"y\", ${PGM_NAME:-$(basename $0)} will print only essential information, i.e. it will not echo parameters, echo commands, print the total run time, etc.  The default value is \"${quiet}\"."
+
+  local cmd_buf="parm_help \"quiet\" \"y/n\" \"${quiet_help_text}\" 1 \"${COLUMN_WIDTH}\""
+  # issuing
+  eval "${cmd_buf}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_long_quiet_help_text {
+
+  # "test_mode" is an oft used parm.  This function will print help text for it.
+
+  local cmd_buf="long_parm_help \"quiet\" \"\" \"${quiet_help_text}\" \"boolean\" \":\" \"<boolean>:A value of \"Yes\", \"No\", \"Y\" or \"N\" (case insensitive).\" \"n\""
+  # issuing
+  eval "${cmd_buf}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_debug_help_text {
+
+  # "quiet" is an oft used parm.  This function will print help text for it.
+
+  parm_help debug "y/n" "If this parameter is set to \"y\", ${PGM_NAME:-$(basename $0)} will print additional debug information.  This is mainly to be used by the developer of ${PGM_NAME}."
+
+  local cmd_buf="parm_help \"debug\" \"y/n\" \"${debug_help_text}\" 1 \"${COLUMN_WIDTH}\""
+  # issuing
+  eval "${cmd_buf}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_long_debug_help_text {
+
+  # "test_mode" is an oft used parm.  This function will print help text for it.
+
+  local cmd_buf="long_parm_help \"debug\" \"\" \"${debug_help_text}\" \"boolean\" \":\" \"<boolean>:A value of \"Yes\", \"No\", \"Y\" or \"N\" (case insensitive).\" \"n\""
+  # issuing
+  eval "${cmd_buf}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_fsp1_host_help_text {
+
+  # "quiet" is an oft used parm.  This function will print help text for it.
+
+  pos_parm_help fsp1_host "The DNS name or IP address of FSP A."
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_fsp2_host_help_text {
+
+  # "quiet" is an oft used parm.  This function will print help text for it.
+
+  pos_parm_help fsp2_host "The DNS name or IP address of FSP B (if any)."
+
+}
+################################################################################
+
+
+
+################################################################################
+function boolean_arg_val_help_text {
+
+  printf "A value of \"Yes/y/1\" or \"No/n/0\" (case insensitive)"
+
+}
+################################################################################
+
+
+
+# Tip: if you want functions to use gen_traperr, do this:
+# set -o errtrace
+
+alias gen_traperr="trap 'gen_err_handler \${?} \${LINENO} \"\${BASH_COMMAND}\"' ERR"
+alias gen_traperr_off='trap - ERR'
+################################################################################
+function gen_err_handler {
+  local err_rc="${1}" ; shift || :
+  local err_lineno="${1}" ; shift || :
+  local err_cmd="${1}" ; shift || :
+
+  # This function may be used as a general purpose trap ERR handler.  It will write error data (such as the call stack) to stderr using process_error_message.  The caller can run the "gen_traperr" alias to cause general errors to invoke this function.
+
+  # After an erroneous command is run and this function is called, the value of "${?}" will be whatever it would have been had the user not set up error handling.
+
+  # Programmer note: To avoid recursive calls, make sure that no statements in this function return non-zero (see trap ERR rules for exceptions).
+
+  # When this type of thing is done by a user of this function:
+  # cmd_buf="fdsa"
+  # eval ${cmd_buf}
+  # This function actually gets invoked twice.  I'm supposing that the first time is for the fdsa failure and the 2nd time is for the eval failure.  Since "eval ${cmd_buf}" is done alot, we want to avoid processing this useless call.  So, later in this function, I have a "(( a_very_unlikely_variable_name ))" which is only there to cause BASH_COMMAND to have that value when this function is called a 2nd time.  Then this function can recognize the fact that it is being called a 2nd time and return early.
+  if [ "${err_cmd}" == "(( a_very_unlikely_variable_name ))" ] ; then
+    (( a_very_unlikely_variable_name ))
+    return
+  fi
+
+  # Another scenario causing a double call is:
+  # cmd_fnc_u fdsa
+  # In this case "return 1" (from the cmd_fnc function) appears in the err_cmd.  We'll catch that and return early.
+  # However, because of this, we will not print to stderr for a function that simply returns non-zero.  I debated over this in my head but chose to go this route.  The main reason I wrote this function was to catch errors that were not really program errors such as afs "Connection timed out" errors.
+  # if [[ "${err_cmd}" =~ "^return " ]] ; then
+  # If you use regexp you ought to first call escape_metachars.
+  #if regexp "${err_cmd}" "^return " ; then
+  if [ "${err_cmd:0:7}" == "return " ] ; then
+    (( a_very_unlikely_variable_name ))
+    return
+  fi
+
+  # I choose odd variable names so they don't conflict with any globals that I may be analyzing.
+  local _loc_geh_cmd_buf_
+  local _loc_geh_regex_
+  local _loc_geh_line_
+  local _loc_geh_must_adjust_
+  local err_lineno_candidates
+
+  local err_source_path="${BASH_SOURCE[1]:=${0}}"
+
+  # For some versions of bash (e.g. Red Hat 3.2.39), I've observed that the ${LINENO} passed to this function is not always accurate.  Specifically, if the failing line of code is in a function, the LINENO is the line number of the first line of the function rather than the line number of the failing command.  This is not the case however, if an eval statement fails (e.g. eval ${cmd_buf}).  I've tried very hard but have failed to get the LINENO to be accurate.  Therefore, I'll try to recognize this situation and to flag the lineno with a "+". 
+  # Obtain the line associated with err_lineno.
+  _loc_geh_cmd_buf_="_loc_geh_line_=\$(sed -n ${err_lineno}p ${err_source_path})"
+  #issuing "$_loc_geh_cmd_buf_}"
+  eval ${_loc_geh_cmd_buf_}
+
+  local err_func
+
+  # Determine whether the line in question is actually a function header.
+  _loc_geh_regex_='^[ \t]*function '
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    _loc_geh_cmd_buf_="echo \"${_loc_geh_line_}\" | egrep -q '${_loc_geh_regex_}' 2>/dev/null"
+  else
+    _loc_geh_cmd_buf_="[[ \"${_loc_geh_line_}\" =~ '${_loc_geh_regex_}' ]]"
+  fi
+  #issuing "$_loc_geh_cmd_buf_}"
+  eval ${_loc_geh_cmd_buf_} && _loc_geh_must_adjust_=1 || _loc_geh_must_adjust_=0
+  #print_var _loc_geh_must_adjust_
+
+  if (( _loc_geh_must_adjust_ )) ; then
+    # If we have determined that our err_lineno is not accurate, we will try to make adjustments.
+
+    # Extract the function name from the line read previously.
+    err_func=${_loc_geh_line_#*function }
+    err_func="${err_func%% *}"
+
+    # Get a list of the line numbers of all functions within the source file.
+    local _loc_geh_function_lineno_list_
+    _loc_geh_cmd_buf_="_loc_geh_function_lineno_list_=\$(grep --line-number '${_loc_geh_regex_}' ${err_source_path} | cut -f 1 -d :)"
+    #issuing "$_loc_geh_cmd_buf_}"
+    eval ${_loc_geh_cmd_buf_}
+    #print_var _loc_geh_function_lineno_list_
+
+    # Determine the line number of the subsequent function (if any).
+    local _loc_geh_get_next_=0
+    local _loc_geh_function_lineno_
+    local _loc_geh_next_function_lineno_
+    for _loc_geh_function_lineno_ in ${_loc_geh__loc_geh_function_lineno__list_} ; do
+      if [ "${_loc_geh_function_lineno_}" == "${err_lineno}" ] ; then
+        _loc_geh_get_next_=1
+        continue
+      fi
+      if (( _loc_geh_get_next_ )) ; then
+        _loc_geh_next_function_lineno_=${_loc_geh_function_lineno_}
+        break
+      fi
+    done
+    [ -z "${_loc_geh_next_function_lineno_}" ] && _loc_geh_next_function_lineno_=$(cat ${err_source_path} | wc -l)
+    #print_var _loc_geh_next_function_lineno_
+
+    # Get a list of all of the line numbers where we find an occurence of the "${err_cmd}" string.
+    local _loc_geh_lineno_list_
+    _loc_geh_cmd_buf_="_loc_geh_lineno_list_=\$(egrep --line-number \"\${err_cmd}\" ${err_source_path} | cut -f 1 -d :)"
+    #issuing "$_loc_geh_cmd_buf_}"
+    eval ${_loc_geh_cmd_buf_}
+    local _loc_geh_lineno_
+    #print_var _loc_geh_lineno_list_
+    # Determine which of the line number found in the prior step are within range.
+    for _loc_geh_lineno_ in ${_loc_geh_lineno_list_} ; do
+      if (( _loc_geh_lineno_ > ${err_lineno} && _loc_geh_lineno_ < _loc_geh_next_function_lineno_ )) ; then
+        [ -z "${err_lineno_candidates}" ] && err_lineno_candidates="~${_loc_geh_lineno_}" || err_lineno_candidates="${err_lineno_candidates}, ~${_loc_geh_lineno_}"
+      fi
+    done
+  fi
+
+  # This is one idea for getting the stderr, namely, re-running the failing command.  There are several reasons I don't like this idea: 1) This command may have timed out in which case a re-try could take a LONG time 2) There is no guarantee that the re-try will also fail.
+  # local cmd=${line%% *}
+  # local stderr_buf
+  # if type ${cmd} 2>/dev/null | egrep -q "^${cmd} is (hashed|a shell builtin)" ; then
+  #   stderr_buf=$(eval ${line} 2>&1)
+  # fi
+
+  # Determine whether the user was trying to route stderr to /dev/null.  If so, we'll return from this function without printing any error data to stderr.
+  _loc_geh_regex_="2>[ ]*/dev/null"
+  # If err_cmd contains something like "${cmd_buf}", we want cmd_buf expanded for this next test.
+  local _loc_geh_expanded_err_cmd_="${err_cmd}"
+  escape_quotes _loc_geh_expanded_err_cmd_ double
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    # _loc_geh_cmd_buf_="echo \"\${err_cmd}\" | egrep -q '${_loc_geh_regex_}' 2>/dev/null"
+    _loc_geh_cmd_buf_="echo \"\${_loc_geh_expanded_err_cmd_}\" | egrep -q '${_loc_geh_regex_}' 2>/dev/null"
+  else
+    # _loc_geh_cmd_buf_="[[ \"\${err_cmd}\" =~ '${_loc_geh_regex_}' ]]"
+    _loc_geh_cmd_buf_="[[ \"${_loc_geh_expanded_err_cmd_}\" =~ '${_loc_geh_regex_}' ]]"
+  fi
+  #issuing "$_loc_geh_cmd_buf_}"
+  if eval ${_loc_geh_cmd_buf_} ; then
+    (( a_very_unlikely_variable_name ))
+    return
+  fi
+
+  # This is put here to cause 2nd calls to have "(( a_very_unlikely_variable_name ))" as the err_cmd value.  IMPORTANT: This must be the last thing before our stderr print stuff (which doesn't register in BASH_COMMAND because it runs in a subprocess due to the "|").
+  (( a_very_unlikely_variable_name ))
+ 
+  {
+    print_error ; echo "The prior command failed with a return code of ${err_rc}."
+    echo ; echo "Details:"
+    print_var err_cmd
+    print_var err_rc
+    if (( _loc_geh_must_adjust_ )) ; then
+      local err_func_lineno=${err_lineno}
+      echo "NOTE: due to bash limitations, we don't have the exact line number of the erroneous command.  Instead, we have the exact line number of the function containing the erroneous command and we have a list possible approximate line number(s) for the errroneous command itself.  Note also that the subsequent call stack will have the function line number where it ought to have the actual line number."
+      print_var err_func_lineno
+      print_var err_func
+      print_var err_lineno_candidates
+    else
+      print_var err_lineno
+    fi
+    print_var err_source_path
+  } | process_error_message
+
+  # This function naturally returns the err_rc.
+
+}
+################################################################################
+
+
+
+################################################################################
+# Trap aliases.
+# The man page for "trap" says that you can do save and restore traps like this:
+# save_traps=$(trap) ... eval "$save_traps"
+#
+# It is true that for every signal that had a trap set, this will cause the original trap behavior to be restored.  However, if any NEW signal traps were set, this method will not clear them.  For example, if you begin a function with the following traps:
+# trap -- 'exit_function EXIT $?' EXIT
+# trap -- 'main_cleanup INT $?' SIGINT
+#
+# And then set these...
+# trap -- 'func1_cleanup INT $?' SIGINT
+# trap -- 'func1_cleanup INT $?' SIGTERM
+#
+# Your resulting trap settings will then be as follows:
+# trap -- 'exit_function EXIT $?' EXIT
+# trap -- 'func1_cleanup INT $?' SIGINT
+# trap -- 'func1_cleanup INT $?' SIGTERM
+#
+# If you use the man page method to restore traps, you will wind up with this:
+# trap -- 'exit_function EXIT $?' EXIT
+# trap -- 'main_cleanup INT $?' SIGINT
+# trap -- 'func1_cleanup INT $?' SIGTERM
+#
+# i.e. your SIGTERM trap will remain.  If on the other hand you use the save_traps/restore_traps aliases below, you'll wind up with the EXACT same trap settings as when you started the function.
+#
+# The following aliases achieve this by first clearing traps for all possible signals and then restoring the original traps.
+alias save_traps='local save_traps=$(echo "trap - 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64" ; trap)'
+alias restore_traps='eval "${save_traps}"'
+
+################################################################################
+
+
+
+################################################################################
+# What follows is a group of functions to help your functions cleanup properly when the program gets a TERM or INT signal.
+# Specifically, this allows you to "nest" signal traps.
+# Example usage:
+
+# ------------------------------------------------------------------------------
+# function func1_cleanup {
+#   local signal="${1}" ; shift
+#   local rc="${1:-0}" ; shift
+#
+#   # This is the cleanup function for func1.  func1 can set this as the cleanup function via push_cleanup_func.  func1 can also call this function inline prior to returning.
+#
+#   # Various cleanup tasks like deleting temporary files, unlocking files, etc.
+#
+#   # pop_cleanup_func will remove this function from the _global_cleanup_stack_.
+#   pop_cleanup_func
+#   return ${rc}
+#
+# }
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# function func1 {
+#
+#   push_cleanup_func || return 1
+#
+#   # The functions that we call may also follow this scheme of calling push_cleanup_func, etc.
+#   func2 || { func1_cleanup ; return 1 ; }
+#
+#   # If we receive a TERM or INT signal, func1_cleanup will be called and control will not return here.
+#
+#   # If we reach this point, we have not been interrupted so we will call func1_cleanup in line.
+#   func1_cleanup || return 1
+#
+# }
+# ------------------------------------------------------------------------------
+
+
+
+
+# These global variables are used by the functions which follow.  Note that they are included in common_global_var_regex in gen_bash_debug_funcs so that std_func_footer will not flag an error if they are changed.
+# _global_save_traps_
+# _global_cleanup_stack_
+################################################################################
+function gen_func_cleanup {
+  local signal="${1}" ; shift
+  local rc="${1:-0}" ; shift
+
+  # This is a general cleanup function for SIGTERM and SIGINT.  Do not call this function directly.  Instead, use push_cleanup_func to set gen_func_cleanup as the first function to call for SIGTERM and SIGINT signals and to stack your cleanup function on the _global_cleanup_stack_.  This function will call each program in the _global_cleanup_stack_.
+  # Since this function should only be called when a SIGTERM or SIGINT has been received, this function will finish by doing exit ${rc}, i.e. it will not return control to the place the program was when the signal was received.
+
+  # 2014/01/17 It seems that a good policy is to ignore TERM and INT signals while running exit functions.  Example scenario: A program exits normally and is running its exit function which contains code to unlock a file.  It gets a TERM signal in the middle of the unlock code and thus leaves a semaphore file (which is bad).
+  trap "" TERM
+  trap "" INT
+
+  local funcname
+  local cmd_buf
+
+  for funcname in ${_global_cleanup_stack_} ; do
+    cmd_buf="${funcname} ${signal} ${rc}"
+    (( ! quiet )) && (( gen_func_cleanup_debug )) && ! test "${_FUNC_TRACE_MAX_STACK_POS_+defined}" && issuing
+    eval ${cmd_buf}
+  done
+
+  # This function was called because the user tried to stop this program with a TERM or INT signal.  We will therefore, exit the program now.
+  exit ${rc}
+
+}
+################################################################################
+
+
+
+################################################################################
+function get_cur_sigaction {
+  local signal_list="${1}" ; shift
+  local sigaction_var="${1}" ; shift
+  local return_null="${1:-1}" ; shift
+
+  # This function will get the trap actions associated with the given signal_list and return it in the array variable named in sigaction_var.
+  # For example, if this trap is set...
+  # trap -- 'gen_func_cleanup INT $?' SIGINT
+  #
+  # And this function is called as follows:
+  # get_cur_sigaction INT sigactaion.
+  #
+  # Then sigaction will be set to "gen_func_cleanup INT $?".  Note that no enclosing quotes will be included in the string.
+
+  # If return_null, it means that you wish to have the sigaction_var set to "null" if that is the action to be performed for a given signal.  Without this set, the caller will have no means of differentiating between no setting whatsoever for a given signal and a null setting which means that the signal is to be ignored by this program.
+
+  # Validate parms.
+  if [ -z "${signal_list}" ] ; then
+    { print_error "Parameter \"signal_list\" has an invalid value of \"${signal_list}\"." ; echo ; } | process_error_message
+    return 1
+  fi
+
+  if [ -z "${sigaction_var}" ] ; then
+    { print_error "Parameter \"sigaction_var\" has an invalid value of \"${sigaction_var}\"." ; echo ; } | process_error_message
+    return 1
+  fi
+
+  # An example of the output for "trap -p ${signal_list}" might be...
+  # trap -- 'gen_func_cleanup TERM $?' SIGTERM
+
+  local temp_misc_file trap_outbuf
+  create_temp_file_name temp_misc_file "" 0 || return 1
+  trap -p ${signal_list} > ${temp_misc_file} || return 1
+
+  local ix=0
+  while read trap_outbuf ; do
+    if [ ! -z "${trap_outbuf}" ] ; then
+      # Get the portion enclosed in single quotes.
+      trap_outbuf=${trap_outbuf#*\'}
+      trap_outbuf=${trap_outbuf%\'*}
+      (( return_null )) && [ -z "${trap_outbuf}" ] && trap_outbuf=null
+    fi
+    eval ${sigaction_var}[$ix]=\${trap_outbuf}
+    let ix++
+  done < ${temp_misc_file}
+  rm -f ${temp_misc_file} &
+
+}
+################################################################################
+
+
+
+################################################################################
+function push_cleanup_func {
+  local funcname="${1}" ; shift
+  local push_when_masked="${1:-0}" ; shift
+
+  # This function will:
+  # - If _global_cleanup_stack_ is empty (e.g. first call to this function):
+  #   - Save the caller's traps.
+  #   - Add gen_func_cleanup to the list of actions to be taken for TERM and INT signals.
+  # - Stack the caller's funcname onto _global_cleanup_stack_.
+  # If funcname is blank, the default value will be composed as follows:
+  # <caller's function name>_cleanup
+  # Note: If you call this function via "cmd_fnc" or "cmd_fnc_u", this function will continue up the call stack to get the "real" function name to put on _global_cleanup_stack_.
+
+  # push_when_masked    If this is set, it means that this function should go ahead with the push even if a signal is masked, i.e. if the sigaction is null.  The default setting is to not push if a signal is masked.  The idea is, if TERM and INT signals are masked, they can't interrupt your program so you don't need to be concerned about not having cleanup functions run.
+
+  local cmd_buf
+
+  (( gen_func_cleanup_debug )) && print_vars _global_save_traps_ _global_cleanup_stack_
+  if [ -z "${_global_save_traps_}" ] ; then
+    # Perf: .001
+    _global_save_traps_=$(echo "trap - 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64" ; trap)
+    (( gen_func_cleanup_debug )) && cmd_fnc_u "trap"
+  fi
+
+  # If _global_cleanup_stack_ is empty then, we know the gen_func_cleanup program has not been added as a sigaction for TERM and INT signals.
+  if [ -z "${_global_cleanup_stack_}" ] ; then
+    # Add gen_func_cleanup to the actions to take for sig and int
+
+    # Note: Making signals local and making it an array must be done on separate lines for AIX bash to process it correctly.
+    local signals
+    signals=(TERM INT)
+    local sigactions
+    sigactions=()
+    local sigaction
+    local ix
+    local cmd_list
+
+    # Perf: .001 to .002
+    cmd_buf="get_cur_sigaction 'TERM INT' sigactions"
+    (( gen_func_cleanup_debug )) && issuing
+    eval ${cmd_buf} || return 1
+
+
+    for ((ix=0; ix < ${#signals[@]}; ix++ )) ; do
+      sigaction=${sigactions[${ix}]}
+      if [ "${sigaction}" == "null" ] ; then
+        if (( push_when_masked )) ; then
+          sigaction=''
+        else
+          continue
+        fi
+      fi
+      # Prefix a call to gen_func_cleanup to the sigaction string...
+      # This is faster than add_list_element.
+      { sigaction="gen_func_cleanup ${signals[${ix}]} \${?} ; ${sigaction}" ; sigaction=${sigaction% ; } ; }
+
+      # Call "trap" to make it effective.
+      # Perf: .001
+
+      cmd_buf="trap -- '${sigaction}' ${signals[${ix}]}"
+      { cmd_list="${cmd_list} ; ${cmd_buf}" ; cmd_list=${cmd_list# ; } ; }
+      # It's faster to collect all commands in a string and run them outside of the loop.
+      # (( gen_func_cleanup_debug )) && issuing
+      # eval ${cmd_buf} || return 1
+    done
+
+    if [ ! -z "${cmd_list}" ] ; then
+      # Run the trap command string created in the prior for loop.
+      # Perf: .003
+      (( gen_func_cleanup_debug )) && issuing "${cmd_list}"
+      eval ${cmd_list} || return 1
+    fi
+
+    (( gen_func_cleanup_debug )) && cmd_fnc_u "trap"
+  fi
+
+  if [ -z "${funcname}" ] ; then
+    # Assign default funcname.
+    get_real_caller_func funcname || return 1
+    funcname=${funcname}_cleanup
+  fi
+
+  # cmd_buf="add_list_element \"${funcname}\" _global_cleanup_stack_ front \" \""
+  # Perf: This is faster than add_list_element.
+   _global_cleanup_stack_="${funcname} ${_global_cleanup_stack_}" ; _global_cleanup_stack_=${_global_cleanup_stack_% }
+
+  (( gen_func_cleanup_debug )) && print_var _global_cleanup_stack_ || :
+
+}
+################################################################################
+
+
+
+################################################################################
+function pop_cleanup_func {
+  local funcname="${1}" ; shift
+
+  # This function will:
+  #  - Pop your funcname off of the _global_cleanup_stack_.
+  #  - If _global_cleanup_stack_ is then empty...
+  #    - Restore the caller's traps that were saved by push_cleanup_func.
+
+  # If funcname is blank, the default value will be composed as follows:
+  # <caller's function name>
+  # It is assumed that this function will typically be called from a "_cleanup" function.
+  # Note: If you call this function via "cmd_fnc" or "cmd_fnc_u", this function will continue up the call stack to get the "real" function name to put on _global_cleanup_stack_.
+
+  local cmd_buf
+
+  if [ -z "${funcname}" ] ; then
+    # Assign default funcname.
+    get_real_caller_func funcname || return 1
+  fi
+
+  cmd_buf="remove_list_element '${funcname}' _global_cleanup_stack_ ' ' front 1"
+  (( gen_func_cleanup_debug )) && issuing
+  eval ${cmd_buf} || return 1
+  (( gen_func_cleanup_debug )) && print_var _global_cleanup_stack_
+
+  if [ -z "${_global_cleanup_stack_}" ] ; then
+    eval "${_global_save_traps_}"
+    (( gen_func_cleanup_debug )) && cmd_fnc_u "trap"
+    _global_save_traps_=''
+  fi
+
+}
+################################################################################
+
+
+

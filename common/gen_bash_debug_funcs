@@ -1,0 +1,725 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define functions like std_func_header, std_func_footer, d_issuing, gen_debug, etc.
+
+# Change log:
+# 2014/06/26 Mike Walsh (xzy0065) - I added code to support the DEBUG_GEN_BASH_FUNCS environment variable.  If this is set, we will do global/local var checking in gen_bash funcs.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+
+# Important note:  In this file, aliases std_func_header and std_func_footer are defined.  If you have functions that use these aliases, you MUST source this file BEFORE defining your functions.
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+# 2011/07/18 Added the following line.  Hopefully, it will have no adverse affects on programs that source this file.
+# This allows me to use aliases in my scripts.
+shopt -s expand_aliases
+# If this file is sourced from an interactive command line, I want to preserve aliases.  However, when running a bash script, I don't want to inherit aliases from callers, so I'll clear them here.
+[ -z "${PS1}" ] && unalias -a
+
+# This setting will prevent the sourcing of a .bashrc file.
+export BASH_ENV=""
+
+# What follows are some functions that can aid in debugging your programs.  The program (or the caller for that matter), can influence the debug data by setting various environment variables (below).  Notice that there are currently 3 groups of variables: _FUNC_TRACE_, _CMD_ and _GEN_DEBUG.  Within each group, there are several particular variables, indicated by the following suffixes: MAX_STACK_POS_, FUNCNAME_REGEX_, SOURCE_BASH_SOURCE_REGEX_ and OUT_.  For each major group, the particular variables work in the same basic way (explained below).  Note the additional variable in the _FUNC_TRACE_ group, _FUNC_TRACE_PRINT_CALL_STACK_.
+
+# Descriptions of the groups of debug variables from a user vantage point:
+
+# _FUNC_TRACE_          This group controls the output of function trace information.  This consists of a printed line showing the function call.  Here is some example output:
+#
+# #(CDT) 2011/07/28 17:50:52 - Executing: scr_pgm::test1 "mary had a little lamb" 
+#
+# _CMD_                 This group controls the output of statements like the following:
+# #(CDT) 2011/07/28 17:50:52 - Issuing: ps >/dev/null
+#
+# _GEN_DEBUG            This group controls the output of miscellaneous debug statements.
+#
+
+# Descriptions of the types of debug variables from a user vantage point:
+# MAX_STACK_POS_        The MAX_STACK_POS_ variable type is used to indicate which functions should participate in the debug activity based on their position in the call stack.  The default value for this variable type is 0 (no debug output).  The main or global level of a program would be in stack position 1.  Any functions called by the main program would be in stack position 2 and so on.  Specifying the following would indicate that all functions whose names match the _FUNC_TRACE_FUNCNAME_REGEX_ and who are in position 2 or less in the stack would output function trace information.
+# export _FUNC_TRACE_MAX_STACK_POS_=2
+#
+# MAX_STACK_POS_ serves as the switch for the group.  So, to turn on debug for the debug group, you would do something like this:
+# export _FUNC_TRACE_MAX_STACK_POS_=200
+#
+# FUNCNAME_REGEX_       The FUNCNAME_REGEX_ variable type is used to indicate which functions should participate in the debug activity based on their names.  The default value for this variable type is ".*" (all function names).  This is an extended regular expression so to have all functions participate, you would do something like this:
+# export _FUNC_TRACE_FUNCNAME_REGEX_='.*'
+# In the preceding example, the user is indicating that all functions should print function trace data (this is the default).
+#
+# To have only functions whose names contain "_list" participate, you would do this.
+# export _FUNC_TRACE_FUNCNAME_REGEX_='.*_list'
+#
+# BASH_SOURCE_REGEX_       The BASH_SOURCE_REGEX_ variable type is used to indicate which functions should participate in the debug activity based on the names of the source file containing them.  The default value for this variable type is ".*" (all source files).  This is an extended regular expression so to have all functions participate, you would do something like this:
+# export _FUNC_TRACE_BASH_SOURCE_REGEX_='.*'
+# In the preceding example, the user is indicating that all functions should print function trace data (this is the default).
+#
+# To have only functions from source file "gen_bash_funcs" participate, you would do this.
+# _FUNC_TRACE_BASH_SOURCE_REGEX_="(^|/gen_bash_funcs)"
+#
+# OUT_                  The OUT_ variable type is used to indicate where the generated debug data should be directed.  The default value for this variable type is '&2' (i.e. stderr).  You may set this to any file number (i.e. '&1', '&2', '&3') or to any valid file path name.
+
+# _FUNC_TRACE_MAX_STACK_POS_
+# _FUNC_TRACE_FUNCNAME_REGEX_
+# _FUNC_TRACE_SOURCE_BASH_SOURCE_REGEX_
+# _FUNC_TRACE_OUT_
+
+# _FUNC_TRACE_PRINT_CALL_STACK_
+
+
+# _CMD_MAX_STACK_POS_
+# _CMD_FUNCNAME_REGEX_
+# _CMD_SOURCE_BASH_SOURCE_REGEX_
+# _CMD_OUT_
+
+
+# _GEN_DEBUG_MAX_STACK_POS_
+# _GEN_DEBUG_FUNCNAME_REGEX_
+# _GEN_DEBUG_SOURCE_BASH_SOURCE_REGEX_
+# _GEN_DEBUG_OUT_
+
+# Another note:
+# The "issuing" function supports the _PRINT_FUNC_LINE_ environment variable.  If this is set to 1, output looks like this.
+# #(CDT) 2011/07/28 18:03:36 - d_issuing, 140:               Issuing: ps >/dev/null
+# Rather than this:
+# #(CDT) 2011/07/28 18:03:36 - Issuing: ps >/dev/null
+
+# Here is how programmer's can take advantage of these functions.
+#
+# For function traces, have the first line in each function be "std_func_header".  You are also encouraged to use std_func_footer as shown in the example.
+#
+# Example:
+# function func1 { std_func_header
+# <your code>
+# std_func_footer }
+#
+# For command traces:
+# If you want your cmd_buf printed unconditionally, call "issuing" as you normally would.  However, if you want it to print only if the _CMD_ group environment variables are set properly, use d_issuing.  Example:
+#
+# cmd_buf='ps'
+# d_issuing
+# eval "${cmd_buf}"
+#
+
+# For general debugging:
+# If you have code you want run only if the _GEN_DEBUG_ oup environment variables are set properly, use the gen_debug function.  Example:
+#
+# gen_debug 'calc_something ; print_something'
+#
+# You can even span several lines with your singly quoted string like this:
+#  gen_debug '
+#    print_time ; echo "What "
+#    print_time ; echo "more can I say?"
+#  '
+#
+# To produce this:
+# #(CDT) 2011/07/28 18:25:46 - What 
+# #(CDT) 2011/07/28 18:25:46 - more can I say?
+
+# Note that std_func_header will also do this for you:
+# local global_var_list="" ; my_save_vars
+#
+# See prolog for save_vars and check_vars to see how it works.
+
+
+# For now, I have code in std_func_header and std_func_footer to only do the my_save_vars, etc. if the function is not part of this file.  I'm not ready to suddenly have all of these functions using my_save_vars.
+
+# Some functions must not participate in the var save/check scheme.  Namely, those functions themselves and functions which must be used in their service (e.g. add_list_element is used to manipulate the contents of global_var_list).
+if ! test "${save_var_exemptions_regex+defined}" ; then
+  readonly save_var_exemptions_regex="save_vars|check_var_changes|get_func_loc_var_list|issuing|d_issuing|print_var|print_var_list|print_error|print_time|print_call_stack|print_func_name|add_list_element"
+fi
+
+
+# 2011/12/12 Did some perf tuning.
+################################################################################
+alias std_func_header='
+
+  # std_func_header can be specified on the line following your function declarations.  Or even on the same line, example:
+  # function my_func { std_func_header
+
+  # std_func_header provides these benefits:
+  # - makes it so that function names and call stacks will be printed if the environment variables are set correctly.
+  # - For all functions but main, save_vars and check_var_changes:
+  #   - Declares global_var_list
+  #   - Initializes global_var_list to blank
+  #   - Calls my_save_vars alias.  See doc for that alias later in this file.
+
+  # NOTE: std_func_header is coded as an alias rather than a function in order to make it run fast.
+
+  # Since std_func_header, it runs in the scope of the invoking function.  Therefore, I choose a strange variable name for my command buffer to make it very unlikely that my variable will conflict with any in the invoking function.
+  # I changed this from a long eval of _sFh__CmD__bUf_ to inline code.  This makes it much faster.
+
+  # 2014/02/06 If _FUNC_TRACE_MAX_STACK_POS_ is undefined, let us keep it that way.
+  # if [ ${#FUNCNAME[@]} -le ${_FUNC_TRACE_MAX_STACK_POS_:=0} ] ; then
+  if [ ${#FUNCNAME[@]} -le ${_FUNC_TRACE_MAX_STACK_POS_:-0} ] ; then
+    # With my current use, I am more likely to filter by source file than by function name.  So to improve performance, I will test the source file name first.  Then if the test does not pass, we do not have to bother with the funcname check.
+# I would like to add code here so that the default is to trace all functions except those in gen_bash_.*_funcs source files.  For those, I would want the user to explicitly say they want it.
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      _sFh__CmD__bUf_="echo \"${BASH_SOURCE[0]}\" | egrep -q \"${_FUNC_TRACE_BASH_SOURCE_REGEX_:-.*}\""
+    else
+      _sFh__CmD__bUf_="[[ \"${BASH_SOURCE[0]}\" =~ \"${_FUNC_TRACE_BASH_SOURCE_REGEX_:-.*}\" ]]"
+    fi
+    # echo "_sFh__CmD__bUf_: $_sFh__CmD__bUf_" >&2
+    #eval ${_sFh__CmD__bUf_}
+    #if [ "${?}" == "0" ] ;then
+    if eval ${_sFh__CmD__bUf_} ;then
+      if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+        _sFh__CmD__bUf_="echo \"${FUNCNAME}\" | egrep -q \"${_FUNC_TRACE_FUNCNAME_REGEX_:-.*}\""
+      else
+        _sFh__CmD__bUf_="[[ \"${FUNCNAME}\" =~ \"${_FUNC_TRACE_FUNCNAME_REGEX_:-.*}\" ]]"
+      fi
+      #echo "_sFh__CmD__bUf_: $_sFh__CmD__bUf_"
+      #eval ${_sFh__CmD__bUf_}
+      #if [ "${?}" == "0" ] ;then
+      if eval ${_sFh__CmD__bUf_} ;then
+
+        _sFh__CmD__bUf_="print_func_name \"\$@\" >${_FUNC_TRACE_OUT_:-&2}"
+        eval ${_sFh__CmD__bUf_}
+        if [ "${_FUNC_TRACE_PRINT_CALL_STACK_:=0}" -eq 1 ] ; then
+          _sFh__CmD__bUf_="print_call_stack >${_FUNC_TRACE_OUT_:-&2}"
+          eval ${_sFh__CmD__bUf_}
+        fi
+      fi
+    fi
+  fi
+
+  # Code running on AIX machines will not participate in the global/local var checking - too many problems to solve for that.
+  # Likewise, for Eclipz linux companion boxes.
+  # Many of the =~ are more expensive than the check of STRICT_VAR_DECLARATIONS so we want to do it first.
+  if (( STRICT_VAR_DECLARATIONS )) && [ "${op_system:=$(uname)}" != "AIX" -a "${MACHINE_PURPOSE}" != "Eclipz companion" ] ; then
+
+    # 2011/09/08 - For now, I do not wish to do the save_vars/check_var_changes for functions in the gen_bash_*_funcs files.
+    # Get function basename
+    _sFh_source_basename_=${BASH_SOURCE[0]}
+    _sFh_source_basename_=${_sFh_source_basename_##*/}
+    _sFh__CmD__bUf_="[[ \"\${_sFh_source_basename_}\" =~ \"^gen_bash_.*_funcs$\" ]] && (( ! DEBUG_GEN_BASH_FUNCS )) && _sFh_gen_bash_func_=1 || _sFh_gen_bash_func_=0"
+    #echo "_sFh__CmD__bUf_: $_sFh__CmD__bUf_"
+    eval "${_sFh__CmD__bUf_}"
+    if ! (( _sFh_gen_bash_func_ )) ; then
+      _sFh__CmD__bUf_="[ ! -z \"\${FUNCNAME}\" ] && ! [[ \"\${FUNCNAME}\" =~ \"^(\${save_var_exemptions_regex})$\" ]] && _sFh_non_exempt_func_=1 || _sFh_non_exempt_func_=0"
+      #echo "_sFh__CmD__bUf_: $_sFh__CmD__bUf_"
+      eval ${_sFh__CmD__bUf_}
+      if (( _sFh_non_exempt_func_ )) ; then
+        # We must do the following 3 thing for the functions which are using std_func_header:
+        # Declare global_var_list as local
+        # Initialize global_var_list to null
+        # Call my_save_vars (alias for save_vars).
+        # The only cases where we must NOT do this are when the invoking function is...
+        # main (i.e. FUNCNAME == null) because you cannot declare locals in main.
+        # save_vars and check_var_changes because those functions must access the callers global_var_list.
+        local global_var_list=""
+        my_save_vars
+      fi
+    fi
+  fi
+
+'
+################################################################################
+
+
+
+################################################################################
+alias std_func_footer='
+
+  # std_func_header can be specified on the line preceding the closing brace of each of your function declarations or even on the same line as the brace.  Example:
+  # std_func_footer }
+
+  # std_func_footer provides these benefits:
+  # - For all functions but main, save_vars and check_var_changes:
+  #   - Calls my_check_var_changes alias.  See doc for that alias later in this file.
+
+  # Code running on AIX machines will not participate.
+  if [ "${op_system:=$(uname)}" != "AIX" ] && (( STRICT_VAR_DECLARATIONS )) ; then
+    _sFf__CmD__bUf_="[ ! -z \"\${FUNCNAME}\" ] && ! [[ \"\${FUNCNAME}\" =~ \"^(\${save_var_exemptions_regex})$\" ]] && _sFf_non_exempt_func_=1 || _sFf_non_exempt_func_=0"
+    # issuing "${_sFf__CmD__bUf_}"
+    # Perf: .000
+    eval ${_sFf__CmD__bUf_}
+
+    #  _sFf__CmD__bUf_="[[ \"${FUNCNAME}\" =~ \"^(${save_var_exemptions_regex})$\" ]]"
+    #if [ ! -z "${FUNCNAME}" ] && ! eval $_sFf__CmD__bUf_ ; then
+    if (( _sFf_non_exempt_func_ )) ; then
+      # 2011/09/08 - For now, I do not wish to do the save_vars/check_var_changes for functions in this file.
+      #if [ "$(basename ${BASH_SOURCE[0]})" != "gen_bash_funcs" ] ; then
+      _sFf_source_basename_=${BASH_SOURCE[0]}
+      _sFf_source_basename_=${_sFf_source_basename_##*/}
+      _sFf__CmD__bUf_="[[ \"${_sFf_source_basename_}\" =~ \"^gen_bash_.*_funcs$\" ]] && (( ! DEBUG_GEN_BASH_FUNCS ))"
+      # issuing "${_sFf__CmD__bUf_}"
+      # Perf: .002
+ 
+      eval $_sFf__CmD__bUf_ && _sFf_=0 || _sFf_=1
+      #if [ "${?}" != "0" ] ; then
+      if [ "${_sFf_}" != "0" ] ; then
+        my_check_var_changes
+      fi
+    fi
+  fi
+
+'
+################################################################################
+
+
+
+################################################################################
+function d_issuing {
+
+  # This function is a debug wrapper for the issuing function.  This function will only call issuing if the right environment variables are set.
+  local _callers_stack_pos_="${#FUNCNAME[@]}"
+  let _callers_stack_pos_--
+
+  if (( _callers_stack_pos_ == 0 )) ; then
+    # This should only be zero if we're in an environment (AIX) where ${#FUNCNAME[@]} is not set.
+    return
+  fi
+
+  local _d_cmd_buf
+
+  if [ ${_callers_stack_pos_} -le ${_CMD_MAX_STACK_POS_:=0} ] ; then
+    if echo "${FUNCNAME[1]}" | egrep -q "${_CMD_FUNCNAME_REGEX_:-.*}" ; then
+      if echo "${BASH_SOURCE[1]}" | egrep -q "${_CMD_BASH_SOURCE_REGEX_:-.*}" ; then
+        _d_cmd_buf="{ issuing \"\$@\" ; } >${_CMD_OUT_:-&2}"
+        # print_time ; echo "eval d_cmd_buf"
+        eval ${_d_cmd_buf}
+      fi
+    fi
+  fi
+
+}
+################################################################################
+
+
+
+# 2012/01/11 Did some performance tuning.  When degugging vars are off, I want this puppy to fly.
+################################################################################
+function gen_debug {
+
+  # If the environment variables are set appropriately, this function will evaluate all the parms passed to it.  In other words, this is a conditional command executer.
+
+  local _callers_stack_pos_="${#FUNCNAME[@]}"
+  let _callers_stack_pos_--
+
+  local _d_cmd_buf
+
+  if [ ${_callers_stack_pos_} -le ${_GEN_DEBUG_MAX_STACK_POS_:=0} ] ; then
+
+    if [ "${op_system:=$(uname)}" != "AIX" ] ; then
+      _d_cmd_buf="[[ \"${FUNCNAME[1]}\" =~ \"${_GEN_DEBUG_FUNCNAME_REGEX_:-.*}\" ]]"
+    else
+      _d_cmd_buf="echo \"${FUNCNAME[1]}\" | egrep -q \"${_GEN_DEBUG_FUNCNAME_REGEX_:-.*}\""
+    fi
+    #issuing "${_d_cmd_buf}" >&2
+    eval ${_d_cmd_buf}
+    if [ "${?}" == "0" ] ; then
+      if [ "${op_system:=$(uname)}" != "AIX" ] ; then
+      _d_cmd_buf="[[ \"${BASH_SOURCE[1]}\" =~ \"${_GEN_DEBUG_BASH_SOURCE_REGEX_:-.*}\" ]]"
+      else
+      _d_cmd_buf="echo \"${BASH_SOURCE[1]}\" | egrep -q \"${_GEN_DEBUG_BASH_SOURCE_REGEX_:-.*}\""
+      fi
+      #issuing "${_d_cmd_buf}" >&2
+      eval ${_d_cmd_buf}
+      if [ "${?}" == "0" ] ; then
+        _d_cmd_buf="{ eval \"\$@\" ; } >${_GEN_DEBUG_OUT_:-&2}"
+        #issuing "${_d_cmd_buf}" >&2
+        eval ${_d_cmd_buf} || return 1
+      fi
+     fi
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function get_func_loc_var_list {
+  local funcname="${1}" ; shift || :
+  local list_var="${1}" ; shift || :
+  local skip_validation="${1:-0}" ; shift || :
+
+  # This function will find all of the local variable declarations in the function passed in $funcname.  It will put all such variable names into the variable named in list_var.  skip_validation is for improved performance at the cost of no parm checking.  Use this if your parms have already been validated.
+
+  if (( ! skip_validation )) ; then
+    # Normally, I'd use valid_value for this checking but performance is more important so I'm doing the checks inline.
+    if [ -z "${funcname}" ] ; then
+      { print_error ; echo "Programmer error - function parameter \"funcname\" is null." ; } | process_error_message
+      return 1
+    fi
+  
+    if [ -z "${list_var}" ] ; then
+      { print_error ; echo "Programmer error - function parameter \"list_var\" is null." ; } | process_error_message
+      return 1
+    fi
+  
+    type $funcname >/dev/null 2>&1
+    if [ "${?}" != "0" ] ; then
+      { print_error ; echo "Function \"${funcname}\", not found." ; } | process_error_message
+      return 1
+    fi
+  fi
+
+  local cmd_buf
+
+  cmd_buf="${list_var}=\$(type ${funcname} | egrep -o '(^| )local [^=;]+' | sed -re 's/(^| )local //g')"
+  #issuing
+  eval $cmd_buf
+  eval ${list_var}=\$\(echo ${!list_var}\)
+
+}
+################################################################################
+
+
+
+
+# The following 2 functions are my attempt to compensate for the following weakness inherent in bash scripting:
+# By default, all variable references in a bash function are references to global variables.  This is the opposite of most programming languages.  Bash has no way to declare globals as variable.  If you assign a value to a variable that has not been declared with the "local" keyword, you are necessarily altering a global variable.  This is generally a bad thing which can lead to program bugs.  For example, you may set a variable named "ix" in a function.  But that very same variable may be in use in the calling program.  This could lead to all kinds of trouble (endless loops, corrupt data, etc.).  By calling the following 2 functions from any function that you write, you are effectively "declaring" global variables.  If a change is detected in any undeclared variable, an error message is written to stderr and non-zero is returned.
+# Note that these 2 functions have no power to detect whether you are merely reading the value of a global variable, only whether you are writing to it.  For that reason, it is recommended that you include only globals that you intend to change in global_var_list.  This practice will catch problems where a global is written contrary to your intentions.
+#
+# Example use:
+#
+# In your calling program (or on the command line) do this to activate this type of error checking:
+# STRICT_VAR_DECLARATIONS=1
+#
+# Then write all of your functions as follows:
+#
+# function my_func {
+# 
+#  local global_var_list="var1 var2" ; save_vars
+#  local var3
+#
+#   <your code>
+#
+#   check_var_changes || return 1
+#
+# }
+# In the preceding example, the function may manipulate var1, var2 (globals) and var3 (local) freely.  If any other variables contain different values by the time check_var_changes is called, you will get an error.  One weakness in this approach, if your program changes a variable such that it has its original value by the time check_var_changes is called, no foul will be called.  For example, if global variable var4 contains "hello".  my_func could conceivably change it to any other value, change it back to "hello" and check_var_changes would be none the wiser.  To summarize, this approach will not catch every infraction but it will catch most.
+#
+# Another example:
+
+# function my_func {
+#   (( FUNC_TRACE )) && { print_func_name "$@" ; print_call_stack ; } >&2
+#   local ix_var="${1:-ix}" ; shift || :
+# 
+#   local global_var_list="${ix_var}" ; save_vars
+#
+#   # Assign 6 to the variable named in ix_var.
+#   eval $ix_var=6
+#
+#   check_var_changes || return 1
+# 
+# }
+#
+# In the preceding example, the function is using indirect referencing to manipulate the callers "ix" variable.  The caller may specify any variable name they wish so the variable name isn't known by my_func until runtime.  Therefore, "${ix_var}" is included in the global_var_list so that changes to it are not flagged by check_var_changes.
+
+# Note that there is definitely a performance cost to using these functions.  If you plan to have the STRICT_VAR_DECLARATIONS off most of the time, you can further minimize performance problems by coding your calls this way:
+#  local global_var_list="" ; (( STRICT_VAR_DECLARATIONS )) && save_vars
+# <your function body>
+#  (( STRICT_VAR_DECLARATIONS )) && { check_var_changes || return 1 ; } || :
+# This eliminates a useless call to these functions.
+
+# Or better yet, use the aliases (defined below) as in this example.
+
+#  local global_var_list="" ; my_save_vars
+# <your function body>
+#  my_check_var_changes
+
+# Note that anytime between your my_save_vars and your my_check_var_changes references, you may add var names to global_var_list.  This is especially handy since variables (both local and global) can be brought into existence on-the-fly in bash scripts.
+
+# Debug tip: If you're having trouble finding where in your function the "undeclared" variable got set, run this command at the start of the function:
+# set -o posix
+# Then sprinkle this kind of line throughout.
+# echo "LINE: ${LINENO}" ; set | egrep "^<your variable name here>"
+
+
+if ! test "${common_global_var_regex+defined}" ; then
+  # Important programming note: Each element in common_global_var_regex must be preceeded by a "|".
+  # exec_cmd_child_pid_random_17861_12901 is from exec_cmd.
+  readonly common_global_var_regex="|cleanup_file_list|_global_save_traps_|_global_cleanup_stack_|u_name|BASHOPTS|BASHPID|BASH_ARGC|BASH_LINENO|BASH_SUBSHELL|BASH_SOURCE|FUNCNAME|RANDOM|exec_cmd_child_pid_random_17861_12901|exec_command_output|LINENO|PWD|OLDPWD|BASH_REMATCH|BASH_ARGV|COL1_WIDTH|INDENT|quiet|stat|[^=]*_owner|_cHeCk_VaR_cHaNgEs_.*|alarm_child_pid_random_.*"
+fi
+
+alias my_save_vars='(( STRICT_VAR_DECLARATIONS )) && save_vars'
+alias my_check_var_changes='(( STRICT_VAR_DECLARATIONS )) && { check_var_changes || return 1 ; } || :'
+################################################################################
+function save_vars {
+
+  # If STRICT_VAR_DECLARATIONS is not set to 1, this function will do nothing.
+  # This function will save all variables and their values in a file named /tmp/<program>_<func>_<line#>_<pid>_save_file.  It will exclude its own local variables.  This file may be used for later analysis (by check_var_changes).
+
+  # For functions wanting to use save_vars, the recommendation is to include this kind of line as the first line of your function:
+
+  # local global_var_list="" ; save_vars
+
+  # Put all of the global variables you will be changing in the global_var_list.  The last line of your function should be this:
+
+  # check_var_changes || return 1
+
+  if (( ! STRICT_VAR_DECLARATIONS )) ; then return ; fi
+
+  # I make a point of declaring all local variables with a very unique prefix of "_sAvE_vArS" so that I can exclude them from consideration by check_var_changes.
+  local _sAvE_vArS_program _sAvE_vArS_calling_func _sAvE_vArS_calling_line _sAvE_vArS_save_file _sAvE_vArS_ix _sAvE_vArS_cleanup _sAvE_vArS_var_list _sAvE_vArS_ignore_regex _sAvE_vArS_var_name _sAvE_vArS_cmd_buf _sAvE_vArS_pad _sAvE_vArS_length _sAvE_vArS_pad_ix
+
+  _sAvE_vArS_program=${PGM_NAME:-$(basename $0)}
+
+  if [ "${FUNCNAME[1]}" == "check_var_changes" ] ; then
+    # Calling function is check_var_changes who is an "insider" so we'll get the info on the function calling check_var_changes rather than the function calling save_vars (i.e. up 2 levels instead of 1).
+    _sAvE_vArS_ix=2
+    _sAvE_vArS_cleanup=0
+  else
+    _sAvE_vArS_ix=1
+    # This function is being called directly from a function so presumably, it's the first of 2 calls that will be made.  Therefore, any pre-existing save files for the calling function are garbage and should be removed.
+    _sAvE_vArS_cleanup=1
+  fi
+
+  _sAvE_vArS_calling_func=${FUNCNAME[${_sAvE_vArS_ix}]}
+  let _sAvE_vArS_ix--
+  _sAvE_vArS_calling_line=${BASH_LINENO[${_sAvE_vArS_ix}]}
+  # Naming the file so that the line number portion is 6 digits padded with zeroes.  This is needed for sorting by the check_var_changes function.
+  # 2012/02/02 Perf improvement.
+  # _sAvE_vArS_save_file=$(printf "/tmp/%s:%s_%06i_%i_save_file" "${_sAvE_vArS_program}" "${_sAvE_vArS_calling_func}" "${_sAvE_vArS_calling_line}" "$$")
+  _sAvE_vArS_pad=000000
+  _sAvE_vArS_length=${#_sAvE_vArS_calling_line}
+  let _sAvE_vArS_pad_ix=6-_sAvE_vArS_length
+  #_sAvE_vArS_save_file=/tmp/${_sAvE_vArS_program}:${_sAvE_vArS_calling_func}_${_sAvE_vArS_pad:0:_sAvE_vArS_pad_ix}${_sAvE_vArS_calling_line}_$$_save_file
+  # I switched from using "$$" to "$(bash -c 'echo $PPID')" because the 2nd way gives you the pid of the subprocess if you happen to be running in one.  If this were bash 4, we could use $BASHPID.
+  set_BASHPID
+  #_sAvE_vArS_save_file=/tmp/${_sAvE_vArS_program}:${_sAvE_vArS_calling_func}_${_sAvE_vArS_pad:0:_sAvE_vArS_pad_ix}${_sAvE_vArS_calling_line}_$(bash -c 'echo $PPID')_save_file
+  #_sAvE_vArS_save_file=/tmp/${_sAvE_vArS_program}:${_sAvE_vArS_calling_func}_${_sAvE_vArS_pad:0:_sAvE_vArS_pad_ix}${_sAvE_vArS_calling_line}_${BASHPID}_save_file
+
+  # Note: Stack pos is 1-based, i.e. starts at "1" for the mainline.
+  local _sAvE_vArS_callers_stack_pos_
+  let _sAvE_vArS_callers_stack_pos_=${#FUNCNAME[@]}-1-_sAvE_vArS_ix
+
+  _sAvE_vArS_save_file=/tmp/${_sAvE_vArS_program}:${_sAvE_vArS_calling_func}:${_sAvE_vArS_callers_stack_pos_}_${_sAvE_vArS_pad:0:_sAvE_vArS_pad_ix}${_sAvE_vArS_calling_line}_${BASHPID}_save_file
+
+  if (( _sAvE_vArS_cleanup )) ; then
+    # Cleanup pre-existing files that may have been left around by mistake.
+    # Perf: .005 seconds.
+    rm -f /tmp/${_sAvE_vArS_program}_${_sAvE_vArS_calling_func}_*
+  fi
+
+  # I don't expect the function definition to change during the running of the calling program.  Therefore, I will use this variable to determine if we've already called get_func_loc_var_list for the function:line# in question.  This improves performance when functions are calling repeatedly.
+  local _sAvE_vArS_var_list_var=_sAvE_vArS_${_sAvE_vArS_calling_func}_${_sAvE_vArS_calling_line}_var_list
+
+  #get_func_loc_var_list ${_sAvE_vArS_calling_func} _sAvE_vArS_var_list "1" || exit 1
+  if ! test "${!_sAvE_vArS_var_list_var+defined}" ; then
+    # Perf: .005
+    # Get all local vars declared by calling function.
+    get_func_loc_var_list ${_sAvE_vArS_calling_func} ${_sAvE_vArS_var_list_var} "1" || exit 1
+  fi
+
+  # Add all variables "declared" in global_var_list.
+  #_sAvE_vArS_var_list="${_sAvE_vArS_var_list} ${global_var_list}"
+
+  # Prepare the ignore regex string based on variable list.
+
+  for _sAvE_vArS_var_name in ${!_sAvE_vArS_var_list_var} ; do
+  #for _sAvE_vArS_var_name in $_sAvE_vArS_var_list ; do
+    _sAvE_vArS_ignore_regex="${_sAvE_vArS_ignore_regex}|${_sAvE_vArS_var_name}"
+  done
+
+  # Print all vars and values to a file except:
+  #   - The ones declared in this function (which all start with a common identifying prefix, namely "_sAvE_vArS_")
+  #   - Some common globals which are enumerated in common_global_var_regex
+  #   - The variables in _sAvE_vArS_ignore_regex which consist of:
+  #     - The variables declared as "local" by the calling function.
+  #  #     - The variables included by the user in global_var_list.
+  #   - Variable names beginning with "_" ("set -o posix ; set" generates many of these like "_=posix" and "__categories_configuration='Application;ibm-configuration;'").
+  # _sAvE_vArS_cmd_buf="comm -3 <(declare | sort) <(declare -f | sort) | egrep -v '^((_sAvE_vArS_.*${common_global_var_regex}${_sAvE_vArS_ignore_regex})=|_)' > $_sAvE_vArS_save_file"
+  # This way is faster.
+  # Doing "set +o posix" seems to clear our aliases (discovered because "lt" got cleared).  I'm leaving it the original way for now to avoid debugging problems introduced by commenting out the "set +o posix".
+  # 2013/01/22 Update...by running the "set +o posix" in a spawned process, I avoid having it clear our aliases.
+  #set -o posix
+  # _sAvE_vArS_cmd_buf="set -o posix ; set | egrep -v '^((_sAvE_vArS_.*${common_global_var_regex}${_sAvE_vArS_ignore_regex})=|_)' | egrep '^[^ ]+=' > $_sAvE_vArS_save_file ; set +o posix"
+  #_sAvE_vArS_cmd_buf="set | egrep -v '^((_sAvE_vArS_.*${common_global_var_regex}${_sAvE_vArS_ignore_regex})=|_)' | egrep '^[^ ]+=' > $_sAvE_vArS_save_file"
+   _sAvE_vArS_cmd_buf="{ set -o posix ; set | egrep -v '^((_sAvE_vArS_.*${common_global_var_regex}${_sAvE_vArS_ignore_regex})=|_)' | egrep '^[^ ]+=' > $_sAvE_vArS_save_file ; set +o posix ; } &"
+  #issuing "$_sAvE_vArS_cmd_buf"
+# Perf: .014 - The complexity of the regex definitely slows this down (adds .008).
+  eval $_sAvE_vArS_cmd_buf
+  wait $!
+  #set +o posix
+
+  # This will cause exit_function to cleanup if we die early (if the caller is using our gen_exit_function, of course).  Normally I'd call add_list_element but I need optimal performance so I'll modify cleanup_file_list inline.
+
+  # 2012/10/03 There is no benefit to having an entry in cleanup_file_list more than once.
+  # To keep this function fast, I avoid the use of search_list.  I am confident that the file name pattern is unique enough that we won't get a false hit in our "search".
+  # if ! search_list $_sAvE_vArS_save_file cleanup_file_list ; then
+  if [ "${cleanup_file_list}" == "${cleanup_file_list/${_sAvE_vArS_save_file}/}" ] ; then
+    #add_list_element $_sAvE_vArS_save_file cleanup_file_list
+    [ ! -z "${cleanup_file_list}" ] && cleanup_file_list="${cleanup_file_list} "
+    cleanup_file_list="${cleanup_file_list}$_sAvE_vArS_save_file"
+  fi
+
+  # Set global variable.  check_var_changes depends on this value being set.
+  # eval _sAvE_vArS_${_sAvE_vArS_calling_func}_save_file_path=${_sAvE_vArS_save_file}
+  local _sAvE_vArS_save_file_path_var=_sAvE_vArS_${_sAvE_vArS_calling_func}_${_sAvE_vArS_callers_stack_pos_}_save_file_path
+  eval ${_sAvE_vArS_save_file_path_var}=${_sAvE_vArS_save_file}
+  # print_vars ${_sAvE_vArS_save_file_path_var}
+
+}
+################################################################################
+
+
+
+################################################################################
+function check_var_changes {
+  # Perf: .00008
+  # If STRICT_VAR_DECLARATIONS is not set to 1, this function will do nothing.
+  # This function will create a new variable _save_file for the calling function and compare it to the prior _save_file (see prolog above for proper use of this function, etc.).  If the comparison is "clean", this function will delete both of the save files.  Otherwise, the files will be left for debug by the developer.  The objective of this function is to identify global variables changed by the calling function that weren't declared by being named in "global_var_list".
+
+  if (( ! STRICT_VAR_DECLARATIONS )) ; then return ; fi
+  # Perf: .00001
+
+  # Create the "after" compare file.
+  # Perf: .022
+
+  local _cHeCk_VaR_cHaNgEs_calling_func=${FUNCNAME[1]}
+
+  local _cHeCk_VaR_cHaNgEs_callers_stack_pos_
+  let _cHeCk_VaR_cHaNgEs_callers_stack_pos_=${#FUNCNAME[@]}-1
+  # Determine the name of the global var that save_vars sets.
+  # local _cHeCk_VaR_cHaNgEs_save_file_path_var=_sAvE_vArS_${_cHeCk_VaR_cHaNgEs_calling_func}_save_file_path
+  local _cHeCk_VaR_cHaNgEs_save_file_path_var=_sAvE_vArS_${_cHeCk_VaR_cHaNgEs_calling_func}_${_cHeCk_VaR_cHaNgEs_callers_stack_pos_}_save_file_path
+
+  local _cHeCk_VaR_cHaNgEs_before_file_path=${!_cHeCk_VaR_cHaNgEs_save_file_path_var}
+
+  save_vars
+
+  local _cHeCk_VaR_cHaNgEs_after_file_path=${!_cHeCk_VaR_cHaNgEs_save_file_path_var}
+
+  # print_vars _cHeCk_VaR_cHaNgEs_before_file_path _cHeCk_VaR_cHaNgEs_after_file_path
+
+  local before_file_path=${_cHeCk_VaR_cHaNgEs_before_file_path}
+  local after_file_path=${_cHeCk_VaR_cHaNgEs_after_file_path}
+  local program
+  local var_name
+  local cmd_buf
+  local rc
+  local diff_list
+  local old_value
+  local new_value
+  local diff_ignore_string=""
+  local delim=" "
+  local filename
+
+  program=${PGM_NAME:=$(basename $0)}
+
+  # I no longer need to do this because save_vars saves the value for me.
+  # Locate the 2 compare files.
+  # 2012/02/02 Perf improvements.
+  # Perf: .005 to do this.
+  # before_file_path=$(echo /tmp/${program}:${_cHeCk_VaR_cHaNgEs_calling_func}_??????_$$_save_file)
+
+  # Get rid of last item.
+  # before_file_path=${before_file_path% *}
+  # Get rid of all but last item.
+  # before_file_path=${before_file_path#* }
+
+  # Get rid of all but last item.
+  # after_file_path=${after_file_path#* }
+
+  # print_var_list "before_file_path after_file_path"
+
+  if [ ! -f "${before_file_path}" ] ; then
+    { print_error ; echo "Internal error: before_file_path, \"${before_file_path}\", not found." ; print_call_stack ; } | process_error_message
+    return 1
+  fi
+
+  # before_file_path=$(ls /tmp/${program}:${_cHeCk_VaR_cHaNgEs_calling_func}_??????_$$_save_file | tail -n 2 | head -n 1) || return 1
+  # after_file_path=$(ls /tmp/${program}:${_cHeCk_VaR_cHaNgEs_calling_func}_??????_$$_save_file | tail -n 1) || return 1
+
+  # Create the diff_ignore_string based on the contents of global_var_list.
+  # diff_ignore_string=$(for var_name in ${global_var_list} ; do echo -n " -I '^$var_name='" ; done)
+  for var_name in ${global_var_list} ; do
+    diff_ignore_string="${diff_ignore_string} -I '^$var_name='"
+  done
+
+  #cmd_buf="diff${diff_ignore_string} $before_file_path $after_file_path | egrep '^> ' > /dev/null"
+  # cmd_buf="diff${diff_ignore_string} $before_file_path $after_file_path | egrep '^[<>] ' > /dev/null"
+  # I'm thinking we don't need the egrep here.  We only need it on error when we show the data to the user.  I care because the egrep adds .004 to the execution time.
+  cmd_buf="diff${diff_ignore_string} $before_file_path $after_file_path > /dev/null"
+  #d_issuing
+  # Perf: .002
+  eval ${cmd_buf}
+  rc="${?}"
+  if [ "${rc}" != "0" ] ; then
+      local _loc_indent_=2
+      local _loc_indent_2_=4
+      issuing
+
+      # From the difference data, we only care about lines starting with "<" or ">" followed by space followed by 1 or more non-space followed by "=".  Then we strip off all but the var names.
+      #cmd_buf="diff_list=\$(diff $before_file_path $after_file_path | egrep '^> [^ ]+=' | sed -re 's/^(>) ([^=]+)(.*)/\2/g'${egrep_v_regex_string} | sort -u)"
+       cmd_buf="diff_list=\$(diff${diff_ignore_string} $before_file_path $after_file_path | egrep '^(<|>) [^ ]+=' | sed -re 's/^(<|>) ([^=]+)(.*)/\2/g'${egrep_v_regex_string} | sort -u)"
+      eval ${cmd_buf}
+      issuing
+      # Remove cr/lf
+      diff_list=$(echo $diff_list)
+      echo
+    {
+      #print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Programmer error - The following \"undeclared\" global variables were changed by function \"${_cHeCk_VaR_cHaNgEs_calling_func}\" (their values are shown on the right):"
+      print_error ; echo "Programmer error - The following \"undeclared\" global variables were changed by function \"${_cHeCk_VaR_cHaNgEs_calling_func}\" (the old and new value of each is shown):"
+      # print_var_list "${diff_list}"
+
+      # Get old and new values for each var that changed.  This is done by examining the before_file_path and after_file_path respectively.  Then print these values.
+      for var_name in ${diff_list} ; do
+        indent ${_loc_indent_} ; echo "${var_name}:"
+        old_value=$(egrep "^${var_name}=" $before_file_path) && old_value=${old_value#*=} || old_value="(variable \"$var_name\" was undefined when function \"${_cHeCk_VaR_cHaNgEs_calling_func}\" began)"
+        new_value=$(egrep "^${var_name}=" $after_file_path) && new_value=${new_value#*=} || new_value="(variable \"$var_name\" was unset by function \"${_cHeCk_VaR_cHaNgEs_calling_func}\")"
+        #print_var_list "old_value new_value" 2 26
+        print_vars old_value new_value ${_loc_indent_2_}
+      done
+
+      echo
+      print_vars global_var_list ${_loc_indent_2_}
+      echo
+      indent ${_loc_indent_} ; echo "The calling function (${_cHeCk_VaR_cHaNgEs_calling_func}) may declare such globals by including them in the global_var_list.  These errors will only be signalled when environment variable STRICT_VAR_DECLARATIONS is set to 1."
+      if [ ! -z "${current_owner}" ] ; then
+        indent ${_loc_indent_} ; echo "Report this problem to the owner of this program, $current_owner."
+      fi
+    } | process_error_message
+  fi
+
+  # Clean up the cleanup_file_list to reduce the burden on gen_exit_function later.  Normally I'd call remove_list_element but I need optimal performance so I'll modify cleanup_file_list inline.
+  for filename in ${before_file_path} ${after_file_path} ; do
+    # Is our file the only thing in cleanup_file_list...
+    [ "${cleanup_file_list}" == "${filename}" ] && { cleanup_file_list="" ; break ; }
+    # Is our file the first thing in cleanup_file_list...
+    cleanup_file_list=${cleanup_file_list#${filename}${delim}}
+    # Is our file the last thing in cleanup_file_list...
+    cleanup_file_list=${cleanup_file_list%${delim}${filename}}
+    # Is our file somewhere in the middle of cleanup_file_list...
+    cleanup_file_list=${cleanup_file_list/${delim}${filename}${delim}/${delim}}
+  done
+
+# Uncommenting this can help us see if cleanup_file_list is growing boundlessly.
+#echo
+#echo "cleanup_file_list: $cleanup_file_list" >&2
+#{ echo $cleanup_file_list | wc -w ; echo ; } >&2
+
+  # If we had an error, we do NOT wish to clean up the files.  Hopefully, this is the rare case.
+  if ! (( rc )) ; then
+    # No problems found with save file comparisons.
+    # Clean up the compare files.
+    cmd_buf="rm -rf $before_file_path $after_file_path"
+    #issuing
+    # Perf: .002
+    eval ${cmd_buf}
+  fi
+
+  #(( rc )) && return 0 || return 1
+  return ${rc}
+
+}
+################################################################################
+
+
+
+if [ -z "${MACHINE_PURPOSE}" -a -d "/afs" ] ; then
+  source /afs/rch/projects/esw/dvt/include/bash_login_funcs
+  get_machine_purpose
+fi
+
+
+

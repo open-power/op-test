@@ -1,0 +1,887 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define basic dns/ip functions like afs_cell, dns_cell, valid_ip, etc.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+# gen_bash_valid_funcs
+# gen_bash_list_funcs
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+# 2015/05/13 Mike Walsh (xzy0065) - I moved afs_cell to gen_bash_afs_funcs.  Most of my programs don't automatically source gen_bash_afs_funcs.  Therefore, I'll source it here on their behalf.
+if ! type afs_cell >/dev/null 2>&1 ; then
+  if [ "${HOSTNAME}" = "w3.rchland.ibm.com" -o "${HOSTNAME}" = "w3dev.rchland.ibm.com" ] ; then
+    afs_filepath=$(type gen_bash_afs_funcs 2>/dev/null | sed -e 's#.* ##') || { echo '**ERROR** Failed to find one of the source files.' >&2 ; exit 1 ; }
+    if [ -z "${afs_filepath}" ] ; then
+      if [ ! -z "${BASH_SOURCE}" ] ; then
+        afs_filepath=${BASH_SOURCE%/*}/gen_bash_afs_funcs
+      fi
+    fi
+  else
+    afs_filepath=$(/usr/bin/which gen_bash_afs_funcs 2>/dev/null) || afs_filepath=${BASH_SOURCE%/*}/gen_bash_afs_funcs
+  fi
+  source $afs_filepath || exit 1
+fi
+
+
+
+################################################################################
+function gsa_cell {
+  local cell_var="${1}" ; shift || :
+
+  # This function will return the gsa cell associated with the machine you're running on.  Example gsa cell: rchgsa.
+  # This function is currently programmed to work for austin, rchland, ppd.pok and pok.stglabs only.
+
+  # If cell_var is null, this function will write the answer to stdout.  Otherwise, it will put the answer in the variable named in cell_var.
+
+  #local afs_cell=$(afs_cell)
+  local afs_cell
+  afs_cell afs_cell
+
+  local loc_gsa_cell
+
+  case "${afs_cell}" in
+    rchland)
+      loc_gsa_cell=rchgsa
+      ;;
+    austin)
+      loc_gsa_cell=ausgsa
+      ;;
+    ppd.pok)
+      loc_gsa_cell=pokgsa
+      ;;
+    pok.stglabs)
+      loc_gsa_cell=pokgsa
+      ;;
+    pok)
+      loc_gsa_cell=pokgsa
+      ;;
+    raleigh)
+      loc_gsa_cell=rtpgsa
+      ;;
+    *)
+      loc_gsa_cell=""
+      return 1
+      ;;
+  esac
+
+  if [ -z "${cell_var}" ] ; then
+    printf $loc_gsa_cell
+  else
+    eval $cell_var=$loc_gsa_cell
+  fi
+
+  return 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function dns_cell {
+  local dns="${1}" ; shift || :
+  local cell_var="${1}" ; shift || :
+
+  # This function will return the afs cell for DNS name passed.  Example afs cell: rchland.
+
+  local parm_name
+  for parm_name in dns cell_var ; do
+    if [ -z "${!parm_name}" ] ; then
+      { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; } | process_error_message
+      return 1
+    fi
+  done
+
+  local cmd_buf
+
+  local _loc_cell_
+  # First remove the ".ibm.com".
+  _loc_cell_=${dns%.ibm.com}
+  # ".upt" and ".stglabs" are noise as far as we're concerned.
+  _loc_cell_=${_loc_cell_/.upt}
+  _loc_cell_=${_loc_cell_/.isst}
+  _loc_cell_=${_loc_cell_/.stglabs}
+  # Now remove the system name.
+  _loc_cell_=${_loc_cell_#*.}
+  eval ${cell_var}=${_loc_cell_}
+
+}
+################################################################################
+
+
+
+################################################################################
+function site {
+  local cell="${1}"
+  local site_var_name="${2}"
+
+  # This function will determine which site your cell belongs to and return that value in ${site_var_name}.  If it cannot determine the site, it will set ${site_var_name} to "", write an error message to stderr and return non-zero.
+
+  valid_value cell "" || return 1
+
+  # These are lists of supported cells/locations.
+  # 2013/02/26 I added "rch" to this list.
+  local Rochester="rchgsa rchland rch"
+  # 2012/01/27 Added "in" to support India.
+  # 2012/09/20 Added "tw" to support Taiwan.
+  # 2013/02/26 I added "aus" to this list.
+  local Austin="ausgsa austin awd in tw aus"
+  local cell_lists="Rochester Austin"
+  local cell_list
+
+  for cell_list in $cell_lists ; do
+    search_list "${cell}" $cell_list && { eval ${site_var_name}=$cell_list ; break ; }
+  done
+
+  if [ -z "${!site_var_name}" ] ; then
+    local var_name=${BASH_SOURCE##*/}_owner
+    { print_error "The site for the cell ${cell} could not be determined.  Report this problem to the owner of function \"${FUNCNAME}\", ${!var_name}." ; echo ; } | process_error_message
+    return 1
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function which_cell {
+  local path="${1}" ; shift
+  local quiet="${1:-1}" ; shift
+
+  local cell
+  local cmd_buf
+
+  valid_value path "" || return 1
+
+  if [ ! -f "${path}" -a ! -d "${path}" ] ; then
+    { print_error ; echo "\"${path}\" is not a valid path." ; } | process_error_message
+    return 1
+  fi
+
+  # Try to get the cell for what may be an afs path.
+  #cmd_buf="cell=\$(fs whichcell $path 2>/dev/null | sed -re \"s#.*cell '([^']*)'#\\1#g\" | cut -f 1 -d .)"
+  # Made this change to make it work on AIX.
+  cmd_buf="cell=\$(fs whichcell $path 2>/dev/null)"
+  (( ! quiet )) && issuing >&2
+  eval $cmd_buf
+  cell=${cell#*\'}
+  cell=${cell%%.*}
+
+  if [ -z "${cell}" ] ; then
+    # It's not an afs path.
+    # 2013/02/08 When running with path of "/gsa/ausgsa-h2/00/hlava/sbx/ga/src" from Rochester, the gsa acl list failed with "This is not a local GPFS path".  I'm not sure why this ever worked.  The path is clearly gsa so maybe I need a better test.
+    # Make sure it is gsa before proceeding.
+    # cmd_buf="gsa acl list --path $path >/dev/null 2>&1"
+    # issuing >&2
+    #eval $cmd_buf
+    #if [ "${?}" == "0" ] ; then
+    if [ "${path:0:4}" == "/gsa" ] ; then
+      # Try to get the cell for what gsa path.
+      # cmd_buf="cell=\$(df $path | tail -n +2 | head -n 1 | cut -f 1 -d .)"
+      # To handle special case of "fspnfsfr.austin.ibm.com:/esw/user/nfs", dropped the cut and handle the final mamipulations in the subsequent code.
+      cmd_buf="cell=\$(df $path | tail -n +2 | head -n 1)"
+      (( ! quiet )) && issuing >&2
+      eval $cmd_buf
+      # Remove preceding "fspnfsfr.", if present.  If required in the future, I may try to make this solution more general.
+      cell=${cell#fspnfsfr.}
+      # Strip off all but the cell name (or ip).
+      cell=${cell%%:*}
+      # 2014/09/25 Mike Walsh (xzy0065) - RHEL6 sim sandbox machines have an ip instead of a dns name in the output of df.  I added this new section to handle that.
+      if regexp "${cell}" "${ip_regex}" ; then
+        local dns
+        xlate_ip cell dns ${quiet} 1>&2 || return 1
+        # For the cell we want the short name.
+        cell=${dns%%.*}
+      else
+        # Remove all but the cell name.
+        cell=${cell%%.*}
+      fi
+      # 2013/04/02 Andrew Geissler is using a path associated with a "high speed SAN network".  When you run the prior command you get "gfwsan3".
+      [ "${cell}" == "gfwsan3" ] && cell=ausgsa
+      # 2015/01/07 Mike Walsh (xzy0065) - "" for "gfwnfsa1".
+      [ "${cell}" == "gfwnfsa1" -o "${cell}" == "gfwnfsa4" ] && cell=ausgsa
+    fi
+  fi
+
+  if [ -z "${cell}" ] ; then
+    # It is neither an afs nor a gsa path.  See if it's a local path.
+    df "$path" >/dev/null 2>&1
+    if [ "$?" == "0" ] ; then
+      # The path is local.
+      cell=$(hostname | cut -f 2 -d .)
+    fi
+  fi
+
+  if [ -z "${cell}" ] ; then
+    { print_error ; echo "Couldn't determine the cell associated with path \"${path}\"." ; } | process_error_message
+    return 1
+  fi
+
+  echo "${cell}"
+
+}
+################################################################################
+
+
+
+if ! test "${ip_regex+defined}" ; then
+  # I found this regex for validating ips on google.
+  #readonly ip_regex="\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
+  readonly ip_regex="^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+fi
+################################################################################
+function valid_ip {
+  local ip_var="${1}" ; shift || :
+  local quiet="${1:-0}" ; shift || :
+  local ip_version="${1:-4}" ; shift || :
+
+  # This function will determine whether the ip address found in the variable named in ip_var is a valid ip address.  It will return 0 for good ip addresses and 1 for bad.
+  # For all other errors, it will return a number greater than 1.
+  # If quiet is not set, it will also write an error message to stderr for bad ip addresses.
+  # ip_version:
+  #  0          Is the address a valid ipv4 or ipv6 address.
+  #  4          Is the address a valid ipv4 address.
+  #  6          Is the address a valid ipv6 address.
+
+  # 2011/01/11 Perf improvements.
+
+  valid_value ip_version "" "0:4:6" || return 1
+
+  local cmd_buf
+  local rc
+
+  if [ "${ip_version}" == "0" -o "${ip_version}" == "4" ] ; then
+    # bash_version may be set by callers to indicate the version of bash that is running.
+    if [ "${op_system:=$(uname)}" == "AIX" ] || (( bash_version < 3 )) ; then
+      cmd_buf="echo \"${!ip_var}\" | egrep -q \"${ip_regex}\" 2>/dev/null"
+    else
+      cmd_buf="[[ \"${!ip_var}\" =~ \"\${ip_regex}\" ]]"
+    fi
+    #issuing >&2
+    eval $cmd_buf && return 0
+    # If we're still here, the ipv4 check failed.
+    if [ "${ip_version}" == "4" ] ; then
+      if (( ! quiet )) ; then
+        { print_error ; echo "Variable \"${ip_var}\" contains invalid ip address \"${!ip_var}\"." ; } | process_error_message
+      fi
+      return 1
+    fi
+  fi
+
+  if [ "${ip_version}" == "0" -o "${ip_version}" == "6" ] ; then
+    local num_colons
+    local num_groups
+    local _loc_ip_=${!ip_var}
+    local ip_wo_colons=${_loc_ip_//:/}
+    local ip_str_len=${#_loc_ip_}
+    local len_ip_wo_colons=${#ip_wo_colons}
+    let num_colons=ip_str_len-len_ip_wo_colons
+    let num_groups=num_colons+1
+    local readonly max_num_groups=8
+
+    local regex="::.*::|:::"
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      cmd_buf="echo \"${!ip_var}\" | egrep -q \"${regex}\" 2>/dev/null"
+    else
+      cmd_buf="[[ \"${_loc_ip_}\" =~ \"${regex}\" ]]"
+    fi
+    eval $cmd_buf
+    if [ "${?}" == "0" ] ; then
+      if (( ! quiet )) ; then
+        if [ "${ip_version}" == "0" ] ; then
+          { print_error ; echo "Variable \"${ip_var}\" contains invalid ip address \"${!ip_var}\"." ; } | process_error_message
+        else
+          { print_error ; echo "Variable \"${ip_var}\" contains invalid ipv6 address \"${!ip_var}\".  Specifically, there is more than one consecutive zero replacement indicators." ; } | process_error_message
+        fi
+      fi
+      return 1
+    fi
+
+    if (( num_groups > max_num_groups )) ; then
+      if (( ! quiet )) ; then
+        if [ "${ip_version}" == "0" ] ; then
+          { print_error ; echo "Variable \"${ip_var}\" contains invalid ip address \"${!ip_var}\"." ; } | process_error_message
+        else
+          { print_error ; echo "Variable \"${ip_var}\" contains invalid ipv6 address \"${!ip_var}\".  Specifically, there were more than ${max_num_groups} elements in it." ; } | process_error_message
+        fi
+      fi
+      return 1
+    fi
+
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      cmd_buf="echo \"${!ip_var}\" | egrep -q \"::\" 2>/dev/null"
+    else
+      cmd_buf="[[ \"${_loc_ip_}\" =~ \"::\" ]]"
+    fi
+    eval $cmd_buf
+    if [ "${?}" != "0" ] && (( num_groups != 8 )) ; then
+      if (( ! quiet )) ; then
+        if [ "${ip_version}" == "0" ] ; then
+          { print_error ; echo "Variable \"${ip_var}\" contains invalid ip address \"${!ip_var}\"." ; } | process_error_message
+        else
+          { print_error ; echo "Variable \"${ip_var}\" contains invalid ipv6 address \"${!ip_var}\".  Specifically, there is/are only ${num_groups} element(s) in it but no \"::\" (consecutive zero replacement) indicator." ; } | process_error_message
+        fi
+      fi
+      return 1
+    fi
+
+    local group
+    local num_zero_groups
+    let num_zero_groups=8-num_groups
+    local IFS=":"
+    for group in ${_loc_ip_} ; do
+      IFS=" "
+      # Blank groups are acceptable.
+      [ -z "${group}" ] && continue
+
+      if (( ${#group} > 4 )) ; then
+        if (( ! quiet )) ; then
+          if [ "${ip_version}" == "0" ] ; then
+            { print_error ; echo "Variable \"${ip_var}\" contains invalid ip address \"${!ip_var}\"." ; } | process_error_message
+          else
+            { print_error ; echo "Variable \"${ip_var}\" contains invalid ipv6 address \"${!ip_var}\".  Specifically, group \"${group}\" contained more than 4 characters." ; } | process_error_message
+          fi
+        fi
+        return 1
+      fi
+      if ! printf "%x" "0x${group}" > /dev/null ; then
+        if (( ! quiet )) ; then
+          if [ "${ip_version}" == "0" ] ; then
+            { print_error ; echo "Variable \"${ip_var}\" contains invalid ip address \"${!ip_var}\"." ; } | process_error_message
+          else
+            { print_error ; echo "Variable \"${ip_var}\" contains invalid ipv6 address \"${!ip_var}\".  Specifically, group \"${group}\" is not a valid 4-digit hexadecimal number." ; } | process_error_message
+          fi
+        fi
+        return 1
+      fi
+      IFS=":"
+    done
+  fi
+
+}
+################################################################################
+
+
+
+# I could break out expand_ipv6_ip and abbreviate_ipv6_ip functions.
+################################################################################
+function raw_ipv6_to_ipv6 {
+  local ip_var="${1}" ; shift || :
+  local abbreviate="${1:-0}" ; shift || :
+
+  # Assumption: the ip_var contains a valid raw ipv6 value.
+
+  local _loc_ipv6_=${!ip_var}
+  local _new_loc_ipv6_
+  local ix
+
+  local group
+
+  local num_consec_zeroes
+
+  for ((ix=0; ix<32; ix+=4)) ; do
+    group=${_loc_ipv6_:${ix}:4}
+    if (( abbreviate )) ; then
+      # Remove leading zeros from each group.  Do this by converting hex to dec and then back to hex sans leading zeroes.
+      group=$((0x$group))
+      group=$(echo $group | awk '{printf "%x\n",$1}')
+      if [ "${group}" == "0" ] ; then
+        let num_consec_zeroes++
+        (( num_consec_zeroes > 1 )) && continue
+        group=""
+      else
+        num_consec_zeroes=0
+      fi
+    else
+      change_case group
+    fi
+    [ -z "${_new_loc_ipv6_}" ] && _new_loc_ipv6_=${group} || _new_loc_ipv6_="${_new_loc_ipv6_}:${group}"
+
+  done
+
+  eval ${ip_var}=${_new_loc_ipv6_}
+
+}
+################################################################################
+
+
+
+
+################################################################################
+function private_ip {
+  local ip_var="${1}" ; shift || :
+
+  # This function will determine whether the ip address found in the variable named in ip_var is private within the context of IBM.  If so it will print "1" to stdout.  Otherwise, it will print "0" to stdout.
+
+  local parm_name
+  for parm_name in ip_var $ip_var ; do
+    if [ -z "${!parm_name}" ] ; then
+      { print_error ; echo "Variable \"${parm_name}\" has an invalid value of \"${!parm_name}\"." ; } | process_error_message
+      return 1
+    fi
+  done
+
+  local cmd_buf
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    cmd_buf="echo \"${!ip_var}\" | egrep -q \"^9\.\" 2>/dev/null && echo 0 || echo 1"
+  else
+    cmd_buf="[[ \"${!ip_var}\" =~ \"^9\.\" ]] && echo 0 || echo 1"
+  fi
+  #issuing
+  eval $cmd_buf
+
+}
+################################################################################
+
+
+
+################################################################################
+function xlate_ip {
+  local ip_var="${1}" ; shift || :
+  local dns_var="${1}" ; shift || :
+  local quiet="${1:-1}" ; shift || :
+
+  # This function will translate the ip address found in the variable named in ip_var and put the result into the caller's variable which is named in dns_var.
+
+  valid_value ip_var || return 1
+  valid_value dns_var || return 1
+
+  valid_ip $ip_var 0 0 || return 1
+
+  local _dns_
+  local cmd_buf
+
+  # mhost won't run on AIX so...
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    cmd_buf="${dns_var}=\$(host ${!ip_var})"
+  else
+    cmd_buf="${dns_var}=\$(mhost ${!ip_var} | grep host_dns_name)"
+  fi
+  (( ! quiet )) && issuing >&2
+  eval ${cmd_buf}
+
+  # Strip the "host_dns_name:  " text...
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    eval ${dns_var}=${!dns_var%% *}
+  else
+    eval ${dns_var}=${!dns_var##* }
+  fi
+
+
+  if [ -z "${!dns_var}" ] ; then
+    { print_error ; echo "Could not translate ip address \"${!ip_var}\"." ; } | process_error_message
+    return 1
+  fi
+
+  return 0
+
+  # Old way...
+
+  local temp_misc_file=/tmp/${FUNCNAME}_${RANDOM}_${RANDOM}
+  host ${!ip_var} > $temp_misc_file
+  if [ "${?}" != "0" ] ; then
+    { print_error ; echo "Could not translate ip address \"${!ip_var}\"." ; } | process_error_message
+    rm -f $temp_misc_file
+    return 1
+  fi
+
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    cmd_buf="_dns_=\$(sed -e 's/ is .*//g' $temp_misc_file)"
+    (( ! quiet )) && issuing >&2
+    eval ${cmd_buf} || return 1
+  else
+    # _dns_=$(sed -re 's/.*pointer (.*)\.$/\1/g' $temp_misc_file) || return 1
+    # 2012/01/12 Perf improvement.
+    read _dns_ < $temp_misc_file
+    _dns_=${_dns_#*pointer }
+    _dns_=${_dns_%.}
+  fi
+
+  eval $dns_var="$_dns_"
+
+  rm -f $temp_misc_file
+
+}
+################################################################################
+
+
+
+################################################################################
+function xlate_dns {
+  local dns_var="${1}" ; shift || :
+  local ip_var="${1}" ; shift || :
+  local quiet="${1:-1}" ; shift || :
+
+  # This function will translate the dns name found in the variable named in dns_var and put the result into the caller's variable which is named in ip_var.
+
+  valid_value dns_var || return 1
+  valid_value ip_var || return 1
+
+  valid_value $dns_var || return 1
+
+  local cmd_buf
+  local regex
+  local _ip_
+  local temp_misc_file=/tmp/${FUNCNAME}_${RANDOM}_${RANDOM}
+
+  local rc
+
+  # 2011/11/01 I've seen the host command (below) fail without returning non-zero.  The message looked like this:
+  #;; connection timed out; no servers could be reached
+  #
+
+  # 2014/01/23 You may have a dns value like "jnd4afsp.isst" which is partially qualified.  We only care if it's FULLY qualified so I'm changing our test to look not merely for periods but rather for ".com" at the end.
+  if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+    cmd_buf="echo ${!dns_var} | egrep -q \"\.\" 2>/dev/null"
+    cmd_buf="echo ${!dns_var} | egrep -q \"\.com$\" 2>/dev/null"
+  else
+    cmd_buf="[[ \"${!dns_var}\" =~ \"\.\" ]]"
+    cmd_buf="[[ \"${!dns_var}\" =~ \"\.com$\" ]]"
+  fi
+  (( ! quiet )) && issuing >&2
+  eval ${cmd_buf}
+  if [ "${?}" == "0" ] ; then
+    (( ! quiet )) && { print_time ; echo "The name \"${!dns_var}\" appears to be qualified."; }
+    if [ "${op_system:=$(uname)}" == "AIX" ] ; then
+      cmd_buf="host ${!dns_var} > $temp_misc_file"
+      (( ! quiet )) && issuing >&2
+      eval ${cmd_buf}
+      rc="${?}"
+      if [ "${rc}" == "0" ] ; then
+        # If that message is in the 
+        egrep -q ";; connection timed out; no servers could be reached" $temp_misc_file && rc=1
+      fi
+    else
+      # 2013/02/08 mhost is superior because it uses getaddrinfo (which uses what is in /etc/hosts.  I should probably makes this change across the board but not today.
+      cmd_buf="mhost ${!dns_var} | grep host_ip_addr: |  | sed -re 's/host_ip_addr:[ ]*//g' > $temp_misc_file"
+      cmd_buf="${ip_var}=\$(mhost ${!dns_var} | grep host_ip_addr: | sed -re 's/host_ip_addr:[ ]*//g')"
+      (( ! quiet )) && issuing >&2
+      eval ${cmd_buf}
+      if [ -z "${!ip_var}" ] ; then
+        { print_error ; echo "Variable ${dns_var} contains DNS name \"${!dns_var}\" which could not be translated to an IP address." ; } | process_error_message
+        return 1
+      fi
+      return 0
+    fi
+  else
+    # The name is not fully qualified with the domain name.
+    (( ! quiet )) && { print_time ; echo "The name \"${!dns_var}\" does NOT appear to be qualified."; }
+    # This code runs in either austin or rchland so I'm trying to make this friendlier by looking in all the domains in the following list.
+    # 2014/01/23 I changed the order to have the "stglabs" domains come before their traditional counterparts.  There are still dns servers out there contain the old names.  We want to avoid that by checking the stglabs domains first.
+    local common_domain_list="aus.stglabs isst.aus.stglabs austin rch.stglabs rchland"
+    #local cell="$(afs_cell)"
+    local cell
+    afs_cell cell
+    # Our working list is the same as the common list but with our home cell at the head of the list.  We always want to search that domain first.
+    local working_domain_list="$cell ${common_domain_list/${cell}/}"
+
+    local domain
+    local fullname
+    for domain in "" $working_domain_list ; do
+      if [ -z "${domain}" ] ; then
+        fullname=${!dns_var}
+      else
+        fullname=${!dns_var}.${domain}.ibm.com
+      fi
+      # Perf note: host takes a good .1 seconds.
+      cmd_buf="host $fullname > $temp_misc_file 2>&1"
+      (( ! quiet )) && issuing >&2
+      eval ${cmd_buf}
+      rc="${?}"
+      if [ "${rc}" == "0" ] ; then
+        # If that message is in the 
+        egrep -q ";; connection timed out; no servers could be reached" $temp_misc_file && rc=1
+      fi
+      (( rc == 0 )) && break
+    done
+  fi
+
+  if [ "${rc}" != "0" ] ; then
+    { print_error ; echo "Variable ${dns_var} contains DNS name \"${!dns_var}\" which could not be translated to an IP address." ; cat $temp_misc_file ; } | process_error_message
+    rm -f $temp_misc_file
+    return 1
+  fi
+
+  # Sometimes I'll get this for output even though the host command returns 0.  I wasn't able to reproduce it easily.
+  # ;; Truncated, retrying in TCP mode.
+  # h169lcb.austin.ibm.com has address 9.3.21.237
+
+  #read _ip_ < $temp_misc_file
+  while read _ip_ ; do
+    if ! [ "${_ip_:0:2}" == ";;" ] ; then break ; fi
+  done < $temp_misc_file
+
+  if [ -z "${_ip_}" ] ; then
+    # This means all the data in the temp_misc_file was error data (i.e. begins with ";;").
+    { print_error ; echo "Variable ${dns_var} contains DNS name \"${!dns_var}\" which could not be translated to an IP address." ; cat $temp_misc_file ; } | process_error_message
+    rm -f $temp_misc_file
+    return 1
+  fi
+
+  # 2011/01/11 Performance improvements.
+  _ip_=${_ip_#*has address }
+  _ip_=${_ip_#* is }
+  # 2012/02/27 I saw this fail with not enough info to debug.
+  eval $ip_var="$_ip_"
+  if [ "${?}" != "0" ] ; then
+    {
+      cmd_buf="cat $temp_misc_file"
+      issuing
+      eval ${cmd_buf}
+      print_var_list "rc _ip_"
+      print_call_stack
+    } >&2
+    rm -f $temp_misc_file
+    return 1
+  fi
+
+  rm -f $temp_misc_file
+
+}
+################################################################################
+
+
+
+################################################################################
+function host_short_name {
+  local host_short_name_var="${1}" ; shift || :
+
+  # This function will determine the host short name.  If host_short_name_var is not blank, this function will put the value in the variable named by host_short_name_var.  Otherwise, it will print the value to stdout.
+
+  local loc_host
+
+  # 2012/01/12 Performance tuning.
+  # hostname | cut -f 1 -d .
+
+  local loc_hostname=${HOSTNAME:=$(hostname)}
+  loc_hostname=${loc_hostname%%.*}
+
+  if [ -z "${host_short_name_var}" ] ; then
+    printf $loc_hostname
+  else
+    eval $host_short_name_var=$loc_hostname
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function valid_host {
+  #print_func_name "$@" ; print_call_stack
+  local host_var="${1}" ; shift || :
+  local dns_var="${1}" ; shift || :
+  local dns_short_var="${1}" ; shift || :
+  local ip_var="${1}" ; shift || :
+  local private_ip_var="${1}" ; shift || :
+  local ip_must_xlate="${1:-1}" ; shift || :
+  local quiet="${1:-1}" ; shift || :
+
+  #print_vars host_var $host_var
+
+  # This function will validate the host.  It will not alter the variable named in host_var.  It will set the variables named in dns_var, dns_short_var, ip_var and private_ip_var.
+
+  local cmd_buf
+  valid_value host_var || return 1
+
+  valid_value ${host_var} || return 1
+
+  local invalid_host_chars=' -'
+  # Perf: Host should never have embedded spaces.
+  cmd_buf="[ \"\${host//[\${invalid_host_chars}]/}\" == \"\${host}\" ]"
+  (( ! quiet )) && issuing >&2
+  if ! eval ${cmd_buf} ; then
+    { print_error ; echo "Host variable ${host_var} contains one of these illegal characters: \"${invalid_host_chars}\"." ; } | process_error_message
+    return 1
+  fi
+  valid_value dns_var || return 1
+  valid_value dns_short_var || return 1
+  valid_value ip_var || return 1
+  valid_value private_ip_var || return 1
+  valid_boolean ip_must_xlate || return 1
+
+  local rc
+
+  # Try first with mhost...
+  local rc
+  local temp_misc_file
+  create_temp_file_name temp_misc_file "" 0
+  cmd_buf="mhost ${!host_var} > ${temp_misc_file} 2>&1"
+  (( ! quiet )) && issuing >&2
+  eval ${cmd_buf}
+  rc="${?}"
+  if [ "${rc}" != "0" ] ; then
+    if ! grep -Eq '/mhost: cannot execute binary file' ${temp_misc_file} ; then
+      #{ print_error ; echo "\"mhost ${!host_var}\" failed:" ; cat ${temp_misc_file} ; } | process_error_message
+      { print_error ; echo "${host_var} contains \"${!host_var}\" which does not appear to be a valid DNS name or IP address:" ; cat ${temp_misc_file} ; } | process_error_message
+      rm -rf ${temp_misc_file}
+      return 1
+    fi
+    if (( ! quiet )) ; then { print_time ; echo "mhost will not run in this environment.  Trying alternative means." ; } >&2 ; fi
+    rm -rf ${temp_misc_file}
+  else
+    # mhost succeeded.  Process the output and return.
+    local var_name
+    local var_value
+    # Initialize.
+    eval ${ip_var}=\"\"
+    while read var_name var_value ; do
+      #print_var_list "var_name var_value"
+      case "${var_name}" in
+        "host_dns_name:")
+          eval ${dns_var}=${var_value}
+          ;;
+        "host_short_name:")
+          eval ${dns_short_var}=${var_value}
+          ;;
+        "host_ip_addr:")
+          [ -z "${!ip_var}" ] && eval ${ip_var}=${var_value}
+          ;;
+        "host_ipv6_addr:")
+          [ -z "${!ip_var}" ] && eval ${ip_var}=${var_value}
+          ;;
+        "host_private_ip:")
+          eval ${private_ip_var}=${var_value}
+          ;;
+      esac
+    done < ${temp_misc_file}
+    rm -rf ${temp_misc_file} &
+    if (( ip_must_xlate )) && [ "${!private_ip_var}" == "0" -a -z "${!dns_var}" ] ; then
+      { print_error ; echo "Host \"${!host_var}\", which appears to be a public ip address, does not appear to be valid (i.e. does not translate to a DNS name as required by the caller)." ; } | process_error_message
+      return 1
+    fi
+    return 0
+  fi
+
+
+  # If the mhost method didn't work (e.g. we're on an AIX box), we'll proceed with the following code.
+
+  # Initialize.
+  eval $dns_var=""
+  eval $dns_short_var=""
+  eval $ip_var=""
+  eval ${private_ip_var}=0
+
+  local cmd_buf
+  local valid_ip
+  cmd_buf="valid_ip $host_var ${quiet} 0 && valid_ip=1 || valid_ip=0"
+  (( ! quiet )) && issuing >&2
+  eval ${cmd_buf}
+
+  if (( valid_ip )) ; then
+    # host is a valid ip.
+    eval $ip_var="${!host_var}"
+    cmd_buf="${private_ip_var}=\$(private_ip ${ip_var})"
+    (( ! quiet )) && issuing >&2
+    eval ${cmd_buf} || return 1
+    # We'll try to translate it to a dns name.
+    if (( ${private_ip_var} )) ; then
+      xlate_ip ${ip_var} ${dns_var} 2>/dev/null
+    else
+      cmd_buf="xlate_ip ${ip_var} ${dns_var}"
+      if (( ! ip_must_xlate )) ; then
+        # If ip translation is not required, then we don't want to show errors.
+        cmd_buf="$cmd_buf 2>/dev/null"
+      fi
+      (( ! quiet )) && issuing >&2
+      eval $cmd_buf
+      rc="${?}"
+      if [ "${rc}" != "0" ] && (( ip_must_xlate )) ; then
+        { print_error ; echo "Host \"${!host_var}\", which appears to be a public ip address, does not appear to be valid." ; } | process_error_message
+        return 1
+      fi
+    fi
+  else
+    # Assume host is a dns name.
+    cmd_buf="xlate_dns ${host_var} ${ip_var} ${quiet}"
+    (( ! quiet )) && issuing >&2
+    eval ${cmd_buf} || return 1
+    # By translating back to dns, we should get the fully qualified name if we didn't already have it.
+    cmd_buf="xlate_ip ${ip_var} ${dns_var} 2>/dev/null"
+    #cmd_buf="xlate_ip ${ip_var} ${dns_var} ${quiet}"
+    (( ! quiet )) && issuing >&2
+    eval ${cmd_buf}
+  fi
+
+  local cmd_buf
+  #cmd_buf="$dns_short_var=\$(echo \"${!dns_var}\" | cut -f 1 -d .)"
+  # Perf improvement
+  cmd_buf="$dns_short_var=${!dns_var%%.*}"
+  (( ! quiet )) && issuing >&2
+  eval ${cmd_buf}
+
+  # print_var_list "${dns_var} ${dns_short_var} ${ip_var}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function hosts_equivalent {
+  local host1_host="${1:-$(hostname)}" ; shift || :
+  local host2_host="${1}" ; shift || :
+
+  # This function will compare 2 hosts to see whether they are fundamentally equal.  It will write 1 to stdout if they are equal and 0 if they are not.
+
+  valid_value host1_host || return 1
+  valid_value host2_host || return 1
+
+  local host1_dns
+  local host1_dns_short
+  local host1_ip
+  local host1_private_ip
+
+  local host2_dns
+  local host2_dns_short
+  local host2_ip
+  local host2_private_ip
+
+  valid_host host1_host host1_dns host1_dns_short host1_ip host1_private_ip || return 1
+  valid_host host2_host host2_dns host2_dns_short host2_ip host2_private_ip || return 1
+
+  # print_var_list "host1_ip host1_dns host1_dns_short host1_ip host1_private_ip"
+  # echo
+  # print_var_list "host2_ip host2_dns host2_dns_short host2_ip host2_private_ip"
+
+  [ "${host1_ip}" == "${host2_ip}" ] && echo 1 || echo 0
+
+}
+################################################################################
+
+
+
+################################################################################
+function local_host {
+  local host="${1}" ; shift || :
+  local local_host_var="${1}" ; shift || :
+
+  # This function will set the variable named in local_host_var to "1" if host is local and set it to "0" if host is remote.
+
+  valid_value local_host_var || return 1
+
+  local cmd_buf
+
+  if [ -z "${host}" ] ; then
+    cmd_buf="${local_host_var}=1"
+  else
+    cmd_buf="${local_host_var}=\$(hosts_equivalent \"$(hostname)\" \"${host}\")"
+  fi
+
+  eval ${cmd_buf} || return 1
+
+}
+################################################################################
+
+
+

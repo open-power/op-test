@@ -1,0 +1,500 @@
+#!/bin/bash
+# IBM_PROLOG_BEGIN_TAG 
+# This is an automatically generated prolog. 
+#  
+# esw_dev_tools src/aipl/x86/gen_bash_quote_funcs 1.29 
+#  
+# Licensed Materials - Property of IBM 
+#  
+# Restricted Materials of IBM 
+#  
+# COPYRIGHT International Business Machines Corp. 2011,2015 
+# All Rights Reserved 
+#  
+# US Government Users Restricted Rights - Use, duplication or 
+# disclosure restricted by GSA ADP Schedule Contract with IBM Corp. 
+#  
+# IBM_PROLOG_END_TAG 
+# 2011/10/08 This file may be sourced in order to define functions like quote_parm_list, escape_quotes, etc.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# gen_bash_print_funcs
+
+# I try to minimize situations where 2 source files req each other but gen_bash_print_funcs uses quote_parm_list from this file and escape_quotes from this file uses print_error from gen_bash_print_funcs.
+
+# This file's escape_metachars also uses find_char from gen_bash_misc_funcs.
+
+
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+# Initialize global variable.
+quote_type=double
+# 2011/10/07 I performance tuned quote_parm_list.
+# 2011/12/08 More perf tuning of quote_parm_list.
+################################################################################
+function quote_parm_list {
+  # Perf: .00007 just to call a function w/o parms.  Add about 0.00002125 for each parm.
+  local var_name=${1}
+
+  shift || :
+  # Perf: Another .00002 to get here.
+
+  # This function will add necessary quotes to the parm list passed in.  The first parm to this function is the name of the variable that should receive the quoted output.
+  # Parms that meet any of the following criteria will be quoted:
+  # List of reasons for quoting:
+  # Blank string.
+  # Contains spaces.
+  # Contains "|" (pipe) or "||" (OR operator).
+  # Contains "&" "&&" (AND operator).
+  # Contains "$" followed by char (may contain a shell var).
+  # Contains "`" (back tick means command substitution).
+  # Contains "\" + special char (back slash).
+  # Contains "!" (history expansion).
+  # Contains single quote.
+  # Contains double quote.
+  # Contains parm expressin with null arg (e.g. "--parm=").
+
+  # Some examples:
+  # Example parm:
+  # --parm1=a b
+  # Result:
+  # --parm1="a b"
+  #
+  # Example parm:
+  # a b
+  # Result:
+  # "a b"
+  #
+  # Example parm:
+  # --parm1=
+  # Result:
+  # --parm1=""
+  #
+  # Example parm:
+  # --parm1=a|b
+  # Result:
+  # --parm1="a|b"
+  #
+  # Example parm:
+  # --parm1=a --target=b c
+  # This example would NOT be quoted because there are 2 "="s.  For this parm to get to this function, it must have already been quoted.
+  #
+  # New feature: The global variable quote_type can be used to indicate the type of quotes that will be used by this function when quoting parms.  This will default to "double".  You may set it to "single" before calling quote_parm_list to indicate that single quotes should be used.
+
+  # For performance reasons I'm foregoing the use of valid_value and doing the check in-line.
+
+  # Perf: This is 0.000011 faster than [ -z "${var_name}" ]
+  if (( ${#var_name} == 0 )) ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Parameter \"var_name\" has an invalid value of \"${var_name}\"." ; print_call_stack ; echo ; } >&2
+    return 1
+  fi
+  # Perf: Another 0.00002 to get here.
+
+  eval ${var_name}=\"\" 2>/dev/null
+  if [ "${?}" != "0" ] ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Parameter \"var_name\" has a value of \"${var_name}\" which does not appear to be a valid bash variable name." ; print_call_stack ; echo ; } >&2
+    return 1
+  fi
+
+  # 2012/07/06 Perf improvements.
+  # local parm_regex="^[-]{1,2}[^- ]+[^ ]*="
+  # local regex='^$| |\||&|\$[^ ]+|`|\\|!|'\''|"'
+  # regex="${regex}|(${parm_regex}$)"
+
+  local quote_char value loc_result value_must_be_quoted parm_arg_format
+  # Perf: Another 0.00003 to get here.
+
+  # local parm_arg_cmd_buf
+  # AIX's bash doesn't support the [[ ]] test which is much faster.
+  # if [ "${op_system:=${u_name:=$(uname)}}" == "AIX" ] ; then
+    # quote_cmd_buf="echo \"\${value}\" | egrep -q \"\${regex}\" 2>/dev/null"
+    # parm_arg_cmd_buf="echo \"\${value}\" | egrep -q \"\${parm_regex}\" 2>/dev/null"
+  # else
+    # quote_cmd_buf="[[ \"\${value}\" =~ \"\${regex}\" ]]"
+    # parm_arg_cmd_buf="[[ \"\${value}\" =~ \"\${parm_regex}\" ]]"
+  # fi
+  local single_quotes
+  if [ "${quote_type}" == "single" ] ; then
+    quote_char="'"
+    single_quotes=1
+  else
+    single_quotes=0
+    quote_char="\""
+  fi
+  # Perf: Another 0.00004 to get here.
+
+  #local parm_glob="-?(-)+([a-zA-Z0-10_])=*"
+  local parm_glob="-?(-)+([a-zA-Z0-9_])=*"
+  # Perf: Another 0.00002 to get here.
+  shopt -s extglob
+  # Perf: Another 0.00001 to get here.
+
+  # Performance note: Doing while with shift is slightly faster than "for (( ix=1; ix <= $#; ix++ )) ; do".
+  for value in "$@" ; do
+
+  # print_var value >&2
+  # while [ $# -gt 0 ] ; do
+    # value="${1}"
+    #print_var value
+    # eval ${quote_cmd_buf} && value_must_be_quoted=1 || value_must_be_quoted=0
+    # Perf: The case stmt saves 0.00017 over the quote_cmd_buf evaluation.  Takes .00002 seconds total.
+    case "${value}" in
+      -*=)
+        value_must_be_quoted=1
+        ;;
+      ''|*[" "\|\&$\`\\!\'\"]*)
+        value_must_be_quoted=1
+        ;;
+      *)
+        value_must_be_quoted=0
+        ;;
+    esac
+    # Perf: Another 0.00002 to get here.
+    if (( value_must_be_quoted )) ; then
+      # Perf: Another 0.00001 to get here.
+      # Value must be quoted.
+      if (( single_quotes )) ; then
+      # if [ "${quote_type}" == "single" ] ; then
+        # Handle strings with single quotes by replacing with '\''.
+        #value=$(echo "${value}" | sed -e "s/'/'\\\''/g")
+        value=${value//\'/\'\\\'\'}
+      else
+        # Escape double quotes.
+        #value=$(echo "${value}" | sed -re 's/\"/\\\"/g')
+        value=${value//\"/\\\"}
+      fi
+      # Perf: Another 0.000025 to get here.
+
+      # See if this is a "--parm=arg" format.
+      # One or 2 dashes followed by non blank followed by equal sign.
+      #eval ${parm_arg_cmd_buf} && parm_arg_format=1 || parm_arg_format=0
+      case "${value}" in
+        $parm_glob)
+          parm_arg_format=1
+          ;;
+        *)
+          parm_arg_format=0
+          ;;
+      esac
+      if (( parm_arg_format )) ; then
+        # Value is "--parm=arg" format.
+        if [ "${op_system:=${u_name:=$(uname)}}" == "AIX" ] ; then
+          local new_value equal_count char ix
+          equal_count=0
+          # 2015/01/08 Mike Walsh (xzy0065) - Need to initialize new_value in case we come through here more than once.
+          new_value=''
+          for (( ix=0 ; ix < ${#value}; ix++ )) ; do
+            char="${value:$ix:1}"
+            new_value="${new_value}${char}"
+            if [ "${char}" == "=" ] ; then
+              let equal_count++
+              if (( equal_count == 1 )) ; then
+                # We just processed the first equal sign so we'll add the first quote.
+                new_value="${new_value}${quote_char}"
+              fi
+            fi
+          done
+          # Put trailing quote on.
+          new_value="${new_value}${quote_char}"
+          value="${new_value}"
+        else
+          # Perf: Another 0.00002 to get here.
+          # Not aix
+          #value=$(echo $value | sed -re "s/(.*=){0,1}(.*)/\1${quote_char}\2${quote_char}/g")
+          #value=${value%=*}=${quote_char}${value#*=}${quote_char}
+          # 2012/02/16 Prior line was incorrect.
+          value=${value%%=*}=${quote_char}${value#*=}${quote_char}
+          # Perf: Another 0.00003 to get here.
+          # 2011/08/30 I want this example from add_dvt_request_list to work better.  Delaying fix for now...
+          # An example:
+          # --command=move_dvt_pool_system --system=z2032de --release=fips350 --driver=1180 --build=latest
+          # Which should be quoted this way:
+          # --command='move_dvt_pool_system --system=z2032de --release=fips350 --driver=1180 --build=latest'
+          # This would do it but would it break other stuff?
+          # value=$(echo $value | sed -re "s/([^=]+=){0,1}(.*)/\1${quote_char}\2${quote_char}/g")
+        fi
+      else
+        # General case.
+        value="${quote_char}${value}${quote_char}"
+      fi
+    fi
+    # Append the results to loc_result.
+    loc_result="${loc_result} ${value}"
+    # Perf: Another 0.00001 to get here.
+    # Perf: Once through the loop takes about 0.00020 seconds.
+    # shift || :
+  done
+
+  # Copy the results to the user's variable removing front-anchored space to keep it tidy.
+  eval ${var_name}="\${loc_result# }"
+
+}
+################################################################################
+
+
+
+################################################################################
+function escape_quotes {
+  local buffer_var="${1}" ; shift || :
+  local quote_type="${1:-single}" ; shift || :
+  local print_result="${1:-0}" ; shift || :
+
+  # This function will add escape characters to quotes in your buffer string.  See examples below.
+  # Parms to this function are as follows:
+  # buffer_var          The name of the variable containing your value and which will also contain the result string if print_result is set to "1".
+  # quote_type          "single" or "double".
+  # print_result        If 1, the result will be written to stdout rather than being put into the variable named in buffer_var.
+  #
+  # For example, consider the following bash source code:
+  # var1="Mike's car"
+  # cmd_buf="echo '${var1}'"
+  # issuing
+  # eval ${cmd_buf}
+  #
+  # The result of running this will be something like this:
+  #
+  # #(CDT) 2011/07/21 17:00:45.396872000 - Issuing: echo 'Mike's car'
+  # /afs/rchland.ibm.com/usr2/xzy0065/sandbox/apollodev/src/aipl/x86test/scr_pgm: eval: line 126: unexpected EOF while looking for matching `''
+  # /afs/rchland.ibm.com/usr2/xzy0065/sandbox/apollodev/src/aipl/x86test/scr_pgm: eval: line 127: syntax error: unexpected end of file
+  #
+  # However, if you use this function as follows:
+  # 
+  # var1="Mike's car"
+  # escape_quotes var1 single || exit 1
+  # cmd_buf="echo '${var1}'"
+  # issuing
+  # eval ${cmd_buf}
+  #
+  # The result of running this will be something like this:
+  #
+  # #(CDT) 2011/07/21 17:03:30.308347000 - Issuing: echo 'Mike'\''s car'
+  # Mike's car
+  #
+  # In other words, your variable string's single quotes will be replaced with the appropriate escape sequences to allow for correct printing.
+  #
+  # If you don't actually want your variable altered, call the function with print_result = "1" as in the modified example below.
+  #
+  # var1="Mike's car"
+  # escape_quotes var1 single || exit 1
+  # cmd_buf="echo '${var1}'"
+  # issuing
+  # eval ${cmd_buf}
+  #
+  # var1="Mike's car"
+  # cmd_buf="echo '$(escape_quotes var1 single 1)'"
+  # issuing
+  # eval ${cmd_buf}
+  #
+  # You'll get the same result printed as in the first example but this time the value of var1 will not be changed.
+  #
+  # Finally, here's an example using double quotes.
+  #
+  # var1='Mike says, "Hi".'
+  # cmd_buf="echo \"$(escape_quotes var1 double 1)\""
+  # issuing
+  # eval ${cmd_buf}
+  #
+  # Output would look something like this:
+  #
+  # #(CDT) 2011/07/22 13:08:38.816203000 - Issuing: echo "Mike says, \"Hi\"."
+  # Mike says, "Hi".
+
+  # For performance reasons I'm foregoing the use of valid_value and doing the check in-line.
+  #valid_value buffer_var || return 1
+  if [ -z "${buffer_var}" ] ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Parameter \"buffer_var\" has an invalid value of \"${buffer_var}\"." ; print_call_stack ; echo ; } >&2
+    return 1
+  fi
+
+  if ! [ "${quote_type}" == "single" -o "${quote_type}" == "double" ] ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Parameter \"quote_type\" has an invalid value of \"${quote_type}\".  Valid values are \"single\" or \"double\"." ; print_call_stack ; echo ; } >&2
+    return 1
+  fi
+
+  if ! [ -z "${print_result}" -o "${print_result}" == "1" -o "${print_result}" == "0" ] ; then
+    { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: For \"print_result\" you specified an invalid boolean value of \"${print_result}\".  Valid values are \"1\", \"0\" or \"\" (which is equivalent to \"0\"." ; print_call_stack; } >&2
+    return 1
+  fi
+
+  # 2014/08/19 Mike Walsh (xzy006) - Ran into a case where caller's buffer_var was cmd_buf which collided with my local cmd_buf.
+  local _eq_cmd_buf_
+  local _eq_sub_cmd_buf_
+
+  local _loc_buffer_
+
+  if [ "${quote_type}" == "single" ] ; then
+   # 2011/08/04 The new way.  My aim is to avoid having bash change ANYTHING in the string other than the single quotes.  If I echo the caller's value, etc. bash gets involved.
+    _loc_buffer_=${!buffer_var//\'/\'\\\'\'}
+
+    if (( print_result )) ; then
+      echo "${_loc_buffer_}"
+    else
+      # Update caller's variable.
+      eval ${buffer_var}=\${_loc_buffer_}
+    fi
+    return 0
+
+# 2011/08/04 This is the old way.
+    # Note that I'm replacing double-quotes with escaped double quotes in the echo below.  Bottom line, this should allow strings with double quotes to be handled by this function.
+    _eq_sub_cmd_buf_="echo \"${!buffer_var//\"/\\\"}\" | sed -re \"s/'/'\\\\\''/g\""
+    if (( print_result )) ; then
+      _eq_cmd_buf_="${_eq_sub_cmd_buf_}"
+    else
+      _eq_cmd_buf_="${buffer_var}=\$(${_eq_sub_cmd_buf_})"
+    fi
+    #issuing
+    # Turn off/on shell path name expansion to keep caller's string intact.
+    # Turn off var name expansion.
+    set -f
+    eval $_eq_cmd_buf_
+    set +f
+    return 0
+  fi
+
+  # I may add support for double quotes later.
+  if [ "${quote_type}" == "double" ] ; then
+   # 2011/08/04 The new way.  My aim is to avoid having bash change ANYTHING in the string other than the quotes.  If I echo the caller's value, etc. bash gets involved.
+    _loc_buffer_=${!buffer_var//\"/\\\"}
+#    _loc_buffer_=${!buffer_var//\"/\"\\\"\"}
+    if (( print_result )) ; then
+      echo "${_loc_buffer_}"
+    else
+      # Update caller's variable.
+      eval ${buffer_var}=\${_loc_buffer_}
+    fi
+    return 0
+
+# 2011/08/04 This is the old way.
+    # Every double-quote found in the original buffer is replaced with \" (backslash/quote).
+    _eq_sub_cmd_buf_="echo \"${!buffer_var//\"/\\\\\\\"}\""
+    if (( print_result )) ; then
+      _eq_cmd_buf_="${_eq_sub_cmd_buf_}"
+    else
+      _eq_cmd_buf_="${buffer_var}=\$(${_eq_sub_cmd_buf_})"
+    fi
+    #issuing
+    # Turn off/on shell path name expansion to keep caller's string intact.
+    set -f
+    eval $_eq_cmd_buf_
+    set +f
+    return 0
+  fi
+
+}
+################################################################################
+
+
+# Perf data:
+# #(CDT) 2014/04/22 12:25:04 - Issuing: for (( ix=0 ; ix < 1000 ; ix++ )) ; do var1=${seed} ; escape_metachars var1 ; done
+# total_seconds:               1.308648000
+# seconds_each:                0.001308648
+# count_per_second:            764
+################################################################################
+function escape_metachars {
+  local regex_var="${1}" ; shift || :
+
+  # This function will alter the value of the variable named in regex_var.  Namely, it will precede any meta-character with the escape char, "\".
+
+  if [ -z "${regex_var}" ] ; then
+    { print_error ; echo "Parameter \"regex_var\" has an invalid value of \"${regex_var}\"." ; } | process_error_message
+    return 1
+  fi
+
+  # New faster way.
+  local escape_char='\'
+  # The slash must be first in the list since we may be inserting slashes into the caller's string.
+  local metachars='\^$/()|?+*[]{},.'
+  local metachar
+  local metachar_glob
+  local ix
+  local strlen
+  local new_regex="${!regex_var}"
+  local cmd_buf
+
+  eval strlen=${#metachars}
+  for (( ix=0; ix < strlen; ix++ )) ; do
+    metachar=${metachars:${ix}:1}
+    case ${metachar} in
+      [\?\*\(\\])
+        metachar_glob=${escape_char}${metachar}
+        ;;
+      *)
+        metachar_glob=${metachar}
+        ;;
+    esac
+    new_regex="${new_regex//${metachar_glob}/${escape_char}${metachar}}"
+  done
+
+  # Copy finished string into callers variable.
+  # 2011/10/21 This fails if there is a quote inside the string.
+  #eval $regex_var=\"${new_regex}\"
+  cmd_buf="$regex_var=\"\${new_regex}\""
+  #issuing
+  eval ${cmd_buf}
+
+  return
+
+
+  # Old way.
+
+  local escape_char='\'
+  local metachars='^$/()|?+*[]{},.\'
+
+  local ix
+  local strlen
+
+  local char
+  local new_regex
+  local cmd_buf
+
+  local glob_cmd_buf=$(shopt -p extglob)
+
+  shopt -u extglob
+
+  # Prepare cmd_buf for use in following loop.
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    cmd_buf="find_char \"\${char}\" \"\${metachars}\""
+  else
+    cmd_buf="[ \${metachars} != \${metachars/\"\${char}\"/} ]"
+  fi
+
+  # Get caller's string length.
+  eval strlen=\${#${regex_var}}
+  for (( ix=0; ix < strlen; ix++ )) ; do
+    # Process 1 character from caller's string.
+    char=${!regex_var:${ix}:1}
+    # Implementing string search inline for speed.
+    # if [ "$metachars" != "${metachars/${char}/}" ] ; then
+    # if [ "$metachars" != "${metachars/${char}/}" -o "${char}" == '\' ] ; then
+    # if [ ${metachars} != ${metachars/"${char}"/} ] ; then
+    # if find_char "${char}" "${metachars}" ; then
+    if eval ${cmd_buf} ; then
+      # The character is a metacharacter so append an escape char to the new regex before appending the character.
+      new_regex="${new_regex}${escape_char}"
+    fi
+    new_regex="${new_regex}"${char}
+  done
+
+  # Restore original extglob setting.
+  eval ${glob_cmd_buf}
+
+  # Copy finished string into callers variable.
+  # 2011/10/21 This fails if there is a quote inside the string.
+  #eval $regex_var=\"${new_regex}\"
+  cmd_buf="$regex_var=\"\${new_regex}\""
+  #issuing
+  eval ${cmd_buf}
+
+}
+################################################################################
+
+
+

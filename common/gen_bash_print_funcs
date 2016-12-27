@@ -1,0 +1,1399 @@
+#!/bin/bash
+# 2011/10/08 This file may be sourced in order to define functions like print_time, print_error, etc.
+
+# Change log:
+# 2014/07/23 Mike Walsh (xzy0065) - print_vars: I added support for arrays.
+# 2014/07/24 Mike Walsh (xzy0065) - print_vars: I modified support for arrays.  The variable in question must have "[]" as a suffix in order to be printed as an array.
+
+
+# It is the user program's responsibility to source the following files whose functions are used in this file.
+# Source file                   functions requiring it
+# gen_bash_quote_funcs          process_error_message, print_call_stack
+
+
+# Because this file has such rudimentary functions, I want to avoid having to source any other file in order to implement them.  Therefore, I'll avoid using functions like "valid_value", etc.
+# To avoid source loops, etc. all source statements are at the end of this file.  In other words, we define functions like print_time first so that any files that we source will see that definition and therefore will not try to source this file.
+
+
+# Because this file is sourced by almost all (if not all) of my other bash programs, I'll include some universal declarations here.
+if [ -z "${current_owner}" ] ; then current_owner="Michael Walsh" ; fi
+
+# This creates a variable named <source file base name>_owner and assigns it the value of the owner.
+eval ${BASH_SOURCE##*/}_owner=\"Michael Walsh\"
+# Reference this variable as shown in the following examples.
+# local var_name=${BASH_SOURCE##*/}_owner
+# print_var "${var_name}"
+# echo "${!var_name}"
+
+
+
+# These regex functions may seem like they don't belong logically in the gen_bash_print_funcs file.  However, they are so basic and I doube if there are any programs that source the gen_bash files that do NOT use this file.
+
+################################################################################
+alias FSP_machine='[ ! -z "${reset_max}" ]'
+################################################################################
+
+
+
+# You can test bash_regex_op_valid to see if the "=~" (bash regex operator) is valid in the version of bash we are using.  Example:
+# if bash_regex_op_valid ; then echo good ; fi
+# This allows me to use aliases in my scripts.
+shopt -s expand_aliases 2>/dev/null
+#alias bash_regex_op_valid='eval [[ "h" =~ "h" ]] 2>/dev/null'
+# This version of bash_regex_op_valid makes sure that extended regex expressions work.
+# Perf 0.0000696 seconds with eval (i.e. ~14,500 per second).
+# Perf: 0.0000537 seconds w/o eval.
+#alias bash_regex_op_valid='eval [[ "test" =~ "(test|not)" ]] 2>/dev/null'
+
+# Bash 3.2, added a new "feature" which breaks old code:
+#   Quoting the string argument to the [[ command's =~ operator now forces string matching, as with the other pattern-matching operators.
+# The following command causes it to revert to traditional behavior.
+# 2014/09/27 Mike Walsh (xzy0065) - Jenkins runs in -xe mode which means if any command in a sourced script fails, the whole script fails.  This had been working for many months and suddenly today, it started failing.  I added the "|| :" to fix it.
+shopt -s compat31 2>/dev/null || :
+################################################################################
+#alias bash_regex_op_valid='if ! test "${_bash_regex_op_valid_+defined}" ; then eval [[ "test" =~ "(test|not)" ]] 2>/dev/null && _bash_regex_op_valid_=1 || _bash_regex_op_valid_=0 ; fi ; (( _bash_regex_op_valid_ ))'
+#alias bash_regex_op_valid='[ -z "${_bash_regex_op_valid_}" ] && eval [[ "test" =~ "(test|not)" ]] 2>/dev/null && _bash_regex_op_valid_=1 || _bash_regex_op_valid_=0 ; (( _bash_regex_op_valid_ ))'
+#alias bash_regex_op_valid='(( _bash_regex_op_valid_ == 1 )) || [ -z "${_bash_regex_op_valid_}" ] && eval [[ "test" =~ "(test|not)" ]] 2>/dev/null && _bash_regex_op_valid_=1 || _bash_regex_op_valid_=0 ; (( _bash_regex_op_valid_ ))'
+#alias bash_regex_op_valid='[ "${_bash_regex_op_valid_:=$(eval [[ "test" =~ "(test|not)" ]] 2>/dev/null && echo 1 || echo 0)}" == "1" ]'
+# Perf: 0.0000365 seconds (i.e. 27,400/second).
+#alias bash_regex_op_valid='if [ "${_bash_regex_op_valid_}" == "1" ] ; then : ; elif [ "${_bash_regex_op_valid_}" == "0" ] ; then (( _bash_regex_op_valid_ )) ; else eval [[ "test" =~ "(test|not)" ]] 2>/dev/null && _bash_regex_op_valid_=1 || _bash_regex_op_valid_=0 ; (( _bash_regex_op_valid_ )) ; fi'
+# Perf: 0.0000202 seconds (i.e. 49,500/second).
+#alias bash_regex_op_valid='if (( _bash_regex_op_valid_ )) ; then : ; elif [ "${_bash_regex_op_valid_}" == "0" ] ; then (( _bash_regex_op_valid_ )) ; else eval [[ "test" =~ "(test|not)" ]] 2>/dev/null && _bash_regex_op_valid_=1 || _bash_regex_op_valid_=0 ; (( _bash_regex_op_valid_ )) ; fi'
+# Perf: 0.0000187 seconds (i.e. 53,500/second).
+
+# If "reset_max" is set, then this must be an FSP.
+#if [ -z "${reset_max}" ] ; then
+if ! FSP_machine ; then
+  # On FSP the "eval" does not work with this alias.
+  eval_string=" eval"
+else
+  eval_string=""
+fi
+alias bash_regex_op_valid="if ! (( _bash_regex_op_valid_ )) ; then if [ \"\${_bash_regex_op_valid_}\" == \"0\" ] ; then (( _bash_regex_op_valid_ )) ; else${eval_string} [[ \"test\" =~ \"(test|not)\" ]] 2>/dev/null && _bash_regex_op_valid_=1 || _bash_regex_op_valid_=0 ; (( _bash_regex_op_valid_ )) ; fi ; fi"
+################################################################################
+
+
+
+# Perf data:
+##(CST) 2013/02/20 11:00:49 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do regexp mike mi ; done
+#total_seconds:               1.071091000
+#seconds_each:                0.000107109
+#count_per_second:            9336
+################################################################################
+function regexp {
+  # Perf: I'm going to use the parm numbers (vs names) in this function to improve performance.
+  # local __rc_loc_value__="${1}"
+  # local __rc_loc_regex__="${2}"
+  # local quiet="${3:-1}"
+
+  # This function will evaluate a string using the regular expression provided.
+  # The advantage it that this function will figure out whether the current bash supports "=~".  If so, it will choose the more efficient construction:
+  # [[ "${value}" =~ "${regex}" ]]
+  # Otherwise, it will do it this way:
+  # echo "${value}" | grep -Eq "${regex}"
+
+  local cmd_buf
+
+  # 2013/06/21 I changed code to replace all double quotes in the value string with backslash double quotes.
+
+  if bash_regex_op_valid ; then
+    # cmd_buf="[[ \"${1}\" =~ \"${2}\" ]]"
+    cmd_buf="[[ \"${1//\"/\\\"}\" =~ \"${2}\" ]]"
+  else
+    # If "reset_max" is set, then this must be an FSP.
+    #if [ -z "${reset_max}" ] ; then
+    if ! FSP_machine ; then
+      # cmd_buf="echo \"${1}\" | grep -Eq \"${2}\""
+      cmd_buf="echo \"${1//\"/\\\"}\" | grep -Eq \"${2}\""
+    else
+      # FSP's grep doesn't support extended regular expressions but awk does.
+      if [ -f /nfs/bin/awk ] ; then
+        #cmd_buf="echo \"${1}\" | awk \"!/${2}/ { exit 1 }\""
+        # 2013/03/06 All "/"s in the regex must be escaped because awk uses "/" to delineate a regex.
+        # cmd_buf="echo \"${1}\" | awk \"!/${2//\//\\/}/ { exit 1 }\""
+        cmd_buf="echo \"${1//\"/\\\"}\" | awk \"!/${2//\//\\/}/ { exit 1 }\""
+      else
+        # cmd_buf="echo \"${1}\" | sed -re \"s/${2}/#FOUND_IT#/\" | grep -q '#FOUND_IT#'"
+        cmd_buf="echo \"${1//\"/\\\"}\" | sed -re \"s/${2}/#FOUND_IT#/\" | grep -q '#FOUND_IT#'"
+      fi
+    fi
+  fi
+
+  [ "${3}" == "0" ] && issuing
+  # eval ${cmd_buf}
+  eval "${cmd_buf}"
+
+}
+################################################################################
+
+
+
+################################################################################
+function get_fsp_time {
+  local system_time_var="${1}" ; shift
+  local year_var="${1}" ; shift
+  local month_var="${1}" ; shift
+  local day_var="${1}" ; shift
+  local hours_var="${1}" ; shift
+  local minutes_var="${1}" ; shift
+  local seconds_var="${1}" ; shift
+  local microseconds_var="${1}" ; shift
+  local epoch_seconds_var="${1}" ; shift
+
+  local cmd_buf
+
+  cmd_buf="${system_time_var}=\$(rtim timeofday | grep 'System time is' | cut -f 2- -d :)"
+  # issuing
+  eval ${cmd_buf}
+  cmd_buf="${system_time_var}=\${${system_time_var}# }"
+  # issuing
+  eval ${cmd_buf}
+
+  # Example value for system_time: 1970/01/01 01:09:32.397766
+  cmd_buf="${year_var}=\${${system_time_var}:0:4}"
+  # issuing
+  eval ${cmd_buf}
+  cmd_buf="${month_var}=\${${system_time_var}:5:2}"
+  # issuing
+  eval ${cmd_buf}
+  cmd_buf="${day_var}=\${${system_time_var}:8:2}"
+  # issuing
+  eval ${cmd_buf}
+  cmd_buf="${hours_var}=\${${system_time_var}:11:2}"
+  # issuing
+  eval ${cmd_buf}
+  cmd_buf="${minutes_var}=\${${system_time_var}:14:2}"
+  # issuing
+  eval ${cmd_buf}
+  cmd_buf="${seconds_var}=\${${system_time_var}:17:2}"
+  # issuing
+  eval ${cmd_buf}
+  cmd_buf="${microseconds_var}=\${${system_time_var}:20:6}"
+  # issuing
+  eval ${cmd_buf}
+
+  cmd_buf="${epoch_seconds_var}=\$(date -d "${year}${month}${day}${hours}${minutes}.${seconds}" +%s)"
+  # issuing
+  eval ${cmd_buf}
+
+  # print_vars system_time year month day hours minutes seconds microseconds epoch_seconds
+
+
+}
+################################################################################
+
+
+
+################################################################################
+function my_time {
+
+  # This function can be used to measure performance.  Example use/output:
+  # my_time "regexp mike mi"
+  # #(CST) 2013/02/20 11:04:31 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do regexp mike mi ; done
+  # total_seconds:               1.059569000
+  # seconds_each:                0.000105956
+  # count_per_second:            9438
+
+  # By default it will run the user's command 10000 times.  You can alter this by setting global variable _mt_max_iterations_ to some other integer value.
+  # Output is written to stderr so that it can be used easily in functions that write data to stdout for use/parsing by calling functions.
+
+  local max_iterations=${_mt_max_iterations_}
+
+  [ -z "${max_iterations}" ] && max_iterations=10000
+
+  # Notes:
+  # - I borrowed some of the date calculation code from print_time.
+  # - Since the date command doesn't give nanosecond precision, we'll drop the last 3 digits (which are always zero).
+
+  # First get the starting time in seconds/nanoseconds.
+  local _lt_start_stamp_nano_
+
+  if FSP_machine ; then
+    local system_time year month day hours minutes seconds microseconds epoch_seconds
+    get_fsp_time system_time year month day hours minutes seconds microseconds epoch_seconds
+    _lt_start_stamp_nano_="${epoch_seconds}${microseconds}000"
+  else
+    _lt_start_stamp_nano_=$(date +"%s%N")
+  fi
+
+  # Run the caller's command.
+  local ix
+  local _mt_loc_cmd_buf_="for (( ix=0 ; ix < ${max_iterations} ; ix++ )) ; do $@ ; done"
+  (( ! quiet )) && issuing "${_mt_loc_cmd_buf_}" >&2
+  eval ${_mt_loc_cmd_buf_}
+
+  # Now get the ending time in seconds/nanoseconds.
+
+  local _lt_end_stamp_nano_
+  if FSP_machine ; then
+    local system_time year month day hours minutes seconds microseconds epoch_seconds
+    get_fsp_time system_time year month day hours minutes seconds microseconds epoch_seconds
+    _lt_end_stamp_nano_="${epoch_seconds}${microseconds}000"
+  else
+    _lt_end_stamp_nano_=$(date +"%s%N")
+  fi
+
+  # Calculate the elapsed time in seconds/nanoseconds.
+  local _lt_elapsed_time_nano_=$(( $_lt_end_stamp_nano_ - $_lt_start_stamp_nano_ ))
+  local _lt_elapsed_time_seconds_
+  local _lt_elapsed_time_sub_seconds_
+  let _lt_elapsed_time_seconds_=_lt_elapsed_time_nano_/1000000000
+  let _lt_elapsed_time_sub_seconds_=_lt_elapsed_time_nano_%1000000000
+  # Since the date command doesn't give nanosecond precision, we'll convert this to microseconds.
+  let _lt_elapsed_time_sub_seconds_=_lt_elapsed_time_sub_seconds_/1000
+
+  local total_seconds=$(printf "%1i.%06i000" "${_lt_elapsed_time_seconds_}" "${_lt_elapsed_time_sub_seconds_}")
+
+  # print_var_list "_lt_start_stamp_nano_ _lt_end_stamp_nano_ _lt_elapsed_time_nano_ _lt_elapsed_time_seconds_ _lt_elapsed_time_sub_seconds_ total_seconds"
+
+  # "scale" determines the precision of the calc function.
+  local scale=9
+
+  # "seconds_each" is the amount of time for each iteration of the user's command.
+  local seconds_each
+  _mt_loc_cmd_buf_="seconds_each=\$(calc \"${total_seconds}/${max_iterations}\" )"
+  # issuing "${_mt_loc_cmd_buf_}"
+  eval ${_mt_loc_cmd_buf_}
+  seconds_each=$(printf "%11.9f" "${seconds_each}")
+
+  local count_per_second
+  _mt_loc_cmd_buf_="count_per_second=\$(calc \"1.0/${seconds_each}\")"
+  # issuing "${_mt_loc_cmd_buf_}"
+  eval ${_mt_loc_cmd_buf_}
+  count_per_second=$(printf "%0.0f" "${count_per_second}")
+
+  print_var_list "total_seconds seconds_each count_per_second" >&2
+
+}
+################################################################################
+
+
+
+################################################################################
+function indent {
+  # local INDENT="${1:-0}"
+
+  # This function will print INDENT characters with no line feed.
+
+  printf "%-${1}s" ""
+
+}
+################################################################################
+
+
+
+# This print_time function is somewhat deprecated.  I've written a "c" builtin version.  The define_print_time_builtin function below will define it.  It is about 70x faster than this bash function version.
+# lt stands for line trace.  Just throw this in as needed when debugging.  Note: This alias takes about .004 seconds to run.
+#alias lt='{ print_time ; echo "LINENO: ${LINENO}" ; } >&2'
+#alias lt='date +"#(%Z) %Y/%m/%d %H:%M:%S.%N - LINENO: ${LINENO}" >&2'
+
+# Perf note: 0.0026664 to run print_time (i.e. 375 times/second).
+# Perf data:
+# #(CDT) 2013/04/11 14:43:41 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do print_time >/dev/null ; done
+# total_seconds:               25.580348000
+# seconds_each:                0.002558034
+# count_per_second:            391
+################################################################################
+function print_time {
+
+  # This function will print the time (with no newline) like this:
+  # #(CST) 2007/12/07 16:03:42 - 
+  # The caller can provide a string (with or without newline that will also be printed.  Example:
+  # #(CST) 2007/12/07 16:03:42 - Testing.
+
+  # Perf note: I thought that if date could refrain from writing cr/lf, I could use it w/o printf and without subshell (caused by backticks).  I did some comparisons and found that the time savings would be minimal to non-existent.
+
+  # If global variable PERFORMANCE_TRACING is on, you will get the following additional output:
+  # Example output:
+  # #(CST) 2011/12/12 09:55:52.814440132 - LINENO:  219, Elapsed_time: 0000.006003107 - 
+
+  # 2012/01/21 I wrote prt_tim.c which runs faster than "date" on 64 bit machines (No real performance gain on 32 bit machines).
+
+  local _lt_date_buff_
+
+  local system_time year month day hours minutes seconds microseconds epoch_seconds
+
+  if FSP_machine ; then
+    local system_time
+    #system_time=$(rtim timeofday | grep 'System time is' | cut -f 2- -d :)
+    #system_time=${system_time# }
+
+    get_fsp_time system_time year month day hours minutes seconds microseconds epoch_seconds
+  fi
+
+  if (( PERFORMANCE_TRACING || SHOW_ELAPSED_TIME )) ; then
+
+    local _lt_old_stamp_nano_
+    local _lt_print_date_buff_
+    local _lt_elapsed_time_seconds_
+    local _lt_elapsed_time_sub_seconds_
+
+    # Save old time stamp for calculation.
+    _lt_old_stamp_nano_=${_lt_cur_stamp_nano_}
+    # I want this alias itself to perform well.  So, I use date once to get both the date I wish to display and the date in seconds so I can calculate the time elapsed since the last use of lt.
+    if FSP_machine ; then
+      local year month day hours minutes seconds microseconds epoch_seconds
+      # Example value for system_time: 1970/01/01 01:09:32.397766
+      # year=${system_time:0:4}
+      # month=${system_time:5:2}
+      # day=${system_time:8:2}
+      # hours=${system_time:11:2}
+      # minutes=${system_time:14:2}
+      # seconds=${system_time:17:2}
+      # microseconds=${system_time:20:6}
+      # epoch_seconds=$(date -d "${year}${month}${day}${hours}${minutes}.${seconds}" +%s)
+
+      # print_vars system_time year month day hours minutes seconds microseconds epoch_seconds
+
+      _lt_date_buff_="#(UTC) ${system_time}000 ${epoch_seconds}${microseconds}000"
+    else
+      _lt_date_buff_=$(date +"#(%Z) %Y/%m/%d %H:%M:%S.%N %s%N")
+    fi
+
+#    _lt_date_buff_=$(prt_tim)
+    # Extract the 2 parts of _lt_date_buff_ into different variables.
+    #_lt_print_date_buff_="${_lt_date_buff_:0:36}"
+    # Since the date command doesn't give nanosecond precision, we'll drop the last 3 digits (which are always zero).
+    _lt_print_date_buff_="${_lt_date_buff_:0:33}"
+    _lt_cur_stamp_nano_="${_lt_date_buff_:37}"
+
+    if [ -z "${_lt_old_stamp_nano_}" ] ; then
+      # First time this function is being called. -999 is equivalent to n/a.
+      #_lt_elapsed_time_seconds_=-999
+      #_lt_elapsed_time_sub_seconds_=999999999
+      # First time this function is being called. 0 is equivalent to n/a.
+      _lt_elapsed_time_seconds_=0
+      _lt_elapsed_time_sub_seconds_=0
+    else
+      # Get elapsed time in nanoseconds.
+      _lt_elapsed_time_nano_=$(( $_lt_cur_stamp_nano_ - $_lt_old_stamp_nano_ ))
+      # Split it into number of seconds and number of subseconds (value to the right of the decimal point).
+      let _lt_elapsed_time_seconds_=_lt_elapsed_time_nano_/1000000000
+      let _lt_elapsed_time_sub_seconds_=_lt_elapsed_time_nano_%1000000000
+      # Since the date command doesn't give nanosecond precision, we'll convert this to microseconds.  Then we'll take care to only show 6 digits.
+      let _lt_elapsed_time_sub_seconds_=_lt_elapsed_time_sub_seconds_/1000
+    fi
+
+    if (( PERFORMANCE_TRACING )) ; then
+      #printf "%s - LINENO: %4i - %4i.%09i - ${1}" "${_lt_print_date_buff_}" "${BASH_LINENO[0]}" "${_lt_elapsed_time_seconds_}" "${_lt_elapsed_time_sub_seconds_}"
+      printf "%s - %4i.%06i - # %4i - ${1}" "${_lt_print_date_buff_}" "${_lt_elapsed_time_seconds_}" "${_lt_elapsed_time_sub_seconds_}"  "${BASH_LINENO[0]}"
+    else
+      if (( NANOSECONDS )) ; then
+        printf "%s - %4i.%06i - ${1}" "${_lt_print_date_buff_}" "${_lt_elapsed_time_seconds_}" "${_lt_elapsed_time_sub_seconds_}"
+      else
+        printf "%s - %4i - ${1}" "${_lt_print_date_buff_:0:26}" "${_lt_elapsed_time_seconds_}"
+      fi
+    fi
+  else
+    if (( NANOSECONDS )) ; then
+      # printf "%s" "`date +\"#(%Z) %Y/%m/%d %H:%M:%S.%N - \"`${1}"
+      # Since the date command doesn't give nanosecond precision, we'll drop the last 3 digits (which are always zero).
+      if FSP_machine ; then
+        printf "#(UTC) %s - ${1}" "${system_time}"
+      else
+        _lt_date_buff_=$(date +"#(%Z) %Y/%m/%d %H:%M:%S.%N")
+        printf "%s - %s" "${_lt_date_buff_:0:33}" "${1}"
+        #prt_tim "${1}"
+      fi
+    else
+      if FSP_machine ; then
+        system_time=${system_time%.*}
+        printf "#(UTC) %s - ${1}" "${system_time}"
+      else
+        printf "%s" "`date +\"#(%Z) %Y/%m/%d %H:%M:%S - \"`${1}"
+      fi
+      #prt_tim "${1}"
+    fi
+  fi
+
+#print_vars _lt_old_stamp_nano_ _lt_elapsed_time_seconds_ _lt_elapsed_time_sub_seconds_
+
+}
+################################################################################
+
+
+
+# #(CDT) 2013/04/16 14:48:53 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do { print_time ; echo "Here we are!" ; } >/dev/null ; done
+# total_seconds:               0.526822000
+# seconds_each:                0.000052682
+# count_per_second:            18982
+
+################################################################################
+function define_print_time_builtin {
+
+  # This function can be used to replace the print_time function (defined above) with a built in version of it which runs about 70x faster.
+
+  local built_in_name=print_time
+  local loc_bash
+  local rc
+
+  local program_file_path
+  program_file_path="$(type prt_tim_32 2>/dev/null)"
+  rc="${?}"
+  # echo "rc: ${rc}" >&2
+  if [ "${rc}" != "0" ] ; then
+    program_file_path=${autoipl_base_path}/${AUTOIPL_VERSION}/bin/prt_tim_32
+    [ ! -f "${program_file_path}" ] && return 0
+  else
+    program_file_path="${program_file_path##* }"
+  fi
+
+  local program_dir_path="${program_file_path%/*}"
+
+  for program_file_path in ${program_dir_path}/prt_tim_32 ${program_dir_path}/prt_tim_64 ; do
+    enable -f ${program_file_path} ${built_in_name} 2>/dev/null
+    if [ "${?}" == "0" ] ; then
+      unset -f ${built_in_name}
+      return 0
+    fi
+  done
+
+}
+################################################################################
+
+export LINENO
+# 2014/03/03 When Jenkins sources files, ANY failure on any line which is not handled will cause the source to abort.  A first-time call to define_print_time_builtin will see such failures so we will add " || :" to keep the whold source operation from failing.
+define_print_time_builtin || :
+
+alias lt='(( PERFORMANCE_TRACING )) && { print_time ; echo "Line trace."; }'
+
+
+################################################################################
+function print_error {
+
+  # This function will print an error message (with no newline) like this:
+  # #(CST) 2007/12/07 16:03:42 - **ERROR** 
+  # The caller can provide a string (with or without newline that will also be printed.  Example:
+  # #(CST) 2007/12/07 16:03:42 - **ERROR** Testing.
+
+  #print_time "**ERROR** $1"
+  print_time ; echo -n "**ERROR** $1"
+
+}
+################################################################################
+
+
+
+# Perf: 0.0000724 to run my_echo with no replacements (~14,000 per second).  0.0001272 with one replacement of "FipSroot" (i.e. 7800 per second).
+# Perf data:
+# #(CDT) 2013/04/11 14:48:01 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do my_echo '**** is here.' >/dev/null ; done
+# total_seconds:               1.343928000
+# seconds_each:                0.000134392
+# count_per_second:            7441
+
+################################################################################
+function my_echo {
+  local buffer="${@}"
+
+  # This function will behave like the echo command.  However, it will replace any text found in global variable hidden_text_list with "********".  This is ideal for echoing text that contains passwords.
+  # 
+  # hidden_text_list is list which is delimited by the pipe symbol ("|").  Populate it as follows:
+  # add_list_element "${password}" hidden_text_list back "|"
+  #
+  # Example:
+  #
+  # password=passw0rd
+  # password2=c0mputer
+  # add_list_element "${password}" hidden_text_list back "|"
+  # add_list_element "${password2}" hidden_text_list back "|"
+  # cmd_buf="rcmd -l root -p ${password} host 'command'"
+  # my_echo -n "${cmd_buf}"
+
+  local hidden_text
+  local nothing
+
+  for hidden_text in ${hidden_text_list//|/ } ; do
+    nothing="${hidden_text//?/*}"
+    buffer=${buffer//${hidden_text}/${nothing}}
+  done
+
+  # 2014/02/17 I was seeing lots of these:
+  #(CST) 2014/02/17 13:56:07 - /afs/rch/projects/esw/dvt/autoipl/apollotest/bin/gen_bash_print_funcs: line 519: echo: write error: Interrupted system call
+  # Following a suggestion on web to hide initial error and simply re-try.
+  # echo "${buffer}"
+  echo "${buffer}" 2>/dev/null || echo "${buffer}"
+
+}
+################################################################################
+
+
+
+# Perf data:
+# #(CDT) 2013/07/11 15:45:01 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do set_col1_width ; done
+# total_seconds:               1.056344000
+# seconds_each:                0.000105634
+# count_per_second:            9467
+################################################################################
+function set_col1_width {
+  local col1_width_var="${1:-COL1_WIDTH}"
+
+  # This function will set the col1_width_var based on global variables:
+  # PERFORMANCE_TRACING
+  # NANOSECONDS
+  # SHOW_ELAPSED_TIME
+
+  local _loc_col1_width_
+
+  _loc_col1_width_=29
+
+  if (( PERFORMANCE_TRACING )) ; then
+    let _loc_col1_width_=_loc_col1_width_+9
+  fi
+
+  if (( NANOSECONDS )) ; then let _loc_col1_width_=_loc_col1_width_+7 ; fi
+
+  if (( SHOW_ELAPSED_TIME )) ; then
+    if (( NANOSECONDS )) ; then
+      let _loc_col1_width_=_loc_col1_width_+14
+    else
+      let _loc_col1_width_=_loc_col1_width_+7
+    fi
+  fi
+
+  eval ${col1_width_var}=${_loc_col1_width_}
+
+}
+################################################################################
+
+
+
+# Perf data:
+# #(CDT) 2013/04/11 14:49:51 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do print_var mike >/dev/null ; done
+# total_seconds:               2.551465000
+# seconds_each:                0.000255146
+# count_per_second:            3919
+################################################################################
+function print_var {
+  # 0.00003 seconds just to get here.
+  # Perf: 0.00003 seconds to assign parms.
+  # local _pv_var_name_="${1}"
+  local _pv_loc_indent_="${2:-0}"
+  local _pv_loc_col1_width_="${3:-${COL1_WIDTH}}"
+
+  # This function will print the name and value of a variable in a formatted way.
+  # The expected parameters are:
+  # _pv_var_name_       The name of the environment variable to be printed.  Required.
+  # _pv_loc_indent_     The number of characters to indent before printing the var name.  Default is 0.
+  # _pv_loc_col1_width_ The width of the var name column.
+
+  local loc_cmd_buf
+  # Perf: 0.00003 seconds to test for null _pv_var_name_.
+  if [ -z "${1}" ] ; then
+    { print_error ; echo "Function ${FUNCNAME}, line ${LINENO}: Parameter \"_pv_var_name_\" has an invalid value of \"${1}\"." ; print_call_stack ; echo ; } >&2
+    return 1
+  fi
+
+  if [ -z "${_pv_loc_col1_width_}" ] ; then
+    set_col1_width _pv_loc_col1_width_
+    # If local col1 width is blank and global COL1_WIDTH is also blank, we'll set the global (to improve performance).
+    [ -z "${COL1_WIDTH}" ] && set_col1_width COL1_WIDTH
+  fi
+
+  # Perf: 0.00001 seconds to assign.
+  let _pv_loc_col1_width_=_pv_loc_col1_width_-_pv_loc_indent_
+
+  if [  -z "${hidden_text_list}" ] ; then
+    # Perf: 0.00003 seconds to assign.
+    loc_cmd_buf="printf \"%-${_pv_loc_indent_}s%-${_pv_loc_col1_width_}s%s\n\" \"\" \"${1}:\" \"\${$1}\""
+  else
+    local buffer=${!1}
+    local hidden_text nothing
+    for hidden_text in ${hidden_text_list//|/ } ; do
+      nothing="${hidden_text//?/*}"
+      buffer=${buffer//${hidden_text}/${nothing}}
+    done
+    # Perf: 0.00003 seconds to assign.
+    loc_cmd_buf="printf \"%-${_pv_loc_indent_}s%-${_pv_loc_col1_width_}s%s\n\" \"\" \"${1}:\" \"\${buffer}\""
+  fi
+
+  # issuing "${loc_cmd_buf}"
+  # Perf: 0.00009 seconds to print.
+
+  # 2014/02/17 I was seeing lots of these:
+  # /afs/rch/projects/esw/dvt/autoipl/apollotest/bin/gen_bash_print_funcs: line 615: printf: write error: Interrupted system call
+  # Following a suggestion on web to hide initial error and simply re-try.
+  # eval ${loc_cmd_buf}
+  eval ${loc_cmd_buf} 2>/dev/null || eval ${loc_cmd_buf}
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_array {
+  #local _pa_var_name_="${1}"
+  local _pa_loc_indent_="${2:-0}"
+  #local _pa_loc_col1_width_="${3:-${COL1_WIDTH}}"
+
+  # Get array size.
+  eval local _pa_loc_array_size_=\${#${1}[@]}
+
+  # Print array name with proper indentation.
+  eval "printf \"%-${_pa_loc_indent_}s%-${3}s%s\n\" \"\" \"${1}:\" \"\${buffer}\""
+
+  # Increment the indentation by 2 so that the array elements are indented under the array name.
+  let _pa_loc_indent_+=2
+
+  local ix
+  for ((ix=0; ix< _pa_loc_array_size_; ix++ )) ; do
+    eval print_var ${1}[${ix}] "${_pa_loc_indent_}" "${3}"
+  done
+
+}
+################################################################################
+
+
+
+# Perf note: 0.0003306 to run print_var_list with one variable (i.e. 3,000 times/second).  A little slower than print_var.
+# Perf data:
+# #(CDT) 2013/04/11 14:51:50 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do print_var_list mike >/dev/null ; done
+# total_seconds:               3.421670000
+# seconds_each:                0.000342167
+# count_per_second:            2923
+################################################################################
+function print_var_list {
+  local var_name_list="${1}"
+  local INDENT="${2}"
+  local COL1_WIDTH="${3}"
+
+  # This function will call print_var for each var_name found in var_name_list.  See print_var for further explanation of parms.
+
+  local _pvl_var_name_
+  local _pvl_ret_code_=0
+
+  for _pvl_var_name_ in ${var_name_list} ; do
+    # print_var "${_pvl_var_name_}" "${INDENT}" "${COL1_WIDTH}" || return 1
+    print_var "${_pvl_var_name_}" "${INDENT}" "${COL1_WIDTH}" || _pvl_ret_code_=1
+  done
+
+  return ${_pvl_ret_code_}
+
+}
+################################################################################
+
+
+
+# Perf data:
+# #(CDT) 2013/06/07 11:52:31.537482 -    0.013708 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do print_vars mike >/dev/null ; done
+# total_seconds:                                    4.220348000
+# seconds_each:                                     0.000422034
+# count_per_second:                                 2369
+################################################################################
+function print_vars {
+  (( ${#} == 0 )) && return
+
+  # This function is similar to print_var_list but has the following advantages:
+  # - The name is shorter so it's easier to type.
+  # - You do not need to quote your var name list.
+
+  # - If your last parameter is an integer it is taken to be the indent value.
+  # - If your last 2 parameters are integers they are taken to be the indent and col1_width values.
+  # - If one of your variable names has "[]" affixed to it, it will be processed as an array.
+
+  # 2014/02/12 Perf: I duplicate code from print_var rather than calling it.
+
+  local _pvs_loc_indent_=0
+  local _pvs_loc_col1_width_=${COL1_WIDTH}
+  local num_var_names
+
+  if printf "%i\n" "${!#}" >/dev/null 2>&1 ; then
+    # The last parm is an integer which means it is either the indent or col1_width value so we must parse.
+
+    # If only parm is an integer, then there are no var names in the parm list so we're done.
+    (( ${#} == 1 )) && return
+
+    local next_to_last_parm_num
+    let next_to_last_parm_num=${#}-1
+    local next_to_last_parm=${!next_to_last_parm_num}
+
+    if printf "%i\n" "${next_to_last_parm}" >/dev/null 2>&1 ; then
+
+      # The next-to-last parm is also an integer so the caller has specified both indent and col1_width
+
+      # If only 2 parms are integers, then there are no var names in the parm list so we're done.
+      (( ${#} == 2 )) && return
+
+      _pvs_loc_indent_=${next_to_last_parm}
+      _pvs_loc_col1_width_=${!#}
+      let num_var_names=${#}-2
+    else
+      # Only the last parm is an integer so the caller has only specified the indent value.
+      _pvs_loc_indent_=${!#}
+      let num_var_names=${#}-1
+    fi
+  else
+    num_var_names=${#}
+  fi
+
+  if [ -z "${_pvs_loc_col1_width_}" ] ; then
+    set_col1_width _pvs_loc_col1_width_
+    # If local col1 width is blank and global COL1_WIDTH is also blank, we'll set the global (to improve performance).
+    [ -z "${COL1_WIDTH}" ] && set_col1_width COL1_WIDTH
+  fi
+
+  let _pvs_loc_col1_width_=_pvs_loc_col1_width_-_pvs_loc_indent_
+
+  if (( _pvs_loc_indent_ < 0 )) ; then
+    { print_error ; echo "Parameter \"indent\" has an invalid value of \"${_pvs_loc_indent_}\". It must be 0 or greater." ; } | process_error_message
+    return 1
+  fi
+
+  if (( _pvs_loc_col1_width_ < 0 )) ; then
+    _pvs_loc_col1_width_=0
+    # { print_error ; echo "Parameter \"col1_width\" has an invalid value of \"${_pvs_loc_col1_width_}\". It must be 0 or greater." ; } | process_error_message
+    # return 1
+  fi
+
+  local _loc_pv_ix_
+  local buffer
+  # 2014/07/23 Mike Walsh (xzy0065) - I added support for arrays.
+  local array_size=1
+  local array_ix
+  local _save_pvs_loc_col1_width_=${_pvs_loc_col1_width_}
+  local _pv_var_name_
+  local hidden_text
+  local nothing
+
+  for (( _loc_pv_ix_ = 1 ; _loc_pv_ix_ <= num_var_names ; _loc_pv_ix_++ )) ; do
+    # print_var ${!_loc_pv_ix_} ${_pvs_loc_indent_} ${_pvs_loc_col1_width_} || return 1
+    # if (( array_size > 1 )) ; then
+    if [ "${!_loc_pv_ix_}" != "${!_loc_pv_ix_/[]}" ] ; then
+      _pv_var_name_=${!_loc_pv_ix_/[]}
+      #eval "array_size=\${#${!_loc_pv_ix_}[@]}"
+      eval "array_size=\${#${_pv_var_name_}[@]}"
+      eval "printf \"%-${_pvs_loc_indent_}s%-${_pvs_loc_col1_width_}s\n\" \"\" \"${_pv_var_name_}:\""
+      let _pvs_loc_indent_+=2
+      let _pvs_loc_col1_width_-=2
+      (( _pvs_loc_col1_width_ < 0 )) && _pvs_loc_col1_width_=0
+      for (( array_ix = 0; array_ix < array_size ; array_ix++ )) ; do
+        if [ -z "${hidden_text_list}" ] ; then
+          eval "printf \"%-${_pvs_loc_indent_}s%-${_pvs_loc_col1_width_}s%s\n\" \"\" \"${_pv_var_name_}[${array_ix}]:\" \"\${${_pv_var_name_}[${array_ix}]}\""
+        else
+          eval buffer=\${${_pv_var_name_}[${array_ix}]}
+          for hidden_text in ${hidden_text_list//|/ } ; do
+            nothing="${hidden_text//?/*}"
+            buffer=${buffer//${hidden_text}/${nothing}}
+          done
+          # Perf: 0.00003 seconds to assign.
+          eval "printf \"%-${_pvs_loc_indent_}s%-${_pvs_loc_col1_width_}s%s\n\" \"\" \"${_pv_var_name_}[${array_ix}]:\" \"\${buffer}\""
+        fi
+      done
+      let _pvs_loc_indent_-=2
+      _pvs_loc_col1_width_=${_save_pvs_loc_col1_width_}
+    else
+      if [ -z "${hidden_text_list}" ] ; then
+        eval "printf \"%-${_pvs_loc_indent_}s%-${_pvs_loc_col1_width_}s%s\n\" \"\" \"${!_loc_pv_ix_}:\" \"\${!$_loc_pv_ix_}\""
+      else
+        eval buffer=\${${!_loc_pv_ix_}}
+        for hidden_text in ${hidden_text_list//|/ } ; do
+          nothing="${hidden_text//?/*}"
+          buffer=${buffer//${hidden_text}/${nothing}}
+        done
+        # Perf: 0.00003 seconds to assign.
+        eval "printf \"%-${_pvs_loc_indent_}s%-${_pvs_loc_col1_width_}s%s\n\" \"\" \"${!_loc_pv_ix_}:\" \"\${buffer}\""
+      fi
+    fi
+  done
+
+}
+################################################################################
+
+
+
+# Perf: To print this cmd_buf:
+# cmd_buf="rcmd -l root -p FipSroot grapenutsfsp4 'echo \$hostname'"
+# 0.0028566 seconds (i.e. 350/second).  I'm sure most of the time is spent by print_time.
+
+# Perf data:
+# #(CDT) 2013/04/11 14:55:09 - Issuing: for (( ix=0 ; ix < 10000 ; ix++ )) ; do issuing >/dev/null ; done
+# total_seconds:               28.806808000
+# seconds_each:                0.002880680
+# count_per_second:            347
+
+################################################################################
+function issuing {
+  local buffer="${1:-${cmd_buf}}" ; shift || :
+  local print_func_line="${1:-${_PRINT_FUNC_LINE_}}" ; shift || :
+  local test_mode="${1:-0}" ; shift || :
+
+  # This function will echo the following type of line:
+  # #(CST) yyyy/mm/dd hh:mm:ss - Issuing: ${buffer}
+  #
+  # It uses my_echo which replaces hidden text with asterisks.
+  #
+  # Example use:
+  #
+  # password=passw0rd
+  # add_list_element "${password}" hidden_text_list back "|"
+  # cmd_buf="rcmd -l root -p ${password} host 'command'"
+  # issuing
+  #
+  # Result:
+  # #(CST) 2011/02/23 10:30:08 - Issuing: rcmd -l root -p ******** host 'command'
+  #
+  # If print_func_line is 1, then you will also see the function name/line number of the caller of this function.  Setting _PRINT_FUNC_LINE_ to 1 is a good way to turn this feature on across the board.  Example result:
+  #
+  # #(CST) 2011/02/23 10:30:08 - function_a, 1287:             Issuing: rcmd -l root -p ******** host 'command'
+  #
+
+  local func_line_string
+  if (( print_func_line )) ; then
+    func_line_string=$(printf "%-30s" "${FUNCNAME[1]}, ${BASH_LINENO[0]}:")
+  fi
+
+  local issuing_string="Issuing"
+  (( test_mode )) && issuing_string='(test_mode) Issuing'
+
+  # 2014/02/17 I was seeing lots of these:
+  #(CST) 2014/02/17 13:56:07 - /afs/rch/projects/esw/dvt/autoipl/apollotest/bin/gen_bash_print_funcs: line 519: echo: write error: Interrupted system call
+  # Following a suggestion on web...
+  print_time ; my_echo "${func_line_string}${issuing_string}: $buffer"
+
+}
+################################################################################
+
+
+
+# Perf: 0.0001258 seconds to run get_source_path.
+################################################################################
+function get_source_path {
+  local script_path_var="${1}" ; shift || :
+  local ix="${1:-1}" ; shift || :
+
+  # This function will get the source path of the caller's source file.
+  # Note that not all operating systems support BASH_SOURCE as an array.
+  # ix can be used by the caller to indicate you wish to get the source of a higher level (i.e. the caller's caller).
+
+  eval ${script_path_var}=${BASH_SOURCE[${ix}]}
+
+}
+################################################################################
+
+
+
+# Perf: 0.0031095 seconds to run print_starting_source (i.e. 320/second).
+################################################################################
+function print_starting_source {
+  local quiet="${1:-${quiet}}" ; shift || :
+  local header="${1:-1}" ; shift || :
+  local ix="${1:-2}" ; shift || :
+
+  # This function will print a standardized message like this:
+  #(CDT) 2012/09/28 12:20:32 - Starting /afs/rchland.ibm.com/usr2/xzy0065/sandbox/apollodev/src/aipl/x86test/scr_pgm9 script.
+  # If the quiet parm is set, no message will be printed after all.
+  # The header simply means that one blank line will be printed prior to the message.
+  # ix can be used by the caller to indicate you wish to get the source of a higher level (i.e. the caller's caller).
+
+  (( quiet )) && return
+
+  local source_path
+
+  get_source_path source_path ${ix}
+
+  (( header )) && echo
+  print_time ; echo "Starting ${source_path:=unknown} script."
+
+}
+################################################################################
+
+
+
+################################################################################
+function print_ending_source {
+  local quiet="${1:-${quiet}}" ; shift || :
+  local footer="${1:-1}" ; shift || :
+  local ix="${1:-2}" ; shift || :
+
+  # This function will print a standardized message like this:
+  #(CDT) 2012/09/28 12:20:32 - Ending /afs/rchland.ibm.com/usr2/xzy0065/sandbox/apollodev/src/aipl/x86test/scr_pgm9 script.
+  # If the quiet parm is set, no message will be printed after all.
+  # The footer simply means that one blank line will be printed after to the message.
+  # ix can be used by the caller to indicate you wish to get the source of a higher level (i.e. the caller's caller).
+
+  (( quiet )) && return
+
+  local source_path
+
+  get_source_path source_path ${ix}
+
+  print_time ; echo "Ending ${source_path:=unknown} script."
+  (( footer )) && echo
+
+}
+################################################################################
+
+
+
+# Perf: 0.0026529 seconds to run print_func_name (i.e. 375 per second).
+################################################################################
+function print_func_name {
+
+  # This function will print out the function name and all its parameters.  It should be invoked like this:
+  # print_func_name "$@"
+
+  # Note: Currently, this function will not work correctly on AIX because array support is not available (for accessing ${FUNCNAME[${ix}]}).
+
+  local parameter
+  local ix=1
+
+  print_time
+  echo -n "Executing: ${PGM_NAME:-$(basename $0)}::${FUNCNAME[${ix}]} "
+  for parameter in "$@" ; do
+    echo -n "\"${parameter}\" "
+  done
+  echo
+
+}
+################################################################################
+
+
+
+# Perf: 0.0008281 seconds to run print_call_stack from main (i.e. 1200 per second).
+# 0.0010607 seconds to run it from a func (i.e. about 950 per second).
+# Sourcing this file turns extdebug on.  This will allow print_call_stack to display function parms.  I send stderr to /dev/null to hide errors.  This command may not work on older linux systems.  In that case, print_call_stack will not print as much detail.
+shopt -s extdebug 2>/dev/null
+################################################################################
+function print_call_stack {
+  local indent=${1:-0}
+
+  # This function will print out the bash function call stack.  This is useful for debugging bash programs.
+
+  local lin_num_width
+  local extdebug
+  local func_name
+  local line_num
+  local num_frames
+  local ix2
+  local argument
+
+  # The user may want to disable this when they wish to measure performance.  Most of the functions I write have at the beginning:
+  #  (( FUNC_TRACE )) && { print_func_name "$@" ; print_call_stack ; }
+  # So from the command line:
+  # export FUNC_TRACE=1 ; export _DISABLE_STACK_PRINT_=1
+  if (( _DISABLE_STACK_PRINT_ )) ; then return ; fi
+
+  # 2011/12/09 Perf improvement.  This command takes at least .006.
+  # shopt extdebug 2>/dev/null | grep -q "on$" && extdebug=1
+  # It's cheaper to just try to turn it on and set extdebug to 1 on success.
+  shopt -s extdebug 2>/dev/null && extdebug=1 || extdebug=0
+
+  # The arg list contained in the BASH_ARGV array is only set when "shopt -s extdebug" has been run.  The args for each frame are found in reverse order, though frames are in ascending order.  For example:
+  # frame0:parm2 frame0:parm1 frame1:parm2 frame1:parm1
+  # Also, if shopt extdebug is off, the only entries in BASH_ARGV are for the call to the program (rather than for each function within a program).
+
+  local num_frame_args
+  local arg_ix=0
+  local parm_val
+  local first_frame_ix
+  local first_frame_name
+  local cmd_buf
+
+  num_frames=${#FUNCNAME[@]}
+  let first_frame_ix=num_frames-1
+  first_frame_name=${FUNCNAME[${first_frame_ix}]}
+
+  # On older versions of linux/AIX, no stack info is available so we return.
+  (( num_frames == 1 )) && return
+
+  printf "\n"
+  printf "%${indent}s--------------------------------------------------------------------------------\n" ""
+  printf "%${indent}sbash function call stack\n" ""
+  printf "\n"
+  if [ "${first_frame_name}" != "main" ] ; then
+    echo "(top level frame is a function so line numbers not available)" ; echo
+  fi
+
+  lin_num_width=6
+
+  printf "%${indent}s%0${lin_num_width}s %s\n" "" "Line #" "Function name and arguments"
+  printf "%${indent}s%0${lin_num_width}s %s\n" "" "------"  "-------------------------------------------------------------------------"
+  local ix
+  local escaped_single="'\''"
+  local quote_type=single
+
+  for (( ix = 0; ix < $num_frames ; ix++ )) ; do
+    line_num=${BASH_LINENO[$ix]}
+    func_name=${FUNCNAME[$ix]}
+    if [ "${func_name}" == "main" ] ; then
+      # Substitute the program name for "main" and "" for line #.
+      func_name=${PGM_NAME:-$(basename $0)}
+      line_num=""
+    fi
+    if [ "${first_frame_name}" != "main" ] ; then
+      line_num=""
+    fi
+    printf "%${indent}s%${lin_num_width}s %s" "" "$line_num" "$func_name"
+
+    if (( extdebug )) ; then
+      num_frame_args=${BASH_ARGC[$ix]}
+    else
+      # In this case, the only args are for the call to the main program.
+      num_frame_args=${BASH_ARGC[0]}
+    fi
+
+    # If extdebug or last time through the loop.
+    if (( extdebug || ix+1==num_frames )) ; then
+      if (( num_frame_args > 0 )) ; then
+        # Move arg_ix to point to the first arg for this frame (which is last among the frame parms).
+        let arg_ix+=num_frame_args-1
+
+        cmd_buf="quote_parm_list parm_val "
+        for (( ix2 = 0; ix2 < $num_frame_args ; ix2++ )) ; do
+          # 2010/10/28 Mike Walsh - Change for better quoting.  Old way
+          # printf " \"%s\"" "${BASH_ARGV[$arg_ix]}"
+          # Example output from old way:
+          # pgm1 "--sb=mike" "--parm1=Mike Walsh"
+          # Example output from new way:
+          # pgm1 --sb=mike --parm1="Mike Walsh"
+          # The new way is better because you can copy/paste to a command line to execute without having to fix the misplaced quotes.
+          # quote_parm_list parm_val "${BASH_ARGV[$arg_ix]}"
+
+          #printf " %s" "${parm_val}"
+          # 2011/12/09 Perf improvement.  Instead of calling quote_parm_list each time through this loop, I add to the cmd_buf each time and make the call after running the loop.
+          argument="${BASH_ARGV[$arg_ix]}"
+          # Escape backslashes and double quotes to allow our quote_parm_list and printf to behave.
+          argument=${argument//\\/\\\\}
+          # 2013/03/08 I switched to single quoting.
+          # argument=${argument//\"/\\\"}
+          # cmd_buf="${cmd_buf} \"$argument\""
+          argument=${argument//\'/${escaped_single}}
+          cmd_buf="${cmd_buf} '$argument'"
+          let arg_ix-- || :
+        done
+        #{ echo ; issuing ; } >&2
+        eval ${cmd_buf}
+        printf " %s" "${parm_val}"
+
+        # Move arg_ix to point to the first of the args for the next frame.
+        let arg_ix+=num_frame_args+1
+      fi
+    fi
+    printf "\n"
+
+  done
+
+  printf "%${indent}s--------------------------------------------------------------------------------\n" ""
+
+  printf "\n"
+
+}
+################################################################################
+
+
+
+# Perf: 0.05501 seconds to run process_error_message (i.e. about 20 / second).  This only runs on error so don't invest a lot of time performance tuning it.
+################################################################################
+function process_error_message {
+  local IFS="${default_IFS}"
+
+  local quiet="${1:-${quiet}}" ; shift || :
+  local error_email_list_path="${1:-${ERROR_EMAIL_LIST_PATH}}" ; shift || :
+  local error_log_path="${1:-${ERROR_LOG_PATH}}" ; shift || :
+  local error_log_cleanup_threshold_path="${1:-${ERROR_LOG_CLEANUP_THRESHOLD_PATH}}" ; shift || :
+  local header="${1:-1}" ; shift
+
+  local debug=0
+
+  # Prereqs: Users of this function must also source gen_bash_quote_funcs.
+  # This function expects that the stdin to this function is an an error message.  This function will process the error message as follows:
+  # - It will print the message to stderr.
+  # - It will determine if it should be e-mailed based on these parameter variables (note that they default to the global variables shown above):
+  #   - error_email_list_path                   This variable may contain a path name to a file which contains a list of e-mail addresses.  If either a) this variable is blank a) there is no such file or c) the file contains no e-mail list, then no e-mail will be sent.  The format of an error_email_list file is:
+  #     - Any line containing '#' is a comment line.
+  #     - The first non-comment line must contain all of your comma-separated e-mail addresses.  Example:
+  #     micwalsh@us.ibm.com,dlshaw@us.ibm.com
+  #
+  # The 2 environment variables below provide a means of limiting the number of virtually identical messages that will get e-mailed.
+  #   - error_log_path                          This variable may contain a file path to an error log file.  All errors which are e-mailed by this function are also logged to this file.  If this file contains an entry with the same '**ERROR**' line as the one being processed, no email will be sent.
+  #   - error_log_cleanup_threshold_path        This variable is only relevant if error_log_path has a value.  This variable may contain a path to a file which contains a cleanup threshold value.  See the clean_log_file help text for details.  The format of this file is similar to the format of the error_email_list_path regarding comments.  The first non-blank line must contain the threshold value.  If either a) this variable is blank a) there is no such file or c) the file contains no threshold value, then the threshold will default to $default_threshold (see definition below).
+  # When e-mail is sent, your first line of text will be the subject line.
+  # The quiet variable may be specified to keep this function from printing text which chronicles its own processing.
+  # If the caller is routing stderr to /dev/null, we'll take it to mean that they don't want email sent either.
+
+
+  # Example usage:
+  # Where you would otherwise code something like this:
+  # { print_error ; echo "Test." ; print_call_stack ; } >&2
+  # You would instead code this:
+  # { print_error ; echo "Test." ; print_call_stack ; } | process_error_message
+  # In this case, any resulting e-mail would look something like this:
+  # Subject: #(CDT) 2012/09/05 15:30:55 - **ERROR** Test.
+  # Body:
+  #
+  # --------------------------------------------------------------------------------
+  # bash function call stack
+  #
+  # Line # Function name and arguments
+  # ------ -------------------------------------------------------------------------
+  # 471 print_call_stack
+  # select_dvt_pool_lcb --system=pfdfb03 --release=fips763 --driver=1236 --build=latest --lcb_host_regex="" --pool_dir_path=/afs/rchland.ibm.com/usr8/csptest/autoipl/dvt_pools/apollodev/ --quiet=n
+  # --------------------------------------------------------------------------------
+  #
+
+  local cmd_buf
+  local temp_misc_file
+  local subject
+  local subject_regex
+  local email_address_list
+  local line
+  local default_threshold='1 hour ago'
+  local threshold="${default_threshold}"
+
+  # Perf: .001 (if not first call when BASHPID is not set).
+  create_temp_file_name temp_misc_file "error" 0
+
+  (( debug )) && print_var temp_misc_file
+
+  # The first line containing the error indicator ('**ERROR**') will be considered the subject line.
+  #local error_indicator_regex='**ERROR**'
+  # Perf: escape_metachars takes .003.  We'll just set error_indicator_regex the way we want from the start.
+  local error_indicator_regex='\*\*ERROR\*\*'
+  #escape_metachars error_indicator_regex || { rm -f $temp_misc_file ; return 1 ; }
+
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+  #if ! bash_regex_op_valid ; then
+    cmd_buf="echo \"\${line}\" | grep -Eq '${error_indicator_regex}'"
+  else
+    cmd_buf="[[ \"\${line}\" =~ '${error_indicator_regex}' ]]"
+  fi
+
+  local stdin_has_data=0
+
+  echo '====================================================================================================' >> $temp_misc_file
+
+  # First read all text from stdin and move it to our temp file (obtaining the subject line in the process).
+  # The "-r" means that backslashes in the input text are not considered escape characters.
+  # The "-t 1" means timeout after 1 second.  We don't want to hang if a caller fails to pipe text to this function.  Instead we will fail with an error message.
+  # Clearing IFS makes the read respect leading spaces in caller's piped text.
+  # 2015/04/06 Mike Walsh - We don't want this function to be at the mercy of calling functions who may have set IFS to some odd value so we will set it to default_IFS when needed.
+  local default_IFS=$' \t\n'
+  #local save_IFS="${IFS}"
+  IFS=''
+  while read -r -t 1 line ; do
+    # Restore IFS for loop body to prevent any strange processing.
+    #IFS="${save_IFS}"
+    IFS="${default_IFS}"
+    stdin_has_data=1
+    [ -z "${subject}" ] && eval $cmd_buf && subject="${line}"
+    echo "${line}"
+    IFS=''
+  done >> $temp_misc_file
+  #IFS="${save_IFS}"
+  IFS="${default_IFS}"
+
+  local loc_ret_code=0
+  if (( ! stdin_has_data )) ; then
+    #{ print_error ; echo "Programmer error - Incorrect use of the $FUNCNAME function: You are required to pipe error text to this function.  No such error text was found." ; } >&2
+    #rm -f $temp_misc_file
+    #return 1
+    { print_error ; echo "Programmer error - Incorrect use of the $FUNCNAME function: You are required to pipe error text to this function.  No such error text was found." ; } >> $temp_misc_file
+    loc_ret_code=1
+  fi
+
+  if [ -z "${subject}" ] ; then
+    #{ print_error ; echo "Programmer error - Incorrect use of the $FUNCNAME function: The text piped to this function must include a line containing the \"\*\*ERROR\*\*\" string." ; } >&2
+    #rm -f $temp_misc_file
+    #return 1
+    { print_error ; echo "Programmer error - Incorrect use of the $FUNCNAME function: The text piped to this function must include a line containing the \"\*\*ERROR\*\*\" string." ; } >> $temp_misc_file
+    loc_ret_code=1
+  fi
+
+  (( debug )) && print_var subject
+
+  local indent=2
+  grep -Eq "bash function call stack" $temp_misc_file || { if [ "${u_name:=$(uname)}" == "AIX" ] ; then echo ; else print_call_stack ${indent} ; fi ; } >> $temp_misc_file
+
+  local save_quiet=$quiet
+  quiet=0
+  #egrep -q "Program parameter values" $temp_misc_file || { gen_print_header "" ${indent} "" 0 ; } >> $temp_misc_file
+
+  # grep -q "Program parameter values" $temp_misc_file || { gen_print_header "" ${indent} "" 0 ; } >> $temp_misc_file
+  if (( header )) ; then
+    grep -q "Program parameter values" $temp_misc_file || { gen_print_header "" ${indent} "" 0 ; } >> $temp_misc_file
+  fi
+
+  quiet=$save_quiet
+  echo '====================================================================================================' >> $temp_misc_file
+  # Print text to stderr.
+  cat $temp_misc_file >&2
+
+  # If there is no email list path we're done.
+  [ ! -f "${error_email_list_path}" ] && { rm -f $temp_misc_file ; return 0 ; }
+
+  # Read email list from file.
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    cmd_buf="! echo \"\${email_address_list}\" | egrep -q '#'"
+  else
+    cmd_buf="! [[ \"\${email_address_list}\" =~ \"#\" ]]"
+  fi
+  while read email_address_list ; do eval $cmd_buf && break ; done < ${error_email_list_path}
+  (( debug )) && print_var email_address_list
+
+  # If there is no email list we're done.
+  [ -z "${email_address_list}" ] && { rm -f $temp_misc_file ; return 0 ; }
+
+  # There is a valid email_address_list...
+
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    [ ! -t 2 ] && { rm -f $temp_misc_file ; return 0 ; }
+  else
+    # If the caller is routing stderr to /dev/null, we'll take it to mean that they don't want email sent either.
+    local pid
+    local filler
+    # $$ is the main process pid.  We need the subshell pid (in case this is being run in a sub-shell).
+    read pid filler < /proc/self/stat
+    local stderr_target=$(readlink /proc/${pid}/fd/2)
+
+    #(( ! quiet )) && print_var stderr_target
+
+    [ "${stderr_target}" == "/dev/null" ] && { rm -f $temp_misc_file ; return 0 ; }
+  fi
+
+  # We must limit our regex width to be no more than what the cmd_field_width we're specifying when writing to the error log.
+  local cmd_field_width=1000
+  subject_regex=${subject:0:${cmd_field_width}}
+  subject_regex=${subject_regex#* - }
+
+  # If these variables are set, we can expect the '**ERROR**' line to have additional data which must be stripped off.
+  if (( SHOW_ELAPSED_TIME )) ; then subject_regex=${subject_regex#* - } ; fi
+  if (( SHOW_UTC )) ; then subject_regex=${subject_regex#* - } ; fi
+
+  escape_metachars subject_regex || { rm -f $temp_misc_file ; return 1 ; }
+  escape_quotes subject_regex single || { rm -f $temp_misc_file ; return 1 ; }
+
+  escape_quotes subject single || { rm -f $temp_misc_file ; return 1 ; }
+
+  (( debug )) && print_vars subject subject_regex
+
+  # Try to create error log path for user.
+  [ ! -z "${error_log_path}" ] && touch "${error_log_path}"
+  if [ -f "${error_log_path}" ] ; then
+
+    if [ -f "${error_log_cleanup_threshold_path}" ] ; then
+      if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+        cmd_buf="! echo \"\${threshold}\" | egrep -q \"#\""
+      else
+        cmd_buf="! [[ \"\${threshold}\" =~ \"#\" ]]"
+      fi
+      while read threshold ; do eval $cmd_buf && break ; done < ${error_log_cleanup_threshold_path}
+      [ -z "${threshold}" ] && threshold="${default_threshold}"
+    fi
+
+    if [ "${u_name:=$(uname)}" != "AIX" ] ; then
+      # Note that clean_log_file won't run on AIX currently because it uses 'date -d' which AIX doesn't support.
+      # Clean log file before grepping it.
+      cmd_buf="clean_log_file --file_path=${error_log_path} --threshold='${threshold}' --force=y";
+      (( ! quiet )) && issuing
+      eval $cmd_buf
+    fi
+
+    # See if this message has already been emailed within threshold time.
+    if FSP_machine ; then
+      cmd_buf="grep -q '${subject_regex}' ${error_log_path}"
+    else
+      cmd_buf="egrep -q '${subject_regex}' ${error_log_path}"
+    fi
+    (( ! quiet )) && issuing
+    eval $cmd_buf
+    if [ "${?}" == "0" ] ; then
+      (( ! quiet )) &&  { print_time ; echo "We have already emailed this message to \"${email_address_list}\" within the threshold period (which is \"${threshold}\")." ; }
+      rm -f $temp_misc_file
+      return 0
+    fi
+
+    # Nothing has yet disqualified us from emailing so we'll log to the error log.
+    cmd_buf="log_usage --cmd_field_width=${cmd_field_width} --usage_log_path=\"${error_log_path}\" -- '${subject}'"
+    (( ! quiet )) && issuing
+    eval $cmd_buf
+  fi
+
+  cmd_buf="mail -s '${subject}' \"${email_address_list}\" < $temp_misc_file"
+  (( ! quiet )) && issuing
+  eval $cmd_buf
+
+  rm -f $temp_misc_file
+
+}
+################################################################################
+
+
+
+# Perf: 0.0000502 seconds to run print_dashes (i.e. 20,000 per second).
+################################################################################
+function print_dashes {
+
+  echo '----------------------------------------------------------------------------------------------------'
+}
+################################################################################
+
+
+
+################################################################################
+function set_BASHPID {
+
+  # Since bash doesn't support BASHPID until version 4, this function may be called to set BASHPID.
+  local IFS=$' \t\n'
+  local filler
+  if [ "${u_name:=$(uname)}" == "AIX" ] ; then
+    BASHPID=$(bash -c 'echo $PPID')
+  else
+    read BASHPID filler < /proc/self/stat
+  fi
+
+}
+################################################################################
+
+
+
+################################################################################
+function var_to_bash_var {
+  local var_name_var="${1}" ; shift 1 || :
+
+  if [ -z "${var_name_var}" ] ; then
+    { print_error "Function ${FUNCNAME}, line ${LINENO}: Parameter \"var_name_var\" has an invalid value of \"${var_name_var}\"." ; print_call_stack ; echo ; } >&2
+    return 1
+  fi
+
+  eval ${var_name_var}=${!var_name_var//./_}
+
+  eval ${var_name_var}=${!var_name_var//-/_}
+
+}
+################################################################################
+
+
+
+if ! test "${func_parms_regex+defined}" ; then
+  readonly valid_bash_var_regex="[_a-zA-Z][_a-zA-Z0-9]*"
+  readonly func_parms_regex="[ ]*local[ ]+${valid_bash_var_regex}=\\\"\\$\{[1-9].*\}\\\"[ ]*(;|$)"
+fi
+################################################################################
+function get_func_parms {
+  local func_name="${1}" ; shift
+  local parm_list_var="${1}" ; shift
+  local delim="${1:- }" ; shift
+
+  # This function will return a list of the parms for the named function.  Note: This function is only guaranteed to work for functions that declare parms in the following format:
+  # local parm_name="${1}" ; shift
+
+  case "${func_name}" in "")
+    valid_value func_name || return 1
+  esac
+
+  case "${parm_list_var}" in "")
+    valid_value parm_list_var || return 1
+  esac
+
+  local cmd_buf="${parm_list_var}=\$(type $func_name | egrep '${func_parms_regex}' | sed -re 's/[ ]*local[ ]+(${valid_bash_var_regex}).*/\1/g')"
+  #issuing
+  eval ${cmd_buf}
+
+  remove_cr_lf ${parm_list_var} 1 "${delim}"
+
+}
+################################################################################
+
+
+
+
