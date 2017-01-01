@@ -97,6 +97,7 @@ def test_fwts():
 
 import os
 import unittest
+import xmlrunner
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
@@ -115,4 +116,4 @@ class OpalFWTSTests(unittest.TestCase):
         opTestFWTS.test_fwts()
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='%s/test-reports' % full_path))

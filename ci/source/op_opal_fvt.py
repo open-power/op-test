@@ -485,6 +485,7 @@ def test_list_pci_device_info():
 
 import os
 import unittest
+import xmlrunner
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
@@ -668,4 +669,4 @@ class OpalEEH(unittest.TestCase):
         opTestEEH.test_basic_frozen_pe()
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='%s/test-reports' % full_path))
