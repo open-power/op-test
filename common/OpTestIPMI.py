@@ -1086,7 +1086,7 @@ class OpTestIPMI():
             if count > 120:
                 l_msg = "IPMI: not able to get sol console"
                 raise OpTestError(l_msg)
-        l_con.logfile = sys.stdout
+        l_con.logfile_read = sys.stdout
         l_con.delaybeforesend = BMC_CONST.IPMI_CON_DELAY_BEFORE_SEND
         return l_con
 
