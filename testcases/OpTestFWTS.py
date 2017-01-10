@@ -116,18 +116,7 @@ class OpTestFWTS():
     #
     def test_system_reboot(self):
         print "Testing FWTS: Booting system to OS"
-        print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.cv_SYSTEM.sys_hard_reboot()
         self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
 
         print "Gathering the OPAL msg logs"

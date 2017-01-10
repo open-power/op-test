@@ -290,6 +290,9 @@ class OpTestIPMI():
         sol = self._ipmi_sol_capture()
         timeout = time.time() + 60*timeout
         cmd = 'sdr elist |grep \'Host Status\''
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + cmd)
+        if not "Host Status" in output:
+            return BMC_CONST.FW_PARAMETER
         while True:
             output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + cmd)
             if 'S0/G0: working' in output:
@@ -351,6 +354,9 @@ class OpTestIPMI():
     def ipmi_wait_for_standby_state(self, i_timeout=120):
         l_timeout = time.time() + i_timeout
         l_cmd = 'sdr elist |grep \'Host Status\''
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+        if not "Host Status" in output:
+            return BMC_CONST.FW_PARAMETER
         while True:
             l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
             if BMC_CONST.CHASSIS_SOFT_OFF in l_output:
@@ -380,6 +386,9 @@ class OpTestIPMI():
     def ipmi_wait_for_os_boot_complete(self, i_timeout=10):
         l_timeout = time.time() + 60*i_timeout
         l_cmd = 'sdr elist |grep \'OS Boot\''
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+        if not "OS Boot" in output:
+            return BMC_CONST.FW_PARAMETER
         while True:
             l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
             if BMC_CONST.OS_BOOT_COMPLETE in l_output:

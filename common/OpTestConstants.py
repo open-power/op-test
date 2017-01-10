@@ -163,6 +163,7 @@ class OpTestConstants():
     FW_SUCCESS = 0
     FW_FAILED = 1
     FW_INVALID = 2
+    FW_PARAMETER = 4
 
     # PingFunc Constants
     PING_FAILED = 0
