@@ -372,7 +372,7 @@ sub runAllTests
 		    push @restrict_env, $r_node->textContent;
 		}
 
-                push(@testcases_to_run, new Testcase(id=>"$testgrp.$testcase_index",
+                push(@testcases_to_run, new Testcase(id=>"$testcase_index.$testgrp",
 					cmd=>$cmd, arg=>$arg, ffdc=>$ffdc,
 					exitonerror=>$exitonerror,
 					restrict_env=>\@restrict_env));

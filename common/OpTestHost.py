@@ -1284,3 +1284,49 @@ class OpTestHost():
         with open(fn, 'w') as f:
             f.write(l_data)
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function checks for device tree property of a given
+    # path and property name
+    # @i_node_path is the device tree root ex: /proc/device-tree
+    # @i_prop is the property name ex: trusted_enabled
+    # @return True or False
+    #
+    def host_dt_prop_exists(self, i_node_path, i_prop):
+        l_prop_path = i_node_path + "/" + i_prop
+        l_cmd = "test -f %s; echo $?" % l_prop_path
+        l_out = self.host_run_command(l_cmd)
+        l_out = l_out.strip("\n\r")
+        if int(l_out) == 0:
+             return True
+        else:
+             return False
+
+    ##
+    # @brief This function checks for given device tree path
+    # @i_node_path is the device tree root ex: /proc/device-tree
+    # @i_dir is the directory name ex: ibm,secureboot
+    # @return True or False
+    #
+    def host_dt_dir_exists(self, i_node_path, i_dir):
+        l_dir_path = i_node_path + "/" + i_dir
+        l_cmd = "test -d %s; echo $?" % l_dir_path
+        l_out = self.host_run_command(l_cmd)
+        l_out = l_out.strip("\n\r")
+        if int(l_out) == 0:
+             return True
+        else:
+             return False
+
+    ##
+    # @brief This function reads the secure boot version from
+    # 'compatible' file of ibm,secureboot device tree node.
+    # @return secure boot version
+    #
+    def host_get_secureboot_version(self, i_node_path, i_dir):
+        l_dir_path = i_node_path + "/" + i_dir + "/compatible"
+        l_cmd = "cat -A %s" % l_dir_path
+        l_out = self.host_run_command(l_cmd)
+        l_out = l_out.strip("\n\r").strip("^@")
+        if l_out:
+             return l_out
