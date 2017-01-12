@@ -179,12 +179,7 @@ class OpTestHMIHandling():
     def clearGardEntries(self):
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         # Power off and on the system.
-        self.cv_IPMI.ipmi_power_off()
-        self.cv_IPMI.ipmi_power_on()
-        if int(self.cv_SYSTEM.sys_ipl_wait_for_working_state()):
-            l_msg = "System failed to boot host OS"
-            raise OpTestError(l_msg)
-        time.sleep(BMC_CONST.HOST_BRINGUP_TIME)
+        self.cv_SYSTEM.sys_hard_reboot()
 
         # Clearing gard entries after host comes up
         self.cv_HOST.host_get_OS_Level()
@@ -212,12 +207,8 @@ class OpTestHMIHandling():
         self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
 
         # Rebooting the system again to make use of garded hardware
-        self.cv_IPMI.ipmi_power_off()
-        self.cv_IPMI.ipmi_power_on()
-        if int(self.cv_SYSTEM.sys_ipl_wait_for_working_state()):
-            l_msg = "System failed to boot host OS"
-            raise OpTestError(l_msg)
-        time.sleep(BMC_CONST.HOST_BRINGUP_TIME)
+        self.cv_SYSTEM.sys_hard_reboot()
+
         self.cv_HOST.host_get_OS_Level()
         self.cv_SYSTEM.sys_ipmi_close_console(l_con)
 

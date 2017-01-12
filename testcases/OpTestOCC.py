@@ -82,15 +82,7 @@ class OpTestOCC():
     def test_occ_reset_functionality(self):
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
+        self.cv_SYSTEM.sys_hard_reboot()
         if self.check_occ_status() == BMC_CONST.FW_FAILED:
             l_msg = "OCC's are not in active state"
             #raise OpTestError(l_msg)
@@ -125,14 +117,7 @@ class OpTestOCC():
             l_msg = "OCC's are not in active state, rebooting the system"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
+        self.cv_SYSTEM.sys_hard_reboot()
         if self.check_occ_status() == BMC_CONST.FW_FAILED:
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)
@@ -148,14 +133,7 @@ class OpTestOCC():
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
+        self.cv_SYSTEM.sys_hard_reboot()
         if self.check_occ_status() == BMC_CONST.FW_FAILED:
             l_msg = "OCC's are not in active state after rebooting"
             raise OpTestError(l_msg)
@@ -179,16 +157,8 @@ class OpTestOCC():
             print "OPAL-PRD: occ query reset reload count"
             self.cv_HOST.host_run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
 
-        print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
+        self.cv_SYSTEM.sys_hard_reboot()
         if self.check_occ_status() == BMC_CONST.FW_FAILED:
             l_msg = "OCC's are not in active state after rebooting"
             raise OpTestError(l_msg)
@@ -201,16 +171,8 @@ class OpTestOCC():
     #
     def test_occ_enable_disable_functionality(self):
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-        print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
+        self.cv_SYSTEM.sys_hard_reboot()
         if self.check_occ_status() == BMC_CONST.FW_FAILED:
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)
@@ -223,16 +185,8 @@ class OpTestOCC():
             if self.check_occ_status() == BMC_CONST.FW_FAILED:
                 l_msg = "OCC's are not in active state"
                 #raise OpTestError(l_msg)
-        print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
+        self.cv_SYSTEM.sys_hard_reboot()
         if self.check_occ_status() == BMC_CONST.FW_FAILED:
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)

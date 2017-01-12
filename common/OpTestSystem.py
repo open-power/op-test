@@ -291,8 +291,12 @@ class OpTestSystem():
     def sys_hard_reboot(self):
         print "Performing a IPMI Power OFF Operation"
         self.cv_IPMI.ipmi_power_off()
-        if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+        rc = int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
+        if rc == BMC_CONST.FW_SUCCESS:
             print "System is in standby/Soft-off state"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            print "Host Status sensor is not available"
+            print "Skipping stand-by state check"
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
@@ -309,13 +313,21 @@ class OpTestSystem():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_check_host_status(self):
-        if int(self.sys_ipl_wait_for_working_state()) == BMC_CONST.FW_SUCCESS:
+        rc = int(self.sys_ipl_wait_for_working_state())
+        if rc == BMC_CONST.FW_SUCCESS:
             print "System booted to working state"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            print "Host Status sensor is not available"
+            print "Skip wait for IPL runtime check"
         else:
             l_msg = "System failed to boot"
             raise OpTestError(l_msg)
-        if int(self.sys_wait_for_os_boot_complete()) == BMC_CONST.FW_SUCCESS:
+        rc = int(self.sys_wait_for_os_boot_complete())
+        if rc == BMC_CONST.FW_SUCCESS:
             print "System booted to Host OS"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            print "OS Boot sensor is not available"
+            print "Skip wait for wait for OS boot complete check"
         else:
             l_msg = "System failed to boot Host OS"
             raise OpTestError(l_msg)
