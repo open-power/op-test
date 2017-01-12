@@ -1284,3 +1284,35 @@ class OpTestHost():
         with open(fn, 'w') as f:
             f.write(l_data)
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function disables kdump service
+    #
+    # @param os_level: string output of /etc/os-release
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_disable_kdump_service(self, os_level):
+        if "Ubuntu" in os_level:
+            self.host_run_command("systemctl stop kdump-tools.service")
+            self.host_run_command("systemctl status kdump-tools.service")
+        else:
+            self.host_run_command("systemctl stop kdump.service")
+            self.host_run_command("systemctl status kdump.service")
+
+    ##
+    # @brief This function disables kdump service
+    #
+    # @param os_level: string output of /etc/os-release
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_enable_kdump_service(self, os_level):
+        if "Ubuntu" in os_level:
+            self.host_run_command("systemctl stop kdump-tools.service")
+            self.host_run_command("systemctl start kdump-tools.service")
+            self.host_run_command("systemctl status kdump-tools.service")
+        else:
+            self.host_run_command("systemctl stop kdump.service")
+            self.host_run_command("systemctl start kdump.service")
+            self.host_run_command("service status kdump.service")

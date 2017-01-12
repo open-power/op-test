@@ -322,6 +322,24 @@ class OpTestSystem():
 
         return BMC_CONST.FW_SUCCESS
 
+    ##
+    # @brief This function will check for system status and wait for
+    #        FW and Host OS Boot progress to complete.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def sys_check_host_status_v1(self):
+        if int(self.cv_IPMI.ipmi_ipl_wait_for_working_state_v1()) == BMC_CONST.FW_SUCCESS:
+            print "System booted to working state"
+        else:
+            print "There is no Host Status sensor...."
+        if int(self.cv_IPMI.ipmi_wait_for_os_boot_complete_v1()) == BMC_CONST.FW_SUCCESS:
+            print "System booted to Host OS"
+        else:
+            print "There is no OS Boot sensor..."
+
+        return BMC_CONST.FW_SUCCESS
+
 
     ##
     # @brief Issue IPMI PNOR Reprovision request command

@@ -66,6 +66,7 @@ from testcases.OpTestPCI import OpTestPCI
 from testcases.OpTestFastReboot import OpTestFastReboot
 from testcases.OpTestNVRAM import OpTestNVRAM
 from testcases.OpTestEEH import OpTestEEH
+from testcases.OpTestKernel import OpTestKernel
 
 
 def _config_read():
@@ -240,6 +241,14 @@ opTestEEH = OpTestEEH(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg.get('passwordipmi'),
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+
+opTestKernel = OpTestKernel(bmcCfg['ip'], bmcCfg['username'],
+                            bmcCfg['password'],
+                            bmcCfg.get('usernameipmi'),
+                            bmcCfg.get('passwordipmi'),
+                            testCfg['ffdcdir'], hostCfg['hostip'],
+                            hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 def test_init():
     """This function validates the test config before running other functions
@@ -486,6 +495,7 @@ def test_list_pci_device_info():
 import os
 import unittest
 import xmlrunner
+import sys
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
@@ -497,6 +507,9 @@ import ci.source.op_fwts_fvt as op_fwts_fvt
 import ci.source.op_outofband_firmware_update as op_outofband_firmware_update
 import ci.source.op_firmware_component_update as op_firmware_component_update
 import ci.source.op_bmc_web_update as op_bmc_web_update
+
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 class OpalPCI(unittest.TestCase):
     def setUp(self):
@@ -667,6 +680,17 @@ class OpalEEH(unittest.TestCase):
 
     def test_basic_frozen_pe(self):
         opTestEEH.test_basic_frozen_pe()
+
+class OpalKernelCrashTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_kernel_crash_kdump_disable(self):
+        opTestKernel.test_kernel_crash_kdump_disable()
+
+    def test_kernel_crash_kdump_enable(self):
+        opTestKernel.test_kernel_crash_kdump_enable()
 
 if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='%s/test-reports' % full_path))
