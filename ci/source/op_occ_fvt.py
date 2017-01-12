@@ -168,6 +168,9 @@ class OpalOCCTests(unittest.TestCase):
         bmcCfg, testCfg, hostCfg = _config_read()
         test_init()
 
+    def test_slw_info(self):
+        opTestEM.test_slw_info()
+
     def test_cpu_idle_states(self):
         opTestEM.test_cpu_idle_states()
 
