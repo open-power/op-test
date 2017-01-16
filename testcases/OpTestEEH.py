@@ -306,18 +306,24 @@ class OpTestEEH():
     #
     def run_pe_4(self, addr, e, f, phb, pe, con):
         self.prepare_logs()
-        count_old = self.check_eeh_slot_resets()
+        slot_reset_count_old = self.check_eeh_slot_resets()
+        interface_count_old = self.get_count_of_interfaces_in_pci_devices(pe)
         rc = self.inject_error(addr, e, f, phb, pe)
         if rc != 0:
             print "Skipping verification as command failed"
             return
         # Give some time to EEH PCI Error recovery
         time.sleep(60)
-        count = self.check_eeh_slot_resets()
-        if int(count) > int(count_old):
+        slot_reset_count = self.check_eeh_slot_resets()
+        if int(slot_reset_count) > int(slot_reset_count_old):
             print "PE Slot reset happenned successfully on pe: %s" % pe
         else:
             print "PE Slot reset not happened on pe: %s" % pe
+        interface_count = self.get_count_of_interfaces_in_pci_devices(pe)
+        if interface_count == interface_count_old:
+            print "PE interfaces recovery happenned successfully on pe: %s" % pe
+        else:
+            print "PE interfaces recovery not happened on pe: %s" % pe
         con.sendline("\r\n")
         self.gather_logs()
         if not self.check_eeh_pe_recovery(pe):
@@ -379,3 +385,14 @@ class OpTestEEH():
             if pe in device:
                 return True
         return False
+
+
+    ##
+    # @brief  This function is used to get count of interfaces in PCI devices
+    #         available at that instant of time.
+    #
+    # @returns count @type int: interface count
+    #
+    def get_count_of_interfaces_in_pci_devices(self, pci_addr):
+        cmd = "ls -l /sys/class/*/ -1 | grep %s" % pci_addr
+        return len(self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd))
