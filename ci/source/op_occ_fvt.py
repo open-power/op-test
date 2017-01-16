@@ -156,6 +156,7 @@ def test_cpu_idle_states():
 
 import os
 import unittest
+import xmlrunner
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
@@ -192,4 +193,4 @@ class OpalOCCTests(unittest.TestCase):
         opTestOCC.test_occ_enable_disable_functionality()
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='%s/test-reports' % full_path))

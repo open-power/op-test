@@ -123,8 +123,12 @@ class OpTestEnergyScale():
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
+        if rc == BMC_CONST.FW_SUCCESS:
             print "System is in standby/Soft-off state"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            print "Host Status sensor is not available"
+            print "Skipping stand-by state check"
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
@@ -204,8 +208,12 @@ class OpTestEnergyScale():
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
+        if rc == BMC_CONST.FW_SUCCESS:
             print "System is in standby/Soft-off state"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            print "Host Status sensor is not available"
+            print "Skipping stand-by state check"
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
@@ -259,8 +267,12 @@ class OpTestEnergyScale():
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
+        if rc == BMC_CONST.FW_SUCCESS:
             print "System is in standby/Soft-off state"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            print "Host Status sensor is not available"
+            print "Skipping stand-by state check"
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
@@ -307,8 +319,12 @@ class OpTestEnergyScale():
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
-        if int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
+        if rc == BMC_CONST.FW_SUCCESS:
             print "System is in standby/Soft-off state"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            print "Host Status sensor is not available"
+            print "Skipping stand-by state check"
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)

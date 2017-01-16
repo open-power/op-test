@@ -71,6 +71,8 @@ class OpTestHost():
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
         self.cv_ffdcDir = i_ffdcDir
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        self.results_dir = os.path.join(parent_dir.split('common')[0], "out/logs/")
 
 
     ##
@@ -316,6 +318,7 @@ class OpTestHost():
         print l_res
         return l_res
 
+    ##
     # @brief It will gather OPAL Message logs and store the copy in a logfile
     #        which will be stored in FFDC dir.
     #
@@ -328,9 +331,10 @@ class OpTestHost():
             l_msg = "Failed to gather OPAL message logs"
             raise OpTestError(l_msg)
 
-        l_res = commands.getstatusoutput("date +%Y%m%d_%H%M")
-        l_logFile = "Opal_msglog_%s.log" % l_res[1]
-        fn = self.cv_ffdcDir + "/" + l_logFile
+        l_res = (time.asctime(time.localtime())).replace(" ", "_")
+        l_logFile = "Opal_msglog_%s.log" % l_res
+        fn = os.path.join(self.results_dir, l_logFile)
+        print fn
         with open(fn, 'w') as f:
             f.write(l_data)
         return BMC_CONST.FW_SUCCESS
@@ -1324,3 +1328,64 @@ class OpTestHost():
     #
     def host_enable_single_core(self):
         self.host_run_command("ppc64_cpu --cores-on=1")
+
+    ##
+    # @brief This function is used to get list of PCI PHB domains.
+    #
+    # @return self.pci_domains list of PHB domains @type list or raise OpTestError
+    #
+    def host_get_list_of_pci_domains(self):
+        self.pci_domains = []
+        self.host_run_command("lspci -mm")
+        res = self.host_run_command('lspci -mm | cut -d":" -f1 | sort | uniq')
+        res = res.splitlines()
+        for domain in res:
+            if not domain:
+                continue
+            if len(domain) != 4:
+                domain = ''.join(("00", domain))
+            domain = 'PCI' + domain
+            if not self.pci_domains.__contains__(domain):
+                self.pci_domains.append(domain)
+        print self.pci_domains
+        return self.pci_domains
+
+    ##
+    # @brief This function is used to get the PHB domain of root port where
+    #        the filesystem is mounted(We need to skip this in EEH tests as recovery
+    #        will fail on this domain is expected)
+    #
+    # @return boot_domain root PHB @type string or raise OpTestError
+    #
+    def host_get_root_phb(self):
+        cmd = "df -h /boot | awk 'END {print $1}'"
+        res = self.host_run_command(cmd)
+        boot_disk = res.split("/dev/")[1]
+        boot_disk = boot_disk.replace("\r\n", "")
+        cmd  = "ls -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
+        res = self.host_run_command(cmd)
+        matchObj = re.search(r"\d{4}(?!\d)", res, re.S)
+        if not matchObj:
+            raise OpTestError("Not able to find out root phb domain")
+        boot_domain = 'PCI' + matchObj.group(0)
+        return  boot_domain
+
+    ##
+    # @brief It will gather kernel dmesg logs and store the copy in a logfile
+    #        which will be stored in results dir.
+    #
+    # @return BMC_CONST.FW_SUCCESS  or raise OpTestError
+    #
+    def host_gather_kernel_log(self):
+        try:
+            l_data = self.host_run_command("dmesg")
+        except OpTestError:
+            l_msg = "Failed to gather kernel dmesg log"
+            raise OpTestError(l_msg)
+        l_res = (time.asctime(time.localtime())).replace(" ", "_")
+        l_logFile = "Kernel_dmesg_log_%s.log" % l_res
+        fn = os.path.join(self.results_dir, l_logFile)
+        print fn
+        with open(fn, 'w') as f:
+            f.write(l_data)
+        return BMC_CONST.FW_SUCCESS

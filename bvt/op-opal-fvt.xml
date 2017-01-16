@@ -323,5 +323,29 @@
             </testcase>
         </test>
 
+        <test>
+            <name>Test OPAL EEH basic fenced phb</name>
+            <testcase>
+              <cmd>../ci/source/op_opal_fvt.py OpalEEH.test_basic_fenced_phb</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test OPAL EEH max fenced phb</name>
+            <testcase>
+              <cmd>../ci/source/op_opal_fvt.py OpalEEH.test_max_fenced_phb</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
+            <name>Test OPAL EEH basic frozen PE</name>
+            <testcase>
+              <cmd>../ci/source/op_opal_fvt.py OpalEEH.test_basic_frozen_pe</cmd>
+              <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
     </platform>
 </integrationtest>

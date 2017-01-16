@@ -65,6 +65,7 @@ from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
 from testcases.OpTestPCI import OpTestPCI
 from testcases.OpTestFastReboot import OpTestFastReboot
 from testcases.OpTestNVRAM import OpTestNVRAM
+from testcases.OpTestEEH import OpTestEEH
 from testcases.OpTestCAPI import OpTestCAPI
 
 
@@ -233,6 +234,13 @@ opTestNVRAM = OpTestNVRAM(bmcCfg['ip'], bmcCfg['username'],
                           bmcCfg.get('passwordipmi'),
                           testCfg['ffdcdir'], hostCfg['hostip'],
                           hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestEEH = OpTestEEH(bmcCfg['ip'], bmcCfg['username'],
+                      bmcCfg['password'],
+                      bmcCfg.get('usernameipmi'),
+                      bmcCfg.get('passwordipmi'),
+                      testCfg['ffdcdir'], hostCfg['hostip'],
+                      hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestCAPI = OpTestCAPI(bmcCfg['ip'], bmcCfg['username'],
                         bmcCfg['password'],
@@ -485,6 +493,7 @@ def test_list_pci_device_info():
 
 import os
 import unittest
+import xmlrunner
 
 import ConfigParser
 from common.OpTestSystem import OpTestSystem
@@ -653,6 +662,20 @@ class OpalReprovisionTests(unittest.TestCase):
     def test_gard_ipmi_reprovision(self):
         opTestIPMIReprovision.test_gard_ipmi_reprovision()
 
+class OpalEEH(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_basic_fenced_phb(self):
+        opTestEEH.test_basic_fenced_phb()
+
+    def test_max_fenced_phb(self):
+        opTestEEH.test_max_fenced_phb()
+
+    def test_basic_frozen_pe(self):
+        opTestEEH.test_basic_frozen_pe()
+
 class OpalCAPI(unittest.TestCase):
     def setUp(self):
         bmcCfg, testCfg, hostCfg = _config_read()
@@ -671,4 +694,4 @@ class OpalCAPI(unittest.TestCase):
         opTestCAPI.test_timebase_sync()
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='%s/test-reports' % full_path))
