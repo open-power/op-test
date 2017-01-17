@@ -66,6 +66,7 @@ from testcases.OpTestPCI import OpTestPCI
 from testcases.OpTestFastReboot import OpTestFastReboot
 from testcases.OpTestNVRAM import OpTestNVRAM
 from testcases.OpTestEEH import OpTestEEH
+from testcases.OpTestDumps import OpTestDumps
 
 
 def _config_read():
@@ -240,6 +241,14 @@ opTestEEH = OpTestEEH(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg.get('passwordipmi'),
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'])
+
+opTestDumps = OpTestDumps(bmcCfg['ip'], bmcCfg['username'],
+                          bmcCfg['password'],
+                          bmcCfg.get('usernameipmi'),
+                          bmcCfg.get('passwordipmi'),
+                          testCfg['ffdcdir'], hostCfg['hostip'],
+                          hostCfg['hostuser'], hostCfg['hostpasswd'])
+
 
 def test_init():
     """This function validates the test config before running other functions
@@ -667,6 +676,17 @@ class OpalEEH(unittest.TestCase):
 
     def test_basic_frozen_pe(self):
         opTestEEH.test_basic_frozen_pe()
+
+class OpalFSPTests(unittest.TestCase):
+    def setUp(self):
+        bmcCfg, testCfg, hostCfg = _config_read()
+        test_init()
+
+    def test_system_dump(self):
+        opTestDumps.test_system_dump()
+
+    def test_fipsdump(self):
+        opTestDumps.test_fipsdump()
 
 if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='%s/test-reports' % full_path))
