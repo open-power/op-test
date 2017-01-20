@@ -536,9 +536,17 @@ class OpTestHMIHandling():
         return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief This function enables a single core
-    #
+    # @brief This function enables given number of cores
+    # @i_cores number of cores to set
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def host_enable_single_core(self):
-        self.cv_HOST.host_enable_single_core()
+    def host_enable_set_cores(self, i_cores):
+        self.cv_HOST.host_set_cores(i_cores)
+
+    ##
+    # @brief This function get the available cpu cores
+    #
+    # @return number of cpu cores
+    #
+    def host_get_present_cores(self):
+        return self.cv_HOST.host_get_cores()

@@ -1217,12 +1217,22 @@ class OpTestHost():
         self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES3)
 
     ##
-    # @brief This function enable only a single core
-    #
+    # @brief This function enable given number of cores
+    # @i_cores is the value of the cores to be enabled
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def host_enable_single_core(self):
-        self.host_run_command("ppc64_cpu --cores-on=1")
+    def host_set_cores(self, i_cores):
+        l_cmd = "ppc64_cpu --cores-on=%s" % i_cores
+        self.host_run_command(l_cmd)
+
+    ##
+    # @brief This function get the number of cores
+    #
+    # @return number of cores present
+    #
+    def host_get_cores(self):
+        out_put = self.host_run_command("ppc64_cpu --cores-present | cut -d'=' -f2")
+        return out_put.strip()
 
     ##
     # @brief This function is used to get list of PCI PHB domains.
