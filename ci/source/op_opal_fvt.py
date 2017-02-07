@@ -242,12 +242,12 @@ opTestEEH = OpTestEEH(bmcCfg['ip'], bmcCfg['username'],
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'])
 
-opTestDumps = OpTestDumps(bmcCfg['ip'], bmcCfg['username'],
-                          bmcCfg['password'],
-                          bmcCfg.get('usernameipmi'),
-                          bmcCfg.get('passwordipmi'),
-                          testCfg['ffdcdir'], hostCfg['hostip'],
-                          hostCfg['hostuser'], hostCfg['hostpasswd'])
+#opTestDumps = OpTestDumps(bmcCfg['ip'], bmcCfg['username'],
+#                          bmcCfg['password'],
+#                          bmcCfg.get('usernameipmi'),
+#                          bmcCfg.get('passwordipmi'),
+#                          testCfg['ffdcdir'], hostCfg['hostip'],
+#                          hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestKernel = OpTestKernel(bmcCfg['ip'], bmcCfg['username'],
                             bmcCfg['password'],
