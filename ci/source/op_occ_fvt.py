@@ -81,8 +81,8 @@ opTestOCC = OpTestOCC(bmcCfg['ip'], bmcCfg['username'],
 
 opTestEM = OpTestEM(bmcCfg['ip'], bmcCfg['username'],
                     bmcCfg['password'],
-                    bmcCfg['usernameipmi'],
-                    bmcCfg['passwordipmi'],
+                    bmcCfg.get('usernameipmi'),
+                    bmcCfg.get('passwordipmi'),
                     testCfg['ffdcdir'], hostCfg['hostip'],
                     hostCfg['hostuser'], hostCfg['hostpasswd'])
 
