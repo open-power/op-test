@@ -56,14 +56,14 @@ class OpTestSystem():
     # @param i_hostuser The userid to log into the Host
     # @param i_hostPasswd The password of the userid to log into the host with
     #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
+    def __init__(self,
                  i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP,i_bmcUser,i_bmcPasswd,i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
+                 i_hostuser=None, i_hostPasswd=None, bmc=None):
+        self.cv_BMC = bmc
+        self.cv_IPMI = OpTestIPMI(bmc.cv_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
                                   i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
-        self.cv_WEB = OpTestWeb(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi)
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, bmc.cv_bmcIP)
+        self.cv_WEB = OpTestWeb(bmc.cv_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi)
         self.util = OpTestUtil()
 
     ############################################################################

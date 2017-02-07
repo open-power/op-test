@@ -40,6 +40,7 @@ full_path = full_path.split('ci')[0]
 sys.path.append(full_path)
 
 import ConfigParser
+from common.OpTestBMC import OpTestBMC
 from common.OpTestSystem import OpTestSystem
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
@@ -55,8 +56,10 @@ def _config_read():
     other functions '''
 
 bmcCfg, testCfg, hostCfg = _config_read()
-opTestSys = OpTestSystem(bmcCfg['ip'],bmcCfg['username'],
-                         bmcCfg['password'],
+opTestSys = OpTestSystem(bmc=OpTestBMC(bmcCfg['ip'],
+                                       bmcCfg['username'],
+                                       bmcCfg['password'],
+                                       testCfg['ffdcdir']),
                          bmcCfg.get('usernameipmi'),
                          bmcCfg.get('passwordipmi'),
                          testCfg['ffdcdir'],

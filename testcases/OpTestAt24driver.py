@@ -68,7 +68,7 @@ class OpTestAt24driver():
         self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
                                   i_ffdcDir)
         self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd,i_bmcIP)
-        self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
+        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
                  i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
                  i_hostuser, i_hostPasswd)
         self.util = OpTestUtil()
