@@ -40,7 +40,6 @@ import commands
 #from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
 
 class OpTestIPMI():
@@ -56,9 +55,7 @@ class OpTestIPMI():
     # @param i_hostuser The userid to log into the HOST
     # @param i_hostPasswd The password of the userid to log into the HOST with
     #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, i_hostip=None,
-                       i_hostuser=None, i_hostPasswd=None):
-
+    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, host=None):
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd
@@ -70,9 +67,7 @@ class OpTestIPMI():
             self.cv_baseIpmiCmd += ' -P %s' % (self.cv_bmcPwd)
         self.cv_baseIpmiCmd += ' '
         self.util = OpTestUtil()
-        self.host_ip = i_hostip
-        self.host_user = i_hostuser
-        self.host_passwd = i_hostPasswd
+        self.host = host
 
 
     ##
@@ -1169,9 +1164,8 @@ class OpTestIPMI():
     #
     def ipmi_host_login(self, i_con):
         l_con = i_con
-        l_host = self.host_ip
-        l_user = self.host_user
-        l_pwd = self.host_passwd
+        l_user = self.host.username()
+        l_pwd = self.host.password()
         l_rc = l_con.expect_exact(BMC_CONST.IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT, timeout=120)
         if l_rc == 0:
             print "IPMI: sol console activated"

@@ -64,9 +64,9 @@ class OpTestIPMIReprovision():
                  i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostIP=None,
                  i_hostUser=None, i_hostPasswd=None):
         self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, i_hostIP, i_hostUser, i_hostPasswd)
         self.cv_HOST = OpTestHost(i_hostIP, i_hostUser, i_hostPasswd,i_bmcIP, i_ffdcDir)
+        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
+                                  i_ffdcDir, host=self.cv_HOST)
         self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
                  i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostIP,
                  i_hostUser, i_hostPasswd)
