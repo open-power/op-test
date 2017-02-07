@@ -153,7 +153,8 @@ sub get_firmware_image_name {
 sub get_platform_name {
     my ($platform) = @_;
 
-    if ($platform eq "tyan,palmetto" ||
+    if ($platform eq "ibm,firenze" ||
+        $platform eq "tyan,palmetto" ||
         $platform eq "tyan,habanero" ||
         $platform eq "ibm,firestone" ||
         $platform eq "ibm,garrison")
