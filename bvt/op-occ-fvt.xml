@@ -36,6 +36,14 @@
         </test>
 
         <test>
+            <name>Test cpu slw info</name>
+            <testcase>
+                <cmd>../ci/source/op_occ_fvt.py OpalOCCTests.test_slw_info</cmd>
+                <exitonerror>no</exitonerror>
+            </testcase>
+        </test>
+
+        <test>
             <name>Test cpu idle states</name>
             <testcase>
                 <cmd>../ci/source/op_occ_fvt.py OpalOCCTests.test_cpu_idle_states</cmd>

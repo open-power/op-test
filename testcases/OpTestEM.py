@@ -72,6 +72,22 @@ class OpTestEM():
         self.util = OpTestUtil()
 
     ##
+    # @brief This function just gathers the host CPU SLW info
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def test_slw_info(self):
+        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+        # Get OS level
+        l_oslevel = self.cv_HOST.host_get_OS_Level()
+        # Get kernel version
+        l_kernel = self.cv_HOST.host_get_kernel_version()
+        self.cv_HOST.host_check_command("cpupower")
+        self.cv_HOST.host_run_command("cpupower idle-info")
+        self.cv_HOST.host_run_command("hexdump -c /proc/device-tree/ibm,enabled-idle-states")
+        self.cv_HOST.host_run_command("cat /sys/firmware/opal/msglog | grep -i slw")
+
+    ##
     # @brief This function will cover following test steps
     #        1. It will get the OS and kernel versions.
     #        2. Check the cpupower utility is available in host.

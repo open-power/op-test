@@ -314,6 +314,34 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
         return BMC_CONST.FW_SUCCESS
 
+    ##
+    # @brief This function waits for the IPL to end. The marker for IPL completion is the
+    #        Host Status sensor which reflects the ACPI power state of the system.  When it
+    #        reads S0/G0: working it means that the petitboot is has began loading.
+    #
+    # @param timeout @type int: The number of minutes to wait for IPL to complete,
+    #       i.e. How long to poll the ACPI sensor for working state before giving up.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_ipl_wait_for_working_state_v1(self, timeout=10):
+        timeout = time.time() + 60*timeout
+        cmd = 'sdr elist |grep \'Host Status\''
+        output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + cmd)
+        if not "Host Status" in output:
+            return BMC_CONST.FW_PARAMETER
+
+        while True:
+            if 'S0/G0: working' in output:
+                print "Host Status is S0/G0: working, IPL finished"
+                break
+            if time.time() > timeout:
+                l_msg = "IPL timeout"
+                print l_msg
+                raise OpTestError(l_msg)
+            time.sleep(5)
+            output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + cmd)
+        return BMC_CONST.FW_SUCCESS
 
     def ipmi_ipl_wait_for_login(self, l_con, timeout=10):
         l_rc = l_con.expect_exact(BMC_CONST.IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT, timeout=120)
@@ -399,6 +427,37 @@ class OpTestIPMI():
                 print l_msg
                 raise OpTestError(l_msg)
             time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+
+        return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function waits for the Host OS Boot(IPL) to end. The
+    #        marker for IPL completion is the OS Boot sensor which reflects status
+    #        of host OS Boot. When it reads boot completed it means that the
+    #        Host OS Booted successfully.
+    #
+    # @param i_timeout @type int: The number of minutes to wait for IPL to complete or Boot time,
+    #       i.e. How long to poll the OS Boot sensor for working state before giving up.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_wait_for_os_boot_complete_v1(self, i_timeout=10):
+        l_timeout = time.time() + 60*i_timeout
+        l_cmd = 'sdr elist |grep \'OS Boot\''
+        l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
+        if not "OS Boot" in l_output:
+            return BMC_CONST.FW_PARAMETER
+
+        while True:
+            if BMC_CONST.OS_BOOT_COMPLETE in l_output:
+                print "Host OS is booted"
+                break
+            if time.time() > l_timeout:
+                l_msg = "IPL timeout"
+                print l_msg
+                raise OpTestError(l_msg)
+            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+            l_output = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
 
         return BMC_CONST.FW_SUCCESS
 

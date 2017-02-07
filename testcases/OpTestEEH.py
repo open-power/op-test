@@ -146,7 +146,7 @@ class OpTestEEH():
         self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -D")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
-        for i in range(0,1):
+        for i in range(0,2):
             for domain in pci_domains:
                 self.prepare_logs()
                 cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain

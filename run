@@ -153,10 +153,11 @@ sub get_firmware_image_name {
 sub get_platform_name {
     my ($platform) = @_;
 
-    if ($platform eq "ibm,firenze" ||
-        $platform eq "tyan,palmetto" ||
+    if ($platform eq "tyan,palmetto" ||
         $platform eq "tyan,habanero" ||
         $platform eq "ibm,firestone" ||
+        $platform eq "ibm,firenze"   ||
+        $platform eq "ibm,powernv"   ||
         $platform eq "ibm,garrison")
     {
         my $platformname = (split ',',$platform)[1];
@@ -170,7 +171,7 @@ sub get_platform_name {
 sub print_init_param {
     my ($f,$a,$m,$p) = @_;
     my $value = ($m->findnodes($p))->to_literal;
-    print $f "$a = ".$value."\n" if $value;
+    print $f "$a = ".$value."\n";
 }
 
 sub create_config_file {
