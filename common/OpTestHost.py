@@ -308,9 +308,9 @@ class OpTestHost():
     #
     # @return command output if command execution is successful else raises OpTestError
     #
-    def host_run_command(self, i_cmd):
+    def host_run_command(self, i_cmd, timeout=1500):
         try:
-            l_res = self._ssh_execute(i_cmd, timeout=1500)
+            l_res = self._ssh_execute(i_cmd, timeout)
         except:
             l_msg = "Command execution on host failed"
             print l_msg
