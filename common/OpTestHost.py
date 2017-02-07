@@ -1175,3 +1175,97 @@ class OpTestHost():
         with open(fn, 'w') as f:
             f.write(l_data)
         return BMC_CONST.FW_SUCCESS
+
+    ##
+    # @brief This function starts opal_errd daemon
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_start_opal_errd_daemon(self):
+        self.host_run_command("systemctl start opal_errd")
+
+    ##
+    # @brief This function stops opal_errd daemon
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_stop_opal_errd_daemon(self):
+        self.host_run_command("systemctl stop opal_errd")
+
+    ##
+    # @brief This function gets the status of opal_errd daemon
+    #
+    # @return True/False: if opal_errd run/not run or throws exception
+    #                     if not able to get status
+    #
+    def host_get_status_of_opal_errd_daemon(self):
+        res = self.host_run_command("ps -ef | grep -v grep | grep opal_errd | wc -l")
+        print res
+        if res.strip() == "0":
+            print "Opal_errd daemon is not running"
+            return False
+        elif res.strip() == "1":
+            print "Opal_errd daemon is running"
+            return True
+        else:
+            raise OpTestError("Not able to get status of opal errd daemon")
+
+    ##
+    # @brief This function lists all error logs in host
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_list_all_errorlogs(self):
+        self.host_run_command("opal-elog-parse -l")
+
+
+    ##
+    # @brief This function lists all service action logs in host
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def host_list_all_service_action_logs(self):
+        self.host_run_command("opal-elog-parse -s")
+
+    ##
+    # @brief This function gets the number of error logs
+    #
+    # @return res or raise OpTestError
+    #
+    def host_get_number_of_errorlogs(self):
+        res = self.host_run_command("ls %s | wc -l" % BMC_CONST.OPAL_ELOG_DIR)
+        print res
+        return res
+
+    ##
+    # @brief This function clears/acknowledges all error logs in host
+    #
+    # @return True on success or raise OpTestError
+    #
+    def host_clear_error_logs(self):
+        self.host_run_command("rm -f %s/*" % BMC_CONST.OPAL_ELOG_DIR)
+        res = self.host_run_command("ls %s -1 --color=never" % BMC_CONST.OPAL_ELOG_SYSFS_DIR)
+        print res
+        res = res.splitlines()
+        for entry in res:
+            entry = entry.strip()
+            if entry == '':
+                continue
+            self.host_run_command("echo 1 > %s/%s/acknowledge" % (BMC_CONST.OPAL_ELOG_SYSFS_DIR, entry))
+        return True
+    ##
+    # @brief This function clears/acknowledges all dumps in host
+    #
+    # @return True on success or raise OpTestError
+    #
+    def host_clear_all_dumps(self):
+        self.host_run_command("rm -f %s/*" % BMC_CONST.OPAL_DUMP_DIR)
+        res = self.host_run_command("ls %s -1 --color=never" % BMC_CONST.OPAL_DUMP_SYSFS_DIR)
+        res = res.splitlines()
+        for entry in res:
+            entry = entry.strip()
+            if (entry == "initiate_dump") or (entry == ''):
+                continue
+            else:
+                self.host_run_command("echo 1 > %s/%s/acknowledge" % (BMC_CONST.OPAL_DUMP_SYSFS_DIR, entry))
+        return True
