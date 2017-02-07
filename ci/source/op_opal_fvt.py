@@ -598,8 +598,18 @@ class OpalHMI(unittest.TestCase):
         opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
 
     def test_tod_errors_on_single_core(self):
-        opTestHMIHandling.host_enable_single_core()
-        opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
+        # Preserving the number of cores
+        no_of_cores = opTestHMIHandling.host_get_present_cores()
+        # Set number of cores to '1'
+        opTestHMIHandling.host_enable_set_cores("1")
+        # Run the test
+        try:
+            opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
+        except OpTestError as e:
+            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_FOR_STABILITY)
+
+        # Set number of cores to the earlier value
+        opTestHMIHandling.host_enable_set_cores(no_of_cores)
 
     def test_hmi_proc_recv_done(self):
         opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
