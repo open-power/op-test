@@ -45,10 +45,10 @@ from OpTestError import OpTestError
 class OpTestBMC():
 
 
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,i_ffdcDir=None):
-        self.cv_bmcIP = i_bmcIP
-        self.cv_bmcUser = i_bmcUser
-        self.cv_bmcPasswd = i_bmcPasswd
+    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None):
+        self.cv_bmcIP = ip
+        self.cv_bmcUser = username
+        self.cv_bmcPasswd = password
         self.cv_ffdcDir = i_ffdcDir
 
     ##
