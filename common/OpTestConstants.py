@@ -211,7 +211,6 @@ class OpTestConstants():
     # Constants related to ipmi console interfaces
     IPMI_SOL_ACTIVATE_TIME = 5
     IPMI_SOL_DEACTIVATE_TIME = 10
-    IPMI_WAIT_FOR_TERMINATING_SESSION = 10
     IPMI_CON_DELAY_BEFORE_SEND = 0.9
 
     IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT = ["[SOL Session operational.  Use ~? for help]\r\n", \

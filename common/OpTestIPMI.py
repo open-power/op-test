@@ -1267,7 +1267,7 @@ class OpTestIPMI():
         l_con = i_con
         try:
             l_con.send('~.')
-            time.sleep(BMC_CONST.IPMI_WAIT_FOR_TERMINATING_SESSION)
+            l_con.expect('[terminated ipmitool]')
             l_con.close()
         except pexpect.ExceptionPexpect:
             l_msg = "IPMI: failed to close ipmi console"
