@@ -45,10 +45,14 @@ from OpTestUtil import OpTestUtil
 class IPMITool():
     def __init__(self, method='lanplus', binary='ipmitool',
                  ip=None, username=None, password=None):
-        self.method = lanplus
+        self.method = 'lanplus'
         self.ip = ip
         self.username = username
         self.password = password
+        self.binary = binary
+
+    def binary_name(self):
+        return self.binary
 
     def arguments(self):
         s = ' -H %s -I %s' % (self.ip, self.method)
@@ -83,6 +87,70 @@ class IPMITool():
             output = cmd.communicate()[0]
             return output
 
+class IPMIConsoleState():
+    DISCONNECTED = 0
+    CONNECTED = 1
+
+class IPMIConsole():
+    def __init__(self, ipmitool=None, logdir=None):
+        self.ipmitool = ipmitool
+        self.state = IPMIConsoleState.DISCONNECTED
+        self.logdir = logdir
+
+    def terminate(self):
+        if self.state == IPMIConsoleState.CONNECTED:
+            self.sol.terminate()
+            self.state = IPMIConsoleState.DISCONNECTED
+
+    def close(self):
+        if self.state == IPMIConsoleState.DISCONNECTED:
+            return
+        try:
+            self.sol.send("\r")
+            self.sol.send('~.')
+            self.sol.expect('[terminated ipmitool]')
+            self.sol.close()
+        except pexpect.ExceptionPexpect:
+            raise "IPMI: failed to close ipmi console"
+        self.sol.terminate()
+        self.state = IPMIConsoleState.DISCONNECTED
+
+    def connect(self):
+        if self.state == IPMIConsoleState.CONNECTED:
+            self.sol.terminate()
+            self.state = IPMIConsoleState.DISCONNECTED
+
+        print "#IPMI SOL CONNECT"
+        try:
+            self.ipmitool.run('sol deactivate')
+        except OpTestError:
+            print 'SOL already deactivated'
+
+        cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
+        print cmd
+        solChild = pexpect.spawn(cmd,logfile=sys.stdout)
+        self.state = IPMIConsoleState.CONNECTED
+        self.sol = solChild
+        self.sol.expect_exact('[SOL Session operational.  Use ~? for help]')
+        return solChild
+
+    def get_console(self):
+        if self.state == IPMIConsoleState.DISCONNECTED:
+            self.connect()
+
+        count = 0
+        while (not self.sol.isalive()):
+            print '# Reconnecting'
+            if (count > 0):
+                time.sleep(BMC_CONST.IPMI_SOL_ACTIVATE_TIME)
+            self.connect()
+            count += 1
+            if count > 120:
+                raise "IPMI: not able to get sol console"
+
+        return self.sol
+
+
 class OpTestIPMI():
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, host=None):
         self.cv_bmcIP = i_bmcIP
@@ -93,6 +161,7 @@ class OpTestIPMI():
                                  ip=i_bmcIP,
                                  username=i_bmcUser,
                                  password=i_bmcPwd)
+        self.console = IPMIConsole(ipmitool=self.ipmitool, logdir=i_ffdcDir)
         self.util = OpTestUtil()
         self.host = host
 
@@ -201,43 +270,6 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
 
-    ##
-    # @brief Spawns the sol logger expect script as a background process. In order to
-    #        properly kill the process the caller should call the ipmitool sol
-    #        deactivate command, i.e.: ipmitool_cmd_run('sol deactivate'). The sol.log
-    #        file is placed in the FFDC directory
-    #
-    # @return OpTestError
-    #
-    def _ipmi_sol_capture(self):
-
-        try:
-            self.ipmitool.run('sol deactivate')
-        except OpTestError:
-            print 'SOL already deactivated'
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-
-        l_res = commands.getstatusoutput("date +%Y%m%d_%H%M")
-
-        if self.cv_ffdcDir == None:
-            logFile = '/dev/null/'
-        else:
-            logFile = self.cv_ffdcDir + '/' + 'host_sol_%s.log' % l_res[1]
-
-        print "Time: %s, logfile: %s" % (l_res, logFile)
-        cmd = os.getcwd() + "/../common/sol_logger.exp"
-        if (not os.path.isfile(cmd)):
-            cmd = os.getcwd() + "/common/sol_logger.exp"
-
-        cmd += " %s %s" % (
-            logFile, self.cv_baseIpmiCmd)
-        print cmd
-        try:
-            solChild = subprocess.Popen(cmd, shell=True)
-        except:
-            raise OpTestError("sol capture Failed")
-        return solChild
-
 
     ##
     # @brief This function starts the sol capture and waits for the IPL to end. The
@@ -252,7 +284,7 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipl_wait_for_working_state(self, timeout=10):
-        sol = self._ipmi_sol_capture()
+        sol = self.console.get_console()
         timeout = time.time() + 60*timeout
         cmd = 'sdr elist |grep \'Host Status\''
         output = self.ipmitool.run(cmd)
@@ -271,11 +303,11 @@ class OpTestIPMI():
 
         try:
             self.ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sol deactivate')
-            sol.terminate()
+            self.console.terminate()
         except subprocess.CalledProcessError:
             l_msg = 'SOL already deactivated'
             print l_msg
-            sol.terminate()
+            self.console.terminate()
             raise OpTestError(l_msg)
         return BMC_CONST.FW_SUCCESS
 
@@ -1049,51 +1081,6 @@ class OpTestIPMI():
         print l_res
 
     ##
-    # @brief This function will deactivates ipmi sol console
-    #
-    # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
-    #
-    def ipmi_sol_deactivate(self):
-        self.ipmitool.run('sol deactivate')
-        return 0
-
-    ##
-    # @brief This function will activates ipmi sol console
-    #
-    # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
-    #
-    def ipmi_sol_activate(self):
-        print  "running:%s sol activate" % self.cv_baseIpmiCmd
-        try:
-            l_con = pexpect.spawn('%s sol activate' % self.cv_baseIpmiCmd)
-        except pexpect.ExceptionPexpect:
-            l_msg = "IPMI: sol activate failed"
-            raise OpTestError(l_msg)
-        return l_con
-
-    ##
-    # @brief This function waits for getting ipmi sol console activated.
-    #
-    # @return l_con @type Object: it is a object of pexpect.spawn class
-    #         or raise OpTestError in case of not connecting up to 10mins.
-    #
-    def ipmi_get_console(self):
-        self.ipmi_sol_deactivate()
-        l_con = self.ipmi_sol_activate()
-        count = 0
-        while (not l_con.isalive()):
-            if (count > 0):
-                time.sleep(BMC_CONST.IPMI_SOL_ACTIVATE_TIME)
-            self.ipmi_sol_deactivate()
-            l_con = self.ipmi_sol_activate()
-            count += 1
-            if count > 120:
-                l_msg = "IPMI: not able to get sol console"
-                raise OpTestError(l_msg)
-        l_con.logfile_read = sys.stdout
-        return l_con
-
-    ##
     # @brief This function make sure, ipmi console is activated and then login to the host
     # if host is already up.
     #
@@ -1146,10 +1133,13 @@ class OpTestIPMI():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def ipmi_host_set_unique_prompt(self, i_con):
-        self.l_con = i_con
-        self.l_con.sendline(BMC_CONST.IPMI_HOST_UNIQUE_PROMPT)
-        l_rc = self.l_con.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT)
+    def ipmi_host_set_unique_prompt(self):
+        console = self.console.get_console()
+        console.sendcontrol('l')
+        console.expect(r'.+')
+        console.sendline(BMC_CONST.IPMI_HOST_UNIQUE_PROMPT)
+        console.expect("\n") # from us
+        l_rc = console.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT)
         if l_rc == 0:
             print "Shell prompt changed"
             return BMC_CONST.FW_SUCCESS
@@ -1172,40 +1162,19 @@ class OpTestIPMI():
     #                         monitor and returns console output(up to 8 mins)- if fails or raise OpTestError
     #
     def run_host_cmd_on_ipmi_console(self, i_cmd):
-        self.l_con.sendline(i_cmd)
-        try:
-            rc = self.l_con.expect(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT_LIST, timeout=500)
-            if rc == 0:
-                res = self.l_con.before
-                res = res.splitlines()
-                return res
-            else:
-                res = self.l_con.before
-                res = res.split(i_cmd)
-                return res[-1].splitlines()
-        except pexpect.ExceptionPexpect, e:
-            l_msg =  "host command execution on ipmi sol console failed"
-            print str(e)
-            raise OpTestError(l_msg)
+        console = self.console.get_console()
+        console.sendline(i_cmd)
+        console.expect("\n") # from us
+        rc = console.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT, timeout=500)
 
-    ##
-    # @brief This function will closes ipmi sol console
-    #
-    # @param i_con @type Object: it is a object of pexpect.spawn class
-    #                            this is the active ipmi sol console object
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def ipmi_close_console(self, i_con):
-        l_con = i_con
-        try:
-            l_con.send('~.')
-            l_con.expect('[terminated ipmitool]')
-            l_con.close()
-        except pexpect.ExceptionPexpect:
-            l_msg = "IPMI: failed to close ipmi console"
-            raise OpTestError(l_msg)
-        return BMC_CONST.FW_SUCCESS
+        if rc == 0:
+            res = console.before
+            res = res.splitlines()
+            return res
+        else:
+            res = console.before
+            res = res.split(i_cmd)
+            return res[-1].splitlines()
 
     ##
     # @brief Set boot device to be boot to BIOS (i.e. petitboot)
