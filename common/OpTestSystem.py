@@ -462,7 +462,6 @@ class OpTestSystem():
                 return BMC_CONST.FW_FAILED
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_HOST.host_code_update(i_image, BMC_CONST.BMC_FW_IMAGE_UPDATE)
-            self.cv_IPMI.clear_ssh_keys(self.cv_BMC.cv_bmcIP)
             self.cv_IPMI.ipmi_cold_reset()
         except OpTestError as e:
             self.sys_cold_reset_bmc()
@@ -516,7 +515,6 @@ class OpTestSystem():
                 return BMC_CONST.FW_FAILED
             self.cv_IPMI.ipmi_preserve_network_setting()
             self.cv_HOST.host_code_update(i_image, BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE)
-            self.cv_IPMI.clear_ssh_keys(self.cv_BMC.cv_bmcIP)
             self.cv_HOST.host_cold_reset()
         except OpTestError as e:
             self.sys_cold_reset_bmc()
@@ -557,7 +555,6 @@ class OpTestSystem():
         try:
             self.cv_IPMI.ipmi_power_off()
             self.cv_WEB.web_update_hpm(i_image,BMC_CONST.UPDATE_BMC)
-            self.cv_IPMI.clear_ssh_keys(self.cv_BMC.cv_bmcIP)
         except OpTestError as e:
             if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
                 return BMC_CONST.FW_INVALID
@@ -578,7 +575,6 @@ class OpTestSystem():
         try:
             self.cv_IPMI.ipmi_power_off()
             self.cv_WEB.web_update_hpm(i_image, BMC_CONST.UPDATE_BMCANDPNOR)
-            self.cv_IPMI.clear_ssh_keys(self.cv_BMC.cv_bmcIP)
         except OpTestError as e:
             if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
                 return BMC_CONST.FW_INVALID

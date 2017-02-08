@@ -122,7 +122,6 @@ class OpTestSystemBootSequence():
         self.cv_IPMI.ipmi_power_on()
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
 
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
@@ -165,7 +164,6 @@ class OpTestSystemBootSequence():
         self.cv_IPMI.ipmi_power_on()
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
 
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
@@ -213,7 +211,6 @@ class OpTestSystemBootSequence():
             print l_msg
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
 
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
@@ -261,7 +258,6 @@ class OpTestSystemBootSequence():
             self.cv_IPMI.ipmi_power_on()
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
 
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
@@ -310,7 +306,7 @@ class OpTestSystemBootSequence():
             print l_msg
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
+
 
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
@@ -326,7 +322,6 @@ class OpTestSystemBootSequence():
             self.cv_IPMI.ipmi_power_on()
             self.cv_SYSTEM.sys_check_host_status()
             self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-            self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
 
             print "Gathering the OPAL msg logs"
             self.cv_HOST.host_gather_opal_msg_log()

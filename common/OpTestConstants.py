@@ -194,9 +194,6 @@ class OpTestConstants():
     POWER_ACTIVATE_SUCCESS = "Power limit successfully activated"
     POWER_DEACTIVATE_SUCCESS = "Power limit successfully deactivated"
 
-    #Generic Commands
-    CLEAR_SSH_KEYS = 'ssh-keygen -R '
-
     #CPU states
     CPU_ENABLE_STATE = '0'
     CPU_DISABLE_STATE = '1'

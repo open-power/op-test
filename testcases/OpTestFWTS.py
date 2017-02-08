@@ -117,7 +117,6 @@ class OpTestFWTS():
     def test_system_reboot(self):
         print "Testing FWTS: Booting system to OS"
         self.cv_SYSTEM.sys_hard_reboot()
-        self.cv_IPMI.clear_ssh_keys(self.cv_HOST.ip)
 
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()

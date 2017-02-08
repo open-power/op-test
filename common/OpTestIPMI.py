@@ -588,7 +588,6 @@ class OpTestIPMI():
             raise OpTestError(l_msg)
 
         if(rc.__contains__("Firmware upgrade procedure successful")):
-            self.clear_ssh_keys(self.cv_bmcIP)
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Code Update Failed"
@@ -1094,18 +1093,6 @@ class OpTestIPMI():
         l_cmd = "chassis policy %s" % i_policy
         l_res = self._ipmitool_cmd_run(self.cv_baseIpmiCmd + l_cmd)
         print l_res
-
-
-    ##
-    # @brief Clears the SSH keys from the known host file
-    #
-    # @param i_hostname @type string: name of the host to be removed from known host file
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError if failed
-    #
-    def clear_ssh_keys(self, i_hostname):
-        self._ipmitool_cmd_run(BMC_CONST.CLEAR_SSH_KEYS + i_hostname)
-        return BMC_CONST.FW_SUCCESS
 
     ##
     # @brief This function will deactivates ipmi sol console
