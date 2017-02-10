@@ -118,7 +118,7 @@ class OpTestConstants():
     BMC_BOOT_GOLDEN = "/etc/init.d/boot_into_golden"
 
     # TIME DELAYS & RETRIES
-    BMC_WARM_RESET_DELAY = 150
+    BMC_WARM_RESET_DELAY = 20
     BMC_COLD_RESET_DELAY = 150
     HOST_BRINGUP_TIME = 80
     SHORT_WAIT_IPL = 10

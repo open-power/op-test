@@ -70,6 +70,12 @@ class OpTestBMC():
 
         try:
             p = pxssh.pxssh()
+
+            # Work-around for old pxssh not having options= parameter
+            p.SSH_OPTS = p.SSH_OPTS + " -o 'StrictHostKeyChecking=no'"
+            p.SSH_OPTS = p.SSH_OPTS + " -o 'UserKnownHostsFile /dev/null' "
+            p.force_password = True
+
             p.logfile = sys.stdout
             p.PROMPT = '# '
 
@@ -87,18 +93,15 @@ class OpTestBMC():
 
             ''' if optional argument is set, save command output to file '''
 
-            if logFile is not None:
+            if logFile is not None and self.cv_ffdcDir is not None:
                 fn = self.cv_ffdcDir + "/" + logFile
                 with open(fn, 'w') as f:
                     f.write(p.before)
 
             p.sendline('echo $?')
             index = p.expect(['0', '1', pexpect.TIMEOUT])
-        except:
-            l_msg = "__cmd_run Failed"
-            print sys.exc_info()
-            print l_msg
-            raise OpTestError(l_msg)
+        except IOError as hell:
+            raise hell
 
         if index == 0:
             rc = 0
@@ -128,7 +131,7 @@ class OpTestBMC():
         retries = 0
         self._cmd_run('reboot', logFile='bmc_reboot.log')
         print 'Sent reboot command now waiting for reboot to complete...'
-        time.sleep(BMC_CONST.HOST_REBOOT_DELAY)
+        time.sleep(10)
         '''  Ping the system until it reboots  '''
         while True:
             try:
@@ -137,9 +140,9 @@ class OpTestBMC():
             except subprocess.CalledProcessError as e:
                 print "Ping return code: ", e.returncode, "retrying..."
                 retries += 1
-                time.sleep(BMC_CONST.HOST_REBOOT_DELAY)
+                time.sleep(10)
 
-            if retries > 5:
+            if retries > 10:
                 l_msg = "Error. BMC is not responding to pings"
                 print l_msg
                 raise OpTestError(l_msg)

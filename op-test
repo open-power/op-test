@@ -34,7 +34,7 @@ import xmlrunner
 import OpTestConfiguration
 from testcases import OpTestPCI
 from testcases import OpTestFWTS
-
+from testcases import BasicIPL
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -57,6 +57,10 @@ class HostSuite():
     def suite(self):
         return self.s
 
+class BasicIPLSuite():
+    def suite(self):
+        return BasicIPL.suite()
+
 class DefaultSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
@@ -69,6 +73,7 @@ suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
     'default' : DefaultSuite(),
+    'BasicIPL' : BasicIPLSuite(),
     }
 
 if OpTestConfiguration.conf.args.list_suites:
@@ -92,5 +97,5 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
     t.addTest(suites['default'].suite())
 
 
-unittest.TextTestRunner().run(t)
+unittest.TextTestRunner(verbosity=2).run(t)
 

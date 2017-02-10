@@ -105,6 +105,9 @@ class OpTestSystem():
     def get_state(self):
         return self.state;
 
+    def set_state(self, state):
+        self.state = state
+
     def goto_state(self, state):
         print "OpTestSystem START STATE: %s" % (self.state)
         while 1:
@@ -122,6 +125,9 @@ class OpTestSystem():
             return OpSystemState.OFF
         if state == OpSystemState.UNKNOWN:
             raise "Can't trasition to UNKNOWN state"
+
+        # We clear any possible errors at this stage
+        self.sys_sdr_clear()
 
         if state == OpSystemState.OS:
             self.cv_IPMI.ipmi_set_boot_to_disk()
@@ -145,6 +151,8 @@ class OpTestSystem():
         return OpSystemState.PETITBOOT
 
     def run_PETITBOOT(self, state):
+        if state == OpSystemState.PETITBOOT:
+            return OpSystemState.PETITBOOT
         if state == OpSystemState.PETITBOOT_SHELL:
             self.petitboot_exit_to_shell()
             return OpSystemState.PETITBOOT_SHELL
