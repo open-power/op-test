@@ -1,0 +1,96 @@
+#!/usr/bin/python
+# IBM_PROLOG_BEGIN_TAG
+# This is an automatically generated prolog.
+#
+# $Source: op-test-framework/ci/source/op_ci_bmc.py $
+#
+# OpenPOWER Automated Test Project
+#
+# Contributors Listed Below - COPYRIGHT 2015-2017
+# [+] International Business Machines Corp.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License.
+#
+# IBM_PROLOG_END_TAG
+"""
+op-test: run OpenPOWER test suite(s)
+"""
+import sys
+import os
+import unittest
+import xmlrunner
+
+import OpTestConfiguration
+from testcases import OpTestPCI
+from testcases import OpTestFWTS
+
+import testcases
+
+args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
+OpTestConfiguration.conf.objs()
+
+print args
+
+class SkirootSuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestPCI.OpTestPCISkiroot())
+    def suite(self):
+        return self.s
+
+class HostSuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestPCI.OpTestPCIHost())
+        self.s.addTest(OpTestFWTS.OpTestFWTS())
+    def suite(self):
+        return self.s
+
+class DefaultSuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(SkirootSuite().suite())
+        self.s.addTest(HostSuite().suite())
+    def suite(self):
+        return self.s
+
+suites = {
+    'skiroot' : SkirootSuite(),
+    'host'    : HostSuite(),
+    'default' : DefaultSuite(),
+    }
+
+if OpTestConfiguration.conf.args.list_suites:
+    print 'Test Suites'
+    print '-----------'
+    for key in suites:
+        print key
+    exit(0)
+
+t = unittest.TestSuite()
+
+if OpTestConfiguration.conf.args.run_suite:
+    for suite in OpTestConfiguration.conf.args.run_suite:
+        t.addTest(suites[suite].suite())
+
+if OpTestConfiguration.conf.args.run:
+    t.addTest(unittest.TestLoader().loadTestsFromNames(OpTestConfiguration.conf.args.run))
+
+if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
+    print "RUNNING DEFAULT SUITE"
+    t.addTest(suites['default'].suite())
+
+
+unittest.TextTestRunner().run(t)
+

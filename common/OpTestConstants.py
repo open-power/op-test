@@ -291,7 +291,6 @@ class OpTestConstants():
     PFLASH_TOOL_DIR = "/tmp/"
     GARD_TOOL_DIR = "/tmp/skiboot/external/gard"
     SKIBOOT_WORKING_DIR = "/root/skiboot"
-    FWTS_WORKING_DIR = "/root/fwts"
 
     # IPMI commands
     IPMITOOL_USB = "ipmitool -I usb "
@@ -453,14 +452,6 @@ class OpTestConstants():
     PNOR_NVRAM_PART = "NVRAM"
     PNOR_GUARD_PART = "GUARD"
     PNOR_BOOTKERNEL_PART = "BOOTKERNEL"
-
-    HOST_FWTS_BMC_INFO = "export PATH=/root/fwts/src/:$PATH; fwts bmc_info;echo $?"
-    HOST_FWTS_OLOG = "export PATH=/root/fwts/src/:$PATH; fwts olog -j "
-    HOST_FWTS_OOPS = "export PATH=/root/fwts/src/:$PATH; fwts oops;echo $?"
-    HOST_FWTS_PRD_INFO = "export PATH=/root/fwts/src/:$PATH; fwts prd_info;echo $?"
-    HOST_FWTS_MTD_INFO = "export PATH=/root/fwts/src/:$PATH; fwts mtd_info;echo $?"
-    HOST_FWTS_REMOVE_EXISTING_RESULTS_LOG = "rm -f results.log"
-    HOST_FWTS_RESULTS_LOG = "cat results.log; echo $?"
 
     # Sensor names
     SENSOR_HOST_STATUS = "Host Status"

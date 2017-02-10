@@ -7,21 +7,15 @@ power cycle the machine, test booting different configurations. As part of
 the op-test-framework, we may run tests on the host itself (such as fwts
 and HTX)
 
-The end goals is to have a collection of build verification tests (bvt) that can be run against any OpenPower system to validate it's function.  The tests are automation/jenkins ready. The tests cover basic functionality like software updates and low level firmware features, all the way up to OS and OPAL functional tests.  
-
-The **common** directory is where we abstract the OpenPower system interfaces.  It provides the generic API's (and detailed implementations) of interfaces required by the test cases.
-
-The **bvt** directory is where the test executions are defined.  These tests are xml based.  They may call into the common to run the tests directly or they may call into the **testcases** directory for tests that require more logic.
-
-The ci directory is left over from some legacy continuous integration work.  The BVT's currently use CI as a pass through to execute the tests.  We have a TODO to remove the CI function eventually.
+The end goal is to have a collection of tests that can be run against any
+OpenPower system to validate it's function. The tests are automation/jenkins
+ready.
 
 ### Requirements ###
 
-This framework runs on most Linux based systems.  You need python 2.7 or greater.
-You also need expect and pexpect available.
-And also below perl modules are required in order to run this framework.
-on fedora: sudo yum install perl-XML-LibXML-Common
-on ubuntu: sudo aptitude install libxml-libxml-perl
+This framework runs on most Linux based systems.
+
+You need python 2.7 or greater.
 
 You will also need (recent) ipmiutil - 1.8.15 or above should be adequate.
 
@@ -30,93 +24,65 @@ the BMC and the host of the machine(s) you're testing.
 
 ### Preparation ###
 
-**Machine Configuration**
+The target system will need to have an OS that can boot. That OS will
+need to have several things installed on it.
 
-Copy the bvt/op-machines-example.xml file and use its layout (specified
-in bvt/op-machines.xsd) to specify the machines in your test lab.
+A TODO item is to document what that is.
 
-The machines.xml should be kept *private* as it will contain passwords
-for machines.
+### Target System Requirements ###
 
-**Known good firmware**
+A basic Linux install is assumed.
 
-It's good to supply known good firmware so that if everything goes horribly
-wrong running the regression tests, the test suite can attempt to un-brick
-the machine with known good firmware.
+You **MUST** have `fwts` installed. To do this:
 
-This is useful in a lab environment where the machines are shared.
-
-**Firmware to test**
-
-Firmware to test can either already be on the target machine, or can be
-flashed by the test harness.
-
-Put firmware in firmware-to-test/platform/
-
-For example, for ibm,garrison platform, firmware-to-test/ibm,garrison/ would
-be the directory to place the firmware for a Garrison machine. In this case,
-it would be the garrison.pnor and/or HPM files.
+    sudo apt-get install software-properties-common
+    sudo add-apt-repository ppa:firmware-testing-team/ppa-fwts-stable
+    sudo apt-get update
+    sudo apt-get install fwts
 
 ### Running the tests ###
 
-    ./run --machines machines.xml --machine my-openpower-box
+    ./op-test -h
 
-The identifier 'my-openpower-box' is the name attribute of the Machine
-specified in the machines.xml file.
+Gets you help on what you can run. You will need to (at a minimum) provide
+BMC and host login information. For example, to run the default test suite:
 
-You can get more information about invoking the tests with:
+    ./op-test --bmc-ip bmc.example.com   \
+    	      --bmc-username sysadmin    \
+	      --bmc-password superuser   \
+	      --bmc-usernameipmi ADMIN   \
+	      --bmc-passwordipmi admin   \
+	      --host-ip host.example.com \
+	      --host-user root		 \
+	      --host-password 1234	 \
+	      --host-lspci host.example.com-lspci.txt
 
-    ./run --help
+The default test suite will then run.
 
-By default, we will run the op-ci-basic-bvt.xml (in bvt/) test suite.
-To run a different suite, use the --suite paramater.
+To get a list of test suites:
 
-### Test Suites ###
+    ./op-test --list-suites
 
-You can run the following suites:
+You cun run one or more suites by using the `--run-suite` command line option.
+For example, you can choose to run tests that are only at the petitboot
+command line. By default, the test runner doesn't know what state the machine
+is in, so will attempt to turn everything off to get it into a known state.
+You can override this initial state with the `--machine-state` parameter.
+You can also run individual tests by using the `--run` option.
 
-* op-ci-basic-bvt.xml : Firmware code update(HPM Based upgradation), IPL and IPMI power control commands
-* op-opal-ci-bvt.xml:  Flash PNOR FW and IPL
-* op-firmware-component-update-bvt.xml : For Out-of-band FW upgrade(using hpm upgrade)
-* op-inbound-basic-bvt.xml :  For in-band FW upgrade(hpm upgrade)
-* op-opal-fvt-bvt.xml : For OPAL Functional tests
+For example:
 
-Flash PNOR Firmware and IPL:
+      ./op-test --bmc-ip bmc.example.com \
+      		--bmc-username sysadmin  \
+		--bmc-password superuser \
+		--bmc-usernameipmi ADMIN \
+		--bmc-passwordipmi admin \
+		--host-ip host.example.com \
+		--host-user root 	   \
+		--host-password 1234	   \
+		--host-lspci host.example.com-lspci.txt \
+		--machine-state PETITBOOT_SHELL \
+		--run testcases.OpTestPCI.OpTestPCISkiroot
 
-	./run --machines machines.xml --machine openpower-box --suite op-opal-ci-bvt.xml
-
-Out-of-band HPM Upgrade using ipmitool:
-
-	./run --machines machines.xml --machine openpower-box --suite op-outofband-firmware-update-bvt.xml
-
-In-band HPM Upgrade using ipmitool:
-
-	./run --machines machines.xml --machine openpower-box --suite op-inbound-basic-bvt.xml
-
-Web based HPM Upgrade:
-
-	./run --machines machines.xml --machine openpower-box --suite op-bmc-web-update-bvt.xml
-
-OPAL FVT:
-
-	./run --machines machines.xml --machine openpower-box --noflash --suite op-opal-fvt-bvt.xml
-
-OCC FVT:
-
-	./run --machines machines.xml --machine openpower-box --noflash --suite op-occ-fvt-bvt.xml
-
-FWTS FVT:
-
-	./run --machines machines.xml --machine openpower-box --noflash --suite op-fwts-fvt-bvt.xml
-
-### Notes ###
-
-- You need to have the bvt directory in your PATH
-
-
-### TODO ###
-
-- Should have the BVT tool call the common library directly (instead of going through CI)
-- Should make the common code more generic to support alternative BMC's
-- Should have bvt call the python code more directly (remove op-ci-bmc-run)
-- Standardize on just expect or pexepect
+The above will assume the machine is sitting at the petitboot prompt
+and will run the OpTestPCISkiroot test. 

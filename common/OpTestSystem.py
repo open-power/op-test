@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015,2017
 # [+] International Business Machines Corp.
 #
 #
@@ -41,6 +41,16 @@ from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
 from OpTestWeb import OpTestWeb
 
+class OpSystemState():
+    UNKNOWN = 0
+    OFF = 1
+    IPLing = 2
+    PETITBOOT = 3
+    PETITBOOT_SHELL = 4
+    BOOTING = 5
+    OS = 6
+    POWERING_OFF = 7
+
 class OpTestSystem():
 
     ## Initialize this object
@@ -58,13 +68,129 @@ class OpTestSystem():
     #
     def __init__(self,
                  i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None, bmc=None):
+                 i_hostuser=None, i_hostPasswd=None, bmc=None,
+                 state=OpSystemState.UNKNOWN):
         self.cv_BMC = bmc
         self.cv_IPMI = OpTestIPMI(bmc.cv_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
                                   i_ffdcDir)
+        self.console = self.cv_IPMI.console
         self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, bmc.cv_bmcIP)
         self.cv_WEB = OpTestWeb(bmc.cv_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi)
         self.util = OpTestUtil()
+
+        # We have a state machine for going in between states of the system
+        # initially, everything in UNKNOWN, so we reset things.
+        # But, we allow setting an initial state if you, say, need to
+        # run against an already IPLed system
+        self.state = state
+        self.stateHandlers = {}
+        self.stateHandlers[OpSystemState.UNKNOWN] = self.run_UNKNOWN
+        self.stateHandlers[OpSystemState.OFF] = self.run_OFF
+        self.stateHandlers[OpSystemState.IPLing] = self.run_IPLing
+        self.stateHandlers[OpSystemState.PETITBOOT] = self.run_PETITBOOT
+        self.stateHandlers[OpSystemState.PETITBOOT_SHELL] = self.run_PETITBOOT_SHELL
+        self.stateHandlers[OpSystemState.BOOTING] = self.run_BOOTING
+        self.stateHandlers[OpSystemState.OS] = self.run_OS
+        self.stateHandlers[OpSystemState.POWERING_OFF] = self.run_POWERING_OFF
+
+    def host(self):
+        return self.cv_HOST
+
+    def bmc(self):
+        return self.cv_BMC
+
+    def ipmi(self):
+        return self.cv_IPMI
+
+    def get_state(self):
+        return self.state;
+
+    def goto_state(self, state):
+        print "OpTestSystem START STATE: %s" % (self.state)
+        while 1:
+            self.state = self.stateHandlers[self.state](state)
+            print "OpTestSystem TRANSITIONED TO: %s" % (self.state)
+            if self.state == state:
+                break;
+
+    def run_UNKNOWN(self, state):
+        self.sys_power_off()
+        return OpSystemState.POWERING_OFF
+
+    def run_OFF(self, state):
+        if state == OpSystemState.OFF:
+            return OpSystemState.OFF
+        if state == OpSystemState.UNKNOWN:
+            raise "Can't trasition to UNKNOWN state"
+
+        if state == OpSystemState.OS:
+            self.cv_IPMI.ipmi_set_boot_to_disk()
+        if state == OpSystemState.PETITBOOT:
+            self.cv_IPMI.ipmi_set_boot_to_petitboot()
+
+        r = self.sys_power_on()
+        # Only retry once
+        if r == BMC_CONST.FW_FAILED:
+            r = self.sys_power_on()
+            if r == BMC_CONST.FW_FAILED:
+                raise 'Failed powering on system'
+        return OpSystemState.IPLing
+
+    def run_IPLing(self, state):
+        if state == OpSystemState.OFF:
+            self.sys_power_off()
+            return OpSystemState.POWERING_OFF
+
+        self.wait_for_petitboot()
+        return OpSystemState.PETITBOOT
+
+    def run_PETITBOOT(self, state):
+        if state == OpSystemState.PETITBOOT_SHELL:
+            self.petitboot_exit_to_shell()
+            return OpSystemState.PETITBOOT_SHELL
+
+        if state == OpSystemState.OFF:
+            self.sys_power_off()
+            return OpSystemState.POWERING_OFF
+
+        if state == OpSystemState.OS:
+            return OpSystemState.BOOTING
+
+        raise 'Invalid state transition'
+
+    def run_PETITBOOT_SHELL(self, state):
+        if state == OpSystemState.PETITBOOT_SHELL:
+            console = self.console.get_console()
+            console.sendcontrol('l')
+            return OpSystemState.PETITBOOT_SHELL
+
+        if state == OpSystemState.PETITBOOT:
+            self.exit_petitboot_shell()
+            return OpSystemState.PETITBOOT_SHELL
+
+        self.sys_power_off()
+        return OpSystemState.POWERING_OFF
+
+    def run_BOOTING(self, state):
+        rc = self.wait_for_login()
+        if rc != BMC_CONST.FW_FAILED:
+            return OpSystemState.OS
+        raise 'Failed to boot'
+
+    def run_OS(self, state):
+        if state == OpSystemState.OS:
+            return OpSystemState.OS
+        self.sys_power_off()
+        return OpSystemState.POWERING_OFF
+
+    def run_POWERING_OFF(self, state):
+        if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
+            print "System is in standby/Soft-off state"
+            return OpSystemState.OFF
+        else:
+            l_msg = "System failed to reach standby/Soft-off state"
+            raise OpTestError(l_msg)
+    
 
     ############################################################################
     # System Interfaces
@@ -187,7 +313,7 @@ class OpTestSystem():
         return rc
 
     def sys_ipmi_ipl_wait_for_login(self,i_timeout=10):
-        l_con = self.sys_get_ipmi_console()
+        l_con = self.console.get_console()
         try:
             rc = self.cv_IPMI.ipmi_ipl_wait_for_login(l_con, i_timeout)
         except OpTestError as e:
@@ -992,7 +1118,7 @@ class OpTestSystem():
     # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
     #
     def sys_get_ipmi_console(self):
-        self.l_con = self.cv_IPMI.ipmi_get_console()
+        self.l_con = self.cv_IPMI.console.get_console()
         return self.l_con
 
     ##
@@ -1021,8 +1147,7 @@ class OpTestSystem():
     #
     # @return BMC_CONST.FW_SUCCESS or return BMC_CONST.FW_FAILED
     #
-    def sys_ipmi_boot_system_to_petitboot(self, i_console):
-        self.console = i_console
+    def sys_ipmi_boot_system_to_petitboot(self):
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
         if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
@@ -1034,14 +1159,33 @@ class OpTestSystem():
         self.cv_IPMI.ipmi_set_boot_to_petitboot()
         self.cv_IPMI.ipmi_power_on()
 
+        self.wait_for_petitboot()
+        self.petitboot_exit_to_shell()
+
+    def wait_for_petitboot(self):
+        console = self.console.get_console()
+        # Wait for petitboot
+        console.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
+        console.expect('x=exit', timeout=10)
+        # there will be extra things in the pexpect buffer here
+
+    def petitboot_exit_to_shell(self):
+        console = self.console.get_console()
         # Exiting to petitboot shell
-        self.console.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
-        self.console.expect('x=exit', timeout=10)
-        # Exiting to petitboot
-        self.console.sendcontrol('l')
-        self.console.send('\x1b[B')
-        self.console.send('\x1b[B')
-        self.console.send('\r')
-        self.console.expect('Exiting petitboot')
-        self.console.send('\r')
-        self.console.send('\x08')
+        console.sendcontrol('l')
+        console.send('x')
+        console.expect('Exiting petitboot')
+        console.expect('#')
+        # we should have consumed everything in the buffer now.
+        print console
+
+    def exit_petitboot_shell(self):
+        console = self.console.get_console()
+        console.sendcontrol('l')
+        console.sendline('exit')
+        self.wait_for_petitboot()
+
+    def wait_for_login(self):
+        console = self.console.get_console()
+        console.sendline('')
+        console.expect('login: ')

@@ -74,6 +74,9 @@ class OpTestHost():
         parent_dir = os.path.dirname(os.path.abspath(__file__))
         self.results_dir = os.path.join(parent_dir.split('common')[0], "out/logs/")
 
+    def hostname():
+        return self.ip
+
     def username():
         return self.user
 

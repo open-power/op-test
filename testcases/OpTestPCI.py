@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015,2017
 # [+] International Business Machines Corp.
 #
 #
@@ -37,88 +37,33 @@ import sys
 import os
 import os.path
 
-from pprint import pprint
-from difflib import Differ
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestSystem import OpTestSystem
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
-from OpTestSensors import OpTestSensors
+from common.OpTestSystem import OpSystemState
 
-
-class OpTestPCI():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None, i_hostLspci=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
-        self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                                      i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                                      i_hostuser, i_hostPasswd)
+class OpTestPCI(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
-        self.lspci_file = i_hostLspci
+        self.pci_good_data_file = conf.lspci_file()
 
-    ##
-    # @brief  This function will get the PCI and USB susbsytem Info
-    #         And also this test compares known good data of
-    #         "lspci -mm -n" which is stored in testcases/data directory
-    #         with the current lspci data.
-    #         User need to specify the corresponding file name into
-    #         machines xml like lspci.txt which contains "lspci -mm -n"
-    #         command output in a working good state of system.
-    #         tools used are lspci and lsusb
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
-    def test_host_pci_devices_info(self):
-        if self.lspci_file == "empty.txt":
-            print "Skipping the pci devices comparision as missing the lspci data file name in machines xml"
-            return BMC_CONST.FW_SUCCESS
-        filename = os.path.join(os.path.dirname(__file__).split('testcases')[0], self.lspci_file)
-        if not os.path.isfile(filename):
-            raise OpTestError("lspci file %s not found in top level directory" % filename)
-        self.pci_good_data_file = filename
-        self.test_skiroot_pci_devices()
-        self.cv_IPMI.ipmi_set_boot_to_disk()
-        self.cv_IPMI.ipmi_power_off()
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_IPMI.ipl_wait_for_working_state()
-        self.test_host_pci_devices()
-
-    ##
-    # @brief  This function will get the "lspci -mm -n" output from the petitboot
-    #         and compares it with known good lspci data
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
-    def test_skiroot_pci_devices(self):
+class OpTestPCISkiroot(OpTestPCI):
+    # compare petitboot "lspci -mm -n" to known good data
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         cmd = "lspci -mm -n"
-        self.console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.sys_ipmi_boot_system_to_petitboot(self.console)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(self.console)
+        self.cv_IPMI.ipmi_host_set_unique_prompt()
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
-        self.cv_SYSTEM.sys_ipmi_close_console(self.console)
-        self.pci_data_petitboot = '\n'.join(res[1:])
+
+        res = '\n'.join(self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd))
+
+        self.pci_data_petitboot = res
         diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)
         diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_petitboot + '\n')
         r = diff_process.wait()
@@ -128,19 +73,18 @@ class OpTestPCI():
             print diff_stdout
             raise OpTestError("There is a mismatch b/w known good output and tested petitboot lspci output")
 
-    ##
-    # @brief  This function will get the "lspci -mm -n" output from the host OS
-    #         and compares it with known good lspci data
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
-    def test_host_pci_devices(self):
+class OpTestPCIHost(OpTestPCI):
+    # Compare host "lspci -mm -n" output to known good
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         self.cv_HOST.host_check_command("lspci", "lsusb")
         self.cv_HOST.host_list_pci_devices()
         self.cv_HOST.host_get_pci_verbose_info()
         self.cv_HOST.host_list_usb_devices()
         l_res = self.cv_HOST.host_run_command("lspci -mm -n")
-        self.pci_data_hostos = l_res.replace("\r\n", "\n")
+        # FIXME: why do we get a blank line in l_res ?
+        self.pci_data_hostos = l_res[2:].replace("\r\n", "\n")
         diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)
         diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
         r = diff_process.wait()
@@ -149,3 +93,4 @@ class OpTestPCI():
         else:
             print diff_stdout
             raise OpTestError("There is a mismatch b/w known good output and tested host OS lspci output")
+
