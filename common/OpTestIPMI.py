@@ -466,9 +466,8 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_sel_check(self,i_string):
-
         selDesc = 'Transition to Non-recoverable'
-        logFile = self.cv_ffdcDir + '/' + 'host_sol.log'
+        logFile = self.cv_ffdcDir + '/' + 'host_sel_elist.log'
         output = self.ipmitool.run('sel elist')
 
         with open('%s' % logFile, 'w') as f:
