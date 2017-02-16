@@ -162,6 +162,7 @@ class OpTestSystem():
             return OpSystemState.POWERING_OFF
 
         if state == OpSystemState.OS:
+            self.wait_for_kexec()
             return OpSystemState.BOOTING
 
         raise 'Invalid state transition'
@@ -1176,6 +1177,11 @@ class OpTestSystem():
         console.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
         console.expect('x=exit', timeout=10)
         # there will be extra things in the pexpect buffer here
+
+    def wait_for_kexec(self):
+        console = self.console.get_console()
+        # Wait for kexec to start
+        console.expect('Performing kexec', timeout=60)
 
     def petitboot_exit_to_shell(self):
         console = self.console.get_console()
