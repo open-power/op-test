@@ -896,7 +896,6 @@ class OpTestIPMI():
     def ipmi_set_power_limit(self, i_powerlimit):
 
         l_rc = self.ipmitool.run(BMC_CONST.SET_POWER_LIMIT + i_powerlimit)
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         if(i_powerlimit not in l_rc):
             raise OpTestError(l_rc)
 
