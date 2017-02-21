@@ -43,6 +43,7 @@ from testcases import OpTestEEH
 from testcases import OpTestEnergyScale
 from testcases import OpTestFastReboot
 from testcases import OpTestHMIHandling
+from testcases import OpTestHeartbeat
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -63,6 +64,7 @@ class SkirootSuite():
         self.s.addTest(OpTestPCI.OpTestPCISkiroot())
         self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
+        self.s.addTest(OpTestHeartbeat.OpTestHeartbeat())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
         return self.s

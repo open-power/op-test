@@ -46,7 +46,6 @@ import ConfigParser
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from testcases.OpTestSensors import OpTestSensors
 from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
-from testcases.OpTestHeartbeat import OpTestHeartbeat
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
@@ -104,13 +103,6 @@ opTestI2Cdriver = OpTestI2Cdriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg.get('passwordipmi'),
                                   testCfg['ffdcdir'], hostCfg['hostip'],
                                   hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestHeartbeat = OpTestHeartbeat(bmcCfg['ip'], bmcCfg['username'],
-                              bmcCfg['password'],
-                              bmcCfg.get('usernameipmi'),
-                              bmcCfg.get('passwordipmi'),
-                              testCfg['ffdcdir'], hostCfg['hostip'],
-                              hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestMtdPnorDriver = OpTestMtdPnorDriver(bmcCfg['ip'], bmcCfg['username'],
                                           bmcCfg['password'],
@@ -225,13 +217,6 @@ def test_switch_endian_syscall():
     returns: int 0: success, 1: error
     """
     return opTestSwitchEndianSyscall.testSwitchEndianSysCall()
-
-
-def test_ipmi_heartbeat():
-    """This function tests whether the kopald service is running in platform OS
-    returns: int 0-success, raises exception-error
-    """
-    return opTestHeartbeat.test_kopald_service()
 
 
 def test_i2c_driver():
@@ -416,9 +401,6 @@ class OpalIPMI(unittest.TestCase):
 
     def test_ipmi_lock_mode(self):
         opTestIPMILockMode.test_ipmi_lock_mode()
-
-    def test_ipmi_heartbeat(self):
-        opTestHeartbeat.test_kopald_service()
 
     def test_fan_control_enable_functionality(self):
         opTestOOBIPMI.test_fan_control_algorithm_2(opTestOOBIPMI)

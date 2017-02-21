@@ -45,10 +45,6 @@ def test_switchendian_syscall():
     assert op_opal_fvt.test_switch_endian_syscall() == 0
 
 
-def test_ipmi_heartbeat():
-    assert op_opal_fvt.test_ipmi_heartbeat() == 0
-
-
 def test_rtc_driver():
     assert op_opal_fvt.test_real_time_clock() == 0
 
