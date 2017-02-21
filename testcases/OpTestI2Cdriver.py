@@ -37,43 +37,25 @@ import subprocess
 import re
 import sys
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
+
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpTestSystem
+from common.OpTestSystem import OpSystemState
 
 class OpTestI2CDetectUnsupported(Exception):
     """Asked to do i2c detect on a bus that doesn't support detection
     """
     pass
 
-class OpTestI2Cdriver():
-    ## Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
-        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
-                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                         i_hostuser, i_hostPasswd)
+class OpTestI2Cdriver(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
     ##
@@ -90,12 +72,9 @@ class OpTestI2Cdriver():
     #            created for each bus.
     #         6. Testing i2cget functionality for limited samples
     #            Avoiding i2cset functionality, it may damage the system.
-    #
-    # @return BMC_CONST.FW_SUCCESS-success or raise OpTestError-fail
-    #
-    def testI2Cdriver(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-        # Get OS level
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         self.cv_HOST.host_get_OS_Level()
 
         # make sure install "i2c-tools" package in-order to run the test

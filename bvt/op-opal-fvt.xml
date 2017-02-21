@@ -156,14 +156,6 @@
         </test>
 
         <test>
-            <name>Test I2C Driver Functionality</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalDrivers.test_i2c_driver</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Hwmon Driver Functionality</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalDrivers.test_sensors</cmd>

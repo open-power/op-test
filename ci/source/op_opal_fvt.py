@@ -46,7 +46,6 @@ import ConfigParser
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from testcases.OpTestSensors import OpTestSensors
 from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
-from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 from testcases.OpTestPrdDriver import OpTestPrdDriver
@@ -96,13 +95,6 @@ opTestSwitchEndianSyscall = OpTestSwitchEndianSyscall(bmcCfg['ip'],
                                                       hostCfg['hostip'],
                                                       hostCfg['hostuser'],
                                                       hostCfg['hostpasswd'])
-
-opTestI2Cdriver = OpTestI2Cdriver(bmcCfg['ip'], bmcCfg['username'],
-                                  bmcCfg['password'],
-                                  bmcCfg.get('usernameipmi'),
-                                  bmcCfg.get('passwordipmi'),
-                                  testCfg['ffdcdir'], hostCfg['hostip'],
-                                  hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestMtdPnorDriver = OpTestMtdPnorDriver(bmcCfg['ip'], bmcCfg['username'],
                                           bmcCfg['password'],
@@ -217,13 +209,6 @@ def test_switch_endian_syscall():
     returns: int 0: success, 1: error
     """
     return opTestSwitchEndianSyscall.testSwitchEndianSysCall()
-
-
-def test_i2c_driver():
-    """This function tests I2C driver capabilites using i2c-tools
-    returns: int 0-success, raises exception-error
-    """
-    return opTestI2Cdriver.testI2Cdriver()
 
 
 def test_mtd_pnor_driver():
@@ -415,9 +400,6 @@ class OpalDrivers(unittest.TestCase):
 
     def test_prd_driver(self):
         opTestPrdDriver.testPrdDriver()
-
-    def test_i2c_driver(self):
-        opTestI2Cdriver.testI2Cdriver()
 
     def test_sensors(self):
         opTestSensors.test_hwmon_driver()

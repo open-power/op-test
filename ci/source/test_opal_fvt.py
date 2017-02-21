@@ -49,10 +49,6 @@ def test_rtc_driver():
     assert op_opal_fvt.test_real_time_clock() == 0
 
 
-def test_i2c_driver():
-    assert op_opal_fvt.test_i2c_driver() == 0
-
-
 def test_mtdpnor_driver():
     assert op_opal_fvt.test_mtd_pnor_driver() == 0
 
