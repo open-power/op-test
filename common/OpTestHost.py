@@ -72,15 +72,15 @@ class OpTestHost():
         self.bmcip = i_bmcip
         self.cv_ffdcDir = i_ffdcDir
         parent_dir = os.path.dirname(os.path.abspath(__file__))
-        self.results_dir = os.path.join(parent_dir.split('common')[0], "out/logs/")
+        self.results_dir = self.cv_ffdcDir
 
-    def hostname():
+    def hostname(self):
         return self.ip
 
-    def username():
+    def username(self):
         return self.user
 
-    def password():
+    def password(self):
         return self.passwd
 
     ##
@@ -340,13 +340,17 @@ class OpTestHost():
             l_msg = "Failed to gather OPAL message logs"
             raise OpTestError(l_msg)
 
+        if not self.results_dir:
+            print l_data
+            return
+
         l_res = (time.asctime(time.localtime())).replace(" ", "_")
         l_logFile = "Opal_msglog_%s.log" % l_res
         fn = os.path.join(self.results_dir, l_logFile)
         print fn
         with open(fn, 'w') as f:
             f.write(l_data)
-        return BMC_CONST.FW_SUCCESS
+
 
     ##
     # @brief Check if one or more binaries are present on host
@@ -1176,6 +1180,9 @@ class OpTestHost():
         except OpTestError:
             l_msg = "Failed to gather kernel dmesg log"
             raise OpTestError(l_msg)
+        if not self.results_dir:
+            print l_data
+            return
         l_res = (time.asctime(time.localtime())).replace(" ", "_")
         l_logFile = "Kernel_dmesg_log_%s.log" % l_res
         fn = os.path.join(self.results_dir, l_logFile)
