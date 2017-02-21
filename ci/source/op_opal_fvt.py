@@ -459,7 +459,6 @@ from common.OpTestError import OpTestError
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import ci.source.op_inbound_hpm as op_inbound_hpm
 import ci.source.op_occ_fvt as op_occ_fvt
-import ci.source.op_fwts_fvt as op_fwts_fvt
 import ci.source.op_outofband_firmware_update as op_outofband_firmware_update
 import ci.source.op_firmware_component_update as op_firmware_component_update
 import ci.source.op_bmc_web_update as op_bmc_web_update
