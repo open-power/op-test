@@ -204,14 +204,6 @@
         </test>
 
         <test>
-            <name>Test Atmel(at24) Driver Functionality</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalDrivers.test_at24_driver</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Hwmon Driver Functionality</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalDrivers.test_sensors</cmd>

@@ -47,7 +47,6 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from testcases.OpTestSensors import OpTestSensors
 from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
 from testcases.OpTestHeartbeat import OpTestHeartbeat
-from testcases.OpTestAt24driver import OpTestAt24driver
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
@@ -101,13 +100,6 @@ opTestSwitchEndianSyscall = OpTestSwitchEndianSyscall(bmcCfg['ip'],
                                                       hostCfg['hostip'],
                                                       hostCfg['hostuser'],
                                                       hostCfg['hostpasswd'])
-
-opTestAt24driver = OpTestAt24driver(bmcCfg['ip'], bmcCfg['username'],
-                                    bmcCfg['password'],
-                                    bmcCfg.get('usernameipmi'),
-                                    bmcCfg.get('passwordipmi'),
-                                    testCfg['ffdcdir'], hostCfg['hostip'],
-                                    hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestI2Cdriver = OpTestI2Cdriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg['password'],
@@ -263,13 +255,6 @@ def test_ipmi_heartbeat():
     returns: int 0-success, raises exception-error
     """
     return opTestHeartbeat.test_kopald_service()
-
-
-def test_at24_driver():
-    """This function tests Atmel EEPROM 24(AT24) driver functionalites
-    returns: int 0-success, raises exception-error
-    """
-    return opTestAt24driver.testAt24driver()
 
 
 def test_i2c_driver():
@@ -564,9 +549,6 @@ class OpalDrivers(unittest.TestCase):
 
     def test_i2c_driver(self):
         opTestI2Cdriver.testI2Cdriver()
-
-    def test_at24_driver(self):
-        opTestAt24driver.testAt24driver()
 
     def test_sensors(self):
         opTestSensors.test_hwmon_driver()

@@ -38,39 +38,18 @@ import subprocess
 import re
 import sys
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpTestSystem
+from common.OpTestSystem import OpSystemState
 
-
-class OpTestAt24driver():
-    ## Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd,i_bmcIP)
-        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                 i_hostuser, i_hostPasswd)
+class OpTestAt24driver(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
     ##
@@ -81,11 +60,9 @@ class OpTestAt24driver():
     #         3. Getting the list of i2c buses and eeprom chip addresses
     #         4. Accessing the registers visible through the i2cbus using i2cdump utility
     #         5. Getting the eeprom device data using hexdump utility in hex + Ascii format
-    #
-    # @return BMC_CONST.FW_SUCCESS-success or raise OpTestError
-    #
-    def testAt24driver(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         # Get OS level
         self.cv_HOST.host_get_OS_Level()
 
@@ -123,19 +100,15 @@ class OpTestAt24driver():
         # Getting the list of sysfs eeprom interfaces
         l_res = self.cv_HOST.host_run_command("find /sys/ -name eeprom; echo $?")
         l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            pass
-        else:
-            l_msg = "EEPROM sysfs entries are not created"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[-1]), 0, "EEPROM sysfs entries are not created")
+
         for l_dev in l_res:
             if l_dev.__contains__("eeprom"):
                 # Getting the eeprom device data using hexdump utility in hex + Ascii format
                 self.cv_HOST.host_hexdump(l_dev)
             else:
                 pass
-        return BMC_CONST.FW_SUCCESS
+        pass
 
     ##
     # @brief This i2cdump function takes arguments in pair of a string like "i2cbus address".
@@ -153,9 +126,5 @@ class OpTestAt24driver():
     def i2c_dump(self, i_args):
         l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s; echo $?" % i_args)
         l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "i2cdump failed on addr %s" % i_args
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[-1]), 0, "i2cdump failed on addr %s" % i_args)
+
