@@ -39,6 +39,7 @@ from testcases import OpTestDropbearSafety
 from testcases import OpTestRTCdriver
 from testcases import OpTestEM
 from testcases import OpTestAt24driver
+from testcases import OpTestEEH
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -65,6 +66,13 @@ class HostSuite():
     def suite(self):
         return self.s
 
+class ExperimentalSuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestEEH.suite())
+    def suite(self):
+        return self.s
+
 class BasicIPLSuite():
     def suite(self):
         return BasicIPL.suite()
@@ -81,12 +89,18 @@ class OpTestEMSuite():
     def suite(self):
         return OpTestEM.suite()
 
+class OpTestEEHSuite():
+    def suite(self):
+        return OpTestEEH.suite()
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
     'default' : DefaultSuite(),
     'BasicIPL' : BasicIPLSuite(),
     'em' :       OpTestEMSuite(),
+    'experimental': ExperimentalSuite(),
+    'experimental-eeh': OpTestEEHSuite(),
 }
 
 if OpTestConfiguration.conf.args.list_suites:
