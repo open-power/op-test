@@ -45,7 +45,6 @@ sys.path.append(full_path)
 import ConfigParser
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from testcases.OpTestEnergyScale import OpTestEnergyScale
 from testcases.OpTestOCC import OpTestOCC
 
 
@@ -61,15 +60,6 @@ def _config_read():
     other functions '''
 
 bmcCfg, testCfg, hostCfg = _config_read()
-opTestEnergyScale = OpTestEnergyScale(bmcCfg['ip'], bmcCfg['username'],
-                                      bmcCfg['password'],
-                                      bmcCfg.get('usernameipmi'),
-                                      bmcCfg.get('passwordipmi'),
-                                      testCfg['ffdcdir'],
-                                      testCfg['platformname'],
-                                      hostCfg['hostip'],
-                                      hostCfg['hostuser'],
-                                      hostCfg['hostpasswd'])
 
 opTestOCC = OpTestOCC(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg['password'],
@@ -89,27 +79,6 @@ def test_init():
         os.makedirs(os.path.dirname(ffdcDir))
 
     return 0
-
-
-def test_energy_scale_at_standby_state():
-    """This function tests the platform energy scale tests at standby state
-    returns: int 0-success, raises exception-error
-    """
-    return opTestEnergyScale.test_energy_scale_at_standby_state()
-
-
-def test_energy_scale_at_runtime_state():
-    """This function tests the platform energy scale tests at runtime
-    returns: int 0-success, raises exception-error
-    """
-    return opTestEnergyScale.test_energy_scale_at_runtime_state()
-
-
-def test_dcmi_at_standby_and_runtime_states():
-    """This function tests the dcmi commands at both standby and runtime state
-    returns: int 0-success, raises exception-error
-    """
-    return opTestEnergyScale.test_dcmi_at_standby_and_runtime_states()
 
 
 def test_occ_reset_functionality():
@@ -146,15 +115,6 @@ class OpalOCCTests(unittest.TestCase):
     def setUp(self):
         bmcCfg, testCfg, hostCfg = _config_read()
         test_init()
-
-    def test_energy_scale_at_standby_state(self):
-        opTestEnergyScale.test_energy_scale_at_standby_state()
-
-    def test_energy_scale_at_runtime_state(self):
-        opTestEnergyScale.test_energy_scale_at_runtime_state()
-
-    def test_dcmi_at_standby_and_runtime_states(self):
-        opTestEnergyScale.test_dcmi_at_standby_and_runtime_states()
 
     def test_occ_reset_functionality(self):
         opTestOCC.test_occ_reset_functionality()

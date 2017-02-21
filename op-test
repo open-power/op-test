@@ -40,6 +40,7 @@ from testcases import OpTestRTCdriver
 from testcases import OpTestEM
 from testcases import OpTestAt24driver
 from testcases import OpTestEEH
+from testcases import OpTestEnergyScale
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -47,11 +48,19 @@ OpTestConfiguration.conf.objs()
 
 print args
 
+class StandbySuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+#        self.s.addTest(OpTestEnergyScale.standby_suite())
+    def suite(self):
+        return self.s
+
 class SkirootSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestPCI.OpTestPCISkiroot())
         self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
+#        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
         return self.s
 
@@ -93,6 +102,14 @@ class OpTestEEHSuite():
     def suite(self):
         return OpTestEEH.suite()
 
+class OpTestEnergyScaleSuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestEnergyScale.standby_suite())
+        self.s.addTest(OpTestEnergyScale.runtime_suite())
+    def suite(self):
+        return self.s
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -101,6 +118,8 @@ suites = {
     'em' :       OpTestEMSuite(),
     'experimental': ExperimentalSuite(),
     'experimental-eeh': OpTestEEHSuite(),
+    'experimental-energyscale' : OpTestEnergyScaleSuite(),
+    'standby' : StandbySuite(),
 }
 
 if OpTestConfiguration.conf.args.list_suites:

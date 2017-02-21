@@ -33,41 +33,38 @@ import commands
 import re
 import sys
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestSystem import OpTestSystem
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
+from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpTestConstants as BMC_CONST
 
-
-class OpTestEnergyScale():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_platName=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
-        self.cv_SYSTEM = OpTestSystem(self.cv_BMC,
-                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                         i_hostuser, i_hostPasswd)
-        self.cv_PLATFORM = i_platName
+class OpTestEnergyScale(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
+        self.cv_PLATFORM = conf.platform()
+
+    ##
+    # @brief  It will execute and test the return code of ipmi command.
+    #
+    # @param i_cmd @type string:The ipmitool command, for example: chassis power on; echo $?
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def run_ipmi_cmd(self, i_cmd):
+        l_cmd = i_cmd
+        l_res = self.cv_IPMI.ipmitool_execute_command(l_cmd)
+        print l_res
+        l_res = l_res.splitlines()
+        if int(l_res[-1]):
+            l_msg = "IPMI: command failed %c" % l_cmd
+            raise OpTestError(l_msg)
+        return l_res
 
     ##
     # @brief This function will get and return platform power limits for supported machine
@@ -94,6 +91,7 @@ class OpTestEnergyScale():
             raise OpTestError(l_msg)
         return l_power_limit_low, l_power_limit_high
 
+class OpTestEnergyScaleStandby(OpTestEnergyScale):
     ##
     # @brief  This function will test Energy scale features at standby state
     #         1. Power OFF the system.
@@ -115,23 +113,11 @@ class OpTestEnergyScale():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def test_energy_scale_at_standby_state(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         print "Energy Scale Test 1: Get, Set, activate and deactivate platform power limit at power off"
         l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
 
-        print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
         self.cv_IPMI.ipmi_sdr_clear()
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
@@ -155,32 +141,11 @@ class OpTestEnergyScale():
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_TEMP_READING)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
-        print "Performing a IPMI Power ON Operation"
-        # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        l_status = self.cv_IPMI.ipmi_get_occ_status()
-        print l_status
-        if BMC_CONST.OCC_DEVICE_ENABLED in l_status:
-            print "OCC's are up and active"
-        else:
-            l_msg = "OCC's are not in active state"
-            raise OpTestError(l_msg)
-        print self.cv_IPMI.ipmi_get_power_limit()
-        print "Get All dcmi readings at runtime"
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_SENSORS)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_TEMP_READING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
 
 
+class OpTestEnergyScaleRuntime(OpTestEnergyScale):
     ##
-    # @brief  This function will test Energy scale features at standby state
+    # @brief  This function will test Energy scale features at runtime
     #         1. Power OFF the system.
     #         2. Power On the system to boot to host OS
     #         2. Validate below Energy scale features at runtime state
@@ -200,38 +165,12 @@ class OpTestEnergyScale():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def test_energy_scale_at_runtime_state(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
         print "Energy Scale Test 2: Get, Set, activate and deactivate platform power limit at runtime"
         l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
 
-        print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-        print "Get All dcmi readings at power off"
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_SENSORS)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_TEMP_READING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
-        self.cv_IPMI.ipmi_sdr_clear()
-        print self.cv_IPMI.ipmi_get_power_limit()
-        print "Performing a IPMI Power ON Operation"
-        # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         l_status = self.cv_IPMI.ipmi_get_occ_status()
         print l_status
@@ -255,40 +194,6 @@ class OpTestEnergyScale():
         print self.cv_IPMI.ipmi_get_power_limit()
         self.cv_IPMI.ipmi_activate_power_limit()
         print self.cv_IPMI.ipmi_get_power_limit()
-        print "Get All dcmi readings at runtime"
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_SENSORS)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_TEMP_READING)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
-        print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-
-        print "Performing a IPMI Power ON Operation"
-        # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        l_status = self.cv_IPMI.ipmi_get_occ_status()
-        print l_status
-        if BMC_CONST.OCC_DEVICE_ENABLED in l_status:
-            print "OCC's are up and active"
-        else:
-            l_msg = "OCC's are not in active state"
-            raise OpTestError(l_msg)
         print "Get All dcmi readings at runtime"
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
@@ -313,8 +218,10 @@ class OpTestEnergyScale():
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def test_dcmi_at_standby_and_runtime_states(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+
         print "Energy scale Test 3: Get Sensors, Temperature and Power reading's at power off and runtime"
         print "Performing a IPMI Power OFF Operation"
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
@@ -337,10 +244,13 @@ class OpTestEnergyScale():
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_TEMP_READING)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
+
+class OpTestEnergyScaleDCMIruntime(OpTestEnergyScale):
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
         print "Performing a IPMI Power ON Operation"
         # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         l_status = self.cv_IPMI.ipmi_get_occ_status()
         print l_status
@@ -359,20 +269,14 @@ class OpTestEnergyScale():
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
 
+def runtime_suite():
+    s = unittest.TestSuite()
+    s.addTest(OpTestEnergyScaleRuntime())
+    s.addTest(OpTestEnergyScaleDCMIruntime())
+    return s;
 
-    ##
-    # @brief  It will execute and test the return code of ipmi command.
-    #
-    # @param i_cmd @type string:The ipmitool command, for example: chassis power on; echo $?
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def run_ipmi_cmd(self, i_cmd):
-        l_cmd = i_cmd
-        l_res = self.cv_IPMI.ipmitool_execute_command(l_cmd)
-        print l_res
-        l_res = l_res.splitlines()
-        if int(l_res[-1]):
-            l_msg = "IPMI: command failed %c" % l_cmd
-            raise OpTestError(l_msg)
-        return l_res
+def standby_suite():
+    s = unittest.TestSuite()
+    s.addTest(OpTestEnergyScaleStandby())
+    s.addTest(OpTestEnergyScaleDCMIstandby())
+    return s

@@ -33,18 +33,6 @@ def test_config_check():
     assert op_occ_fvt.test_init() == 0
 
 
-def test_energy_scale_at_standby_state():
-    assert op_occ_fvt.test_energy_scale_at_standby_state() == 0
-
-
-def test_energy_scale_at_runtime_state():
-    assert op_occ_fvt.test_energy_scale_at_runtime_state() == 0
-
-
-def test_dcmi_at_standby_and_runtime_states():
-    assert op_occ_fvt.test_dcmi_at_standby_and_runtime_states() == 0
-
-
 def test_occ_reset_functionality():
     assert op_occ_fvt.test_occ_reset_functionality() == 0
 
