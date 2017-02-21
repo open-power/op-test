@@ -59,7 +59,6 @@ from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
 from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
 from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
-from testcases.OpTestFastReboot import OpTestFastReboot
 from testcases.OpTestNVRAM import OpTestNVRAM
 from testcases.OpTestDumps import OpTestDumps
 from testcases.OpTestKernel import OpTestKernel
@@ -184,13 +183,6 @@ opTestIPMIReprovision = OpTestIPMIReprovision(bmcCfg['ip'], bmcCfg['username'],
                                               bmcCfg.get('passwordipmi'),
                                               testCfg['ffdcdir'], hostCfg['hostip'],
                                               hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestFastReboot = OpTestFastReboot(bmcCfg['ip'], bmcCfg['username'],
-                      bmcCfg['password'],
-                      bmcCfg.get('usernameipmi'),
-                      bmcCfg.get('passwordipmi'),
-                      testCfg['ffdcdir'], hostCfg['hostip'],
-                      hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestNVRAM = OpTestNVRAM(bmcCfg['ip'], bmcCfg['username'],
                           bmcCfg['password'],
@@ -447,14 +439,6 @@ class PetitbootEnvironmentTests(unittest.TestCase):
     def setUp(self):
         bmcCfg, testCfg, hostCfg = _config_read()
         test_init()
-
-class FastResetTests(unittest.TestCase):
-    def setUp(self):
-        bmcCfg, testCfg, hostCfg = _config_read()
-        test_init()
-
-    def test_opal_fast_reboot(self):
-        opTestFastReboot.test_opal_fast_reboot()
 
 class OpalNVRAM(unittest.TestCase):
     def setUp(self):

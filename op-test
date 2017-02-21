@@ -41,6 +41,7 @@ from testcases import OpTestEM
 from testcases import OpTestAt24driver
 from testcases import OpTestEEH
 from testcases import OpTestEnergyScale
+from testcases import OpTestFastReboot
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -60,6 +61,7 @@ class SkirootSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestPCI.OpTestPCISkiroot())
         self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
+        self.s.addTest(OpTestFastReboot.OpTestFastReboot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
         return self.s

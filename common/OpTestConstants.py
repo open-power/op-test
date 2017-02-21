@@ -95,6 +95,7 @@ class OpTestConstants():
     NVRAM_UPDATE_CONFIG_TEST_DATA = "nvram --update-config test-name=test-value"
     NVRAM_TEST_DATA = "test-name=test-value"
     NVRAM_SET_FAST_RESET_MODE = "nvram -p ibm,skiboot --update-config experimental-fast-reset=feeling-lucky"
+    NVRAM_DISABLE_FAST_RESET_MODE = "nvram -p ibm,skiboot --update-config experimental-fast-reset="
     NVRAM_PRINT_FAST_RESET_VALUE = "nvram --print-config=experimental-fast-reset -p ibm,skiboot"
     OCC_ENABLE = "opal-prd occ enable"
     OCC_DISABLE = "opal-prd occ disable"
