@@ -44,6 +44,16 @@ It must also have:
 
     linux-tools-common linux-tools-generic
 
+From skiboot, you will need the xscom-utils and gard installed:
+
+    git clone https://github.com/open-power/skiboot
+    cd external/xscom-utils
+    make
+    sudo make install
+    cd ../gard
+    make
+    sudo make install
+
 ### Running the tests ###
 
     ./op-test -h

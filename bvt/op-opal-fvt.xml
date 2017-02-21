@@ -132,30 +132,6 @@
         </test>
 
         <test>
-            <name>Test HMI Processor Recovery Done</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalHMI.test_hmi_proc_recv_done</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>Test HMI Processor Recovery Error Masked</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalHMI.test_hmi_proc_recv_error_masked</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>Test HMI Malfunction Alert</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalHMI.test_hmi_malfunction_alert</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Clear Gard Entries</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalHMI.test_clear_gard_entries</cmd>

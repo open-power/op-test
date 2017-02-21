@@ -40,73 +40,26 @@ import sys
 import os
 import random
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestSystem import OpTestSystem
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
+from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpTestConstants as BMC_CONST
 
-
-class OpTestHMIHandling():
-    ## Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the Host
-    # @param i_hostuser The userid to log into the Host
-    # @param i_hostPasswd The password of the userid to log into the Host with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
-        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                 i_hostuser, i_hostPasswd)
+class OpTestHMIHandling(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
-    ##
-    # @brief This is a common function for all the hmi test cases. This will be executed before
-    #        any test case starts. Basically this provides below requirements.
-    #        1. Validates all required host commands
-    #        2. It will clone skiboot source repository
-    #        3. Compile the necessary tools xscom-utils and gard utility to test HMI.
-    #        4. Get the list Of Chips and cores in the form of dictionary.
-    #           Ex: [['00000000', ['4', '5', '6', 'c', 'd', 'e']], ['00000001', ['4', '5', '6', 'c', 'd', 'e']], ['00000010', ['4', '5', '6', 'c', 'd', 'e']]]
-    #        5. In-order to inject HMI errors on cpu's, cpu should be running,
-    #           so disabling the sleep states 1 and 2 of all CPU's.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_init(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-
-        # Get OS level
-        self.l_oslevel = self.cv_HOST.host_get_OS_Level()
-
-        # Check whether git and gcc commands are available on the host
-        self.cv_HOST.host_check_command("git")
-        self.cv_HOST.host_check_command("gcc")
-
-        # It will clone skiboot source repository
-        l_dir = "/tmp/skiboot"
-        self.cv_HOST.host_clone_skiboot_source(l_dir)
-        # Compile the necessary tools xscom-utils and gard utility
-        self.cv_HOST.host_compile_xscom_utilities(l_dir)
-        self.cv_HOST.host_compile_gard_utility(l_dir)
+    def init_test(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         # Getting list of processor chip Id's(executing getscom -l to get chip id's)
-        l_res = self.cv_HOST.host_run_command("cd %s/external/xscom-utils/; ./getscom -l" % l_dir)
+        l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
         l_res = l_res.splitlines()
         l_chips = []
         for line in l_res:
@@ -114,8 +67,7 @@ class OpTestHMIHandling():
             if matchObj:
                 l_chips.append(matchObj.group(1))
         if not l_chips:
-            l_msg = "Getscom failed to list processor chip id's"
-            raise OpTestError(l_msg)
+            raise Exception("Getscom failed to list processor chip ids")
         l_chips.sort()
         print l_chips # ['00000000', '00000001', '00000010']
 
@@ -134,8 +86,7 @@ class OpTestHMIHandling():
                 else:
                     l_cores[int(matchObj.group(1))] = list(matchObj.group(2))
         if not l_cores:
-            l_msg = "Failed in getting core id's information from OPAL msg log"
-            raise OpTestError(l_msg)
+            raise Exception("Failed in getting core ids information from OPAL msg log")
 
         print l_cores # {0: ['4', '5', '6', 'c', 'd', 'e'], 1: ['4', '5', '6', 'c', 'd', 'e'], 10: ['4', '5', '6', 'c', 'd', 'e']}
         l_cores = sorted(l_cores.iteritems())
@@ -149,7 +100,6 @@ class OpTestHMIHandling():
         # self.l_dic is a list of chip id's, core id's . and is of below format 
         # [['00000000', ['4', '5', '6', 'c', 'd', 'e']], ['00000001', ['4', '5', '6', 'c', 'd', 'e']], ['00000010', ['4', '5', '6', 'c', 'd', 'e']]]
 
-        self.l_dir = l_dir
         # In-order to inject HMI errors on cpu's, cpu should be running, so disabling the sleep states 1 and 2 of all CPU's
         self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE2)
         self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE1)
@@ -160,57 +110,24 @@ class OpTestHMIHandling():
         self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE1)
         self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE0)
 
-        if "Ubuntu" in self.l_oslevel:
+        l_oslevel = self.cv_HOST.host_get_OS_Level()
+        if "Ubuntu" in l_oslevel:
             self.cv_HOST.host_run_command("service kdump-tools stop")
             self.cv_HOST.host_run_command("service kdump-tools status")
         else:
             self.cv_HOST.host_run_command("service kdump stop")
             self.cv_HOST.host_run_command("service kdump status")
 
-    ##
-    # @brief This function is mainly used to clear hardware gard entries.
-    #        It will perform below steps
-    #           1. Reboot the system(Power off/on)
-    #           2. Clear any Hardware gard entries
-    #           3. Again reboot the system, to make use of garded Hardware.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def clearGardEntries(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-        # Power off and on the system.
-        self.cv_SYSTEM.sys_hard_reboot()
-
-        # Clearing gard entries after host comes up
-        self.cv_HOST.host_get_OS_Level()
-        # It will clone skiboot source repository
-        l_dir = "/tmp/skiboot"
-        self.cv_HOST.host_clone_skiboot_source(l_dir)
-        # Compile the necessary tools xscom-utils and gard utility
-        self.cv_HOST.host_compile_xscom_utilities(l_dir)
-        self.cv_HOST.host_compile_gard_utility(l_dir)
-
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_host_login(l_con)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        l_dir = "/tmp/skiboot"
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cd %s/external/gard/;" % l_dir)
-        l_cmd = "./gard list; echo $?"
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-        l_cmd = "./gard clear all; echo $?"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-        if int(l_res[-1]):
-            l_msg = "Clearing gard entries through gard tool is failed"
-            raise OpTestError(l_msg)
-        l_cmd = "./gard list; echo $?"
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-
-        # Rebooting the system again to make use of garded hardware
-        self.cv_SYSTEM.sys_hard_reboot()
-
-        self.cv_HOST.host_get_OS_Level()
-        self.cv_SYSTEM.sys_ipmi_close_console(l_con)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
+        if "No GARD entries to display" not in g:
+            self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear")
+            cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
+            self.assertIn("No GARD entries to display", cleared_gard,
+                          "Failed to clear GARD entries")
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     ##
     # @brief This function executes HMI test case based on the i_test value, Before test starts
@@ -221,28 +138,26 @@ class OpTestHMIHandling():
     #                          BMC_CONST.HMI_PROC_RECV_ERROR_MASKED: proc_recv_error_masked
     #                          BMC_CONST.HMI_MALFUNCTION_ALERT: malfunction_alert
     #                          BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR: hypervisor resource error
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def testHMIHandling(self, i_test):
+    def _testHMIHandling(self, i_test):
         l_test = i_test
-        self.test_init()
+        self.init_test()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
+        self.cv_IPMI.ipmi_host_set_unique_prompt()
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cd %s/external/xscom-utils/;" % self.l_dir)
         self.cv_IPMI.run_host_cmd_on_ipmi_console("lscpu")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -D")
         if l_test == BMC_CONST.HMI_PROC_RECV_DONE:
-            self.test_proc_recv_done()
+            self._test_proc_recv_done()
         elif l_test == BMC_CONST.HMI_PROC_RECV_ERROR_MASKED:
-            self.test_proc_recv_error_masked()
+            self._test_proc_recv_error_masked()
         elif l_test == BMC_CONST.HMI_MALFUNCTION_ALERT:
-            self.test_malfunction_allert()
+            self._test_malfunction_allert()
         elif l_test == BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR:
-            self.test_hyp_resource_err()
+            self._test_hyp_resource_err()
         elif l_test == BMC_CONST.TOD_ERRORS:
             # TOD Error recovery works on systems having more than one chip TOD
             # Skip this test on single chip systems(as recovery fails on 1S systems)
@@ -251,33 +166,31 @@ class OpTestHMIHandling():
                 print l_msg
                 return BMC_CONST.FW_SUCCESS
             elif len(self.l_dic) > 1:
-                self.test_tod_errors(BMC_CONST.PSS_HAMMING_DISTANCE)
-                self.test_tod_errors(BMC_CONST.INTERNAL_PATH_OR_PARITY_ERROR)
-                self.test_tod_errors(BMC_CONST.TOD_DATA_PARITY_ERROR)
-                self.test_tod_errors(BMC_CONST.TOD_SYNC_CHECK_ERROR)
-                self.test_tod_errors(BMC_CONST.FSM_STATE_PARITY_ERROR)
-                self.test_tod_errors(BMC_CONST.MASTER_PATH_CONTROL_REGISTER)
-                self.test_tod_errors(BMC_CONST.PORT_0_PRIMARY_CONFIGURATION_REGISTER)
-                self.test_tod_errors(BMC_CONST.PORT_1_PRIMARY_CONFIGURATION_REGISTER)
-                self.test_tod_errors(BMC_CONST.PORT_0_SECONDARY_CONFIGURATION_REGISTER)
-                self.test_tod_errors(BMC_CONST.PORT_1_SECONDARY_CONFIGURATION_REGISTER)
-                self.test_tod_errors(BMC_CONST.SLAVE_PATH_CONTROL_REGISTER)
-                self.test_tod_errors(BMC_CONST.INTERNAL_PATH_CONTROL_REGISTER)
-                self.test_tod_errors(BMC_CONST.PR_SC_MS_SL_CONTROL_REGISTER)
+                self._test_tod_errors(BMC_CONST.PSS_HAMMING_DISTANCE)
+                self._test_tod_errors(BMC_CONST.INTERNAL_PATH_OR_PARITY_ERROR)
+                self._test_tod_errors(BMC_CONST.TOD_DATA_PARITY_ERROR)
+                self._test_tod_errors(BMC_CONST.TOD_SYNC_CHECK_ERROR)
+                self._test_tod_errors(BMC_CONST.FSM_STATE_PARITY_ERROR)
+                self._test_tod_errors(BMC_CONST.MASTER_PATH_CONTROL_REGISTER)
+                self._test_tod_errors(BMC_CONST.PORT_0_PRIMARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(BMC_CONST.PORT_1_PRIMARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(BMC_CONST.PORT_0_SECONDARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(BMC_CONST.PORT_1_SECONDARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(BMC_CONST.SLAVE_PATH_CONTROL_REGISTER)
+                self._test_tod_errors(BMC_CONST.INTERNAL_PATH_CONTROL_REGISTER)
+                self._test_tod_errors(BMC_CONST.PR_SC_MS_SL_CONTROL_REGISTER)
             else:
-                l_msg = "Getting Chip information failed"
-                raise OpTestError(l_msg)
+                raise Exception("Getting Chip information failed")
         elif l_test == BMC_CONST.TFMR_ERRORS:
-            self.testTFMR_Errors(BMC_CONST.TB_PARITY_ERROR)
-            self.testTFMR_Errors(BMC_CONST.TFMR_PARITY_ERROR)
-            self.testTFMR_Errors(BMC_CONST.TFMR_HDEC_PARITY_ERROR)
-            self.testTFMR_Errors(BMC_CONST.TFMR_DEC_PARITY_ERROR)
-            self.testTFMR_Errors(BMC_CONST.TFMR_PURR_PARITY_ERROR)
-            self.testTFMR_Errors(BMC_CONST.TFMR_SPURR_PARITY_ERROR)
+            self._testTFMR_Errors(BMC_CONST.TB_PARITY_ERROR)
+            self._testTFMR_Errors(BMC_CONST.TFMR_PARITY_ERROR)
+            self._testTFMR_Errors(BMC_CONST.TFMR_HDEC_PARITY_ERROR)
+            self._testTFMR_Errors(BMC_CONST.TFMR_DEC_PARITY_ERROR)
+            self._testTFMR_Errors(BMC_CONST.TFMR_PURR_PARITY_ERROR)
+            self._testTFMR_Errors(BMC_CONST.TFMR_SPURR_PARITY_ERROR)
         else:
-            l_msg = "Please provide valid test case"
-            raise OpTestError(l_msg)
-        self.cv_SYSTEM.sys_ipmi_close_console(l_con)
+            raise Exception("Please provide valid test case")
+
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
         return BMC_CONST.FW_SUCCESS
@@ -286,20 +199,15 @@ class OpTestHMIHandling():
     # @brief This function is used to test HMI: processor recovery done
     #        and also this function injecting error on all the cpus one by one and 
     #        verify whether cpu is recovered or not.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_proc_recv_done(self):
+    def _test_proc_recv_done(self):
         for l_pair in self.l_dic:
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = "1%s013100" % l_core
-                l_cmd = "./putscom -c %s %s 0000000000100000; echo $?" % (l_chip, l_reg)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000; echo $?" % (l_chip, l_reg)
 
                 self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
-                time.sleep(10)
                 l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-                time.sleep(10)
                 if l_res[-1] == "0":
                     print "Injected thread hang recoverable error"
                 elif l_res[-1] == "1":
@@ -308,77 +216,61 @@ class OpTestHMIHandling():
                     continue
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
-                        l_msg = "Processor recovery failed: Kernel got panic"
+                        raise Exception("Processor recovery failed: Kernel got panic")
                     elif any("Petitboot" in line for line in l_res):
-                        l_msg = "System reached petitboot:Processor recovery failed"
+                        raise Exception("System reached petitboot:Processor recovery failed")
                     elif any("ISTEP" in line for line in l_res):
-                        l_msg = "System started booting: Processor recovery failed"
+                        raise Exception("System started booting: Processor recovery failed")
                     else:
-                        l_msg = "Failed to inject thread hang recoverable error"
-                    print l_msg
-                    raise OpTestError(l_msg)
+                        raise Exception("Failed to inject thread hang recoverable error")
 
                 l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
                 if any("Processor Recovery done" in line for line in l_res) and \
                 any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
                     print "Processor recovery done"
                 else:
-                    l_msg = "HMI handling failed to log message: for proc_recv_done"
-                    raise OpTestError(l_msg)
-                time.sleep(BMC_CONST.HMI_TEST_CASE_SLEEP_TIME)
-        return BMC_CONST.FW_SUCCESS
+                    raise Exception("HMI handling failed to log message: for proc_recv_done")
+        return
 
     ##
     # @brief This function is used to test HMI: proc_recv_error_masked
     #        Processor went through recovery for an error which is actually masked for reporting
     #        this function also injecting the error on all the cpu's one-by-one.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_proc_recv_error_masked(self):
+    def _test_proc_recv_error_masked(self):
         for l_pair in self.l_dic:
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = "1%s013100" % l_core
-                l_cmd = "./putscom -c %s %s 0000000000080000; echo $?" % (l_chip, l_reg)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000; echo $?" % (l_chip, l_reg)
                 self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
-                time.sleep(10)
                 l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-                time.sleep(10)
                 if l_res[-1] == "0":
                     print "Injected thread hang recoverable error"
                 elif l_res[-1] == "1":
                     continue
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
-                        l_msg = "Processor recovery failed: Kernel got panic"
+                        raise Exception("Processor recovery failed: Kernel got panic")
                     elif any("Petitboot" in line for line in l_res):
-                        l_msg = "System reached petitboot:Processor recovery failed"
+                        raise Exception("System reached petitboot:Processor recovery failed")
                     elif any("ISTEP" in line for line in l_res):
-                        l_msg = "System started booting: Processor recovery failed"
+                        raise Exception("System started booting: Processor recovery failed")
                     else:
-                        l_msg = "Failed to inject thread hang recoverable error"
-                    print l_msg
-                    raise OpTestError(l_msg)
+                        raise Exception("Failed to inject thread hang recoverable error")
 
                 l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
                 if any("Processor Recovery done" in line for line in l_res) and \
                 any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
                     print "Processor recovery done"
                 else:
-                    l_msg = "HMI handling failed to log message"
-                    raise OpTestError(l_msg)
-                time.sleep(BMC_CONST.HMI_TEST_CASE_SLEEP_TIME)
-        return BMC_CONST.FW_SUCCESS
+                    raise Exception("HMI handling failed to log message")
+        return
 
     ##
     # @brief This function is used to test hmi malfunction alert:Core checkstop
     #        A processor core in the system has to be checkstopped (failed recovery).
     #        Injecting core checkstop on random core of random chip
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_malfunction_allert(self):
+    def _test_malfunction_allert(self):
         # Get random pair of chip vs cores
         l_pair = random.choice(self.l_dic)
         # Get random chip id
@@ -387,7 +279,7 @@ class OpTestHMIHandling():
         l_core = random.choice(l_pair[1])
 
         l_reg = "1%s013100" % l_core
-        l_cmd = "./putscom -c %s %s 1000000000000000" % (l_chip, l_reg)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 1000000000000000" % (l_chip, l_reg)
 
         l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
         if any("Kernel panic - not syncing" in line for line in l_res):
@@ -399,17 +291,14 @@ class OpTestHMIHandling():
         elif any("ISTEP" in line for line in l_res):
             print "System started booting without any kernel panic message"
         else:
-            l_msg = "HMI: Malfunction alert failed"
-            raise OpTestError(l_msg)
-        return BMC_CONST.FW_SUCCESS
+            raise Exception("HMI: Malfunction alert failed")
+
+        return
 
     ##
     # @brief This function is used to test HMI: Hypervisor resource error
     #        Injecting Hypervisor resource error on random core of random chip
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_hyp_resource_err(self):
+    def _test_hyp_resource_err(self):
         # Get random pair of chip vs cores
         l_pair = random.choice(self.l_dic)
         # Get random chip id
@@ -418,7 +307,7 @@ class OpTestHMIHandling():
         l_core = random.choice(l_pair[1])
 
         l_reg = "1%s013100" % l_core
-        l_cmd = "./putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
 
         l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
         if any("Kernel panic - not syncing" in line for line in l_res) and \
@@ -431,9 +320,8 @@ class OpTestHMIHandling():
         elif any("ISTEP" in line for line in l_res):
             print "System started booting without any kernel panic message"
         else:
-            l_msg = "HMI: Hypervisor resource error failed"
-            raise OpTestError(l_msg)
-        return BMC_CONST.FW_SUCCESS
+            raise Exception("HMI: Hypervisor resource error failed")
+        return
 
     ##
     # @brief This function tests timer facility related error injections and check
@@ -447,19 +335,15 @@ class OpTestHMIHandling():
     #                          BMC_CONST.TFMR_DEC_PARITY_ERROR
     #                          BMC_CONST.TFMR_PURR_PARITY_ERROR
     #                          BMC_CONST.TFMR_SPURR_PARITY_ERROR
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def testTFMR_Errors(self, i_error):
+    def _testTFMR_Errors(self, i_error):
         l_error = i_error
         for l_pair in self.l_dic:
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = "1%s013281" % l_core
-                l_cmd = "./putscom -c %s %s %s;echo $?" % (l_chip, l_reg, l_error)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s;echo $?" % (l_chip, l_reg, l_error)
                 self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
                 l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-                time.sleep(10)
                 if l_res[-1] == "0":
                     print "Injected TFMR error %s" % l_error
                 elif l_res[-1] == "1":
@@ -472,19 +356,16 @@ class OpTestHMIHandling():
                     elif any("ISTEP" in line for line in l_res):
                         l_msg = "System started booting: TFMR error injection recovery failed"
                     else:
-                        l_msg = "Failed to inject TFMR error %s " % l_error
-                        print l_msg
-                        raise OpTestError(l_msg)
+                        raise Exception("Failed to inject TFMR error %s " % l_error)
 
                 l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
                 if any("Timer facility experienced an error" in line for line in l_res) and \
                     any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
                     print "Timer facility experienced an error and got recovered"
                 else:
-                    l_msg = "HMI handling failed to log message"
-                    raise OpTestError(l_msg)
-                time.sleep(BMC_CONST.HMI_TEST_CASE_SLEEP_TIME)
-        return BMC_CONST.FW_SUCCESS
+                    raise Exception("HMI handling failed to log message")
+
+        return
 
     ##
     # @brief This function tests chip TOD related error injections and check
@@ -495,18 +376,14 @@ class OpTestHMIHandling():
     #
     # @param i_error @type string: this is the type of error want to inject
     #                       These errors represented in common/OpTestConstants.py file.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_tod_errors(self, i_error):
+    def _test_tod_errors(self, i_error):
         l_error = i_error
         l_pair = random.choice(self.l_dic)
         # Get random chip id
         l_chip = l_pair[0]
-        l_cmd = "./putscom -c %s %s %s;echo $?" % (l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s;echo $?" % (l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
         self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
         l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
-        time.sleep(10)
         # As of now putscom command to TOD register will fail with return code -1.
         # putscom indirectly call getscom to read the value again.
         # But getscom to TOD error reg there is no access
@@ -523,22 +400,71 @@ class OpTestHMIHandling():
             elif any("ISTEP" in line for line in l_res):
                 print "System started booting without any kernel panic message"
             else:
-                l_msg = "TOD: PSS Hamming distance error injection failed"
-                raise OpTestError(l_msg)
+                raise Exception("TOD: PSS Hamming distance error injection failed")
+
         l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
         if any("Timer facility experienced an error" in line for line in l_res) and \
             any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
             print "Timer facility experienced an error and got recovered"
         else:
-            l_msg = "HMI handling failed to log message"
-            raise OpTestError(l_msg)
-        time.sleep(BMC_CONST.HMI_TEST_CASE_SLEEP_TIME)
-        return BMC_CONST.FW_SUCCESS
+            raise Exception("HMI handling failed to log message")
+
+        return
 
     ##
     # @brief This function enables a single core
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def host_enable_single_core(self):
         self.cv_HOST.host_enable_single_core()
+
+class HMI_TFMR_ERRORS(OpTestHMIHandling):
+    def runTest(self):
+        self._testHMIHandling(BMC_CONST.TFMR_ERRORS)
+
+class TOD_ERRORS(OpTestHMIHandling):
+    def runTest(self):
+        self._testHMIHandling(BMC_CONST.TOD_ERRORS)
+
+class SingleCoreTOD_ERRORS(OpTestHMIHandling):
+    def runTest(self):
+        self.host_enable_single_core()
+        self._testHMIHandling(BMC_CONST.TOD_ERRORS)
+
+class PROC_RECOV_DONE(OpTestHMIHandling):
+    def runTest(self):
+        self._testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
+
+class PROC_RECV_ERROR_MASKED(OpTestHMIHandling):
+    def runTest(self):
+        self._testHMIHandling(BMC_CONST.HMI_PROC_RECV_ERROR_MASKED)
+
+class MalfunctionAlert(OpTestHMIHandling):
+    def runTest(self):
+        self._testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
+
+class HypervisorResourceError(OpTestHMIHandling):
+    def runTest(self):
+        self._testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
+
+class ClearGard(OpTestHMIHandling):
+    def runTest(self):
+        self.clearGardEntries()
+
+def unrecoverable_suite():
+    s = unittest.TestSuite()
+    s.addTest(MalfunctionAlert())
+    s.addTest(HypervisorResourceError())
+    s.addTest(ClearGard())
+    return s
+
+def suite():
+    s = unittest.TestSuite()
+    s.addTest(HMI_TFMR_ERRORS())
+    s.addTest(PROC_RECOV_DONE())
+    s.addTest(PROC_RECV_ERROR_MASKED())
+    return s
+
+def experimental_suite():
+    s = unittest.TestSuite()
+    s.addTest(TOD_ERRORS())
+    s.addTest(SingleCoreTOD_ERRORS())
+    return s

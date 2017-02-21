@@ -50,7 +50,6 @@ from testcases.OpTestHeartbeat import OpTestHeartbeat
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
-from testcases.OpTestHMIHandling import OpTestHMIHandling
 from testcases.OpTestPrdDriver import OpTestPrdDriver
 from testcases.OpTestIPMILockMode import OpTestIPMILockMode
 from testcases.OpTestIPMIPowerControl import OpTestIPMIPowerControl
@@ -127,12 +126,6 @@ opTestInbandIPMI = OpTestInbandIPMI(bmcCfg['ip'], bmcCfg['username'],
                               testCfg['ffdcdir'], hostCfg['hostip'],
                               hostCfg['hostuser'], hostCfg['hostpasswd'])
 
-opTestHMIHandling = OpTestHMIHandling(bmcCfg['ip'], bmcCfg['username'],
-                                          bmcCfg['password'],
-                                          bmcCfg.get('usernameipmi'),
-                                          bmcCfg.get('passwordipmi'),
-                                          testCfg['ffdcdir'], hostCfg['hostip'],
-                                          hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg['password'],
@@ -261,63 +254,11 @@ def test_ipmi_inband_functionality():
     """
     return opTestInbandIPMI.test_ipmi_inband_open_interface()
 
-
-def test_hmi_proc_recv_done():
-    """This function tests HMI recoverable error: processor recovery done
-    returns: int 0-success, raises exception-error
-    """
-    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
-
-
-def test_hmi_proc_recv_error_masked():
-    """This function tests HMI recoverable error: proc_recv_error_masked
-    returns: int 0-success, raises exception-error
-    """
-    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_ERROR_MASKED)
-
-
-def clear_gard_entries():
-    """This function reboots the system and then clears any hardware gards through gard utility.
-    And finally reboots the system again to stable point.
-    returns: int 0-success, raises exception-error
-    """
-    return opTestHMIHandling.clearGardEntries()
-
-
-def test_hmi_malfunction_alert():
-    """This function tests HMI Malfunction alert: Core checkstop functionality
-    returns: int 0-success, raises exception-error
-    """
-    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
-
-
-def test_hmi_hypervisor_resource_error():
-    """This function tests HMI: Hypervisor resource error functionality
-        returns: int 0-success, raises exception-error
-    """
-    return opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
-
-
 def test_prd_driver():
     """This function tests PRD-processor runtime diagnostic functionality
         returns: int 0-success, raises exception-error
     """
     return opTestPrdDriver.testPrdDriver()
-
-
-def test_tfmr_errors():
-    """This function tests timer facility related error injections
-        returns: int 0-success, raises exception-error
-    """
-    return opTestHMIHandling.testHMIHandling(BMC_CONST.TFMR_ERRORS)
-
-
-def test_tod_errors():
-    """This function tests chip TOD error injections
-        returns: int 0-success, raises exception-error
-    """
-    return opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
-
 
 def test_ipmi_lock_mode():
     """This function tests IPMI lock mode functionality
@@ -484,36 +425,6 @@ class OpalIPMI(unittest.TestCase):
 
     def test_fan_control_disable_functionality(self):
         opTestOOBIPMI.test_fan_control_algorithm_1(opTestOOBIPMI)
-
-class OpalHMI(unittest.TestCase):
-    def setUp(self):
-        bmcCfg, testCfg, hostCfg = _config_read()
-        test_init()
-
-    def test_tfmr_errors(self):
-        opTestHMIHandling.testHMIHandling(BMC_CONST.TFMR_ERRORS)
-
-    def test_tod_errors(self):
-        opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
-
-    def test_tod_errors_on_single_core(self):
-        opTestHMIHandling.host_enable_single_core()
-        opTestHMIHandling.testHMIHandling(BMC_CONST.TOD_ERRORS)
-
-    def test_hmi_proc_recv_done(self):
-        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
-
-    def test_hmi_proc_recv_error_masked(self):
-        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_PROC_RECV_ERROR_MASKED)
-
-    def test_hmi_malfunction_alert(self):
-        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
-
-    def test_hmi_hypervisor_resource_error(self):
-        opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
-
-    def test_clear_gard_entries(self):
-        opTestHMIHandling.clearGardEntries()
 
 class OpalDrivers(unittest.TestCase):
     def setUp(self):

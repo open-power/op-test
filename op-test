@@ -42,6 +42,7 @@ from testcases import OpTestAt24driver
 from testcases import OpTestEEH
 from testcases import OpTestEnergyScale
 from testcases import OpTestFastReboot
+from testcases import OpTestHMIHandling
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -104,6 +105,18 @@ class OpTestEEHSuite():
     def suite(self):
         return OpTestEEH.suite()
 
+class HMISuite():
+    def suite(self):
+        return OpTestHMIHandling.suite()
+
+class ExperimentalHMISuite():
+    def suite(self):
+        return OpTestHMIHandling.experimental_suite()
+
+class UnrecoverableHMISuite():
+    def suite(self):
+        return OpTestHMIHandling.unrecoverable_suite()
+
 class OpTestEnergyScaleSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
@@ -122,6 +135,9 @@ suites = {
     'experimental-eeh': OpTestEEHSuite(),
     'experimental-energyscale' : OpTestEnergyScaleSuite(),
     'standby' : StandbySuite(),
+    'hmi' : HMISuite(),
+    'experimental-hmi' : ExperimentalHMISuite(),
+    'experimental-unrecoverable-hmi' : UnrecoverableHMISuite(),
 }
 
 if OpTestConfiguration.conf.args.list_suites:
