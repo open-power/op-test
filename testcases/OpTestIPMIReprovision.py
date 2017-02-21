@@ -36,45 +36,23 @@ import time
 import subprocess
 import re
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpTestSystem
-from OpTestHMIHandling import OpTestHMIHandling
+from common.OpTestSystem import OpSystemState
 
-
-class OpTestIPMIReprovision():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostUser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostIP=None,
-                 i_hostUser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostIP, i_hostUser, i_hostPasswd,i_bmcIP, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
-        self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostIP,
-                 i_hostUser, i_hostPasswd)
+class OpTestIPMIReprovision(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
-        self.opTestHMIHandling = OpTestHMIHandling(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostIP,
-                 i_hostUser, i_hostPasswd)
+        self.platform = conf.platform()
 
+class NVRAM(OpTestIPMIReprovision):
     ##
     # @brief This function will cover following test steps
     #        Testcase: NVRAM Partition-IPMI Reprovision
@@ -89,8 +67,26 @@ class OpTestIPMIReprovision():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def test_nvram_ipmi_reprovision(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
+        if not self.platform in ['habanero','firestone','garrison']:
+            raise unittest.SkipTest("Platform %s doesn't support IPMI Reprovision" % self.platform)
+
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+        self.cv_HOST.host_check_command("ipmitool")
+        # Get kernel version
+        l_kernel = self.cv_HOST.host_get_kernel_version()
+
+        # loading below ipmi modules based on config option
+        # ipmi_devintf, ipmi_powernv and ipmi_masghandler
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_DEVICE_INTERFACE,
+                                                      BMC_CONST.IPMI_DEV_INTF)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_POWERNV,
+                                                      BMC_CONST.IPMI_POWERNV)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
+                                                      BMC_CONST.IPMI_MSG_HANDLER)
+
+
         self.cv_HOST.host_run_command("uname -a")
         self.cv_HOST.host_run_command(BMC_CONST.NVRAM_PRINT_CFG)
         print "IPMI_Reprovision: Updating the nvram partition with test cfg data"
@@ -103,31 +99,20 @@ class OpTestIPMIReprovision():
         print "IPMI_Reprovision: gathering the opal message logs"
         self.cv_HOST.host_gather_opal_msg_log()
         print "IPMI_Reprovision: Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "IPMI_Reprovision: System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "IPMI_Reprovision: Host Status sensor is not available"
-            print "IPMI_Reprovision: Skipping stand-by state check"
-        else:
-            l_msg = "IPMI_Reprovision: System failed to reach standby/Soft-off state after pnor reprovisioning"
-            raise OpTestError(l_msg)
 
-        print "IPMI_Reprovision: Performing a IPMI Power ON Operation"
-        # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        # Power cycle
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         l_res = self.cv_HOST.host_run_command(BMC_CONST.NVRAM_PRINT_CFG)
         if l_res.__contains__(BMC_CONST.NVRAM_TEST_DATA):
             l_msg = "NVRAM Partition - IPMI Reprovision not happening, nvram test config data still exists"
             raise OpTestError(l_msg)
         print "NVRAM Partition - IPMI Reprovision is done, cleared the nvram test config data"
         self.cv_HOST.host_gather_opal_msg_log()
-        return BMC_CONST.FW_SUCCESS
+        return
 
+class GARD(OpTestIPMIReprovision):
     ##
     # @brief This function will cover following test steps
     #        Testcase: GARD Partition-IPMI Reprovision
@@ -140,28 +125,21 @@ class OpTestIPMIReprovision():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def test_gard_ipmi_reprovision(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
+        if not self.platform in ['habanero','firestone','garrison']:
+            raise unittest.SkipTest("Platform %s doesn't support IPMI Reprovision" % self.platform)
+
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         print "IPMI_Reprovision: Injecting system core checkstop to guard the phyisical cpu"
         self.opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
+
         print "IPMI_Reprovision: Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "IPMI_Reprovision: System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "IPMI_Reprovision: Host Status sensor is not available"
-            print "IPMI_Reprovision: Skipping stand-by state check"
-        else:
-            l_msg = "IPMI_Reprovision: System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
         print "IPMI_Reprovision: Performing a IPMI Power ON Operation"
-        # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         print "IPMI_Reprovision: issuing ipmi pnor reprovision request"
         self.cv_SYSTEM.sys_issue_ipmi_pnor_reprovision_request()
         print "IPMI_Reprovision: wait for reprovision to complete"
@@ -169,39 +147,17 @@ class OpTestIPMIReprovision():
         print "IPMI_Reprovision: gathering the opal message logs"
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_get_OS_Level()
-        self.cv_HOST.host_clone_skiboot_source(BMC_CONST.CLONE_SKIBOOT_DIR)
-        # Compile the necessary tools xscom-utils and gard utility
-        self.cv_HOST.host_compile_gard_utility(BMC_CONST.CLONE_SKIBOOT_DIR)
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_host_login(l_con)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        l_res = self.cv_SYSTEM.sys_list_gard_records(BMC_CONST.GARD_TOOL_DIR)
-        print l_res
-        if BMC_CONST.NO_GARD_RECORDS in l_res:
-            print "GUARD Partition - IPMI Reprovision is done, cleared HW gard records"
-        else:
-            l_msg = "IPMI: Reprovision not happening, gard records are not erased"
-            raise OpTestError(l_msg)
-        print "IPMI_Reprovision: Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "IPMI_Reprovision: System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "IPMI_Reprovision: Host Status sensor is not available"
-            print "IPMI_Reprovision: Skipping stand-by state check"
-        else:
-            l_msg = "IPMI_Reprovision: System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
+        g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
+        if "No GARD entries to display" not in g:
+            raise Exception("IPMI: Reprovision not happening, gard records are not erased")
 
-        print "IPMI_Reprovision: Performing a IPMI Power ON Operation"
-        # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
-        print "IPMI_Reprovision: gathering the opal message logs"
-        self.cv_HOST.host_gather_opal_msg_log()
-        return BMC_CONST.FW_SUCCESS
+def experimental_suite():
+    s = unittest.TestSuite()
+    s.addTest(NVRAM())
+    return s
+
+def broken_suite():
+    s = unittest.TestSuite()
+    s.addTest(GARD())
+    return s

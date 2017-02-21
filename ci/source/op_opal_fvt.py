@@ -52,7 +52,6 @@ from testcases.OpTestPrdDriver import OpTestPrdDriver
 from testcases.OpTestInbandUsbInterface import OpTestInbandUsbInterface
 from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
-from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
 from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
 from testcases.OpTestNVRAM import OpTestNVRAM
 from testcases.OpTestDumps import OpTestDumps
@@ -136,13 +135,6 @@ opTestSystemBootSequence = OpTestSystemBootSequence(bmcCfg['ip'], bmcCfg['userna
                                                     bmcCfg.get('passwordipmi'),
                                                     testCfg['ffdcdir'], hostCfg['hostip'],
                                                     hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestIPMIReprovision = OpTestIPMIReprovision(bmcCfg['ip'], bmcCfg['username'],
-                                              bmcCfg['password'],
-                                              bmcCfg.get('usernameipmi'),
-                                              bmcCfg.get('passwordipmi'),
-                                              testCfg['ffdcdir'], hostCfg['hostip'],
-                                              hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestNVRAM = OpTestNVRAM(bmcCfg['ip'], bmcCfg['username'],
                           bmcCfg['password'],
@@ -276,20 +268,6 @@ def test_system_power_restore_policy_previous():
     return opTestSystemBootSequence.testSystemPowerPolicyPrevious()
 
 
-def test_nvram_ipmi_reprovision():
-    """This function tests NVRAM Partition-IPMI Reprovision.
-        returns: int 0-success, raises exception-error
-    """
-    return opTestIPMIReprovision.test_nvram_ipmi_reprovision()
-
-
-def test_gard_ipmi_reprovision():
-    """This function tests GARD Partition-IPMI Reprovision
-        returns: int 0-success, raises exception-error
-    """
-    return opTestIPMIReprovision.test_gard_ipmi_reprovision()
-
-
 def test_bmc_cold_reset_effects():
     """This function tests BMC Cold reset versus host FW functionality
         returns: int 0-success, raises exception-error
@@ -392,17 +370,6 @@ class OpalBootTests(unittest.TestCase):
 
     def test_system_power_restore_policy_always_off(self):
         opTestSystemBootSequence.testSystemPowerPolicyOff()
-
-class OpalReprovisionTests(unittest.TestCase):
-    def setUp(self):
-        bmcCfg, testCfg, hostCfg = _config_read()
-        test_init()
-
-    def test_nvram_ipmi_reprovision(self):
-        opTestIPMIReprovision.test_nvram_ipmi_reprovision()
-
-    def test_gard_ipmi_reprovision(self):
-        opTestIPMIReprovision.test_gard_ipmi_reprovision()
 
 class OpalFSPTests(unittest.TestCase):
     def setUp(self):

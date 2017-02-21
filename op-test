@@ -46,6 +46,7 @@ from testcases import OpTestHMIHandling
 from testcases import OpTestHeartbeat
 from testcases import OpTestI2Cdriver
 from testcases import OpTestIPMILockMode
+from testcases import OpTestIPMIReprovision
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -131,6 +132,14 @@ class OpTestEnergyScaleSuite():
     def suite(self):
         return self.s
 
+class BrokenReprovisionSuite():
+    def suite(self):
+        return OpTestIPMIReprovision.broken_suite()
+
+class ExperimentalReprovisionSuite():
+    def suite(self):
+        return OpTestIPMIReprovision.experimental_suite()
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -144,6 +153,8 @@ suites = {
     'hmi' : HMISuite(),
     'experimental-hmi' : ExperimentalHMISuite(),
     'experimental-unrecoverable-hmi' : UnrecoverableHMISuite(),
+    'experimental-reprovision' : ExperimentalReprovisionSuite(),
+    'broken-reprovision' : BrokenReprovisionSuite(),
 }
 
 if OpTestConfiguration.conf.args.list_suites:
