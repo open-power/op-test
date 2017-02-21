@@ -134,14 +134,6 @@
 
 
         <test>
-            <name>Test RTC Driver Functionality</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalDrivers.test_real_time_clock</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Hwmon Driver Functionality</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalDrivers.test_sensors</cmd>

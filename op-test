@@ -36,6 +36,7 @@ from testcases import OpTestPCI
 from testcases import OpTestFWTS
 from testcases import BasicIPL
 from testcases import OpTestDropbearSafety
+from testcases import OpTestRTCdriver
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -56,6 +57,7 @@ class HostSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestPCI.OpTestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
+        self.s.addTest(OpTestRTCdriver.OpTestRTCdriver())
     def suite(self):
         return self.s
 

@@ -47,7 +47,6 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from testcases.OpTestSensors import OpTestSensors
 from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
 from testcases.OpTestHeartbeat import OpTestHeartbeat
-from testcases.OpTestRTCdriver import OpTestRTCdriver
 from testcases.OpTestAt24driver import OpTestAt24driver
 from testcases.OpTestI2Cdriver import OpTestI2Cdriver
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
@@ -103,16 +102,6 @@ opTestSwitchEndianSyscall = OpTestSwitchEndianSyscall(bmcCfg['ip'],
                                                       hostCfg['hostip'],
                                                       hostCfg['hostuser'],
                                                       hostCfg['hostpasswd'])
-
-opTestRTCdriver = OpTestRTCdriver(bmcCfg['ip'],
-                                  bmcCfg['username'],
-                                  bmcCfg['password'],
-                                  bmcCfg.get('usernameipmi'),
-                                  bmcCfg.get('passwordipmi'),
-                                  testCfg['ffdcdir'],
-                                  hostCfg['hostip'],
-                                  hostCfg['hostuser'],
-                                  hostCfg['hostpasswd'])
 
 opTestAt24driver = OpTestAt24driver(bmcCfg['ip'], bmcCfg['username'],
                                     bmcCfg['password'],
@@ -282,13 +271,6 @@ def test_ipmi_heartbeat():
     returns: int 0-success, raises exception-error
     """
     return opTestHeartbeat.test_kopald_service()
-
-
-def test_real_time_clock():
-    """This function tests Real Time Clock driver functionalites using hwclock utility
-    returns: int 0-success, raises exception-error
-    """
-    return opTestRTCdriver.test_RTC_driver()
 
 
 def test_at24_driver():
@@ -610,9 +592,6 @@ class OpalDrivers(unittest.TestCase):
 
     def test_at24_driver(self):
         opTestAt24driver.testAt24driver()
-
-    def test_real_time_clock(self):
-        opTestRTCdriver.test_RTC_driver()
 
     def test_sensors(self):
         opTestSensors.test_hwmon_driver()
