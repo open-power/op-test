@@ -49,7 +49,6 @@ from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 from testcases.OpTestPrdDriver import OpTestPrdDriver
-from testcases.OpTestIPMIPowerControl import OpTestIPMIPowerControl
 from testcases.OpTestInbandUsbInterface import OpTestInbandUsbInterface
 from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
@@ -116,13 +115,6 @@ opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg.get('passwordipmi'),
                                   testCfg['ffdcdir'], hostCfg['hostip'],
                                   hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestIPMIPowerControl = OpTestIPMIPowerControl(bmcCfg['ip'], bmcCfg['username'],
-                                        bmcCfg['password'],
-                                        bmcCfg.get('usernameipmi'),
-                                        bmcCfg.get('passwordipmi'),
-                                        testCfg['ffdcdir'], hostCfg['hostip'],
-                                        hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestInbandUsbInterface = OpTestInbandUsbInterface(bmcCfg['ip'], bmcCfg['username'],
                                                     bmcCfg['password'],
@@ -220,13 +212,6 @@ def test_prd_driver():
         returns: int 0-success, raises exception-error
     """
     return opTestPrdDriver.testPrdDriver()
-
-def test_ipmi_power_control():
-    """This function tests IPMI Power Control Operations
-        returns: int 0-success, raises exception-error
-    """
-    return opTestIPMIPowerControl.testIPMIPowerControl()
-
 
 def test_ipmi_inband_usb_interface():
     """This function tests inband ipmi through USB interface(BT)
@@ -364,9 +349,6 @@ class OpalIPMI(unittest.TestCase):
 
     def test_ipmi_inband_open_interface(self):
         opTestInbandIPMI.test_ipmi_inband_open_interface()
-
-    def test_ipmi_power_control(self):
-        opTestIPMIPowerControl.testIPMIPowerControl()
 
     def test_fan_control_enable_functionality(self):
         opTestOOBIPMI.test_fan_control_algorithm_2(opTestOOBIPMI)

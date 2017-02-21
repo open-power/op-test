@@ -60,10 +60,6 @@ def test_ipmi_inband_functionality():
 def test_prd_driver():
     assert op_opal_fvt.test_prd_driver() == 0
 
-def test_ipmi_power_control():
-    assert op_opal_fvt.test_ipmi_power_control() == 0
-
-
 def test_ipmi_inband_usb_interface():
     assert op_opal_fvt.test_ipmi_inband_usb_interface() == 0
 

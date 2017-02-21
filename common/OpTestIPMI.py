@@ -260,14 +260,9 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_power_reset(self):
-        l_output = self.ipmitool.run('chassis power reset')
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-        if BMC_CONST.CHASSIS_POWER_RESET in l_output:
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Power Reset Failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        r = self.ipmitool.run('chassis power reset')
+        if not BMC_CONST.CHASSIS_POWER_RESET in r:
+            raise Exception("IPMI 'chassis power reset' failed: %s " % r)
 
 
 

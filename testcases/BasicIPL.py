@@ -83,6 +83,15 @@ class OutOfBandWarmReset(BasicIPL):
         # TODO skip if no IPMI
         # TODO use abstracted out-of-band warm reset
         self.ipmi.ipmi_warm_reset()
+        self.system.set_state(OpSystemState.IPLing)
+        self.system.goto_state(OpSystemState.PETITBOOT)
+
+class HardPowerCycle(BasicIPL):
+    def runTest(self):
+        self.system.goto_state(OpSystemState.PETITBOOT)
+        self.ipmi.ipmi_power_reset()
+        self.system.set_state(OpSystemState.IPLing)
+        self.system.goto_state(OpSystemState.PETITBOOT)
 
 class PowerOff(BasicIPL):
     def runTest(self):
@@ -100,5 +109,6 @@ def suite():
     suite.addTest(BMCReset())
     suite.addTest(BootToOS())
     suite.addTest(OutOfBandWarmReset())
+    suite.addTest(HardPowerCycle())
     suite.addTest(PowerOff())
     return suite
