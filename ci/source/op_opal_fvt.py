@@ -60,7 +60,6 @@ from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
 from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
 from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
-from testcases.OpTestPCI import OpTestPCI
 from testcases.OpTestFastReboot import OpTestFastReboot
 from testcases.OpTestNVRAM import OpTestNVRAM
 from testcases.OpTestEEH import OpTestEEH
@@ -194,13 +193,6 @@ opTestIPMIReprovision = OpTestIPMIReprovision(bmcCfg['ip'], bmcCfg['username'],
                                               bmcCfg.get('passwordipmi'),
                                               testCfg['ffdcdir'], hostCfg['hostip'],
                                               hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestPCI = OpTestPCI(bmcCfg['ip'], bmcCfg['username'],
-                      bmcCfg['password'],
-                      bmcCfg.get('usernameipmi'),
-                      bmcCfg.get('passwordipmi'),
-                      testCfg['ffdcdir'], hostCfg['hostip'],
-                      hostCfg['hostuser'], hostCfg['hostpasswd'], hostCfg['lspci'])
 
 opTestFastReboot = OpTestFastReboot(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg['password'],
@@ -456,14 +448,6 @@ def test_bmc_cold_reset_effects():
     return opTestMCColdResetEffects.test_bmc_cold_reset_effects()
 
 
-def test_list_pci_device_info():
-    """This function just tests detected pci devices at petitboot and host OS
-        known good output data
-        returns: int 0-success, raises exception-error
-    """
-    return opTestPCI.test_host_pci_devices_info()
-
-
 import os
 import unittest
 import xmlrunner
@@ -482,14 +466,6 @@ import ci.source.op_bmc_web_update as op_bmc_web_update
 
 reload(sys)
 sys.setdefaultencoding('utf8')
-
-class OpalPCI(unittest.TestCase):
-    def setUp(self):
-        bmcCfg, testCfg, hostCfg = _config_read()
-        test_init()
-
-    def test_pci_device_presence(self):
-        test_list_pci_device_info()
 
 class PetitbootEnvironmentTests(unittest.TestCase):
     def setUp(self):
