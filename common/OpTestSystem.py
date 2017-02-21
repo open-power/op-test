@@ -71,10 +71,11 @@ class OpTestSystem():
                  i_hostuser=None, i_hostPasswd=None, bmc=None,
                  state=OpSystemState.UNKNOWN):
         self.cv_BMC = bmc
-        self.cv_IPMI = OpTestIPMI(bmc.cv_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
-                                  i_ffdcDir)
-        self.console = self.cv_IPMI.console
         self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, bmc.cv_bmcIP)
+        self.cv_IPMI = OpTestIPMI(bmc.cv_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
+                                  i_ffdcDir, host=self.cv_HOST)
+        self.console = self.cv_IPMI.console
+
         self.cv_WEB = OpTestWeb(bmc.cv_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi)
         self.util = OpTestUtil()
 
