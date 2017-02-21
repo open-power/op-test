@@ -54,6 +54,10 @@ class OpTestConfiguration():
         hostgroup.add_argument("--host-prompt", default="#",
                                help="Prompt for Host SSH session")
 
+        hostgroup.add_argument("--platform",
+                               help="Platform (used for EnergyScale tests)",
+                               choices=['habanero','firestone','garrison'])
+
         ffdcgroup = parser.add_argument_group('FFDC', 'First Failure Data Capture')
         ffdcgroup.add_argument("--ffdcdir", help="FFDC directory")
 
@@ -99,6 +103,9 @@ class OpTestConfiguration():
 
     def lspci_file(self):
         return self.args.host_lspci
+
+    def platform(self):
+        return self.args.platform
 
 global conf
 conf = OpTestConfiguration()
