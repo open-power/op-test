@@ -1190,3 +1190,18 @@ class OpTestIPMI():
             return 0
         else:
             raise OpTestError("Failure setting bootdev to disk: " + str(l_output))
+
+    def enter_ipmi_lockdown_mode(self):
+        self.ipmitool.run('raw 0x32 0xf3 0x4c 0x4f 0x43 0x4b 0x00')
+
+    def exit_ipmi_lockdown_mode(self):
+        self.ipmitool.run('raw 0x32 0xF4 0x55 0x4e 0x4c 0x4f 0x43 0x4b 0x00')
+
+    def last_sel(self):
+        return self.ipmitool.run("sel list last 1")
+
+    def sdr_get_watchdog(self):
+        return self.ipmitool.run("sdr get \'Watchdog\'")
+
+    def mc_get_watchdog(self):
+        return self.ipmitool.run("mc watchdog get")

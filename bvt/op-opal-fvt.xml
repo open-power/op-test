@@ -92,14 +92,6 @@
         </test>
 
         <test>
-            <name>Test IPMI Lock/Unlock Functionality</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalIPMI.test_ipmi_lock_mode</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Timer Facility Error Injections</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalHMI.test_tfmr_errors</cmd>

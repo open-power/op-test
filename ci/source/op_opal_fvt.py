@@ -49,7 +49,6 @@ from testcases.OpTestSwitchEndianSyscall import OpTestSwitchEndianSyscall
 from testcases.OpTestMtdPnorDriver import OpTestMtdPnorDriver
 from testcases.OpTestInbandIPMI import OpTestInbandIPMI
 from testcases.OpTestPrdDriver import OpTestPrdDriver
-from testcases.OpTestIPMILockMode import OpTestIPMILockMode
 from testcases.OpTestIPMIPowerControl import OpTestIPMIPowerControl
 from testcases.OpTestInbandUsbInterface import OpTestInbandUsbInterface
 from testcases.OpTestOOBIPMI import OpTestOOBIPMI
@@ -117,14 +116,6 @@ opTestPrdDriver = OpTestPrdDriver(bmcCfg['ip'], bmcCfg['username'],
                                   bmcCfg.get('passwordipmi'),
                                   testCfg['ffdcdir'], hostCfg['hostip'],
                                   hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestIPMILockMode = OpTestIPMILockMode(bmcCfg['ip'], bmcCfg['username'],
-                                        bmcCfg['password'],
-                                        bmcCfg.get('usernameipmi'),
-                                        bmcCfg.get('passwordipmi'),
-                                        testCfg['ffdcdir'], hostCfg['hostip'],
-                                        hostCfg['hostuser'], hostCfg['hostpasswd'])
-
 
 opTestIPMIPowerControl = OpTestIPMIPowerControl(bmcCfg['ip'], bmcCfg['username'],
                                         bmcCfg['password'],
@@ -229,13 +220,6 @@ def test_prd_driver():
         returns: int 0-success, raises exception-error
     """
     return opTestPrdDriver.testPrdDriver()
-
-def test_ipmi_lock_mode():
-    """This function tests IPMI lock mode functionality
-        returns: int 0-success, raises exception-error
-    """
-    return opTestIPMILockMode.test_ipmi_lock_mode()
-
 
 def test_ipmi_power_control():
     """This function tests IPMI Power Control Operations
@@ -383,9 +367,6 @@ class OpalIPMI(unittest.TestCase):
 
     def test_ipmi_power_control(self):
         opTestIPMIPowerControl.testIPMIPowerControl()
-
-    def test_ipmi_lock_mode(self):
-        opTestIPMILockMode.test_ipmi_lock_mode()
 
     def test_fan_control_enable_functionality(self):
         opTestOOBIPMI.test_fan_control_algorithm_2(opTestOOBIPMI)

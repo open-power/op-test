@@ -296,11 +296,6 @@ class OpTestConstants():
     # IPMI commands
     IPMITOOL_USB = "ipmitool -I usb "
     IPMITOOL_OPEN = "ipmitool "
-    IPMI_LOCK_CMD = "raw 0x32 0xf3 0x4c 0x4f 0x43 0x4b 0x00; echo $?"
-    IPMI_UNLOCK_CMD = "raw 0x32 0xF4 0x55 0x4e 0x4c 0x4f 0x43 0x4b 0x00"
-    IPMI_LIST_LAST_SEL_EVENT = "sel list last 1"
-    IPMI_MC_WATCHDOG_GET = "mc watchdog get"
-    IPMI_SDR_GET_WATCHDOG = "sdr get \'Watchdog\'"
     # IPMI White listed commands
     HOST_GET_DEVICE_ID = "ipmitool raw 0x06 0x01; echo $?"
     HOST_GET_DEVICE_GUID = "ipmitool raw 0x06 0x08; echo $?"
