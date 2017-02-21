@@ -40,66 +40,30 @@ import commands
 import re
 import sys
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestSystem import OpTestSystem
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
+from common.OpTestSystem import OpSystemState
 
-
-class OpTestDropbearSafety():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
-        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
-                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                         i_hostuser, i_hostPasswd)
+class OpTestDropbearSafety(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
-    ##
-    # @brief  This function will tests Dropbear running functionality in skiroot
-    #         1. Power Off the system
-    #         2. Power on the system
-    #         3. Exit to the petitboot shell
-    #         4. Execute ps command
-    #         5. test will fail incase dropbear is running and listed out by ps
-    #         6. At the end of test reboot the system to OS.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_dropbear_running(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         print "Test Dropbear running in Petitboot"
-        print "Performing IPMI Power Off Operation"
-        self.console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.sys_ipmi_boot_system_to_petitboot(self.console)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(self.console)
+
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
         # we don't grep for 'dropbear' so that our naive line.count
         # below doesn't hit a false positive.
         res = self.cv_IPMI.run_host_cmd_on_ipmi_console("ps|grep drop")
         print res
-        self.cv_IPMI.ipmi_set_boot_to_disk()
         for line in res:
             if line.count('dropbear'):
-                raise OpTestError("drobear is running in the skiroot")
-        return BMC_CONST.FW_SUCCESS
+                self.fail("drobear is running in the skiroot")
+        pass

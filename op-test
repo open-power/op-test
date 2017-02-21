@@ -35,6 +35,7 @@ import OpTestConfiguration
 from testcases import OpTestPCI
 from testcases import OpTestFWTS
 from testcases import BasicIPL
+from testcases import OpTestDropbearSafety
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -46,6 +47,7 @@ class SkirootSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestPCI.OpTestPCISkiroot())
+        self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
     def suite(self):
         return self.s
 

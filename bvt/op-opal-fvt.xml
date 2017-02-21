@@ -52,14 +52,6 @@
         </test>
 
         <test>
-            <name>Test Skiroot Dropbear Safety Functionality</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py PetitbootEnvironmentTests.test_dropbear_not_running</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Fast reset</name>
             <testcase>
               <cmd>../ci/source/op_opal_fvt.py FastResetTests.test_opal_fast_reboot</cmd>

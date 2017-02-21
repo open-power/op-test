@@ -60,7 +60,6 @@ from testcases.OpTestInbandUsbInterface import OpTestInbandUsbInterface
 from testcases.OpTestOOBIPMI import OpTestOOBIPMI
 from testcases.OpTestSystemBootSequence import OpTestSystemBootSequence
 from testcases.OpTestIPMIReprovision import OpTestIPMIReprovision
-from testcases.OpTestDropbearSafety import OpTestDropbearSafety
 from testcases.OpTestMCColdResetEffects import OpTestMCColdResetEffects
 from testcases.OpTestPCI import OpTestPCI
 from testcases.OpTestFastReboot import OpTestFastReboot
@@ -206,13 +205,6 @@ opTestIPMIReprovision = OpTestIPMIReprovision(bmcCfg['ip'], bmcCfg['username'],
                                               bmcCfg.get('passwordipmi'),
                                               testCfg['ffdcdir'], hostCfg['hostip'],
                                               hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestDropbearSafety = OpTestDropbearSafety(bmcCfg['ip'], bmcCfg['username'],
-                                            bmcCfg['password'],
-                                            bmcCfg.get('usernameipmi'),
-                                            bmcCfg.get('passwordipmi'),
-                                            testCfg['ffdcdir'], hostCfg['hostip'],
-                                            hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 opTestPCI = OpTestPCI(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg['password'],
@@ -475,14 +467,6 @@ def test_gard_ipmi_reprovision():
     return opTestIPMIReprovision.test_gard_ipmi_reprovision()
 
 
-def test_dropbear_safety():
-    """This function tests for Dropbear. They are very dangerous and may attack
-       at any time. We must deal with them.
-        returns: int 0-success, raises exception-error
-    """
-    return opTestDropbearSafety.test_dropbear_running()
-
-
 def test_bmc_cold_reset_effects():
     """This function tests BMC Cold reset versus host FW functionality
         returns: int 0-success, raises exception-error
@@ -529,9 +513,6 @@ class PetitbootEnvironmentTests(unittest.TestCase):
     def setUp(self):
         bmcCfg, testCfg, hostCfg = _config_read()
         test_init()
-
-    def test_dropbear_not_running(self):
-        opTestDropbearSafety.test_dropbear_running()
 
 class FastResetTests(unittest.TestCase):
     def setUp(self):
