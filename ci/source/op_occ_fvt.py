@@ -47,7 +47,6 @@ import ConfigParser
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from testcases.OpTestEnergyScale import OpTestEnergyScale
 from testcases.OpTestOCC import OpTestOCC
-from testcases.OpTestEM import OpTestEM
 
 
 def _config_read():
@@ -78,13 +77,6 @@ opTestOCC = OpTestOCC(bmcCfg['ip'], bmcCfg['username'],
                       bmcCfg.get('passwordipmi'),
                       testCfg['ffdcdir'], hostCfg['hostip'],
                       hostCfg['hostuser'], hostCfg['hostpasswd'])
-
-opTestEM = OpTestEM(bmcCfg['ip'], bmcCfg['username'],
-                    bmcCfg['password'],
-                    bmcCfg.get('usernameipmi'),
-                    bmcCfg.get('passwordipmi'),
-                    testCfg['ffdcdir'], hostCfg['hostip'],
-                    hostCfg['hostuser'], hostCfg['hostpasswd'])
 
 
 def test_init():
@@ -141,19 +133,6 @@ def test_occ_enable_disable_functionality():
     return opTestOCC.test_occ_enable_disable_functionality()
 
 
-def test_cpu_freq_states():
-    """This function tests the CPU Frequency states by changing and verifying those frequencies
-    returns: int 0-success, raises exception-error
-    """
-    return opTestEM.test_cpu_freq_states()
-
-
-def test_cpu_idle_states():
-    """This function tests the CPU idle states by enable and disabling them.
-    returns: int 0-success, raises exception-error
-    """
-    return opTestEM.test_cpu_idle_states()
-
 import os
 import unittest
 import xmlrunner
@@ -167,15 +146,6 @@ class OpalOCCTests(unittest.TestCase):
     def setUp(self):
         bmcCfg, testCfg, hostCfg = _config_read()
         test_init()
-
-    def test_slw_info(self):
-        opTestEM.test_slw_info()
-
-    def test_cpu_idle_states(self):
-        opTestEM.test_cpu_idle_states()
-
-    def test_cpu_freq_states(self):
-        opTestEM.test_cpu_freq_states()
 
     def test_energy_scale_at_standby_state(self):
         opTestEnergyScale.test_energy_scale_at_standby_state()

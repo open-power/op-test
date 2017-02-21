@@ -36,30 +36,6 @@
         </test>
 
         <test>
-            <name>Test cpu slw info</name>
-            <testcase>
-                <cmd>../ci/source/op_occ_fvt.py OpalOCCTests.test_slw_info</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>Test cpu idle states</name>
-            <testcase>
-                <cmd>../ci/source/op_occ_fvt.py OpalOCCTests.test_cpu_idle_states</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
-            <name>Test cpu frequency states</name>
-            <testcase>
-                <cmd>../ci/source/op_occ_fvt.py OpalOCCTests.test_cpu_freq_states</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Energy scale at Standby state</name>
             <testcase>
                 <cmd>../ci/source/op_occ_fvt.py OpalOCCTests.test_energy_scale_at_standby_state</cmd>

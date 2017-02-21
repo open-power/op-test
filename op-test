@@ -37,6 +37,7 @@ from testcases import OpTestFWTS
 from testcases import BasicIPL
 from testcases import OpTestDropbearSafety
 from testcases import OpTestRTCdriver
+from testcases import OpTestEM
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -58,6 +59,7 @@ class HostSuite():
         self.s.addTest(OpTestPCI.OpTestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
         self.s.addTest(OpTestRTCdriver.OpTestRTCdriver())
+        self.s.addTest(OpTestEM.suite())
     def suite(self):
         return self.s
 
@@ -73,12 +75,17 @@ class DefaultSuite():
     def suite(self):
         return self.s
 
+class OpTestEMSuite():
+    def suite(self):
+        return OpTestEM.suite()
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
     'default' : DefaultSuite(),
     'BasicIPL' : BasicIPLSuite(),
-    }
+    'em' :       OpTestEMSuite(),
+}
 
 if OpTestConfiguration.conf.args.list_suites:
     print 'Test Suites'

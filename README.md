@@ -40,6 +40,10 @@ You **MUST** have `fwts` installed. To do this:
     sudo apt-get update
     sudo apt-get install fwts
 
+It must also have:
+
+    linux-tools-common linux-tools-generic
+
 ### Running the tests ###
 
     ./op-test -h
@@ -85,4 +89,5 @@ For example:
 		--run testcases.OpTestPCI.OpTestPCISkiroot
 
 The above will assume the machine is sitting at the petitboot prompt
-and will run the OpTestPCISkiroot test. 
+and will run the OpTestPCISkiroot test.
+
