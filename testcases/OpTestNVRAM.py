@@ -46,6 +46,16 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
+class NVRAMUpdateError(Exception):
+    def __init__(self, part, key, value, output):
+        self.part = part
+        self.key = key
+        self.value = value
+        self.output = output
+    def __str__(self):
+        return "Error Updating NVRAM partition '%s' with %s=%s. Output was %s" % (self.part, self.key, self.value, self.output)
+
+
 class OpTestNVRAM(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -92,8 +102,15 @@ class HostNVRAM(OpTestNVRAM):
             # bug.
 #            self.nvram_update_part_config_in_host("lnx,oops-log")
 #            self.nvram_update_part_config_in_host("wwwwwwwwwwww")
-        except OpTestError:
-            print "There is a failure in updating one of NVRAM partitions"
+        except NVRAMUpdateError as e:
+            self.fail(msg=str(e))
+
+        try:
+            self.nvram_update_part_config_in_host("a-very-long-and-invalid-name")
+        except NVRAMUpdateError as e:
+            self.assertEqual(e.part, "a-very-long-and-invalid-name")
+        else:
+            self.fail(msg="Expected to fail with NVRAM part name>12 but didn't")
 
     ##
     # @brief This function tests nvram update/print config functions for partition i_part
@@ -103,16 +120,14 @@ class HostNVRAM(OpTestNVRAM):
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def nvram_update_part_config_in_host(self, i_part):
+    def nvram_update_part_config_in_host(self, i_part, key='test-cfg', value='test-value'):
         part = i_part
-        self.cv_HOST.host_run_command("nvram -p %s --update-config 'test-cfg=test-value'" % part)
-        res = self.cv_HOST.host_run_command("nvram -p %s --print-config=test-cfg" % part)
+        self.cv_HOST.host_run_command("nvram -p %s --update-config '%s=%s'" % (part,key,value))
+        res = self.cv_HOST.host_run_command("nvram -p %s --print-config=%s" % (part, key))
         if "test-value" in res:
             print "Update config to the partition %s works fine" % part
         else:
-            msg = "failed to update nvram config into the partition %s" % part
-            print msg
-            raise OpTestError(msg)
+            raise NVRAMUpdateError(i_part, key, value, res)
 
 class SkirootNVRAM(OpTestNVRAM):
     def runTest(self):
@@ -146,9 +161,15 @@ class SkirootNVRAM(OpTestNVRAM):
             # below two are Disabled due to nvram off-by-one bug
             #self.nvram_update_part_config_in_petitboot("lnx,oops-log")
             #self.nvram_update_part_config_in_petitboot("wwwwwwwwwwww")
-        except OpTestError:
-            print "There is a failure in updating one of NVRAM partitions"
+        except NVRAMUpdateError as e:
+            self.fail(msg=str(e))
 
+        try:
+            self.nvram_update_part_config_in_petitboot("a-very-long-and-invalid-name")
+        except NVRAMUpdateError as e:
+            self.assertEqual(e.part, "a-very-long-and-invalid-name")
+        else:
+            self.fail(msg="Expected to fail with NVRAM part name>12 but didn't")
     ##
     # @brief This function tests nvram update/print config functions for partition i_part
     #        these functions will be tested in Petitboot.
@@ -157,14 +178,12 @@ class SkirootNVRAM(OpTestNVRAM):
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def nvram_update_part_config_in_petitboot(self, i_part):
+    def nvram_update_part_config_in_petitboot(self, i_part, key='test-cfg', value='test-value'):
         part = i_part
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("nvram -p %s --update-config 'test-cfg=test-value'" % part)
-        res_list = self.cv_IPMI.run_host_cmd_on_ipmi_console("nvram -p %s --print-config=test-cfg" % part)
+        self.cv_IPMI.run_host_cmd_on_ipmi_console("nvram -p %s --update-config '%s=%s'" % (part,key,value))
+        res_list = self.cv_IPMI.run_host_cmd_on_ipmi_console("nvram -p %s --print-config=%s" % (part,key))
         res = ''.join(res_list)
         if "test-value" in res:
             print "Update config to the partition %s works fine" % part
         else:
-            msg = "failed to update nvram config into the partition %s" % part
-            print msg
-            raise OpTestError(msg)
+            raise NVRAMUpdateError(i_part, key, value, res)
