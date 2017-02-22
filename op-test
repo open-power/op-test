@@ -81,10 +81,10 @@ class HostSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestPCI.OpTestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
-        self.s.addTest(OpTestRTCdriver.OpTestRTCdriver())
+        self.s.addTest(OpTestRTCdriver.BasicRTC())
         self.s.addTest(OpTestEM.suite())
         self.s.addTest(OpTestAt24driver.OpTestAt24driver())
-        self.s.addTest(OpTestI2Cdriver.OpTestI2Cdriver())
+        self.s.addTest(OpTestI2Cdriver.BasicI2C())
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
         self.s.addTest(OpTestInbandIPMI.basic_suite())
         self.s.addTest(OpTestInbandUsbInterface.basic_suite())
@@ -116,8 +116,10 @@ class FullSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
+        self.s.addTest(OpTestRTCdriver.FullRTC())
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.full_suite())
+        self.s.addTest(OpTestI2Cdriver.FullI2C())
     def suite(self):
         return self.s
 

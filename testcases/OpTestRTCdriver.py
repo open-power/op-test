@@ -40,7 +40,7 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
-class OpTestRTCdriver(unittest.TestCase):
+class FullRTC(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -48,24 +48,7 @@ class OpTestRTCdriver(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
-    ##
-    # @brief This function will cover following test steps
-    #        1. Getting host information(OS and Kernel info)
-    #        2. Loading rtc_opal module based on config option
-    #        3. Testing the rtc driver functions
-    #                Display the current time,
-    #                set the Hardware Clock to a specified time,
-    #                set the Hardware Clock from the System Time, or
-    #                set the System Time from the Hardware Clock
-    #                keep the Hardware clock in UTC or local time format
-    #                Hardware clock compare, predict and adjust functions
-    #                Hardware clock debug and test modes
-    #                Reading the Hardware clock from special file instead of default
-    #        4. After executing above each function reading the Hardware clock in b/w functions.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def runTest(self):
+    def test_init(self):
         # TODO: run in skiroot too
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -91,6 +74,26 @@ class OpTestRTCdriver(unittest.TestCase):
                 continue
         print l_list
 
+
+    ##
+    # @brief This function will cover following test steps
+    #        1. Getting host information(OS and Kernel info)
+    #        2. Loading rtc_opal module based on config option
+    #        3. Testing the rtc driver functions
+    #                Display the current time,
+    #                set the Hardware Clock to a specified time,
+    #                set the Hardware Clock from the System Time, or
+    #                set the System Time from the Hardware Clock
+    #                keep the Hardware clock in UTC or local time format
+    #                Hardware clock compare, predict and adjust functions
+    #                Hardware clock debug and test modes
+    #                Reading the Hardware clock from special file instead of default
+    #        4. After executing above each function reading the Hardware clock in b/w functions.
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def runTest(self):
+        self.test_init()
         # Display the time of hwclock from device files
         for l_file in l_list:
             self.read_hwclock_from_file(l_file)
@@ -261,3 +264,9 @@ class OpTestRTCdriver(unittest.TestCase):
         l_res = l_res.splitlines()
         self.assertEqual(int(l_res[-1]), 0, "hwclock adjust function failed")
         l_res = self.cv_HOST.host_run_command("cat /etc/adjtime")
+
+class BasicRTC(FullRTC):
+    def runTest(self):
+        self.test_init()
+        self.cv_HOST.host_read_hwclock()
+        self.cv_HOST.host_read_systime()

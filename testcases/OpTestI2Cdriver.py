@@ -58,21 +58,7 @@ class OpTestI2Cdriver(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
-    ##
-    # @brief  This function has following test steps
-    #         1. Getting host information(OS and kernel info)
-    #         2. Checking the required utilites are present on host or not
-    #         3. Loading the necessary modules to test I2C device driver functionalites
-    #            (i2c_dev, i2c_opal and at24)
-    #         4. Getting the list of i2c buses
-    #         5. Querying the i2c bus for devices
-    #         3. Getting the list of i2c buses and eeprom chip addresses
-    #         4. Accessing the registers visible through the i2cbus using i2cdump utility
-    #         5. Listing the i2c adapter conetents and i2c bus entries to make sure sysfs entries
-    #            created for each bus.
-    #         6. Testing i2cget functionality for limited samples
-    #            Avoiding i2cset functionality, it may damage the system.
-    def runTest(self):
+    def test_init(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         self.cv_HOST.host_get_OS_Level()
@@ -103,56 +89,6 @@ class OpTestI2Cdriver(unittest.TestCase):
 
         # Get information of EEPROM chips
         self.cv_HOST.host_get_info_of_eeprom_chips()
-
-        # Get list of i2c buses available on host,
-        # l_list=["0","1"....]
-        # l_list1=["i2c-0","i2c-1","i2c-2"....]
-        l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
-
-        # Scanning i2c bus for devices attached to it.
-        for l_bus in l_list:
-            try:
-                self.query_i2c_bus(l_bus)
-            except OpTestI2CDetectUnsupported:
-                print "Unsupported i2cdetect on bus %s" % l_bus
-
-        # Get list of pairs of i2c bus and EEPROM device addresses in the host
-        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
-        for l_args in l_chips:
-            # Accessing the registers visible through the i2cbus using i2cdump utility
-            # l_args format: "0 0x51","1 0x53",.....etc
-            self.i2c_dump(l_args)
-
-        # list i2c adapter conetents
-        l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            pass
-        else:
-            l_msg = "listing i2c adapter contents through the sysfs entry failed"
-            print l_msg
-            raise OpTestError(l_msg)
-
-        # Checking the sysfs entry of each i2c bus
-        for l_bus in l_list1:
-            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s; echo $?" % l_bus)
-            l_res = l_res.splitlines()
-            if int(l_res[-1]) == 0:
-                pass
-            else:
-                l_msg = "listing i2c bus contents through the sysfs entry failed"
-                print l_msg
-                raise OpTestError(l_msg)
-
-        # Currently testing only getting the data from a data address, avoiding setting data.
-        # Only four samples are gathered to check whether reading eeprom  data is working or not.
-        # Setting eeprom data is dangerous and make your system UNBOOTABLE
-        l_addrs = ["0x00", "0x10", "0x20", "0x30", "0x40", "0x50", "0x60", "0x70", "0x80", "0x90", "0xa0", "0xb0", "0xc0", "0xd0", "0xe0", "0xf0"]
-        for l_addr in l_addrs:
-            l_val = self.i2c_get(l_chips[1], l_addr)
-            # self.i2c_set(l_list2[1], l_addr, "0x50")
-        return BMC_CONST.FW_SUCCESS
-
     ##
     # @brief This function query's the i2c bus for devices attached to it.
     #        i2cdetect is a utility to scan an I2C bus for devices
@@ -250,3 +186,112 @@ class OpTestI2Cdriver(unittest.TestCase):
             l_msg = "i2cset: Setting the data to a address %s failed" % i_addr
             print l_msg
             raise OpTestError(l_msg)
+
+class BasicI2C(OpTestI2Cdriver):
+    def runTest(self):
+        self.test_init()
+        l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
+
+        # For the basic test, just go for the first of everything.
+        l_list = l_list[:1]
+        l_list1 = l_list1[:1]
+
+        # Scanning i2c bus for devices attached to it.
+        for l_bus in l_list:
+            try:
+                self.query_i2c_bus(l_bus)
+            except OpTestI2CDetectUnsupported:
+                print "Unsupported i2cdetect on bus %s" % l_bus
+
+        # Get list of pairs of i2c bus and EEPROM device addresses in the host
+        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
+        self.i2c_dump(l_chips[0])
+
+        # list i2c adapter conetents
+        l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            pass
+        else:
+            l_msg = "listing i2c adapter contents through the sysfs entry failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+        # Checking the sysfs entry of each i2c bus
+        for l_bus in l_list1:
+            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s; echo $?" % l_bus)
+            l_res = l_res.splitlines()
+            if int(l_res[-1]) == 0:
+                pass
+            else:
+                l_msg = "listing i2c bus contents through the sysfs entry failed"
+                print l_msg
+                raise OpTestError(l_msg)
+
+
+class FullI2C(OpTestI2Cdriver):
+    ##
+    # @brief  This function has following test steps
+    #         1. Getting host information(OS and kernel info)
+    #         2. Checking the required utilites are present on host or not
+    #         3. Loading the necessary modules to test I2C device driver functionalites
+    #            (i2c_dev, i2c_opal and at24)
+    #         4. Getting the list of i2c buses
+    #         5. Querying the i2c bus for devices
+    #         3. Getting the list of i2c buses and eeprom chip addresses
+    #         4. Accessing the registers visible through the i2cbus using i2cdump utility
+    #         5. Listing the i2c adapter conetents and i2c bus entries to make sure sysfs entries
+    #            created for each bus.
+    #         6. Testing i2cget functionality for limited samples
+    #            Avoiding i2cset functionality, it may damage the system.
+    def runTest(self):
+        self.test_init()
+        # Get list of i2c buses available on host,
+        # l_list=["0","1"....]
+        # l_list1=["i2c-0","i2c-1","i2c-2"....]
+        l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
+
+        # Scanning i2c bus for devices attached to it.
+        for l_bus in l_list:
+            try:
+                self.query_i2c_bus(l_bus)
+            except OpTestI2CDetectUnsupported:
+                print "Unsupported i2cdetect on bus %s" % l_bus
+
+        # Get list of pairs of i2c bus and EEPROM device addresses in the host
+        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
+        for l_args in l_chips:
+            # Accessing the registers visible through the i2cbus using i2cdump utility
+            # l_args format: "0 0x51","1 0x53",.....etc
+            self.i2c_dump(l_args)
+
+        # list i2c adapter conetents
+        l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
+        l_res = l_res.splitlines()
+        if int(l_res[-1]) == 0:
+            pass
+        else:
+            l_msg = "listing i2c adapter contents through the sysfs entry failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+        # Checking the sysfs entry of each i2c bus
+        for l_bus in l_list1:
+            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s; echo $?" % l_bus)
+            l_res = l_res.splitlines()
+            if int(l_res[-1]) == 0:
+                pass
+            else:
+                l_msg = "listing i2c bus contents through the sysfs entry failed"
+                print l_msg
+                raise OpTestError(l_msg)
+
+        # Currently testing only getting the data from a data address, avoiding setting data.
+        # Only four samples are gathered to check whether reading eeprom  data is working or not.
+        # Setting eeprom data is dangerous and make your system UNBOOTABLE
+        l_addrs = ["0x00", "0x10", "0x20", "0x30", "0x40", "0x50", "0x60", "0x70", "0x80", "0x90", "0xa0", "0xb0", "0xc0", "0xd0", "0xe0", "0xf0"]
+        for l_addr in l_addrs:
+            l_val = self.i2c_get(l_chips[1], l_addr)
+            # self.i2c_set(l_list2[1], l_addr, "0x50")
+        return BMC_CONST.FW_SUCCESS
+
