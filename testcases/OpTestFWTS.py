@@ -48,6 +48,15 @@ class FWTSTest(unittest.TestCase):
     def runTest(self):
         if self.SUBTEST_RESULT.get('log_text') == 'dtc reports warnings from device tree:Warning (reg_format): "reg" property in /ibm,opal/flash@0 has invalid length (8 bytes) (#address-cells == 0, #size-cells == 0)\n':
             self.skipTest('/ibm,opal/flash@0 known warning')
+
+        # Some FWTS verions barfed (incorrectly) on missing nodes
+        # in the device tree. If we spot this, skip the test
+        # this work-around should be removed when the FWTS version readily
+        # available from the archives no longer has this problem
+        if not (self.SUBTEST_RESULT.get('failure_label') == 'None'):
+            if re.match('Property of "(status|manufacturer-id|part-number|serial-number)" for "/sys/firmware/devicetree/base/memory-buffer' , self.SUBTEST_RESULT.get('log_text')):
+                self.skipTest("FWTS bug: Incorrect Missing '(status|manufacturer-id|part-number|serial-number)' property in memory-buffer/dimm");
+
         self.assertEqual(self.SUBTEST_RESULT.get('failure_label'), 'None', self.SUBTEST_RESULT)
 
 class OpTestFWTS(unittest.TestSuite):
