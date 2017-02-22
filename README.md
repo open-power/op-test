@@ -27,8 +27,6 @@ the BMC and the host of the machine(s) you're testing.
 The target system will need to have an OS that can boot. That OS will
 need to have several things installed on it.
 
-A TODO item is to document what that is.
-
 ### Target System Requirements ###
 
 A basic Linux install is assumed.
@@ -40,9 +38,13 @@ You **MUST** have `fwts` installed. To do this:
     sudo apt-get update
     sudo apt-get install fwts
 
-It must also have:
+It must also have (package names for Debian/Ubuntu systems):
 
-    linux-tools-common linux-tools-generic
+    linux-tools-common linux-tools-generic lm-sensors ipmitool i2c-tools pciutils
+
+On RHEL-like systems, package names are:
+
+    lm_sensors ipmitool i2c-tools pciutils kernel-tools
 
 From skiboot, you will need the xscom-utils and gard installed:
 
