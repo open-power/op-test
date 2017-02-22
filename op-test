@@ -114,6 +114,7 @@ class DefaultSuite():
 class FullSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.full_suite())
