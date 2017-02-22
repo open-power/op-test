@@ -84,8 +84,8 @@ class HostSuite():
         self.s.addTest(OpTestAt24driver.OpTestAt24driver())
         self.s.addTest(OpTestI2Cdriver.OpTestI2Cdriver())
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
-        self.s.addTest(OpTestInbandIPMI.suite())
-        self.s.addTest(OpTestInbandUsbInterface.suite())
+        self.s.addTest(OpTestInbandIPMI.basic_suite())
+        self.s.addTest(OpTestInbandUsbInterface.basic_suite())
     def suite(self):
         return self.s
 
@@ -105,6 +105,15 @@ class DefaultSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(SkirootSuite().suite())
         self.s.addTest(HostSuite().suite())
+    def suite(self):
+        return self.s
+
+class FullSuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(DefaultSuite().suite())
+        self.s.addTest(OpTestInbandIPMI.full_suite())
+        self.s.addTest(OpTestInbandUsbInterface.full_suite())
     def suite(self):
         return self.s
 
@@ -159,6 +168,7 @@ suites = {
     'experimental-unrecoverable-hmi' : UnrecoverableHMISuite(),
     'experimental-reprovision' : ExperimentalReprovisionSuite(),
     'broken-reprovision' : BrokenReprovisionSuite(),
+    'full' : FullSuite(),
 }
 
 if OpTestConfiguration.conf.args.list_suites:

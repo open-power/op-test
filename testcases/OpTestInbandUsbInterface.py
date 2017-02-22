@@ -47,7 +47,10 @@ from common.OpTestSystem import OpSystemState
 def experimental_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(ExperimentalInbandUSB)
 
-def suite():
+def basic_suite():
+    return unittest.defaultTestLoader.loadTestsFromModule(BasicInbandUSB)
+
+def full_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(InbandUSB)
 
 class InbandUSBBase(unittest.TestCase):
@@ -78,6 +81,18 @@ class InbandUSBBase(unittest.TestCase):
             l_msg = "IPMI: command failed %c" % l_cmd
             raise OpTestError(l_msg)
         return l_res
+
+class BasicInbandUSB(InbandUSBBase):
+        ##
+    # @brief  It will check basic channel functionalities: info and authentication capabilities.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_channel(self):
+        print "Inband IPMI[USB]: Channel tests"
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_CHANNEL_INFO)
+
 
 class InbandUSB(InbandUSBBase):
     ##
@@ -169,16 +184,6 @@ class InbandUSB(InbandUSBBase):
         else:
             l_msg = "Boot device is not set to %s" % i_dev
             raise OpTestError(l_msg)
-
-    ##
-    # @brief  It will check basic channel functionalities: info and authentication capabilities.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def test_channel(self):
-        print "Inband IPMI[USB]: Channel tests"
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_CHANNEL_INFO)
 
     ##
     # @brief  It will execute and test the ipmi sdr list <all/fru/event/mcloc/compact/full/generic>

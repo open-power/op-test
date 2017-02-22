@@ -73,6 +73,18 @@ class OpTestInbandIPMIBase(unittest.TestCase):
             raise OpTestError(l_msg)
         return l_res
 
+class BasicInbandIPMI(OpTestInbandIPMIBase):
+    ##
+    # @brief  It will check basic channel functionalities: info and authentication capabilities.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_channel(self):
+        print "Inband IPMI[OPEN]: Channel tests"
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_INFO)
+
+
 class OpTestInbandIPMI(OpTestInbandIPMIBase):
     ##
     # @brief  It will execute and test the ipmitool chassis <cmd> commands
@@ -163,16 +175,6 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
         else:
             l_msg = "Boot device is not set to %s" % i_dev
             raise OpTestError(l_msg)
-
-    ##
-    # @brief  It will check basic channel functionalities: info and authentication capabilities.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def test_channel(self):
-        print "Inband IPMI[OPEN]: Channel tests"
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_INFO)
 
     ##
     # @brief  It will execute and test the ipmi sdr list <all/fru/event/mcloc/compact/full/generic>
@@ -571,5 +573,11 @@ class ExperimentalInbandIPMI(OpTestInbandIPMIBase):
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_INFO)
 
 
-def suite():
+def full_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(OpTestInbandIPMI)
+
+def basic_suite():
+    return unittest.defaultTestLoader.loadTestsFromModule(BasicInbandIPMI)
+
+def experimental_suite():
+    return unittest.defaultTestLoader.loadTestsFromModule(ExperimentalInbandIPMI)
