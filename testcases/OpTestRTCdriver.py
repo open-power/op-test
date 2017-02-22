@@ -62,18 +62,6 @@ class FullRTC(unittest.TestCase):
         l_module = "rtc_opal"
         self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
-        # Get the device files for rtc driver
-        l_res = self.cv_HOST.host_run_command("ls /dev/ | grep -i --color=never rtc")
-        l_files = l_res.splitlines()
-        l_list = []
-        for name in l_files:
-            if name.__contains__("rtc"):
-                l_file = "/dev/" + name
-                l_list.append(l_file)
-            else:
-                continue
-        print l_list
-
     ##
     # @brief This function will cover following test steps
     #        1. Getting host information(OS and Kernel info)
@@ -93,6 +81,18 @@ class FullRTC(unittest.TestCase):
     #
     def runTest(self):
         self.rtc_init()
+
+        # Get the device files for rtc driver
+        l_res = self.cv_HOST.host_run_command("ls /dev/ | grep -i --color=never rtc")
+        l_files = l_res.splitlines()
+        l_list = []
+        for name in l_files:
+            if name.__contains__("rtc"):
+                l_file = "/dev/" + name
+                l_list.append(l_file)
+            else:
+                continue
+        print l_list
         # Display the time of hwclock from device files
         for l_file in l_list:
             self.read_hwclock_from_file(l_file)
