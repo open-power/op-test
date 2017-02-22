@@ -48,7 +48,7 @@ class FullRTC(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
-    def test_init(self):
+    def rtc_init(self):
         # TODO: run in skiroot too
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -74,7 +74,6 @@ class FullRTC(unittest.TestCase):
                 continue
         print l_list
 
-
     ##
     # @brief This function will cover following test steps
     #        1. Getting host information(OS and Kernel info)
@@ -93,7 +92,7 @@ class FullRTC(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def runTest(self):
-        self.test_init()
+        self.rtc_init()
         # Display the time of hwclock from device files
         for l_file in l_list:
             self.read_hwclock_from_file(l_file)
@@ -267,6 +266,6 @@ class FullRTC(unittest.TestCase):
 
 class BasicRTC(FullRTC):
     def runTest(self):
-        self.test_init()
+        self.rtc_init()
         self.cv_HOST.host_read_hwclock()
         self.cv_HOST.host_read_systime()

@@ -58,7 +58,7 @@ class OpTestI2Cdriver(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
-    def test_init(self):
+    def i2c_init(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         self.cv_HOST.host_get_OS_Level()
@@ -189,7 +189,7 @@ class OpTestI2Cdriver(unittest.TestCase):
 
 class BasicI2C(OpTestI2Cdriver):
     def runTest(self):
-        self.test_init()
+        self.i2c_init()
         l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
 
         # For the basic test, just go for the first of everything.
@@ -245,7 +245,7 @@ class FullI2C(OpTestI2Cdriver):
     #         6. Testing i2cget functionality for limited samples
     #            Avoiding i2cset functionality, it may damage the system.
     def runTest(self):
-        self.test_init()
+        self.i2c_init()
         # Get list of i2c buses available on host,
         # l_list=["0","1"....]
         # l_list1=["i2c-0","i2c-1","i2c-2"....]
