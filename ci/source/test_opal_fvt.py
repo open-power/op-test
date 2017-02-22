@@ -56,10 +56,6 @@ def test_mtdpnor_driver():
 def test_prd_driver():
     assert op_opal_fvt.test_prd_driver() == 0
 
-def test_ipmi_inband_usb_interface():
-    assert op_opal_fvt.test_ipmi_inband_usb_interface() == 0
-
-
 def test_oob_ipmi():
     assert op_opal_fvt.test_oob_ipmi() == 0
 

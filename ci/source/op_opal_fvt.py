@@ -199,12 +199,6 @@ def test_prd_driver():
     """
     return opTestPrdDriver.testPrdDriver()
 
-def test_ipmi_inband_usb_interface():
-    """This function tests inband ipmi through USB interface(BT)
-    returns: int 0-success, raises exception-error
-    """
-    return opTestInbandUsbInterface.test_ipmi_inband_usb_interface()
-
 
 def test_oob_ipmi():
     """This function tests Out-of-band IPMI functionality
@@ -315,9 +309,6 @@ class OpalIPMI(unittest.TestCase):
 
     def test_oob_ipmi(self):
         opTestOOBIPMI.test_oob_ipmi()
-
-    def test_ipmi_inband_usb_interface(self):
-        opTestInbandUsbInterface.test_ipmi_inband_usb_interface()
 
     def test_fan_control_enable_functionality(self):
         opTestOOBIPMI.test_fan_control_algorithm_2(opTestOOBIPMI)

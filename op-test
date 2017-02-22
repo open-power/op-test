@@ -48,6 +48,7 @@ from testcases import OpTestI2Cdriver
 from testcases import OpTestIPMILockMode
 from testcases import OpTestIPMIReprovision
 from testcases import OpTestInbandIPMI
+from testcases import OpTestInbandUsbInterface
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -84,6 +85,7 @@ class HostSuite():
         self.s.addTest(OpTestI2Cdriver.OpTestI2Cdriver())
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
         self.s.addTest(OpTestInbandIPMI.suite())
+        self.s.addTest(OpTestInbandUsbInterface.suite())
     def suite(self):
         return self.s
 
