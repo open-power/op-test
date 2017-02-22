@@ -49,6 +49,7 @@ from testcases import OpTestIPMILockMode
 from testcases import OpTestIPMIReprovision
 from testcases import OpTestInbandIPMI
 from testcases import OpTestInbandUsbInterface
+from testcases import OpTestNVRAM
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -70,6 +71,7 @@ class SkirootSuite():
         self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.OpTestHeartbeat())
+        self.s.addTest(OpTestNVRAM.SkirootNVRAM())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
         return self.s
@@ -86,6 +88,7 @@ class HostSuite():
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
         self.s.addTest(OpTestInbandIPMI.basic_suite())
         self.s.addTest(OpTestInbandUsbInterface.basic_suite())
+        self.s.addTest(OpTestNVRAM.HostNVRAM())
     def suite(self):
         return self.s
 

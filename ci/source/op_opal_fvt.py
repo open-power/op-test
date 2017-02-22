@@ -286,14 +286,6 @@ class PetitbootEnvironmentTests(unittest.TestCase):
         bmcCfg, testCfg, hostCfg = _config_read()
         test_init()
 
-class OpalNVRAM(unittest.TestCase):
-    def setUp(self):
-        bmcCfg, testCfg, hostCfg = _config_read()
-        test_init()
-
-    def test_nvram_configuration(self):
-        opTestNVRAM.test_nvram_configuration()
-
 class BMCvsHostTests(unittest.TestCase):
     def setUp(self):
         bmcCfg, testCfg, hostCfg = _config_read()

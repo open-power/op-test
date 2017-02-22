@@ -36,14 +36,6 @@
         </test>
 
         <test>
-            <name>Test NVRAM Configuration</name>
-            <testcase>
-              <cmd>../ci/source/op_opal_fvt.py OpalNVRAM.test_nvram_configuration</cmd>
-              <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test IPMI Fan Control Enable Functionality</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalIPMI.test_fan_control_enable_functionality</cmd>
