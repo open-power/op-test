@@ -193,12 +193,6 @@ def test_mtd_pnor_driver():
     return opTestMtdPnorDriver.testMtdPnorDriver()
 
 
-def test_ipmi_inband_functionality():
-    """This function tests whether the kopald service is running in platform OS
-    returns: int 0-success, raises exception-error
-    """
-    return opTestInbandIPMI.test_ipmi_inband_open_interface()
-
 def test_prd_driver():
     """This function tests PRD-processor runtime diagnostic functionality
         returns: int 0-success, raises exception-error
@@ -324,9 +318,6 @@ class OpalIPMI(unittest.TestCase):
 
     def test_ipmi_inband_usb_interface(self):
         opTestInbandUsbInterface.test_ipmi_inband_usb_interface()
-
-    def test_ipmi_inband_open_interface(self):
-        opTestInbandIPMI.test_ipmi_inband_open_interface()
 
     def test_fan_control_enable_functionality(self):
         opTestOOBIPMI.test_fan_control_algorithm_2(opTestOOBIPMI)

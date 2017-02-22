@@ -44,14 +44,6 @@
         </test>
 
         <test>
-            <name>Test In-band IPMI Open Interface Functionality</name>
-            <testcase>
-                <cmd>../ci/source/op_opal_fvt.py OpalIPMI.test_ipmi_inband_open_interface</cmd>
-                <exitonerror>no</exitonerror>
-            </testcase>
-        </test>
-
-        <test>
             <name>Test Inband IPMI USB Interface Functionality</name>
             <testcase>
                 <cmd>../ci/source/op_opal_fvt.py OpalIPMI.test_ipmi_inband_usb_interface</cmd>

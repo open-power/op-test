@@ -94,6 +94,12 @@ class OpTestSystem():
         self.stateHandlers[OpSystemState.OS] = self.run_OS
         self.stateHandlers[OpSystemState.POWERING_OFF] = self.run_POWERING_OFF
 
+        # We track the state of loaded IPMI modules here, that way
+        # we only need to try the modprobe once per IPL.
+        # We reset as soon as we transition away from OpSystemState.OS
+        # a TODO is to support doing this in petitboot shell as well.
+        self.ipmiDriversLoaded = False
+
     def host(self):
         return self.cv_HOST
 
@@ -190,6 +196,7 @@ class OpTestSystem():
     def run_OS(self, state):
         if state == OpSystemState.OS:
             return OpSystemState.OS
+        self.ipmiDriversLoaded = False
         self.sys_power_off()
         return OpSystemState.POWERING_OFF
 
@@ -200,7 +207,35 @@ class OpTestSystem():
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
-    
+
+    def load_ipmi_drivers(self, force=False):
+        if self.ipmiDriversLoaded and not force:
+            return
+
+        # Get OS level
+        l_oslevel = self.cv_HOST.host_get_OS_Level()
+
+        # Get kernel version
+        l_kernel = self.cv_HOST.host_get_kernel_version()
+
+        # Checking for ipmitool command and package
+        self.cv_HOST.host_check_command("ipmitool")
+
+        l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "ipmitool")
+        print "Installed package: %s" % l_pkg
+
+        # loading below ipmi modules based on config option
+        # ipmi_devintf, ipmi_powernv and ipmi_masghandler
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_DEVICE_INTERFACE,
+                                                      BMC_CONST.IPMI_DEV_INTF)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_POWERNV,
+                                                      BMC_CONST.IPMI_POWERNV)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
+                                                      BMC_CONST.IPMI_MSG_HANDLER)
+        self.ipmiDriversLoaded = True
+        print "IPMI drivers loaded"
+        return
+
 
     ############################################################################
     # System Interfaces

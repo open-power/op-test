@@ -37,103 +37,24 @@ import re
 import commands
 import sys
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
+import unittest
+
+import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpTestSystem
+from common.OpTestSystem import OpSystemState
 
-
-class OpTestInbandIPMI():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the host
-    # @param i_hostUser The userid to log into the host
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostIP=None,
-                 i_hostUser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostIP, i_hostUser, i_hostPasswd, i_bmcIP)
-        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostIP,
-                 i_hostUser, i_hostPasswd)
+class OpTestInbandIPMIBase(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
-
-    ##
-    # @brief This function will cover following test steps
-    #        1. It will get the OS level installed on powernv platform
-    #        2. It will check for kernel version installed on the Open Power Machine
-    #        3. It will check for ipmitool command existence and ipmitool package
-    #        4. Checking Inband ipmitool command functionality with different options
-    #           using ipmitool open interface.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def test_ipmi_inband_open_interface(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-         # Get OS level
-        l_oslevel = self.cv_HOST.host_get_OS_Level()
-
-        # Get kernel version
-        l_kernel = self.cv_HOST.host_get_kernel_version()
-
-        # Checking for ipmitool command and package
-        self.cv_HOST.host_check_command("ipmitool")
-
-        l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "ipmitool")
-        print "Installed package: %s" % l_pkg
-
-        # loading below ipmi modules based on config option
-        # ipmi_devintf, ipmi_powernv and ipmi_masghandler
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_DEVICE_INTERFACE,
-                                                      BMC_CONST.IPMI_DEV_INTF)
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_POWERNV,
-                                                      BMC_CONST.IPMI_POWERNV)
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
-                                                      BMC_CONST.IPMI_MSG_HANDLER)
-
-        fail_count = 0
-        test_cases = [self.test_chassis, self.test_chassis_identifytests,
-                        self.test_chassis_bootdev, self.test_channel,
-                        self.test_Info, self.test_sdr_list_by_type,
-                        self.test_sdr_elist_by_type, self.test_sdr_type_list,
-                        self.test_sdr_get_id, self.test_fru_print, self.test_fru_read,
-                        self.test_sel_info, self.test_sel_list,
-                        self.test_sel_elist, self.test_sel_time_get,
-                        self.test_sel_set_time, self.test_sel_list_first_3_entries,
-                        self.test_sel_list_last_3_entries, self.test_sel_get_functionality,
-                        self.test_sel_clear_functionality, self.test_mc,
-                        self.test_sensor_list,self.test_sensor_get_host_status,
-                        self.test_sensor_get_os_boot, self.test_sensor_get_occ_active,
-                        self.test_dcmi, self.test_echo, self.test_event,
-                        self.test_firewall, self.test_pef, self.test_raw,
-                        self.test_exec]
-
-        for test in test_cases:
-            try:
-                print "In-band IPMI[OPEN]: test case %s" % test
-                test(self)
-            except:
-                print "Test Fail: %s failed" % test
-                fail_count += 1
-                print sys.exc_info()
-                continue
-
-        print "Inband IPMI[OPEN]: Test case failure count %s" % fail_count
-
+        self.platform = conf.platform()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.load_ipmi_drivers()
+        pass
 
     ##
     # @brief  It will execute and test the return code of ipmi command.
@@ -152,13 +73,13 @@ class OpTestInbandIPMI():
             raise OpTestError(l_msg)
         return l_res
 
+class OpTestInbandIPMI(OpTestInbandIPMIBase):
     ##
     # @brief  It will execute and test the ipmitool chassis <cmd> commands
     #         cmd: status, poh, restart_cause, policy list and policy set
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_chassis(self):
         print "Inband IPMI[OPEN]: Chassis tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHASSIS_POH)
@@ -171,7 +92,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_chassis_identifytests(self):
         print "Inband IPMI[OPEN]: Chassis Identify tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHASSIS_IDENTIFY)
@@ -186,7 +106,6 @@ class OpTestInbandIPMI():
     #
     # @return BMC_CONST.FW_SUCCESS on success or raise OpTestError
     #
-    @staticmethod
     def test_chassis_bootdev(self):
         print "Inband IPMI[OPEN]: Chassis Bootdevice tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHASSIS_BOOTDEV_NONE)
@@ -250,31 +169,16 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_channel(self):
         print "Inband IPMI[OPEN]: Channel tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_INFO)
 
     ##
-    # @brief  It will execute and test the ipmi <sdr/sel/mc/channel> info related commands.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    @staticmethod
-    def test_Info(self):
-        print "Inband IPMI[OPEN]: Info tests"
-        #self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_INFO)
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_MC_INFO)
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_INFO)
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_INFO)
-
-    ##
     # @brief  It will execute and test the ipmi sdr list <all/fru/event/mcloc/compact/full/generic>
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_list_by_type(self):
         print "Inband IPMI[OPEN]: SDR list tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_LIST)
@@ -292,7 +196,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_elist_by_type(self):
         print "Inband IPMI[OPEN]: SDR elist tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_ELIST)
@@ -309,7 +212,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_type_list(self):
         print "Inband IPMI[OPEN]: SDR type list tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_TYPE_LIST)
@@ -322,10 +224,9 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_get_id(self):
         print "Inband IPMI[OPEN]: SDR get tests"
-        l_cmd = BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_GET_WATCHDOG + "; echo $?"
+        l_cmd = BMC_CONST.IPMITOOL_OPEN + "sdr get \'Watchdog\'" + "; echo $?"
         self.run_ipmi_cmd_on_host(l_cmd)
 
     ##
@@ -333,7 +234,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_fru_print(self):
         print "Inband IPMI[OPEN]: FRU Print Test"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_FRU_PRINT)
@@ -344,7 +244,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_fru_read(self):
         print "Inband IPMI[OPEN]: FRU Read Test"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + "fru read 0 /tmp/file_fru; echo $?")
@@ -367,7 +266,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_mc(self):
         print "Inband IPMI[OPEN]: MC tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_MC_INFO)
@@ -387,7 +285,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_info(self):
         print "Inband IPMI[OPEN]: SEL Info test"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_INFO)
@@ -398,7 +295,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_list(self):
         print "Inband IPMI[OPEN]: SEL List test"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_LIST)
@@ -411,7 +307,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_elist(self):
         print "Inband IPMI[OPEN]: SEL elist test"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_ELIST)
@@ -422,25 +317,10 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_time_get(self):
         print "Inband IPMI[OPEN]: SEL Time get test"
         l_res = self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_TIME_GET)
         return l_res
-
-    ##
-    # @brief  It will execute and test the ipmi sel set <time string> functionality
-    #         Sets the SEL clock.  Future SEL entries will use the time set by this command.
-    #
-    # @param i_time @type string: the value to be set as a sel time
-    #               <time string> is of the form "MM/DD/YYYY HH:MM:SS"
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def test_sel_time_set(self, i_time):
-        print "Inband IPMI[OPEN]: SEL Time set test"
-        l_cmd = "sel time set \'%s\'; echo $?" % i_time
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + l_cmd)
 
     ##
     # @brief  It will execute and test the ipmi sel list first <n entries>
@@ -449,7 +329,7 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sel_list_first_n_entries(self, i_num):
+    def test_sel_list_first_n_entries(self, i_num=1):
         l_cmd = "sel list first %i; echo $?" % int(i_num)
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + l_cmd)
 
@@ -460,20 +340,8 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sel_list_last_n_entries(self, i_num):
+    def test_sel_list_last_n_entries(self, i_num=1):
         l_cmd = "sel list last %i; echo $?" % int(i_num)
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + l_cmd)
-
-
-    ##
-    # @brief  It will execute and test the ipmi sel get <id> functionality
-    #
-    # @param i_sel_id @type string: for example 0x05, 0x06..
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def test_sel_get_byid(self, i_sel_id):
-        l_cmd = "sel get %s; echo $?" % i_sel_id
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + l_cmd)
 
     ##
@@ -481,7 +349,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_clear(self):
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_CLEAR)
 
@@ -490,7 +357,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_get_functionality(self):
         l_res = self.cv_HOST.host_run_command(BMC_CONST.IPMITOOL_OPEN + "sel list first 3 | awk '{print $1}'")
         if l_res.__contains__("SEL has no entries"):
@@ -501,16 +367,16 @@ class OpTestInbandIPMI():
             del l_list[0]
             for l in l_list:
                 l_id = "0x" + l
-                self.test_sel_get_byid(l_id)
+                l_cmd = "sel get %s; echo $?" % l_id
+                self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + l_cmd)
 
     ##
     # @brief  It will execute and test the ipmi sel clear functionality
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_clear_functionality(self):
-        self.test_sel_clear(self)
+        self.test_sel_clear()
         l_res = self.cv_HOST.host_run_command("ipmitool sel list; echo $?")
         l_list = l_res.splitlines()
         for l_line in l_list:
@@ -527,7 +393,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_list(self):
         print "Inband IPMI[OPEN]: Sensor tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SENSOR_LIST)
@@ -539,7 +404,7 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sensor_byid(self, i_sensor):
+    def test_sensor_byid(self, i_sensor=BMC_CONST.SENSOR_HOST_STATUS):
         l_cmd = BMC_CONST.IPMITOOL_OPEN + "sensor get \"%s\"; echo $?" % i_sensor
         self.run_ipmi_cmd_on_host(l_cmd)
 
@@ -556,7 +421,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_dcmi(self):
         print "Inband IPMI[OPEN]: dcmi tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_DCMI_DISCOVER)
@@ -572,7 +436,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_echo(self):
         print "Inband IPMI[OPEN]: echo tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_ECHO_DONE)
@@ -590,7 +453,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_event(self):
         print "Inband IPMI[OPEN]: event tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_EVENT_1)
@@ -602,7 +464,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_exec(self):
         print "Inband IPMI[OPEN]: exec tests"
         pass
@@ -613,7 +474,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_firewall(self):
         print "Inband IPMI[OPEN]: Firewall test"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_FIREWALL_INFO)
@@ -627,7 +487,7 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
+
     def test_pef(self):
         print "Inband IPMI[OPEN]: Pef tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_PEF_INFO)
@@ -640,7 +500,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_raw(self):
         print "Inband IPMI[OPEN]: raw command execution tests"
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_RAW_POH)
@@ -651,17 +510,18 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_set_time(self):
-        l_res = self.test_sel_time_get(self)
-        self.test_sel_time_set(l_res[-2])
+        l_res = self.test_sel_time_get()
+        i_time = l_res[-2]
+        print "Inband IPMI[OPEN]: SEL Time set test"
+        l_cmd = "sel time set \'%s\'; echo $?" % i_time
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + l_cmd)
 
     ##
     # @brief  It will execute and test the ipmi sel list first <3 entries>
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_list_first_3_entries(self):
         self.test_sel_list_first_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
 
@@ -670,7 +530,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_list_last_3_entries(self):
         self.test_sel_list_last_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
 
@@ -679,7 +538,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_get_host_status(self):
         self.test_sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
 
@@ -688,7 +546,6 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_get_os_boot(self):
         self.test_sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
 
@@ -697,6 +554,22 @@ class OpTestInbandIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_get_occ_active(self):
         self.test_sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
+
+class ExperimentalInbandIPMI(OpTestInbandIPMIBase):
+    ##
+    # @brief  It will execute and test the ipmi <sdr/sel/mc/channel> info related commands.
+    #
+    # Currently in the Experimental pool as the "ipmitool BLAH info" commands
+    # seem to have random return codes, so failure is common.
+    def test_Info(self):
+        print "Inband IPMI[OPEN]: Info tests"
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_INFO)
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_MC_INFO)
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_INFO)
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_INFO)
+
+
+def suite():
+    return unittest.defaultTestLoader.loadTestsFromModule(OpTestInbandIPMI)
