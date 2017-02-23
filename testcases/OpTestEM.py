@@ -68,6 +68,15 @@ class OpTestEM(unittest.TestCase):
     def verify_cpu_freq(self, i_freq):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.cv_HOST.host_run_command(l_cmd)
+        if not cur_freq.strip() == i_freq:
+            # (According to Vaidy) it may take milliseconds to have the
+            # request for a frequency change to come into effect.
+            # So, if we happen to be *really* quick checking the result,
+            # we may have checked before it has taken effect. So, we
+            # sleep for a (short) amount of time and retry.
+            time.sleep(0.2)
+            cur_freq = self.cv_HOST.host_run_command(l_cmd)
+
         self.assertEqual(cur_freq.strip(), i_freq,
                          "CPU frequency not changed to %s" % i_freq)
 
