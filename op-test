@@ -32,6 +32,7 @@ import unittest
 import xmlrunner
 
 import OpTestConfiguration
+from testcases import HelloWorld
 from testcases import OpTestPCI
 from testcases import OpTestFWTS
 from testcases import BasicIPL
