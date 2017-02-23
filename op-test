@@ -29,7 +29,6 @@ op-test: run OpenPOWER test suite(s)
 import sys
 import os
 import unittest
-import xmlrunner
 
 import OpTestConfiguration
 from testcases import HelloWorld
