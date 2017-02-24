@@ -1085,39 +1085,6 @@ class OpTestSystem():
             return BMC_CONST.FW_FAILED,BMC_CONST.FW_FAILED
 
     ##
-    # @brief Uses the pflash tool to save the gard image
-    #        Note: Overwrites the good_GUARD_image in the i_image_dir
-    #
-    # @param i_pflash_dir @type string: directory where the pflash tool is stored
-    # @param i_gard_image_dir @type string: directory where the gard image will be stored
-    #
-    # @return BMC_CONST.FW_PASSED or BMC_CONST.FW_FAILED
-    #
-    def sys_pflash_save_gard_image(self, i_pflash_dir, i_gard_image_dir):
-        try:
-            self.cv_IPMI.ipmi_power_off()
-            self.cv_BMC.pflash_save_gard_image(i_pflash_dir, i_gard_image_dir)
-            return BMC_CONST.FW_SUCCESS
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-
-    ##
-    # @brief Uses the pflash tool to write the gard image
-    #
-    # @param i_plash_dir @type string: directory where the gard tool is stored
-    # @param i_gard_image_dir @type string: directory where the gard image must be stored
-    #
-    # @return BMC_CONST.FW_PASSED or BMC_CONST.FW_FAILED
-    def sys_pflash_write_gard_image(self, i_pflash_dir, i_gard_image_dir):
-        try:
-            self.cv_IPMI.ipmi_power_off()
-            self.cv_BMC.pflash_write_gard_image(i_pflash_dir, i_gard_image_dir)
-            self.sys_bmc_power_on_validate_host()
-            return BMC_CONST.FW_SUCCESS
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-
-    ##
     # @brief enable/disable cpu states
     #
     # @param i_cpu_state @type string: BMC_CONST.CPU_ENABLE_STATE/
