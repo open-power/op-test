@@ -1084,22 +1084,6 @@ class OpTestSystem():
         except OpTestError as e:
             return BMC_CONST.FW_FAILED,BMC_CONST.FW_FAILED
 
-    ##
-    # @brief enable/disable cpu states
-    #
-    # @param i_cpu_state @type string: BMC_CONST.CPU_ENABLE_STATE/
-    #                                  BMC_CONST.CPU_DISABLE_STATE
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
-    def sys_disable_enable_cpu_states(self,i_cpu_state):
-        try:
-            self.sys_bmc_power_on_validate_host()
-            return self.cv_HOST.host_disable_enable_cpu_states(i_cpu_state)
-        except OpTestError as e:
-            print "Disable/Enable cpu idle states failed. Reason: " + e.Reason
-            return BMC_CONST.FW_FAILED
-
 ##########################################################
 #
 #  Warning! Don't use these function for any other purpose.
