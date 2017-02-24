@@ -53,6 +53,69 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
 
+class SSHConnectionState():
+    DISCONNECTED = 0
+    CONNECTED = 1
+
+class SSHConnection():
+    def __init__(self, ip=None, username=None, password=None):
+        self.ip = ip
+        self.username = username
+        self.password = password
+        self.state = SSHConnectionState.DISCONNECTED
+        # pxssh has a nice 'echo=False' mode, but only
+        # on more recent distros, so we can't use it :(
+        p = pxssh.pxssh()
+        # Work-around for old pxssh not having options= parameter
+        p.SSH_OPTS = p.SSH_OPTS + " -o 'StrictHostKeyChecking=no'"
+        p.SSH_OPTS = p.SSH_OPTS + " -o 'UserKnownHostsFile /dev/null' "
+        p.force_password = True
+        p.logfile = sys.stdout
+        self.pxssh = p
+
+    def terminate(self):
+        if self.state == SSHConnectionState.CONNECTED:
+            self.pxssh.terminate()
+            self.state = SSHConnectionState.DISCONNECTED
+
+
+    def connect(self):
+        if self.state == SSHConnectionState.CONNECTED:
+            self.pxssh.terminate()
+            self.state = SSHConnectionState.DISCONNECTED
+
+        print "#SSH CONNECT"
+        p = self.pxssh
+        p.login(self.ip, self.username, self.password)
+        p.sendline()
+        p.prompt(timeout=60)
+        self.state = SSHConnectionState.CONNECTED
+
+
+    def get_console(self):
+        if self.state == SSHConnectionState.DISCONNECTED:
+            self.connect()
+
+        count = 0
+        while (not self.pxssh.isalive()):
+            print '# Reconnecting'
+            if (count > 0):
+                time.sleep(2)
+            self.connect()
+            count += 1
+            if count > 120:
+                raise Exception("Cannot login via SSH")
+
+        return self.pxssh
+
+    def run_command(self, command, timeout=300):
+        c = self.get_console()
+        c.sendline(command)
+        c.prompt(timeout)
+        # We manually remove the echo of the command
+        return '\n'.join(c.before.split('\n')[1:])
+
+
 class OpTestHost():
 
     ##
@@ -73,6 +136,7 @@ class OpTestHost():
         self.cv_ffdcDir = i_ffdcDir
         parent_dir = os.path.dirname(os.path.abspath(__file__))
         self.results_dir = self.cv_ffdcDir
+        self.ssh = SSHConnection(i_hostip, i_hostuser, i_hostpasswd)
 
     def hostname(self):
         return self.ip
@@ -91,132 +155,7 @@ class OpTestHost():
     #   @return command output if command execution is successful else raises OpTestError
     #
     def _ssh_execute(self, i_cmd, timeout=300):
-
-        l_host = self.ip
-        l_user = self.user
-        l_pwd = self.passwd
-
-        l_output = ''
-        ssh_ver = '-2'
-
-        # Flush everything out prior to forking
-        sys.stdout.flush()
-
-        # Connect the child controlling terminal to a pseudo-terminal
-        try:
-            pid, fd = pty.fork()
-        except OSError as e:
-                # Explicit chain of errors
-            l_msg = "Got OSError attempting to fork a pty session for ssh."
-            raise OpTestError(l_msg)
-
-        if pid == 0:
-            # In child process.  Issue attempt ssh connection to remote host
-
-            arglist = ('/usr/bin/ssh -o StrictHostKeyChecking=no',
-                       l_host, ssh_ver, '-k', '-l', l_user, i_cmd)
-
-            try:
-                os.execv('/usr/bin/ssh', arglist)
-            except Exception as e:
-                # Explicit chain of errors
-                l_msg = "Can not spawn os.execv for ssh."
-                print l_msg
-                raise OpTestError(l_msg)
-
-        else:
-            # In parent process
-            # Polling child process for output
-            poll = select.poll()
-            poll.register(fd, select.POLLIN)
-
-            start_time = time.time()
-            # time.sleep(1)
-            while True:
-                try:
-                    evt = poll.poll()
-                    x = os.read(fd, 1024)
-                    #print "ssh x= " + x
-                    end_time = time.time()
-                    if(end_time - start_time > timeout):
-                        if(i_cmd.__contains__('updlic') or i_cmd.__contains__('update_flash')):
-                            continue
-                        else:
-                            l_msg = "Timeout occured/SSH request unresponsive"\
-                                    " even after %i seconds" % timeout
-                            print l_msg
-                            raise OpTestError(l_msg)
-
-                    if(x.__contains__('(yes/no)')):
-                        l_res = "yes\r\n"
-                        os.write(fd, l_res)
-                    if(x.__contains__('s password:')):
-                        x = ''
-                        os.write(fd, l_pwd + '\r\n')
-                    if(x.__contains__('Password:')):
-                        x = ''
-                        os.write(fd, l_pwd + '\r\n')
-                    if(x.__contains__('password')):
-                        response = l_pwd + "\r\n"
-                        os.write(fd, response)
-                    if(x.__contains__('yes')):
-                        response = '1' + "\r\n"
-                        os.write(fd, response)
-                    if(x.__contains__('Connection refused')):
-                        print x
-                        raise OpTestError(x)
-                    if(x.__contains__('Received disconnect from')):
-                        self.ssh_ver = '-1'
-                    if(x.__contains__('Connection closed by')):
-                        print (x)
-                        raise OpTestError(x)
-                    if(x.__contains__("WARNING: POSSIBLE DNS SPOOFING DETECTED")):
-                        print (x)
-                        raise OpTestError("Its a RSA key problem : \n" + x)
-                    if(x.__contains__("WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED")):
-                        print (x)
-                        raise OpTestError("Its a RSA key problem : \n" + x)
-                    if(x.__contains__("Permission denied")):
-                        l_msg = "Wrong Login or Password(" + l_user + "/" + l_pwd + ") :" + x
-                        print (l_msg)
-                        raise OpTestError(l_msg)
-                    if(x.__contains__("Rebooting") or \
-                       (x.__contains__("rebooting the system"))):
-                        l_output = l_output + x
-                        raise OpTestError(l_output)
-                    if(x.__contains__("Connection timed out")):
-                        l_msg = "Connection timed out/" + \
-                            l_host + " is not pingable"
-                        print (x)
-                        raise OpTestError(l_msg)
-                    if(x.__contains__("could not connect to CLI daemon")):
-                        print(x)
-                        raise OpTestError("Director server is not up/running("
-                                          "Do smstop then smstart to restart)")
-                    if((x.__contains__("Error:")) and (i_cmd.__contains__('rmsys'))):
-                        print(x)
-                        raise OpTestError("Error removing:" + l_host)
-                    if((x.__contains__("Bad owner or permissions on /root/.ssh/config"))):
-                        print(x)
-                        raise OpTestError("Bad owner or permissions on /root/.ssh/config,"
-                                          "Try 'chmod -R 600 /root/.ssh' & retry operation")
-
-                    l_output = l_output + x
-                    # time.sleep(1)
-                except OSError:
-                    break
-        if l_output.__contains__("Name or service not known"):
-            reason = 'SSH Failed for :' + l_host + \
-                "\n Please provide a valid Hostname"
-            print reason
-            raise OpTestError(reason)
-
-        # Gather child process status to freeup zombie and
-        # Close child file descriptor before return
-        if (fd):
-            os.waitpid(pid, 0)
-            os.close(fd)
-        return l_output
+        return self.ssh.run_command(i_cmd, timeout=timeout)
 
     ##
     # @brief Get and Record Ubunto OS level

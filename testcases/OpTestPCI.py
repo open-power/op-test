@@ -84,7 +84,7 @@ class OpTestPCIHost(OpTestPCI):
         self.cv_HOST.host_list_usb_devices()
         l_res = self.cv_HOST.host_run_command("lspci -mm -n")
         # FIXME: why do we get a blank line in l_res ?
-        self.pci_data_hostos = l_res[2:].replace("\r\n", "\n")
+        self.pci_data_hostos = l_res.replace("\r\n", "\n")
         diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)
         diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
         r = diff_process.wait()

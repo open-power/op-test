@@ -63,7 +63,7 @@ class OpTestFWTS(unittest.TestSuite):
     def add_fwts_results(self):
         host = self.host
         fwtsjson = host.host_run_command('fwts -q -r stdout --log-type=json')
-        r = json.loads(fwtsjson[2:], encoding='latin-1')
+        r = json.loads(fwtsjson, encoding='latin-1')
         tests = []
         for fwts in r['fwts']:
             for k in fwts:
