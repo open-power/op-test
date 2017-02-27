@@ -63,14 +63,10 @@ class OpTestPCISkiroot(OpTestPCI):
         res = '\n'.join(c.run_command(cmd))
 
         self.pci_data_petitboot = res
-        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)
+        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_petitboot + '\n')
         r = diff_process.wait()
-        if r == 0:
-            print "All the pci devices are detected at petitboot"
-        else:
-            print diff_stdout
-            raise OpTestError("There is a mismatch b/w known good output and tested petitboot lspci output")
+        self.assertEqual(r, 0, "Stored and detected PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
 
 class OpTestPCIHost(OpTestPCI):
     # Compare host "lspci -mm -n" output to known good
@@ -84,12 +80,8 @@ class OpTestPCIHost(OpTestPCI):
         l_res = self.cv_HOST.host_run_command("lspci -mm -n")
         # FIXME: why do we get a blank line in l_res ?
         self.pci_data_hostos = l_res.replace("\r\n", "\n")
-        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)
+        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
         r = diff_process.wait()
-        if r == 0:
-            print "All the pci devices are detected in host OS"
-        else:
-            print diff_stdout
-            raise OpTestError("There is a mismatch b/w known good output and tested host OS lspci output")
+        self.assertEqual(r, 0, "Stored and detected PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
 
