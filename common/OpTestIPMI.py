@@ -150,6 +150,21 @@ class IPMIConsole():
 
         return self.sol
 
+    def run_command(self, command, timeout=60):
+        console = self.get_console()
+        console.sendline(command)
+        console.expect("\n") # from us
+        rc = console.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT, timeout)
+
+        if rc == 0:
+            res = console.before
+            res = res.splitlines()
+            return res
+        else:
+            res = console.before
+            res = res.split(i_cmd)
+            return res[-1].splitlines()
+
 
 class OpTestIPMI():
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, host=None):
@@ -1149,20 +1164,8 @@ class OpTestIPMI():
     # @return res @type list: command output-if successfull,
     #                         monitor and returns console output(up to 8 mins)- if fails or raise OpTestError
     #
-    def run_host_cmd_on_ipmi_console(self, i_cmd):
-        console = self.console.get_console()
-        console.sendline(i_cmd)
-        console.expect("\n") # from us
-        rc = console.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT, timeout=500)
-
-        if rc == 0:
-            res = console.before
-            res = res.splitlines()
-            return res
-        else:
-            res = console.before
-            res = res.split(i_cmd)
-            return res[-1].splitlines()
+    def run_host_cmd_on_ipmi_console(self, i_cmd, timeout=60):
+        return self.console.run_command(i_cmd, timeout)
 
     ##
     # @brief Set boot device to be boot to BIOS (i.e. petitboot)
