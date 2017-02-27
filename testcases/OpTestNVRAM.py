@@ -74,62 +74,9 @@ class OpTestNVRAM(unittest.TestCase):
         else:
             raise NVRAMUpdateError(i_part, key, value, res)
 
-class HostNVRAM(OpTestNVRAM):
-    ##
-    # @brief  This function tests nvram partition access, print/update
-    #         the config data and dumping the partition's data. All
-    #         these operations are done on supported partitions in both
-    #         host OS and Petitboot.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
-    def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.console = self.cv_HOST.get_ssh_connection()
-        self.cv_HOST.host_run_command("uname -a")
-        self.cv_HOST.host_run_command("cat /etc/os-release")
-        self.cv_HOST.host_run_command("nvram -v")
-        self.cv_HOST.host_run_command("nvram --print-config -p ibm,skiboot")
-        self.cv_HOST.host_run_command("nvram --print-config -p common")
-        self.cv_HOST.host_run_command("nvram --print-config -p lnx,oops-log")
-        self.cv_HOST.host_run_command("nvram --print-config -p wwwwwwwwwwww")
-        self.cv_HOST.host_run_command("nvram --print-vpd")
-        self.cv_HOST.host_run_command("nvram --print-all-vpd")
-        self.cv_HOST.host_run_command("nvram --print-err-log")
-        self.cv_HOST.host_run_command("nvram --print-event-scan")
-        self.cv_HOST.host_run_command("nvram --partitions")
-        self.cv_HOST.host_run_command("nvram --dump common")
-        self.cv_HOST.host_run_command("nvram --dump ibm,skiboot")
-        self.cv_HOST.host_run_command("nvram --dump lnx,oops-log")
-        self.cv_HOST.host_run_command("nvram --dump wwwwwwwwwwww")
-        self.cv_HOST.host_run_command("nvram --ascii common")
-        self.cv_HOST.host_run_command("nvram --ascii ibm,skiboot")
-        self.cv_HOST.host_run_command("nvram --ascii lnx,oops-log")
-        self.cv_HOST.host_run_command("nvram --ascii wwwwwwwwwwww")
-        try:
-            self.nvram_update_part_config("common")
-            self.nvram_update_part_config("ibm,skiboot")
-            # The following 2 are disabled due to possible nvram binary
-            # bug.
-#            self.nvram_update_part_config("lnx,oops-log")
-#            self.nvram_update_part_config("wwwwwwwwwwww")
-        except NVRAMUpdateError as e:
-            self.fail(msg=str(e))
-
-        try:
-            self.nvram_update_part_config("a-very-long-and-invalid-name")
-        except NVRAMUpdateError as e:
-            self.assertEqual(e.part, "a-very-long-and-invalid-name")
-        else:
-            self.fail(msg="Expected to fail with NVRAM part name>12 but didn't")
-
-class SkirootNVRAM(OpTestNVRAM):
-    def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        # Execute these tests in petitboot
-        self.console = self.cv_SYSTEM.sys_get_ipmi_console()
-        c = self.console
-        self.cv_IPMI.ipmi_host_set_unique_prompt()
+    def doNVRAMTest(self, console):
+        c = console
+        self.console = c
         c.run_command("uname -a")
         c.run_command("cat /etc/os-release")
         c.run_command("nvram -v")
@@ -165,3 +112,24 @@ class SkirootNVRAM(OpTestNVRAM):
             self.assertEqual(e.part, "a-very-long-and-invalid-name")
         else:
             self.fail(msg="Expected to fail with NVRAM part name>12 but didn't")
+
+
+class HostNVRAM(OpTestNVRAM):
+    ##
+    # @brief  This function tests nvram partition access, print/update
+    #         the config data and dumping the partition's data. All
+    #         these operations are done on supported partitions in both
+    #         host OS and Petitboot.
+    #
+    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+    #
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.doNVRAMTest(self.cv_HOST.get_ssh_connection())
+
+class SkirootNVRAM(OpTestNVRAM):
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        # Execute these tests in petitboot
+        self.cv_IPMI.ipmi_host_set_unique_prompt()
+        self.doNVRAMTest(self.cv_SYSTEM.sys_get_ipmi_console())
