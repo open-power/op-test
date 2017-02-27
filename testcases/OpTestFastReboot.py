@@ -41,7 +41,6 @@ import sys
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
@@ -51,7 +50,6 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
 
     ##
     # @brief  This function tests fast reset of power systems.
@@ -60,15 +58,19 @@ class OpTestFastReboot(unittest.TestCase):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
+        res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
-        self.con = self.cv_SYSTEM.sys_get_ipmi_console()
+        # We do some funny things with the raw console here, as
+        # 'reboot' isn't meant to return, so we want the raw
+        # pexpect 'console'.
+        self.con = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
         self.con.sendline("reboot")
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.con.expect(" RESET: Initiating fast reboot", timeout=60)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
+        c.run_command(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
+        res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertNotIn("feeling-lucky", res, "Failed to set the fast-reset mode")

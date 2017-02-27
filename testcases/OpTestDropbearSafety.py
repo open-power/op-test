@@ -43,25 +43,22 @@ import sys
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
 class OpTestDropbearSafety(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         print "Test Dropbear running in Petitboot"
 
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c.run_command("uname -a")
         # we don't grep for 'dropbear' so that our naive line.count
         # below doesn't hit a false positive.
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console("ps|grep drop")
+        res = c.run_command("ps|grep drop")
         print res
         for line in res:
             if line.count('dropbear'):

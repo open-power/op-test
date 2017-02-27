@@ -146,10 +146,10 @@ class OpTestHMIHandling(unittest.TestCase):
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("lscpu")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -D")
+        l_con.run_command("uname -a")
+        l_con.run_command("cat /etc/os-release")
+        l_con.run_command("lscpu")
+        l_con.run_command("dmesg -D")
         if l_test == BMC_CONST.HMI_PROC_RECV_DONE:
             self._test_proc_recv_done()
         elif l_test == BMC_CONST.HMI_PROC_RECV_ERROR_MASKED:
@@ -205,9 +205,9 @@ class OpTestHMIHandling(unittest.TestCase):
             for l_core in l_pair[1]:
                 l_reg = "1%s013100" % l_core
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000; echo $?" % (l_chip, l_reg)
-
-                self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
-                l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
+                console = self.cv_SYSTEM.sys_get_ipmi_console()
+                console.run_command("dmesg -C")
+                l_res = console.run_command(l_cmd)
                 if l_res[-1] == "0":
                     print "Injected thread hang recoverable error"
                 elif l_res[-1] == "1":
@@ -224,7 +224,7 @@ class OpTestHMIHandling(unittest.TestCase):
                     else:
                         raise Exception("Failed to inject thread hang recoverable error")
 
-                l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
+                l_res = console.run_command("dmesg")
                 if any("Processor Recovery done" in line for line in l_res) and \
                 any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
                     print "Processor recovery done"
@@ -242,8 +242,9 @@ class OpTestHMIHandling(unittest.TestCase):
             for l_core in l_pair[1]:
                 l_reg = "1%s013100" % l_core
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000; echo $?" % (l_chip, l_reg)
-                self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
-                l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
+                console = self.cv_SYSTEM.sys_get_ipmi_console()
+                console.run_command("dmesg -C")
+                l_res = console.run_command(l_cmd)
                 if l_res[-1] == "0":
                     print "Injected thread hang recoverable error"
                 elif l_res[-1] == "1":
@@ -258,7 +259,7 @@ class OpTestHMIHandling(unittest.TestCase):
                     else:
                         raise Exception("Failed to inject thread hang recoverable error")
 
-                l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
+                l_res = console.run_command("dmesg")
                 if any("Processor Recovery done" in line for line in l_res) and \
                 any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
                     print "Processor recovery done"
@@ -281,7 +282,7 @@ class OpTestHMIHandling(unittest.TestCase):
         l_reg = "1%s013100" % l_core
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 1000000000000000" % (l_chip, l_reg)
 
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd)
         if any("Kernel panic - not syncing" in line for line in l_res):
             print "Malfunction alert: kernel got panic"
         elif any("login:" in line for line in l_res):
@@ -309,7 +310,7 @@ class OpTestHMIHandling(unittest.TestCase):
         l_reg = "1%s013100" % l_core
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
 
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
+        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd)
         if any("Kernel panic - not syncing" in line for line in l_res) and \
         any("Hypervisor Resource error - core check stop" in line for line in l_res):
             print "Hypervisor resource error: kernel got panic"
@@ -342,8 +343,9 @@ class OpTestHMIHandling(unittest.TestCase):
             for l_core in l_pair[1]:
                 l_reg = "1%s013281" % l_core
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s;echo $?" % (l_chip, l_reg, l_error)
-                self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
-                l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
+                console = self.cv_SYSTEM.sys_get_ipmi_console()
+                console.run_command("dmesg -C")
+                l_res = console.run_command(l_cmd)
                 if l_res[-1] == "0":
                     print "Injected TFMR error %s" % l_error
                 elif l_res[-1] == "1":
@@ -358,7 +360,7 @@ class OpTestHMIHandling(unittest.TestCase):
                     else:
                         raise Exception("Failed to inject TFMR error %s " % l_error)
 
-                l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
+                l_res = console.run_command("dmesg")
                 if any("Timer facility experienced an error" in line for line in l_res) and \
                     any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
                     print "Timer facility experienced an error and got recovered"
@@ -382,8 +384,9 @@ class OpTestHMIHandling(unittest.TestCase):
         # Get random chip id
         l_chip = l_pair[0]
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s;echo $?" % (l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(l_cmd)
+        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console.run_command("dmesg -C")
+        l_res = console.run_command(l_cmd)
         # As of now putscom command to TOD register will fail with return code -1.
         # putscom indirectly call getscom to read the value again.
         # But getscom to TOD error reg there is no access
@@ -402,7 +405,7 @@ class OpTestHMIHandling(unittest.TestCase):
             else:
                 raise Exception("TOD: PSS Hamming distance error injection failed")
 
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
+        l_res = console.run_command("dmesg")
         if any("Timer facility experienced an error" in line for line in l_res) and \
             any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
             print "Timer facility experienced an error and got recovered"

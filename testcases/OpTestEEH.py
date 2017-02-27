@@ -58,8 +58,9 @@ class OpTestEEH(unittest.TestCase):
     #
     def prepare_logs(self):
         cmd = "rm -rf /tmp/opal_msglog;touch /sys/firmware/opal/msglog; cp /sys/firmware/opal/msglog /tmp/opal_msglog"
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -C")
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c.run_command(cmd)
+        c.run_command("dmesg -C")
 
     ##
     # @brief  This function is used to gather opal and kernel logs
@@ -69,8 +70,9 @@ class OpTestEEH(unittest.TestCase):
     #
     def gather_logs(self):
         cmd = "diff /sys/firmware/opal/msglog /tmp/opal_msglog"
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg")
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c.run_command(cmd)
+        c.run_command("dmesg")
 
 
     ##
@@ -96,7 +98,7 @@ class OpTestEEH(unittest.TestCase):
     #
     def get_list_of_pci_devices(self):
         cmd = "ls /sys/bus/pci/devices"
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
+        res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
         return res
 
         ##
@@ -108,13 +110,14 @@ class OpTestEEH(unittest.TestCase):
     def get_dic_of_pe_vs_addr(self):
         pe_dic = {}
         # Get list of PE's
-        res = self.cv_HOST.host_run_command("ls /sys/bus/pci/devices/ | awk {'print $1'}")
+        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        res = console.run_command("ls /sys/bus/pci/devices/ | awk {'print $1'}")
         res = res.splitlines()
         for pe in res:
             if not pe:
                 continue
             cmd = "cat /sys/bus/pci/devices/%s/eeh_pe_config_addr" % pe
-            addr = self.cv_HOST.host_run_command(cmd)
+            addr = console.run_command(cmd)
             addr = addr.splitlines()
             pe_dic[pe] = ((addr[1]).split("x"))[1]
         return pe_dic
@@ -170,7 +173,7 @@ class OpTestEEH(unittest.TestCase):
     #
     def inject_error(self, addr, e, f, phb, pe):
         cmd = "echo %s:%s:%s:0:0 > /sys/kernel/debug/powerpc/PCI%s/err_injct && lspci -ns %s; echo $?" % (addr, e, f, phb, pe)
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
+        res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
         return int(res[-1])
 
 
@@ -183,7 +186,7 @@ class OpTestEEH(unittest.TestCase):
     #
     def check_eeh_slot_resets(self):
         cmd = "cat /proc/powerpc/eeh | tail -n 1"
-        count = self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
+        count = sself.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
         output = (count[-1].split("="))[1]
         return output
 
@@ -225,16 +228,16 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("stty cols 300")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("stty rows 10")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -D")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
+        l_con.run_command("stty cols 300")
+        l_con.run_command("stty rows 10")
+        l_con.run_command("dmesg -D")
+        l_con.run_command("uname -a")
+        l_con.run_command("cat /etc/os-release")
         for domain in pci_domains:
             self.prepare_logs()
             cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
             print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
-            self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
+            l_con.run_command(cmd)
             # Give some time to EEH PCI Error recovery
             time.sleep(30)
             l_con.sendline("\r\n")
@@ -275,17 +278,17 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("stty cols 300")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("stty rows 10")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -D")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
+        l_con.run_command("stty cols 300")
+        l_con.run_command("stty rows 10")
+        l_con.run_command("dmesg -D")
+        l_con.run_command("uname -a")
+        l_con.run_command("cat /etc/os-release")
         for i in range(0,2):
             for domain in pci_domains:
                 self.prepare_logs()
                 cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
                 print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
-                self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd)
+                l_con.run_command(cmd)
                 # Give some time to EEH PCI Error recovery
                 time.sleep(30)
                 l_con.sendline("\r\n")
@@ -331,11 +334,11 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("stty cols 300")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("stty rows 10")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("dmesg -D")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
+        l_con.run_command("stty cols 300")
+        l_con.run_command("stty rows 10")
+        l_con.run_command("dmesg -D")
+        l_con.run_command("uname -a")
+        l_con.run_command("cat /etc/os-release")
         print "==============================Testing frozen PE error injection==============================="
 
         # Frequently used function

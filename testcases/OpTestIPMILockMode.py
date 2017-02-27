@@ -114,121 +114,121 @@ class OpTestIPMILockMode(unittest.TestCase):
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_login(l_con)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
+        l_con.run_command("uname -a")
 
         # Test IPMI white listed commands those should be allowed through un-authenticated
         # in-band interface
         # 1.[App] Get Device ID
         print "Testing Get Device ID command"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_DEVICE_ID)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_DEVICE_ID)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get Device ID command failed")
 
         # 2.[App] Get Device GUID
         print "Testing Get Device GUID"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_DEVICE_GUID)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_DEVICE_GUID)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get Device GUID command failed")
 
         # 3.[App] Get System GUID
         print "Testing Get system GUID"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SYSTEM_GUID)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_GUID)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get System GUID command failed")
 
         # 4.[Storage] Get SEL info
         print "Testing Get SEL info"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SEL_INFO)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SEL_INFO)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get SEL info command failed")
 
         # 5.[Storage] Get SEL time
         print "Testing Get SEL time"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SEL_TIME_RAW)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SEL_TIME_RAW)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get SEL time command failed")
 
         # 6. [Storage] Reserve SEL
         print "Testing Reserve SEL"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_RESERVE_SEL)
+        l_res = l_con.run_command(BMC_CONST.HOST_RESERVE_SEL)
         if l_res[-1] != "0":
             raise Exception("IPMI: Reserve SEL command failed")
 
         # 7. [Storage] Set SEL time (required for RTC)
         print "Testing Set SEL time"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SEL_TIME)
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_SET_SEL_TIME + " \'" + l_res[-1] + "\'; echo $?")
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SEL_TIME)
+        l_res = l_con.run_command(BMC_CONST.HOST_SET_SEL_TIME + " \'" + l_res[-1] + "\'; echo $?")
         if l_res[-1] != "0":
             raise Exception("IPMI: Set SEL time command failed")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SEL_TIME)
+        l_con.run_command(BMC_CONST.HOST_GET_SEL_TIME)
 
         # 8. [Transport] Get LAN parameters
         print "Testing Get LAN parameters"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_LAN_PARAMETERS)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_LAN_PARAMETERS)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get LAN parameters command failed")
 
         # 9.[Chassis] Get System Boot Options
         print "Testing Get System Boot Options"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SYSTEM_BOOT_OPTIONS)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_BOOT_OPTIONS)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get System Boot Options command failed")
 
         # 10.[Chassis] Set System Boot Options
         print "Testing Set System Boot Options"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_SET_SYTEM_BOOT_OPTIONS)
+        l_res = l_con.run_command(BMC_CONST.HOST_SET_SYTEM_BOOT_OPTIONS)
         if l_res[-1] != "0":
             raise Exception("IPMI: Set System Boot Options command failed")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SYSTEM_BOOT_OPTIONS)
+        l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_BOOT_OPTIONS)
 
         # 11. [App] Get BMC Global Enables
         print "Testing Get BMC Global Enables"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_BMC_GLOBAL_ENABLES_RAW)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_BMC_GLOBAL_ENABLES_RAW)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get BMC Global Enables command failed")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_BMC_GLOBAL_ENABLES)
+        l_con.run_command(BMC_CONST.HOST_GET_BMC_GLOBAL_ENABLES)
 
         # 12. [App] Set BMC Global Enables
         print "Testing Set BMC Global Enables"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_OFF)
+        l_res = l_con.run_command(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_OFF)
         if l_res[-1] != "0":
             raise Exception("IPMI: Set BMC Global Enables sel=off command failed")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_BMC_GLOBAL_ENABLES)
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON)
+        l_con.run_command(BMC_CONST.HOST_GET_BMC_GLOBAL_ENABLES)
+        l_con.run_command(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON)
 
         # 13.[App] Get System Interface Capabilities
         print "Testing Get System Interface Capabilities"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get System Interface Capabilities SSIF command failed")
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get System Interface Capabilities KCS command failed")
 
         # 14.[App] Get Message Flags
         print "Testing Get Message Flags"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_MESSAGE_FLAGS)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_MESSAGE_FLAGS)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get Message Flags command failed")
 
         # 15. [App] Get BT Capabilities
         print "Testing Get BT Capabilities"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_BT_CAPABILITIES)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_BT_CAPABILITIES)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get BT Capabilities command failed")
 
         # 16. [App] Clear Message Flags
         print "Testing Clear Message Flags"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_CLEAR_MESSAGE_FLAGS)
+        l_res = l_con.run_command(BMC_CONST.HOST_CLEAR_MESSAGE_FLAGS)
         if l_res[-1] != "0":
             raise Exception("IPMI: Clear Message Flags command failed")
 
         # 17. [OEM] PNOR Access Status
         print "Testing the PNOR Access Status"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)
+        l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)
         if l_res[-1] != "0":
             raise Exception("IPMI: PNOR Access Status:deny command failed")
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_PNOR_ACCESS_STATUS_GRANT)
+        l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_GRANT)
         if l_res[-1] != "0":
             raise Exception("IPMI: PNOR Access Status:grant command failed")
 
@@ -236,7 +236,7 @@ class OpTestIPMILockMode(unittest.TestCase):
         print "Testing Add SEL Entry"
         print "Clearing the SEL list"
         self.cv_IPMI.ipmi_sdr_clear()
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_ADD_SEL_ENTRY)
+        l_res = l_con.run_command(BMC_CONST.HOST_ADD_SEL_ENTRY)
         if l_res[-1] != "0":
             raise Exception("IPMI: Add SEL Entry command failed")
         l_res = self.cv_IPMI.last_sel()
@@ -246,13 +246,13 @@ class OpTestIPMILockMode(unittest.TestCase):
 
         # 19. [App] Set Power State
         print "Testing Set Power State"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_SET_ACPI_POWER_STATE)
+        l_res = l_con.run_command(BMC_CONST.HOST_SET_ACPI_POWER_STATE)
         if l_res[-1] != "0":
             raise Exception("IPMI: Set Power State command failed")
 
         # 20. [App] Set watchdog
         print "Testing Set watchdog"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_SET_WATCHDOG)
+        l_res = l_con.run_command(BMC_CONST.HOST_SET_WATCHDOG)
         if l_res[-1] != "0":
             raise Exception("IPMI: Set watchdog command failed")
         self.cv_IPMI.mc_get_watchdog()
@@ -265,7 +265,7 @@ class OpTestIPMILockMode(unittest.TestCase):
             print "Got sensor Id for watchdog: %s" % matchObj.group(1)
         else:
             raise Exception("Failed to get sensor id for watchdog sensor")
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SENSOR_TYPE_FOR_WATCHDOG + " " + matchObj.group(1) + " ;echo $?")
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SENSOR_TYPE_FOR_WATCHDOG + " " + matchObj.group(1) + " ;echo $?")
         if l_res[-1] != "0":
             raise Exception("IPMI: Get Sensor Type command failed")
 
@@ -277,14 +277,14 @@ class OpTestIPMILockMode(unittest.TestCase):
             print "Got sensor Id for watchdog: %s" % matchObj.group(1)
         else:
             raise Exception("Failed to get sensor id for watchdog sensor")
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_SENSOR_READING + " " + matchObj.group(1) + " ;echo $?")
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_SENSOR_READING + " " + matchObj.group(1) + " ;echo $?")
         if l_res[-1] != "0":
             raise Exception("IPMI: Get Sensor Reading command failed")
 
         # 23.[Sensor/Event] Platform Event (0x02)
         print "Testing Platform Event"
         self.cv_IPMI.ipmi_sdr_clear()
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_PLATFORM_EVENT)
+        l_res = l_con.run_command(BMC_CONST.HOST_PLATFORM_EVENT)
         if l_res[-1] != "0":
             raise Exception("IPMI: Platform Event command failed")
         l_res = self.cv_IPMI.last_sel()
@@ -293,31 +293,31 @@ class OpTestIPMILockMode(unittest.TestCase):
 
         # 24. [OEM] PNOR Access Response (0x08)
         print "Testing PNOR Access Response"
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_PNOR_ACCESS_STATUS_GRANT)
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_PNOR_ACCESS_RESPONSE)
+        l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_GRANT)
+        l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_RESPONSE)
         if l_res[-1] != "0":
             raise Exception("IPMI: PNOR Access Response command failed")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_PNOR_ACCESS_RESPONSE)
+        l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)
+        l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_RESPONSE)
         if l_res[-1] != "0":
             raise Exception("IPMI: PNOR Access Response command failed")
 
         # 25.[Chassis] Chassis Control
         print "Testing chassis power on"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_CHASSIS_POWER_ON)
+        l_res = l_con.run_command(BMC_CONST.HOST_CHASSIS_POWER_ON)
         if l_res[-1] != "0":
             raise Exception("IPMI: chassis power on command failed")
 
         # 26.[App] 0x38 Get Channel Authentication Cap
         print "Testing Get Channel Authentication Capabilities"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_CHANNEL_AUTH_CAP)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_CHANNEL_AUTH_CAP)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get Channel Authentication Capabilities command failed")
 
         # 27.[App] Reset Watchdog (0x22)
         print "Testing reset watchdog"
         self.cv_IPMI.ipmi_sdr_clear()
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_RESET_WATCHDOG)
+        l_res = l_con.run_command(BMC_CONST.HOST_RESET_WATCHDOG)
         if l_res[-1] != "0":
             raise Exception("IPMI: Reset Watchdog command failed")
 
@@ -336,7 +336,7 @@ class OpTestIPMILockMode(unittest.TestCase):
 
         # 28. [App] Get ACPI Power State (0x06)
         print "Testing Get ACPI Power State"
-        l_res = self.cv_IPMI.run_host_cmd_on_ipmi_console(BMC_CONST.HOST_GET_ACPI_POWER_STATE)
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_ACPI_POWER_STATE)
         if l_res[-1] != "0":
             raise Exception("IPMI: Get ACPI Power State command failed")
 

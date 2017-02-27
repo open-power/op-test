@@ -33,7 +33,6 @@
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
 class OpTestHeartbeat(unittest.TestCase):
@@ -44,7 +43,8 @@ class OpTestHeartbeat(unittest.TestCase):
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        res = self.cv_IPMI.run_host_cmd_on_ipmi_console("ps -o comm|grep opal")
+        res = c.run_command("ps -o comm|grep opal")
         print res
         self.assertIn("kopald", res, "kopald not running in petitboot");

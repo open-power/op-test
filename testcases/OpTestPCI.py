@@ -40,7 +40,6 @@ import os.path
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
 class OpTestPCI(unittest.TestCase):
@@ -49,7 +48,6 @@ class OpTestPCI(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
         self.pci_good_data_file = conf.lspci_file()
 
 class OpTestPCISkiroot(OpTestPCI):
@@ -57,11 +55,12 @@ class OpTestPCISkiroot(OpTestPCI):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         cmd = "lspci -mm -n"
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
+        c.run_command("uname -a")
+        c.run_command("cat /etc/os-release")
 
-        res = '\n'.join(self.cv_IPMI.run_host_cmd_on_ipmi_console(cmd))
+        res = '\n'.join(c.run_command(cmd))
 
         self.pci_data_petitboot = res
         diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE)

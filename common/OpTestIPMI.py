@@ -180,6 +180,9 @@ class OpTestIPMI():
         self.util = OpTestUtil()
         self.host = host
 
+    # Get the IPMIConsole object, to run commands on the host etc.
+    def get_host_console(self):
+        return self.console
 
     ##
     # @brief This function clears the sensor data
@@ -1149,23 +1152,6 @@ class OpTestIPMI():
         else:
             l_msg = "Failed during change of shell prompt"
             raise OpTestError(l_msg)
-
-    ##
-    # @brief This function will be used for running host OS commands through ipmi console and for monitoring ipmi
-    #        console for any system boots and kernel panic's etc. This function will be helpfull when ssh to host or
-    #        network is down. This function should be followed by below functions inorder to work properly.
-    #        sys_get_ipmi_console()--> For getting ipmi console
-    #        ipmi_host_login()---> For login to host
-    #        ipmi_host_set_unique_prompt()--> For setting the unique shell prompt [pexpect]#
-    #        run_host_cmd_on_ipmi_console()--> Run the host commands and for monitoring ipmi console
-    #
-    # @param i_cmd @type string: host linux command
-    #
-    # @return res @type list: command output-if successfull,
-    #                         monitor and returns console output(up to 8 mins)- if fails or raise OpTestError
-    #
-    def run_host_cmd_on_ipmi_console(self, i_cmd, timeout=60):
-        return self.console.run_command(i_cmd, timeout)
 
     ##
     # @brief Set boot device to be boot to BIOS (i.e. petitboot)

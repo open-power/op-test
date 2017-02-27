@@ -1096,7 +1096,7 @@ class OpTestSystem():
     # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
     #
     def sys_get_ipmi_console(self):
-        self.l_con = self.cv_IPMI.console.get_console()
+        self.l_con = self.cv_IPMI.get_host_console()
         return self.l_con
 
     ##
