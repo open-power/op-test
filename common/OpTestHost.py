@@ -148,24 +148,13 @@ class OpTestHost():
         return self.passwd
 
     ##
-    #   @brief This method executes the command(i_cmd) on the host using a ssh session
-    #
-    #   @param i_cmd: @type string: Command to be executed on host through a ssh session
-    #   @param timeout: @type int: Seconds timeout. default 5min
-    #   @return command output if command execution is successful else raises OpTestError
-    #
-    def _ssh_execute(self, i_cmd, timeout=300):
-        return self.ssh.run_command(i_cmd, timeout=timeout)
-
-    ##
     # @brief Get and Record Ubunto OS level
     #
     # @return l_oslevel @type string: OS level of the host provided
     #         or raise OpTestError
     #
     def host_get_OS_Level(self):
-
-        l_oslevel = self._ssh_execute(BMC_CONST.BMC_GET_OS_RELEASE, timeout=60)
+        l_oslevel = self.ssh.run_command(BMC_CONST.BMC_GET_OS_RELEASE, timeout=60)
         print l_oslevel
         return l_oslevel
 
@@ -177,7 +166,7 @@ class OpTestHost():
     #
     def host_protect_network_setting(self):
         try:
-            l_rc = self._ssh_execute(BMC_CONST.OS_PRESERVE_NETWORK, timeout=60)
+            l_rc = self.ssh.run_command(BMC_CONST.OS_PRESERVE_NETWORK, timeout=60)
         except:
             l_errmsg = "Can't preserve network setting"
             print l_errmsg
@@ -191,7 +180,7 @@ class OpTestHost():
     def host_cold_reset(self):
 
         print ("Applying Cold reset on host.")
-        l_rc = self._ssh_execute(BMC_CONST.HOST_COLD_RESET, timeout=60)
+        l_rc = self.ssh.run_command(BMC_CONST.HOST_COLD_RESET, timeout=60)
 
         # TODO: enable once defect SW331585 is fixed
         '''if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
@@ -232,9 +221,9 @@ class OpTestHost():
                 + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
         print l_cmd
         try:
-            l_rc = self._ssh_execute(l_cmd, timeout=1500)
+            l_rc = self.ssh.run_command(l_cmd, timeout=1500)
             print l_rc
-            self._ssh_execute("rm -rf /tmp/" + i_image.rsplit("/", 1)[1],timeout=120)
+            self.ssh.run_command("rm -rf /tmp/" + i_image.rsplit("/", 1)[1],timeout=120)
         except subprocess.CalledProcessError:
             l_msg = "Code Update Failed"
             print l_msg
@@ -247,24 +236,8 @@ class OpTestHost():
             print l_msg
             raise OpTestError(l_msg)
 
-    ##
-    # @brief It will run linux command(i_cmd) on host using private interface _ssh_execute()
-    #        making this interface is public
-    #
-    # @param i_cmd @type string: linux command
-    #
-    # @return command output if command execution is successful else raises OpTestError
-    #
     def host_run_command(self, i_cmd, timeout=1500):
-        try:
-            l_res = self._ssh_execute(i_cmd, timeout)
-        except:
-            l_msg = "Command execution on host failed"
-            print l_msg
-            print sys.exc_info()
-            raise OpTestError(l_msg)
-        print l_res
-        return l_res
+        return self.ssh.run_command(i_cmd, timeout)
 
     ##
     # @brief It will gather OPAL Message logs and store the copy in a logfile
@@ -318,7 +291,7 @@ class OpTestHost():
     #         or raise OpTestError
     #
     def host_get_kernel_version(self):
-        l_kernel = self._ssh_execute("uname -a | awk {'print $3'}", timeout=60)
+        l_kernel = self.ssh.run_command("uname -a | awk {'print $3'}", timeout=60)
         l_kernel = l_kernel.replace("\r\n", "")
         print l_kernel
         return l_kernel
@@ -343,7 +316,7 @@ class OpTestHost():
     #
     def host_check_config(self, i_kernel, i_config):
         l_file = "/boot/config-%s" % i_kernel
-        l_res = self._ssh_execute("test -e %s; echo $?" % l_file, timeout=60)
+        l_res = self.ssh.run_command("test -e %s; echo $?" % l_file, timeout=60)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Config file is available"
@@ -353,7 +326,7 @@ class OpTestHost():
             raise OpTestError(l_msg)
         l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
         print l_cmd
-        l_res = self._ssh_execute(l_cmd, timeout=60)
+        l_res = self.ssh.run_command(l_cmd, timeout=60)
         print l_res
         try:
             l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
@@ -374,11 +347,11 @@ class OpTestHost():
     #
     def host_check_pkg_for_utility(self, i_oslevel, i_cmd):
         if 'Ubuntu' in i_oslevel:
-            l_res = self._ssh_execute("dpkg -S `which %s`" % i_cmd, timeout=60)
+            l_res = self.ssh.run_command("dpkg -S `which %s`" % i_cmd, timeout=60)
             return l_res
         else:
             l_cmd = "rpm -qf `which %s`" % i_cmd
-            l_res = self._ssh_execute(l_cmd, timeout=60)
+            l_res = self.ssh_run_command(l_cmd, timeout=60)
             l_pkg = l_res.replace("\r\n", "")
             print l_pkg
             return l_pkg
@@ -415,11 +388,11 @@ class OpTestHost():
     #
     def host_load_ibmpowernv(self, i_oslevel):
         if "PowerKVM" not in i_oslevel:
-            l_rc = self._ssh_execute("modprobe ibmpowernv; echo $?",timeout=60)
+            l_rc = self.ssh.run_command("modprobe ibmpowernv; echo $?",timeout=60)
             l_rc = l_rc.replace("\r\n", "")
             if int(l_rc) == 0:
                 cmd = "lsmod | grep -i ibmpowernv"
-                response = self._ssh_execute(cmd, timeout=60)
+                response = self.ssh.run_command(cmd, timeout=60)
                 if "ibmpowernv" not in response:
                     l_msg = "ibmpowernv module is not loaded, exiting"
                     raise OpTestError(l_msg)
@@ -472,11 +445,11 @@ class OpTestHost():
     def host_clone_linux_source(self, i_dir):
         l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self._ssh_execute("rm -rf %s" % i_dir, timeout=300)
-        self._ssh_execute("mkdir %s" % i_dir, timeout=60)
+        self.ssh.run_command("rm -rf %s" % i_dir, timeout=300)
+        self.ssh.run_command("mkdir %s" % i_dir, timeout=60)
         try:
             print l_cmd
-            res = self._ssh_execute(l_cmd, timeout=1500)
+            res = self.ssh.run_command(l_cmd, timeout=1500)
             print res
             return BMC_CONST.FW_SUCCESS
         except:
@@ -491,7 +464,7 @@ class OpTestHost():
     #        else raise OpTestError
     def host_read_msglog_core(self):
         try:
-            return self._ssh_execute(BMC_CONST.OS_READ_MSGLOG_CORE, timeout=60)
+            return self.ssh.run_command(BMC_CONST.OS_READ_MSGLOG_CORE, timeout=60)
         except:
             l_errmsg = "Can't get msglog data"
             print l_errmsg
@@ -512,7 +485,7 @@ class OpTestHost():
     #        else raise OpTestError
     def host_read_getscom_data(self, i_xscom_dir):
         try:
-            l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_GETSCOM_LIST, timeout=60)
+            l_rc = self.ssh.run_command(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_GETSCOM_LIST, timeout=60)
         except OpTestError as e:
             l_errmsg = "Can't get getscom data"
             print l_errmsg
@@ -548,7 +521,7 @@ class OpTestHost():
     #
     def host_clear_gard_records(self, i_gard_dir):
 
-        l_rc = self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.CLEAR_GARD_CMD, timeout=60)
+        l_rc = self.ssh.run_command(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.CLEAR_GARD_CMD, timeout=60)
 
         if(BMC_CONST.GARD_CLEAR_SUCCESSFUL not in l_rc):
             l_msg = l_rc + '. Failed to clear gard'
@@ -574,7 +547,7 @@ class OpTestHost():
     #
     def host_list_gard_records(self, i_gard_dir):
         try:
-            return self._ssh_execute(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.LIST_GARD_CMD, timeout=60)
+            return self.ssh.run_command(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.LIST_GARD_CMD, timeout=60)
         except:
             l_errmsg = "Can't clear gard records"
             print l_errmsg
@@ -616,10 +589,10 @@ class OpTestHost():
     #
     def host_disable_enable_cpu_states(self, i_cpu_state):
         try:
-            self._ssh_execute(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
+            self.ssh.run_command(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
                               BMC_CONST.CPU_IDLEMODE_STATE1 + "; do echo " + \
                               i_cpu_state  + " > $i; done'", timeout=60)
-            self._ssh_execute(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
+            self.ssh.run_command(BMC_CONST.SUDO_COMMAND + "sh -c 'for i in " + \
                               BMC_CONST.CPU_IDLEMODE_STATE2 + "; do echo " + \
                               i_cpu_state  + " > $i; done'", timeout=60)
             return BMC_CONST.FW_SUCCESS
@@ -648,7 +621,7 @@ class OpTestHost():
     #
     def host_check_config(self, i_kernel, i_config):
         l_file = "/boot/config-%s" % i_kernel
-        l_res = self._ssh_execute("test -e %s; echo $?" % l_file, timeout=60)
+        l_res = self.ssh.run_command("test -e %s; echo $?" % l_file, timeout=60)
         l_res = l_res.replace("\r\n", "")
         if int(l_res) == 0:
             print "Config file is available"
@@ -658,7 +631,7 @@ class OpTestHost():
             raise OpTestError(l_msg)
         l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
         print l_cmd
-        l_res = self._ssh_execute(l_cmd, timeout=60)
+        l_res = self.ssh.run_command(l_cmd, timeout=60)
         print l_res
         try:
             l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
