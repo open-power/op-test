@@ -92,6 +92,10 @@ class OpTestAt24driver(unittest.TestCase):
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
         l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
+        if self.cv_SYSTEM.has_host_accessible_eeprom():
+            self.assertNotEqual(len(l_chips), 0, "No EEPROMs detected, while OpTestSystem says there should be")
+        else:
+            self.assertEqual(len(l_chips), 0)
         for l_args in l_chips:
             # Accessing the registers visible through the i2cbus using i2cdump utility
             # l_args format: "0 0x51","1 0x53",.....etc
