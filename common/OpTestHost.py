@@ -799,8 +799,7 @@ class OpTestHost():
             if l_res.__contains__("at24"):
                 pass
             else:
-                l_msg = "Not able to get at24 info"
-                raise OpTestError(l_msg)
+                return None
         return l_res
 
     ##
@@ -817,9 +816,7 @@ class OpTestHost():
         if int(l_res[-1]) == 0:
             pass
         else:
-            l_msg = "Not able to get list of eeprom chip addresses through sysfs interface"
-            print l_msg
-            raise OpTestError(l_msg)
+            return None
         l_chips = []
         for l_line in l_res:
             if l_line.__contains__("eeprom"):

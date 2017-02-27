@@ -104,6 +104,9 @@ class OpTestSystem(object):
     def skiboot_log_on_console(self):
         return True
 
+    def has_host_accessible_eeprom(self):
+        return True
+
     def host(self):
         return self.cv_HOST
 
@@ -1201,4 +1204,7 @@ class OpTestFSPSystem(OpTestSystem):
         return super(OpTestFSPSystem, self).wait_for_petitboot()
 
     def skiboot_log_on_console(self):
+        return False
+
+    def has_host_accessible_eeprom(self):
         return False

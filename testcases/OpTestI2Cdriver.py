@@ -88,7 +88,12 @@ class OpTestI2Cdriver(unittest.TestCase):
         self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # Get information of EEPROM chips
-        self.cv_HOST.host_get_info_of_eeprom_chips()
+        eeprom_info = self.cv_HOST.host_get_info_of_eeprom_chips()
+        if self.cv_SYSTEM.has_host_accessible_eeprom():
+            self.assertNotEqual(eeprom_info, None)
+        else:
+            self.assertEqual(eeprom_info, None)
+
     ##
     # @brief This function query's the i2c bus for devices attached to it.
     #        i2cdetect is a utility to scan an I2C bus for devices
@@ -205,7 +210,11 @@ class BasicI2C(OpTestI2Cdriver):
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
         l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
-        self.i2c_dump(l_chips[0])
+        if self.cv_SYSTEM.has_host_accessible_eeprom():
+            self.assertNotEqual(l_chips, None, "No EEPROMs detected, while OpTestSystem says there should be")
+            self.i2c_dump(l_chips[0])
+        else:
+            self.assertEqual(len(l_chips), 0, "Detected EEPROM where OpTestSystem said there should be none")
 
         # list i2c adapter conetents
         l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
@@ -260,10 +269,14 @@ class FullI2C(OpTestI2Cdriver):
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
         l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
-        for l_args in l_chips:
-            # Accessing the registers visible through the i2cbus using i2cdump utility
-            # l_args format: "0 0x51","1 0x53",.....etc
-            self.i2c_dump(l_args)
+        if self.cv_SYSTEM.has_host_accessible_eeprom():
+            self.assertNotEqual(l_chips, None, "No EEPROMs detected, while OpTestSystem says there should be")
+            for l_args in l_chips:
+                # Accessing the registers visible through the i2cbus using i2cdump utility
+                # l_args format: "0 0x51","1 0x53",.....etc
+                self.i2c_dump(l_args)
+        else:
+            self.assertEqual(l_chips, None, "Detected EEPROM where OpTestSystem said there should be none")
 
         # list i2c adapter conetents
         l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
@@ -286,12 +299,16 @@ class FullI2C(OpTestI2Cdriver):
                 print l_msg
                 raise OpTestError(l_msg)
 
-        # Currently testing only getting the data from a data address, avoiding setting data.
-        # Only four samples are gathered to check whether reading eeprom  data is working or not.
-        # Setting eeprom data is dangerous and make your system UNBOOTABLE
-        l_addrs = ["0x00", "0x10", "0x20", "0x30", "0x40", "0x50", "0x60", "0x70", "0x80", "0x90", "0xa0", "0xb0", "0xc0", "0xd0", "0xe0", "0xf0"]
-        for l_addr in l_addrs:
-            l_val = self.i2c_get(l_chips[1], l_addr)
-            # self.i2c_set(l_list2[1], l_addr, "0x50")
+        if self.cv_SYSTEM.has_host_accessible_eeprom():
+            # Currently testing only getting the data from a data address,
+            # avoiding setting data.
+            # Only four samples are gathered to check whether reading eeprom
+            # data is working or not.
+            # Setting eeprom data is dangerous and make your system UNBOOTABLE
+            l_addrs = ["0x00", "0x10", "0x20", "0x30", "0x40", "0x50", "0x60", "0x70", "0x80", "0x90", "0xa0", "0xb0", "0xc0", "0xd0", "0xe0", "0xf0"]
+            for l_addr in l_addrs:
+                l_val = self.i2c_get(l_chips[1], l_addr)
+                # self.i2c_set(l_list2[1], l_addr, "0x50")
+
         return BMC_CONST.FW_SUCCESS
 
