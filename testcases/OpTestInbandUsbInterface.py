@@ -83,7 +83,17 @@ class InbandUSBBase(unittest.TestCase):
         return l_res
 
 class BasicInbandUSB(InbandUSBBase):
-        ##
+    ##
+    # @brief  It will execute and test the ipmi sensor list functionality
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_sensor_list(self):
+        print "Inband IPMI[USB]: Sensor tests"
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_SENSOR_LIST)
+
+class InbandUSB(InbandUSBBase):
+    ##
     # @brief  It will check basic channel functionalities: info and authentication capabilities.
     #
     # @return l_res @type list: output of command or raise OpTestError
@@ -93,8 +103,6 @@ class BasicInbandUSB(InbandUSBBase):
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_CHANNEL_INFO)
 
-
-class InbandUSB(InbandUSBBase):
     ##
     # @brief  It will execute and test the ipmitool -I usb chassis <cmd> commands
     #         cmd: status, poh, restart_cause, policy list and policy set
@@ -368,15 +376,6 @@ class InbandUSB(InbandUSBBase):
             l_msg = "Inband IPMI[USB]: sel clear function failing in clearing entries"
             print l_msg
             raise OpTestError(l_msg)
-
-    ##
-    # @brief  It will execute and test the ipmi sensor list functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def test_sensor_list(self):
-        print "Inband IPMI[USB]: Sensor tests"
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_USB + BMC_CONST.IPMI_SENSOR_LIST)
 
     ##
     # @brief  It will execute and test the ipmi sensor get <id> functionality
