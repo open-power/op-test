@@ -75,15 +75,13 @@ class OpTestInbandIPMIBase(unittest.TestCase):
 
 class BasicInbandIPMI(OpTestInbandIPMIBase):
     ##
-    # @brief  It will check basic channel functionalities: info and authentication capabilities.
+    # @brief  It will execute and test the ipmi sensor list functionality
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_channel(self):
-        print "Inband IPMI[OPEN]: Channel tests"
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_INFO)
-
+    def test_sensor_list(self):
+        print "Inband IPMI[OPEN]: Sensor tests"
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SENSOR_LIST)
 
 class OpTestInbandIPMI(OpTestInbandIPMIBase):
     ##
@@ -391,15 +389,6 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
             raise OpTestError(l_msg)
 
     ##
-    # @brief  It will execute and test the ipmi sensor list functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def test_sensor_list(self):
-        print "Inband IPMI[OPEN]: Sensor tests"
-        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SENSOR_LIST)
-
-    ##
     # @brief  It will execute and test the ipmi sensor get <id> functionality
     #
     # @param i_sensor @type string:sensor id to retrieve the data
@@ -571,6 +560,17 @@ class ExperimentalInbandIPMI(OpTestInbandIPMIBase):
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_MC_INFO)
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SEL_INFO)
         self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_SDR_INFO)
+
+    ##
+    # @brief  It will check basic channel functionalities: info and authentication capabilities.
+    #
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def test_channel(self):
+        print "Inband IPMI[OPEN]: Channel tests"
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
+        self.run_ipmi_cmd_on_host(BMC_CONST.IPMITOOL_OPEN + BMC_CONST.IPMI_CHANNEL_INFO)
+
 
 
 def full_suite():
