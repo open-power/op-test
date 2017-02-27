@@ -51,6 +51,9 @@ class OpTestBMC():
         self.cv_bmcPasswd = password
         self.cv_ffdcDir = i_ffdcDir
 
+    def bmc_host(self):
+        return self.cv_bmcIP
+
     ##
     # @brief This function runs a command on the BMC
     #

@@ -62,6 +62,9 @@ class OpTestFSP():
         self.prompt = "$"
         self.cv_ASM = OpTestASM(i_fspIP, i_fspUser, i_fspPasswd)
 
+    def bmc_host(self):
+        return self.cv_ASM.host_name
+
     ##
     # @brief Get FSP telnet console
     #
@@ -296,7 +299,7 @@ class OpTestFSP():
     def wait_for_runtime(self, timeout=10):
         timeout = time.time() + 60*timeout
         while True:
-            if self.is_sys_powered_on:
+            if self.is_sys_powered_on():
                 print "Current system status: %s" % self.get_sys_status()
                 print "Current progress code: %s" % self.get_progress_code()
                 break

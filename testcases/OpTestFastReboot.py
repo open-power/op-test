@@ -62,15 +62,23 @@ class OpTestFastReboot(unittest.TestCase):
         c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
+        initialResetCount = c.run_command("grep -c 'RESET: Initiating fast' /sys/firmware/opal/msglog")
         # We do some funny things with the raw console here, as
         # 'reboot' isn't meant to return, so we want the raw
         # pexpect 'console'.
         self.con = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
         self.con.sendline("reboot")
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
-        self.con.expect(" RESET: Initiating fast reboot", timeout=60)
+        # We're looking for a skiboot log message, that it's doing fast
+        # rebot. We *may* not get this, as on some systems (notably IBM
+        # FSP based systems) the skiboot log is *not* printed to IPMI
+        # console
+        if self.cv_SYSTEM.skiboot_log_on_console():
+            self.con.expect(" RESET: Initiating fast reboot", timeout=60)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.cv_IPMI.ipmi_host_set_unique_prompt()
         c.run_command(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertNotIn("feeling-lucky", res, "Failed to set the fast-reset mode")
+        newResetCount = c.run_command("grep -c 'RESET: Initiating fast' /sys/firmware/opal/msglog")
+        self.assertTrue( int(''.join(initialResetCount)) < int(''.join(newResetCount)), "Did not do fast reboot")

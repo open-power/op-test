@@ -34,6 +34,7 @@ import time
 import subprocess
 
 from OpTestBMC import OpTestBMC
+from OpTestFSP import OpTestFSP
 from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -51,7 +52,7 @@ class OpSystemState():
     OS = 6
     POWERING_OFF = 7
 
-class OpTestSystem():
+class OpTestSystem(object):
 
     ## Initialize this object
     #  @param i_bmcIP The IP address of the BMC
@@ -71,12 +72,12 @@ class OpTestSystem():
                  i_hostuser=None, i_hostPasswd=None, bmc=None,
                  state=OpSystemState.UNKNOWN):
         self.cv_BMC = bmc
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, bmc.cv_bmcIP)
-        self.cv_IPMI = OpTestIPMI(bmc.cv_bmcIP,i_bmcUserIpmi,i_bmcPasswdIpmi,
+        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, bmc.bmc_host())
+        self.cv_IPMI = OpTestIPMI(bmc.bmc_host(),i_bmcUserIpmi,i_bmcPasswdIpmi,
                                   i_ffdcDir, host=self.cv_HOST)
         self.console = self.cv_IPMI.console
 
-        self.cv_WEB = OpTestWeb(bmc.cv_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi)
+        self.cv_WEB = OpTestWeb(bmc.bmc_host(), i_bmcUserIpmi, i_bmcPasswdIpmi)
         self.util = OpTestUtil()
 
         # We have a state machine for going in between states of the system
@@ -99,6 +100,9 @@ class OpTestSystem():
         # We reset as soon as we transition away from OpSystemState.OS
         # a TODO is to support doing this in petitboot shell as well.
         self.ipmiDriversLoaded = False
+
+    def skiboot_log_on_console(self):
+        return True
 
     def host(self):
         return self.cv_HOST
@@ -1172,3 +1176,29 @@ class OpTestSystem():
         console = self.console.get_console()
         console.sendline('')
         console.expect('login: ')
+
+
+class OpTestFSPSystem(OpTestSystem):
+    def __init__(self,
+                 i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_hostip=None,
+                 i_hostuser=None, i_hostPasswd=None, bmc=None,
+                 state=OpSystemState.UNKNOWN):
+        bmc.fsp_get_console()
+        super(OpTestFSPSystem, self).__init__(i_bmcUserIpmi,
+                                              i_bmcPasswdIpmi,
+                                              i_ffdcDir,
+                                              i_hostip,
+                                              i_hostuser, i_hostPasswd,
+                                              bmc, state)
+
+    def sys_wait_for_standby_state(self, i_timeout=120):
+        return self.cv_BMC.wait_for_standby(i_timeout)
+
+    def wait_for_petitboot(self):
+        # Ensure IPMI console is open so not to miss petitboot
+        console = self.console.get_console()
+        self.cv_BMC.wait_for_runtime()
+        return super(OpTestFSPSystem, self).wait_for_petitboot()
+
+    def skiboot_log_on_console(self):
+        return False
