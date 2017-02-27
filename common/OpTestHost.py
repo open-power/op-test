@@ -147,6 +147,9 @@ class OpTestHost():
     def password(self):
         return self.passwd
 
+    def get_ssh_connection(self):
+        return self.ssh
+
     ##
     # @brief Get and Record Ubunto OS level
     #

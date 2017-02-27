@@ -64,6 +64,16 @@ class OpTestNVRAM(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
+    def nvram_update_part_config(self, i_part, key='test-cfg', value='test-value'):
+        part = i_part
+        self.console.run_command("nvram -p %s --update-config '%s=%s'" % (part,key,value))
+        res_list = self.console.run_command("nvram -p %s --print-config=%s" % (part,key))
+        res = ''.join(res_list)
+        if "test-value" in res:
+            print "Update config to the partition %s works fine" % part
+        else:
+            raise NVRAMUpdateError(i_part, key, value, res)
+
 class HostNVRAM(OpTestNVRAM):
     ##
     # @brief  This function tests nvram partition access, print/update
@@ -75,6 +85,7 @@ class HostNVRAM(OpTestNVRAM):
     #
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.console = self.cv_HOST.get_ssh_connection()
         self.cv_HOST.host_run_command("uname -a")
         self.cv_HOST.host_run_command("cat /etc/os-release")
         self.cv_HOST.host_run_command("nvram -v")
@@ -96,38 +107,21 @@ class HostNVRAM(OpTestNVRAM):
         self.cv_HOST.host_run_command("nvram --ascii lnx,oops-log")
         self.cv_HOST.host_run_command("nvram --ascii wwwwwwwwwwww")
         try:
-            self.nvram_update_part_config_in_host("common")
-            self.nvram_update_part_config_in_host("ibm,skiboot")
+            self.nvram_update_part_config("common")
+            self.nvram_update_part_config("ibm,skiboot")
             # The following 2 are disabled due to possible nvram binary
             # bug.
-#            self.nvram_update_part_config_in_host("lnx,oops-log")
-#            self.nvram_update_part_config_in_host("wwwwwwwwwwww")
+#            self.nvram_update_part_config("lnx,oops-log")
+#            self.nvram_update_part_config("wwwwwwwwwwww")
         except NVRAMUpdateError as e:
             self.fail(msg=str(e))
 
         try:
-            self.nvram_update_part_config_in_host("a-very-long-and-invalid-name")
+            self.nvram_update_part_config("a-very-long-and-invalid-name")
         except NVRAMUpdateError as e:
             self.assertEqual(e.part, "a-very-long-and-invalid-name")
         else:
             self.fail(msg="Expected to fail with NVRAM part name>12 but didn't")
-
-    ##
-    # @brief This function tests nvram update/print config functions for partition i_part
-    #        these functions will be tested in host OS
-    #
-    # @param i_part @type string:partition to access i.e common, ibm,skiboot etc
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def nvram_update_part_config_in_host(self, i_part, key='test-cfg', value='test-value'):
-        part = i_part
-        self.cv_HOST.host_run_command("nvram -p %s --update-config '%s=%s'" % (part,key,value))
-        res = self.cv_HOST.host_run_command("nvram -p %s --print-config=%s" % (part, key))
-        if "test-value" in res:
-            print "Update config to the partition %s works fine" % part
-        else:
-            raise NVRAMUpdateError(i_part, key, value, res)
 
 class SkirootNVRAM(OpTestNVRAM):
     def runTest(self):
@@ -157,34 +151,17 @@ class SkirootNVRAM(OpTestNVRAM):
         c.run_command("nvram --ascii lnx,oops-log|head -c512; echo")
         c.run_command("nvram --ascii wwwwwwwwwwww|head -c512; echo")
         try:
-            self.nvram_update_part_config_in_petitboot("common")
-            self.nvram_update_part_config_in_petitboot("ibm,skiboot")
+            self.nvram_update_part_config("common")
+            self.nvram_update_part_config("ibm,skiboot")
             # below two are Disabled due to nvram off-by-one bug
-            #self.nvram_update_part_config_in_petitboot("lnx,oops-log")
-            #self.nvram_update_part_config_in_petitboot("wwwwwwwwwwww")
+            #self.nvram_update_part_config("lnx,oops-log")
+            #self.nvram_update_part_config("wwwwwwwwwwww")
         except NVRAMUpdateError as e:
             self.fail(msg=str(e))
 
         try:
-            self.nvram_update_part_config_in_petitboot("a-very-long-and-invalid-name")
+            self.nvram_update_part_config("a-very-long-and-invalid-name")
         except NVRAMUpdateError as e:
             self.assertEqual(e.part, "a-very-long-and-invalid-name")
         else:
             self.fail(msg="Expected to fail with NVRAM part name>12 but didn't")
-    ##
-    # @brief This function tests nvram update/print config functions for partition i_part
-    #        these functions will be tested in Petitboot.
-    #
-    # @param i_part @type string:partition to access i.e common, ibm,skiboot etc
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def nvram_update_part_config_in_petitboot(self, i_part, key='test-cfg', value='test-value'):
-        part = i_part
-        self.console.run_command("nvram -p %s --update-config '%s=%s'" % (part,key,value))
-        res_list = self.console.run_command("nvram -p %s --print-config=%s" % (part,key))
-        res = ''.join(res_list)
-        if "test-value" in res:
-            print "Update config to the partition %s works fine" % part
-        else:
-            raise NVRAMUpdateError(i_part, key, value, res)
