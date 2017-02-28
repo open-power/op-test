@@ -94,8 +94,8 @@ class OpTestPrdDriver():
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
         self.test_init()
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_host_login(l_con)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
+        self.cv_SYSTEM.host_console_login()
+	self.cv_SYSTEM.host_console_unique_prompt()
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cd %s/external/xscom-utils/;" % BMC_CONST.CLONE_SKIBOOT_DIR)
 
         # check for IPOLL mask register value to check opal-prd is running or not

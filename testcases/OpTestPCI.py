@@ -56,7 +56,7 @@ class OpTestPCISkiroot(OpTestPCI):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         cmd = "lspci -mm -n"
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_host_set_unique_prompt()
+        self.cv_SYSTEM.host_console_unique_prompt()
         c.run_command("uname -a")
         c.run_command("cat /etc/os-release")
 

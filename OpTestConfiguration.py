@@ -6,7 +6,8 @@
 import common
 from common.OpTestBMC import OpTestBMC
 from common.OpTestFSP import OpTestFSP
-from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem
+from common.OpTestOpenBMC import OpTestOpenBMC
+from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem, OpTestOpenBMCSystem
 from common.OpTestHost import OpTestHost
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestWeb import OpTestWeb
@@ -40,7 +41,7 @@ class OpTestConfiguration():
         bmcgroup = parser.add_argument_group('BMC',
                                              'Options for Service Processor')
         bmcgroup.add_argument("--bmc-type",
-                              choices=['AMI','FSP'],
+                              choices=['AMI','FSP', 'OpenBMC'],
                               help="Type of service processor")
         bmcgroup.add_argument("--bmc-ip", help="BMC address")
         bmcgroup.add_argument("--bmc-username", help="SSH username for BMC")
@@ -119,6 +120,15 @@ class OpTestConfiguration():
                 state=self.startState,
                 bmc=bmc,
                 host=host,
+            )
+        elif self.args.bmc_type in ['OpenBMC']:
+            bmc = OpTestOpenBMC(self.args.bmc_ip,
+                                self.args.bmc_username,
+                                self.args.bmc_password)
+            self.op_system = OpTestOpenBMCSystem(
+                host=host,
+                bmc=bmc,
+                state=self.startState,
             )
         else:
             raise Exception("Unsupported BMC Type")

@@ -89,8 +89,8 @@ class OpTestKernel():
         l_kernel = self.cv_HOST.host_get_kernel_version()
 
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_host_login(l_con)
-        self.cv_IPMI.ipmi_host_set_unique_prompt(l_con)
+        self.cv_SYSTEM.host_console_login()
+	self.cv_SYSTEM.host_console_unique_prompt()
         self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
         self.cv_IPMI.run_host_cmd_on_ipmi_console("echo 10  > /proc/sys/kernel/panic")

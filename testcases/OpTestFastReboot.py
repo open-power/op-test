@@ -57,8 +57,8 @@ class OpTestFastReboot(unittest.TestCase):
     #         getting executed in both petitboot and host OS
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_IPMI.ipmi_host_set_unique_prompt()
         c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.host_console_unique_prompt()
         c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
@@ -76,7 +76,7 @@ class OpTestFastReboot(unittest.TestCase):
         if self.cv_SYSTEM.skiboot_log_on_console():
             self.con.expect(" RESET: Initiating fast reboot", timeout=60)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_IPMI.ipmi_host_set_unique_prompt()
+        self.cv_SYSTEM.host_console_unique_prompt()
         c.run_command(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertNotIn("feeling-lucky", res, "Failed to set the fast-reset mode")

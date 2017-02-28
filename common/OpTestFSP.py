@@ -66,6 +66,12 @@ class OpTestFSP():
     def bmc_host(self):
         return self.cv_ASM.host_name
 
+    def get_ipmi(self):
+        return self.cv_IPMI
+
+    def get_host_console(self):
+        return self.cv_IPMI.get_host_console()
+
     ##
     # @brief Get FSP telnet console
     #

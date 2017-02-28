@@ -154,7 +154,7 @@ class IPMIConsole():
         console = self.get_console()
         console.sendline(command)
         console.expect("\n") # from us
-        rc = console.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT, timeout)
+        rc = console.expect_exact("[console-pexpect]#", timeout)
 
         if rc == 0:
             res = console.before
@@ -1090,68 +1090,6 @@ class OpTestIPMI():
         l_cmd = "chassis policy %s" % i_policy
         l_res = self.ipmitool.run(l_cmd)
         print l_res
-
-    ##
-    # @brief This function make sure, ipmi console is activated and then login to the host
-    # if host is already up.
-    #
-    # @param i_con @type Object: it is a object of pexpect.spawn class
-    #        and this is the console object used for ipmi sol console access and for host login.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def ipmi_host_login(self, i_con):
-        l_con = i_con
-        l_user = self.host.username()
-        l_pwd = self.host.password()
-
-        l_con.send("\r")
-        l_rc = l_con.expect_exact(BMC_CONST.IPMI_CONSOLE_EXPECT_ENTER_OUTPUT, timeout=120)
-        if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_LOGIN:
-            l_con.sendline(l_user)
-            l_rc = l_con.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
-            time.sleep(0.5)
-            if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_PASSWORD:
-                l_con.sendline(l_pwd)
-            else:
-                l_msg = "Error: host login failed"
-                raise OpTestError(l_msg)
-        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_PETITBOOT:
-            l_msg = "Error: system is at petitboot"
-            raise OpTestError(l_msg)
-        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_RANDOM_STATE:
-            l_msg = "Error: system is in random state"
-            raise OpTestError(l_msg)
-        elif l_rc in ["#"]:
-            # already at root prompt, success!
-            return
-        elif l_rc in [pexpect.TIMEOUT, pexpect.EOF]:
-            print l_con.before
-            raise "Timeout/EOF waiting for SOL response"
-        return BMC_CONST.FW_SUCCESS
-
-    ##
-    # @brief This function will used for setting the shell prompt to [pexpect]#, so that it can be used for
-    #        running host os commands. Each time we can expect for this string [pexpect]#
-    #
-    # @param i_con @type Object: it is a object of pexpect.spawn class
-    #                            this is the active ipmi sol console object
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def ipmi_host_set_unique_prompt(self):
-        console = self.console.get_console()
-        console.sendcontrol('l')
-        console.expect(r'.+')
-        console.sendline(BMC_CONST.IPMI_HOST_UNIQUE_PROMPT)
-        console.expect("\n") # from us
-        l_rc = console.expect_exact(BMC_CONST.IPMI_HOST_EXPECT_PEXPECT_PROMPT)
-        if l_rc == 0:
-            print "Shell prompt changed"
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Failed during change of shell prompt"
-            raise OpTestError(l_msg)
 
     ##
     # @brief Set boot device to be boot to BIOS (i.e. petitboot)

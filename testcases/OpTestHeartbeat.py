@@ -44,7 +44,7 @@ class HeartbeatSkiroot(unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_host_set_unique_prompt()
+        self.cv_SYSTEM.host_console_unique_prompt()
 
     def runTest(self):
         self.setup_test()

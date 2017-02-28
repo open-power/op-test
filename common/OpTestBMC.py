@@ -52,9 +52,14 @@ class OpTestBMC():
         self.cv_IPMI = ipmi
         self.cv_WEB = web
 
-
     def bmc_host(self):
         return self.cv_bmcIP
+
+    def get_ipmi(self):
+        return self.cv_IPMI
+
+    def get_host_console(self):
+        return self.cv_IPMI.get_host_console()
 
     ##
     # @brief This function runs a command on the BMC

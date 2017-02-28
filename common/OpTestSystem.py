@@ -69,10 +69,10 @@ class OpTestSystem(object):
     def __init__(self,i_ffdcDir=None,
                  bmc=None, host=None,
                  state=OpSystemState.UNKNOWN):
-        self.cv_BMC = bmc
+        self.bmc = self.cv_BMC = bmc
         self.cv_HOST = host
-        self.cv_IPMI = bmc.cv_IPMI
-        self.console = self.cv_IPMI.console
+        self.cv_IPMI = bmc.get_ipmi()
+        self.console = self.bmc.get_host_console()
         self.util = OpTestUtil()
 
         # We have a state machine for going in between states of the system
@@ -237,6 +237,52 @@ class OpTestSystem(object):
         self.ipmiDriversLoaded = True
         print "IPMI drivers loaded"
         return
+
+    # Login to the host on the console
+    # This will behave correctly even if already logged in
+    def host_console_login(self):
+        l_con = self.bmc.get_host_console()
+        l_user = self.cv_HOST.username()
+        l_pwd = self.cv_HOST.password()
+
+        l_con.send("\r")
+        l_rc = l_con.expect_exact(BMC_CONST.IPMI_CONSOLE_EXPECT_ENTER_OUTPUT, timeout=120)
+        if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_LOGIN:
+            l_con.sendline(l_user)
+            l_rc = l_con.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+            time.sleep(0.5)
+            if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_PASSWORD:
+                l_con.sendline(l_pwd)
+            else:
+                l_msg = "Error: host login failed"
+                raise OpTestError(l_msg)
+        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_PETITBOOT:
+            l_msg = "Error: system is at petitboot"
+            raise OpTestError(l_msg)
+        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_RANDOM_STATE:
+            l_msg = "Error: system is in random state"
+            raise OpTestError(l_msg)
+        elif l_rc in ["#"]:
+            # already at root prompt, success!
+            return
+        elif l_rc in [pexpect.TIMEOUT, pexpect.EOF]:
+            print l_con.before
+            raise "Timeout/EOF waiting for SOL response"
+        return BMC_CONST.FW_SUCCESS
+
+    def host_console_unique_prompt(self):
+        # We do things to the raw pexpect here
+        # Must be logged in or at petitboot shell
+        p = self.bmc.get_host_console().get_console()
+        p.sendcontrol('l')
+        p.expect(r'.+#')
+        p.sendline('PS1=[console-pexpect]\#')
+        p.expect("\n") # from us, because echo
+        l_rc = p.expect_exact("[console-pexpect]#")
+        if l_rc == 0:
+            print "Shell prompt changed"
+        else:
+            raise Exception("Failed during change of shell prompt")
 
 
     ############################################################################
@@ -1098,7 +1144,7 @@ class OpTestSystem(object):
     # @return l_con @type Object: it is a object of pexpect.spawn class or raise OpTestError
     #
     def sys_get_ipmi_console(self):
-        self.l_con = self.cv_IPMI.get_host_console()
+        self.l_con = self.bmc.get_host_console()
         return self.l_con
 
     ##
@@ -1202,3 +1248,17 @@ class OpTestFSPSystem(OpTestSystem):
 
     def has_host_accessible_eeprom(self):
         return False
+
+class OpTestOpenBMCSystem(OpTestSystem):
+    def __init__(self,
+                 i_ffdcDir=None,
+                 host=None,
+                 bmc=None,
+                 state=OpSystemState.UNKNOWN):
+        # Ensure we grab host console early, in order to not miss
+        # any messages
+        self.console = bmc.get_host_console()
+        super(OpTestOpenBMCSystem, self).__init__(i_ffdcDir=i_ffdcDir,
+                                              host=host,
+                                              bmc=bmc,
+                                              state=state)

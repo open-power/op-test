@@ -130,6 +130,6 @@ class HostNVRAM(OpTestNVRAM):
 class SkirootNVRAM(OpTestNVRAM):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.host_console_unique_prompt()
         # Execute these tests in petitboot
-        self.cv_IPMI.ipmi_host_set_unique_prompt()
         self.doNVRAMTest(self.cv_SYSTEM.sys_get_ipmi_console())

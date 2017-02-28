@@ -144,8 +144,8 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_IPMI.ipmi_host_login(l_con)
-        self.cv_IPMI.ipmi_host_set_unique_prompt()
+        self.cv_SYSTEM.host_console_login()
+        self.cv_SYSTEM.host_console_unique_prompt()
         l_con.run_command("uname -a")
         l_con.run_command("cat /etc/os-release")
         l_con.run_command("lscpu")
