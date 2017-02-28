@@ -169,6 +169,16 @@ class ExperimentalReprovisionSuite():
     def suite(self):
         return OpTestIPMIReprovision.experimental_suite()
 
+class InbandIPMISuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestInbandIPMI.basic_suite())
+        self.s.addTest(OpTestInbandIPMI.full_suite())
+        self.s.addTest(OpTestInbandUsbInterface.basic_suite())
+        self.s.addTest(OpTestInbandUsbInterface.full_suite())
+    def suite(self):
+        return self.s
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -184,6 +194,7 @@ suites = {
     'experimental-unrecoverable-hmi' : UnrecoverableHMISuite(),
     'experimental-reprovision' : ExperimentalReprovisionSuite(),
     'broken-reprovision' : BrokenReprovisionSuite(),
+    'full-inbandipmi' : InbandIPMISuite(),
     'full' : FullSuite(),
 }
 
