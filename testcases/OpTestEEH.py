@@ -143,7 +143,7 @@ class OpTestEEH(unittest.TestCase):
             print "PE Slot reset happenned successfully on pe: %s" % pe
         else:
             print "PE Slot reset not happened on pe: %s" % pe
-        con.sendline("\r\n")
+        con.run_command("\n")
         self.gather_logs()
         if not self.check_eeh_pe_recovery(pe):
             msg = "PE %s recovery failed" % pe
@@ -219,6 +219,10 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.host_console_login()
+        self.cv_SYSTEM.host_console_unique_prompt()
+
         root_domain = self.cv_HOST.host_get_root_phb()
         pci_domains = self.cv_HOST.host_get_list_of_pci_domains()
         print "Skipping the root phb %s for fenced PHB Testcase" % root_domain
@@ -240,7 +244,7 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
             l_con.run_command(cmd)
             # Give some time to EEH PCI Error recovery
             time.sleep(30)
-            l_con.sendline("\r\n")
+            l_con.run_command("\n")
             self.gather_logs()
             if not self.check_eeh_phb_recovery(domain):
                 msg = "PHB domain %s recovery failed" % domain
@@ -266,6 +270,9 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.host_console_login()
+        self.cv_SYSTEM.host_console_unique_prompt()
         root_domain = self.cv_HOST.host_get_root_phb()
         pci_domains = self.cv_HOST.host_get_list_of_pci_domains()
         print "Skipping the root phb %s for fenced PHB Testcase" % root_domain
@@ -291,8 +298,8 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
                 l_con.run_command(cmd)
                 # Give some time to EEH PCI Error recovery
                 time.sleep(30)
-                l_con.sendline("\r\n")
-                l_con.sendline("\r\n")
+                l_con.run_command("\n")
+                l_con.run_command("\n")
                 self.gather_logs()
                 if i == 0:
                     if not self.check_eeh_phb_recovery(domain):
@@ -324,6 +331,9 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.host_console_login()
+        self.cv_SYSTEM.host_console_unique_prompt()
         root_domain = self.cv_HOST.host_get_root_phb()
         pci_domains = self.cv_HOST.host_get_list_of_pci_domains()
         print "Skipping the root phb %s for frozen PE Testcase" % root_domain

@@ -50,6 +50,7 @@ from testcases import OpTestIPMIReprovision
 from testcases import OpTestInbandIPMI
 from testcases import OpTestInbandUsbInterface
 from testcases import OpTestNVRAM
+from testcases import HostLogin
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -82,6 +83,7 @@ class HostSuite():
     '''Tests run in booted OS'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(HostLogin.OOBHostLogin())
         self.s.addTest(OpTestPCI.OpTestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
         self.s.addTest(OpTestRTCdriver.BasicRTC())

@@ -32,6 +32,7 @@
 
 import time
 import subprocess
+import pexpect
 
 from OpTestBMC import OpTestBMC
 from OpTestFSP import OpTestFSP
@@ -241,7 +242,8 @@ class OpTestSystem(object):
     # Login to the host on the console
     # This will behave correctly even if already logged in
     def host_console_login(self):
-        l_con = self.bmc.get_host_console()
+        # we act on the raw pexpect console
+        l_con = self.bmc.get_host_console().get_console()
         l_user = self.cv_HOST.username()
         l_pwd = self.cv_HOST.password()
 
