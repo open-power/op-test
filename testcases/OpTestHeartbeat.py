@@ -35,16 +35,23 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-class OpTestHeartbeat(unittest.TestCase):
+class HeartbeatSkiroot(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
 
-    def runTest(self):
+    def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_IPMI.ipmi_host_set_unique_prompt()
-        res = c.run_command("ps -o comm|grep opal")
-        print res
-        self.assertIn("kopald", res, "kopald not running in petitboot");
+
+    def runTest(self):
+        self.setup_test()
+        res = self.c.run_command("ps -e -o comm|grep opal")
+        self.assertIn("kopald", res, "kopald not running");
+
+class HeartbeatHost(HeartbeatSkiroot):
+    def setup_test(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.host().get_ssh_connection()

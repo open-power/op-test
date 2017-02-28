@@ -72,7 +72,7 @@ class SkirootSuite():
         self.s.addTest(OpTestPCI.OpTestPCISkiroot())
         self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
-        self.s.addTest(OpTestHeartbeat.OpTestHeartbeat())
+        self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
@@ -92,6 +92,7 @@ class HostSuite():
         self.s.addTest(OpTestInbandIPMI.basic_suite())
         self.s.addTest(OpTestInbandUsbInterface.basic_suite())
         self.s.addTest(OpTestNVRAM.HostNVRAM())
+        self.s.addTest(OpTestHeartbeat.HeartbeatHost())
     def suite(self):
         return self.s
 
