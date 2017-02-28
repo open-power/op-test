@@ -195,15 +195,19 @@ class OpTestEMcpu_idle_states(OpTestEM):
         l_kernel = self.cv_HOST.host_get_kernel_version()
 
         self.cv_HOST.host_check_command("cpupower")
+
+        # TODO: Check the runtime idle states = expected idle states!
+        idle_states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/ -type d -regex '.*state[0-9]*' -printf '%f\\n'|sort -u|sed -e 's/^state//'").split('\r\n')[:-1]
+        print repr(idle_states)
         # currently p8 cpu has 3 states
-        for i in (0, 1, 2):
+        for i in idle_states:
             self.enable_idle_state(i)
             self.verify_enable_idle_state(i)
-        for i in (0, 1, 2):
+        for i in idle_states:
             self.disable_idle_state(i)
             self.verify_disable_idle_state(i)
         # and reset back to enabling idle.
-        for i in (0, 1, 2):
+        for i in idle_states:
             self.enable_idle_state(i)
             self.verify_enable_idle_state(i)
 
