@@ -55,12 +55,13 @@ class OpTestFSP():
     # @param i_fspPasswd @type string: Password of the userid to log into the FSP
     # @param i_ffdcDir @type string: Optional param to indicate where to write FFDC
     #
-    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, i_ffdcDir=None):
+    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, i_ffdcDir=None, ipmi=None):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
         self.password = i_fspPasswd
         self.prompt = "$"
         self.cv_ASM = OpTestASM(i_fspIP, i_fspUser, i_fspPasswd)
+        self.cv_IPMI = ipmi
 
     def bmc_host(self):
         return self.cv_ASM.host_name

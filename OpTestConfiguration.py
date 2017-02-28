@@ -7,6 +7,9 @@ import common
 from common.OpTestBMC import OpTestBMC
 from common.OpTestFSP import OpTestFSP
 from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem
+from common.OpTestHost import OpTestHost
+from common.OpTestIPMI import OpTestIPMI
+from common.OpTestWeb import OpTestWeb
 import argparse
 
 class OpTestConfiguration():
@@ -77,33 +80,45 @@ class OpTestConfiguration():
         return self.args, self.remaining_args
 
     def objs(self):
+        host = OpTestHost(self.args.host_ip,
+                          self.args.host_user,
+                          self.args.host_password,
+                          self.args.bmc_ip)
         if self.args.bmc_type in ['AMI']:
+            ipmi = OpTestIPMI(self.args.bmc_ip,
+                              self.args.bmc_usernameipmi,
+                              self.args.bmc_passwordipmi,
+                              self.args.ffdcdir, host=host)
+            web = OpTestWeb(self.args.bmc_ip,
+                            self.args.bmc_usernameipmi,
+                            self.args.bmc_passwordipmi)
             bmc = OpTestBMC(ip=self.args.bmc_ip,
                             username=self.args.bmc_username,
-                            password=self.args.bmc_password)
+                            password=self.args.bmc_password,
+                            ipmi=ipmi,
+                            web=web,
+            )
             self.op_system = OpTestSystem(
-                i_bmcUserIpmi=self.args.bmc_usernameipmi,
-                i_bmcPasswdIpmi=self.args.bmc_passwordipmi,
                 i_ffdcDir=self.args.ffdcdir,
-                i_hostip=self.args.host_ip,
-                i_hostuser=self.args.host_user,
-                i_hostPasswd=self.args.host_password,
                 state=self.startState,
-                bmc=bmc
+                bmc=bmc,
+                host=host,
             )
         elif self.args.bmc_type in ['FSP']:
+            ipmi = OpTestIPMI(self.args.bmc_ip,
+                              self.args.bmc_usernameipmi,
+                              self.args.bmc_passwordipmi,
+                              self.args.ffdcdir, host=host)
             bmc = OpTestFSP(self.args.bmc_ip,
                             self.args.bmc_username,
-                            self.args.bmc_password)
+                            self.args.bmc_password,
+                            ipmi=ipmi,
+            )
             self.op_system = OpTestFSPSystem(
-                i_bmcUserIpmi=self.args.bmc_usernameipmi,
-                i_bmcPasswdIpmi=self.args.bmc_passwordipmi,
                 i_ffdcDir=self.args.ffdcdir,
-                i_hostip=self.args.host_ip,
-                i_hostuser=self.args.host_user,
-                i_hostPasswd=self.args.host_password,
                 state=self.startState,
-                bmc=bmc
+                bmc=bmc,
+                host=host,
             )
         else:
             raise Exception("Unsupported BMC Type")

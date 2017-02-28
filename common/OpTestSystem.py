@@ -40,7 +40,6 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
-from OpTestWeb import OpTestWeb
 
 class OpSystemState():
     UNKNOWN = 0
@@ -67,17 +66,13 @@ class OpTestSystem(object):
     # @param i_hostuser The userid to log into the Host
     # @param i_hostPasswd The password of the userid to log into the host with
     #
-    def __init__(self,
-                 i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None, bmc=None,
+    def __init__(self,i_ffdcDir=None,
+                 bmc=None, host=None,
                  state=OpSystemState.UNKNOWN):
         self.cv_BMC = bmc
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, bmc.bmc_host())
-        self.cv_IPMI = OpTestIPMI(bmc.bmc_host(),i_bmcUserIpmi,i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
+        self.cv_HOST = host
+        self.cv_IPMI = bmc.cv_IPMI
         self.console = self.cv_IPMI.console
-
-        self.cv_WEB = OpTestWeb(bmc.bmc_host(), i_bmcUserIpmi, i_bmcPasswdIpmi)
         self.util = OpTestUtil()
 
         # We have a state machine for going in between states of the system
@@ -712,7 +707,7 @@ class OpTestSystem(object):
 
         try:
             self.cv_IPMI.ipmi_power_off()
-            self.cv_WEB.web_update_hpm(i_image,BMC_CONST.UPDATE_PNOR)
+            self.bmc.cv_WEB.web_update_hpm(i_image,BMC_CONST.UPDATE_PNOR)
         except OpTestError as e:
             if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
                 return BMC_CONST.FW_INVALID
@@ -732,7 +727,7 @@ class OpTestSystem(object):
 
         try:
             self.cv_IPMI.ipmi_power_off()
-            self.cv_WEB.web_update_hpm(i_image,BMC_CONST.UPDATE_BMC)
+            self.bmc.cv_WEB.web_update_hpm(i_image,BMC_CONST.UPDATE_BMC)
         except OpTestError as e:
             if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
                 return BMC_CONST.FW_INVALID
@@ -752,7 +747,7 @@ class OpTestSystem(object):
 
         try:
             self.cv_IPMI.ipmi_power_off()
-            self.cv_WEB.web_update_hpm(i_image, BMC_CONST.UPDATE_BMCANDPNOR)
+            self.bmc.cv_WEB.web_update_hpm(i_image, BMC_CONST.UPDATE_BMCANDPNOR)
         except OpTestError as e:
             if(e.args[0] == BMC_CONST.ERROR_SELENIUM_HEADLESS):
                 return BMC_CONST.FW_INVALID
@@ -1183,16 +1178,15 @@ class OpTestSystem(object):
 
 class OpTestFSPSystem(OpTestSystem):
     def __init__(self,
-                 i_bmcUserIpmi,i_bmcPasswdIpmi,i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None, bmc=None,
+                 i_ffdcDir=None,
+                 host=None,
+                 bmc=None,
                  state=OpSystemState.UNKNOWN):
         bmc.fsp_get_console()
-        super(OpTestFSPSystem, self).__init__(i_bmcUserIpmi,
-                                              i_bmcPasswdIpmi,
-                                              i_ffdcDir,
-                                              i_hostip,
-                                              i_hostuser, i_hostPasswd,
-                                              bmc, state)
+        super(OpTestFSPSystem, self).__init__(i_ffdcDir=i_ffdcDir,
+                                              host=host,
+                                              bmc=bmc,
+                                              state=state)
 
     def sys_wait_for_standby_state(self, i_timeout=120):
         return self.cv_BMC.wait_for_standby(i_timeout)

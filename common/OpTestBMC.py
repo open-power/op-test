@@ -41,15 +41,17 @@ import subprocess
 from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
+from OpTestWeb import OpTestWeb
 
 class OpTestBMC():
-
-
-    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None):
+    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None, ipmi=None, web=None):
         self.cv_bmcIP = ip
         self.cv_bmcUser = username
         self.cv_bmcPasswd = password
         self.cv_ffdcDir = i_ffdcDir
+        self.cv_IPMI = ipmi
+        self.cv_WEB = web
+
 
     def bmc_host(self):
         return self.cv_bmcIP
