@@ -89,6 +89,11 @@ class SSHConnection():
         p.login(self.ip, self.username, self.password)
         p.sendline()
         p.prompt(timeout=60)
+        # Ubuntu likes to be "helpful" and alias grep to
+        # include color, which isn't helpful at all. So let's
+        # go back to absolutely no messing around with the shell
+        p.sendline('exec bash --norc --noprofile')
+        p.set_unique_prompt()
         self.state = SSHConnectionState.CONNECTED
 
 
