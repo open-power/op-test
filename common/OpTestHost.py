@@ -359,7 +359,7 @@ class OpTestHost():
             return l_res
         else:
             l_cmd = "rpm -qf `which %s`" % i_cmd
-            l_res = self.ssh_run_command(l_cmd, timeout=60)
+            l_res = self.ssh.run_command(l_cmd, timeout=60)
             l_pkg = l_res.replace("\r\n", "")
             print l_pkg
             return l_pkg
