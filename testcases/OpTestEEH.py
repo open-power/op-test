@@ -42,6 +42,14 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
+class EEHRecoveryFailed(Exception):
+    def __init__(self, thing, dev, log=None):
+        self.thing = thing
+        self.dev = dev
+        self.log = log
+    def __str__(self):
+        return "%s %s recovery failed: %s" % (self.thing, self.dev, self.log)
+
 class OpTestEEH(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -112,14 +120,12 @@ class OpTestEEH(unittest.TestCase):
         # Get list of PE's
         console = self.cv_SYSTEM.sys_get_ipmi_console()
         res = console.run_command("ls /sys/bus/pci/devices/ | awk {'print $1'}")
-        res = res.splitlines()
         for pe in res:
             if not pe:
                 continue
             cmd = "cat /sys/bus/pci/devices/%s/eeh_pe_config_addr" % pe
             addr = console.run_command(cmd)
-            addr = addr.splitlines()
-            pe_dic[pe] = ((addr[1]).split("x"))[1]
+            pe_dic[pe] = ((addr[0]).split("x"))[1]
         return pe_dic
 
 
@@ -143,7 +149,6 @@ class OpTestEEH(unittest.TestCase):
             print "PE Slot reset happenned successfully on pe: %s" % pe
         else:
             print "PE Slot reset not happened on pe: %s" % pe
-        con.run_command("\n")
         self.gather_logs()
         if not self.check_eeh_pe_recovery(pe):
             msg = "PE %s recovery failed" % pe
@@ -186,7 +191,7 @@ class OpTestEEH(unittest.TestCase):
     #
     def check_eeh_slot_resets(self):
         cmd = "cat /proc/powerpc/eeh | tail -n 1"
-        count = sself.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+        count = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
         output = (count[-1].split("="))[1]
         return output
 
@@ -244,11 +249,9 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
             l_con.run_command(cmd)
             # Give some time to EEH PCI Error recovery
             time.sleep(30)
-            l_con.run_command("\n")
             self.gather_logs()
             if not self.check_eeh_phb_recovery(domain):
-                msg = "PHB domain %s recovery failed" % domain
-                raise OpTestError(msg)
+                raise EEHRecoveryFailed("PHB domain", domain)
             else:
                 print "PHB %s recovery successful" % domain
 
@@ -298,19 +301,15 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
                 l_con.run_command(cmd)
                 # Give some time to EEH PCI Error recovery
                 time.sleep(30)
-                l_con.run_command("\n")
-                l_con.run_command("\n")
                 self.gather_logs()
                 if i == 0:
                     if not self.check_eeh_phb_recovery(domain):
-                        msg = "PHB domain %s recovery failed" % domain
-                        raise OpTestError(msg)
+                        raise EEHRecoveryFailed("PHB domain", domain)
                     else:
                         print "PHB %s recovery successful" % domain
                 else:
                     if self.check_eeh_phb_recovery(domain):
-                        msg = "PHB domain %s not removed from the system" % domain
-                        raise OpTestError(msg)
+                        raise EEHRecoveryFailed("PHB domain", domain)
                     else:
                         print "PHB domain %s removed successfully" % domain
 
