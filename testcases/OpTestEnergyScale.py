@@ -58,7 +58,7 @@ class OpTestEnergyScale(unittest.TestCase):
     #
     def run_ipmi_cmd(self, i_cmd):
         l_cmd = i_cmd
-        l_res = self.cv_IPMI.ipmitool_execute_command(l_cmd)
+        l_res = self.cv_IPMI.ipmitool_run(l_cmd)
         print l_res
         l_res = l_res.splitlines()
         if int(l_res[-1]):
