@@ -39,6 +39,7 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.OpTestError import OpTestError
 
 class OpTestEnergyScale(unittest.TestCase):
     def setUp(self):
