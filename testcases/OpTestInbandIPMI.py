@@ -118,55 +118,36 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def test_chassis_bootdev(self):
         print "Inband IPMI[OPEN]: Chassis Bootdevice tests"
         c = self.cv_HOST.get_ssh_connection()
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_NONE)
-        self.verify_bootdev("none")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_PXE)
-        self.verify_bootdev("pxe")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_CDROM)
-        self.verify_bootdev("cdrom")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_DISK)
-        self.verify_bootdev("disk")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_BIOS)
-        self.verify_bootdev("bios")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_SAFE)
-        self.verify_bootdev("safe")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_DIAG)
-        self.verify_bootdev("diag")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_FLOPPY)
-        self.verify_bootdev("floppy")
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTDEV_NONE)
-        self.verify_bootdev("none")
+        boot_devices = {
+            "none" : "No override",
+            "pxe"  : "Force PXE",
+            "cdrom": "Force Boot from CD/DVD",
+            "disk" : "Force Boot from default Hard-Drive",
+            "bios" : "Force Boot into BIOS Setup",
+            "safe" : "Force Boot from default Hard-Drive, request Safe-Mode",
+            "diag" : "Force Boot from Diagnostic Partition",
+            "floppy" : "Force Boot from Floppy/primary removable media",
+        }
+        for bootdev,ipmiresponse in boot_devices.iteritems():
+            try:
+                r = c.run_command(self.ipmi_method + 'chassis bootdev %s; echo $?' % (bootdev))
+                print repr(r.split('\r\n'))
+                if int(r.split('\n')[-2]) != 0:
+                    self.fail("Could not set boot device %s. Errored with %s" % (dev,r))
+                self.verify_bootdev(bootdev, ipmiresponse)
+            except UnexpectedBootDevice as e:
+                self.fail(str(e))
+        # reset to bootdev none
+        try:
+            c.run_command(self.ipmi_method + 'chassis bootdev none; echo $?')
+            self.verify_bootdev("none",boot_devices["none"])
+        except UnexpectedBootDevice as e:
+            self.fail(str(e))
+        pass
 
-    ##
-    # @brief  It will verify whether setting of given bootdevice is honoured or not
-    #         by reading chassis bootparam get 5
-    #
-    # @param i_dev @type string: boot device name: Ex safe, disk and cdrom
-    #
-    # @return BMC_CONST.FW_SUCCESS on success or raise OpTestError
-    #
-    def verify_bootdev(self, i_dev):
+    def verify_bootdev(self, i_dev, l_msg):
         c = self.cv_HOST.get_ssh_connection()
-        l_res = c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_BOOTPARAM_GET_5)
-        if i_dev == "safe":
-            l_msg = "Force Boot from default Hard-Drive, request Safe-Mode"
-        elif i_dev == "disk":
-            l_msg = "Force Boot from default Hard-Drive"
-        elif i_dev == "diag":
-            l_msg = "Force Boot from Diagnostic Partition"
-        elif i_dev == "bios":
-            l_msg = "Force Boot into BIOS Setup"
-        elif i_dev == "pxe":
-            l_msg = "Force PXE"
-        elif i_dev == "cdrom":
-            l_msg = "Force Boot from CD/DVD"
-        elif i_dev == "none":
-            l_msg = "No override"
-        elif i_dev == "floppy":
-            l_msg = "Force Boot from Floppy/primary removable media"
-        else:
-            print "pass proper bootdevice"
-
+        l_res = c.run_command(self.ipmi_method + "chassis bootparam get 5; echo $?")
         for l_line in l_res.split('\n'):
             if l_line.__contains__(l_msg):
                 print "Verifying bootdev is successfull for %s" % i_dev
