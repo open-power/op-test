@@ -40,40 +40,18 @@ import time
 import subprocess
 import re
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
-from common.OpTestConstants import OpTestConstants as BMC_CONST
+import unittest
+
+import OpTestConfiguration
+from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpTestSystem
 
 
-class OpTestSwitchEndianSyscall():
-    ## Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd,i_bmcIP)
-        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                 i_hostuser, i_hostPasswd)
-        self.util = OpTestUtil()
+class OpTestSwitchEndianSyscall(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_SYSTEM = conf.system()
+        self.cv_HOST = conf.host()
 
     ##
     # @brief  If git and gcc commands are availble on host, this function will clone linux
@@ -82,8 +60,10 @@ class OpTestSwitchEndianSyscall():
     #
     # @return BMC_CONST.FW_SUCCESS-success or BMC_CONST.FW_FAILED-fail
     #
-    def testSwitchEndianSysCall(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+
         # Get OS level
         self.cv_HOST.host_get_OS_Level()
 
@@ -104,10 +84,9 @@ class OpTestSwitchEndianSyscall():
         l_rc = self.run_once(l_dir)
         if int(l_rc) == 1:
             print "Switch endian sys call test got succesful"
-            return BMC_CONST.FW_SUCCESS
+            return
         else:
-            print "Switch endian sys call test failed"
-            return BMC_CONST.FW_FAILED
+            raise "Switch endian sys call test failed"
 
     ##
     # @brief  It will check for existence of switch_endian directory in the cloned repository
@@ -141,9 +120,7 @@ class OpTestSwitchEndianSyscall():
     # @return 1-success or raise OpTestError
     #
     def make_test(self, i_dir):
-        l_cmd = "cd %s/tools/testing/selftests/powerpc/switch_endian;\
-                 make;" % i_dir
-        print l_cmd
+        l_cmd = "cd %s/tools/testing/selftests/;make;" % i_dir
         l_res = self.cv_HOST.host_run_command(l_cmd)
         l_cmd = "test -f %s/tools/testing/selftests/powerpc/switch_endian/switch_endian_test; echo $?" % i_dir
         l_res = self.cv_HOST.host_run_command(l_cmd)
@@ -167,7 +144,6 @@ class OpTestSwitchEndianSyscall():
     def run_once(self, i_dir):
         l_cmd = "cd %s/tools/testing/selftests/powerpc/switch_endian/;\
                  ./switch_endian_test" % i_dir
-        print l_cmd
         l_res = self.cv_HOST.host_run_command(l_cmd)
         if (l_res.__contains__('success: switch_endian_test')):
             return 1
