@@ -143,12 +143,15 @@ class OpTestEEH(unittest.TestCase):
             print "Skipping verification as command failed"
             return
         # Give some time to EEH PCI Error recovery
-        time.sleep(60)
-        count = self.check_eeh_slot_resets()
-        if int(count) > int(count_old):
-            print "PE Slot reset happenned successfully on pe: %s" % pe
-        else:
-            print "PE Slot reset not happened on pe: %s" % pe
+        tries = 60
+        for i in range(1,tries):
+            time.sleep(1)
+            count = self.check_eeh_slot_resets()
+            if int(count) > int(count_old):
+                print "PE Slot reset happenned successfully on pe: %s" % pe
+                break
+            else:
+                print "PE Slot reset pe: %s, not yet done, (%d/%d)" % (pe,i,tries)
         self.gather_logs()
         if not self.check_eeh_pe_recovery(pe):
             msg = "PE %s recovery failed" % pe
@@ -248,12 +251,20 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
             print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
             l_con.run_command(cmd)
             # Give some time to EEH PCI Error recovery
-            time.sleep(30)
-            self.gather_logs()
-            if not self.check_eeh_phb_recovery(domain):
+            tries = 30
+            recovery_done = False
+            for i in range(1,tries):
+                time.sleep(1)
+                if self.check_eeh_phb_recovery(domain):
+                    print "PHB %s recovery successful" % domain
+                    recovery_done = True
+                    break
+                else:
+                    print "#Waiting for PHB %s recovery. (%d/%d)" % (domain,i,tries)
+            if not recovery_done:
+                self.gather_logs()
                 raise EEHRecoveryFailed("PHB domain", domain)
-            else:
-                print "PHB %s recovery successful" % domain
+
 
 class OpTestEEHmax_fenced_phb(OpTestEEH):
     ##
@@ -300,18 +311,24 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
                 print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
                 l_con.run_command(cmd)
                 # Give some time to EEH PCI Error recovery
-                time.sleep(30)
-                self.gather_logs()
-                if i == 0:
-                    if not self.check_eeh_phb_recovery(domain):
-                        raise EEHRecoveryFailed("PHB domain", domain)
+                tries = 30
+                recovery_done = False
+                for i in range(1,tries):
+                    time.sleep(1)
+                    if i == 0:
+                        if self.check_eeh_phb_recovery(domain):
+                            print "PHB %s recovery successful" % domain
+                            recovery_done = True
+                            break
                     else:
-                        print "PHB %s recovery successful" % domain
-                else:
-                    if self.check_eeh_phb_recovery(domain):
-                        raise EEHRecoveryFailed("PHB domain", domain)
-                    else:
-                        print "PHB domain %s removed successfully" % domain
+                        if not self.check_eeh_phb_recovery(domain):
+                            print "PHB domain %s removed successfully" % domain
+                            recovery_done = True
+                            break
+                    print "# Wating for PHB %s recovery/removal (%d/%d)" % (domain,i,tries)
+                if not recovery_done:
+                    self.gather_logs()
+                    raise EEHRecoveryFailed("PHB domain", domain)
 
 class OpTestEEHbasic_frozen_pe(OpTestEEH):
     ##
