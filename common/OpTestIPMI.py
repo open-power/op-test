@@ -315,7 +315,7 @@ class OpTestIPMI():
             time.sleep(5)
 
         try:
-            self.ipmitool_cmd_run(self.cv_baseIpmiCmd + 'sol deactivate')
+            self.ipmitool.run('sol deactivate')
             self.console.terminate()
         except subprocess.CalledProcessError:
             l_msg = 'SOL already deactivated'
@@ -830,7 +830,7 @@ class OpTestIPMI():
         l_led = i_led
         l_state = i_state
         print "IPMI: Setting the %s LED with %s state" % (l_led, l_state)
-        l_cmd = self.cv_baseIpmiCmd + "raw 0x3a 0x03 %s %s" % (l_led, l_state)
+        l_cmd = "raw 0x3a 0x03 %s %s" % (l_led, l_state)
         l_res = self.ipmitool.run(l_cmd)
         if "00" in l_res:
             print "Set LED state got success"

@@ -52,6 +52,7 @@ from testcases import OpTestIPMIReprovision
 from testcases import OpTestInbandIPMI
 from testcases import OpTestInbandUsbInterface
 from testcases import OpTestNVRAM
+from testcases import OpTestOOBIPMI
 from testcases import HostLogin
 import testcases
 
@@ -188,6 +189,17 @@ class InbandIPMISuite():
     def suite(self):
         return self.s
 
+
+class OutofbandIPMISuite():
+    '''Out of band IPMI'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestOOBIPMI.basic_suite())
+        self.s.addTest(OpTestOOBIPMI.standby_suite())
+        self.s.addTest(OpTestOOBIPMI.runtime_suite())
+    def suite(self):
+        return self.s
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -204,6 +216,7 @@ suites = {
     'experimental-reprovision' : ExperimentalReprovisionSuite(),
     'broken-reprovision' : BrokenReprovisionSuite(),
     'full-inbandipmi' : InbandIPMISuite(),
+    'full-outofbandipmi' : OutofbandIPMISuite(),
     'full' : FullSuite(),
 }
 
