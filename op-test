@@ -32,6 +32,7 @@ import unittest
 
 import OpTestConfiguration
 from testcases import HelloWorld
+from testcases import OpTestSensors
 from testcases import OpTestPCI
 from testcases import OpTestFWTS
 from testcases import BasicIPL
@@ -95,6 +96,7 @@ class HostSuite():
         self.s.addTest(OpTestInbandUsbInterface.basic_suite())
         self.s.addTest(OpTestNVRAM.HostNVRAM())
         self.s.addTest(OpTestHeartbeat.HeartbeatHost())
+        self.s.addTest(OpTestSensors.OpTestSensors())
     def suite(self):
         return self.s
 
