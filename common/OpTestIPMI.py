@@ -132,6 +132,9 @@ class IPMIConsole():
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild
         self.sol.expect_exact('[SOL Session operational.  Use ~? for help]')
+        # we pause for a moment to allow ipmitool to catch up with
+        # itself and to start accepting input
+        time.sleep(0.2)
         return solChild
 
     def get_console(self):
