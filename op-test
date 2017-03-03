@@ -34,6 +34,7 @@ import OpTestConfiguration
 from testcases import HelloWorld
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestSensors
+from testcases import OpTestPrdDriver
 from testcases import OpTestPCI
 from testcases import OpTestFWTS
 from testcases import BasicIPL
@@ -87,6 +88,7 @@ class HostSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(HostLogin.OOBHostLogin())
+        self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(OpTestPCI.OpTestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
