@@ -36,43 +36,29 @@ import subprocess
 import re
 import commands
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+import unittest
+
+import OpTestConfiguration
 from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpTestSystem
+from common.OpTestSystem import OpSystemState
 
+class OpTestMtdPnorDriver(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.util = self.cv_SYSTEM.util
+        self.cv_HOST = conf.host()
+        self.bmc_type = conf.args.bmc_type
+        self.host_ip = conf.args.host_ip
+        self.host_user = conf.args.host_user
+        self.host_Passwd = conf.args.host_password
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-class OpTestMtdPnorDriver():
-    ## Initialize this object and also getting the host login credentials to use by scp utility
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
-        self.cv_SYSTEM = OpTestSystem(bmc=self.cv_BMC,
-                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                         i_hostuser, i_hostPasswd)
-        self.util = OpTestUtil()
-        self.host_user = i_hostuser
-        self.host_ip = i_hostip
-        self.host_Passwd = i_hostPasswd
+    def tearDown(self):
+        self.cv_HOST.host_gather_opal_msg_log()
+        self.cv_HOST.host_gather_kernel_log()
 
     ##
     # @brief  This function has following test steps
@@ -89,8 +75,7 @@ class OpTestMtdPnorDriver():
     #
     # @return BMC_CONST.FW_SUCCESS-success or raise OpTestError-fail
     #
-    def testMtdPnorDriver(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
 
@@ -106,24 +91,17 @@ class OpTestMtdPnorDriver():
         l_cmd = "ls -l /dev/mtd0; echo $?"
         l_res = self.cv_HOST.host_run_command(l_cmd)
         l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            print "/dev/mtd0 character device file exists on host"
-        else:
-            l_msg = "/dev/mtd0 character device file doesn't exist on host"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[-1]), 0, 
+            "/dev/mtd0 character flash device file doesn't exist on host")
+        print "/dev/mtd0 character device file exists on host"
 
         # Copying the contents of the PNOR flash in a file /tmp/pnor
         l_file = "/tmp/pnor"
         l_cmd = "cat /dev/mtd0 > %s; echo $?" % l_file
         l_res = self.cv_HOST.host_run_command(l_cmd)
         l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            print "Fetched PNOR data from /dev/mtd0 into temp file /tmp/pnor"
-        else:
-            l_msg = "Fetching PNOR data is failed from /dev/mtd0 into temp file /tmp/pnor"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[-1]), 0,
+            "Fetching PNOR data is failed from /dev/mtd0 into temp file /tmp/pnor")
 
         # Getting the /tmp/pnor file into local x86 machine
         l_path = "/tmp/"
@@ -134,49 +112,27 @@ class OpTestMtdPnorDriver():
         l_workdir = "/tmp/ffs"
         # Remove existing /tmp/ffs directory
         l_res = commands.getstatusoutput("rm -rf %s" % l_workdir)
-        print l_res
 
         # Clone latest ffs git repository in local x86 working machine
         l_cmd = "git clone   https://github.com/open-power/ffs/ %s" % l_workdir
         l_res = commands.getstatusoutput(l_cmd)
-        print l_res
-        if int(l_res[0]) == 0:
-            print "Cloning of ffs repository is successfull"
-        else:
-            l_msg = "Cloning ffs repository is failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[0]), 0,
+                "Cloning ffs repository is failed")
 
         # Compile ffs repository to get fcp utility
         l_cmd = "cd %s/; make" % l_workdir
         l_res = commands.getstatusoutput(l_cmd)
-        print l_res
-        if int(l_res[0]) == 0:
-            print "Compiling fcp utility is successfull"
-        else:
-            l_msg = "Compiling fcp utility is failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[0]), 0, "Compiling fcp utility is failed")
 
         # Check existence of fcp utility in ffs repository, after compiling.
         l_cmd = "test -f %s/fcp/x86/fcp" % l_workdir
         l_res = commands.getstatusoutput(l_cmd)
-        print l_res
-        if int(l_res[0]) == 0:
-            print "Compiling fcp utility is successfull"
-        else:
-            l_msg = "Compiling fcp utility is failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[0]), 0, "Compiling fcp utility is failed")
 
         # Check the PNOR flash contents on an x86 machine using fcp utility
         l_cmd = "%s/fcp/x86/fcp -o 0x0 -L %s" % (l_workdir, l_file)
         l_res = commands.getstatusoutput(l_cmd)
         print l_res[1]
-        if int(l_res[0]) == 0:
-            print "Getting PNOR data successfull using fcp utility"
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Getting the PNOR data using fcp utility failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.assertEqual(int(l_res[0]), 0,
+            "Getting the PNOR data using fcp utility failed")
+        print "Getting PNOR data successfull using fcp utility"
