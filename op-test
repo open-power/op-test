@@ -54,6 +54,7 @@ from testcases import OpTestInbandIPMI
 from testcases import OpTestInbandUsbInterface
 from testcases import OpTestNVRAM
 from testcases import OpTestOOBIPMI
+from testcases import OpTestOCC
 from testcases import HostLogin
 import testcases
 
@@ -202,6 +203,16 @@ class OutofbandIPMISuite():
     def suite(self):
         return self.s
 
+class OCCSuite():
+    '''OCC Test Suite'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestOCC.OCC_RESET())
+        self.s.addTest(OpTestOCC.basic_suite())
+        self.s.addTest(OpTestOCC.full_suite())
+    def suite(self):
+        return self.s
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -219,6 +230,7 @@ suites = {
     'broken-reprovision' : BrokenReprovisionSuite(),
     'full-inbandipmi' : InbandIPMISuite(),
     'full-outofbandipmi' : OutofbandIPMISuite(),
+    'full-occ' : OCCSuite(),
     'full' : FullSuite(),
 }
 
