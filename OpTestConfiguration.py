@@ -66,6 +66,12 @@ class OpTestConfiguration():
         ffdcgroup = parser.add_argument_group('FFDC', 'First Failure Data Capture')
         ffdcgroup.add_argument("--ffdcdir", help="FFDC directory")
 
+        imagegroup = parser.add_argument_group('Images', 'Firmware lids/images to flash')
+        imagegroup.add_argument("--firmware-images", help="Firmware images directory")
+        imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
+        imagegroup.add_argument("--host-lid", help="Skiboot lid to flash")
+        imagegroup.add_argument("--host-hpm", help="HPM image to flash")
+
         self.args , self.remaining_args = parser.parse_known_args(argv)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
                      'OFF' : OpSystemState.OFF,
@@ -136,7 +142,7 @@ class OpTestConfiguration():
         return
 
     def bmc(self):
-        return self.op_system.bmc()
+        return self.op_system.bmc
     def system(self):
         return self.op_system
     def host(self):

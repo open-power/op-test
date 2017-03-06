@@ -63,8 +63,11 @@ class IPMITool():
         s += ' '
         return s
 
-    def run(self, cmd, background=False):
-        cmd = self.binary + self.arguments() + cmd
+    def run(self, cmd, background=False, cmdprefix=None):
+        if cmdprefix:
+            cmd = cmdprefix + self.binary + self.arguments() + cmd
+        else:
+            cmd = self.binary + self.arguments() + cmd
         print cmd
         if background:
             try:
@@ -597,7 +600,7 @@ class OpTestIPMI():
         try:
             # FIXME: This is currently broken with the ipmitool rework
             # We're likely to timeout waiting for the user to hit 'y'
-            rc = self.ipmitool.run(l_cmd)
+            rc = self.ipmitool.run(l_cmd, background=False, cmdprefix = "echo y |")
             print rc
             self.ipmi_cold_reset()
 
