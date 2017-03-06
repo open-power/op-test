@@ -140,7 +140,10 @@ class OpTestSystem(object):
         self.sys_sdr_clear()
 
         if state == OpSystemState.OS:
-            self.cv_IPMI.ipmi_set_boot_to_disk()
+            # By default auto-boot will be enabled, set no override
+            # otherwise system endup booting in default disk.
+            self.cv_IPMI.ipmi_set_no_override()
+            #self.cv_IPMI.ipmi_set_boot_to_disk()
         if state == OpSystemState.PETITBOOT:
             self.cv_IPMI.ipmi_set_boot_to_petitboot()
 

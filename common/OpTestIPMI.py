@@ -1116,6 +1116,17 @@ class OpTestIPMI():
         else:
             raise OpTestError("Failure setting bootdev to disk: " + str(l_output))
 
+    ##
+    # @brief Set no boot override so that local config will be effective
+    # @return 0 for success or throws exception
+    #
+    def ipmi_set_no_override(self):
+        l_output = self.ipmitool.run('chassis bootdev none')
+        if('Set Boot Device to none' in l_output):
+            return 0
+        else:
+            raise OpTestError("Failure setting bootdev to none: " + str(l_output))
+
     def enter_ipmi_lockdown_mode(self):
         self.ipmitool.run('raw 0x32 0xf3 0x4c 0x4f 0x43 0x4b 0x00')
 
