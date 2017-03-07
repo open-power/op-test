@@ -39,40 +39,50 @@ import os
 import sys
 import commands
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+import unittest
+
+import OpTestConfiguration
 from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpTestSystem
+from common.OpTestSystem import OpSystemState
 
 
-class OpTestOOBIPMI():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
+class OpTestOOBIPMIBase(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.platform = conf.platform()
+        pass
+
+    ##
+    # @brief  It will execute and test the return code of ipmi command.
     #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
+    # @param i_cmd @type string:The ipmitool command, for example: chassis power on; echo $?
     #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
-        self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                                      i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                                      i_hostuser, i_hostPasswd)
-        self.util = OpTestUtil()
+    # @return l_res @type list: output of command or raise OpTestError
+    #
+    def run_ipmi_cmd(self, i_cmd):
+        l_cmd = i_cmd
+        time.sleep(0.2)
+        l_res = self.cv_IPMI.ipmitool.run(l_cmd)
+        print l_res
+        l_res = l_res.splitlines()
+        if int(l_res[-1]):
+            l_msg = "IPMI: command failed %s" % l_cmd
+            raise OpTestError(l_msg)
+        return l_res
+
+
+class OpTestOOBIPMI(OpTestOOBIPMIBase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.bmc_type = conf.args.bmc_type
+        super(OpTestOOBIPMI, self).setUp()
 
     ##
     # @brief  It will execute and test all Out-of-band ipmi commands.
@@ -81,60 +91,9 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_oob_ipmi(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-         # Get OS level
-        l_oslevel = self.cv_HOST.host_get_OS_Level()
-
-        # Get kernel version
-        l_kernel = self.cv_HOST.host_get_kernel_version()
-
-        # Checking for ipmitool command and lm_sensors package
-        self.cv_HOST.host_check_command("ipmitool")
-
-        l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "ipmitool")
-        print "Installed package: %s" % l_pkg
-
-        # loading below ipmi modules based on config option
-        # ipmi_devintf, ipmi_powernv and ipmi_masghandler
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_DEVICE_INTERFACE,
-                                                      BMC_CONST.IPMI_DEV_INTF)
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_POWERNV,
-                                                      BMC_CONST.IPMI_POWERNV)
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
-                                                      BMC_CONST.IPMI_MSG_HANDLER)
-
-        test_cases = [self.test_chassis, self.test_chassisIdentifytests,
-        self.test_chassisBootdev, self.test_Info, self.test_sdr_list_by_type,
-        self.test_sdr_elist_by_type, self.test_sdr_type_list, self.test_sdr_get_id,
-        self.test_fru_print, self.test_fru_read, self.test_mc,
-        self.test_sensor_list, self.test_sensor_get_host_status,
-        self.test_sensor_get_os_boot, self.test_sel_info, self.test_sel_list,
-        self.test_sel_elist, self.test_set_sel_time,
-        self.test_sel_time_get, self.test_sel_list_first_3_entries,
-        self.test_sel_list_last_3_entries, self.test_sel_get_functionality,
-        self.test_sel_clear_functionality, self.test_channel,
-        self.test_dcmi, self.test_echo, self.test_event,
-        self.test_firewall, self.test_pef, self.test_raw,
-        self.test_exec, self.test_bmc_golden_side_version,
-        self.test_get_pnor_partition_size_cmd,
-        self.test_bmc_boot_completed_cmd,
-        self.test_get_led_state_cmd, self.test_set_led_state_cmd]
-
-        fail_count = 0
-
-        for test in test_cases:
-            try:
-                print "OOB IPMI: test case %s" % test
-                test(self)
-            except:
-                print "Test Fail: %s failed" % test
-                fail_count += 1
-                print sys.exc_info()
-                continue
-
-        print "OOB IPMI: Test case failure count %s" % fail_count
-
+    def test_oem_specific(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print self.cv_IPMI.ipmi_get_bmc_golden_side_version()
         print self.cv_IPMI.ipmi_get_pnor_partition_size("NVRAM")
         print self.cv_IPMI.ipmi_get_pnor_partition_size("GUARD")
@@ -154,8 +113,9 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_bmc_golden_side_version(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print "OOB IPMI: Get BMC Golden side Version Test"
         self.run_ipmi_cmd(BMC_CONST.IPMI_GET_BMC_GOLDEN_SIDE_VERSION)
 
@@ -166,8 +126,9 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_get_pnor_partition_size_cmd(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print "OOB IPMI: Get size of PNOR partition Test"
         print "OOB IPMI: Getting the size of NVRAM partition"
         self.run_ipmi_cmd(BMC_CONST.IPMI_GET_NVRAM_PARTITION_SIZE)
@@ -183,8 +144,9 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_read_pnor_partition_data(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         self.run_ipmi_cmd(BMC_CONST.IPMI_READ_NVRAM_PARTITION_DATA)
         self.run_ipmi_cmd(BMC_CONST.IPMI_READ_FIRDATA_PARTITION_DATA)
 
@@ -193,8 +155,9 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_bmc_boot_completed_cmd(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print "OOB IPMI: Get BMC boot completion status Test"
         self.run_ipmi_cmd(BMC_CONST.IPMI_HAS_BMC_BOOT_COMPLETED)
 
@@ -208,8 +171,9 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_get_led_state_cmd(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print "OOB IPMI: Get state of various LED's"
         print "LED: Fault RollUP LED      0x00"
         self.run_ipmi_cmd(BMC_CONST.IPMI_GET_LED_STATE_FAULT_ROLLUP)
@@ -236,8 +200,9 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_set_led_state_cmd(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print "OOB IPMI: Set LED state of various LED's"
         self.cv_IPMI.ipmi_set_led_state("0x00", "0x0")
         self.cv_IPMI.ipmi_get_fault_led_state()
@@ -268,8 +233,9 @@ class OpTestOOBIPMI():
     #
     # @return return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    @staticmethod
     def test_fan_control_algorithm_1(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print "OOB IPMI: Testing Fan control disable functionality"
         self.cv_IPMI.ipmi_enable_fan_control_task_command()
         self.cv_IPMI.ipmi_sdr_clear()
@@ -305,8 +271,9 @@ class OpTestOOBIPMI():
     #
     # @return return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    @staticmethod
     def test_fan_control_algorithm_2(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         print "OOB IPMI: Testing Fan control enable functionality"
         self.cv_IPMI.ipmi_disable_fan_control_task_command()
         self.cv_IPMI.ipmi_sdr_clear()
@@ -335,28 +302,11 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_channel(self):
         print "OOB IPMI: Channel Tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_CHANNEL_AUTHCAP)
         self.run_ipmi_cmd(BMC_CONST.IPMI_CHANNEL_INFO)
 
-    ##
-    # @brief  It will execute and test the return code of ipmi command.
-    #
-    # @param i_cmd @type string:The ipmitool command, for example: chassis power on; echo $?
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def run_ipmi_cmd(self, i_cmd):
-        l_cmd = i_cmd
-        l_res = self.cv_IPMI.ipmitool_execute_command(l_cmd)
-        print l_res
-        l_res = l_res.splitlines()
-        if int(l_res[-1]):
-            l_msg = "IPMI: command failed %c" % l_cmd
-            raise OpTestError(l_msg)
-        return l_res
 
     ##
     # @brief  It will execute and test the ipmi chassis <cmd> commands
@@ -364,7 +314,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_chassis(self):
         print "OOB IPMI: Chassis tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_STATUS)
@@ -378,7 +327,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_chassisIdentifytests(self):
         print "OOB IPMI: chassis identify tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_IDENTIFY)
@@ -393,27 +341,22 @@ class OpTestOOBIPMI():
     #
     # @return BMC_CONST.FW_SUCCESS on success or raise OpTestError
     #
-    @staticmethod
     def test_chassisBootdev(self):
         print "OOB IPMI: chassis bootdevice tests"
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_NONE)
-        self.verify_bootdev("none")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_PXE)
-        self.verify_bootdev("pxe")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_CDROM)
-        self.verify_bootdev("cdrom")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_DISK)
-        self.verify_bootdev("disk")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_BIOS)
-        self.verify_bootdev("bios")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_SAFE)
-        self.verify_bootdev("safe")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_DIAG)
-        self.verify_bootdev("diag")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_FLOPPY)
-        self.verify_bootdev("floppy")
-        self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTDEV_NONE)
-        self.verify_bootdev("none")
+        boot_devices = {
+            "none" : "No override",
+            "pxe"  : "Force PXE",
+            "cdrom": "Force Boot from CD/DVD",
+            "disk" : "Force Boot from default Hard-Drive",
+            "bios" : "Force Boot into BIOS Setup",
+            "safe" : "Force Boot from default Hard-Drive, request Safe-Mode",
+            "diag" : "Force Boot from Diagnostic Partition",
+            "floppy" : "Force Boot from Floppy/primary removable media",
+        }
+        for bootdev,ipmiresponse in boot_devices.iteritems():
+            cmd = "chassis bootdev %s; echo $?" % bootdev
+            self.run_ipmi_cmd(cmd)
+            self.verify_bootdev(bootdev)
 
     ##
     # @brief  It will verify whether setting of given bootdevice is honoured or not
@@ -424,7 +367,7 @@ class OpTestOOBIPMI():
     # @return BMC_CONST.FW_SUCCESS on success or raise OpTestError
     #
     def verify_bootdev(self, i_dev):
-        l_res = self.run_ipmi_cmd(BMC_CONST.IPMI_CHASSIS_BOOTPARAM_GET_5)
+        l_res = self.run_ipmi_cmd("chassis bootparam get 5; echo $?")
         if i_dev == "safe":
             l_msg = "Force Boot from default Hard-Drive, request Safe-Mode"
         elif i_dev == "disk":
@@ -457,7 +400,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_Info(self):
         print "OOB IPMI: info tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_CHANNEL_INFO)
@@ -470,7 +412,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_list_by_type(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_SDR_LIST)
         self.run_ipmi_cmd(BMC_CONST.IPMI_SDR_LIST_ALL)
@@ -487,7 +428,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_elist_by_type(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_SDR_ELIST)
         self.run_ipmi_cmd(BMC_CONST.IPMI_SDR_ELIST_ALL)
@@ -503,7 +443,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_type_list(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_SDR_TYPE_LIST)
         self.run_ipmi_cmd(BMC_CONST.IPMI_SDR_TYPE_TEMPERATURE)
@@ -515,17 +454,14 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sdr_get_id(self):
-        l_cmd = BMC_CONST.IPMI_SDR_GET_WATCHDOG + "; echo $?"
-        self.run_ipmi_cmd(l_cmd)
+        print self.cv_IPMI.sdr_get_watchdog()
 
     ##
     # @brief  It will execute and test the ipmi fru print command.
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_fru_print(self):
         print "OOB IPMI: Fru tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_FRU_PRINT)
@@ -536,7 +472,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_fru_read(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_FRU_READ)
         l_res = commands.getstatusoutput("hexdump -C file_fru")
@@ -552,7 +487,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_list(self):
         print "OOB IPMI: Sensor tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_SENSOR_LIST)
@@ -564,7 +498,7 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sensor_byid(self, i_sensor):
+    def sensor_byid(self, i_sensor):
         l_cmd = "sensor get \"%s\"; echo $?" % i_sensor
         self.run_ipmi_cmd(l_cmd)
 
@@ -584,7 +518,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_mc(self):
         print "OOB IPMI: MC tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_MC_INFO)
@@ -604,7 +537,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_info(self):
         print "OOB IPMI: SEL tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_SEL_INFO)
@@ -615,7 +547,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_list(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_SEL_LIST)
 
@@ -627,7 +558,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_elist(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_SEL_ELIST)
 
@@ -637,7 +567,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_time_get(self):
         l_res = self.run_ipmi_cmd(BMC_CONST.IPMI_SEL_TIME_GET)
         return l_res
@@ -651,7 +580,7 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sel_time_set(self, i_time):
+    def sel_time_set(self, i_time):
         l_cmd = "sel time set \'%s\'; echo $?" % i_time
         self.run_ipmi_cmd(l_cmd)
 
@@ -662,7 +591,7 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sel_list_first_n_entries(self, i_num):
+    def sel_list_first_n_entries(self, i_num):
         l_cmd = "sel list first %i; echo $?" % int(i_num)
         self.run_ipmi_cmd(l_cmd)
 
@@ -673,7 +602,7 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sel_list_last_n_entries(self, i_num):
+    def sel_list_last_n_entries(self, i_num):
         l_cmd = "sel list last %i; echo $?" % int(i_num)
         self.run_ipmi_cmd(l_cmd)
 
@@ -684,7 +613,7 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sel_get_byid(self, i_sel_id):
+    def sel_get_byid(self, i_sel_id):
         l_cmd = "sel get %s; echo $?" % i_sel_id
         self.run_ipmi_cmd(l_cmd)
 
@@ -693,7 +622,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_clear(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_SEL_CLEAR)
 
@@ -702,9 +630,8 @@ class OpTestOOBIPMI():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    @staticmethod
     def test_sel_get_functionality(self):
-        l_res = self.cv_IPMI.ipmitool_execute_command("sel list first 3 | awk '{print $1}'; echo $?")
+        l_res = self.cv_IPMI.ipmitool.run("sel list first 3 | awk '{print $1}'; echo $?")
         l_list = l_res.splitlines()
         if int(l_list[-1]) == 0:
             if l_res.__contains__("SEL has no entries"):
@@ -714,7 +641,7 @@ class OpTestOOBIPMI():
                 del l_list[-1]
                 for l in l_list:
                     l_id = "0x" + l
-                    self.test_sel_get_byid(l_id)
+                    self.sel_get_byid(l_id)
                 return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Not able to get sel entries"
@@ -726,20 +653,11 @@ class OpTestOOBIPMI():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    @staticmethod
     def test_sel_clear_functionality(self):
-        self.test_sel_clear(self)
-        l_res = self.cv_HOST.host_run_command("ipmitool sel list; echo $?")
-        l_list = l_res.splitlines()
-        for l_line in l_list:
-            if l_line.__contains__("SEL has no entries"):
-                print "Sel clear function got cleared event entries"
-                return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "OOB IPMI: sel clear function failing in clearing entries"
-            print l_msg
-            print l_res
-            raise OpTestError(l_msg)
+        self.test_sel_clear()
+        l_res = self.cv_IPMI.ipmitool.run("sel list; echo $?")
+        self.assertIn("SEL has no entries", l_res, 
+                    "Sel clear function got cleared event entries")
 
     ##
     # @brief  It will execute and test the dcmi related ipmi commands.
@@ -754,7 +672,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_dcmi(self):
         print "OOB IPMI: dcmi tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
@@ -771,7 +688,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_echo(self):
         print "OOB IPMI: echo tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_ECHO_DONE)
@@ -789,7 +705,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_event(self):
         print "OOB IPMI: event tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_EVENT_1)
@@ -801,7 +716,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_exec(self):
         print "OOB IPMI: exec tests"
         pass
@@ -812,7 +726,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_firewall(self):
         print "OOB IPMI: Firewall test"
         self.run_ipmi_cmd(BMC_CONST.IPMI_FIREWALL_INFO)
@@ -826,7 +739,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_pef(self):
         print "OOB IPMI: Pef tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_INFO)
@@ -839,7 +751,6 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_raw(self):
         print "OOB IPMI: raw command execution tests"
         self.run_ipmi_cmd(BMC_CONST.IPMI_RAW_POH)
@@ -849,27 +760,24 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_get_host_status(self):
-        self.test_sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
+        self.sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
 
     ##
     # @brief  It will execute and test the ipmi sensor get "OS Boot" functionality
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_get_os_boot(self):
-        self.test_sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
+        self.sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
 
     ##
     # @brief  It will execute and test the ipmi sensor get "OCC Active" functionality
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sensor_get_occ_active(self):
-        self.test_sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
+        self.sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
 
     ##
     # @brief  It will execute and test the ipmi sel set <time string> functionality
@@ -877,25 +785,63 @@ class OpTestOOBIPMI():
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_set_sel_time(self):
-        l_res = self.test_sel_time_get(self)
-        self.test_sel_time_set(l_res[0])
+        l_res = self.test_sel_time_get()
+        self.sel_time_set(l_res[0])
 
     ##
     # @brief  It will execute and test the ipmi sel list first <3 entries>
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_list_first_3_entries(self):
-        self.test_sel_list_first_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
+        self.sel_list_first_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
 
     ##
     # @brief  It will execute and test the ipmi sel list last <3 entries>
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    @staticmethod
     def test_sel_list_last_3_entries(self):
-        self.test_sel_list_last_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
+        self.sel_list_last_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
+
+
+class OOBIPMIStandby(OpTestOOBIPMI):
+    @classmethod
+    def setUpClass(self):
+        conf = OpTestConfiguration.conf
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        super(OOBIPMIStandby, self).setUpClass()
+
+    @classmethod
+    def tearDownClass(self):
+        OpTestConfiguration.conf.system().goto_state(OpSystemState.OFF)
+        OpTestConfiguration.conf.system().goto_state(OpSystemState.OS)
+
+
+class OOBIPMIRuntime(OpTestOOBIPMI):
+    @classmethod
+    def setUpClass(self):
+        conf = OpTestConfiguration.conf
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.load_ipmi_drivers()
+        super(OOBIPMIRuntime, self).setUpClass()
+
+    @classmethod
+    def tearDownClass(self):
+        OpTestConfiguration.conf.system().goto_state(OpSystemState.OFF)
+        OpTestConfiguration.conf.system().goto_state(OpSystemState.OS)
+
+
+def basic_suite():
+    return unittest.defaultTestLoader.loadTestsFromTestCase(OpTestOOBIPMI)
+
+def standby_suite():
+    return unittest.defaultTestLoader.loadTestsFromTestCase(OOBIPMIStandby)
+
+def runtime_suite():
+    return unittest.defaultTestLoader.loadTestsFromTestCase(OOBIPMIRuntime)

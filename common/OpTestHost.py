@@ -452,7 +452,7 @@ class OpTestHost():
     #
     def host_clone_linux_source(self, i_dir):
         l_msg = 'git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
-        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        l_cmd = "git clone --depth=1 %s %s" % (l_msg, i_dir)
         self.ssh.run_command("rm -rf %s" % i_dir, timeout=300)
         self.ssh.run_command("mkdir %s" % i_dir, timeout=60)
         try:

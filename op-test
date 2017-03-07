@@ -32,6 +32,9 @@ import unittest
 
 import OpTestConfiguration
 from testcases import HelloWorld
+from testcases import OpTestSwitchEndianSyscall
+from testcases import OpTestSensors
+from testcases import OpTestPrdDriver
 from testcases import OpTestPCI
 from testcases import OpTestFWTS
 from testcases import BasicIPL
@@ -50,6 +53,8 @@ from testcases import OpTestIPMIReprovision
 from testcases import OpTestInbandIPMI
 from testcases import OpTestInbandUsbInterface
 from testcases import OpTestNVRAM
+from testcases import OpTestOOBIPMI
+from testcases import OpTestOCC
 from testcases import HostLogin
 import testcases
 
@@ -84,6 +89,9 @@ class HostSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(HostLogin.OOBHostLogin())
+        self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
+        self.s.addTest(OpTestSensors.OpTestSensors())
+        self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
         self.s.addTest(OpTestPCI.OpTestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
         self.s.addTest(OpTestRTCdriver.BasicRTC())
@@ -130,6 +138,8 @@ class FullSuite():
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.full_suite())
         self.s.addTest(OpTestI2Cdriver.FullI2C())
+        self.s.addTest(OpTestSensors.OpTestSensors())
+        self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
     def suite(self):
         return self.s
 
@@ -182,6 +192,27 @@ class InbandIPMISuite():
     def suite(self):
         return self.s
 
+
+class OutofbandIPMISuite():
+    '''Out of band IPMI'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestOOBIPMI.basic_suite())
+        self.s.addTest(OpTestOOBIPMI.standby_suite())
+        self.s.addTest(OpTestOOBIPMI.runtime_suite())
+    def suite(self):
+        return self.s
+
+class OCCSuite():
+    '''OCC Test Suite'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestOCC.OCC_RESET())
+        self.s.addTest(OpTestOCC.basic_suite())
+        self.s.addTest(OpTestOCC.full_suite())
+    def suite(self):
+        return self.s
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -198,6 +229,8 @@ suites = {
     'experimental-reprovision' : ExperimentalReprovisionSuite(),
     'broken-reprovision' : BrokenReprovisionSuite(),
     'full-inbandipmi' : InbandIPMISuite(),
+    'full-outofbandipmi' : OutofbandIPMISuite(),
+    'full-occ' : OCCSuite(),
     'full' : FullSuite(),
 }
 

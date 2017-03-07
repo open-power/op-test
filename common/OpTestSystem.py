@@ -140,9 +140,18 @@ class OpTestSystem(object):
         self.sys_sdr_clear()
 
         if state == OpSystemState.OS:
-            self.cv_IPMI.ipmi_set_boot_to_disk()
+            # By default auto-boot will be enabled, set no override
+            # otherwise system endup booting in default disk.
+            self.cv_IPMI.ipmi_set_no_override()
+            #self.cv_IPMI.ipmi_set_boot_to_disk()
         if state == OpSystemState.PETITBOOT:
             self.cv_IPMI.ipmi_set_boot_to_petitboot()
+
+        # Make sure system is in standby state before power on.
+        # otherwise ipmi power on will be non functional
+        r = self.sys_wait_for_standby_state()
+        if r == BMC_CONST.FW_FAILED:
+            raise "Invalid state transition from runtime to runtime"
 
         r = self.sys_power_on()
         # Only retry once
@@ -193,6 +202,8 @@ class OpTestSystem(object):
     def run_BOOTING(self, state):
         rc = self.wait_for_login()
         if rc != BMC_CONST.FW_FAILED:
+            # Wait for ip to ping as we run host commands immediately
+            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
             return OpSystemState.OS
         raise 'Failed to boot'
 
