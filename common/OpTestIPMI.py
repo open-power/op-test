@@ -157,7 +157,7 @@ class IPMIConsole():
         console = self.get_console()
         console.sendline(command)
         console.expect("\n") # from us
-        rc = console.expect("\[console-pexpect\]#$", timeout)
+        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
 
         if rc == 0:
             res = console.before

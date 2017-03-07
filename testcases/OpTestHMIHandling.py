@@ -191,8 +191,6 @@ class OpTestHMIHandling(unittest.TestCase):
         else:
             raise Exception("Please provide valid test case")
 
-        print "Gathering the OPAL msg logs"
-        self.cv_HOST.host_gather_opal_msg_log()
         return BMC_CONST.FW_SUCCESS
 
     ##
@@ -282,7 +280,9 @@ class OpTestHMIHandling(unittest.TestCase):
         l_reg = "1%s013100" % l_core
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 1000000000000000" % (l_chip, l_reg)
 
-        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd)
+        # Core checkstop will lead to system IPL, so we will wait for certain time for IPL
+        # to finish
+        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd, timeout=600)
         if any("Kernel panic - not syncing" in line for line in l_res):
             print "Malfunction alert: kernel got panic"
         elif any("login:" in line for line in l_res):
@@ -310,7 +310,7 @@ class OpTestHMIHandling(unittest.TestCase):
         l_reg = "1%s013100" % l_core
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
 
-        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd)
+        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd, timeout=600)
         if any("Kernel panic - not syncing" in line for line in l_res) and \
         any("Hypervisor Resource error - core check stop" in line for line in l_res):
             print "Hypervisor resource error: kernel got panic"
