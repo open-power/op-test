@@ -226,6 +226,11 @@ class SystemIPLSuite():
     def suite(self):
         return OpTestSystemBootSequence.suite()
 
+class CrashSuite():
+    '''Crash Test Suite'''
+    def suite(self):
+        return OpTestKernel.crash_suite()
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -244,6 +249,8 @@ suites = {
     'full-inbandipmi' : InbandIPMISuite(),
     'full-outofbandipmi' : OutofbandIPMISuite(),
     'full-occ' : OCCSuite(),
+    'crash-suite' : CrashSuite(),
+    'system-ipl' : SystemIPLSuite(),
     'full' : FullSuite(),
 }
 

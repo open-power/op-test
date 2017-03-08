@@ -36,40 +36,25 @@ import re
 import sys
 import pexpect
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestSystem import OpTestSystem
-from common.OpTestUtil import OpTestUtil
+
+import unittest
+import OpTestConfiguration
+from common.OpTestSystem import OpSystemState
 
 
-class OpTestKernel():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostIP The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostPasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostPasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostPasswd, i_bmcIP)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
-        self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                         i_hostuser, i_hostPasswd)
-        self.util = OpTestUtil()
+class OpTestKernelBase(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_HOST = conf.host()
+        self.platform = conf.platform()
+        self.bmc_type = conf.args.bmc_type
+        self.util = self.cv_SYSTEM.util
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
 
     ##
     # @brief This function will test the kernel crash followed by system
@@ -79,33 +64,40 @@ class OpTestKernel():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def test_kernel_crash(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-
+    def kernel_crash(self):
         # Get OS level
         self.cv_HOST.host_get_OS_Level()
 
         # Get Kernel Version
         l_kernel = self.cv_HOST.host_get_kernel_version()
 
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.host_console_login()
 	self.cv_SYSTEM.host_console_unique_prompt()
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("uname -a")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("cat /etc/os-release")
-        self.cv_IPMI.run_host_cmd_on_ipmi_console("echo 10  > /proc/sys/kernel/panic")
-        l_con.sendline("echo c > /proc/sysrq-trigger")
+        console.run_command("uname -a")
+        console.run_command("cat /etc/os-release")
+        console.run_command("echo 10  > /proc/sys/kernel/panic")
+        console.sol.sendline("echo c > /proc/sysrq-trigger")
         try:
-            l_con.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
-            self.cv_IPMI.ipmi_close_console(l_con)
+            console.sol.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
+            console.close()
         except pexpect.EOF:
             print "Waiting for system to IPL...."
         except pexpect.TIMEOUT:
             raise OpTestError("System failed to reach Petitboot")
-        self.cv_SYSTEM.sys_check_host_status_v1()
+        # Seeing an issue here autoboot is disabling, stops at petitboot(It will effect other tests to fail)
+        # TODO: Remove this extra IPL it is not necessary.
+        try:
+            self.cv_SYSTEM.sys_check_host_status_v1()
+        except OpTestError:
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         print "System booted fine to host OS..."
         return BMC_CONST.FW_SUCCESS
+
+class KernelCrash_KdumpEnable(OpTestKernelBase):
 
     ##
     # @brief This function will test the kernel crash followed by crash kernel dump
@@ -116,11 +108,14 @@ class OpTestKernel():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def test_kernel_crash_kdump_enable(self):
+    def runTest(self):
         self.cv_HOST.host_check_command("kdump")
         os_level = self.cv_HOST.host_get_OS_Level()
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
-        self.test_kernel_crash()
+        self.kernel_crash()
+
+class KernelCrash_KdumpDisable(OpTestKernelBase):
 
     ##
     # @brief This function will test the kernel crash followed by system IPL
@@ -130,8 +125,15 @@ class OpTestKernel():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def test_kernel_crash_kdump_disable(self):
+    def runTest(self):
         self.cv_HOST.host_check_command("kdump")
         os_level = self.cv_HOST.host_get_OS_Level()
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_disable_kdump_service(os_level)
-        self.test_kernel_crash()
+        self.kernel_crash()
+
+def crash_suite():
+    s = unittest.TestSuite()
+    s.addTest(KernelCrash_KdumpEnable())
+    s.addTest(KernelCrash_KdumpDisable())
+    return s
