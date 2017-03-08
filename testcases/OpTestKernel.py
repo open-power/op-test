@@ -42,7 +42,7 @@ from common.OpTestError import OpTestError
 import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-
+from common.OpTestHost import SSHConnectionState
 
 class OpTestKernelBase(unittest.TestCase):
     def setUp(self):
@@ -54,6 +54,7 @@ class OpTestKernelBase(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         self.util = self.cv_SYSTEM.util
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
 
     ##
@@ -79,21 +80,15 @@ class OpTestKernelBase(unittest.TestCase):
         console.run_command("echo 10  > /proc/sys/kernel/panic")
         console.sol.sendline("echo c > /proc/sysrq-trigger")
         try:
-            console.sol.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
-            console.close()
+            console.sol.expect('login:', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
         except pexpect.EOF:
             print "Waiting for system to IPL...."
         except pexpect.TIMEOUT:
-            raise OpTestError("System failed to reach Petitboot")
-        # Seeing an issue here autoboot is disabling, stops at petitboot(It will effect other tests to fail)
-        # TODO: Remove this extra IPL it is not necessary.
-        try:
-            self.cv_SYSTEM.sys_check_host_status_v1()
-        except OpTestError:
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
-
+            raise OpTestError("System failed to reach host")
+        self.cv_SYSTEM.sys_check_host_status_v1()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        console.close()
+        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         print "System booted fine to host OS..."
         return BMC_CONST.FW_SUCCESS
 
