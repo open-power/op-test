@@ -50,40 +50,29 @@ import commands
 import re
 import sys
 
-from common.OpTestBMC import OpTestBMC
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
-from common.OpTestHost import OpTestHost
-from common.OpTestSystem import OpTestSystem
-from common.OpTestUtil import OpTestUtil
+import unittest
+import OpTestConfiguration
+from common.OpTestSystem import OpSystemState
 
+class OpTestSystemBootSequence(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_BMC = self.cv_SYSTEM.bmc
+        self.cv_HOST = conf.host()
+        self.util = self.cv_SYSTEM.util
+        self.platform = conf.platform()
+        self.bmc_type = conf.args.bmc_type
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-class OpTestSystemBootSequence():
-    ##  Initialize this object
-    #  @param i_bmcIP The IP address of the BMC
-    #  @param i_bmcUser The userid to log into the BMC with
-    #  @param i_bmcPasswd The password of the userid to log into the BMC with
-    #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
-    #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
-    #
-    # "Only required for inband tests" else Default = None
-    # @param i_hostip The IP address of the HOST
-    # @param i_hostuser The userid to log into the HOST
-    # @param i_hostpasswd The password of the userid to log into the HOST with
-    #
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPasswd,
-                 i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir=None, i_hostip=None,
-                 i_hostuser=None, i_hostpasswd=None):
-        self.cv_BMC = OpTestBMC(i_bmcIP, i_bmcUser, i_bmcPasswd, i_ffdcDir)
-        self.cv_HOST = OpTestHost(i_hostip, i_hostuser, i_hostpasswd, i_bmcIP, i_ffdcDir)
-        self.cv_IPMI = OpTestIPMI(i_bmcIP, i_bmcUserIpmi, i_bmcPasswdIpmi,
-                                  i_ffdcDir, host=self.cv_HOST)
-        self.cv_SYSTEM = OpTestSystem(i_bmcIP, i_bmcUser, i_bmcPasswd,
-                         i_bmcUserIpmi, i_bmcPasswdIpmi, i_ffdcDir, i_hostip,
-                         i_hostuser, i_hostpasswd)
-        self.util = OpTestUtil()
+    def tearDown(self):
+        # Reset the system power policy back to "always-off" at the end of test
+        self.cv_IPMI.ipmi_set_power_policy("always-off")
+
+class ColdReset_IPL(OpTestSystemBootSequence):
 
     ##
     # @brief This function will test mc cold reset boot sequence
@@ -96,21 +85,11 @@ class OpTestSystemBootSequence():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def testMcColdResetBootSequence(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
         print "Testing MC Cold reset boot sequence"
         print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+
         print "Setting the system power policy to always-off"
         self.cv_IPMI.ipmi_set_power_policy("always-off")
 
@@ -119,13 +98,9 @@ class OpTestSystemBootSequence():
 
         print "Performing a IPMI Power ON Operation"
         # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        print "Gathering the OPAL msg logs"
-        self.cv_HOST.host_gather_opal_msg_log()
-        return BMC_CONST.FW_SUCCESS
+class WarmReset_IPL(OpTestSystemBootSequence):
 
     ##
     # @brief This function will test mc warm reset boot sequence
@@ -138,21 +113,11 @@ class OpTestSystemBootSequence():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def testMcWarmResetBootSequence(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
         print "Testing MC Warm reset boot sequence"
         print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+
         print "Setting the system power policy to always-off"
         self.cv_IPMI.ipmi_set_power_policy("always-off")
 
@@ -160,14 +125,9 @@ class OpTestSystemBootSequence():
         self.cv_IPMI.ipmi_warm_reset()
 
         print "Performing a IPMI Power ON Operation"
-        # Perform a IPMI Power ON Operation
-        self.cv_IPMI.ipmi_power_on()
-        self.cv_SYSTEM.sys_check_host_status()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        print "Gathering the OPAL msg logs"
-        self.cv_HOST.host_gather_opal_msg_log()
-        return BMC_CONST.FW_SUCCESS
+class PowerPolicyOFF_IPL(OpTestSystemBootSequence):
 
     ##
     # @brief This function will test system auto reboot policy always-off.
@@ -181,23 +141,16 @@ class OpTestSystemBootSequence():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def testSystemPowerPolicyOff(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
         print "Testing System Power Policy:always-off"
         print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+
         print "Setting the system power policy to always-off"
         self.cv_IPMI.ipmi_set_power_policy("always-off")
+
+        fail = False
+        l_msg = ""
         # Perform a BMC Cold Reset Operation
         if int(self.cv_SYSTEM.sys_cold_reset_bmc()) == BMC_CONST.FW_SUCCESS:
             print "System auto reboot policy for always-off works as expected"
@@ -207,14 +160,13 @@ class OpTestSystemBootSequence():
             self.cv_IPMI.ipmi_power_on()
         else:
             print "Power restore policy failed"
-            l_msg = "Fail: chassis policy always-off making the system to auto boot"
-            print l_msg
+            fail = True
+            l_msg = "IPLTest: chassis policy always-off making the system to auto boot"
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.assertFalse(fail, l_msg)
 
-        print "Gathering the OPAL msg logs"
-        self.cv_HOST.host_gather_opal_msg_log()
-        return BMC_CONST.FW_SUCCESS
+class PowerPolicyON_IPL(OpTestSystemBootSequence):
 
     ##
     # @brief This function will test system auto reboot policy always-on.
@@ -228,40 +180,32 @@ class OpTestSystemBootSequence():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def testSystemPowerPolicyOn(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
         print "Testing System Power Policy:Always-ON"
         print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+
         print "Setting the system power policy to always-on"
         self.cv_IPMI.ipmi_set_power_policy("always-on")
 
+        fail = False
+        l_msg = ""
         # Perform a BMC Cold Reset Operation
         if int(self.cv_SYSTEM.sys_cold_reset_bmc()) == BMC_CONST.FW_FAILED:
             print "System auto reboot policy for always-on works as expected"
             print "System Power status changed as expected"
         else:
             print "Power restore policy failed"
-            l_msg = "Fail: chassis policy always-on making the system not to auto boot"
+            fail = True
+            l_msg = "IPLTest: chassis policy always-on making the system not to auto boot"
             print "Performing a IPMI Power ON Operation"
             # Perform a IPMI Power ON Operation
             self.cv_IPMI.ipmi_power_on()
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.assertFalse(fail, l_msg)
 
-        print "Gathering the OPAL msg logs"
-        self.cv_HOST.host_gather_opal_msg_log()
-        return BMC_CONST.FW_SUCCESS
+class PowerPolicyPrevious_IPL(OpTestSystemBootSequence):
 
     ##
     # @brief This function will test system auto reboot policy previous
@@ -275,24 +219,15 @@ class OpTestSystemBootSequence():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def testSystemPowerPolicyPrevious(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+    def runTest(self):
         print "Testing System Power Policy:previous"
         print "Performing a IPMI Power OFF Operation"
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
-        if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
-        elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+
         print "Setting the system power policy to previous"
         self.cv_IPMI.ipmi_set_power_policy("previous")
-
+        fail = False
+        l_msg = ""
         # Perform a BMC Cold Reset Operation
         if int(self.cv_SYSTEM.sys_cold_reset_bmc()) == BMC_CONST.FW_SUCCESS:
             print "System auto reboot policy for previous works as expected"
@@ -302,11 +237,11 @@ class OpTestSystemBootSequence():
             self.cv_IPMI.ipmi_power_on()
         else:
             print "Power restore policy failed"
-            l_msg = "Fail: chassis policy previous making the system to auto boot"
-            print l_msg
+            fail = True
+            l_msg = "IPLTest: chassis policy previous making the system to auto boot"
         self.cv_SYSTEM.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-
+        self.assertFalse(fail, l_msg)
 
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
@@ -316,12 +251,15 @@ class OpTestSystemBootSequence():
             print "System Power status not changed"
         else:
             print "Power restore policy previous failed"
-            l_msg = "Fail: chassis policy previous making the system to change power status"
-            print l_msg
-            # Perform a IPMI Power ON Operation
-            self.cv_IPMI.ipmi_power_on()
-            self.cv_SYSTEM.sys_check_host_status()
-            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+            l_msg = "IPLTest: chassis policy previous making the system to change power status"
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            raise l_msg
 
-            print "Gathering the OPAL msg logs"
-            self.cv_HOST.host_gather_opal_msg_log()
+def suite():
+    s = unittest.TestSuite()
+    s.addTest(ColdReset_IPL())
+    s.addTest(WarmReset_IPL())
+    s.addTest(PowerPolicyOFF_IPL())
+    s.addTest(PowerPolicyON_IPL())
+    s.addTest(PowerPolicyPrevious_IPL())
+    return s
