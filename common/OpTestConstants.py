@@ -444,3 +444,8 @@ class OpTestConstants():
     SENSOR_HOST_STATUS = "Host Status"
     SENSOR_OS_BOOT = "OS Boot"
     SENSOR_OCC_ACTIVE = "OCC Active"
+
+    OPAL_ELOG_DIR = "/var/log/opal-elog"
+    OPAL_DUMP_DIR = "/var/log/dump/"
+    OPAL_ELOG_SYSFS_DIR = "/sys/firmware/opal/elog"
+    OPAL_DUMP_SYSFS_DIR = "/sys/firmware/opal/dump"

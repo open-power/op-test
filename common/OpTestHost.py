@@ -63,6 +63,8 @@ class SSHConnection():
         self.username = username
         self.password = password
         self.state = SSHConnectionState.DISCONNECTED
+
+    def new_pxssh(self):
         # pxssh has a nice 'echo=False' mode, but only
         # on more recent distros, so we can't use it :(
         p = pxssh.pxssh()
@@ -72,6 +74,7 @@ class SSHConnection():
         p.force_password = True
         p.logfile = sys.stdout
         self.pxssh = p
+        return p
 
     def terminate(self):
         if self.state == SSHConnectionState.CONNECTED:
@@ -85,7 +88,7 @@ class SSHConnection():
             self.state = SSHConnectionState.DISCONNECTED
 
         print "#SSH CONNECT"
-        p = self.pxssh
+        p = self.new_pxssh()
         p.login(self.ip, self.username, self.password)
         p.sendline()
         p.prompt(timeout=60)

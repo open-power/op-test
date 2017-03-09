@@ -57,6 +57,7 @@ from testcases import OpTestOOBIPMI
 from testcases import OpTestOCC
 from testcases import OpTestSystemBootSequence
 from testcases import OpTestMCColdResetEffects
+from testcases import OpTestDumps
 from testcases import HostLogin
 import testcases
 
@@ -229,6 +230,13 @@ class CrashSuite():
     def suite(self):
         return OpTestKernel.crash_suite()
 
+class FspOpalSuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestDumps.suite())
+    def suite(self):
+        return self.s
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -249,6 +257,7 @@ suites = {
     'full-occ' : OCCSuite(),
     'crash-suite' : CrashSuite(),
     'system-ipl' : SystemIPLSuite(),
+    'fsp-opal-suite' :  FspOpalSuite(),
     'full' : FullSuite(),
 }
 
