@@ -56,6 +56,7 @@ from testcases import OpTestNVRAM
 from testcases import OpTestOOBIPMI
 from testcases import OpTestOCC
 from testcases import HostLogin
+from testcases import OpalMsglog
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -80,6 +81,7 @@ class SkirootSuite():
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
+        self.s.addTest(OpalMsglog.Skiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
         return self.s
@@ -103,6 +105,7 @@ class HostSuite():
         self.s.addTest(OpTestNVRAM.HostNVRAM())
         self.s.addTest(OpTestHeartbeat.HeartbeatHost())
         self.s.addTest(OpTestSensors.OpTestSensors())
+        self.s.addTest(OpalMsglog.Host())
     def suite(self):
         return self.s
 
