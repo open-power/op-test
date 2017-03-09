@@ -59,6 +59,11 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.host_console_unique_prompt()
+        cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+
+        if cpu not in ["POWER8", "POWER8E"]:
+            self.skipTest("Fast Reboot not supported on %s" % cpu)
+
         c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
