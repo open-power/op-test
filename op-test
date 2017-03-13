@@ -62,6 +62,7 @@ from testcases import HostLogin
 from testcases import OpalMsglog
 from testcases import OpTestFlash
 from testcases import OpalErrorLog
+from testcases import LightPathDiagnostics
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -240,6 +241,7 @@ class FspOpalSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestDumps.suite())
         self.s.addTest(OpalErrorLog.OpalErrorLog())
+        self.s.addTest(LightPathDiagnostics.suite())
     def suite(self):
         return self.s
 
