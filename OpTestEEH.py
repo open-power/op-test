@@ -42,9 +42,8 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
-EEH_RECOVERY_PASS = 0
-EEH_RECOVERY_FAIL = 1
-EEH_MISS = 2
+EEH_HIT = 0
+EEH_MISS = 1
 class EEHRecoveryFailed(Exception):
     def __init__(self, thing, dev, log=None):
         self.thing = thing
@@ -96,22 +95,23 @@ class OpTestEEH(unittest.TestCase):
 
     def check_eeh_hit(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        res = c.run_command("dmesg")
-        res = ' '.join(res)
-        if 'EEH: Frozen' in res:
-            print "HIT"
-            return True
+        tries = 30
+        for i in range(1, tries+1):
+            res = c.run_command("dmesg | grep 'EEH: Frozen';echo $?")
+            if int(res[-1]) == 0:
+                return True
+            time.sleep(1)
         else:
-            print "MISS"
             return False
 
     def check_eeh_removed(self):
+        tries = 30
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        res = c.run_command("dmesg")
-        res = ' '.join(res)
-        if  'permanently disabled' is res:
-            print "Card Disabled"
-            return True
+        for i in range(1, tries+1):
+            res = c.run_command("dmesg | grep 'permanently disabled'; echo $?")
+            if int(res[-1]) == 0:
+                return True
+            time.sleep(1)
         else:
             return False
     
@@ -170,31 +170,15 @@ class OpTestEEH(unittest.TestCase):
     #
     def run_pe_4(self, addr, e, f, phb, pe, con):
         self.prepare_logs()
-    #    count_old = self.check_eeh_slot_resets()
         rc = self.inject_error(addr, e, f, phb, pe)
         if rc != 0:
             print "Skipping verification as command failed"
             return EEH_MISS
-        # Give some time to EEH PCI Error recovery
-     #   tries = 60
-     #   for i in range(1,tries):
-     #       time.sleep(1)
-     #       count = self.check_eeh_slot_resets()
-     #       if int(count) > int(count_old):
-     #           print "PE Slot reset happenned successfully on pe: %s" % pe
-     #           break
-     #       else:
-     #           print "PE Slot reset pe: %s, not yet done, (%d/%d)" % (pe,i,tries)
-        self.gather_logs()
-        if not self.check_eeh_pe_recovery(pe):
-            msg = "PE %s recovery failed" % pe
-            print msg
-            # Don't exit here, continue to test with other adapters
-            #raise OpTestError(msg)
-            return EEH_RECOVERY_FAIL
+        if not self.check_eeh_hit():
+            return EEH_MISS
         else:
-            print "PE %s recovery success" % pe
-        return EEH_RECOVERY_PASS
+            print "PE %s EEH hit success" % pe
+            return EEH_HIT
 
 
     ##
@@ -229,7 +213,6 @@ class OpTestEEH(unittest.TestCase):
         cmd = "cat /proc/powerpc/eeh | tail -n 1"
         count = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
         output = (count[-1].split("="))[1]
-        print output
         return output
 
 
@@ -241,18 +224,18 @@ class OpTestEEH(unittest.TestCase):
     # @returns True/False @type boolean
     #
     def check_eeh_pe_recovery(self, pe):
-     #   cmd = "dmesg  | grep -i 'iommu: Removing device'; echo $?"
-     #   tries = 30
-     #   for i in range(1, tries+1):
-     #       res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
-     #       if int(res[-1]):
-     #           print "Waiting for PE %s removal: (%d/%d)" % (pe, i, tries)
-     #           time.sleep(1)
-     #       else:
-	 #		    break
-     #   else:
-     #       raise EEHRemoveFailed("PE", pe)
+        cmd = "dmesg  | grep -i 'EEH: Notify device driver to resume'; echo $?"
         tries = 60
+        for i in range(1, tries+1):
+            res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+            if int(res[-1]):
+                print "Waiting for PE %s EEH Completion: (%d/%d)" % (pe, i, tries)
+                time.sleep(1)
+            else:
+                break
+        else:
+            raise EEHRecoveryFailed("EEH recovery failed") 
+        tries = 30
         for j in range(1, tries+1):
             list = self.get_list_of_pci_devices()
             for device in list:
@@ -299,7 +282,7 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
             print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
             l_con.run_command(cmd)
             # Give some time to EEH PCI Error recovery
-            tries = 60
+            tries = 30
             recovery_done = False
             for i in range(1,tries):
                 time.sleep(1)
@@ -309,7 +292,6 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
                     break
                 else:
                     print "#Waiting for PHB %s recovery. (%d/%d)" % (domain,i,tries)
-            self.gather_logs()
             if not recovery_done:
                 self.gather_logs()
                 raise EEHRecoveryFailed("PHB domain", domain)
@@ -436,7 +418,16 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
                 if any(phb in s for s in pci_domains):
                     for f in func:
                         print "==========================Running error injection on pe %s func %s======================" % (pe, f)
-                        self.run_pe_4(addr, e, f, phb, pe, l_con)
+                        rc = 1
+                        rc = self.run_pe_4(addr, e, f, phb, pe, l_con)
+                        if rc == 1:
+                            continue
+                        elif not self.check_eeh_pe_recovery(pe):
+                            print "PE %s failed to recover after injecting EEH error" % pe
+							# TODO: Cleanup stage raise EEHRecoveryFailed("PE ", pe)
+                            break
+                        print "PE recovered successfully"
+                        self.check_eeh_slot_resets()
 
 
 class OpTestEEHmax_frozen_pe(OpTestEEH):
@@ -501,31 +492,27 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
                 if any(phb in s for s in pci_domains):
                     for f in func:
                         print "==========================Running error injection on pe %s func %s======================" % (pe, f)
-                        rc = -1
+                        rc = 1
                         rc = self.run_pe_4(addr, e, f, phb, pe, l_con)
-                        if rc == 2:
-                            break
-                        elif rc == 1:
-                            self.gather_logs()
-                            raise EEHRecoveryFailed("PE", pe)
+                        if rc == 1:
+                            continue
                         else:
-                            if self.check_eeh_hit():
-                                rc = -1
-                                rc = self.run_pe_4(addr, e, f, phb, pe, l_con)
-                                if rc == 2:
-                                    print "2nd time error injection failed"
-                                    break
-                                #elif rc == 1:
-                                #    print "PE removed successfully"
-                                #    pe_removed = True
-                                elif self.check_eeh_removed():
-                                    print "PE removed successfully"  
-                               # else:
-                               #     self.gather_logs()
-                               #     raise EEHRemoveFailed("PE", pe)
-                    if pe_removed:
-                        break
-
+                            if not self.check_eeh_pe_recovery(pe):
+                                print "PE %s recovery failed after first EEH error" % pe
+                                #TODO raise EEHRecoveryFailed("PE ", pe)
+                                break
+                            print "PE recovered after first EEH error"
+                            self.check_eeh_slot_resets()
+                            rc = 1
+                            rc = self.run_pe_4(addr, e, f, phb, pe, l_con)
+                            if rc == 1:
+                                print "2nd time error injection failed"
+                                break
+                            if not self.check_eeh_removed():
+                                print "PE %s remove failed" % pe
+                                #TODO raise EEHRemoveFailed("PE", pe)
+                            print "PE removed successfully"
+                            break
 
 
 def suite():
