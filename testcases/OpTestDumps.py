@@ -146,6 +146,7 @@ class SYSTEM_DUMP(OpTestDumps):
         self.cv_FSP.trigger_system_dump()
         self.cv_FSP.wait_for_systemdump_to_finish()
         self.cv_FSP.wait_for_runtime()
+        '''
         console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
         console.sendline()
         console.expect("login:", timeout=600)
@@ -160,7 +161,7 @@ class SYSTEM_DUMP(OpTestDumps):
         self.assertIn("HostBoot-Runtime-log", res, "sysdump test failed in dumping HBRT section")
         self.assertIn("printk", res, "sysdump test failed in dumping printk section")
         print "sysdump test completed successfully"
-
+        '''
 
 class FIPS_DUMP(OpTestDumps):
 

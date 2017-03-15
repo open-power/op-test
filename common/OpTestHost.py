@@ -1236,3 +1236,15 @@ class OpTestHost():
             self.host_run_command("systemctl start kdump.service")
             self.host_run_command("service status kdump.service")
 
+    def host_check_sysfs_path_availability(self, path):
+        res = self.host_run_command("ls %s" % path)
+        if "No such file or directory" in res:
+            return False
+        return True
+
+    def host_check_dt_node_exist(self, node_path):
+        path = "/proc/device-tree/" + node_path
+        res = self.host_run_command("ls %s" % path)
+        if "No such file or directory" in res:
+            return False
+        return True
