@@ -103,6 +103,9 @@ class OpTestSystem(object):
     def has_host_accessible_eeprom(self):
         return True
 
+    def has_host_led_support(self):
+        return False
+
     def host(self):
         return self.cv_HOST
 
@@ -1261,6 +1264,10 @@ class OpTestFSPSystem(OpTestSystem):
 
     def has_host_accessible_eeprom(self):
         return False
+
+    def has_host_led_support(self):
+        return True
+
 
 class OpTestOpenBMCSystem(OpTestSystem):
     def __init__(self,
