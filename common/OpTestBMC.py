@@ -169,7 +169,7 @@ class OpTestBMC():
     def pnor_img_transfer(self,i_imageDir,i_imageName):
 
         pnor_path = i_imageDir + i_imageName
-        rsync_cmd = 'rsync -v -e "ssh -k" %s %s@%s:/tmp' % (pnor_path,
+        rsync_cmd = 'rsync -v -e "ssh -k -o StrictHostKeyChecking=no" %s %s@%s:/tmp' % (pnor_path,
                                                             self.cv_bmcUser,
                                                             self.cv_bmcIP)
 
