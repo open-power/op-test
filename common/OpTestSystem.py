@@ -464,7 +464,7 @@ class OpTestSystem(object):
     #
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
-    def sys_sel_check(self,i_string):
+    def sys_sel_check(self,i_string="Transition to Non-recoverable"):
         try:
             rc = self.cv_IPMI.ipmi_sel_check(i_string)
         except OpTestError as e:
@@ -1232,10 +1232,10 @@ class OpTestSystem(object):
         console.sendline('exit')
         self.wait_for_petitboot()
 
-    def wait_for_login(self):
+    def wait_for_login(self, timeout=600):
         console = self.console.get_console()
         console.sendline('')
-        console.expect('login: ')
+        console.expect('login: ', timeout)
 
 
 class OpTestFSPSystem(OpTestSystem):
