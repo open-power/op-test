@@ -50,11 +50,12 @@ class OpalErrorLog(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     def opal_elog_init(self):
-        if "FSP" not in self.bmc_type:
-            self.skipTest("FSP Platform OPAL Error log tests")
-
         rc = self.cv_HOST.host_check_sysfs_path_availability("/sys/firmware/opal/elog/")
-        self.assertTrue(rc, "opal elog sysfs path is not available in host")
+        if "FSP" in self.bmc_type:
+            self.assertTrue(rc, "opal elog sysfs path is not available in host")
+        else:
+            self.skipTest("elog test not implemented for non-FSP systems")
+
         self.cv_FSP.fsp_get_console()
         if not self.cv_FSP.mount_exists():
             raise OpTestError("Please mount NFS and retry the test")
@@ -66,14 +67,11 @@ class OpalErrorLog(unittest.TestCase):
         self.assertTrue(self.cv_HOST.host_get_status_of_opal_errd_daemon(),
                 "opal_errd daemon is failed to start")
 
-    def tearDown(self):
-        self.cv_HOST.host_gather_opal_msg_log()
-        self.cv_HOST.host_gather_kernel_log()
 
 class BasicTest(OpalErrorLog):
 
     def count(self):
-        self.count = 128
+        self.count = 8
         return self.count
 
     ##
@@ -105,6 +103,9 @@ class BasicTest(OpalErrorLog):
                 break
             time.sleep(1)
             print "Waiting for transfer of error logs to Host: (%d\%d)" % (j, tries)
+        if not transfer_complete:
+                self.cv_HOST.host_gather_opal_msg_log()
+                self.cv_HOST.host_gather_kernel_log()
         self.assertTrue(transfer_complete, "Failed to transfer all error logs to Host in a minute")
         self.cv_FSP.clear_errorlogs_in_fsp()
 
