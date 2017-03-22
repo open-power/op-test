@@ -15,9 +15,17 @@ ready.
 
 This framework runs on most Linux based systems.
 
-You need python 2.7 or greater.
+You need python 2.7 or greater and python-pip.
 
+    sudo apt-get install python python-pip
+
+You need pexpect.
+
+    sudo pip install pexpect
+    
 You will also need (recent) ipmiutil - 1.8.15 or above should be adequate.
+
+	sudo apt install ipmiutil
 
 You will need to run the test suite on a machine that has access to both
 the BMC and the host of the machine(s) you're testing.
@@ -64,14 +72,15 @@ Gets you help on what you can run. You will need to (at a minimum) provide
 BMC and host login information. For example, to run the default test suite:
 
     ./op-test --bmc-ip bmc.example.com   \
-    	      --bmc-username sysadmin    \
-	      --bmc-password superuser   \
-	      --bmc-usernameipmi ADMIN   \
-	      --bmc-passwordipmi admin   \
-	      --host-ip host.example.com \
-	      --host-user root		 \
-	      --host-password 1234	 \
-	      --host-lspci host.example.com-lspci.txt
+              --bmc-type AMI    \
+              --bmc-username sysadmin    \
+              --bmc-password superuser   \
+              --bmc-usernameipmi ADMIN   \
+              --bmc-passwordipmi admin   \
+              --host-ip host.example.com \
+              --host-user root		 \
+              --host-password 1234	 \
+              --host-lspci host.example.com-lspci.txt
 
 The default test suite will then run.
 
@@ -89,17 +98,17 @@ You can also run individual tests by using the `--run` option.
 For example:
 
       ./op-test --bmc-ip bmc.example.com \
-      		--bmc-username sysadmin  \
-		--bmc-password superuser \
-		--bmc-usernameipmi ADMIN \
-		--bmc-passwordipmi admin \
-		--host-ip host.example.com \
-		--host-user root 	   \
-		--host-password 1234	   \
-		--host-lspci host.example.com-lspci.txt \
-		--machine-state PETITBOOT_SHELL \
-		--run testcases.OpTestPCI.OpTestPCISkiroot
+                --bmc-type AMI    \
+                --bmc-username sysadmin  \
+                --bmc-password superuser \
+                --bmc-usernameipmi ADMIN \
+                --bmc-passwordipmi admin \
+                --host-ip host.example.com \
+                --host-user root 	   \
+                --host-password 1234	   \
+                --host-lspci host.example.com-lspci.txt \
+                --machine-state PETITBOOT_SHELL \
+                --run testcases.OpTestPCI.OpTestPCISkiroot
 
 The above will assume the machine is sitting at the petitboot prompt
 and will run the OpTestPCISkiroot test.
-
