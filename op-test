@@ -64,6 +64,7 @@ from testcases import OpTestFlash
 from testcases import OpalErrorLog
 from testcases import LightPathDiagnostics
 from testcases import DPO
+from testcases import EPOW
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -249,6 +250,7 @@ class FspOpalSuite():
         self.s.addTest(OpalErrorLog.BasicTest())
         self.s.addTest(OpalErrorLog.FullTest())
         self.s.addTest(LightPathDiagnostics.extended_suite())
+        self.s.addTest(EPOW.suite())
     def suite(self):
         return self.s
 

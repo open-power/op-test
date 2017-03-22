@@ -426,3 +426,23 @@ class OpTestFSP():
             return True
         else:
             raise OpTestError("FSP: Error logs are not getting cleared in FSP")
+
+    ##
+    # @brief Get machine type model from fsp
+    # @returns string or raises exception
+    #
+    def get_raw_mtm(self):
+        self.fsp_MTM = self.fspc.run_command("registry -r svpd/Raw_MachineTypeModel")
+        return self.fsp_MTM
+
+    ##
+    # @brief Power on system from fsp
+    # @returns None or raises exception
+    #
+    def fsp_issue_power_on(self):
+        print "PowerOn Machine"
+        output = self.fspc.run_command("plckIPLRequest 0x01")
+        if "SUCCESS" in output:
+            return
+        else:
+            raise OpTestError("Failed to power on the machine from FSP")
