@@ -51,13 +51,36 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
 
+    def number_reboots_to_do(self):
+        return 1;
+
+    def boot_to_os(self):
+        return False
+
+    def get_fast_reset_count(self, c):
+        count = 0
+        l = c.run_command("grep 'RESET: Initiating fast' /sys/firmware/opal/msglog")
+        for line in l:
+            m = re.search('RESET: Initiating fast reboot ([0-9]*)', line)
+            if m:
+                if (int(m.group(1)) > count):
+                    count = int(m.group(1))
+        return count
+
     ##
     # @brief  This function tests fast reset of power systems.
     #         It will check booting sequence when reboot command
     #         getting executed in both petitboot and host OS
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        if self.boot_to_os():
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        else:
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
         c = self.cv_SYSTEM.sys_get_ipmi_console()
+        if self.boot_to_os():
+            self.cv_SYSTEM.host_console_login()
+            c.get_console().sendline("exec bash --norc --noprofile")
         self.cv_SYSTEM.host_console_unique_prompt()
         cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
 
@@ -67,23 +90,49 @@ class OpTestFastReboot(unittest.TestCase):
         c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
-        initialResetCount = c.run_command("grep -c 'RESET: Initiating fast' /sys/firmware/opal/msglog")
-        # We do some funny things with the raw console here, as
-        # 'reboot' isn't meant to return, so we want the raw
-        # pexpect 'console'.
-        self.con = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
-        self.con.sendline("reboot")
-        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
-        # We're looking for a skiboot log message, that it's doing fast
-        # rebot. We *may* not get this, as on some systems (notably IBM
-        # FSP based systems) the skiboot log is *not* printed to IPMI
-        # console
-        if self.cv_SYSTEM.skiboot_log_on_console():
-            self.con.expect(" RESET: Initiating fast reboot", timeout=60)
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_SYSTEM.host_console_unique_prompt()
+        initialResetCount = self.get_fast_reset_count(c)
+        print ""
+        print "INITIAL reset count: %d" % initialResetCount
+        for i in range(1, self.number_reboots_to_do()):
+            loopResetCount = self.get_fast_reset_count(c)
+            # We do some funny things with the raw console here, as
+            # 'reboot' isn't meant to return, so we want the raw
+            # pexpect 'console'.
+            self.con = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+            self.con.sendline("reboot")
+            self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+            # We're looking for a skiboot log message, that it's doing fast
+            # reboot. We *may* not get this, as on some systems (notably IBM
+            # FSP based systems) the skiboot log is *not* printed to IPMI
+            # console
+            if self.cv_SYSTEM.skiboot_log_on_console():
+                self.con.expect(" RESET: Initiating fast reboot", timeout=60)
+            if self.boot_to_os():
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                self.cv_SYSTEM.host_console_login()
+                c.get_console().sendline("exec bash --norc --noprofile")
+            else:
+                self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.cv_SYSTEM.host_console_unique_prompt()
+            newResetCount = self.get_fast_reset_count(c)
+            self.assertTrue( loopResetCount < newResetCount, "Did not do fast reboot")
+            self.assertTrue( initialResetCount < newResetCount, "Did not do fast reboot")
+            print "Completed Fast reboot cycle %d" % i
+
         c.run_command(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertNotIn("feeling-lucky", res, "Failed to set the fast-reset mode")
-        newResetCount = c.run_command("grep -c 'RESET: Initiating fast' /sys/firmware/opal/msglog")
-        self.assertTrue( int(''.join(initialResetCount)) < int(''.join(newResetCount)), "Did not do fast reboot")
+
+class FastRebootHost(OpTestFastReboot):
+    def boot_to_os(self):
+        return True
+
+class FastRebootHostTorture(FastRebootHost):
+    def boot_to_os(self):
+        return True
+    def number_reboots_to_do(self):
+        return 1000
+
+class FastRebootTorture(OpTestFastReboot):
+    def number_reboots_to_do(self):
+        return 1000
