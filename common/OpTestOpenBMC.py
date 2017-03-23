@@ -24,6 +24,7 @@ try:
     import pxssh
 except ImportError:
     from pexpect import pxssh
+from OpTestIPMI import OpTestIPMI
 
 class ConsoleState():
     DISCONNECTED = 0
@@ -109,10 +110,11 @@ class HostConsole():
 
 
 class OpTestOpenBMC():
-    def __init__(self, ip=None, username=None, password=None):
+    def __init__(self, ip=None, username=None, password=None, ipmi=None):
         self.hostname = ip
         self.username = username
         self.password = password
+        self.ipmi = ipmi
         # We kind of hack our way into pxssh by setting original_prompt
         # to also be \n, which appears to fool it enough to allow us
         # continue.
@@ -122,7 +124,7 @@ class OpTestOpenBMC():
         return self.hostname
 
     def get_ipmi(self):
-        return None
+        return self.ipmi
 
     def get_host_console(self):
         return self.console

@@ -128,9 +128,14 @@ class OpTestConfiguration():
                 host=host,
             )
         elif self.args.bmc_type in ['OpenBMC']:
+            ipmi = OpTestIPMI(self.args.bmc_ip,
+                              self.args.bmc_usernameipmi,
+                              self.args.bmc_passwordipmi,
+                              self.args.ffdcdir, host=host)
             bmc = OpTestOpenBMC(self.args.bmc_ip,
                                 self.args.bmc_username,
-                                self.args.bmc_password)
+                                self.args.bmc_password,
+                                ipmi=ipmi)
             self.op_system = OpTestOpenBMCSystem(
                 host=host,
                 bmc=bmc,
