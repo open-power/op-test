@@ -1214,7 +1214,7 @@ class OpTestSystem(object):
     def wait_for_kexec(self):
         console = self.console.get_console()
         # Wait for kexec to start
-        console.expect('Performing kexec', timeout=60)
+        console.expect(['Performing kexec','kexec_core: Starting new kernel'], timeout=60)
 
     def petitboot_exit_to_shell(self):
         console = self.console.get_console()
