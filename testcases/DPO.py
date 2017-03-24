@@ -33,6 +33,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
 
 import unittest
+import pexpect
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
