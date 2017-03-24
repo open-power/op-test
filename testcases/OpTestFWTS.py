@@ -56,6 +56,8 @@ class FWTSTest(unittest.TestCase):
         if not (self.SUBTEST_RESULT.get('failure_label') == 'None'):
             if re.match('Property of "(status|manufacturer-id|part-number|serial-number)" for "/sys/firmware/devicetree/base/memory-buffer' , self.SUBTEST_RESULT.get('log_text')):
                 self.skipTest("FWTS bug: Incorrect Missing '(status|manufacturer-id|part-number|serial-number)' property in memory-buffer/dimm");
+            if re.match('property "serial-number" contains unprintable characters', self.SUBTEST_RESULT.get('log_text')):
+                self.skipTest("FWTS bug: DIMM VPD has binary serial number")
 
         self.assertEqual(self.SUBTEST_RESULT.get('failure_label'), 'None', self.SUBTEST_RESULT)
 
