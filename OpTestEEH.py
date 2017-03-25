@@ -93,11 +93,7 @@ class OpTestEEH(unittest.TestCase):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         c.run_command(cmd)
         c.run_command("dmesg")
-   
-    ##
-    # @brief This function is used to check if EEH error is hit
-    #
-    # @return True if EEH is hit else returns Flase
+
     def check_eeh_hit(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         res = c.run_command("dmesg")
@@ -109,10 +105,6 @@ class OpTestEEH(unittest.TestCase):
             print "MISS"
             return False
 
-    ##
-    # @brief This function is used to check if PE device is removed
-    #
-    # @return True if removed successfully, else Flase
     def check_eeh_removed(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         res = c.run_command("dmesg")
@@ -178,10 +170,21 @@ class OpTestEEH(unittest.TestCase):
     #
     def run_pe_4(self, addr, e, f, phb, pe, con):
         self.prepare_logs()
+    #    count_old = self.check_eeh_slot_resets()
         rc = self.inject_error(addr, e, f, phb, pe)
         if rc != 0:
             print "Skipping verification as command failed"
             return EEH_MISS
+        # Give some time to EEH PCI Error recovery
+     #   tries = 60
+     #   for i in range(1,tries):
+     #       time.sleep(1)
+     #       count = self.check_eeh_slot_resets()
+     #       if int(count) > int(count_old):
+     #           print "PE Slot reset happenned successfully on pe: %s" % pe
+     #           break
+     #       else:
+     #           print "PE Slot reset pe: %s, not yet done, (%d/%d)" % (pe,i,tries)
         self.gather_logs()
         if not self.check_eeh_pe_recovery(pe):
             msg = "PE %s recovery failed" % pe
@@ -238,6 +241,17 @@ class OpTestEEH(unittest.TestCase):
     # @returns True/False @type boolean
     #
     def check_eeh_pe_recovery(self, pe):
+     #   cmd = "dmesg  | grep -i 'iommu: Removing device'; echo $?"
+     #   tries = 30
+     #   for i in range(1, tries+1):
+     #       res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+     #       if int(res[-1]):
+     #           print "Waiting for PE %s removal: (%d/%d)" % (pe, i, tries)
+     #           time.sleep(1)
+     #       else:
+	 #		    break
+     #   else:
+     #       raise EEHRemoveFailed("PE", pe)
         tries = 60
         for j in range(1, tries+1):
             list = self.get_list_of_pci_devices()
@@ -261,7 +275,6 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.cv_SYSTEM.host_console_login()
         self.cv_SYSTEM.host_console_unique_prompt()
@@ -502,8 +515,14 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
                                 if rc == 2:
                                     print "2nd time error injection failed"
                                     break
+                                #elif rc == 1:
+                                #    print "PE removed successfully"
+                                #    pe_removed = True
                                 elif self.check_eeh_removed():
                                     print "PE removed successfully"  
+                               # else:
+                               #     self.gather_logs()
+                               #     raise EEHRemoveFailed("PE", pe)
                     if pe_removed:
                         break
 
