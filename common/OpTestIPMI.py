@@ -114,7 +114,7 @@ class IPMIConsole():
             self.sol.expect('[terminated ipmitool]')
             self.sol.close()
         except pexpect.ExceptionPexpect:
-            raise "IPMI: failed to close ipmi console"
+            raise OpTestError("IPMI: failed to close ipmi console")
         self.sol.terminate()
         self.state = IPMIConsoleState.DISCONNECTED
 

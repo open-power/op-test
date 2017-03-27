@@ -39,12 +39,15 @@ import re
 import sys
 import os
 import random
+import pexpect
 
 import unittest
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.OpTestHost import SSHConnectionState
+from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
 class OpTestHMIHandling(unittest.TestCase):
@@ -52,12 +55,42 @@ class OpTestHMIHandling(unittest.TestCase):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
+        self.cv_FSP = conf.bmc()
         self.cv_SYSTEM = conf.system()
+        self.bmc_type = conf.args.bmc_type
         self.util = OpTestUtil()
+
+    def ipmi_monitor_sol_ipl(self, console, timeout):
+        ipl_status = False
+        try:
+            console.sol.expect('login:', timeout=timeout)
+        except pexpect.EOF:
+            print "Waiting for system to IPL...."
+        except pexpect.TIMEOUT:
+            ipl_status = False
+
+        res = console.sol.before
+        if console.sol.isalive():
+            console.close()
+        if "login:" in res:
+            print "System IPLed to host OS"
+            ipl_status = True
+        elif "Petitboot" in res:
+            print "System IPLed to Petitboot"
+        elif "ISTEP" in res:
+            print "System IPL still in HB Stage"
+        elif "Kernel panic - not syncing" in res:
+            print "Malfunction alert: kernel got panic, re-IPL not started"
+        else:
+            print "HMI: Malfunction alert failed, IPL not started"
+        if not ipl_status:
+            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
+        self.assertTrue(ipl_status, "HMI Core checkstop: IPL not started/finished")
+        return
+
 
     def init_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-
         # Getting list of processor chip Id's(executing getscom -l to get chip id's)
         l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
         l_res = l_res.splitlines()
@@ -90,6 +123,9 @@ class OpTestHMIHandling(unittest.TestCase):
 
         print l_cores # {0: ['4', '5', '6', 'c', 'd', 'e'], 1: ['4', '5', '6', 'c', 'd', 'e'], 10: ['4', '5', '6', 'c', 'd', 'e']}
         l_cores = sorted(l_cores.iteritems())
+        # Remove master core where injecting core checkstop leads to IPL expected failures
+        # after 2 failures system will starts boot in Golden side of PNOR
+        l_cores[0][1].pop(0)
         print l_cores
         i=0
         for tup in l_cores:
@@ -113,21 +149,26 @@ class OpTestHMIHandling(unittest.TestCase):
         l_oslevel = self.cv_HOST.host_get_OS_Level()
         if "Ubuntu" in l_oslevel:
             self.cv_HOST.host_run_command("service kdump-tools stop")
-            self.cv_HOST.host_run_command("service kdump-tools status")
         else:
             self.cv_HOST.host_run_command("service kdump stop")
-            self.cv_HOST.host_run_command("service kdump status")
 
     def clearGardEntries(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
-        if "No GARD entries to display" not in g:
-            self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear")
-            cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
-            self.assertIn("No GARD entries to display", cleared_gard,
-                          "Failed to clear GARD entries")
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        if "FSP" in self.bmc_type:
+            res = self.cv_FSP.fspc.run_command("gard --clr all")
+            self.assertIn("Success in clearing Gard Data", res,
+                "Failed to clear GARD entries")
+            print self.cv_FSP.fspc.run_command("gard --gc cpu")
+        else:
+            g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list all")
+            if "No GARD entries to display" not in g:
+                self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear all")
+                cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
+                self.assertIn("No GARD entries to display", cleared_gard,
+                              "Failed to clear GARD entries")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     ##
     # @brief This function executes HMI test case based on the i_test value, Before test starts
@@ -140,6 +181,7 @@ class OpTestHMIHandling(unittest.TestCase):
     #                          BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR: hypervisor resource error
     def _testHMIHandling(self, i_test):
         l_test = i_test
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         self.init_test()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -190,6 +232,7 @@ class OpTestHMIHandling(unittest.TestCase):
             self._testTFMR_Errors(BMC_CONST.TFMR_SPURR_PARITY_ERROR)
         else:
             raise Exception("Please provide valid test case")
+        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
 
         return BMC_CONST.FW_SUCCESS
 
@@ -282,19 +325,10 @@ class OpTestHMIHandling(unittest.TestCase):
 
         # Core checkstop will lead to system IPL, so we will wait for certain time for IPL
         # to finish
-        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd, timeout=600)
-        if any("Kernel panic - not syncing" in line for line in l_res):
-            print "Malfunction alert: kernel got panic"
-        elif any("login:" in line for line in l_res):
-            print "System booted to host OS without any kernel panic message"
-        elif any("Petitboot" in line for line in l_res):
-            print "System reached petitboot without any kernel panic message"
-        elif any("ISTEP" in line for line in l_res):
-            print "System started booting without any kernel panic message"
-        else:
-            raise Exception("HMI: Malfunction alert failed")
-
-        return
+        #l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd, timeout=600)
+        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console.sol.sendline(l_cmd)
+        self.ipmi_monitor_sol_ipl(console, timeout=600)
 
     ##
     # @brief This function is used to test HMI: Hypervisor resource error
@@ -310,19 +344,9 @@ class OpTestHMIHandling(unittest.TestCase):
         l_reg = "1%s013100" % l_core
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
 
-        l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd, timeout=600)
-        if any("Kernel panic - not syncing" in line for line in l_res) and \
-        any("Hypervisor Resource error - core check stop" in line for line in l_res):
-            print "Hypervisor resource error: kernel got panic"
-        elif any("login:" in line for line in l_res):
-            print "System booted to host OS without any kernel panic message"
-        elif any("Petitboot" in line for line in l_res):
-            print "System reached petitboot without any kernel panic message"
-        elif any("ISTEP" in line for line in l_res):
-            print "System started booting without any kernel panic message"
-        else:
-            raise Exception("HMI: Hypervisor resource error failed")
-        return
+        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console.sol.sendline(l_cmd)
+        self.ipmi_monitor_sol_ipl(console, timeout=600)
 
     ##
     # @brief This function tests timer facility related error injections and check
@@ -360,6 +384,7 @@ class OpTestHMIHandling(unittest.TestCase):
                     else:
                         raise Exception("Failed to inject TFMR error %s " % l_error)
 
+                time.sleep(0.2)
                 l_res = console.run_command("dmesg")
                 if any("Timer facility experienced an error" in line for line in l_res) and \
                     any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
@@ -445,6 +470,11 @@ class MalfunctionAlert(OpTestHMIHandling):
         self._testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
 
 class HypervisorResourceError(OpTestHMIHandling):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.cv_HOST = conf.host()
+        super(HypervisorResourceError, self).setUp()
+
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
 
@@ -464,6 +494,7 @@ def suite():
     s.addTest(HMI_TFMR_ERRORS())
     s.addTest(PROC_RECOV_DONE())
     s.addTest(PROC_RECV_ERROR_MASKED())
+    s.addTest(TOD_ERRORS())
     return s
 
 def experimental_suite():
