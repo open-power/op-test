@@ -251,6 +251,7 @@ class FspOpalSuite():
         self.s.addTest(OpalErrorLog.FullTest())
         self.s.addTest(LightPathDiagnostics.extended_suite())
         self.s.addTest(EPOW.suite())
+        self.s.addTest(OpTestOCC.OCCRESET_FSP())
     def suite(self):
         return self.s
 
