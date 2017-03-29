@@ -53,7 +53,7 @@ class OpTestEnergyScale(unittest.TestCase):
     ##
     # @brief  It will execute and test the return code of ipmi command.
     #
-    # @param i_cmd @type string:The ipmitool command, for example: chassis power on; echo $?
+    # @param i_cmd @type string:The ipmitool command, for example: chassis power on
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
@@ -61,10 +61,6 @@ class OpTestEnergyScale(unittest.TestCase):
         l_cmd = i_cmd
         l_res = self.cv_IPMI.ipmitool_run(l_cmd)
         print l_res
-        l_res = l_res.splitlines()
-        if int(l_res[-1]):
-            l_msg = "IPMI: command failed %c" % l_cmd
-            raise OpTestError(l_msg)
         return l_res
 
     ##

@@ -79,7 +79,7 @@ class OpTestMCColdResetEffects(unittest.TestCase):
         self.cv_SYSTEM.host_console_unique_prompt()
         console.run_command("uname -a")
         console.run_command("PATH=/usr/local/sbin:$PATH getscom -l")
-        output = self.cv_HOST.host_run_command("sensors; echo $?")
+        output = self.cv_HOST.host_run_command("sensors")
         print "Gathering the OPAL msg logs"
         self.cv_HOST.host_gather_opal_msg_log()
         if "ERROR" in output:

@@ -52,6 +52,7 @@ except ImportError:
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
+from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded
 
 class SSHConnectionState():
     DISCONNECTED = 0
@@ -119,9 +120,15 @@ class SSHConnection():
     def run_command(self, command, timeout=300):
         c = self.get_console()
         c.sendline(command)
+        c.expect("\n") # from us
+        c.expect(c.PROMPT, timeout=timeout)
+        output = c.before.splitlines()
+        c.sendline("echo $?")
         c.prompt(timeout)
-        # We manually remove the echo of the command
-        return '\n'.join(c.before.split('\n')[1:])
+        exitcode = int(''.join(c.before.splitlines()[1:]))
+        if exitcode != 0:
+            raise CommandFailed(command, output, exitcode)
+        return output
 
 
 class OpTestHost():
@@ -165,9 +172,8 @@ class OpTestHost():
     #         or raise OpTestError
     #
     def host_get_OS_Level(self):
-        l_oslevel = self.ssh.run_command(BMC_CONST.BMC_GET_OS_RELEASE, timeout=60)
-        print l_oslevel
-        return l_oslevel
+        l_oslevel = self.ssh.run_command("cat /etc/os-release", timeout=60)
+        return '\n'.join(l_oslevel)
 
 
     ##
@@ -258,7 +264,7 @@ class OpTestHost():
     #
     def host_gather_opal_msg_log(self):
         try:
-            l_data = self.host_run_command(BMC_CONST.OPAL_MSG_LOG)
+            l_data = '\n'.join(self.host_run_command(BMC_CONST.OPAL_MSG_LOG))
         except OpTestError:
             l_msg = "Failed to gather OPAL message logs"
             raise OpTestError(l_msg)
@@ -283,17 +289,16 @@ class OpTestHost():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def host_check_command(self, *i_cmd):
-        l_cmd = 'which ' + ' '.join(i_cmd) + '; echo $?'
+        l_cmd = 'which ' + ' '.join(i_cmd)
         print l_cmd
-        l_res = self.host_run_command(l_cmd)
-        l_res = l_res.splitlines()
-
-        if (int(l_res[-1]) == 0):
-            return BMC_CONST.FW_SUCCESS
-        else:
+        try:
+            l_res = self.host_run_command(l_cmd)
+        except CommandFailed as c:
             l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (','.join(i_cmd), l_cmd, '\n'.join(l_res))
             print l_msg
             raise OpTestError(l_msg)
+
+        return True
 
     ##
     # @brief It will get the linux kernel version on host
@@ -303,7 +308,7 @@ class OpTestHost():
     #
     def host_get_kernel_version(self):
         l_kernel = self.ssh.run_command("uname -a | awk {'print $3'}", timeout=60)
-        l_kernel = l_kernel.replace("\r\n", "")
+        l_kernel = ''.join(l_kernel)
         print l_kernel
         return l_kernel
 
@@ -327,26 +332,28 @@ class OpTestHost():
     #
     def host_check_config(self, i_kernel, i_config):
         l_file = "/boot/config-%s" % i_kernel
-        l_res = self.ssh.run_command("test -e %s; echo $?" % l_file, timeout=60)
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Config file is available"
-        else:
-            l_msg = "Config file %s is not available on host" % l_file
-            print l_msg
-            raise OpTestError(l_msg)
-        l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
-        print l_cmd
-        l_res = self.ssh.run_command(l_cmd, timeout=60)
-        print l_res
         try:
-            l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
-        except:
-            print l_val
-            l_msg = "config option is not set,exiting..."
-            print l_msg
-            raise OpTestError(l_msg)
-        return l_val
+            l_res = self.ssh.run_command("test -e %s" % l_file, timeout=60)
+        except CommandFailed as c:
+            raise NoKernelConfig(i_kernel, l_file)
+
+        print "Config file is available"
+        l_cmd = "cat %s" % (l_file)
+        l_res = self.ssh.run_command(l_cmd, timeout=60)
+        config_opts = {}
+        for o in l_res:
+            m = re.match('# (.*) is not set', o)
+            if m:
+                config_opts[m.group(0)]='n'
+            else:
+                if '=' in o:
+                    opt, val = o.split("=")
+                    config_opts[opt] = val
+
+        if config_opts[i_config] not in ["y","m"]:
+                raise OpTestError("Config option is not set")
+
+        return config_opts[i_config]
 
     ##
     # @brief It will return installed package name for given linux command(i_cmd) on host
@@ -358,36 +365,10 @@ class OpTestHost():
     #
     def host_check_pkg_for_utility(self, i_oslevel, i_cmd):
         if 'Ubuntu' in i_oslevel:
-            l_res = self.ssh.run_command("dpkg -S `which %s`" % i_cmd, timeout=60)
-            return l_res
+            return ''.join(self.ssh.run_command("dpkg -S `which %s`" % i_cmd, timeout=60))
         else:
             l_cmd = "rpm -qf `which %s`" % i_cmd
-            l_res = self.ssh.run_command(l_cmd, timeout=60)
-            l_pkg = l_res.replace("\r\n", "")
-            print l_pkg
-            return l_pkg
-
-    ##
-    # @brief It will check whether a package is installed in a host OS
-    #
-    # @param i_oslevel @type string: OS level
-    # @param i_package @type string: package name
-    #
-    # @return BMC_CONST.FW_SUCCESS if package is available
-    #         raise OpTestError if package is not available
-    #
-    def host_check_pkg_availability(self, i_oslevel, i_package):
-        if 'Ubuntu' in i_oslevel:
-            l_res = self.host_run_command("dpkg -l %s;echo $?" % i_package)
-        else:
-            l_cmd = "rpm -qa | grep -i %s" % i_package
-            l_res = self.host_run_command(l_cmd)
-        l_res = l_res.splitlines()
-        if (int(l_res[-1]) == 0):
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Package %s is not there in host OS" % i_package
-            raise OpTestError(l_msg)
+            return ''.join(self.ssh.run_command(l_cmd, timeout=60))
 
     ##
     # @brief This function loads ibmpowernv driver only on powernv platform
@@ -399,24 +380,16 @@ class OpTestHost():
     #
     def host_load_ibmpowernv(self, i_oslevel):
         if "PowerKVM" not in i_oslevel:
-            l_rc = self.ssh.run_command("modprobe ibmpowernv; echo $?",timeout=60)
-            l_rc = l_rc.replace("\r\n", "")
-            if int(l_rc) == 0:
-                cmd = "lsmod | grep -i ibmpowernv"
-                response = self.ssh.run_command(cmd, timeout=60)
-                if "ibmpowernv" not in response:
-                    l_msg = "ibmpowernv module is not loaded, exiting"
-                    raise OpTestError(l_msg)
-                else:
-                    print "ibmpowernv module is loaded"
-                print cmd
-                print response
-                return BMC_CONST.FW_SUCCESS
-            else:
-                l_msg = "modprobe failed while loading ibmpowernv,exiting..."
-                print l_msg
+            o = self.ssh.run_command("modprobe ibmpowernv",timeout=60)
+            cmd = "lsmod | grep -i ibmpowernv"
+            response = self.ssh.run_command(cmd, timeout=60)
+            if "ibmpowernv" not in ''.join(response):
+                l_msg = "ibmpowernv module is not loaded, exiting"
                 raise OpTestError(l_msg)
-        else:
+            else:
+                print "ibmpowernv module is loaded"
+            print cmd
+            print response
             return BMC_CONST.FW_SUCCESS
 
     ##
@@ -467,19 +440,6 @@ class OpTestHost():
             l_msg = "Cloning linux git repository is failed"
             print l_msg
             raise OpTestError(l_msg)
-
-    ##
-    # @brief reads msglog for getting Chip and Core information
-    #
-    # @return @type string: Chip and Core information
-    #        else raise OpTestError
-    def host_read_msglog_core(self):
-        try:
-            return self.ssh.run_command(BMC_CONST.OS_READ_MSGLOG_CORE, timeout=60)
-        except:
-            l_errmsg = "Can't get msglog data"
-            print l_errmsg
-            raise OpTestError(l_errmsg)
 
     ##
     # @brief reads getscom data
@@ -612,46 +572,6 @@ class OpTestHost():
             print l_errmsg
             raise OpTestError(l_errmsg)
 
-    ##
-    # @brief This function will checks first for config file for a given kernel version on host,
-    #        if available then check for config option value and return that value
-    #            whether it is y or m...etc.
-    #        sample config option values:
-    #        CONFIG_CRYPTO_ZLIB=m
-    #        CONFIG_CRYPTO_LZO=y
-    #        # CONFIG_CRYPTO_842 is not set
-    #
-    #
-    # @param i_kernel @type string: kernel version
-    # @param i_config @type string: Which config option want to check in config file
-    #                               Ex:CONFIG_SENSORS_IBMPOWERNV
-    #
-    # @return l_val @type string: It will return config option value y or m,
-    #                             or raise OpTestError if config file is not available on host
-    #                             or raise OpTestError if config option is not set in file.
-    #
-    def host_check_config(self, i_kernel, i_config):
-        l_file = "/boot/config-%s" % i_kernel
-        l_res = self.ssh.run_command("test -e %s; echo $?" % l_file, timeout=60)
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Config file is available"
-        else:
-            l_msg = "Config file %s is not available on host" % l_file
-            print l_msg
-            raise OpTestError(l_msg)
-        l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
-        print l_cmd
-        l_res = self.ssh.run_command(l_cmd, timeout=60)
-        print l_res
-        try:
-            l_val = ((l_res.split("=")[1]).replace("\r\n", ""))
-        except:
-            print l_val
-            l_msg = "config option is not set,exiting..."
-            print l_msg
-            raise OpTestError(l_msg)
-        return l_val
 
     ##
     # @brief It will load the module using modprobe and verify whether it is loaded or not
@@ -661,22 +581,17 @@ class OpTestHost():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def host_load_module(self, i_module):
-        l_res = self.host_run_command("modprobe %s; echo $?" % i_module)
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            pass
-        else:
-            l_msg = "Error in loading the module %s, modprobe failed" % i_module
-            print l_msg
+        try:
+            l_res = self.host_run_command("modprobe %s" % i_module)
+        except Commandfailed as c:
+            l_msg = "Error in loading the module %s, modprobe failed: %s" % (i_module,str(c))
             raise OpTestError(l_msg)
         l_res = self.host_run_command("lsmod | grep -i --color=never %s" % i_module)
-        if l_res.__contains__(i_module):
+        if re.search(i_module, ''.join(l_res)):
             print "%s module is loaded" % i_module
             return BMC_CONST.FW_SUCCESS
         else:
-            l_msg = " %s module is not loaded" % i_module
-            print l_msg
-            raise OpTestError(l_msg)
+            raise KernelModuleNotLoaded(i_module)
 
     ##
     # @brief This function will read real time clock(RTC) time using hwclock utility
@@ -686,14 +601,7 @@ class OpTestHost():
     #
     def host_read_hwclock(self):
         print "Reading the hwclock"
-        l_res = self.host_run_command("hwclock -r;echo $?")
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return l_res
-        else:
-            l_msg = "Reading the hwclock failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.host_run_command("hwclock -r;echo $?")
 
     ##
     # @brief This function will read system time using date utility (This will be mantained by kernel)
@@ -703,14 +611,8 @@ class OpTestHost():
     #
     def host_read_systime(self):
         print "Reading system time using date utility"
-        l_res = self.host_run_command("date;echo $?")
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return l_res
-        else:
-            l_msg = "Reading the system time failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        l_res = self.host_run_command("date")
+        return l_res
 
     ##
     # @brief This function will set hwclock time using the --date option
@@ -722,14 +624,7 @@ class OpTestHost():
     #
     def host_set_hwclock_time(self, i_time):
         print "Setting the hwclock time to %s" % i_time
-        l_res = self.host_run_command("hwclock --set --date \'%s\';echo $?" % i_time)
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Setting the hwclock failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.host_run_command("hwclock --set --date \'%s\'" % i_time)
 
     ##
     # @brief This function will load driver module on host based on the config option
@@ -765,16 +660,8 @@ class OpTestHost():
     #         or raise OpTestError if not able to get list of i2c buses
     #
     def host_get_list_of_i2c_buses(self):
-        l_res = self.host_run_command("i2cdetect -l;echo $?")
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            pass
-        else:
-            l_msg = "Not able to get list of i2c buses"
-            print l_msg
-            raise OpTestError(l_msg)
+        self.host_run_command("i2cdetect -l")
         l_res = self.host_run_command("i2cdetect -l | awk '{print $1}'")
-        l_res = l_res.splitlines()
         # list by number Ex: ["0","1","2",....]
         l_list = []
         # list by name Ex: ["i2c-0","i2c-1"...]
@@ -796,18 +683,19 @@ class OpTestHost():
     #
     def host_get_info_of_eeprom_chips(self):
         print "Getting the information of EEPROM chips"
-        l_res = self.host_run_command("dmesg | grep -i --color=never at24")
-        if l_res.__contains__("at24"):
-            pass
-        else:
+        l_res = None
+        try:
+            l_res = self.host_run_command("cat /sys/bus/i2c/drivers/at24/*/name")
+        except CommandFailed as cf:
             l_res = self.host_run_command("dmesg -C")
-            self.host_run_command("rmmod at24")
-            self.host_load_module("at24")
-            l_res = self.host_run_command("dmesg | grep -i --color=never at24")
-            if l_res.__contains__("at24"):
+            try:
+                self.host_run_command("rmmod at24")
+                self.host_load_module("at24")
+                l_res = self.host_run_command("cat /sys/bus/i2c/drivers/at24/*/name")
+            except CommandFailed as cf:
                 pass
-            else:
-                return None
+            except KernelModuleNotLoaded as km:
+                pass
         return l_res
 
     ##
@@ -819,12 +707,7 @@ class OpTestHost():
     #           else raise OpTestError
     #
     def host_get_list_of_eeprom_chips(self):
-        l_res = self.host_run_command("find /sys/ -name eeprom;echo $?")
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            pass
-        else:
-            return None
+        l_res = self.host_run_command("find /sys/ -name eeprom")
         l_chips = []
         for l_line in l_res:
             if l_line.__contains__("eeprom"):
@@ -851,14 +734,7 @@ class OpTestHost():
     #
     #
     def host_hexdump(self, i_dev):
-        l_res = self.host_run_command("hexdump -C %s;echo $?" % i_dev)
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "hexdump failed for device %s" % i_dev
-            print l_msg
-            raise OpTestError(l_msg)
+        l_res = self.host_run_command("hexdump -C %s" % i_dev)
 
     ##
     # @brief It will clone latest skiboot git repository in i_dir directory
@@ -884,162 +760,6 @@ class OpTestHost():
             raise OpTestError(l_msg)
 
     ##
-    # @brief It will compile xscom-utils in the skiboot directory which was cloned in i_dir directory
-    #
-    # @param i_dir @type string: directory where skiboot source was cloned
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_compile_xscom_utilities(self, i_dir):
-        l_cmd = "cd %s/external/xscom-utils; make;" % i_dir
-        print l_cmd
-        l_res = self.host_run_command(l_cmd)
-        l_cmd = "test -f %s/external/xscom-utils/getscom; echo $?" % i_dir
-        l_res = self.host_run_command(l_cmd)
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Executable binary getscom is available"
-        else:
-            l_msg = "getscom bin file is not present after make"
-            print l_msg
-            raise OpTestError(l_msg)
-        l_cmd = "test -f %s/external/xscom-utils/putscom; echo $?" % i_dir
-        l_res = self.host_run_command(l_cmd)
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Executable binary putscom is available"
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "putscom bin file is not present after make"
-            print l_msg
-            raise OpTestError(l_msg)
-
-    ##
-    # @brief It will compile gard utility in the skiboot directory which was cloned in i_dir directory
-    #
-    # @param i_dir @type string: directory where skiboot source was cloned
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_compile_gard_utility(self, i_dir):
-        l_cmd = "cd %s/external/gard; make;" % i_dir
-        print l_cmd
-        l_res = self.host_run_command(l_cmd)
-        l_cmd = "test -f %s/external/gard/gard; echo $?" % i_dir
-        l_res = self.host_run_command(l_cmd)
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Executable binary gard is available"
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "gard bin file is not present after make"
-            print l_msg
-            raise OpTestError(l_msg)
-
-    ##
-    # @brief This function generates olog.json file from skiboot which is used for
-    #        fwts olog test: Run OLOG scan and analysis checks.
-    #
-    # @param i_dir @type string: directory where skiboot source was cloned
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_generate_fwts_olog_json(self, i_dir):
-        l_cmd = "%s/external/fwts/generate-fwts-olog %s/ -o %s/olog.json" % (i_dir, i_dir, i_dir)
-        print l_cmd
-        l_res = self.host_run_command(l_cmd)
-        l_cmd = "test -f %s/olog.json; echo $?" % i_dir
-        l_res = self.host_run_command(l_cmd)
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "olog.json is available in working directory %s" % i_dir
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "olog.json file is failed to create from skiboot"
-            print l_msg
-            raise OpTestError(l_msg)
-
-    ##
-    # @brief It will clone latest fwts git repository in i_dir directory
-    #
-    # @param i_dir @type string: directory where fwts source will be cloned
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_clone_fwts_source(self, i_dir):
-        l_msg = 'git://kernel.ubuntu.com/hwe/fwts.git'
-        l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self.host_run_command("git config --global http.sslverify false")
-        self.host_run_command("rm -rf %s" % i_dir)
-        self.host_run_command("mkdir %s" % i_dir)
-        try:
-            print l_cmd
-            l_res = self.host_run_command(l_cmd)
-            print l_res
-            return BMC_CONST.FW_SUCCESS
-        except:
-            l_msg = "Cloning fwts git repository is failed"
-            print l_msg
-            raise OpTestError(l_msg)
-
-    ##
-    # @brief This function is used to build fwts tool in the fwts directory
-    #        which was cloned in i_dir directory
-    #
-    # @param i_dir @type string: directory where fwts source was cloned
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_build_fwts_tool(self, i_dir):
-        l_cmd = "cd %s/;autoreconf -ivf;./configure; make;" % i_dir
-        print l_cmd
-        l_res = self.host_run_command(l_cmd)
-        l_cmd = "test -f %s/src/fwts; echo $?" % i_dir
-        l_res = self.host_run_command(l_cmd)
-        print l_res
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Executable binary fwts is available"
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "fwts bin file is not present after make"
-            print l_msg
-            raise OpTestError(l_msg)
-
-    ##
-    # @brief This function is used to get detected pci devices in different user/machine readable formats
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_list_pci_devices(self):
-        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES1)
-        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES2)
-        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES3)
-        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES4)
-        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES5)
-        self.host_run_command(BMC_CONST.HOST_LIST_PCI_DEVICES6)
-        self.host_run_command(BMC_CONST.HOST_LIST_PCI_SYSFS_DEVICES)
-
-    ##
-    # @brief This function is used to get more pci devices info in verbose mode
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_get_pci_verbose_info(self):
-        l_res = self.host_run_command(BMC_CONST.HOST_LIST_PCI_VERBOSE)
-        return l_res
-
-    ##
-    # @brief This function is used to get minimum usb devices info
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def host_list_usb_devices(self):
-        self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES1)
-        self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES2)
-        self.host_run_command(BMC_CONST.HOST_LIST_USB_DEVICES3)
-
-    ##
     # @brief This function enable only a single core
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
@@ -1056,7 +776,6 @@ class OpTestHost():
         self.pci_domains = []
         self.host_run_command("lspci -mm")
         res = self.host_run_command('lspci -mm | cut -d":" -f1 | sort | uniq')
-        res = res.splitlines()
         for domain in res:
             if not domain:
                 continue
@@ -1078,11 +797,11 @@ class OpTestHost():
     def host_get_root_phb(self):
         cmd = "df -h /boot | awk 'END {print $1}'"
         res = self.host_run_command(cmd)
-        boot_disk = res.split("/dev/")[1]
+        boot_disk = ''.join(res).split("/dev/")[1]
         boot_disk = boot_disk.replace("\r\n", "")
         cmd  = "ls -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
         res = self.host_run_command(cmd)
-        matchObj = re.search(r"\d{4}(?!\d)", res, re.S)
+        matchObj = re.search(r"\d{4}(?!\d)", '\n'.join(res), re.S)
         if not matchObj:
             raise OpTestError("Not able to find out root phb domain")
         boot_domain = 'PCI' + matchObj.group(0)
@@ -1136,10 +855,10 @@ class OpTestHost():
     def host_get_status_of_opal_errd_daemon(self):
         res = self.host_run_command("ps -ef | grep -v grep | grep opal_errd | wc -l")
         print res
-        if res.strip() == "0":
+        if res[0].strip() == "0":
             print "Opal_errd daemon is not running"
             return False
-        elif res.strip() == "1":
+        elif res[0].strip() == "1":
             print "Opal_errd daemon is running"
             return True
         else:
@@ -1180,8 +899,7 @@ class OpTestHost():
     def host_clear_error_logs(self):
         self.host_run_command("rm -f %s/*" % BMC_CONST.OPAL_ELOG_DIR)
         res = self.host_run_command("ls %s -1 --color=never" % BMC_CONST.OPAL_ELOG_SYSFS_DIR)
-        print res
-        res = res.splitlines()
+        print '\n'.join(res)
         for entry in res:
             entry = entry.strip()
             if entry == '':
@@ -1196,7 +914,6 @@ class OpTestHost():
     def host_clear_all_dumps(self):
         self.host_run_command("rm -f %s/*" % BMC_CONST.OPAL_DUMP_DIR)
         res = self.host_run_command("ls %s -1 --color=never" % BMC_CONST.OPAL_DUMP_SYSFS_DIR)
-        res = res.splitlines()
         for entry in res:
             entry = entry.strip()
             if (entry == "initiate_dump") or (entry == ''):

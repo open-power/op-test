@@ -60,7 +60,7 @@ class OpTestOOBIPMIBase(unittest.TestCase):
     ##
     # @brief  It will execute and test the return code of ipmi command.
     #
-    # @param i_cmd @type string:The ipmitool command, for example: chassis power on; echo $?
+    # @param i_cmd @type string:The ipmitool command, for example: chassis power on
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
@@ -354,7 +354,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
             "floppy" : "Force Boot from Floppy/primary removable media",
         }
         for bootdev,ipmiresponse in boot_devices.iteritems():
-            cmd = "chassis bootdev %s; echo $?" % bootdev
+            cmd = "chassis bootdev %s" % bootdev
             self.run_ipmi_cmd(cmd)
             self.verify_bootdev(bootdev)
 
@@ -367,7 +367,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return BMC_CONST.FW_SUCCESS on success or raise OpTestError
     #
     def verify_bootdev(self, i_dev):
-        l_res = self.run_ipmi_cmd("chassis bootparam get 5; echo $?")
+        l_res = self.run_ipmi_cmd("chassis bootparam get 5")
         if i_dev == "safe":
             l_msg = "Force Boot from default Hard-Drive, request Safe-Mode"
         elif i_dev == "disk":
@@ -499,7 +499,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def sensor_byid(self, i_sensor):
-        l_cmd = "sensor get \"%s\"; echo $?" % i_sensor
+        l_cmd = "sensor get \"%s\"" % i_sensor
         self.run_ipmi_cmd(l_cmd)
 
     ##
@@ -581,7 +581,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def sel_time_set(self, i_time):
-        l_cmd = "sel time set \'%s\'; echo $?" % i_time
+        l_cmd = "sel time set \'%s\'" % i_time
         self.run_ipmi_cmd(l_cmd)
 
     ##
@@ -592,7 +592,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def sel_list_first_n_entries(self, i_num):
-        l_cmd = "sel list first %i; echo $?" % int(i_num)
+        l_cmd = "sel list first %i" % int(i_num)
         self.run_ipmi_cmd(l_cmd)
 
     ##
@@ -603,7 +603,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def sel_list_last_n_entries(self, i_num):
-        l_cmd = "sel list last %i; echo $?" % int(i_num)
+        l_cmd = "sel list last %i" % int(i_num)
         self.run_ipmi_cmd(l_cmd)
 
     ##
@@ -614,7 +614,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def sel_get_byid(self, i_sel_id):
-        l_cmd = "sel get %s; echo $?" % i_sel_id
+        l_cmd = "sel get %s" % i_sel_id
         self.run_ipmi_cmd(l_cmd)
 
     ##
@@ -631,7 +631,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_sel_get_functionality(self):
-        l_res = self.cv_IPMI.ipmitool.run("sel list first 3 | awk '{print $1}'; echo $?")
+        l_res = self.cv_IPMI.ipmitool.run("sel list first 3 | awk '{print $1}'")
         l_list = l_res.splitlines()
         if int(l_list[-1]) == 0:
             if l_res.__contains__("SEL has no entries"):
@@ -655,7 +655,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     #
     def test_sel_clear_functionality(self):
         self.test_sel_clear()
-        l_res = self.cv_IPMI.ipmitool.run("sel list; echo $?")
+        l_res = self.cv_IPMI.ipmitool.run("sel list")
         self.assertIn("SEL has no entries", l_res, 
                     "Sel clear function got cleared event entries")
 

@@ -68,7 +68,7 @@ class OpTestEM(unittest.TestCase):
     def verify_cpu_freq(self, i_freq):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.cv_HOST.host_run_command(l_cmd)
-        if not cur_freq.strip() == i_freq:
+        if not cur_freq[0] == i_freq:
             # (According to Vaidy) it may take milliseconds to have the
             # request for a frequency change to come into effect.
             # So, if we happen to be *really* quick checking the result,
@@ -77,7 +77,7 @@ class OpTestEM(unittest.TestCase):
             time.sleep(0.2)
             cur_freq = self.cv_HOST.host_run_command(l_cmd)
 
-        self.assertEqual(cur_freq.strip(), i_freq,
+        self.assertEqual(cur_freq[0], i_freq,
                          "CPU frequency not changed to %s" % i_freq)
 
     ##
@@ -95,7 +95,7 @@ class OpTestEM(unittest.TestCase):
     def verify_cpu_gov(self, i_gov):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
         cur_gov = self.cv_HOST.host_run_command(l_cmd)
-        self.assertEqual(cur_gov.strip(), i_gov, "CPU governor not changed to %s" % i_gov)
+        self.assertEqual(cur_gov[0], i_gov, "CPU governor not changed to %s" % i_gov)
 
     ##
     # @brief enable cpu idle state i_idle
@@ -123,7 +123,7 @@ class OpTestEM(unittest.TestCase):
     def verify_enable_idle_state(self, i_idle):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/disable" % i_idle
         cur_value = self.cv_HOST.host_run_command(l_cmd)
-        self.assertEqual(cur_value.strip(), "0", "CPU state%s not enabled" % i_idle)
+        self.assertEqual(cur_value[0], "0", "CPU state%s not enabled" % i_idle)
 
     ##
     # @brief verify whether cpu idle state i_idle disabled
@@ -132,7 +132,7 @@ class OpTestEM(unittest.TestCase):
     def verify_disable_idle_state(self, i_idle):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/disable" % i_idle
         cur_value = self.cv_HOST.host_run_command(l_cmd)
-        self.assertEqual(cur_value.strip(), "1", "CPU state%s not disabled" % i_idle)
+        self.assertEqual(cur_value[0], "1", "CPU state%s not disabled" % i_idle)
 
 
 class OpTestEMslw_info(OpTestEM):
@@ -147,7 +147,10 @@ class OpTestEMslw_info(OpTestEM):
         self.cv_HOST.host_check_command("cpupower")
         self.cv_HOST.host_run_command("cpupower idle-info")
         self.cv_HOST.host_run_command("hexdump -c /proc/device-tree/ibm,enabled-idle-states")
-        self.cv_HOST.host_run_command("cat /sys/firmware/opal/msglog | grep -i slw")
+        try:
+            self.cv_HOST.host_run_command("cat /sys/firmware/opal/msglog | grep -i slw")
+        except CommandFailed as cf:
+            pass # we may have no slw entries in msglog
 
 class OpTestEMcpu_req_states(OpTestEM):
     # @brief This function will cover following test steps
@@ -166,7 +169,7 @@ class OpTestEMcpu_req_states(OpTestEM):
         self.cv_HOST.host_check_command("cpupower")
         # Get available cpu scaling frequencies
         l_res = self.cv_HOST.host_run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
-        freq_list = (l_res.strip()).split(' ')
+        freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
 
         # Set the cpu governer to userspace
@@ -197,7 +200,7 @@ class OpTestEMcpu_idle_states(OpTestEM):
         self.cv_HOST.host_check_command("cpupower")
 
         # TODO: Check the runtime idle states = expected idle states!
-        idle_states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/ -type d -regex '.*state[0-9]*' -printf '%f\\n'|sort -u|sed -e 's/^state//'").split('\r\n')[:-1]
+        idle_states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/ -type d -regex '.*state[0-9]*' -printf '%f\\n'|sort -u|sed -e 's/^state//'")
         print repr(idle_states)
         # currently p8 cpu has 3 states
         for i in idle_states:

@@ -130,7 +130,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
         }
         for bootdev,ipmiresponse in boot_devices.iteritems():
             try:
-                r = c.run_command(self.ipmi_method + 'chassis bootdev %s; echo $?' % (bootdev))
+                r = c.run_command(self.ipmi_method + 'chassis bootdev %s' % (bootdev))
                 print repr(r.split('\r\n'))
                 if int(r.split('\n')[-2]) != 0:
                     self.fail("Could not set boot device %s. Errored with %s" % (dev,r))
@@ -139,7 +139,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
                 self.fail(str(e))
         # reset to bootdev none
         try:
-            c.run_command(self.ipmi_method + 'chassis bootdev none; echo $?')
+            c.run_command(self.ipmi_method + 'chassis bootdev none')
             self.verify_bootdev("none",boot_devices["none"])
         except UnexpectedBootDevice as e:
             self.fail(str(e))
@@ -147,7 +147,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
 
     def verify_bootdev(self, i_dev, l_msg):
         c = self.cv_HOST.get_ssh_connection()
-        l_res = c.run_command(self.ipmi_method + "chassis bootparam get 5; echo $?")
+        l_res = c.run_command(self.ipmi_method + "chassis bootparam get 5")
         for l_line in l_res.split('\n'):
             if l_line.__contains__(l_msg):
                 print "Verifying bootdev is successfull for %s" % i_dev
@@ -210,7 +210,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sdr_get_id(self):
         print "Inband IPMI[OPEN]: SDR get tests"
-        l_cmd = self.ipmi_method + "sdr get \'Watchdog\'" + "; echo $?"
+        l_cmd = self.ipmi_method + "sdr get \'Watchdog\'"
         c = self.cv_HOST.get_ssh_connection()
         c.run_command(l_cmd)
 
@@ -233,8 +233,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def test_fru_read(self):
         print "Inband IPMI[OPEN]: FRU Read Test"
         c = self.cv_HOST.get_ssh_connection()
-        c.run_command(self.ipmi_method + "fru read 0 /tmp/file_fru; echo $?")
-        l_res = c.run_command("hexdump -C /tmp/file_fru; echo $?")
+        c.run_command(self.ipmi_method + "fru read 0 /tmp/file_fru")
+        l_res = c.run_command("hexdump -C /tmp/file_fru")
         # TODO: Check for file output
 
     ##
@@ -322,7 +322,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_list_first_n_entries(self, i_num=1):
-        l_cmd = "sel list first %i; echo $?" % int(i_num)
+        l_cmd = "sel list first %i" % int(i_num)
         c = self.cv_HOST.get_ssh_connection()
         c.run_command(self.ipmi_method + l_cmd)
 
@@ -334,7 +334,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_list_last_n_entries(self, i_num=1):
-        l_cmd = "sel list last %i; echo $?" % int(i_num)
+        l_cmd = "sel list last %i" % int(i_num)
         c = self.cv_HOST.get_ssh_connection()
         c.run_command(self.ipmi_method + l_cmd)
 
@@ -363,7 +363,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
             del l_list[0]
             for l in l_list:
                 l_id = "0x" + l
-                l_cmd = "sel get %s; echo $?" % l_id
+                l_cmd = "sel get %s" % l_id
                 c.run_command(self.ipmi_method + l_cmd)
 
     ##
@@ -374,7 +374,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def test_sel_clear_functionality(self):
         self.test_sel_clear()
         c = self.cv_HOST.get_ssh_connection()
-        l_res = c.run_command("ipmitool sel list; echo $?")
+        l_res = c.run_command("ipmitool sel list")
         l_list = l_res.splitlines()
         for l_line in l_list:
             if l_line.__contains__("SEL has no entries"):
@@ -393,7 +393,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sensor_byid(self, i_sensor=BMC_CONST.SENSOR_HOST_STATUS):
-        l_cmd = self.ipmi_method + "sensor get \"%s\"; echo $?" % i_sensor
+        l_cmd = self.ipmi_method + "sensor get \"%s\"" % i_sensor
         c = self.cv_HOST.get_ssh_connection()
         c.run_command(l_cmd)
 
@@ -509,7 +509,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
         l_res = self.test_sel_time_get()
         i_time = l_res[-2]
         print "Inband IPMI[OPEN]: SEL Time set test"
-        l_cmd = "sel time set \'%s\'; echo $?" % i_time
+        l_cmd = "sel time set \'%s\'" % i_time
         c = self.cv_HOST.get_ssh_connection()
         c.run_command(self.ipmi_method + l_cmd)
 

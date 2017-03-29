@@ -45,6 +45,7 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.Exceptions import CommandFailed
 
 class NVRAMUpdateError(Exception):
     def __init__(self, part, key, value, output):
@@ -66,8 +67,17 @@ class OpTestNVRAM(unittest.TestCase):
 
     def nvram_update_part_config(self, i_part, key='test-cfg', value='test-value'):
         part = i_part
-        self.console.run_command("nvram -p %s --update-config '%s=%s'" % (part,key,value))
-        res_list = self.console.run_command("nvram -p %s --print-config=%s" % (part,key))
+        try:
+            self.console.run_command("nvram -p %s --update-config '%s=%s'" % (part,key,value))
+        except CommandFailed as cf:
+            if "nvram: ERROR: partition name maximum length is 12" in cf.output:
+                raise NVRAMUpdateError(i_part, key, value, ''.join(cf.output))
+
+        try:
+            res_list = self.console.run_command("nvram -p %s --print-config=%s" % (part,key))
+        except CommandFailed as cf:
+            if "nvram: ERROR: partition name maximum length is 12" in cf.output:
+                raise NVRAMUpdateError(i_part, key, value, ''.join(cf.output))
         res = ''.join(res_list)
         if "test-value" in res:
             print "Update config to the partition %s works fine" % part
@@ -80,23 +90,54 @@ class OpTestNVRAM(unittest.TestCase):
         c.run_command("uname -a")
         c.run_command("cat /etc/os-release")
         c.run_command("nvram -v")
-        c.run_command("nvram --print-config -p ibm,skiboot")
+        try:
+            c.run_command("nvram --print-config -p ibm,skiboot")
+            c.run_command("nvram --print-config -p lnx,oops-log")
+        except CommandFailed as cf:
+            # These partitions may not exist, so not existing is not a failure
+            print cf.output
+            m = re.match("nvram: ERROR: There is no.*partition", ''.join(cf.output))
+            print repr(m)
+            if not m:
+                raise cf
+
         c.run_command("nvram --print-config -p common")
-        c.run_command("nvram --print-config -p lnx,oops-log")
-        c.run_command("nvram --print-config -p wwwwwwwwwwww")
-        c.run_command("nvram --print-vpd")
-        c.run_command("nvram --print-all-vpd")
-        c.run_command("nvram --print-err-log")
-        c.run_command("nvram --print-event-scan")
+
+        with self.assertRaises(CommandFailed) as cm:
+            c.run_command("nvram --print-config -p wwwwwwwwwwww")
+            c.run_command("nvram --print-vpd")
+            c.run_command("nvram --print-all-vpd")
+            c.run_command("nvram --print-err-log")
+            c.run_command("nvram --print-event-scan")
+        self.assertEqual(cm.exception.exitcode, 255)
+
         c.run_command("nvram --partitions")
         c.run_command("nvram --dump common|head")
-        c.run_command("nvram --dump ibm,skiboot|head")
-        c.run_command("nvram --dump lnx,oops-log|head")
+        try:
+            c.run_command("nvram --dump ibm,skiboot|head")
+            c.run_command("nvram --dump lnx,oops-log|head")
+        except CommandFailed as cf:
+            # These partitions may not exist, so not existing is not a failure
+            print cf.output
+            m = re.match("nvram: ERROR: There is no.*partition", ''.join(cf.output))
+            if not m:
+                raise cf
+
         c.run_command("nvram --dump wwwwwwwwwwww|head")
+
         c.run_command("nvram --ascii common|head -c512; echo")
-        c.run_command("nvram --ascii ibm,skiboot|head -c512; echo")
-        c.run_command("nvram --ascii lnx,oops-log|head -c512; echo")
+        try:
+            c.run_command("nvram --ascii ibm,skiboot|head -c512; echo")
+            c.run_command("nvram --ascii lnx,oops-log|head -c512; echo")
+        except CommandFailed as cf:
+            # These partitions may not exist, so not existing is not a failure
+            print cf.output
+            m = re.match("nvram: ERROR: There is no.*partition", ''.join(cf.output))
+            if not m:
+                raise cf
+
         c.run_command("nvram --ascii wwwwwwwwwwww|head -c512; echo")
+
         try:
             self.nvram_update_part_config("common")
             self.nvram_update_part_config("ibm,skiboot")

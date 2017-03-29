@@ -41,6 +41,7 @@ import commands
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
+from Exceptions import CommandFailed
 
 class IPMITool():
     def __init__(self, method='lanplus', binary='ipmitool',
@@ -161,10 +162,17 @@ class IPMIConsole():
         console.sendline(command)
         console.expect("\n") # from us
         rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
+        output = console.before
+        console.sendline("echo $?")
+        console.expect("\n") # from us
+        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
+        exitcode = int(console.before)
 
         if rc == 0:
-            res = console.before
+            res = output
             res = res.splitlines()
+            if exitcode != 0:
+                raise CommandFailed(command, res, exitcode)
             return res
         else:
             res = console.before

@@ -29,6 +29,7 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
 
 class OOBHostLogin(unittest.TestCase):
     '''Log into the host via out of band console'''
@@ -43,3 +44,23 @@ class OOBHostLogin(unittest.TestCase):
         l_con = self.system.sys_get_ipmi_console()
         r = l_con.run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)
+        try:
+            r = l_con.run_command("false")
+        except CommandFailed as r:
+            self.assertEqual(r.exitcode, 1)
+
+class SSHHostLogin(unittest.TestCase):
+    '''Log into the host via SSH'''
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.system = conf.system()
+        self.host = conf.host()
+
+    def runTest(self):
+        self.system.goto_state(OpSystemState.OS)
+        r = self.host.host_run_command("echo 'Hello World'")
+        self.assertIn("Hello World", r)
+        try:
+            r = self.host.host_run_command("false")
+        except CommandFailed as r:
+            self.assertEqual(r.exitcode, 1)

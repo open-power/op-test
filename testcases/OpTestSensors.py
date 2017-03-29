@@ -97,31 +97,12 @@ class OpTestSensors(unittest.TestCase):
 
         # To detect different sensor chips and modules
         res = self.cv_HOST.host_run_command("yes | sensors-detect")
-        print res
 
         # Checking sensors command functionality with different options
-        output = self.cv_HOST.host_run_command("sensors; echo $?")
-        response = output.splitlines()
-        if int(response[-1]):
-            l_msg = "sensors not working,exiting...."
-            raise OpTestError(l_msg)
-        print output
-        output = self.cv_HOST.host_run_command("sensors -f; echo $?")
-        response = output.splitlines()
-        if int(response[-1]):
-            l_msg = "sensors -f not working,exiting...."
-            raise OpTestError(l_msg)
-        print output
-        output = self.cv_HOST.host_run_command("sensors -A; echo $?")
-        response = output.splitlines()
-        if int(response[-1]):
-            l_msg = "sensors -A not working,exiting...."
-            raise OpTestError(l_msg)
-        print output
-        output = self.cv_HOST.host_run_command("sensors -u; echo $?")
-        response = output.splitlines()
-        if int(response[-1]):
-            l_msg = "sensors -u not working,exiting...."
-            raise OpTestError(l_msg)
-        print output
+        try:
+            for cmd in ["", "-f", "-A", "-u"]:
+                response = self.cv_HOST.host_run_command("sensors " + cmd)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, str(c))
+
         return

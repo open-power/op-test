@@ -43,6 +43,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed, KernelModuleNotLoaded
 
 class OpTestAt24driver(unittest.TestCase):
     def setUp(self):
@@ -85,7 +86,10 @@ class OpTestAt24driver(unittest.TestCase):
         # Loading at24 module based on config option
         l_config = "CONFIG_EEPROM_AT24"
         l_module = "at24"
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+        try:
+            self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+        except KernelModuleNotLoaded as km:
+            pass # We can fail if we don't load it, not all systems have it
 
         # Get infomtion of EEPROM chips
         self.cv_HOST.host_get_info_of_eeprom_chips()
@@ -102,9 +106,10 @@ class OpTestAt24driver(unittest.TestCase):
             self.i2c_dump(l_args)
 
         # Getting the list of sysfs eeprom interfaces
-        l_res = self.cv_HOST.host_run_command("find /sys/ -name eeprom; echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "EEPROM sysfs entries are not created")
+        try:
+            l_res = self.cv_HOST.host_run_command("find /sys/ -name eeprom")
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, "EEPROM sysfs entries are not created")
 
         for l_dev in l_res:
             if l_dev.__contains__("eeprom"):
@@ -128,7 +133,8 @@ class OpTestAt24driver(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def i2c_dump(self, i_args):
-        l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s; echo $?" % i_args)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "i2cdump failed on addr %s" % i_args)
+        try:
+            l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s" % i_args)
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, "i2cdump failed on addr %s" % i_args)
 

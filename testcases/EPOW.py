@@ -79,17 +79,12 @@ class EPOWBase(unittest.TestCase):
             cmd = "cat %s | grep -i -e 'EPOW' -e 'CRITICAL' | tail -n 6" % file
 
         # Checking for file existence
-        rc = self.cv_FSP.fspc.run_command("test -f %s; echo $?" % file)
-        if int(rc) == 0:
-            print "The def file for this machine is available"
-            limits = self.cv_FSP.fspc.run_command(cmd)
-            print limits
-            cmd = cmd + "| cut -d '#' -f 1"
-            limits = self.cv_FSP.fspc.run_command(cmd)
-        else:
-            msg = "The def file for this machine is not available, exiting..."
-            raise OpTestError(msg)
-        limits = limits.splitlines()
+        rc = self.cv_FSP.fspc.run_command("test -f %s" % file)
+        print "The def file for this machine is available"
+        limits = self.cv_FSP.fspc.run_command(cmd)
+        print limits
+        cmd = cmd + "| cut -d '#' -f 1"
+        limits = self.cv_FSP.fspc.run_command(cmd)
         dic = {}
         for i in range(len(limits)):
             pair = ((limits[i]).replace(" ", "")).replace("\t", "")

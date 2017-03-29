@@ -42,7 +42,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-class OpTestPCI(unittest.TestCase):
+class TestPCI():
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -50,38 +50,49 @@ class OpTestPCI(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.pci_good_data_file = conf.lspci_file()
 
-class OpTestPCISkiroot(OpTestPCI):
-    # compare petitboot "lspci -mm -n" to known good data
-    def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        cmd = "lspci -mm -n"
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
-        c.run_command("uname -a")
-        c.run_command("cat /etc/os-release")
-
-        res = '\n'.join(c.run_command(cmd))
-
-        self.pci_data_petitboot = res
-        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_petitboot + '\n')
-        r = diff_process.wait()
-        self.assertEqual(r, 0, "Stored and detected PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
-
-class OpTestPCIHost(OpTestPCI):
     # Compare host "lspci -mm -n" output to known good
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        c = self.c
 
-        self.cv_HOST.host_check_command("lspci", "lsusb")
-        self.cv_HOST.host_list_pci_devices()
-        self.cv_HOST.host_get_pci_verbose_info()
-        self.cv_HOST.host_list_usb_devices()
-        l_res = self.cv_HOST.host_run_command("lspci -mm -n")
-        # FIXME: why do we get a blank line in l_res ?
-        self.pci_data_hostos = l_res.replace("\r\n", "\n")
+        list_pci_devices_commands = ["lspci -mm -n",
+                                     "lspci -m",
+                                     "lspci -t",
+                                     "lspci -n",
+                                     "lspci -nn",
+                                     "cat /proc/bus/pci/devices",
+                                     "ls /sys/bus/pci/devices/ -l",
+                                     "lspci -vvxxx",
+                                     ]
+        for cmd in list_pci_devices_commands:
+            c.run_command(cmd, timeout=120)
+
+        list_usb_devices_commands = ["lsusb",
+                                     "lsusb -t",
+                                     "lsusb -v",
+                                     ]
+        for cmd in list_usb_devices_commands:
+            c.run_command(cmd)
+
+        l_res = c.run_command("lspci -mm -n")
+        # We munge the result back to what we'd get
+        # from "ssh user@host lspci -mm -n > host-lspci.txt" so that the diff
+        # is simple to do
+        self.pci_data_hostos = '\n'.join(l_res) + '\n'
         diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
         r = diff_process.wait()
         self.assertEqual(r, 0, "Stored and detected PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
+
+
+class TestPCISkiroot(TestPCI, unittest.TestCase):
+    def setup_test(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.host_console_unique_prompt()
+
+class TestPCIHost(TestPCI, unittest.TestCase):
+    def setup_test(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.host().get_ssh_connection()
 

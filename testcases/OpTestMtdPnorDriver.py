@@ -88,25 +88,27 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
 
         # Check /dev/mtd0 file existence on host
-        l_cmd = "ls -l /dev/mtd0; echo $?"
-        l_res = self.cv_HOST.host_run_command(l_cmd)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, 
-            "/dev/mtd0 character flash device file doesn't exist on host")
+        l_cmd = "ls -l /dev/mtd0"
+        try:
+            l_res = self.cv_HOST.host_run_command(l_cmd)
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0,
+                             "/dev/mtd0 character flash device file doesn't exist on host\n%s" % str(cf))
         print "/dev/mtd0 character device file exists on host"
 
         # Copying the contents of the PNOR flash in a file /tmp/pnor
         l_file = "/tmp/pnor"
-        l_cmd = "cat /dev/mtd0 > %s; echo $?" % l_file
-        l_res = self.cv_HOST.host_run_command(l_cmd)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0,
-            "Fetching PNOR data is failed from /dev/mtd0 into temp file /tmp/pnor")
+        l_cmd = "cat /dev/mtd0 > %s" % l_file
+        try:
+            l_res = self.cv_HOST.host_run_command(l_cmd)
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0,
+                             "Fetching PNOR data is failed from /dev/mtd0 into temp file /tmp/pnor\n%s" % str(cf))
 
         # Getting the /tmp/pnor file into local x86 machine
         l_path = "/tmp/"
         self.util.copyFilesToDest(l_path, self.host_user, self.host_ip, l_file, self.host_Passwd, "2", BMC_CONST.SCP_TO_LOCAL)
-        l_list =  commands.getstatusoutput("ls -l %s; echo $?" % l_path)
+        l_list =  commands.getstatusoutput("ls -l %s" % l_path)
         print l_list
 
         l_workdir = "/tmp/ffs"

@@ -39,6 +39,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
 
 class FullRTC(unittest.TestCase):
     def setUp(self):
@@ -53,7 +54,7 @@ class FullRTC(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         # Get hwclock version
-        l_hwclock = self.cv_HOST.host_run_command("hwclock -V;echo $?")
+        l_hwclock = self.cv_HOST.host_run_command("hwclock -V")
         # Get Kernel Version
         l_kernel = self.cv_HOST.host_get_kernel_version()
 
@@ -83,8 +84,7 @@ class FullRTC(unittest.TestCase):
         self.rtc_init()
 
         # Get the device files for rtc driver
-        l_res = self.cv_HOST.host_run_command("ls /dev/ | grep -i --color=never rtc")
-        l_files = l_res.splitlines()
+        l_files = self.cv_HOST.host_run_command("ls /dev/ | grep -i --color=never rtc")
         l_list = []
         for name in l_files:
             if name.__contains__("rtc"):
@@ -137,9 +137,10 @@ class FullRTC(unittest.TestCase):
     # @param i_file @type string: special /dev/ file
     def read_hwclock_from_file(self, i_file):
         print "Reading the hwclock from special file /dev/ ...: %s" % i_file
-        l_res = self.cv_HOST.host_run_command("hwclock -r -f %s;echo $?" % i_file)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Reading the hwclock from file failed.")
+        try:
+            self.cv_HOST.host_run_command("hwclock -r -f %s" % i_file)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "reading the hwclock from file failed: %s" % str(c))
 
     ##
     # @brief This function sets hwclock in UTC format
@@ -148,9 +149,10 @@ class FullRTC(unittest.TestCase):
     #                             Ex: "2016-01-01 12:12:12"
     def set_hwclock_in_utc(self, i_time):
         print "Setting the hwclock in UTC: %s" % i_time
-        l_res = self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --utc;echo $?" % i_time)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the hwclock in UTC failed");
+        try:
+            self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --utc" % i_time)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Setting the hwclock in UTC failed: %s" % str(c));
 
     ##
     # @brief This function sets hwclock in local time format
@@ -158,57 +160,64 @@ class FullRTC(unittest.TestCase):
     # @param i_time @type string: Time to set hwclock
     def set_hwclock_in_localtime(self, i_time):
         print "Setting the hwclock in localtime: %s" % i_time
-        l_res = self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --localtime;echo $?" % i_time)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the hwclock in localtime failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --localtime" % i_time)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Setting the hwclock in localtime failed: %s" % str(c))
 
     ##
     # @brief This function sets the time of hwclock from system time
     def systime_to_hwclock(self):
         print "Setting the hwclock from system time"
-        l_res = self.cv_HOST.host_run_command("hwclock --systohc;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the hwclock from system time failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --systohc")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Setting the hwclock from system time failed: %s" % str(c))
 
     ##
     # @brief This function sets the time of hwclock from system time in UTC format
     def systime_to_hwclock_in_utc(self):
         print "Setting the hwclock from system time, in UTC format"
-        l_res = self.cv_HOST.host_run_command("hwclock --systohc --utc;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the hwclock from system time in UTC format failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --systohc --utc")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Setting the hwclock from system time in UTC format failed: %s" % str(c))
 
     ##
     # @brief This function sets the time of hwclock from system time in local time format
     def systime_to_hwclock_in_localtime(self):
         print "Setting the hwclock from system time, in localtime format"
-        l_res = self.cv_HOST.host_run_command("hwclock --systohc --localtime;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the hwclock from system time in localtime format failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --systohc --localtime")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Setting the hwclock from system time in localtime format failed: %s" % str(c))
 
     ##
     # @brief This function sets the system time from hwclock.
     def hwclock_to_systime(self):
         print "Setting the system time from hwclock"
-        l_res = self.cv_HOST.host_run_command("hwclock --hctosys;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the system time from hwclock failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --hctosys")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Setting the system time from hwclock failed: %s" % str(c))
 
     ##
     # @brief This function keeps hwclock in UTC format.
     def hwclock_in_utc(self):
         print "Keeping the hwclock in UTC format"
-        l_res = self.cv_HOST.host_run_command("hwclock --utc;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Keeping the hwclock in UTC is failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --utc")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Keeping the hwclock in UTC is failed: %s" % str(c))
 
     ##
     # @brief This function keeps hwclock in local time format.
     def hwclock_in_localtime(self):
         print "Keeping the hwclock in localtime"
-        l_res = self.cv_HOST.host_run_command("hwclock --localtime;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Keeping the hwclock in localtime is failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --localtime")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "Keeping the hwclock in localtime is failed: %s" % str(c))
 
     ##
     # @brief This function tests hwclock compare functionality for a time of 100 seconds.
@@ -216,10 +225,14 @@ class FullRTC(unittest.TestCase):
     #        other return value means compare function failed.
     def hwclock_compare(self):
         print "Testing hwclock compare functionality for a time of 10 seconds"
-        l_res = self.cv_HOST.host_run_command("timeout 10 hwclock --compare; echo $?")
-        l_res = l_res.splitlines()
-        print l_res
-        self.assertEqual(int(l_res[-1]), 124, "hwclock compare function failed")
+        exitcode = 0
+        err = "hwclock compare function succeeded, expected exit code of 124"
+        try:
+            self.cv_HOST.host_run_command("timeout 10 hwclock --compare")
+        except CommandFailed as c:
+            exitcode = c.exitcode
+            err = "hwclock compare function failed: %s" % str(c)
+        self.assertEqual(exitcode, 124, err)
 
     ##
     # @brief This function predict RTC reading at time given with --date
@@ -227,9 +240,10 @@ class FullRTC(unittest.TestCase):
     # @param i_time @type string: time at which predict hwclock reading
     def hwclock_predict(self, i_time):
         print "Testing the hwclock predict function to a time: %s" % i_time
-        l_res = self.cv_HOST.host_run_command("hwclock --predict --date \'%s\';echo $?" % i_time)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "hwclock predict function failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --predict --date \'%s\'" % i_time)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "hwclock predict function failed: %s" % str(c))
 
     ##
     # @brief This function tests hwclock debug mode.
@@ -237,12 +251,11 @@ class FullRTC(unittest.TestCase):
     #        and setting system time from hwclock
     def hwclock_debug_mode(self):
         print "Testing the hwclock debug mode"
-        l_res = self.cv_HOST.host_run_command("hwclock --systohc --debug;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the hwclock from system time in debug mode failed")
-        l_res = self.cv_HOST.host_run_command("hwclock --hctosys --debug;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "Setting the system time from hwclock in debug mode failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --systohc --debug")
+            self.cv_HOST.host_run_command("hwclock --hctosys --debug")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "hwclock debug mode failed: %s" % str(c) )
 
     ##
     # @brief This function tests the hwclock test mode. In this mode setting the hwclock
@@ -251,18 +264,21 @@ class FullRTC(unittest.TestCase):
     # @param i_time @type string: time to set hwclock in test mode
     def hwclock_test_mode(self, i_time):
         print "Testing the hwclock test mode, set time to: %s" % i_time
-        l_res = self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --test;echo $?" % i_time)
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "hwclock test function failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --test" % i_time)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "hwclock test function failed: %s" % str(c))
 
     ##
     # @brief This function tests hwclock adjust functionality
     def hwclock_adjust(self):
         print "Testing the hwclock adjust function"
-        l_res = self.cv_HOST.host_run_command("hwclock --adjust;echo $?")
-        l_res = l_res.splitlines()
-        self.assertEqual(int(l_res[-1]), 0, "hwclock adjust function failed")
+        try:
+            self.cv_HOST.host_run_command("hwclock --adjust")
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, "hwclock adjust function failed: %s" % str(c))
         l_res = self.cv_HOST.host_run_command("cat /etc/adjtime")
+        print '\n'.join(l_res)
 
 class BasicRTC(FullRTC):
     def runTest(self):

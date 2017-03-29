@@ -1007,20 +1007,6 @@ class OpTestSystem(object):
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
-
-    ##
-    # @brief reads msglog for getting Chip and Core information
-    #
-    # return Chip and Core information or BMC_CONST.FW_FAILED
-    #
-    def sys_read_msglog_core(self):
-        try:
-            self.sys_bmc_power_on_validate_host()
-            return self.cv_HOST.host_read_msglog_core()
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-
-
     ##
     # @brief clears the gard records using the gard tool from OS
     #

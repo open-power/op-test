@@ -34,10 +34,7 @@ class OpalMsglog():
     def runTest(self):
         self.setup_test()
         log_entries = self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
-        if isinstance(log_entries, list):
-            msg = '\n'.join(log_entries)
-        else:
-            msg = log_entries
+        msg = '\n'.join(filter(None, log_entries))
         self.assertTrue( len(log_entries) == 0, "Warnings/Errors in OPAL log:\n%s" % msg)
 
 class Skiroot(OpalMsglog, unittest.TestCase):

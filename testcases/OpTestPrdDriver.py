@@ -89,7 +89,6 @@ class OpTestPrdDriverBase(unittest.TestCase):
 
         # Getting list of processor chip Id's(executing getscom -l to get chip id's)
         l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
-        l_res = l_res.splitlines()
         l_chips = []
         for line in l_res:
             matchObj = re.search("(\d{8}).*processor", line)
@@ -100,10 +99,6 @@ class OpTestPrdDriverBase(unittest.TestCase):
         l_chips.sort()
         print l_chips # ['00000000', '00000001', '00000010']
         self.random_chip = random.choice(l_chips)
-
-        # Below will be useful for debug purposes to compare chip information
-        l_res = self.cv_HOST.host_read_msglog_core()
-        print l_res
 
     ##
     # @brief This function injects some core FIR errors and verifies whether opal-prd clears the errors.

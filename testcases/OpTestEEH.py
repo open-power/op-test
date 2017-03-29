@@ -41,6 +41,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
 
 class EEHRecoveryFailed(Exception):
     def __init__(self, thing, dev, log=None):
@@ -65,7 +66,7 @@ class OpTestEEH(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def prepare_logs(self):
-        cmd = "rm -rf /tmp/opal_msglog;touch /sys/firmware/opal/msglog; cp /sys/firmware/opal/msglog /tmp/opal_msglog"
+        cmd = "cat /sys/firmware/opal/msglog|grep ',[0-4]\]' > /tmp/opal_msglog"
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         c.run_command(cmd)
         c.run_command("dmesg -C")
@@ -77,7 +78,7 @@ class OpTestEEH(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def gather_logs(self):
-        cmd = "diff /sys/firmware/opal/msglog /tmp/opal_msglog"
+        cmd = "grep ',[0-4]\]' /sys/firmware/opal/msglog | diff - /tmp/opal_msglog"
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         c.run_command(cmd)
         c.run_command("dmesg")
@@ -138,10 +139,13 @@ class OpTestEEH(unittest.TestCase):
     def run_pe_4(self, addr, e, f, phb, pe, con):
         self.prepare_logs()
         count_old = self.check_eeh_slot_resets()
-        rc = self.inject_error(addr, e, f, phb, pe)
-        if rc != 0:
-            print "Skipping verification as command failed"
-            return
+        try:
+            self.inject_error(addr, e, f, phb, pe)
+        except CommandFailed as cf:
+            if cf.exitcode == 1:
+                # Skip injecting error, unsupported
+                return
+
         # Give some time to EEH PCI Error recovery
         tries = 60
         for i in range(1,tries):
@@ -180,10 +184,8 @@ class OpTestEEH(unittest.TestCase):
     # @returns command return code @type integer
     #
     def inject_error(self, addr, e, f, phb, pe):
-        cmd = "echo %s:%s:%s:0:0 > /sys/kernel/debug/powerpc/PCI%s/err_injct && lspci -ns %s; echo $?" % (addr, e, f, phb, pe)
+        cmd = "echo %s:%s:%s:0:0 > /sys/kernel/debug/powerpc/PCI%s/err_injct && lspci -ns %s" % (addr, e, f, phb, pe)
         res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
-        return int(res[-1])
-
 
     ##
     # @brief   Check for EEH Slot Reset count
@@ -195,7 +197,7 @@ class OpTestEEH(unittest.TestCase):
     def check_eeh_slot_resets(self):
         cmd = "cat /proc/powerpc/eeh | tail -n 1"
         count = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
-        output = (count[-1].split("="))[1]
+        output = (count[0].split("="))[1]
         return output
 
 

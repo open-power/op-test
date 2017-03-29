@@ -84,7 +84,7 @@ class SkirootSuite():
     '''Tests in Petitboot environment'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(OpTestPCI.OpTestPCISkiroot())
+        self.s.addTest(OpTestPCI.TestPCISkiroot())
         self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
@@ -102,7 +102,7 @@ class HostSuite():
         self.s.addTest(HostLogin.OOBHostLogin())
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(OpTestSensors.OpTestSensors())
-        self.s.addTest(OpTestPCI.OpTestPCIHost())
+        self.s.addTest(OpTestPCI.TestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
         self.s.addTest(OpTestRTCdriver.BasicRTC())
         self.s.addTest(OpTestEM.suite())

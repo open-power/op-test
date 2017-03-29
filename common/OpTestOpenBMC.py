@@ -25,6 +25,7 @@ try:
 except ImportError:
     from pexpect import pxssh
 from OpTestIPMI import OpTestIPMI
+from Exceptions import CommandFailed
 
 class ConsoleState():
     DISCONNECTED = 0
@@ -97,17 +98,24 @@ class HostConsole():
         console = self.get_console()
         console.sendline(command)
         console.expect("\n") # from us
-        rc = console.expect_exact("[console-pexpect]#", timeout)
+        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
+        output = console.before
+
+        console.sendline("echo $?")
+        console.expect("\n") # from us
+        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
+        exitcode = int(console.before)
 
         if rc == 0:
-            res = console.before
+            res = output
             res = res.splitlines()
+            if exitcode != 0:
+                raise CommandFailed(command, res, exitcode)
             return res
         else:
             res = console.before
-            res = res.split(i_cmd)
+            res = res.split(command)
             return res[-1].splitlines()
-
 
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None):

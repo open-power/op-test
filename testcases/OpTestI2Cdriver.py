@@ -85,7 +85,10 @@ class OpTestI2Cdriver(unittest.TestCase):
         # loading at24 module based on config option
         l_config = "CONFIG_EEPROM_AT24"
         l_module = "at24"
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+        try:
+            self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+        except KernelModuleNotLoaded as km:
+            pass # We can fail if we don't load it, not all systems have it
 
         # Get information of EEPROM chips
         eeprom_info = self.cv_HOST.host_get_info_of_eeprom_chips()
@@ -103,26 +106,24 @@ class OpTestI2Cdriver(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def query_i2c_bus(self, i_bus):
+        rc = 0
         print "Querying the i2c bus %s for devices attached to it" % i_bus
-        l_res = self.cv_HOST.host_run_command("i2cdetect -y %i; echo $?" % int(i_bus))
-        l_res = l_res.splitlines()
+        try:
+            l_res = self.cv_HOST.host_run_command("i2cdetect -y %i" % int(i_bus))
+        except CommandFailed as cf:
+            rc = cf.exitcode
 
-        if int(l_res[-1]) != 0:
-            l_res = self.cv_HOST.host_run_command("i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes; echo $?" % int(i_bus))
-            l_res = l_res.splitlines()
-            if int(l_res[-1]) != 0:
+        if rc != 0:
+            try:
+                l_res = self.cv_HOST.host_run_command("i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes" % int(i_bus))
+            except CommandFailed as cf:
                 print "i2c bus %i doesn't support query" % int(i_bus)
                 raise OpTestI2CDetectUnsupported;
-            else:
-                l_res = self.cv_HOST.host_run_command("i2cdetect -y -r %i; echo $?" % int(i_bus))
-                l_res = l_res.splitlines()
 
-        if int(l_res[-1]) == 0:
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Querying the i2cbus for devices failed:%s" % i_bus
-            print l_msg
-            raise OpTestError(l_msg)
+            try:
+                l_res = self.cv_HOST.host_run_command("i2cdetect -y -r %i" % int(i_bus))
+            except CommandFailed as cf:
+                self.assertEqual(cf.exitcode, 0, "Querying the i2cbus for devices failed:%s\n%s" % (i_bus,str(cf)))
 
     ##
     # @brief This i2cdump function takes arguments in pair of a string like "i2cbus address".
@@ -138,14 +139,10 @@ class OpTestI2Cdriver(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def i2c_dump(self, i_args):
-        l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s; echo $?" % i_args)
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "i2cdump failed for the device: %s" % i_args
-            print l_msg
-            raise OpTestError(l_msg)
+        try:
+            l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s" % i_args)
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, "i2cdump failed for the device: %s\n%s" % (i_args, str(cf)))
 
     ##
     # @brief This function i2cget read from I2C/SMBus chip registers
@@ -160,14 +157,10 @@ class OpTestI2Cdriver(unittest.TestCase):
     # @return l_res @type string: data present on data-address or raise OpTestError
     #
     def i2c_get(self, i_args, i_addr):
-        l_res = self.cv_HOST.host_run_command("i2cget -f -y %s %s;echo $?" % (i_args, i_addr))
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return l_res
-        else:
-            l_msg = "i2cget: Getting data from address %s failed" % i_addr
-            print l_msg
-            raise OpTestError(l_msg)
+        try:
+            l_res = self.cv_HOST.host_run_command("i2cget -f -y %s %s" % (i_args, i_addr))
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, "i2cget: Getting data from address %s failed: %s" % (i_addr, str(cf)))
 
     ##
     # @brief This function i2cset will be used for setting I2C registers
@@ -183,14 +176,10 @@ class OpTestI2Cdriver(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def i2c_set(self, i_args, i_addr, i_val):
-        l_res = self.cv_HOST.host_run_command("i2cset -f -y %s %s %s;echo $?" % (i_args, i_addr, i_val))
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "i2cset: Setting the data to a address %s failed" % i_addr
-            print l_msg
-            raise OpTestError(l_msg)
+        try:
+            l_res = self.cv_HOST.host_run_command("i2cset -f -y %s %s %s" % (i_args, i_addr, i_val))
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, "i2cset: Setting the data to a address %s failed: %s" % (i_addr, str(cf)))
 
 class BasicI2C(OpTestI2Cdriver):
     def runTest(self):
@@ -217,26 +206,17 @@ class BasicI2C(OpTestI2Cdriver):
             self.assertEqual(len(l_chips), 0, "Detected EEPROM where OpTestSystem said there should be none")
 
         # list i2c adapter conetents
-        l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            pass
-        else:
-            l_msg = "listing i2c adapter contents through the sysfs entry failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        try:
+            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter")
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, str(cf))
 
         # Checking the sysfs entry of each i2c bus
         for l_bus in l_list1:
-            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s; echo $?" % l_bus)
-            l_res = l_res.splitlines()
-            if int(l_res[-1]) == 0:
-                pass
-            else:
-                l_msg = "listing i2c bus contents through the sysfs entry failed"
-                print l_msg
-                raise OpTestError(l_msg)
-
+            try:
+                l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s" % l_bus)
+            except CommandFailed as cf:
+                self.assertEqual(cf.exitcode, 0, str(cf))
 
 class FullI2C(OpTestI2Cdriver):
     ##
@@ -279,25 +259,17 @@ class FullI2C(OpTestI2Cdriver):
             self.assertEqual(l_chips, None, "Detected EEPROM where OpTestSystem said there should be none")
 
         # list i2c adapter conetents
-        l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter; echo $?")
-        l_res = l_res.splitlines()
-        if int(l_res[-1]) == 0:
-            pass
-        else:
-            l_msg = "listing i2c adapter contents through the sysfs entry failed"
-            print l_msg
-            raise OpTestError(l_msg)
+        try:
+            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter")
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, str(cf))
 
         # Checking the sysfs entry of each i2c bus
         for l_bus in l_list1:
-            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s; echo $?" % l_bus)
-            l_res = l_res.splitlines()
-            if int(l_res[-1]) == 0:
-                pass
-            else:
-                l_msg = "listing i2c bus contents through the sysfs entry failed"
-                print l_msg
-                raise OpTestError(l_msg)
+            try:
+                l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s" % l_bus)
+            except CommandFailed as cf:
+                self.assertEqual(cf.exitcode, 0, str(cf))
 
         if self.cv_SYSTEM.has_host_accessible_eeprom():
             # Currently testing only getting the data from a data address,

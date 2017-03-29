@@ -202,16 +202,16 @@ class OpTestHMIHandling(unittest.TestCase):
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = "1%s013100" % l_core
-                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000; echo $?" % (l_chip, l_reg)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000" % (l_chip, l_reg)
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
-                l_res = console.run_command(l_cmd)
-                if l_res[-1] == "0":
-                    print "Injected thread hang recoverable error"
-                elif l_res[-1] == "1":
-                    # putscom returns -5 when it is trying to read from write only access register,
-                    # In these cases we should not exit and we will contiue with other error injetions
-                    continue
+                try:
+                    l_res = console.run_command(l_cmd)
+                except CommandFailed as cf:
+                    if cf.exitcode == 5:
+                        pass
+                    else:
+                        raise cf
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
                         raise Exception("Processor recovery failed: Kernel got panic")
@@ -239,14 +239,16 @@ class OpTestHMIHandling(unittest.TestCase):
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = "1%s013100" % l_core
-                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000; echo $?" % (l_chip, l_reg)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000" % (l_chip, l_reg)
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
-                l_res = console.run_command(l_cmd)
-                if l_res[-1] == "0":
-                    print "Injected thread hang recoverable error"
-                elif l_res[-1] == "1":
-                    continue
+                try:
+                    l_res = console.run_command(l_cmd)
+                except CommandFailed as cf:
+                    if cf.exitcode == 1:
+                        pass
+                    else:
+                        raise cf
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
                         raise Exception("Processor recovery failed: Kernel got panic")
@@ -342,14 +344,16 @@ class OpTestHMIHandling(unittest.TestCase):
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = "1%s013281" % l_core
-                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s;echo $?" % (l_chip, l_reg, l_error)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, l_reg, l_error)
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
-                l_res = console.run_command(l_cmd)
-                if l_res[-1] == "0":
-                    print "Injected TFMR error %s" % l_error
-                elif l_res[-1] == "1":
-                    continue
+                try:
+                    l_res = console.run_command(l_cmd)
+                except CommandFailed as cf:
+                    if cf.exitcode == 1:
+                        pass
+                    else:
+                        raise cf
                 else:
                     if any("Kernel panic - not syncing" in line for line in l_res):
                         l_msg = "TFMR error injection: Kernel got panic"
@@ -383,16 +387,21 @@ class OpTestHMIHandling(unittest.TestCase):
         l_pair = random.choice(self.l_dic)
         # Get random chip id
         l_chip = l_pair[0]
-        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s;echo $?" % (l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
         console = self.cv_SYSTEM.sys_get_ipmi_console()
         console.run_command("dmesg -C")
-        l_res = console.run_command(l_cmd)
+
         # As of now putscom command to TOD register will fail with return code -1.
         # putscom indirectly call getscom to read the value again.
         # But getscom to TOD error reg there is no access
         # TOD Error reg has only WO access and there is no read access
-        if l_res[-1] == "1":
-            print "Injected TOD error %s" % l_error
+        try:
+            l_res = console.run_command(l_cmd)
+        except CommandFailed as cf:
+            if cf.exitcode == 1:
+                pass
+            else:
+                raise cf
         else:
             if any("Kernel panic - not syncing" in line for line in l_res):
                 print "TOD ERROR Injection-kernel got panic"

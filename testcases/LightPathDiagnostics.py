@@ -64,7 +64,7 @@ class LightPathDiagnostics(unittest.TestCase):
 
         # If it has support, check for led's presence
         res = self.cv_HOST.host_run_command("ls /sys/class/leds/ | wc -l")
-        self.assertNotEqual(int(res.strip()), 0,
+        self.assertNotEqual(int(''.join(res).strip()), 0,
             "No LED's found in sysfs /sys/class/leds/")
 
         self.cv_FSP.fsp_get_console()
@@ -73,7 +73,6 @@ class LightPathDiagnostics(unittest.TestCase):
 
     def get_location_codes(self):
         res = self.cv_HOST.host_run_command("usysident")
-        res = res.splitlines()
         loc_codes = []
         for loc in res:
             loc_codes.append(loc.split("\t")[0])
@@ -81,7 +80,6 @@ class LightPathDiagnostics(unittest.TestCase):
 
     def get_sysattn_indicator_loc(self):
         res = self.cv_HOST.host_run_command("usysattn")
-        res = res.splitlines()
         loc_codes = []
         for loc in res:
             loc_codes.append(loc.split("\t")[0])
@@ -103,7 +101,7 @@ class UsysIdentifyTest(LightPathDiagnostics):
             tries = 20
             for i in range(1, tries+1):
                 response = self.cv_HOST.host_run_command("usysident -l %s" % (loc))
-                if "on" in response:
+                if "on" in ''.join(response):
                     break
                 time.sleep(1)
             self.assertIn("on", response,
@@ -119,7 +117,7 @@ class UsysIdentifyTest(LightPathDiagnostics):
             tries = 20
             for i in range(1, tries+1):
                 response = self.cv_HOST.host_run_command("usysident -l %s" % (loc))
-                if "off" in response:
+                if "off" in ''.join(response):
                     break
                 time.sleep(1)
             self.assertIn("off", response,
@@ -147,7 +145,7 @@ class UsysAttnFSPTest(LightPathDiagnostics):
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
             response = self.cv_HOST.host_run_command(cmd)
-            if "on" in response:
+            if "on" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("on", response,
@@ -164,7 +162,7 @@ class UsysAttnFSPTest(LightPathDiagnostics):
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
             response = self.cv_HOST.host_run_command(cmd)
-            if "off" in response:
+            if "off" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("off", response,
@@ -188,7 +186,7 @@ class UsysAttnHostTest(LightPathDiagnostics):
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
             response = self.cv_HOST.host_run_command(cmd)
-            if "on" in response:
+            if "on" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("on", response,
@@ -203,7 +201,7 @@ class UsysAttnHostTest(LightPathDiagnostics):
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
             response = self.cv_HOST.host_run_command(cmd)
-            if "off" in response:
+            if "off" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("off", response,
@@ -229,7 +227,7 @@ class UsysFaultTest(LightPathDiagnostics):
             for i in range(1, tries+1):
                 cmd = "usysattn -l %s" % indicator
                 response = self.cv_HOST.host_run_command(cmd)
-                if "on" in response:
+                if "on" in ''.join(response):
                     break
                 time.sleep(1)
             self.assertIn("on", response,

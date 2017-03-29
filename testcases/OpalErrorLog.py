@@ -39,6 +39,7 @@ from common.OpTestError import OpTestError
 import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
 
 class OpalErrorLog(unittest.TestCase):
     def setUp(self):
@@ -50,7 +51,12 @@ class OpalErrorLog(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     def opal_elog_init(self):
-        rc = self.cv_HOST.host_check_sysfs_path_availability("/sys/firmware/opal/elog/")
+        rc = 0
+        try:
+            self.cv_HOST.host_check_sysfs_path_availability("/sys/firmware/opal/elog/")
+        except CommandFailed as cf:
+            rc = cf.exitcode
+
         if "FSP" in self.bmc_type:
             self.assertTrue(rc, "opal elog sysfs path is not available in host")
         else:

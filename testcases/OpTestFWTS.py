@@ -30,8 +30,14 @@ import os
 import OpTestConfiguration
 import unittest
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
 
 import json
+
+class FWTSCommandFailed(unittest.TestCase):
+    FAIL = None
+    def runTest(self):
+        self.assertEqual(self.FAIL, None, str(self.FAIL))
 
 class FWTSVersion(unittest.TestCase):
     MAJOR = 0
@@ -64,8 +70,18 @@ class FWTSTest(unittest.TestCase):
 class OpTestFWTS(unittest.TestSuite):
     def add_fwts_results(self):
         host = self.host
-        fwtsjson = host.host_run_command('fwts -q -r stdout --log-type=json')
-        r = json.loads(fwtsjson, encoding='latin-1')
+        try:
+            fwtsjson = host.host_run_command('fwts -q -r stdout --log-type=json')
+        except CommandFailed as cf:
+            # FWTS will have exit code of 1 if any test fails,
+            # we want to ignore that and parse the output.
+            fwtsjson = cf.output
+            if cf.exitcode not in [0, 1]:
+                command_failed = FWTSCommandFailed()
+                command_failed.FAIL = cf
+                self.real_fwts_suite.addTest(command_failed)
+
+        r = json.loads('\n'.join(fwtsjson), encoding='latin-1')
         tests = []
         for fwts in r['fwts']:
             for k in fwts:
@@ -100,19 +116,27 @@ class OpTestFWTS(unittest.TestSuite):
         self.real_fwts_suite = unittest.TestSuite()
 
         host = self.host
-        fwts_version = host.host_run_command('fwts --version')
-        # We want to ensure we're at least at version 17.01
-        # which means we need to parse this:
-        # fwts, Version V17.01.00, 2017-01-19 04:20:38
-        v = re.search("fwts, Version V(\d+)\.(\d+)", fwts_version)
-        major , minor = v.group(1) , v.group(2)
 
-        checkver = FWTSVersion()
-        checkver.MAJOR = major
-        checkver.MINOR = minor
-        self.real_fwts_suite.addTest(checkver)
+        try:
+            fwts_version = host.host_run_command('fwts --version')
+        except CommandFailed as cf:
+            command_failed = FWTSCommandFailed()
+            command_failed.FAIL = cf
+            self.real_fwts_suite.addTest(command_failed)
 
-        if checkver.version_check():
-            self.add_fwts_results()
+        if fwts_version:
+            # We want to ensure we're at least at version 17.01
+            # which means we need to parse this:
+            # fwts, Version V17.01.00, 2017-01-19 04:20:38
+            v = re.search("fwts, Version V(\d+)\.(\d+)", ''.join(fwts_version))
+            major , minor = v.group(1) , v.group(2)
+
+            checkver = FWTSVersion()
+            checkver.MAJOR = major
+            checkver.MINOR = minor
+            self.real_fwts_suite.addTest(checkver)
+
+            if checkver.version_check():
+                self.add_fwts_results()
 
         self.real_fwts_suite.run(result)
