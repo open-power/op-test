@@ -67,7 +67,12 @@ class DPOSkiroot(Base):
             self.cv_SYSTEM.load_ipmi_drivers(True)
         self.c.sol.sendline("ipmitool power soft")
         try:
-            rc = self.c.sol.expect_exact(["reboot: Power down", "Power down"], timeout=120)
+            rc = self.c.sol.expect_exact(["reboot: Power down",
+                                          "Power down",
+                                          "Invalid command",
+                                          "Unspecified error"
+                                      ], timeout=120)
+            self.assertIn(rc, [0, 1], "Failed to power down")
         except pexpect.TIMEOUT:
             raise OpTestError("Soft power off not happening")
         rc = self.cv_SYSTEM.sys_wait_for_standby_state()

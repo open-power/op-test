@@ -59,7 +59,14 @@ class OpTestFastReboot(unittest.TestCase):
 
     def get_fast_reset_count(self, c):
         count = 0
-        l = c.run_command("grep 'RESET: Initiating fast' /sys/firmware/opal/msglog")
+        try:
+            l = c.run_command("grep 'RESET: Initiating fast' /sys/firmware/opal/msglog")
+        except CommandFailed as cf:
+            if cf.exitcode == 1:
+                count =0
+                l = []
+            else:
+                raise cf
         for line in l:
             m = re.search('RESET: Initiating fast reboot ([0-9]*)', line)
             if m:
