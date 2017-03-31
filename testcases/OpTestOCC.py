@@ -50,9 +50,15 @@ class OpTestOCCBase(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
+        self.cv_FSP = conf.bmc()
         self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+    def do_occ_reset_fsp(self):
+        cmd = "tmgtclient --reset_occ_clear=0xFF; echo $?"
+        res = self.cv_FSP.fspc.run_command(cmd)
+        self.assertEqual(int(res[-1]), 0, "occ reset command failed from fsp")
 
     def do_occ_reset(self):
         print "OPAL-PRD: OCC Enable"
@@ -312,6 +318,28 @@ class OpTestOCCFull(OpTestOCCBase):
                     "OCC's are not in active state")
             self.dvfs_test()
 
+class OCCRESET_FSP(OpTestOCCBase):
+
+    def runTest(self):
+        if "FSP" not in self.bmc_type:
+            self.skipTest("FSP OCC Reset test")
+        count = 10
+        for i in range(1, count+1):
+            cur_freq = self.set_and_get_cpu_freq()
+            self.do_occ_reset_fsp()
+            tries = 5
+            for j in range(1, tries):
+                print "Waiting for OCC Active (%d\%d)"%(j,tries)
+                time.sleep(10)
+                res = self.cv_HOST.host_run_command("dmesg | grep -i 'OCC Active'; echo $?")
+                rc = int((res.splitlines()[-1]))
+                if rc == 0:
+                    break
+            self.assertEqual(rc, 0,
+                    "OCC's are not in active state or reset notification to host is failed")
+            # verify pstate restored to last requested pstate before occ reset
+            self.verify_cpu_freq(cur_freq)
+            self.dvfs_test()
 
 class OCC_RESET(OpTestOCC):
     def runTest(self):
