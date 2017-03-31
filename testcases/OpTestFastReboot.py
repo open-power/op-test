@@ -101,7 +101,7 @@ class OpTestFastReboot(unittest.TestCase):
         initialResetCount = self.get_fast_reset_count(c)
         print ""
         print "INITIAL reset count: %d" % initialResetCount
-        for i in range(1, self.number_reboots_to_do()):
+        for i in range(0, self.number_reboots_to_do()):
             loopResetCount = self.get_fast_reset_count(c)
             # We do some funny things with the raw console here, as
             # 'reboot' isn't meant to return, so we want the raw
@@ -128,8 +128,12 @@ class OpTestFastReboot(unittest.TestCase):
             print "Completed Fast reboot cycle %d" % i
 
         c.run_command(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
-        res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
-        self.assertNotIn("feeling-lucky", res, "Failed to set the fast-reset mode")
+        try:
+            res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 255, "getting unset fast-reboot is meant to fail!")
+        else:
+            self.assertTrue(False, "We expected to fail at getting cleared fast-reset nvram variable")
 
 class FastRebootHost(OpTestFastReboot):
     def boot_to_os(self):
