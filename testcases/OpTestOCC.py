@@ -43,6 +43,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
 
 class OpTestOCCBase(unittest.TestCase):
     def setUp(self):
@@ -87,7 +88,7 @@ class OpTestOCCBase(unittest.TestCase):
     def get_cpu_freq(self):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.cv_HOST.host_run_command(l_cmd)
-        return cur_freq.strip()
+        return cur_freq[0].strip()
 
     ##
     # @brief sets the cpu frequency with i_freq value
@@ -107,7 +108,7 @@ class OpTestOCCBase(unittest.TestCase):
     def verify_cpu_freq(self, i_freq):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.cv_HOST.host_run_command(l_cmd)
-        if not cur_freq.strip() == i_freq:
+        if not cur_freq[0].strip() == i_freq:
             # (According to Vaidy) it may take milliseconds to have the
             # request for a frequency change to come into effect.
             # So, if we happen to be *really* quick checking the result,
@@ -116,7 +117,7 @@ class OpTestOCCBase(unittest.TestCase):
             time.sleep(0.2)
             cur_freq = self.cv_HOST.host_run_command(l_cmd)
 
-        self.assertEqual(cur_freq.strip(), i_freq,
+        self.assertEqual(cur_freq[0].strip(), i_freq,
                          "CPU frequency not changed to %s" % i_freq)
 
     ##
@@ -134,13 +135,13 @@ class OpTestOCCBase(unittest.TestCase):
     def verify_cpu_gov(self, i_gov):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
         cur_gov = self.cv_HOST.host_run_command(l_cmd)
-        self.assertEqual(cur_gov.strip(), i_gov, "CPU governor not changed to %s" % i_gov)
+        self.assertEqual(cur_gov[0].strip(), i_gov, "CPU governor not changed to %s" % i_gov)
 
 
     def get_list_of_cpu_freq(self):
         # Get available cpu scaling frequencies
         l_res = self.cv_HOST.host_run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
-        freq_list = (l_res.strip()).split(' ')
+        freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
         return freq_list
 
@@ -165,8 +166,9 @@ class OpTestOCCBase(unittest.TestCase):
 
     def tearDown(self):
         try:
-            self.cv_HOST.host_gather_opal_msg_log()
-            self.cv_HOST.host_gather_kernel_log()
+            pass
+#            self.cv_HOST.host_gather_opal_msg_log()
+#            self.cv_HOST.host_gather_kernel_log()
         except:
             print "Failed to collect debug info"
 
@@ -325,18 +327,22 @@ class OCCRESET_FSP(OpTestOCCBase):
             self.skipTest("FSP OCC Reset test")
         count = 10
         for i in range(1, count+1):
+            self.cv_HOST.host_run_command("dmesg -C")
             cur_freq = self.set_and_get_cpu_freq()
             self.do_occ_reset_fsp()
-            tries = 5
+            tries = 50
+            recovered = False
             for j in range(1, tries):
                 print "Waiting for OCC Active (%d\%d)"%(j,tries)
-                time.sleep(10)
-                res = self.cv_HOST.host_run_command("dmesg | grep -i 'OCC Active'; echo $?")
-                rc = int((res.splitlines()[-1]))
-                if rc == 0:
+                time.sleep(1)
+                try:
+                    res = self.cv_HOST.host_run_command("dmesg | grep -i 'OCC Active'")
+                    recovered = True
                     break
-            self.assertEqual(rc, 0,
-                    "OCC's are not in active state or reset notification to host is failed")
+                except CommandFailed as cf:
+                    pass
+
+            self.assertTrue(recovered, "OCC's are not in active state or reset notification to host is failed")
             # verify pstate restored to last requested pstate before occ reset
             self.verify_cpu_freq(cur_freq)
             self.dvfs_test()
