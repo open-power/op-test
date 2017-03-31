@@ -230,6 +230,7 @@ class OCCSuite():
         self.s.addTest(OpTestOCC.OCC_RESET())
         self.s.addTest(OpTestOCC.basic_suite())
         self.s.addTest(OpTestOCC.full_suite())
+        self.s.addTest(OpTestOCC.OCCRESET_FSP())
     def suite(self):
         return self.s
 
