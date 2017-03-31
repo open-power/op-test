@@ -38,3 +38,9 @@ class KernelModuleNotLoaded(Exception):
         self.module = module
     def __str__(self):
         return "Kernel module %s not loaded" % (self.module)
+
+class KernelConfigNotSet(Exception):
+    def __init__(self, opt):
+        self.opt = opt
+    def __str__(self):
+        return "Kernel config %s not present" % (self.opt)

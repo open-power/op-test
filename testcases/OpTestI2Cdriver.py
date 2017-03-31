@@ -44,7 +44,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
-
+from common.Exceptions import CommandFailed, KernelModuleNotLoaded, KernelConfigNotSet
 class OpTestI2CDetectUnsupported(Exception):
     """Asked to do i2c detect on a bus that doesn't support detection
     """
@@ -72,23 +72,21 @@ class OpTestI2Cdriver(unittest.TestCase):
         # Get Kernel Version
         l_kernel = self.cv_HOST.host_get_kernel_version()
 
-        # loading i2c_opal module based on config option
-        l_config = "CONFIG_I2C_OPAL"
-        l_module = "i2c_opal"
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+        mods = {"CONFIG_I2C_OPAL": "i2c_opal",
+                "CONFIG_I2C_CHARDEV": "i2c_dev",
+                "CONFIG_EEPROM_AT24": "at24"
+            }
 
-        # loading i2c_dev module based on config option
-        l_config = "CONFIG_I2C_CHARDEV"
-        l_module = "i2c_dev"
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
-
-        # loading at24 module based on config option
-        l_config = "CONFIG_EEPROM_AT24"
-        l_module = "at24"
         try:
-            self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+            for (c,m) in mods.items():
+                self.cv_HOST.host_load_module_based_on_config(l_kernel, c, m)
+        except KernelConfigNotSet as ns:
+            self.assertTrue(False, str(ns))
         except KernelModuleNotLoaded as km:
-            pass # We can fail if we don't load it, not all systems have it
+            if km.module == "at24":
+                pass # We can fail if we don't load it, not all systems have it
+            else:
+                self.assertTrue(False, str(km))
 
         # Get information of EEPROM chips
         eeprom_info = self.cv_HOST.host_get_info_of_eeprom_chips()

@@ -52,7 +52,7 @@ except ImportError:
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
-from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded
+from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
 
 class SSHConnectionState():
     DISCONNECTED = 0
@@ -350,8 +350,8 @@ class OpTestHost():
                     opt, val = o.split("=")
                     config_opts[opt] = val
 
-        if config_opts[i_config] not in ["y","m"]:
-                raise OpTestError("Config option is not set")
+        if config_opts.get(i_config) not in ["y","m"]:
+                raise KernelConfigNotSet(i_config)
 
         return config_opts[i_config]
 
@@ -644,11 +644,8 @@ class OpTestHost():
             self.host_load_module(i_module)
         elif l_val == 'y':
             print "Driver built into kernel itself"
-        else:
-            l_msg = "Config value is changed"
-            print l_msg
-            raise OpTestError(l_msg)
-        return BMC_CONST.FW_SUCCESS
+        elif l_val == 'n':
+            raise KernelConfigNotSet(i_config)
 
     ##
     # @brief This function will return the list of installed i2c buses on host in two formats

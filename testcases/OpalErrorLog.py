@@ -58,7 +58,7 @@ class OpalErrorLog(unittest.TestCase):
             rc = cf.exitcode
 
         if "FSP" in self.bmc_type:
-            self.assertTrue(rc, "opal elog sysfs path is not available in host")
+            self.assertEqual(rc, 0, "opal elog sysfs path is not available in host")
         else:
             self.skipTest("elog test not implemented for non-FSP systems")
 
