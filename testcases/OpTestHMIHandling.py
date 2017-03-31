@@ -49,6 +49,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestHost import SSHConnectionState
 from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.Exceptions import CommandFailed
 
 class OpTestHMIHandling(unittest.TestCase):
     def setUp(self):
@@ -93,7 +94,6 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         # Getting list of processor chip Id's(executing getscom -l to get chip id's)
         l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
-        l_res = l_res.splitlines()
         l_chips = []
         for line in l_res:
             matchObj = re.search("(\d{8}).*processor", line)
@@ -110,7 +110,6 @@ class OpTestHMIHandling(unittest.TestCase):
         l_res = self.cv_HOST.host_run_command(l_cmd)
         l_cores = {}
         self.l_dic = []
-        l_res = l_res.splitlines()
         for line in l_res:
             matchObj = re.search("Chip (\d{1,2}) Core ([a-z0-9])", line)
             if matchObj:
@@ -147,10 +146,15 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE0)
 
         l_oslevel = self.cv_HOST.host_get_OS_Level()
-        if "Ubuntu" in l_oslevel:
-            self.cv_HOST.host_run_command("service kdump-tools stop")
-        else:
-            self.cv_HOST.host_run_command("service kdump stop")
+        try:
+            if "Ubuntu" in l_oslevel:
+                self.cv_HOST.host_run_command("service kdump-tools stop")
+            else:
+                self.cv_HOST.host_run_command("service kdump stop")
+        except CommandFailed as cf:
+            if cf.exitcode == 5:
+                # kdump may not be enabled, so it's not a failure to stop it
+                pass
 
     def clearGardEntries(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
