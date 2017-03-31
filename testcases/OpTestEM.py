@@ -59,7 +59,7 @@ class OpTestEM():
     #
     def set_cpu_freq(self, i_freq):
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_setspeed; do echo %s > $i; done" % i_freq
-        self.cv_HOST.host_run_command(l_cmd)
+        self.c.run_command(l_cmd)
 
     ##
     # @brief verify the cpu frequency with i_freq value
@@ -67,7 +67,7 @@ class OpTestEM():
     # @param i_freq @type str: this is the frequency to be verified with cpu frequency
     def verify_cpu_freq(self, i_freq):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
-        cur_freq = self.cv_HOST.host_run_command(l_cmd)
+        cur_freq = self.c.run_command(l_cmd)
         if not cur_freq[0] == i_freq:
             # (According to Vaidy) it may take milliseconds to have the
             # request for a frequency change to come into effect.
@@ -75,7 +75,7 @@ class OpTestEM():
             # we may have checked before it has taken effect. So, we
             # sleep for a (short) amount of time and retry.
             time.sleep(0.2)
-            cur_freq = self.cv_HOST.host_run_command(l_cmd)
+            cur_freq = self.c.run_command(l_cmd)
 
         self.assertEqual(cur_freq[0], i_freq,
                          "CPU frequency not changed to %s" % i_freq)
@@ -86,7 +86,7 @@ class OpTestEM():
     # @param i_gov @type str: this is the governer to be set for all cpu's
     def set_cpu_gov(self, i_gov):
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo %s > $i; done" % i_gov
-        self.cv_HOST.host_run_command(l_cmd)
+        self.c.run_command(l_cmd)
 
     ##
     # @brief verify the cpu governer with i_gov governer
@@ -94,7 +94,7 @@ class OpTestEM():
     # @param i_gov @type str: this is the governer to be verified with cpu governer
     def verify_cpu_gov(self, i_gov):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-        cur_gov = self.cv_HOST.host_run_command(l_cmd)
+        cur_gov = self.c.run_command(l_cmd)
         self.assertEqual(cur_gov[0], i_gov, "CPU governor not changed to %s" % i_gov)
 
     ##
@@ -103,7 +103,7 @@ class OpTestEM():
     # @param i_idle @type str: this is the cpu idle state to be enabled
     def enable_idle_state(self, i_idle):
         l_cmd = "cpupower idle-set -e %s" % i_idle
-        self.cv_HOST.host_run_command(l_cmd)
+        self.c.run_command(l_cmd)
 
     ##
     # @brief disable cpu idle state i_idle
@@ -114,7 +114,7 @@ class OpTestEM():
     #
     def disable_idle_state(self, i_idle):
         l_cmd = "cpupower idle-set -d %s" % i_idle
-        self.cv_HOST.host_run_command(l_cmd)
+        self.c.run_command(l_cmd)
 
     ##
     # @brief verify whether cpu idle state i_idle enabled
@@ -122,7 +122,7 @@ class OpTestEM():
     # @param i_idle @type str: this is the cpu idle state to be verified for enable
     def verify_enable_idle_state(self, i_idle):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/disable" % i_idle
-        cur_value = self.cv_HOST.host_run_command(l_cmd)
+        cur_value = self.c.run_command(l_cmd)
         self.assertEqual(cur_value[0], "0", "CPU state%s not enabled" % i_idle)
 
     ##
@@ -131,7 +131,7 @@ class OpTestEM():
     # @param i_idle @type str: this is the cpu idle state to be verified for disable
     def verify_disable_idle_state(self, i_idle):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/disable" % i_idle
-        cur_value = self.cv_HOST.host_run_command(l_cmd)
+        cur_value = self.c.run_command(l_cmd)
         self.assertEqual(cur_value[0], "1", "CPU state%s not disabled" % i_idle)
 
 
@@ -139,16 +139,17 @@ class slw_info(OpTestEM, unittest.TestCase):
     # @brief This function just gathers the host CPU SLW info
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.host().get_ssh_connection()
 
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
         # Get kernel version
         l_kernel = self.cv_HOST.host_get_kernel_version()
         self.cv_HOST.host_check_command("cpupower")
-        self.cv_HOST.host_run_command("cpupower idle-info")
-        self.cv_HOST.host_run_command("hexdump -c /proc/device-tree/ibm,enabled-idle-states")
+        self.c.run_command("cpupower idle-info")
+        self.c.run_command("hexdump -c /proc/device-tree/ibm,enabled-idle-states")
         try:
-            self.cv_HOST.host_run_command("cat /sys/firmware/opal/msglog | grep -i slw")
+            self.c.run_command("cat /sys/firmware/opal/msglog | grep -i slw")
         except CommandFailed as cf:
             pass # we may have no slw entries in msglog
 
@@ -160,6 +161,8 @@ class cpu_freq_states(OpTestEM, unittest.TestCase):
     #        5. test the cpufreq driver by set/verify cpu frequency
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
 
@@ -168,7 +171,7 @@ class cpu_freq_states(OpTestEM, unittest.TestCase):
 
         self.cv_HOST.host_check_command("cpupower")
         # Get available cpu scaling frequencies
-        l_res = self.cv_HOST.host_run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
+        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
 
@@ -190,6 +193,7 @@ class cpu_idle_states(OpTestEM, unittest.TestCase):
     #        4. test the cpuidle driver by enable/disable/verify the idle states
     def runTest(self):
         self.cv_SYSTEM.sys_bmc_power_on_validate_host()
+        self.c = self.cv_SYSTEM.host().get_ssh_connection()
 
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
@@ -200,7 +204,7 @@ class cpu_idle_states(OpTestEM, unittest.TestCase):
         self.cv_HOST.host_check_command("cpupower")
 
         # TODO: Check the runtime idle states = expected idle states!
-        idle_states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/ -type d -regex '.*state[0-9]*' -printf '%f\\n'|sort -u|sed -e 's/^state//'")
+        idle_states = self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/ -type d -regex '.*state[0-9]*' -printf '%f\\n'|sort -u|sed -e 's/^state//'")
         print repr(idle_states)
         # currently p8 cpu has 3 states
         for i in idle_states:
