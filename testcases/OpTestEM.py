@@ -43,7 +43,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
 
-class OpTestEM(unittest.TestCase):
+class OpTestEM():
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -135,7 +135,7 @@ class OpTestEM(unittest.TestCase):
         self.assertEqual(cur_value[0], "1", "CPU state%s not disabled" % i_idle)
 
 
-class OpTestEMslw_info(OpTestEM):
+class slw_info(OpTestEM, unittest.TestCase):
     # @brief This function just gathers the host CPU SLW info
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -152,7 +152,7 @@ class OpTestEMslw_info(OpTestEM):
         except CommandFailed as cf:
             pass # we may have no slw entries in msglog
 
-class OpTestEMcpu_req_states(OpTestEM):
+class cpu_freq_states(OpTestEM, unittest.TestCase):
     # @brief This function will cover following test steps
     #        2. Check the cpupower utility is available in host.
     #        3. Get available cpu scaling frequencies
@@ -181,7 +181,7 @@ class OpTestEMcpu_req_states(OpTestEM):
             self.verify_cpu_freq(i_freq)
         pass
 
-class OpTestEMcpu_idle_states(OpTestEM):
+class cpu_idle_states(OpTestEM, unittest.TestCase):
     ##
     # @brief This function will cover following test steps
     #        1. It will get the OS and kernel versions.
@@ -218,7 +218,7 @@ class OpTestEMcpu_idle_states(OpTestEM):
 
 def suite():
     s = unittest.TestSuite()
-    s.addTest(OpTestEMslw_info())
-    s.addTest(OpTestEMcpu_req_states())
-    s.addTest(OpTestEMcpu_idle_states())
+    s.addTest(slw_info())
+    s.addTest(cpu_freq_states())
+    s.addTest(cpu_idle_states())
     return s
