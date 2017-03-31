@@ -32,7 +32,7 @@ class BasicIPL(unittest.TestCase):
         self.host = conf.host()
         self.ipmi = conf.ipmi()
         self.system = conf.system()
-        self.bmc = conf.system().bmc()
+        self.bmc = conf.bmc()
         self.util = OpTestUtil()
         self.pci_good_data_file = conf.lspci_file()
 
