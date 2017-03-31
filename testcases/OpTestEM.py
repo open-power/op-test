@@ -35,6 +35,7 @@ import time
 import subprocess
 import re
 import random
+import decimal
 
 import unittest
 
@@ -50,6 +51,7 @@ class OpTestEM():
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
+        self.ppc64cpu_freq_re = re.compile(r"([a-z]+):\s+([\d.]+)")
     ##
     # @brief sets the cpu frequency with i_freq value
     #
@@ -65,7 +67,7 @@ class OpTestEM():
     # @brief verify the cpu frequency with i_freq value
     #
     # @param i_freq @type str: this is the frequency to be verified with cpu frequency
-    def verify_cpu_freq(self, i_freq):
+    def verify_cpu_freq(self, i_freq, and_measure=True):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.c.run_command(l_cmd)
         if not cur_freq[0] == i_freq:
@@ -79,6 +81,27 @@ class OpTestEM():
 
         self.assertEqual(cur_freq[0], i_freq,
                          "CPU frequency not changed to %s" % i_freq)
+        if not and_measure:
+            return
+        frequency_output = self.c.run_command("ppc64_cpu --frequency")
+        freq = {}
+        for f in frequency_output:
+            m = re.match(self.ppc64cpu_freq_re, f)
+            if m:
+                freq[m.group(1)] = int(decimal.Decimal(m.group(2)) * 1000000)
+        # Frequencies are in KHz
+        print repr(freq)
+        self.assertAlmostEqual(freq["min"], freq["max"], delta=(freq["avg"]/100),
+                               msg="ppc64_cpu measured CPU Frequency differs between min/max when frequency set explicitly")
+        self.assertAlmostEqual(freq["avg"], freq["max"], delta=(freq["avg"]/100),
+                               msg="ppc64_cpu measured CPU Frequency differs between avg/max when frequency set explicitly")
+
+        delta = int(i_freq) / (100)
+        print "Set %d, Measured %d, Allowed Delta %d" % (int(i_freq),freq["avg"],delta)
+
+        self.assertAlmostEqual(freq["avg"], int(i_freq), delta=delta,
+                               msg="Set and measured CPU frequency differ too greatly")
+
 
     ##
     # @brief sets the cpu governer with i_gov governer
@@ -154,6 +177,8 @@ class slw_info(OpTestEM, unittest.TestCase):
             pass # we may have no slw entries in msglog
 
 class cpu_freq_states(OpTestEM, unittest.TestCase):
+    NR_FREQUENCIES_SET = 100
+    NR_FREQUENCIES_VERIFIED = 10
     # @brief This function will cover following test steps
     #        2. Check the cpupower utility is available in host.
     #        3. Get available cpu scaling frequencies
@@ -178,10 +203,14 @@ class cpu_freq_states(OpTestEM, unittest.TestCase):
         # Set the cpu governer to userspace
         self.set_cpu_gov("userspace")
         self.verify_cpu_gov("userspace")
-        for i in range(1, 100):
+        for i in range(1, self.NR_FREQUENCIES_SET):
             i_freq = random.choice(freq_list)
             self.set_cpu_freq(i_freq)
-            self.verify_cpu_freq(i_freq)
+            self.verify_cpu_freq(i_freq, False)
+        for i in range(1, self.NR_FREQUENCIES_VERIFIED):
+            i_freq = random.choice(freq_list)
+            self.set_cpu_freq(i_freq)
+            self.verify_cpu_freq(i_freq, True)
         pass
 
 class cpu_idle_states(OpTestEM, unittest.TestCase):
