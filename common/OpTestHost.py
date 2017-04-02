@@ -294,7 +294,7 @@ class OpTestHost():
         try:
             l_res = self.host_run_command(l_cmd)
         except CommandFailed as c:
-            l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (','.join(i_cmd), l_cmd, '\n'.join(l_res))
+            l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (','.join(i_cmd), l_cmd, '\n'.join(c.output))
             print l_msg
             raise OpTestError(l_msg)
 
@@ -928,10 +928,24 @@ class OpTestHost():
     def host_disable_kdump_service(self, os_level):
         if "Ubuntu" in os_level:
             self.host_run_command("systemctl stop kdump-tools.service")
-            self.host_run_command("systemctl status kdump-tools.service")
+            try:
+                self.host_run_command("systemctl status kdump-tools.service")
+            except CommandFailed as cf:
+                if cf.exitcode == 3:
+                    pass
+                else:
+                    print str(cf)
+                    raise OpTestError("kdump-tools service is failed to stop")
         else:
             self.host_run_command("systemctl stop kdump.service")
-            self.host_run_command("systemctl status kdump.service")
+            try:
+                self.host_run_command("systemctl status kdump.service")
+            except CommandFailed as cf:
+                if cf.exitcode == 3:
+                    pass
+                else:
+                    print str(cf)
+                    raise OpTestError("kdump service is failed to stop")
 
     ##
     # @brief This function disables kdump service

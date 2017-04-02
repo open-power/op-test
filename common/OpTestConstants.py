@@ -402,8 +402,8 @@ class OpTestConstants():
     IPMI_FIREWALL_INFO = "firewall info channel 1 lun 0"
     IPMI_PEF_INFO = "pef info"
     IPMI_PEF_STATUS = "pef status"
-    IPMI_PEF_POLICY = "pef policy"
-    IPMI_PEF_LIST = "pef list"
+    IPMI_PEF_POLICY = "pef policy help"
+    IPMI_PEF_LIST = "pef policy list"
     IPMI_RAW_POH = "-v raw 0x0 0xf"
     IPMI_SDR_GET = "sdr get "
 

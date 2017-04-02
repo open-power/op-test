@@ -43,6 +43,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
 
 class UnexpectedBootDevice(Exception):
     def __init__(self, expected, actual):
@@ -130,10 +131,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
         }
         for bootdev,ipmiresponse in boot_devices.iteritems():
             try:
-                r = c.run_command(self.ipmi_method + 'chassis bootdev %s' % (bootdev))
-                print repr(r.split('\r\n'))
-                if int(r.split('\n')[-2]) != 0:
-                    self.fail("Could not set boot device %s. Errored with %s" % (dev,r))
+                try:
+                    r = c.run_command(self.ipmi_method + 'chassis bootdev %s' % (bootdev))
+                except CommandFailed as c:
+                    self.fail("Could not set boot device %s. Errored with %s" % (dev,str(c)))
                 self.verify_bootdev(bootdev, ipmiresponse)
             except UnexpectedBootDevice as e:
                 self.fail(str(e))
@@ -148,7 +149,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def verify_bootdev(self, i_dev, l_msg):
         c = self.cv_HOST.get_ssh_connection()
         l_res = c.run_command(self.ipmi_method + "chassis bootparam get 5")
-        for l_line in l_res.split('\n'):
+        for l_line in l_res:
             if l_line.__contains__(l_msg):
                 print "Verifying bootdev is successfull for %s" % i_dev
                 return BMC_CONST.FW_SUCCESS
@@ -355,14 +356,12 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def test_sel_get_functionality(self):
         c = self.cv_HOST.get_ssh_connection()
         l_res = c.run_command(self.ipmi_method + "sel list first 3 | awk '{print $1}'")
-        if l_res.__contains__("SEL has no entries"):
-            print "IPMI: There are no sel entries to fetch"
-            pass
-        else:
-            l_list = l_res.splitlines()
-            del l_list[0]
-            for l in l_list:
-                l_id = "0x" + l
+        for entry in l_res:
+            if entry.__contains__("SEL has no entries"):
+                print "IPMI: There are no sel entries to fetch"
+                pass
+            else:
+                l_id = "0x" + entry
                 l_cmd = "sel get %s" % l_id
                 c.run_command(self.ipmi_method + l_cmd)
 
@@ -375,8 +374,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
         self.test_sel_clear()
         c = self.cv_HOST.get_ssh_connection()
         l_res = c.run_command("ipmitool sel list")
-        l_list = l_res.splitlines()
-        for l_line in l_list:
+        for l_line in l_res:
             if l_line.__contains__("SEL has no entries"):
                 print "Sel clear function got cleared event entries"
                 break
@@ -507,7 +505,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_set_time(self):
         l_res = self.test_sel_time_get()
-        i_time = l_res[-2]
+        i_time = l_res[-1]
         print "Inband IPMI[OPEN]: SEL Time set test"
         l_cmd = "sel time set \'%s\'" % i_time
         c = self.cv_HOST.get_ssh_connection()

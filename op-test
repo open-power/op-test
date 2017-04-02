@@ -65,6 +65,7 @@ from testcases import OpalErrorLog
 from testcases import LightPathDiagnostics
 from testcases import DPO
 from testcases import EPOW
+from testcases import OpTestKernel
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)

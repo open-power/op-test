@@ -85,6 +85,7 @@ class EPOWBase(unittest.TestCase):
         print limits
         cmd = cmd + "| cut -d '#' -f 1"
         limits = self.cv_FSP.fspc.run_command(cmd)
+        limits = limits.splitlines()
         dic = {}
         for i in range(len(limits)):
             pair = ((limits[i]).replace(" ", "")).replace("\t", "")
