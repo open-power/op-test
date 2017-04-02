@@ -45,6 +45,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
+from common.Exceptions import CommandFailed
 
 
 class OpTestSwitchEndianSyscall(unittest.TestCase):
@@ -98,17 +99,10 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
     def check_dir_exists(self, i_dir):
         l_dir = '%s/tools/testing/selftests/powerpc/switch_endian' % i_dir
         l_cmd = "test -d %s; echo $?" % l_dir
-        print l_cmd
-        l_res = self.cv_HOST.host_run_command(l_cmd)
-        print l_res
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Switch endian test directory exists"
-            return 1
-        else:
-            l_msg = "Switch endian directory is not present"
-            print l_msg
-            raise OpTestError(l_msg)
+        try:
+            l_res = self.cv_HOST.host_run_command(l_cmd)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, str(c))
 
     ##
     # @brief  It will prepare for executable bin files using make command
@@ -121,17 +115,17 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
     #
     def make_test(self, i_dir):
         l_cmd = "cd %s/tools/testing/selftests/;make;" % i_dir
-        l_res = self.cv_HOST.host_run_command(l_cmd)
+        try:
+            l_res = self.cv_HOST.host_run_command(l_cmd)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, str(c))
+
         l_cmd = "test -f %s/tools/testing/selftests/powerpc/switch_endian/switch_endian_test; echo $?" % i_dir
-        l_res = self.cv_HOST.host_run_command(l_cmd)
-        l_res = l_res.replace("\r\n", "")
-        if int(l_res) == 0:
-            print "Executable binary switch_endian_test is available"
-            return 1
-        else:
-            l_msg = "Switch_endian_test bin file is not present after make"
-            print l_msg
-            raise OpTestError(l_msg)
+        try:
+            l_res = self.cv_HOST.host_run_command(l_cmd)
+        except CommandFailed as c:
+            self.assertEqual(c.exitcode, 0, str(c))
+
 
     ##
     # @brief This function will run executable file switch_endian_test and
@@ -145,7 +139,7 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
         l_cmd = "cd %s/tools/testing/selftests/powerpc/switch_endian/;\
                  ./switch_endian_test" % i_dir
         l_res = self.cv_HOST.host_run_command(l_cmd)
-        if (l_res.__contains__('success: switch_endian_test')):
+        if ("\n".join(l_res).__contains__('success: switch_endian_test')):
             return 1
         else:
             return 0

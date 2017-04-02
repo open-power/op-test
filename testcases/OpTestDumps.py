@@ -57,7 +57,6 @@ class OpTestDumps(unittest.TestCase):
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_gather_kernel_log()
 
-
     def fipsdump_initiate_from_host(self):
         dumpname = self.cv_FSP.fsp_run_command("fipsdump -l | sed 's/\ .*//'")
         self.cv_HOST.host_run_command('echo 1 > /sys/firmware/opal/dump/initiate_dump')
@@ -92,7 +91,7 @@ class OpTestDumps(unittest.TestCase):
         for j in range(1, tries):
             time.sleep(4)
             res = self.cv_HOST.host_run_command('ls /var/log/dump')
-            if res.__contains__(new_dumpname):
+            if '\n'.join(res).__contains__(new_dumpname):
                 print "fips dump transfered to host"
                 break
         self.assertIn(new_dumpname, res,
@@ -105,13 +104,13 @@ class OpTestDumps(unittest.TestCase):
         for j in range(1, tries):
             time.sleep(5)
             res = self.cv_HOST.host_run_command('ls /var/log/dump')
-            if res.__contains__(dumpname):
+            if '\n'.join(res).__contains__(dumpname):
                 print "FipS dump transfered to Host"
                 break
-        self.assertIn(dumpname, res,
+        self.assertIn(dumpname, '\n'.join(res),
             "fips dump file transfer to host is failed when initiates from host")
         cmd = "ls /var/log/dump/%s -l| awk '{print $5}'" % dumpname
-        size_host = (self.cv_HOST.host_run_command(cmd)).strip()
+        size_host = '\n'.join((self.cv_HOST.host_run_command(cmd))).strip()
         if size_fsp.__contains__(size_host):
             print "Total size of FSP dump file transfered to host from fsp"
         else:
@@ -133,7 +132,7 @@ class SYSTEM_DUMP(OpTestDumps):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific dump tests")
         self.cv_HOST.host_check_command("opal-dump-parse")
-        self.cv_HOST.host_run_command("rm -rf /var/log/dump/SYSDUMP* \r")
+        self.cv_HOST.host_run_command("rm -rf /var/log/dump/SYSDUMP*")
         self.cv_FSP.fsp_get_console()
         if not self.cv_FSP.mount_exists():
             raise OpTestError("Please mount NFS and retry the test")
@@ -156,9 +155,9 @@ class SYSTEM_DUMP(OpTestDumps):
         print res
         res = self.cv_HOST.host_run_command("opal-dump-parse -l /var/log/dump/SYSDUMP*")
         print res
-        self.assertIn("Opal", res, "sysdump test failed in dumping Opal-log section")
-        self.assertIn("HostBoot-Runtime-log", res, "sysdump test failed in dumping HBRT section")
-        self.assertIn("printk", res, "sysdump test failed in dumping printk section")
+        self.assertIn("Opal", '\n'.join(res), "sysdump test failed in dumping Opal-log section")
+        self.assertIn("HostBoot-Runtime-log", '\n'.join(res), "sysdump test failed in dumping HBRT section")
+        self.assertIn("printk", '\n'.join(res), "sysdump test failed in dumping printk section")
 
 class FIPS_DUMP(OpTestDumps):
 

@@ -67,7 +67,7 @@ class OpTestOOBIPMIBase(unittest.TestCase):
     def run_ipmi_cmd(self, i_cmd):
         l_cmd = i_cmd
         time.sleep(0.2)
-        l_res = self.cv_IPMI.ipmitool.run(l_cmd)
+        l_res = self.cv_IPMI.ipmitool.run(l_cmd + "; echo $?")
         print l_res
         l_res = l_res.splitlines()
         if int(l_res[-1]):
@@ -631,7 +631,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_sel_get_functionality(self):
-        l_res = self.cv_IPMI.ipmitool.run("sel list first 3 | awk '{print $1}'")
+        l_res = self.cv_IPMI.ipmitool.run("sel list first 3 | awk '{print $1}'; echo $?")
         l_list = l_res.splitlines()
         if int(l_list[-1]) == 0:
             if l_res.__contains__("SEL has no entries"):
@@ -741,10 +741,11 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     #
     def test_pef(self):
         print "OOB IPMI: Pef tests"
-        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_INFO)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_STATUS)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_POLICY)
-        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_LIST)
+        # pef command output failed to print new line at the end of output
+        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_INFO + "; echo '\n'")
+        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_STATUS + "; echo '\n'")
+        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_POLICY + "; echo '\n'")
+        self.run_ipmi_cmd(BMC_CONST.IPMI_PEF_LIST + "; echo '\n'")
 
     ##
     # @brief This will test raw IPMI commands. For example to query the POH counter with a raw command

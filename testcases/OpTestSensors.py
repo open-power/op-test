@@ -39,6 +39,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
+from common.Exceptions import CommandFailed
 
 
 class OpTestSensors(unittest.TestCase):

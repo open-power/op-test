@@ -89,6 +89,21 @@ class OpTestHMIHandling(unittest.TestCase):
         self.assertTrue(ipl_status, "HMI Core checkstop: IPL not started/finished")
         return
 
+    def verify_proc_recovery(self, l_res):
+        if any("Processor Recovery done" in line for line in l_res) and \
+            any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
+            print "Processor recovery done"
+            return
+        else:
+            raise Exception("HMI handling failed to log message: for proc_recv_done")
+
+    def verify_timer_facility_recovery(self, l_res):
+        if any("Timer facility experienced an error" in line for line in l_res) and \
+            any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
+            print "Timer facility experienced an error and got recovered"
+            return
+        else:
+            raise Exception("HMI handling failed to log message")
 
     def init_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -253,28 +268,22 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd)
+                    l_res = console.run_command(l_cmd,timeout=120)
                 except CommandFailed as cf:
-                    if cf.exitcode == 5:
+                    if cf.exitcode == 1:
                         pass
                     else:
-                        raise cf
-                else:
-                    if any("Kernel panic - not syncing" in line for line in l_res):
-                        raise Exception("Processor recovery failed: Kernel got panic")
-                    elif any("Petitboot" in line for line in l_res):
-                        raise Exception("System reached petitboot:Processor recovery failed")
-                    elif any("ISTEP" in line for line in l_res):
-                        raise Exception("System started booting: Processor recovery failed")
-                    else:
-                        raise Exception("Failed to inject thread hang recoverable error")
-
+                        if any("Kernel panic - not syncing" in line for line in l_res):
+                            raise Exception("Processor recovery failed: Kernel got panic")
+                        elif any("Petitboot" in line for line in l_res):
+                            raise Exception("System reached petitboot:Processor recovery failed")
+                        elif any("ISTEP" in line for line in l_res):
+                            raise Exception("System started booting: Processor recovery failed")
+                        else:
+                            raise Exception("Failed to inject thread hang recoverable error %s", str(cf))
+                time.sleep(0.2)
                 l_res = console.run_command("dmesg")
-                if any("Processor Recovery done" in line for line in l_res) and \
-                any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
-                    print "Processor recovery done"
-                else:
-                    raise Exception("HMI handling failed to log message: for proc_recv_done")
+                self.verify_proc_recovery(l_res)
         return
 
     ##
@@ -290,28 +299,22 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd)
+                    l_res = console.run_command(l_cmd, timeout=120)
                 except CommandFailed as cf:
                     if cf.exitcode == 1:
                         pass
                     else:
-                        raise cf
-                else:
-                    if any("Kernel panic - not syncing" in line for line in l_res):
-                        raise Exception("Processor recovery failed: Kernel got panic")
-                    elif any("Petitboot" in line for line in l_res):
-                        raise Exception("System reached petitboot:Processor recovery failed")
-                    elif any("ISTEP" in line for line in l_res):
-                        raise Exception("System started booting: Processor recovery failed")
-                    else:
-                        raise Exception("Failed to inject thread hang recoverable error")
-
+                        if any("Kernel panic - not syncing" in line for line in l_res):
+                            raise Exception("Processor recovery failed: Kernel got panic")
+                        elif any("Petitboot" in line for line in l_res):
+                            raise Exception("System reached petitboot:Processor recovery failed")
+                        elif any("ISTEP" in line for line in l_res):
+                            raise Exception("System started booting: Processor recovery failed")
+                        else:
+                            raise Exception("Failed to inject thread hang recoverable error %s", str(cf))
+                time.sleep(0.2)
                 l_res = console.run_command("dmesg")
-                if any("Processor Recovery done" in line for line in l_res) and \
-                any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
-                    print "Processor recovery done"
-                else:
-                    raise Exception("HMI handling failed to log message")
+                self.verify_proc_recovery(l_res)
         return
 
     ##
@@ -376,30 +379,23 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd)
+                    l_res = console.run_command(l_cmd, timeout=120)
                 except CommandFailed as cf:
                     if cf.exitcode == 1:
                         pass
                     else:
-                        raise cf
-                else:
-                    if any("Kernel panic - not syncing" in line for line in l_res):
-                        l_msg = "TFMR error injection: Kernel got panic"
-                    elif any("Petitboot" in line for line in l_res):
-                        l_msg = "System reached petitboot:TFMR error injection recovery failed"
-                    elif any("ISTEP" in line for line in l_res):
-                        l_msg = "System started booting: TFMR error injection recovery failed"
-                    else:
-                        raise Exception("Failed to inject TFMR error %s " % l_error)
+                        if any("Kernel panic - not syncing" in line for line in l_res):
+                            l_msg = "TFMR error injection: Kernel got panic"
+                        elif any("Petitboot" in line for line in l_res):
+                            l_msg = "System reached petitboot:TFMR error injection recovery failed"
+                        elif any("ISTEP" in line for line in l_res):
+                            l_msg = "System started booting: TFMR error injection recovery failed"
+                        else:
+                            raise Exception("Failed to inject TFMR error %s " % str(cf))
 
                 time.sleep(0.2)
                 l_res = console.run_command("dmesg")
-                if any("Timer facility experienced an error" in line for line in l_res) and \
-                    any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
-                    print "Timer facility experienced an error and got recovered"
-                else:
-                    raise Exception("HMI handling failed to log message")
-
+                self.verify_timer_facility_recovery(l_res)
         return
 
     ##
@@ -425,31 +421,24 @@ class OpTestHMIHandling(unittest.TestCase):
         # But getscom to TOD error reg there is no access
         # TOD Error reg has only WO access and there is no read access
         try:
-            l_res = console.run_command(l_cmd)
+            l_res = console.run_command(l_cmd, timeout=120)
         except CommandFailed as cf:
             if cf.exitcode == 1:
                 pass
             else:
-                raise cf
-        else:
-            if any("Kernel panic - not syncing" in line for line in l_res):
-                print "TOD ERROR Injection-kernel got panic"
-            elif any("login:" in line for line in l_res):
-                print "System booted to host OS without any kernel panic message"
-            elif any("Petitboot" in line for line in l_res):
-                print "System reached petitboot without any kernel panic message"
-            elif any("ISTEP" in line for line in l_res):
-                print "System started booting without any kernel panic message"
-            else:
-                raise Exception("TOD: PSS Hamming distance error injection failed")
-
+                if any("Kernel panic - not syncing" in line for line in l_res):
+                    print "TOD ERROR Injection-kernel got panic"
+                elif any("login:" in line for line in l_res):
+                    print "System booted to host OS without any kernel panic message"
+                elif any("Petitboot" in line for line in l_res):
+                    print "System reached petitboot without any kernel panic message"
+                elif any("ISTEP" in line for line in l_res):
+                    print "System started booting without any kernel panic message"
+                else:
+                    raise Exception("TOD: PSS Hamming distance error injection failed %s", str(c))
+        time.sleep(0.2)
         l_res = console.run_command("dmesg")
-        if any("Timer facility experienced an error" in line for line in l_res) and \
-            any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
-            print "Timer facility experienced an error and got recovered"
-        else:
-            raise Exception("HMI handling failed to log message")
-
+        self.verify_timer_facility_recovery(l_res)
         return
 
     ##

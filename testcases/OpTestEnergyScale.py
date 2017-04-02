@@ -59,7 +59,7 @@ class OpTestEnergyScale(unittest.TestCase):
     #
     def run_ipmi_cmd(self, i_cmd):
         l_cmd = i_cmd
-        l_res = self.cv_IPMI.ipmitool_run(l_cmd)
+        l_res = self.cv_IPMI.ipmitool.run(l_cmd)
         print l_res
         return l_res
 
@@ -163,7 +163,7 @@ class OpTestEnergyScaleRuntime(OpTestEnergyScale):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         print "Energy Scale Test 2: Get, Set, activate and deactivate platform power limit at runtime"
         l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
@@ -244,7 +244,7 @@ class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
 
 class OpTestEnergyScaleDCMIruntime(OpTestEnergyScale):
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         print "Performing a IPMI Power ON Operation"
         # Perform a IPMI Power ON Operation
