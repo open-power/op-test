@@ -63,7 +63,8 @@ From skiboot, you will need the xscom-utils and gard installed:
 Gets you help on what you can run. You will need to (at a minimum) provide
 BMC and host login information. For example, to run the default test suite:
 
-    ./op-test --bmc-ip bmc.example.com   \
+    ./op-test --bmc-type AMI             \
+              --bmc-ip bmc.example.com   \
     	      --bmc-username sysadmin    \
 	      --bmc-password superuser   \
 	      --bmc-usernameipmi ADMIN   \
@@ -77,7 +78,7 @@ The default test suite will then run.
 
 To get a list of test suites:
 
-    ./op-test --list-suites
+    ./op-test --bmc-type AMI --list-suites
 
 You cun run one or more suites by using the `--run-suite` command line option.
 For example, you can choose to run tests that are only at the petitboot
@@ -88,7 +89,8 @@ You can also run individual tests by using the `--run` option.
 
 For example:
 
-      ./op-test --bmc-ip bmc.example.com \
+      ./op-test --bmc-type AMI           \
+                --bmc-ip bmc.example.com \
       		--bmc-username sysadmin  \
 		--bmc-password superuser \
 		--bmc-usernameipmi ADMIN \
