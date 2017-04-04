@@ -2,11 +2,9 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-test-framework/testcases/OpTestI2Cdriver.py $
-#
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015,2017
 # [+] International Business Machines Corp.
 #
 #
@@ -24,7 +22,6 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpTestI2Cdriver
 #  I2C driver to support openpower platform
 #
 #  This class will test functionality of following drivers
@@ -45,12 +42,12 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded, KernelConfigNotSet
-class OpTestI2CDetectUnsupported(Exception):
+class I2CDetectUnsupported(Exception):
     """Asked to do i2c detect on a bus that doesn't support detection
     """
     pass
 
-class OpTestI2Cdriver(unittest.TestCase):
+class I2C():
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -116,7 +113,7 @@ class OpTestI2Cdriver(unittest.TestCase):
                 l_res = self.cv_HOST.host_run_command("i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes" % int(i_bus))
             except CommandFailed as cf:
                 print "i2c bus %i doesn't support query" % int(i_bus)
-                raise OpTestI2CDetectUnsupported;
+                raise I2CDetectUnsupported;
 
             try:
                 l_res = self.cv_HOST.host_run_command("i2cdetect -y -r %i" % int(i_bus))
@@ -179,7 +176,7 @@ class OpTestI2Cdriver(unittest.TestCase):
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "i2cset: Setting the data to a address %s failed: %s" % (i_addr, str(cf)))
 
-class BasicI2C(OpTestI2Cdriver):
+class BasicI2C(I2C, unittest.TestCase):
     def runTest(self):
         self.i2c_init()
         l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
@@ -192,7 +189,7 @@ class BasicI2C(OpTestI2Cdriver):
         for l_bus in l_list:
             try:
                 self.query_i2c_bus(l_bus)
-            except OpTestI2CDetectUnsupported:
+            except I2CDetectUnsupported:
                 print "Unsupported i2cdetect on bus %s" % l_bus
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
@@ -216,7 +213,7 @@ class BasicI2C(OpTestI2Cdriver):
             except CommandFailed as cf:
                 self.assertEqual(cf.exitcode, 0, str(cf))
 
-class FullI2C(OpTestI2Cdriver):
+class FullI2C(I2C, unittest.TestCase):
     ##
     # @brief  This function has following test steps
     #         1. Getting host information(OS and kernel info)
@@ -242,7 +239,7 @@ class FullI2C(OpTestI2Cdriver):
         for l_bus in l_list:
             try:
                 self.query_i2c_bus(l_bus)
-            except OpTestI2CDetectUnsupported:
+            except I2CDetectUnsupported:
                 print "Unsupported i2cdetect on bus %s" % l_bus
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host

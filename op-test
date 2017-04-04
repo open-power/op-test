@@ -47,7 +47,7 @@ from testcases import OpTestEnergyScale
 from testcases import OpTestFastReboot
 from testcases import OpTestHMIHandling
 from testcases import OpTestHeartbeat
-from testcases import OpTestI2Cdriver
+from testcases import I2C
 from testcases import OpTestIPMILockMode
 from testcases import OpTestIPMIReprovision
 from testcases import OpTestInbandIPMI
@@ -108,7 +108,7 @@ class HostSuite():
         self.s.addTest(OpTestRTCdriver.BasicRTC())
         self.s.addTest(OpTestEM.suite())
         self.s.addTest(AT24driver.AT24driver())
-        self.s.addTest(OpTestI2Cdriver.BasicI2C())
+        self.s.addTest(I2C.BasicI2C())
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
         self.s.addTest(OpTestInbandIPMI.basic_suite())
         self.s.addTest(OpTestInbandUsbInterface.basic_suite())
@@ -154,7 +154,7 @@ class FullSuite():
         self.s.addTest(OpTestRTCdriver.FullRTC())
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.full_suite())
-        self.s.addTest(OpTestI2Cdriver.FullI2C())
+        self.s.addTest(I2C.FullI2C())
         self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(LightPathDiagnostics.suite())
         self.s.addTest(OpalErrorLog.FullTest())
