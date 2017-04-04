@@ -176,44 +176,8 @@ class I2C():
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "i2cset: Setting the data to a address %s failed: %s" % (i_addr, str(cf)))
 
-class BasicI2C(I2C, unittest.TestCase):
-    def runTest(self):
-        self.i2c_init()
-        l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
-
-        # For the basic test, just go for the first of everything.
-        l_list = l_list[:1]
-        l_list1 = l_list1[:1]
-
-        # Scanning i2c bus for devices attached to it.
-        for l_bus in l_list:
-            try:
-                self.query_i2c_bus(l_bus)
-            except I2CDetectUnsupported:
-                print "Unsupported i2cdetect on bus %s" % l_bus
-
-        # Get list of pairs of i2c bus and EEPROM device addresses in the host
-        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
-        if self.cv_SYSTEM.has_host_accessible_eeprom():
-            self.assertNotEqual(l_chips, None, "No EEPROMs detected, while OpTestSystem says there should be")
-            self.i2c_dump(l_chips[0])
-        else:
-            self.assertEqual(len(l_chips), 0, "Detected EEPROM where OpTestSystem said there should be none")
-
-        # list i2c adapter conetents
-        try:
-            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter")
-        except CommandFailed as cf:
-            self.assertEqual(cf.exitcode, 0, str(cf))
-
-        # Checking the sysfs entry of each i2c bus
-        for l_bus in l_list1:
-            try:
-                l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s" % l_bus)
-            except CommandFailed as cf:
-                self.assertEqual(cf.exitcode, 0, str(cf))
-
 class FullI2C(I2C, unittest.TestCase):
+    BASIC_TEST = False
     ##
     # @brief  This function has following test steps
     #         1. Getting host information(OS and kernel info)
@@ -234,6 +198,11 @@ class FullI2C(I2C, unittest.TestCase):
         # l_list=["0","1"....]
         # l_list1=["i2c-0","i2c-1","i2c-2"....]
         l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
+
+        if self.BASIC_TEST:
+            # For the basic test, just go for the first of everything.
+            l_list = l_list[:1]
+            l_list1 = l_list1[:1]
 
         # Scanning i2c bus for devices attached to it.
         for l_bus in l_list:
@@ -279,3 +248,5 @@ class FullI2C(I2C, unittest.TestCase):
 
         return BMC_CONST.FW_SUCCESS
 
+class BasicI2C(FullI2C, unittest.TestCase):
+    BASIC_TEST = True
