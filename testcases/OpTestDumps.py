@@ -2,11 +2,9 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-test-framework/testcases/OpTestDumps.py $
-#
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015,2017
 # [+] International Business Machines Corp.
 #
 #
@@ -24,7 +22,6 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestDumps
 #  Different dumps for fsp platforms
 #  fipsdump
 #  system dump
@@ -41,7 +38,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-class OpTestDumps(unittest.TestCase):
+class OpTestDumps():
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -117,7 +114,7 @@ class OpTestDumps(unittest.TestCase):
             raise OpTestError("Total size of FSP dump file is not transfered to host from fsp")
 
 
-class SYSTEM_DUMP(OpTestDumps):
+class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
 
     ##
     # @brief This function tests system dump functionality
@@ -159,7 +156,7 @@ class SYSTEM_DUMP(OpTestDumps):
         self.assertIn("HostBoot-Runtime-log", '\n'.join(res), "sysdump test failed in dumping HBRT section")
         self.assertIn("printk", '\n'.join(res), "sysdump test failed in dumping printk section")
 
-class FIPS_DUMP(OpTestDumps):
+class FIPS_DUMP(OpTestDumps, unittest.TestCase):
 
     ##
     # @brief This function tests fipsdump functionality
