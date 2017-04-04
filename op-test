@@ -41,7 +41,7 @@ from testcases import BasicIPL
 from testcases import OpTestDropbearSafety
 from testcases import OpTestRTCdriver
 from testcases import OpTestEM
-from testcases import OpTestAt24driver
+from testcases import AT24driver
 from testcases import OpTestEEH
 from testcases import OpTestEnergyScale
 from testcases import OpTestFastReboot
@@ -103,12 +103,11 @@ class HostSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(HostLogin.OOBHostLogin())
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
-        self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(OpTestPCI.TestPCIHost())
         self.s.addTest(OpTestFWTS.OpTestFWTS())
         self.s.addTest(OpTestRTCdriver.BasicRTC())
         self.s.addTest(OpTestEM.suite())
-        self.s.addTest(OpTestAt24driver.OpTestAt24driver())
+        self.s.addTest(AT24driver.AT24driver())
         self.s.addTest(OpTestI2Cdriver.BasicI2C())
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
         self.s.addTest(OpTestInbandIPMI.basic_suite())

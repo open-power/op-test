@@ -45,7 +45,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded, KernelConfigNotSet
 
-class OpTestAt24driver(unittest.TestCase):
+class AT24driver(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
