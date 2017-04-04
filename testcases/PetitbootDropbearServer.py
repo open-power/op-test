@@ -2,11 +2,9 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-test-framework/testcases/OpTestDropbearSafety.py $
-#
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015
+# Contributors Listed Below - COPYRIGHT 2015,2017
 # [+] International Business Machines Corp.
 #
 #
@@ -23,8 +21,6 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
-#
-#  @package OpTestDropbearSafety.py
 #
 #   Test Dropbear SSH is not present in skiroot
 #
@@ -45,14 +41,14 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-class OpTestDropbearSafety(unittest.TestCase):
+class PetitbootDropbearServer(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        print "Test Dropbear running in Petitboot"
+        print "Test Dropbear server not running in Petitboot"
 
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         c.run_command("uname -a")

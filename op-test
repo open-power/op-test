@@ -38,7 +38,7 @@ from testcases import OpTestPrdDriver
 from testcases import OpTestPCI
 from testcases import OpTestFWTS
 from testcases import BasicIPL
-from testcases import OpTestDropbearSafety
+from testcases import PetitbootDropbearServer
 from testcases import OpTestRTCdriver
 from testcases import OpTestEM
 from testcases import AT24driver
@@ -87,7 +87,7 @@ class SkirootSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestPCI.TestPCISkiroot())
-        self.s.addTest(OpTestDropbearSafety.OpTestDropbearSafety())
+        self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
