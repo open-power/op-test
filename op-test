@@ -36,7 +36,7 @@ from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestSensors
 from testcases import OpTestPrdDriver
 from testcases import OpTestPCI
-from testcases import OpTestFWTS
+from testcases import FWTS
 from testcases import BasicIPL
 from testcases import PetitbootDropbearServer
 from testcases import OpTestRTCdriver
@@ -104,7 +104,7 @@ class HostSuite():
         self.s.addTest(HostLogin.OOBHostLogin())
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(OpTestPCI.TestPCIHost())
-        self.s.addTest(OpTestFWTS.OpTestFWTS())
+        self.s.addTest(FWTS.FWTS())
         self.s.addTest(OpTestRTCdriver.BasicRTC())
         self.s.addTest(OpTestEM.suite())
         self.s.addTest(AT24driver.AT24driver())

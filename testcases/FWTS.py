@@ -40,9 +40,11 @@ class FWTSCommandFailed(unittest.TestCase):
         self.assertEqual(self.FAIL, None, str(self.FAIL))
 
 class FWTSVersion(unittest.TestCase):
-    MAJOR = 0
-    MINOR = 0
+    MAJOR = None
+    MINOR = None
     def version_check(self):
+        if self.MAJOR is None and self.MINOR is None:
+            self.skipTest("Test not meant to be run this way.")
         return (self.MAJOR == 17 and self.MINOR >=1) or self.MAJOR > 17
     def runTest(self):
         self.assertTrue(self.version_check(),
@@ -50,8 +52,12 @@ class FWTSVersion(unittest.TestCase):
         )
 
 class FWTSTest(unittest.TestCase):
-    SUBTEST_RESULT = []
+    SUBTEST_RESULT = None
+    CENTAURS_PRESENT = True
+    IS_FSP_SYSTEM = False
     def runTest(self):
+        if self.SUBTEST_RESULT is None:
+            self.skipTest("Test not meant to be run this way.")
         if self.SUBTEST_RESULT.get('log_text') == 'dtc reports warnings from device tree:Warning (reg_format): "reg" property in /ibm,opal/flash@0 has invalid length (8 bytes) (#address-cells == 0, #size-cells == 0)\n':
             self.skipTest('/ibm,opal/flash@0 known warning')
 
@@ -60,14 +66,23 @@ class FWTSTest(unittest.TestCase):
         # this work-around should be removed when the FWTS version readily
         # available from the archives no longer has this problem
         if not (self.SUBTEST_RESULT.get('failure_label') == 'None'):
-            if re.match('Property of "(status|manufacturer-id|part-number|serial-number)" for "/sys/firmware/devicetree/base/memory-buffer' , self.SUBTEST_RESULT.get('log_text')):
+            log_text = self.SUBTEST_RESULT.get('log_text')
+            if re.match('Property of "(status|manufacturer-id|part-number|serial-number)" for "/sys/firmware/devicetree/base/memory-buffer' , log_text):
                 self.skipTest("FWTS bug: Incorrect Missing '(status|manufacturer-id|part-number|serial-number)' property in memory-buffer/dimm");
-            if re.match('property "serial-number" contains unprintable characters', self.SUBTEST_RESULT.get('log_text')):
+            if re.match('property "serial-number" contains unprintable characters', log_text):
                 self.skipTest("FWTS bug: DIMM VPD has binary serial number")
+
+            # On FSP machines, memory-buffers (centaurs) aren't present in DT
+            # and FWTS 17.03 (at least) expects them to be, so skip those failures
+            if not self.CENTAURS_PRESENT and re.match('No MEM devices \(memory-buffer', log_text):
+                self.skipTest("FWTS assumes Centaurs present on FSP systems")
+
+            if self.IS_FSP_SYSTEM and re.match('Property of "(board-info|part-number|serial-number|vendor|ibm,slot-location-code)" for "/sys/firmware/devicetree/base/xscom@.*" was not able to be retrieved. Check the installation for the CPU device config for missing nodes in the device tree if you expect CPU devices', log_text):
+                self.skipTest("FWTS assumes some nodes present on FSP systems which aren't")
 
         self.assertEqual(self.SUBTEST_RESULT.get('failure_label'), 'None', self.SUBTEST_RESULT)
 
-class OpTestFWTS(unittest.TestSuite):
+class FWTS(unittest.TestSuite):
     def add_fwts_results(self):
         host = self.host
         try:
@@ -103,6 +118,9 @@ class OpTestFWTS(unittest.TestSuite):
                                 for st_result in st_info.get('subtest_results'):
                                     t = FWTSTest()
                                     t.SUBTEST_RESULT = st_result
+                                    t.CENTAURS_PRESENT = self.centaurs_present
+                                    if self.bmc_type == 'FSP':
+                                        t.IS_FSP_SYSTEM = True
                                     suite.addTest(t)
                 self.real_fwts_suite.addTest(suite)
 
@@ -110,9 +128,9 @@ class OpTestFWTS(unittest.TestSuite):
         conf = OpTestConfiguration.conf
         self.host = conf.host()
         self.system = conf.system()
-
+        self.centaurs_present = self.system.has_centaurs_in_dt()
         self.system.goto_state(OpSystemState.OS)
-
+        self.bmc_type = conf.args.bmc_type
         self.real_fwts_suite = unittest.TestSuite()
 
         host = self.host

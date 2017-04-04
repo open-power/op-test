@@ -106,6 +106,9 @@ class OpTestSystem(object):
     def has_host_led_support(self):
         return False
 
+    def has_centaurs_in_dt(self):
+        return True
+
     def host(self):
         return self.cv_HOST
 
@@ -1248,6 +1251,8 @@ class OpTestFSPSystem(OpTestSystem):
     def has_host_led_support(self):
         return True
 
+    def has_centaurs_in_dt(self):
+        return False
 
 class OpTestOpenBMCSystem(OpTestSystem):
     def __init__(self,
