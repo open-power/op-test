@@ -135,6 +135,7 @@ class FWTS(unittest.TestSuite):
 
         host = self.host
 
+	fwts_version = None
         try:
             fwts_version = host.host_run_command('fwts --version')
         except CommandFailed as cf:
