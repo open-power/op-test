@@ -71,10 +71,6 @@ class OpTestPrdDriver(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-    def tearDown(self):
-        self.cv_HOST.host_gather_opal_msg_log()
-        self.cv_HOST.host_gather_kernel_log()
-
     ##
     # @brief This is a common function for all the PRD test cases. This will be executed before
     #        any test case starts. Basically this provides below requirements.
@@ -138,7 +134,7 @@ class OpTestPrdDriver(unittest.TestCase):
         l_val = hex(int(("0x" + "0"*(LEN - l_len) + l_res[-1]), 16)& (ERROR ^ 0xffffffffffffffff))
 
         # Writing the same value to Local Fault Isolation mask register again
-        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (chip_id, BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER, l_val)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (chip_id, FIMR, l_val)
         l_res = console.run_command(l_cmd)
 
         # Inject a core error on FIR
@@ -170,6 +166,7 @@ class OpTestPrdDriver(unittest.TestCase):
         # check for IPOLL mask register value to see opal-prd cleared the value
         l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, self.IPOLL_MASK_REGISTER)
         l_res = console.run_command(l_cmd)
+        print l_res
         self.assertEqual(l_res[-1], self.IPOLL_MASK_REGISTER_CONTENT,
             "Opal-prd is not clearing the IPOLL MASK REGISTER after injecting core FIR error")
         print "Opal-prd cleared the IPOLL MASK REGISTER"
@@ -221,7 +218,7 @@ class OpTestPrdDriver(unittest.TestCase):
                 ErrorToInject("PRD: Test for PBAFIR_PB_RDDATATO_FW-->PB Read Data Timeout for Forwarded Request",
                               PBA_FAULT_ISOLATION_REGISTER,
                               PBA_FAULT_ISOLATION_MASK_REGISTER,
-                              PBAFIR_PB_RDATATO_FW),
+                              PBAFIR_PB_RDDATATO_FW),
                 ErrorToInject("PRD: Test for PBAFIR_PB_RDADRERR_FW-->PB CRESP Addr Error Received for Forwarded Read Request",
                               PBA_FAULT_ISOLATION_REGISTER,
                               PBA_FAULT_ISOLATION_MASK_REGISTER,
@@ -256,6 +253,6 @@ class OpTestPrdDriver(unittest.TestCase):
         # Test for PBA FIR with different core errors
         for e in faults_to_inject:
             print "PRD Test: %s" % str(e)
-            self.prd_test_core_fir(e.FIR, e.FIMR, e.ERRORR)
+            self.prd_test_core_fir(e.FIR, e.FIMR, e.ERROR)
 
         pass
