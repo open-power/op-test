@@ -67,6 +67,7 @@ from testcases import DPO
 from testcases import EPOW
 from testcases import OpTestKernel
 from testcases import fspresetReload
+from testcases import OpTestPrdDaemon
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -117,6 +118,7 @@ class HostSuite():
         self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(OpalErrorLog.BasicTest())
         self.s.addTest(OpalMsglog.Host())
+        self.s.addTest(OpTestPrdDaemon.OpTestPrdDaemon())
     def suite(self):
         return self.s
 
