@@ -52,8 +52,16 @@ import OpTestConfiguration
 from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 
+class ErrorToInject():
+    def __init__(self, desc, FIR, FIMR, ERROR):
+        self.desc = desc
+        self.FIR = FIR
+        self.FIMR = FIMR
+        self.ERROR = ERROR
+    def __str__(self):
+        return self.desc
 
-class OpTestPrdDriverBase(unittest.TestCase):
+class OpTestPrdDriver(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -160,14 +168,12 @@ class OpTestPrdDriverBase(unittest.TestCase):
         #print l_res
 
         # check for IPOLL mask register value to see opal-prd cleared the value
-        l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, BMC_CONST.IPOLL_MASK_REGISTER)
+        l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, self.IPOLL_MASK_REGISTER)
         l_res = console.run_command(l_cmd)
-        self.assertEqual(l_res[-1], BMC_CONST.IPOLL_MASK_REGISTER_CONTENT,
+        self.assertEqual(l_res[-1], self.IPOLL_MASK_REGISTER_CONTENT,
             "Opal-prd is not clearing the IPOLL MASK REGISTER after injecting core FIR error")
         print "Opal-prd cleared the IPOLL MASK REGISTER"
         return BMC_CONST.FW_SUCCESS
-
-class OpTestPrdDriver(OpTestPrdDriverBase):
 
     ##
     # @brief This function performs below steps
@@ -182,46 +188,74 @@ class OpTestPrdDriver(OpTestPrdDriverBase):
     #
     def runTest(self):
         if "FSP" in self.bmc_type:
-            self.skipTest("P8 OpenPower specific")
+            self.skipTest("OpenPower specific")
         # In P9 FSP systems we need to enable this test
         self.prd_init()
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.host_console_login()
 	self.cv_SYSTEM.host_console_unique_prompt()
 
+        cpu = ''.join(l_con.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+
+        if cpu not in ["POWER8", "POWER8E", "POWER9"]:
+            self.skipTest("Unknown CPU type %s" % cpu)
+
+        if cpu in ["POWER8", "POWER8E"]:
+            self.IPOLL_MASK_REGISTER = "0x01020013"
+            self.IPOLL_MASK_REGISTER_CONTENT = "0000000000000000"
+            PBA_FAULT_ISOLATION_REGISTER = "0x02010840"
+            PBA_FAULT_ISOLATION_MASK_REGISTER = "0x02010843"
+            PBAFIR_OCI_APAR_ERR = 0x8000000000000000
+            PBAFIR_PB_CE_FW  = 0x0400000000000000
+            PBAFIR_PB_RDDATATO_FW = 0x2000000000000000
+            PBAFIR_PB_RDADRERR_FW = 0x6000000000000000
+            faults_to_inject = [
+                ErrorToInject("PRD: Test for PBAFIR_OCI_APAR_ERR-->OCI Address Parity Error",
+                              PBA_FAULT_ISOLATION_REGISTER,
+                              PBA_FAULT_ISOLATION_MASK_REGISTER,
+                              PBAFIR_OCI_APAR_ERR),
+                ErrorToInject("PRD: Test for PBAFIR_PB_CE_FW-->PB Read Data CE Error for Forwarded Request",
+                              PBA_FAULT_ISOLATION_REGISTER,
+                              PBA_FAULT_ISOLATION_MASK_REGISTER,
+                              PBAFIR_PB_CE_FW),
+                ErrorToInject("PRD: Test for PBAFIR_PB_RDDATATO_FW-->PB Read Data Timeout for Forwarded Request",
+                              PBA_FAULT_ISOLATION_REGISTER,
+                              PBA_FAULT_ISOLATION_MASK_REGISTER,
+                              PBAFIR_PB_RDATATO_FW),
+                ErrorToInject("PRD: Test for PBAFIR_PB_RDADRERR_FW-->PB CRESP Addr Error Received for Forwarded Read Request",
+                              PBA_FAULT_ISOLATION_REGISTER,
+                              PBA_FAULT_ISOLATION_MASK_REGISTER,
+                              PBAFIR_PB_RDADRERR_FW),
+            ]
+        if cpu in ["POWER9"]:
+            self.IPOLL_MASK_REGISTER = "0xF0033" #TP.TPCHIP.PIB.PCBMS.COMP.INTR_COMP.HOST_MASK_REG
+            self.IPOLL_MASK_REGISTER_CONTENT = "0000000000000000"
+            PBA_FAULT_ISOLATION_REGISTER = "0x05012840"
+            PBA_FAULT_ISOLATION_MASK_REGISTER = "0x05012843"
+            faults_to_inject = [
+                ErrorToInject("PBAFIR_OCI_APAR_ERR: OCI Address Parity Error Det Address parity error detected by PBA OCI Slave logic for any valid address. OCI Operation is ignored.",
+                              PBA_FAULT_ISOLATION_REGISTER,
+                              PBA_FAULT_ISOLATION_MASK_REGISTER,
+                              0x8000000000000000),
+            ]
+
         l_con.run_command("stty cols 300")
         l_con.run_command("stty rows 30")
         # check for IPOLL mask register value to check opal-prd is running or not
-        l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c 0x0 %s" % BMC_CONST.IPOLL_MASK_REGISTER
+        l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c 0x0 %s" % self.IPOLL_MASK_REGISTER
         l_res = l_con.run_command(l_cmd)
-        if l_res[-1] == BMC_CONST.IPOLL_MASK_REGISTER_CONTENT:
+        if l_res[-1] == self.IPOLL_MASK_REGISTER_CONTENT:
             print "Opal-prd is running"
         else:
             l_con.run_command("service opal-prd start")
             l_res = l_con.run_command(l_cmd)
-            self.assertEqual(l_res[-1], BMC_CONST.IPOLL_MASK_REGISTER_CONTENT,
+            self.assertEqual(l_res[-1], self.IPOLL_MASK_REGISTER_CONTENT,
                     "IPOLL MASK REGISTER is not getting cleared by opal-prd")
             print "Opal-prd is running"
 
         # Test for PBA FIR with different core errors
-        # 1.PBAFIR_OCI_APAR_ERR-->OCI Address Parity Error
-        print "PRD: Test for PBAFIR_OCI_APAR_ERR-->OCI Address Parity Error"
-        self.prd_test_core_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
-                              BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
-                              BMC_CONST.PBAFIR_OCI_APAR_ERR)
-        # 2.PBAFIR_PB_CE_FW-->PB Read Data CE Error for Forwarded Request
-        print "PRD: Test for PBAFIR_PB_CE_FW-->PB Read Data CE Error for Forwarded Request"
-        self.prd_test_core_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
-                              BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
-                              BMC_CONST.PBAFIR_PB_CE_FW)
-        # 3.PBAFIR_PB_RDDATATO_FW-->PB Read Data Timeout for Forwarded Request
-        print "PRD: Test for PBAFIR_PB_RDDATATO_FW-->PB Read Data Timeout for Forwarded Request"
-        self.prd_test_core_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
-                              BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
-                              BMC_CONST.PBAFIR_PB_RDDATATO_FW)
-        # 4.PBAFIR_PB_RDADRERR_FW-->PB CRESP Addr Error Received for Forwarded Read Request
-        print "PRD: Test for PBAFIR_PB_RDADRERR_FW-->PB CRESP Addr Error Received for Forwarded Read Request"
-        self.prd_test_core_fir(BMC_CONST.PBA_FAULT_ISOLATION_REGISTER,
-                              BMC_CONST.PBA_FAULT_ISOLATION_MASK_REGISTER,
-                              BMC_CONST.PBAFIR_PB_RDADRERR_FW)
-        return BMC_CONST.FW_SUCCESS
+        for e in faults_to_inject:
+            print "PRD Test: %s" % str(e)
+            self.prd_test_core_fir(e.FIR, e.FIMR, e.ERRORR)
+
+        pass
