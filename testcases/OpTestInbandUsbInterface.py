@@ -44,6 +44,7 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from testcases.OpTestInbandIPMI import BasicInbandIPMI, OpTestInbandIPMI, ExperimentalInbandIPMI
+from testcases.OpTestInbandIPMI import SkirootBasicInbandIPMI, SkirootFullInbandIPMI
 
 def experimental_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(ExperimentalInbandUSB)
@@ -61,6 +62,14 @@ class BasicInbandUSB(BasicInbandIPMI):
 class InbandUSB(OpTestInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
         super(InbandUSB, self).setUp(ipmi_method=ipmi_method)
+
+class SkirootBasicInbandUSB(SkirootBasicInbandIPMI):
+    def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
+        super(SkirootBasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
+
+class SkirootInbandUSB(SkirootFullInbandIPMI):
+    def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
+        super(SkirootInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class ExperimentalInbandUSB(ExperimentalInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
