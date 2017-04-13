@@ -150,7 +150,7 @@ class OpTestSystem(object):
             # otherwise system endup booting in default disk.
             self.cv_IPMI.ipmi_set_no_override()
             #self.cv_IPMI.ipmi_set_boot_to_disk()
-        if state == OpSystemState.PETITBOOT:
+        if state == OpSystemState.PETITBOOT or state == OpSystemState.PETITBOOT_SHELL:
             self.cv_IPMI.ipmi_set_boot_to_petitboot()
 
         r = self.sys_power_on()

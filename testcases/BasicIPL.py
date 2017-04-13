@@ -41,6 +41,11 @@ class BootToPetitboot(BasicIPL):
         self.system.goto_state(OpSystemState.OFF)
         self.system.goto_state(OpSystemState.PETITBOOT)
 
+class BootToPetitbootShell(BasicIPL):
+    def runTest(self):
+        self.system.goto_state(OpSystemState.OFF)
+        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+
 class SoftPowerOff(BasicIPL):
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT)
