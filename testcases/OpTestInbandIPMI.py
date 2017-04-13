@@ -43,6 +43,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.OpTestIPMI import IPMIConsoleState
 from common.Exceptions import CommandFailed
 
 class UnexpectedBootDevice(Exception):
@@ -52,21 +53,41 @@ class UnexpectedBootDevice(Exception):
     def __str__(self):
         return "Expected to set %s but instead got %s" % (self.expected, self.actual)
 
+
 class OpTestInbandIPMIBase(unittest.TestCase):
+
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_SYSTEM = conf.system()
+        self.host = conf.host()
+        self.ipmi = conf.ipmi()
+        self.system = conf.system()
         self.util = OpTestUtil()
-        self.platform = conf.platform()
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.cv_SYSTEM.load_ipmi_drivers()
         pass
+
+    def set_up(self):
+        if self.test == "skiroot":
+            self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.c = self.system.sys_get_ipmi_console()
+            self.system.host_console_unique_prompt()
+            if self.c.state == IPMIConsoleState.DISCONNECTED:
+                self.c = self.system.sys_get_ipmi_console()
+                self.system.host_console_unique_prompt()
+            # if sol console drops in b/w
+            elif not self.c.sol.isalive():
+                print "Console is not active"
+                self.c = self.system.sys_get_ipmi_console()
+        elif self.test == "host":
+            self.system.goto_state(OpSystemState.OS)
+            self.system.load_ipmi_drivers()
+            self.c = self.host.get_ssh_connection()
+        else:
+            raise Exception("Unknow test type")
+        return self.c
 
 class BasicInbandIPMI(OpTestInbandIPMIBase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
+        self.test = "host"
         super(BasicInbandIPMI, self).setUp()
     ##
     # @brief  It will execute and test the ipmi sensor list functionality
@@ -74,13 +95,14 @@ class BasicInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sensor_list(self):
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         print "Inband IPMI[OPEN]: Sensor tests"
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SENSOR_LIST)
 
 class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
+        self.test = "host"
         super(OpTestInbandIPMI, self).setUp()
     ##
     # @brief  It will execute and test the ipmitool chassis <cmd> commands
@@ -90,7 +112,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_chassis(self):
         print "Inband IPMI[OPEN]: Chassis tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POH)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_RESTART_CAUSE)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POLICY_LIST)
@@ -103,7 +125,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_chassis_identifytests(self):
         print "Inband IPMI[OPEN]: Chassis Identify tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY_5)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY)
@@ -118,7 +140,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_chassis_bootdev(self):
         print "Inband IPMI[OPEN]: Chassis Bootdevice tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         boot_devices = {
             "none" : "No override",
             "pxe"  : "Force PXE",
@@ -147,7 +169,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
         pass
 
     def verify_bootdev(self, i_dev, l_msg):
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         l_res = c.run_command(self.ipmi_method + "chassis bootparam get 5")
         for l_line in l_res:
             if l_line.__contains__(l_msg):
@@ -163,7 +185,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sdr_list_by_type(self):
         print "Inband IPMI[OPEN]: SDR list tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_LIST)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_LIST_ALL)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_LIST_FRU)
@@ -181,7 +203,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sdr_elist_by_type(self):
         print "Inband IPMI[OPEN]: SDR elist tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST_ALL)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST_FRU)
@@ -198,7 +220,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sdr_type_list(self):
         print "Inband IPMI[OPEN]: SDR type list tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_LIST)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_TEMPERATURE)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_FAN)
@@ -212,7 +234,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def test_sdr_get_id(self):
         print "Inband IPMI[OPEN]: SDR get tests"
         l_cmd = self.ipmi_method + "sdr get \'Watchdog\'"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(l_cmd)
 
     ##
@@ -222,7 +244,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_fru_print(self):
         print "Inband IPMI[OPEN]: FRU Print Test"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_FRU_PRINT)
 
     ##
@@ -233,7 +255,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_fru_read(self):
         print "Inband IPMI[OPEN]: FRU Read Test"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + "fru read 0 /tmp/file_fru")
         l_res = c.run_command("hexdump -C /tmp/file_fru")
         # TODO: Check for file output
@@ -256,7 +278,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_mc(self):
         print "Inband IPMI[OPEN]: MC tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_MC_INFO)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_GET)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_MC_SELFTEST)
@@ -276,7 +298,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_info(self):
         print "Inband IPMI[OPEN]: SEL Info test"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_INFO)
 
     ##
@@ -287,7 +309,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_list(self):
         print "Inband IPMI[OPEN]: SEL List test"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_LIST)
 
     ##
@@ -300,7 +322,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_elist(self):
         print "Inband IPMI[OPEN]: SEL elist test"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_ELIST)
 
     ##
@@ -311,7 +333,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_time_get(self):
         print "Inband IPMI[OPEN]: SEL Time get test"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         l_res = c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_TIME_GET)
         return l_res
 
@@ -324,7 +346,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_list_first_n_entries(self, i_num=1):
         l_cmd = "sel list first %i" % int(i_num)
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + l_cmd)
 
     ##
@@ -336,7 +358,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_list_last_n_entries(self, i_num=1):
         l_cmd = "sel list last %i" % int(i_num)
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + l_cmd)
 
     ##
@@ -345,7 +367,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_clear(self):
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_CLEAR)
 
     ##
@@ -354,7 +376,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_get_functionality(self):
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         l_res = c.run_command(self.ipmi_method + "sel list first 3 | awk '{print $1}'")
         for entry in l_res:
             if entry.__contains__("SEL has no entries"):
@@ -372,7 +394,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sel_clear_functionality(self):
         self.test_sel_clear()
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         l_res = c.run_command("ipmitool sel list")
         for l_line in l_res:
             if l_line.__contains__("SEL has no entries"):
@@ -392,7 +414,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_sensor_byid(self, i_sensor=BMC_CONST.SENSOR_HOST_STATUS):
         l_cmd = self.ipmi_method + "sensor get \"%s\"" % i_sensor
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(l_cmd)
 
     ##
@@ -410,14 +432,15 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_dcmi(self):
         print "Inband IPMI[OPEN]: dcmi tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_DISCOVER)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_READING)
         #c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)
-        c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_SENSORS)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_TEMP_READING)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
+        c.run_command(self.ipmi_method + BMC_CONST.IPMI_DCMI_SENSORS)
+
 
     ##
     # @brief  It will execute and test the functionality of ipmi echo command.
@@ -426,7 +449,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_echo(self):
         print "Inband IPMI[OPEN]: echo tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_ECHO_DONE)
 
     ##
@@ -444,7 +467,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_event(self):
         print "Inband IPMI[OPEN]: event tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_EVENT_1)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_EVENT_2)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_EVENT_3)
@@ -466,7 +489,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_firewall(self):
         print "Inband IPMI[OPEN]: Firewall test"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_FIREWALL_INFO)
 
     ##
@@ -481,7 +504,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
 
     def test_pef(self):
         print "Inband IPMI[OPEN]: Pef tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_PEF_INFO)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_PEF_STATUS)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_PEF_POLICY)
@@ -494,7 +517,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_raw(self):
         print "Inband IPMI[OPEN]: raw command execution tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_RAW_POH)
 
     ##
@@ -508,7 +531,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
         i_time = l_res[-1]
         print "Inband IPMI[OPEN]: SEL Time set test"
         l_cmd = "sel time set \'%s\'" % i_time
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + l_cmd)
 
     ##
@@ -554,6 +577,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
 class ExperimentalInbandIPMI(OpTestInbandIPMIBase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
+        self.test = "host"
         super(ExperimentalInbandIPMI, self).setUp()
     ##
     # @brief  It will execute and test the ipmi <sdr/sel/mc/channel> info related commands.
@@ -562,7 +586,7 @@ class ExperimentalInbandIPMI(OpTestInbandIPMIBase):
     # seem to have random return codes, so failure is common.
     def test_Info(self):
         print "Inband IPMI[OPEN]: Info tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_INFO)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_MC_INFO)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_INFO)
@@ -575,17 +599,33 @@ class ExperimentalInbandIPMI(OpTestInbandIPMIBase):
     #
     def test_channel(self):
         print "Inband IPMI[OPEN]: Channel tests"
-        c = self.cv_HOST.get_ssh_connection()
+        c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_INFO)
 
+class SkirootBasicInbandIPMI(BasicInbandIPMI):
+    def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
+        self.ipmi_method = ipmi_method
+        self.test = "skiroot"
+        super(BasicInbandIPMI, self).setUp()
 
+class SkirootFullInbandIPMI(OpTestInbandIPMI):
+    def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
+        self.ipmi_method = ipmi_method
+        self.test = "skiroot"
+        super(OpTestInbandIPMI, self).setUp()
 
 def full_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(OpTestInbandIPMI)
 
 def basic_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(BasicInbandIPMI)
+
+def skiroot_full_suite():
+    return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootFullInbandIPMI)
+
+def skiroot_basic_suite():
+    return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootBasicInbandIPMI)
 
 def experimental_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(ExperimentalInbandIPMI)
