@@ -70,11 +70,22 @@ class fspresetReload(unittest.TestCase):
         print "Running the cmd %s on FSP" % cmd
         self.cv_FSP.fspc.issue_forget(cmd)
 
+    # Surveilance ACK timeout initiated reset(HIR)
+    def trigger_sir(self):
+        cmd = "ps aux | grep -i survserver | head -1 | awk {'print $2'}"
+        print "Running the cmd %s on FSP" % cmd
+        res = self.cv_FSP.fsp_run_command(cmd)
+        cmd = "kill -9 %s" % res.rstrip('\n')
+        print "Running the cmd %s on FSP" % cmd
+        self.cv_FSP.fspc.issue_forget(cmd)
+
     def trigger_rr(self):
         if self.test == "fir":
             self.trigger_fir()
         elif self.test == "hir":
             self.trigger_hir()
+        elif self.test == "sir":
+            self.trigger_sir()
         else:
             raise Exception("Unknown fsp rr test type")
 
@@ -205,7 +216,7 @@ class resetReload(fspresetReload):
             self.prepare_opal_log()
             self.trigger_rr()
             # Let fsp goes down
-            time.sleep(10)
+            time.sleep(20)
             self.wait_for_fsp_ping()
             time.sleep(10)
             self.cv_FSP.fsp_get_console()
@@ -221,6 +232,10 @@ class FIR(resetReload):
 class HIR(resetReload):
     def set_up(self):
         self.test = "hir"
+
+class SIR(resetReload):
+    def set_up(self):
+        self.test = "sir"
 
 class FIRTorture(FIR):
     def number_of_resets(self):
