@@ -297,6 +297,14 @@ class OpTestIPMI():
             raise Exception("IPMI 'chassis power reset' failed: %s " % r)
 
 
+    ##
+    # @brief This function sends the chassis power diag ipmitool command
+    #
+    def ipmi_power_diag(self):
+        r = self.ipmitool.run('chassis power diag')
+        if not "Chassis Power Control: Diag" in r:
+            raise Exception("IPMI 'chassis power diag' failed: %s " % r)
+
 
     ##
     # @brief This function starts the sol capture and waits for the IPL to end. The
