@@ -50,18 +50,47 @@ class FullRTC(unittest.TestCase):
         self.util = OpTestUtil()
 
     def rtc_init(self):
-        # TODO: run in skiroot too
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        if self.test == "host":
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        # Get hwclock version
-        l_hwclock = self.cv_HOST.host_run_command("hwclock -V")
-        # Get Kernel Version
-        l_kernel = self.cv_HOST.host_get_kernel_version()
+            # Get hwclock version
+            l_hwclock = self.cv_HOST.host_run_command("hwclock -V")
+            # Get Kernel Version
+            l_kernel = self.cv_HOST.host_get_kernel_version()
 
-        # loading rtc_opal module based on config option
-        l_config = "CONFIG_RTC_DRV_OPAL"
-        l_module = "rtc_opal"
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+            # loading rtc_opal module based on config option
+            l_config = "CONFIG_RTC_DRV_OPAL"
+            l_module = "rtc_opal"
+            self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+
+        elif self.test == "skiroot":
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.cv_SYSTEM.host_console_unique_prompt()
+
+    # We have a busy box version hwclock with limited options
+    # to access the HW RTC
+    def skiroot_read_hwclock(self):
+        print "Reading the hwclock"
+        self.c.run_command("hwclock -r")
+
+    def skiroot_set_hwclock_time(self):
+        print "Setting the hwclock time from system time"
+        self.c.run_command("hwclock -w")
+
+    def skiroot_set_system_time(self):
+        print "Setting the system time from hwclock time"
+        self.c.run_command("hwclock -s")
+
+    def skiroot_assume_hwclock_utc(self):
+        print "Assume hardware clock is kept in UTC"
+        self.c.run_command("hwclock -u")
+
+    def skiroot_assume_hwclock_localtime(self):
+        print "Assume hardware clock is kept in local time"
+        self.c.run_command("hwclock -l")
+
+
 
     ##
     # @brief This function will cover following test steps
@@ -280,8 +309,31 @@ class FullRTC(unittest.TestCase):
         l_res = self.cv_HOST.host_run_command("cat /etc/adjtime")
         print '\n'.join(l_res)
 
+
 class BasicRTC(FullRTC):
+    def setUp(self):
+        self.test = "host"
+        super(BasicRTC, self).setUp()
+
     def runTest(self):
         self.rtc_init()
         self.cv_HOST.host_read_hwclock()
         self.cv_HOST.host_read_systime()
+
+class HostRTC(FullRTC):
+    def setUp(self):
+        self.test = "host"
+        super(HostRTC, self).setUp()
+
+class SkirootRTC(FullRTC):
+    def setUp(self):
+        self.test = "skiroot"
+        super(SkirootRTC, self).setUp()
+
+    def runTest(self):
+        self.rtc_init()
+        self.skiroot_read_hwclock()
+        self.skiroot_assume_hwclock_utc()
+        self.skiroot_assume_hwclock_localtime()
+        self.skiroot_set_hwclock_time()
+        self.skiroot_set_system_time()

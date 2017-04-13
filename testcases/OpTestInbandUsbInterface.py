@@ -55,6 +55,9 @@ def basic_suite():
 def full_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(InbandUSB)
 
+def skiroot_full_suite():
+    return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootInbandUSB)
+
 class BasicInbandUSB(BasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
         super(BasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
