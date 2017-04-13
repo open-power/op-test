@@ -54,6 +54,14 @@ class OpTestDumps():
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_gather_kernel_log()
 
+    def trigger_dump(self):
+        if self.test == "nmi_dump":
+            self.cv_IPMI.ipmi_power_diag()
+        elif self.test == "host_dump":
+            self.cv_FSP.trigger_system_dump()
+        else:
+            raise Exception("Unknown test type")
+
     def fipsdump_initiate_from_host(self):
         dumpname = self.cv_FSP.fsp_run_command("fipsdump -l | sed 's/\ .*//'")
         self.cv_HOST.host_run_command('echo 1 > /sys/firmware/opal/dump/initiate_dump')
@@ -134,12 +142,13 @@ class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
         if not self.cv_FSP.mount_exists():
             raise OpTestError("Please mount NFS and retry the test")
 
+        self.set_up()
         print self.cv_FSP.fsp_run_command("smgr mfgState")
         self.cv_FSP.clear_fsp_errors()
         self.cv_FSP.power_off_sys()
         self.cv_FSP.power_on_sys()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        self.cv_FSP.trigger_system_dump()
+        self.trigger_dump()
         self.cv_FSP.wait_for_systemdump_to_finish()
         self.cv_FSP.wait_for_runtime()
         console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
@@ -192,8 +201,19 @@ class FIPS_DUMP(OpTestDumps, unittest.TestCase):
             dumpname, size = self.fipsdump_initiate_from_host()
             self.verify_fipsdump(dumpname, size)
 
+class HOST_DUMP(SYSTEM_DUMP):
+
+    def set_up(self):
+        self.test = "host_dump"
+
+class NMI_DIAG_DUMP(SYSTEM_DUMP):
+
+    def set_up(self):
+        self.test = "nmi_dump"
+
 def suite():
     s = unittest.TestSuite()
     s.addTest(FIPS_DUMP())
-    s.addTest(SYSTEM_DUMP())
+    s.addTest(HOST_DUMP())
+    s.addTest(NMI_DIAG_DUMP())
     return s
