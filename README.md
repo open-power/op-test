@@ -40,7 +40,8 @@ You **MUST** have `fwts` installed. To do this:
 
 It must also have (package names for Debian/Ubuntu systems):
 
-    linux-tools-common linux-tools-generic lm-sensors ipmitool i2c-tools pciutils opal-prd
+    linux-tools-common linux-tools-generic lm-sensors ipmitool i2c-tools
+    pciutils opal-prd git make gcc
 
 On RHEL-like systems, package names are:
 
@@ -49,7 +50,7 @@ On RHEL-like systems, package names are:
 From skiboot, you will need the xscom-utils and gard installed:
 
     git clone https://github.com/open-power/skiboot
-    cd external/xscom-utils
+    cd skiboot/external/xscom-utils
     make
     sudo make install
     cd ../gard
@@ -65,14 +66,14 @@ BMC and host login information. For example, to run the default test suite:
 
     ./op-test --bmc-type AMI             \
               --bmc-ip bmc.example.com   \
-    	      --bmc-username sysadmin    \
-	      --bmc-password superuser   \
-	      --bmc-usernameipmi ADMIN   \
-	      --bmc-passwordipmi admin   \
-	      --host-ip host.example.com \
-	      --host-user root		 \
-	      --host-password 1234	 \
-	      --host-lspci host.example.com-lspci.txt
+              --bmc-username sysadmin    \
+              --bmc-password superuser   \
+              --bmc-usernameipmi ADMIN   \
+              --bmc-passwordipmi admin   \
+              --host-ip host.example.com \
+              --host-user root           \
+              --host-password 1234       \
+              --host-lspci host.example.com-lspci.txt
 
 The default test suite will then run.
 
@@ -89,18 +90,18 @@ You can also run individual tests by using the `--run` option.
 
 For example:
 
-      ./op-test --bmc-type AMI           \
-                --bmc-ip bmc.example.com \
-      		--bmc-username sysadmin  \
-		--bmc-password superuser \
-		--bmc-usernameipmi ADMIN \
-		--bmc-passwordipmi admin \
-		--host-ip host.example.com \
-		--host-user root 	   \
-		--host-password 1234	   \
-		--host-lspci host.example.com-lspci.txt \
-		--machine-state PETITBOOT_SHELL \
-		--run testcases.OpTestPCI.OpTestPCISkiroot
+      ./op-test --bmc-type AMI                          \
+                --bmc-ip bmc.example.com                \
+                --bmc-username sysadmin                 \
+                --bmc-password superuser                \
+                --bmc-usernameipmi ADMIN                \
+                --bmc-passwordipmi admin                \
+                --host-ip host.example.com              \
+                --host-user root                        \
+                --host-password 1234                    \
+                --host-lspci host.example.com-lspci.txt \
+                --machine-state PETITBOOT_SHELL         \
+                --run testcases.OpTestPCI.OpTestPCISkiroot
 
 The above will assume the machine is sitting at the petitboot prompt
 and will run the OpTestPCISkiroot test.
