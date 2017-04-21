@@ -68,6 +68,7 @@ from testcases import EPOW
 from testcases import OpTestKernel
 from testcases import fspresetReload
 from testcases import OpTestPrdDaemon
+from testcases import OpalUtils
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -156,6 +157,7 @@ class FullSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
+        self.s.addTest(OpalUtils.OpalUtils())
         self.s.addTest(OpTestRTCdriver.HostRTC())
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.full_suite())
