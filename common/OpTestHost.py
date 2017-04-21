@@ -976,3 +976,32 @@ class OpTestHost():
         if "No such file or directory" in res:
             return False
         return True
+
+    def host_get_list_of_chips(self):
+        res = self.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
+        chips = []
+        for line in res:
+            matchObj = re.search("(\d{8}).*processor", line)
+            if matchObj:
+                chips.append(matchObj.group(1))
+        if not chips:
+            raise Exception("Getscom failed to list processor chip ids")
+        chips.sort()
+        print chips # ['00000000', '00000001', '00000010']
+        return chips
+
+    def host_get_cores(self):
+        cmd = "cat /sys/firmware/opal/msglog | grep -i CHIP"
+        res = self.host_run_command(cmd)
+        cores = {}
+        for line in res:
+            matchObj = re.search("Chip (\d{1,2}) Core ([a-z0-9])", line)
+            if matchObj:
+                if cores.has_key(int(matchObj.group(1))):
+                    (cores[int(matchObj.group(1))]).append(matchObj.group(2))
+                else:
+                    cores[int(matchObj.group(1))] = list(matchObj.group(2))
+        if not cores:
+            raise Exception("Failed in getting core ids information from OPAL msg log")
+        cores = sorted(cores.iteritems())
+        return cores
