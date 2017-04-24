@@ -67,6 +67,7 @@ from testcases import DPO
 from testcases import EPOW
 from testcases import OpTestKernel
 from testcases import fspresetReload
+from testcases import OpalUtils
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -86,6 +87,10 @@ class SkirootSuite():
     '''Tests in Petitboot environment'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(OpTestEM.skiroot_suite())
+        self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
+        self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
+        self.s.addTest(OpTestRTCdriver.SkirootRTC())
         self.s.addTest(OpTestPCI.TestPCISkiroot())
         self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
@@ -106,7 +111,7 @@ class HostSuite():
         self.s.addTest(OpTestPCI.TestPCIHost())
         self.s.addTest(FWTS.FWTS())
         self.s.addTest(OpTestRTCdriver.BasicRTC())
-        self.s.addTest(OpTestEM.suite())
+        self.s.addTest(OpTestEM.host_suite())
         self.s.addTest(AT24driver.AT24driver())
         self.s.addTest(I2C.BasicI2C())
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
@@ -151,7 +156,8 @@ class FullSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
-        self.s.addTest(OpTestRTCdriver.FullRTC())
+        self.s.addTest(OpalUtils.OpalUtils())
+        self.s.addTest(OpTestRTCdriver.HostRTC())
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.full_suite())
         self.s.addTest(I2C.FullI2C())
@@ -166,8 +172,12 @@ class FullSuite():
 
 class OpTestEMSuite():
     '''Energy Management'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
     def suite(self):
-        return OpTestEM.suite()
+        self.s.addTest(OpTestEM.host_suite())
+        self.s.addTest(OpTestEM.skiroot_suite())
+        return self.s
 
 class OpTestEEHSuite():
     '''PCI EEH error recovery'''
@@ -210,6 +220,9 @@ class InbandIPMISuite():
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.basic_suite())
         self.s.addTest(OpTestInbandUsbInterface.full_suite())
+        self.s.addTest(OpTestInbandIPMI.skiroot_basic_suite())
+        self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
+        self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
     def suite(self):
         return self.s
 
@@ -303,5 +316,12 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
     t.addTest(suites['default'].suite())
 
 
-unittest.TextTestRunner(verbosity=2).run(t)
-
+xml_msg = ""
+try:
+    import xmlrunner  # requires unittest-xml-reporting package
+    xml_dir = 'test-reports'
+    res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=1).run(t)
+    xml_msg = ", XML output of tests available in %s directory" % xml_dir
+except ImportError, err:
+    sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
+    res = unittest.TextTestRunner(verbosity=2).run(t)

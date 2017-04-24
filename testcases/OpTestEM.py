@@ -43,6 +43,7 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
+from common.OpTestIPMI import IPMIConsoleState
 
 
 class OpTestEM():
@@ -53,6 +54,37 @@ class OpTestEM():
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
         self.ppc64cpu_freq_re = re.compile(r"([a-z]+):\s+([\d.]+)")
+
+    def set_up(self):
+        if self.test == "skiroot":
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.cv_SYSTEM.host_console_unique_prompt()
+            if self.c.state == IPMIConsoleState.DISCONNECTED:
+                self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+                self.cv_SYSTEM.host_console_unique_prompt()
+            # if sol console drops in b/w
+            elif not self.c.sol.isalive():
+                print "Console is not active"
+                self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        elif self.test == "host":
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.c = self.cv_HOST.get_ssh_connection()
+        else:
+            raise Exception("Unknow test type")
+        return self.c
+
+    def tear_down(self):
+        if self.test == "skiroot":
+            self.c.close()
+        elif self.test == "host":
+            self.c.terminate()
+
+    def get_first_available_cpu(self):
+        cmd = "cat /sys/devices/system/cpu/present | cut -d'-' -f1"
+        res = self.c.run_command(cmd)
+        return res[0]
+
     ##
     # @brief sets the cpu frequency with i_freq value
     #
@@ -126,7 +158,10 @@ class OpTestEM():
     #
     # @param i_idle @type str: this is the cpu idle state to be enabled
     def enable_idle_state(self, i_idle):
-        l_cmd = "cpupower idle-set -e %s" % i_idle
+        if self.test == "host":
+            l_cmd = "cpupower idle-set -e %s" % i_idle
+        elif self.test == "skiroot":
+            l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 0 > $i; done" % i_idle
         self.c.run_command(l_cmd)
 
     ##
@@ -137,7 +172,10 @@ class OpTestEM():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def disable_idle_state(self, i_idle):
-        l_cmd = "cpupower idle-set -d %s" % i_idle
+        if self.test == "host":
+            l_cmd = "cpupower idle-set -d %s" % i_idle
+        elif self.test == "skiroot":
+            l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 1 > $i; done" % i_idle
         self.c.run_command(l_cmd)
 
     ##
@@ -160,24 +198,29 @@ class OpTestEM():
 
 
 class slw_info(OpTestEM, unittest.TestCase):
+    def setUp(self):
+        self.test = "host"
+        super(slw_info, self).setUp()
+
     # @brief This function just gathers the host CPU SLW info
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+        self.c = self.set_up()
+        self.c.run_command("uname -a")
+        self.c.run_command("cat /etc/os-release")
 
-        # Get OS level
-        l_oslevel = self.cv_HOST.host_get_OS_Level()
-        # Get kernel version
-        l_kernel = self.cv_HOST.host_get_kernel_version()
-        self.cv_HOST.host_check_command("cpupower")
-        self.c.run_command("cpupower idle-info")
         self.c.run_command("hexdump -c /proc/device-tree/ibm,enabled-idle-states")
         try:
             self.c.run_command("cat /sys/firmware/opal/msglog | grep -i slw")
         except CommandFailed as cf:
             pass # we may have no slw entries in msglog
+        self.tear_down()
 
-class cpu_freq_states(OpTestEM, unittest.TestCase):
+
+class cpu_freq_states_host(OpTestEM, unittest.TestCase):
+    def setUp(self):
+        self.test = "host"
+        super(cpu_freq_states_host, self).setUp()
+
     NR_FREQUENCIES_SET = 100
     NR_FREQUENCIES_VERIFIED = 10
     # @brief This function will cover following test steps
@@ -186,18 +229,19 @@ class cpu_freq_states(OpTestEM, unittest.TestCase):
     #        4. Set the userspace governer for all cpu's
     #        5. test the cpufreq driver by set/verify cpu frequency
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+        self.c = self.set_up()
+        self.c.run_command("stty cols 300;stty rows 30")
+        self.c.run_command("uname -a")
+        self.c.run_command("cat /etc/os-release")
 
-        # Get OS level
-        l_oslevel = self.cv_HOST.host_get_OS_Level()
+        cpu_num = self.get_first_available_cpu()
 
-        # Get kernel version
-        l_kernel = self.cv_HOST.host_get_kernel_version()
+        # Check cpufreq driver enabled
+        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
 
-        self.cv_HOST.host_check_command("cpupower")
         # Get available cpu scaling frequencies
-        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
+        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_available_frequencies" % cpu_num)
+        print l_res
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
 
@@ -212,9 +256,19 @@ class cpu_freq_states(OpTestEM, unittest.TestCase):
             i_freq = random.choice(freq_list)
             self.set_cpu_freq(i_freq)
             self.verify_cpu_freq(i_freq, True)
+        self.tear_down()
         pass
 
-class cpu_idle_states(OpTestEM, unittest.TestCase):
+class cpu_freq_states_skiroot(cpu_freq_states_host):
+    def setUp(self):
+        self.test = "skiroot"
+        super(cpu_freq_states_host, self).setUp()
+
+class cpu_idle_states_host(OpTestEM, unittest.TestCase):
+    def setUp(self):
+        self.test = "host"
+        super(cpu_idle_states_host, self).setUp()
+
     ##
     # @brief This function will cover following test steps
     #        1. It will get the OS and kernel versions.
@@ -222,19 +276,17 @@ class cpu_idle_states(OpTestEM, unittest.TestCase):
     #        3. Set the userspace governer for all cpu's
     #        4. test the cpuidle driver by enable/disable/verify the idle states
     def runTest(self):
-        self.cv_SYSTEM.sys_bmc_power_on_validate_host()
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+        self.c = self.set_up()
+        self.c.run_command("stty cols 300;stty rows 30")
+        self.c.run_command("uname -a")
+        self.c.run_command("cat /etc/os-release")
+        cpu_num = self.get_first_available_cpu()
 
-        # Get OS level
-        l_oslevel = self.cv_HOST.host_get_OS_Level()
-
-        # Get kernel version
-        l_kernel = self.cv_HOST.host_get_kernel_version()
-
-        self.cv_HOST.host_check_command("cpupower")
+        # Check cpuidle driver enabled
+        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
 
         # TODO: Check the runtime idle states = expected idle states!
-        idle_states = self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/ -type d -regex '.*state[0-9]*' -printf '%f\\n'|sort -u|sed -e 's/^state//'")
+        idle_states = self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
         print repr(idle_states)
         # currently p8 cpu has 3 states
         for i in idle_states:
@@ -248,11 +300,24 @@ class cpu_idle_states(OpTestEM, unittest.TestCase):
             self.enable_idle_state(i)
             self.verify_enable_idle_state(i)
 
+        self.tear_down()
         pass
 
-def suite():
+class cpu_idle_states_skiroot(cpu_idle_states_host):
+    def setUp(self):
+        self.test = "skiroot"
+        super(cpu_idle_states_host, self).setUp()
+
+
+def host_suite():
     s = unittest.TestSuite()
     s.addTest(slw_info())
-    s.addTest(cpu_freq_states())
-    s.addTest(cpu_idle_states())
+    s.addTest(cpu_freq_states_host())
+    s.addTest(cpu_idle_states_host())
+    return s
+
+def skiroot_suite():
+    s = unittest.TestSuite()
+    s.addTest(cpu_freq_states_skiroot())
+    s.addTest(cpu_idle_states_skiroot())
     return s
