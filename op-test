@@ -87,6 +87,7 @@ class SkirootSuite():
     '''Tests in Petitboot environment'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(OpTestEM.skiroot_suite())
         self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
         self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
         self.s.addTest(OpTestRTCdriver.SkirootRTC())
@@ -110,7 +111,7 @@ class HostSuite():
         self.s.addTest(OpTestPCI.TestPCIHost())
         self.s.addTest(FWTS.FWTS())
         self.s.addTest(OpTestRTCdriver.BasicRTC())
-        self.s.addTest(OpTestEM.suite())
+        self.s.addTest(OpTestEM.host_suite())
         self.s.addTest(AT24driver.AT24driver())
         self.s.addTest(I2C.BasicI2C())
         self.s.addTest(OpTestIPMILockMode.OpTestIPMILockMode())
@@ -171,8 +172,12 @@ class FullSuite():
 
 class OpTestEMSuite():
     '''Energy Management'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
     def suite(self):
-        return OpTestEM.suite()
+        self.s.addTest(OpTestEM.host_suite())
+        self.s.addTest(OpTestEM.skiroot_suite())
+        return self.s
 
 class OpTestEEHSuite():
     '''PCI EEH error recovery'''
