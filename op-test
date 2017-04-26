@@ -67,6 +67,7 @@ from testcases import DPO
 from testcases import EPOW
 from testcases import OpTestKernel
 from testcases import fspresetReload
+from testcases import fspTODCorruption
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -255,6 +256,7 @@ class FspOpalSuite():
         self.s.addTest(fspresetReload.suite())
         self.s.addTest(EPOW.suite())
         self.s.addTest(OpTestOCC.OCCRESET_FSP())
+        self.s.addTest(fspTODCorruption.suite())
     def suite(self):
         return self.s
 
