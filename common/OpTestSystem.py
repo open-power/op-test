@@ -41,6 +41,8 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
+from OpTestHost import SSHConnectionState
+
 
 class OpSystemState():
     UNKNOWN = 0
@@ -217,6 +219,7 @@ class OpTestSystem(object):
     def run_POWERING_OFF(self, state):
         if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
             print "System is in standby/Soft-off state"
+            self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
             return OpSystemState.OFF
         else:
             l_msg = "System failed to reach standby/Soft-off state"
