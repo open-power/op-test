@@ -112,10 +112,8 @@ class TOD_CORRUPTION(fspTODCorruption, unittest.TestCase):
         self.tearDown()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         self.check_hwclock()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         self.set_tod()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.check_hwclock()
