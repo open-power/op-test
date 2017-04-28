@@ -93,6 +93,8 @@ class SkirootSuite():
         self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
         self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
         self.s.addTest(OpTestRTCdriver.SkirootRTC())
+        self.s.addTest(AT24driver.SkirootAT24())
+        self.s.addTest(I2C.BasicSkirootI2C())
         self.s.addTest(OpTestPCI.TestPCISkiroot())
         self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
