@@ -68,6 +68,10 @@ class OpTestPrdDaemon(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def runTest(self):
+        if "FSP" in self.bmc_type:
+            self.skipTest("OpenPower specific")
+        # In P9 FSP systems we need to enable this test
+
         self.cv_SYSTEM.host_console_login()
 
         # To check opal-prd daemon is running or not
