@@ -41,29 +41,21 @@ import sys
 import unittest
 
 import OpTestConfiguration
+from testcases.I2C import I2C
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded, KernelConfigNotSet
 
-class AT24driver(unittest.TestCase):
+class AT24driver(I2C, unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
+        self.test = "host"
 
-    ##
-    # @brief  This function has following test steps
-    #         1. Getting the host infromation(OS and kernel information)
-    #         2. Loading the necessary modules to test at24 device driver functionalites
-    #            (i2c_dev, i2c_opal and at24)
-    #         3. Getting the list of i2c buses and eeprom chip addresses
-    #         4. Accessing the registers visible through the i2cbus using i2cdump utility
-    #         5. Getting the eeprom device data using hexdump utility in hex + Ascii format
-
-    def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+    def at24_init(self):
         # Get OS level
         self.cv_HOST.host_get_OS_Level()
 
@@ -90,10 +82,25 @@ class AT24driver(unittest.TestCase):
                 self.assertTrue(False, str(km))
 
         # Get infomtion of EEPROM chips
-        self.cv_HOST.host_get_info_of_eeprom_chips()
+        self.host_get_info_of_eeprom_chips()
+
+    ##
+    # @brief  This function has following test steps
+    #         1. Getting the host infromation(OS and kernel information)
+    #         2. Loading the necessary modules to test at24 device driver functionalites
+    #            (i2c_dev, i2c_opal and at24)
+    #         3. Getting the list of i2c buses and eeprom chip addresses
+    #         4. Accessing the registers visible through the i2cbus using i2cdump utility
+    #         5. Getting the eeprom device data using hexdump utility in hex + Ascii format
+
+    def runTest(self):
+        self.set_up()
+
+        if self.test == "host":
+            self.at24_init()
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
-        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
+        l_chips = self.host_get_list_of_eeprom_chips()
         if self.cv_SYSTEM.has_host_accessible_eeprom():
             self.assertNotEqual(len(l_chips), 0, "No EEPROMs detected, while OpTestSystem says there should be")
         else:
@@ -105,14 +112,14 @@ class AT24driver(unittest.TestCase):
 
         # Getting the list of sysfs eeprom interfaces
         try:
-            l_res = self.cv_HOST.host_run_command("find /sys/ -name eeprom")
+            l_res = self.c.run_command("find /sys/ -name eeprom")
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "EEPROM sysfs entries are not created")
 
         for l_dev in l_res:
             if l_dev.__contains__("eeprom"):
                 # Getting the eeprom device data using hexdump utility in hex + Ascii format
-                self.cv_HOST.host_hexdump(l_dev)
+                self.host_hexdump(l_dev)
             else:
                 pass
         pass
@@ -132,7 +139,11 @@ class AT24driver(unittest.TestCase):
     #
     def i2c_dump(self, i_args):
         try:
-            l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s" % i_args)
+            l_res = self.c.run_command("i2cdump -f -y %s" % i_args)
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "i2cdump failed on addr %s" % i_args)
 
+class SkirootAT24(AT24driver, unittest.TestCase):
+    def setUp(self):
+        self.test = "skiroot"
+        super(AT24driver, self).setUp()

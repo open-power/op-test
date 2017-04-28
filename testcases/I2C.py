@@ -55,9 +55,19 @@ class I2C():
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
-    def i2c_init(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+    def set_up(self):
+        if self.test == "skiroot":
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.cv_SYSTEM.host_console_unique_prompt()
+        elif self.test == "host":
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.c = self.cv_HOST.get_ssh_connection()
+        else:
+            raise Exception("Unknow test type")
+        return self.c
 
+    def i2c_init(self):
         self.cv_HOST.host_get_OS_Level()
 
         # make sure install "i2c-tools" package in-order to run the test
@@ -86,11 +96,99 @@ class I2C():
                 self.assertTrue(False, str(km))
 
         # Get information of EEPROM chips
-        eeprom_info = self.cv_HOST.host_get_info_of_eeprom_chips()
+        eeprom_info = self.host_get_info_of_eeprom_chips()
         if self.cv_SYSTEM.has_host_accessible_eeprom():
             self.assertNotEqual(eeprom_info, None)
         else:
             self.assertEqual(eeprom_info, None)
+
+    ##
+    # @brief This function will return the list of installed i2c buses on host in two formats
+    #        list-by number Ex: ["0","1","2",....]
+    #        list-by-name  Ex: ["i2c-0","i2c-1","i2c-2"....]
+    #
+    # @return l_list @type list: list of i2c buses by number
+    #         l_list1 @type list: list of i2c buses by name
+    #         or raise OpTestError if not able to get list of i2c buses
+    #
+    def host_get_list_of_i2c_buses(self):
+        self.c.run_command("i2cdetect -l")
+        l_res = self.c.run_command("i2cdetect -l | awk '{print $1}'")
+        # list by number Ex: ["0","1","2",....]
+        l_list = []
+        # list by name Ex: ["i2c-0","i2c-1"...]
+        l_list1 = []
+        for l_bus in l_res:
+            matchObj = re.search("(i2c)-(\d{1,})", l_bus)
+            if matchObj:
+                l_list.append(matchObj.group(2))
+                l_list1.append(l_bus)
+            else:
+                pass
+        return l_list, l_list1
+
+
+    ##
+    # @brief It will return list with elements having pairs of eeprom chip addresses and
+    #        corresponding i2c bus where the chip is attached. This information is getting
+    #        through sysfs interface. format is ["0 0x50","0 0x51","1 0x51","1 0x52"....]
+    #
+    # @return l_chips @type list: list having pairs of i2c bus number and eeprom chip address.
+    #           else raise OpTestError
+    #
+    def host_get_list_of_eeprom_chips(self):
+        l_res = self.c.run_command("find /sys/ -name eeprom")
+        l_chips = []
+        for l_line in l_res:
+            if l_line.__contains__("eeprom"):
+                matchObj = re.search("/(\d{1,}-\d{4})/eeprom", l_line)
+                if matchObj:
+                    l_line = matchObj.group(1)
+                    i_args = (l_line.replace("-", " "))
+                    print i_args
+                else:
+                    continue
+                i_args = re.sub(" 00", " 0x", i_args)
+                l_chips.append(i_args)
+                print i_args
+        return l_chips
+
+    ##
+    # @brief This function will get information of EEPROM chips attached to the i2c buses
+    #
+    # @return l_res @type string: return EEPROM chips information
+    #           else raise OpTestError
+    #
+    def host_get_info_of_eeprom_chips(self):
+        print "Getting the information of EEPROM chips"
+        l_res = None
+        try:
+            l_res = self.c.run_command("cat /sys/bus/i2c/drivers/at24/*/name")
+        except CommandFailed as cf:
+            l_res = self.c.run_command("dmesg -C")
+            try:
+                self.c.run_command("rmmod at24")
+                self.cv_HOST.host_load_module("at24")
+                l_res = self.c.run_command("cat /sys/bus/i2c/drivers/at24/*/name")
+            except CommandFailed as cf:
+                pass
+            except KernelModuleNotLoaded as km:
+                pass
+        return l_res
+
+    ##
+    # @brief The hexdump utility is used to display the specified files.
+    #        This function will display in both ASCII+hexadecimal format.
+    #
+    # @param i_dev @type string: this is the file used as a input to hexdump for display info
+    #                            Example file:"/sys/devices/platform/3fc0000000000.xscom:i2cm@a0000:i2c-bus@1/i2c-3/3-0050/eeprom"
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    #
+    def host_hexdump(self, i_dev):
+        l_res = self.c.run_command("hexdump -C %s" % i_dev)
+
 
     ##
     # @brief This function query's the i2c bus for devices attached to it.
@@ -104,19 +202,19 @@ class I2C():
         rc = 0
         print "Querying the i2c bus %s for devices attached to it" % i_bus
         try:
-            l_res = self.cv_HOST.host_run_command("i2cdetect -y %i" % int(i_bus))
+            l_res = self.c.run_command("i2cdetect -y %i" % int(i_bus))
         except CommandFailed as cf:
             rc = cf.exitcode
 
         if rc != 0:
             try:
-                l_res = self.cv_HOST.host_run_command("i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes" % int(i_bus))
+                l_res = self.c.run_command("i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes" % int(i_bus))
             except CommandFailed as cf:
                 print "i2c bus %i doesn't support query" % int(i_bus)
                 raise I2CDetectUnsupported;
 
             try:
-                l_res = self.cv_HOST.host_run_command("i2cdetect -y -r %i" % int(i_bus))
+                l_res = self.c.run_command("i2cdetect -y -r %i" % int(i_bus))
             except CommandFailed as cf:
                 self.assertEqual(cf.exitcode, 0, "Querying the i2cbus for devices failed:%s\n%s" % (i_bus,str(cf)))
 
@@ -135,7 +233,7 @@ class I2C():
     #
     def i2c_dump(self, i_args):
         try:
-            l_res = self.cv_HOST.host_run_command("i2cdump -f -y %s" % i_args)
+            l_res = self.c.run_command("i2cdump -f -y %s" % i_args)
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "i2cdump failed for the device: %s\n%s" % (i_args, str(cf)))
 
@@ -153,7 +251,7 @@ class I2C():
     #
     def i2c_get(self, i_args, i_addr):
         try:
-            l_res = self.cv_HOST.host_run_command("i2cget -f -y %s %s" % (i_args, i_addr))
+            l_res = self.c.run_command("i2cget -f -y %s %s" % (i_args, i_addr))
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "i2cget: Getting data from address %s failed: %s" % (i_addr, str(cf)))
 
@@ -172,12 +270,16 @@ class I2C():
     #
     def i2c_set(self, i_args, i_addr, i_val):
         try:
-            l_res = self.cv_HOST.host_run_command("i2cset -f -y %s %s %s" % (i_args, i_addr, i_val))
+            l_res = self.c.run_command("i2cset -f -y %s %s %s" % (i_args, i_addr, i_val))
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "i2cset: Setting the data to a address %s failed: %s" % (i_addr, str(cf)))
 
 class FullI2C(I2C, unittest.TestCase):
     BASIC_TEST = False
+    def setUp(self):
+        self.test = "host"
+        super(FullI2C, self).setUp()
+
     ##
     # @brief  This function has following test steps
     #         1. Getting host information(OS and kernel info)
@@ -193,11 +295,13 @@ class FullI2C(I2C, unittest.TestCase):
     #         6. Testing i2cget functionality for limited samples
     #            Avoiding i2cset functionality, it may damage the system.
     def runTest(self):
-        self.i2c_init()
+        self.set_up()
+        if self.test == "host":
+            self.i2c_init()
         # Get list of i2c buses available on host,
         # l_list=["0","1"....]
         # l_list1=["i2c-0","i2c-1","i2c-2"....]
-        l_list, l_list1 = self.cv_HOST.host_get_list_of_i2c_buses()
+        l_list, l_list1 = self.host_get_list_of_i2c_buses()
 
         if self.BASIC_TEST:
             # For the basic test, just go for the first of everything.
@@ -212,7 +316,7 @@ class FullI2C(I2C, unittest.TestCase):
                 print "Unsupported i2cdetect on bus %s" % l_bus
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
-        l_chips = self.cv_HOST.host_get_list_of_eeprom_chips()
+        l_chips = self.host_get_list_of_eeprom_chips()
         if self.cv_SYSTEM.has_host_accessible_eeprom():
             self.assertNotEqual(l_chips, None, "No EEPROMs detected, while OpTestSystem says there should be")
             for l_args in l_chips:
@@ -221,19 +325,6 @@ class FullI2C(I2C, unittest.TestCase):
                 self.i2c_dump(l_args)
         else:
             self.assertEqual(l_chips, None, "Detected EEPROM where OpTestSystem said there should be none")
-
-        # list i2c adapter conetents
-        try:
-            l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter")
-        except CommandFailed as cf:
-            self.assertEqual(cf.exitcode, 0, str(cf))
-
-        # Checking the sysfs entry of each i2c bus
-        for l_bus in l_list1:
-            try:
-                l_res = self.cv_HOST.host_run_command("ls -l /sys/class/i2c-adapter/%s" % l_bus)
-            except CommandFailed as cf:
-                self.assertEqual(cf.exitcode, 0, str(cf))
 
         if self.cv_SYSTEM.has_host_accessible_eeprom():
             # Currently testing only getting the data from a data address,
@@ -246,7 +337,29 @@ class FullI2C(I2C, unittest.TestCase):
                 l_val = self.i2c_get(l_chips[1], l_addr)
                 # self.i2c_set(l_list2[1], l_addr, "0x50")
 
+        # list i2c adapter conetents
+        try:
+            l_res = self.c.run_command("ls -l /sys/class/i2c-adapter")
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 0, str(cf))
+
+        # Checking the sysfs entry of each i2c bus
+        for l_bus in l_list1:
+            try:
+                l_res = self.c.run_command("ls -l /sys/class/i2c-adapter/%s" % l_bus)
+            except CommandFailed as cf:
+                self.assertEqual(cf.exitcode, 0, str(cf))
+
         return BMC_CONST.FW_SUCCESS
 
 class BasicI2C(FullI2C, unittest.TestCase):
     BASIC_TEST = True
+    def setUp(self):
+        self.test = "host"
+        super(BasicI2C, self).setUp()
+
+
+class FullSkirootI2C(FullI2C, unittest.TestCase):
+    def setUp(self):
+        self.test = "skiroot"
+        super(FullI2C, self).setUp()
