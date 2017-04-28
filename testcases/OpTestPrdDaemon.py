@@ -55,6 +55,7 @@ class OpTestPrdDaemon(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.bmc_type = conf.args.bmc_type
 
 
     ##
