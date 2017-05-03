@@ -200,7 +200,7 @@ class OpTestConstants():
 
     IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT = ["[SOL Session operational.  Use ~? for help]\r\n", \
         "Error: Unable to establish IPMI v2 / RMCP+ session", pexpect.TIMEOUT, pexpect.EOF]
-    IPMI_CONSOLE_EXPECT_ENTER_OUTPUT = ["login: ", "#", "/ #", "Petitboot", pexpect.TIMEOUT, pexpect.EOF]
+    IPMI_CONSOLE_EXPECT_ENTER_OUTPUT = ["login: ", "#", "/ #", "Petitboot", pexpect.TIMEOUT, pexpect.EOF, "$"]
     IPMI_CONSOLE_EXPECT_LOGIN = 0
     IPMI_CONSOLE_EXPECT_PASSWORD = 0
     IPMI_CONSOLE_EXPECT_PETITBOOT = [2,3]

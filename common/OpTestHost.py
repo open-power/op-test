@@ -96,6 +96,11 @@ class SSHConnection():
         # Ubuntu likes to be "helpful" and alias grep to
         # include color, which isn't helpful at all. So let's
         # go back to absolutely no messing around with the shell
+        if self.username != "root":
+            p.sendline('sudo -s')
+            p.expect("password for")
+            p.sendline(self.password)
+            p.set_unique_prompt()
         p.sendline('exec bash --norc --noprofile')
         p.set_unique_prompt()
         self.state = SSHConnectionState.CONNECTED

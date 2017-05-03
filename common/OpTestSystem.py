@@ -284,6 +284,18 @@ class OpTestSystem(object):
         elif l_rc in [pexpect.TIMEOUT, pexpect.EOF]:
             print l_con.before
             raise "Timeout/EOF waiting for SOL response"
+        elif l_rc in ["$"]:
+            pass # fallthrough and sudo into a root shell
+        l_con.send("\r")
+        l_rc = l_con.expect_exact(['$','#'])
+        if l_rc == 0:
+            l_con.sendline('sudo -s')
+            l_con.expect("password for")
+            l_con.sendline(l_pwd)
+            self.host_console_unique_prompt()
+        elif l_rc != 1:
+            raise Exception("Invalid response to newline. expected $ or # prompt, got: %s" % (l_con.before))
+            
         return BMC_CONST.FW_SUCCESS
 
     def host_console_unique_prompt(self):
