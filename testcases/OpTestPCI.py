@@ -50,6 +50,18 @@ class TestPCI():
         self.cv_SYSTEM = conf.system()
         self.pci_good_data_file = conf.lspci_file()
 
+    def check_pci_devices(self):
+        c = self.c
+        l_res = c.run_command("lspci -mm -n")
+        # We munge the result back to what we'd get
+        # from "ssh user@host lspci -mm -n > host-lspci.txt" so that the diff
+        # is simple to do
+        self.pci_data_hostos = '\n'.join(l_res) + '\n'
+        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
+        r = diff_process.wait()
+        self.assertEqual(r, 0, "Stored and detected PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
+
     # Compare host "lspci -mm -n" output to known good
     def runTest(self):
         self.setup_test()
@@ -74,16 +86,7 @@ class TestPCI():
         for cmd in list_usb_devices_commands:
             c.run_command(cmd)
 
-        l_res = c.run_command("lspci -mm -n")
-        # We munge the result back to what we'd get
-        # from "ssh user@host lspci -mm -n > host-lspci.txt" so that the diff
-        # is simple to do
-        self.pci_data_hostos = '\n'.join(l_res) + '\n'
-        diff_process = subprocess.Popen(['diff', "-u", self.pci_good_data_file , "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
-        r = diff_process.wait()
-        self.assertEqual(r, 0, "Stored and detected PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
-
+        self.check_pci_devices()
 
 class TestPCISkiroot(TestPCI, unittest.TestCase):
     def setup_test(self):

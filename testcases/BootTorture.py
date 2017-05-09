@@ -21,19 +21,27 @@
 # Torture the machine with repeatedly trying to boot
 
 import unittest
+import subprocess
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
-class BootTorture(unittest.TestCase):
+from testcases.OpTestPCI import TestPCI
+
+class BootTorture(unittest.TestCase, TestPCI):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.system = conf.system()
+        self.pci_good_data_file = conf.lspci_file()
 
     def runTest(self):
+        self.c = self.system.sys_get_ipmi_console()
         for i in range(1,1024):
             print "Boot iteration %d..." % i
+            self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.system.host_console_unique_prompt()
+            self.c.run_command("cat /sys/firmware/opal/msglog")
+            self.check_pci_devices()
             self.system.goto_state(OpSystemState.OFF)
-            self.system.goto_state(OpSystemState.PETITBOOT)
 
