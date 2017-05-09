@@ -86,6 +86,9 @@ class TestPCI():
         for cmd in list_usb_devices_commands:
             c.run_command(cmd)
 
+        # Test we don't EEH on reading all config space
+        c.run_command("hexdump -C /sys/bus/pci/devices/*/config")
+
         self.check_pci_devices()
 
 class TestPCISkiroot(TestPCI, unittest.TestCase):
