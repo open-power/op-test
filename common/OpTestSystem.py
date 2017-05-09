@@ -1282,3 +1282,27 @@ class OpTestOpenBMCSystem(OpTestSystem):
                                               host=host,
                                               bmc=bmc,
                                               state=state)
+
+class OpTestQemuSystem(OpTestSystem):
+    def __init__(self,
+                 i_ffdcDir=None,
+                 host=None,
+                 bmc=None,
+                 state=OpSystemState.UNKNOWN):
+        # Ensure we grab host console early, in order to not miss
+        # any messages
+        self.console = bmc.get_host_console()
+        super(OpTestQemuSystem, self).__init__(i_ffdcDir=i_ffdcDir,
+                                              host=host,
+                                              bmc=bmc,
+                                              state=state)
+
+    def sys_wait_for_standby_state(self, i_timeout=120):
+        self.bmc.power_off()
+        return 0
+
+    def sys_sdr_clear(self):
+        return 0
+
+    def sys_power_on(self):
+        self.bmc.power_on()

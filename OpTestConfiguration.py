@@ -7,7 +7,8 @@ import common
 from common.OpTestBMC import OpTestBMC
 from common.OpTestFSP import OpTestFSP
 from common.OpTestOpenBMC import OpTestOpenBMC
-from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem, OpTestOpenBMCSystem
+from common.OpTestQemu import OpTestQemu
+from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem, OpTestOpenBMCSystem, OpTestQemuSystem
 from common.OpTestHost import OpTestHost
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestWeb import OpTestWeb
@@ -41,7 +42,7 @@ class OpTestConfiguration():
         bmcgroup = parser.add_argument_group('BMC',
                                              'Options for Service Processor')
         bmcgroup.add_argument("--bmc-type",
-                              choices=['AMI','FSP', 'OpenBMC'],
+                              choices=['AMI','FSP', 'OpenBMC', 'qemu'],
                               help="Type of service processor")
         bmcgroup.add_argument("--bmc-ip", help="BMC address")
         bmcgroup.add_argument("--bmc-username", help="SSH username for BMC")
@@ -50,6 +51,14 @@ class OpTestConfiguration():
         bmcgroup.add_argument("--bmc-passwordipmi", help="IPMI password for BMC")
         bmcgroup.add_argument("--bmc-prompt", default="#",
                               help="Prompt for BMC ssh session")
+        bmcgroup.add_argument("--qemu-binary", default="qemu-system-ppc64",
+                              help="[QEMU Only] qemu simulator binary")
+        bmcgroup.add_argument("--skiboot", default="skiboot.lid",
+                              help="[QEMU Only] skiboot.lid")
+        bmcgroup.add_argument("--kernel", default="zImage.epapr",
+                              help="[QEMU Only] petitboot zImage.epapr")
+        bmcgroup.add_argument("--initramfs", default="rootfs.cpio.xz",
+                              help="[QEMU Only] petitboot rootfs")
 
         hostgroup = parser.add_argument_group('Host', 'Installed OS information')
         hostgroup.add_argument("--host-ip", help="Host address")
@@ -141,6 +150,13 @@ class OpTestConfiguration():
                 bmc=bmc,
                 state=self.startState,
             )
+        elif self.args.bmc_type in ['qemu']:
+            print repr(self.args)
+            bmc = OpTestQemu(self.args.qemu_binary,
+                             self.args.skiboot,
+                             self.args.kernel,
+                             self.args.initramfs)
+            self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
         else:
             raise Exception("Unsupported BMC Type")
 
