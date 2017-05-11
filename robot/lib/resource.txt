@@ -1,0 +1,18 @@
+*** Settings ***
+Library           Collections
+Library           String
+Library           OperatingSystem
+Variables         ../data/variables.py
+
+*** Variables ***
+${OPENPOWER_HOST}        9.3.185.195
+${PORT}                  ${EMPTY}
+${OPENPOWER_USERNAME}    ADMIN
+${OPENPOWER_PASSWORD}    admin
+${OPENPOWER_REBOOT_TIMEOUT}   ${10}
+
+# OS related parameters.
+${OS_HOST}               ${EMPTY}
+${OS_USERNAME}           tyan
+${OS_PASSWORD}           tyan
+${OS_WAIT_TIMEOUT}       ${30*60}
