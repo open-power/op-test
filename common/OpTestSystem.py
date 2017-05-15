@@ -306,7 +306,7 @@ class OpTestSystem(object):
         p.expect(r'.+#')
         p.sendline('PS1=[console-pexpect]\#')
         p.expect("\n") # from us, because echo
-        l_rc = p.expect_exact("[console-pexpect]#")
+        l_rc = p.expect("\[console-pexpect\]#$")
         if l_rc == 0:
             print "Shell prompt changed"
         else:
