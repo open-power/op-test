@@ -96,10 +96,11 @@ class IPMIConsoleState():
     CONNECTED = 1
 
 class IPMIConsole():
-    def __init__(self, ipmitool=None, logdir=None):
+    def __init__(self, ipmitool=None, logdir=None, delaybeforesend=None):
         self.ipmitool = ipmitool
         self.state = IPMIConsoleState.DISCONNECTED
         self.logdir = logdir
+        self.delaybeforesend = delaybeforesend
 
     def terminate(self):
         if self.state == IPMIConsoleState.CONNECTED:
@@ -135,6 +136,8 @@ class IPMIConsole():
         solChild = pexpect.spawn(cmd,logfile=sys.stdout)
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild
+        if self.delaybeforesend:
+	    self.sol.delaybeforesend = self.delaybeforesend
         self.sol.expect_exact('[SOL Session operational.  Use ~? for help]')
         # we pause for a moment to allow ipmitool to catch up with
         # itself and to start accepting input
@@ -159,14 +162,34 @@ class IPMIConsole():
 
     def run_command(self, command, timeout=60):
         console = self.get_console()
-        console.sendline(command)
-        console.expect("\n") # from us
-        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
-        output = console.before
-        console.sendline("echo $?")
-        console.expect("\n") # from us
-        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
-        exitcode = int(console.before)
+        BMC_DISCONNECT = 'SOL session closed by BMC'
+        try:
+            console.sendline(command)
+            console.expect("\n") # from us
+            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            if rc == 0:
+                raise BMCDisconnected(BMC_DISCONNECT)
+            output = console.before
+            console.sendline("echo $?")
+            rc = console.expect([BMC_DISCONNECT, "\n"]) # from us
+            if rc == 0:
+                raise BMCDisconnected(BMC_DISCONNECT)
+            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            if rc == 0:
+                raise BMCDisconnected(BMC_DISCONNECT)
+            exitcode = int(console.before)
+            print "# LAST COMMAND EXIT CODE %d (%s)" % (exitcode, repr(console.before))
+        except pexpect.TIMEOUT as e:
+            print e
+            print console
+            self.terminate()
+            raise e
+        except BMCDisconnected as e:
+            print "# %s" % str(e)
+            print "# We can possibly continue..."
+            print "# Failing current command and attempting to continue"
+            self.terminate()
+            raise CommandFailed("ipmitool", BMC_DISCONNECT, -1)
 
         if rc == 0:
             res = output
@@ -181,7 +204,7 @@ class IPMIConsole():
 
 
 class OpTestIPMI():
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, host=None):
+    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, host=None, delaybeforesend=None):
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd
@@ -190,7 +213,9 @@ class OpTestIPMI():
                                  ip=i_bmcIP,
                                  username=i_bmcUser,
                                  password=i_bmcPwd)
-        self.console = IPMIConsole(ipmitool=self.ipmitool, logdir=i_ffdcDir)
+        self.console = IPMIConsole(ipmitool=self.ipmitool,
+                                   logdir=i_ffdcDir,
+                                   delaybeforesend=delaybeforesend)
         self.util = OpTestUtil()
         self.host = host
 

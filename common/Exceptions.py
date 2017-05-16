@@ -26,6 +26,12 @@ class CommandFailed(Exception):
     def __str__(self):
         return "Command '%s' exited with %d.\nOutput:\n%s" % (self.command, self.exitcode, self.output)
 
+class BMCDisconnected(Exception):
+    def __init__(self, notice):
+        self.notice = notice
+    def __str__(self):
+        return "BMC disconnected due to '%s'" % self.notice
+
 class NoKernelConfig(Exception):
     def __init__(self, kernel, path):
         self.kernel = kernel
