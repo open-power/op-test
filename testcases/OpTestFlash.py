@@ -45,7 +45,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-
+from common.OpTestError import OpTestError
 
 class OpTestFlashBase(unittest.TestCase):
     def setUp(self):
@@ -131,7 +131,10 @@ class OOBHpmFLASH(OpTestFlashBase):
         self.cv_SYSTEM.sys_sdr_clear()
         self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        try:
+            self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        except OpTestError:
+            self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
@@ -152,7 +155,10 @@ class InbandHpmFLASH(OpTestFlashBase):
             self.skipTest("OP AMI BMC In-band firmware Update test")
         self.cv_SYSTEM.sys_sdr_clear()
         self.validate_side_activated()
-        self.cv_HOST.host_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        try:
+            self.cv_HOST.host_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        except OpTestError:
+            self.cv_HOST.host_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.validate_side_activated()
