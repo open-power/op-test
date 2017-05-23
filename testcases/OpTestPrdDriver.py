@@ -51,6 +51,8 @@ import unittest
 import OpTestConfiguration
 from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
+
 
 class ErrorToInject():
     def __init__(self, desc, FIR, FIMR, ERROR):
@@ -238,6 +240,12 @@ class OpTestPrdDriver(unittest.TestCase):
 
         l_con.run_command("stty cols 300")
         l_con.run_command("stty rows 30")
+
+        try:
+            l_con.run_command("opal-prd --pnor /dev/mtd0 --debug --stdio")
+        except CommandFailed as cf:
+            print "opal-prd failed to activate %s" % str(cf)
+
         # check for IPOLL mask register value to check opal-prd is running or not
         l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c 0x0 %s" % self.IPOLL_MASK_REGISTER
         l_res = l_con.run_command(l_cmd)
