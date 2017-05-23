@@ -76,23 +76,19 @@ class OpTestPrdDaemon(unittest.TestCase):
         self.cv_SYSTEM.host_console_login()
 
         # To check opal-prd daemon is running or not
-        l_cmd = "ps -ef | grep opal-prd | head -1 | awk '{ print $2 }'"
-        l_res = self.cv_HOST.host_run_command(l_cmd)
+        l_res = self.cv_HOST.host_run_command("pidof opal-prd")
 
         # To kill the opal-prd daemon using its PID
         l_cmd = "kill -9 %d" % int(l_res[0])
         l_res = self.cv_HOST.host_run_command(l_cmd)
 
         # To check if opal-prd daemon is spawned again even after killing
-        l_cmd = "ps -ef | grep opal-prd | head -1 | awk '{ print $2 }'"
-        l_res = commands.getstatusoutput(l_cmd)
-        print l_res
-
         try:
-            if int(l_res[0]) == 0:
-                print "opal-prd daemon is always running"
+            l_res = self.cv_HOST.host_run_command(l_cmd)
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, "opal-prd daemon is not running always:Need to raise a bug: %s" % str(c))
+
+        print "opal-prd daemon is always running"
 
         return BMC_CONST.FW_SUCCESS
 
