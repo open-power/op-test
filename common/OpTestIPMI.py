@@ -42,6 +42,7 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
 from Exceptions import CommandFailed
+from Exceptions import BMCDisconnected
 
 class IPMITool():
     def __init__(self, method='lanplus', binary='ipmitool',
@@ -191,7 +192,7 @@ class IPMIConsole():
             self.terminate()
             raise CommandFailed("ipmitool", BMC_DISCONNECT, -1)
 
-        if rc == 0:
+        if rc == 1:
             res = output
             res = res.splitlines()
             if exitcode != 0:
