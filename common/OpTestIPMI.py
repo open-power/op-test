@@ -65,12 +65,13 @@ class IPMITool():
         s += ' '
         return s
 
-    def run(self, cmd, background=False, cmdprefix=None):
+    def run(self, cmd, background=False, cmdprefix=None, logcmd=True):
         if cmdprefix:
             cmd = cmdprefix + self.binary + self.arguments() + cmd
         else:
             cmd = self.binary + self.arguments() + cmd
-        print cmd
+        if logcmd:
+            print cmd
         if background:
             try:
                 child = subprocess.Popen(cmd, shell=True)

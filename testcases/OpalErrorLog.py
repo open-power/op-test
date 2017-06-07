@@ -98,7 +98,7 @@ class BasicTest(OpalErrorLog):
             self.cv_FSP.generate_error_log_from_fsp()
         self.cv_HOST.host_list_all_errorlogs()
         self.cv_HOST.host_list_all_service_action_logs()
-
+        self.cv_FSP.list_all_errorlogs_in_fsp()
         res = self.cv_HOST.host_get_number_of_errorlogs()
         transfer_complete = False
         tries = 60
@@ -119,4 +119,10 @@ class FullTest(BasicTest):
 
     def count(self):
         self.count = 255
+        return self.count
+
+class TortureTest(BasicTest):
+
+    def count(self):
+        self.count = 100000
         return self.count
