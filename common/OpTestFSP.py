@@ -299,6 +299,20 @@ class OpTestFSP():
             time.sleep(5)
         return BMC_CONST.FW_SUCCESS
 
+    def wait_for_dump_to_start(self):
+        count = 0
+        # Dump maximum can start in one minute(So lets wait for 3 mins)
+        while count < 3:
+            if self.get_sys_status() == "dumping":
+                return True
+            count += 1
+            time.sleep(60)
+        else:
+            print "Current system status: %s" % self.get_sys_status()
+            print "Current progress code: %s" % self.get_progress_code()
+            raise OpTestError("System dump not started even after 3 minutes")
+
+
     ##
     # @brief Wait for system to reach runtime
     # @returns 0 on success or throws exception
@@ -317,6 +331,15 @@ class OpTestFSP():
                 raise OpTestError(l_msg)
             time.sleep(5)
         return BMC_CONST.FW_SUCCESS
+
+    def enable_system_dump(self):
+        print "Enabling the system dump policy"
+        self.fspc.run_command("sysdump -sp enableSys")
+        res = self.fspc.run_command("sysdump -vp")
+        if "System dumps             Enabled       Enabled" in res:
+            print "System dump policy enabled successfully"
+            return True
+        raise OpTestError("Failed to enable system dump policy")
 
     ##
     # @brief Trigger system dump from fsp
@@ -340,6 +363,8 @@ class OpTestFSP():
     # @returns True on success or throws exception
     #
     def wait_for_systemdump_to_finish(self):
+        self.wait_for_dump_to_start()
+        # If dump starts then wait for finish it
         count = 0
         while count < 30:
             res = self.fspc.run_command("sysdump -qall")
