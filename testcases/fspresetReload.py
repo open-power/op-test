@@ -174,7 +174,10 @@ class fspresetReload(unittest.TestCase):
         self.assertTrue(self.check_for_inbandipmi(), "inband ipmi interface failed after fsp rr")
         self.assertTrue(self.check_for_sensors(), "inband sensors failed after fsp rr")
         self.assertTrue(self.check_for_nvram(), "nvram interface failed after fsp rr")
-        self.check_for_sol_console()
+        try:
+            self.check_for_sol_console()
+        except:
+            pass
 
 
     def look_for_in_opal_log(self, pattern):
@@ -245,6 +248,10 @@ class HIRTorture(HIR):
     def number_of_resets(self):
         return 20
 
+class SIRTorture(SIR):
+    def number_of_resets(self):
+        return 20
+
 def suite():
     s = unittest.TestSuite()
     s.addTest(FIR())
@@ -255,4 +262,5 @@ def torture_suite():
     s = unittest.TestSuite()
     s.addTest(FIRTorture())
     s.addTest(HIRTorture())
+    s.addTest(SIRTorture())
     return s

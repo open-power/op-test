@@ -308,6 +308,9 @@ if OpTestConfiguration.conf.args.list_suites:
         print '{0:34}{1}'.format(key, suites[key].__doc__)
     exit(0)
 
+reload(sys)
+sys.setdefaultencoding("utf8")
+
 t = unittest.TestSuite()
 
 if OpTestConfiguration.conf.args.run_suite:
