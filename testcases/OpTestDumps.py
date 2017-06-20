@@ -25,6 +25,10 @@
 #  Different dumps for fsp platforms
 #  fipsdump
 #  system dump
+#      host_dump_boottime --> Trigger dump when kernel boots(either Petitboot or OS kernel)
+#      host_dump_runtime  --> Trigger dump when system is in OS or already booted to OS
+#      nmi_dump           --> Trigger system dump by sending NMI interrupts to processors
+#
 
 import time
 import subprocess
@@ -57,7 +61,7 @@ class OpTestDumps():
     def trigger_dump(self):
         if self.test == "nmi_dump":
             self.cv_IPMI.ipmi_power_diag()
-        elif self.test == "host_dump":
+        elif "host_dump" in self.test:
             self.cv_FSP.trigger_system_dump()
         else:
             raise Exception("Unknown test type")
@@ -138,15 +142,20 @@ class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
             self.skipTest("FSP Platform OPAL specific dump tests")
         self.cv_HOST.host_check_command("opal-dump-parse")
         self.cv_HOST.host_run_command("rm -rf /var/log/dump/SYSDUMP*")
+        self.cv_HOST.host_run_command("rm -rf /var/log/dump/Opal-log*")
+        self.cv_HOST.host_run_command("rm -rf /var/log/dump/HostBoot-Runtime-log*")
+        self.cv_HOST.host_run_command("rm -rf /var/log/dump/printk*")
         self.cv_FSP.fsp_get_console()
         if not self.cv_FSP.mount_exists():
             raise OpTestError("Please mount NFS and retry the test")
 
         self.set_up()
         print self.cv_FSP.fsp_run_command("smgr mfgState")
+        self.cv_FSP.enable_system_dump()
         self.cv_FSP.clear_fsp_errors()
-        self.cv_FSP.power_off_sys()
-        self.cv_FSP.power_on_sys()
+        if "host_dump_boottime" in self.test:
+            self.cv_FSP.power_off_sys()
+            self.cv_FSP.power_on_sys()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         self.trigger_dump()
         self.cv_FSP.wait_for_systemdump_to_finish()
@@ -164,6 +173,14 @@ class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
         self.assertIn("Opal", '\n'.join(res), "sysdump test failed in dumping Opal-log section")
         self.assertIn("HostBoot-Runtime-log", '\n'.join(res), "sysdump test failed in dumping HBRT section")
         self.assertIn("printk", '\n'.join(res), "sysdump test failed in dumping printk section")
+        self.cv_HOST.host_run_command("cd /var/log/dump/")
+        self.cv_HOST.host_run_command("opal-dump-parse -s 1 /var/log/dump/SYSDUMP*")
+        self.cv_HOST.host_run_command("cat Opal-log*")
+        self.cv_HOST.host_run_command("opal-dump-parse -s 2  /var/log/dump/SYSDUMP*")
+        self.cv_HOST.host_run_command("cat HostBoot-Runtime-log*")
+        self.cv_HOST.host_run_command("opal-dump-parse -s 128 /var/log/dump/SYSDUMP*")
+        self.cv_HOST.host_run_command("cat printk*")
+
 
 class FIPS_DUMP(OpTestDumps, unittest.TestCase):
 
@@ -201,10 +218,16 @@ class FIPS_DUMP(OpTestDumps, unittest.TestCase):
             dumpname, size = self.fipsdump_initiate_from_host()
             self.verify_fipsdump(dumpname, size)
 
-class HOST_DUMP(SYSTEM_DUMP):
+class HOST_DUMP_BOOTTIME(SYSTEM_DUMP):
 
     def set_up(self):
-        self.test = "host_dump"
+        self.test = "host_dump_boottime"
+
+class HOST_DUMP_RUNTIME(SYSTEM_DUMP):
+
+    def set_up(self):
+        self.test = "host_dump_runtime"
+
 
 class NMI_DIAG_DUMP(SYSTEM_DUMP):
 
@@ -214,6 +237,7 @@ class NMI_DIAG_DUMP(SYSTEM_DUMP):
 def suite():
     s = unittest.TestSuite()
     s.addTest(FIPS_DUMP())
-    s.addTest(HOST_DUMP())
+    s.addTest(HOST_DUMP_RUNTIME())
     s.addTest(NMI_DIAG_DUMP())
+    s.addTest(HOST_DUMP_BOOTTIME())
     return s
