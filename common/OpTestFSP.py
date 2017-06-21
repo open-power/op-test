@@ -55,19 +55,23 @@ class OpTestFSP():
     # @param i_fspPasswd @type string: Password of the userid to log into the FSP
     # @param i_ffdcDir @type string: Optional param to indicate where to write FFDC
     #
-    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, i_ffdcDir=None, ipmi=None):
+    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, i_ffdcDir=None, ipmi=None, rest=None):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
         self.password = i_fspPasswd
         self.prompt = "$"
         self.cv_ASM = OpTestASM(i_fspIP, i_fspUser, i_fspPasswd)
         self.cv_IPMI = ipmi
+        self.rest = rest
 
     def bmc_host(self):
         return self.cv_ASM.host_name
 
     def get_ipmi(self):
         return self.cv_IPMI
+
+    def get_rest_api(self):
+        return self.rest
 
     def get_host_console(self):
         return self.cv_IPMI.get_host_console()
@@ -93,6 +97,10 @@ class OpTestFSP():
     def fsp_run_command(self, command):
         res = self.fspc.run_command(command)
         return res
+
+    def reboot(self):
+        pass # fsp rr tests are covered in fspresetReload test
+        return True
 
     ##
     # @brief Get IPL progress codes

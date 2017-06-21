@@ -11,6 +11,7 @@ from common.OpTestQemu import OpTestQemu
 from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem, OpTestOpenBMCSystem, OpTestQemuSystem
 from common.OpTestHost import OpTestHost
 from common.OpTestIPMI import OpTestIPMI
+from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 import argparse
 
@@ -141,10 +142,13 @@ class OpTestConfiguration():
                               self.args.bmc_usernameipmi,
                               self.args.bmc_passwordipmi,
                               self.args.ffdcdir, host=host)
+            rest_api = HostManagement(self.args.bmc_ip,
+                                self.args.bmc_username,
+                                self.args.bmc_password)
             bmc = OpTestOpenBMC(self.args.bmc_ip,
                                 self.args.bmc_username,
                                 self.args.bmc_password,
-                                ipmi=ipmi)
+                                ipmi=ipmi, rest_api=rest_api)
             self.op_system = OpTestOpenBMCSystem(
                 host=host,
                 bmc=bmc,
