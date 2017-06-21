@@ -185,7 +185,7 @@ class OpTestBMC():
         rsync.logfile = sys.stdout
         rsync.expect('assword: ')
         rsync.sendline(self.cv_bmcPasswd)
-        rsync.expect('total size is', timeout=900)
+        rsync.expect('total size is', timeout=1800)
         rsync.expect(pexpect.EOF)
         rsync.close()
         return rsync.exitstatus
@@ -209,15 +209,27 @@ class OpTestBMC():
     #
     # @return pflash command return code
     #
-    def pnor_img_flash(self, i_pflash_dir, i_imageName):
+    def pnor_img_flash_ami(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -e -f -p /tmp/%s' % i_imageName
         rc = self._cmd_run(cmd, timeout=1800, logFile='pflash.log')
         return rc
 
-    def skiboot_img_flash(self, i_pflash_dir, i_imageName):
+    # on openbmc systems pflash tool available
+    def pnor_img_flash_openbmc(self, i_imageName):
+        cmd = 'pflash -E -f -p /tmp/%s' % i_imageName
+        rc = self._cmd_run(cmd, timeout=1800, logFile='pflash.log')
+        return rc
+
+    def skiboot_img_flash_ami(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -p /tmp/%s -e -f -P PAYLOAD' % i_imageName
         rc = self._cmd_run(cmd, timeout=1800, logFile='pflash.log')
         return rc
+
+    def skiboot_img_flash_openbmc(self, i_imageName):
+        cmd = 'pflash -p /tmp/%s -e -f -P PAYLOAD' % i_imageName
+        rc = self._cmd_run(cmd, timeout=1800, logFile='pflash.log')
+        return rc
+
 
     ##
     # @brief This function validates presence of pflash tool, which will be

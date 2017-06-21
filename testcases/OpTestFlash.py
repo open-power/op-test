@@ -79,16 +79,22 @@ class PNORFLASH(OpTestFlashBase):
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
-        if "AMI" not in self.bmc_type:
-            self.skipTest("OP AMI BMC PNOR Flash test")
-        self.cv_BMC.validate_pflash_tool("/tmp")
-        self.validate_side_activated()
+        if any(s in self.bmc_type for s in ("FSP", "QEMU")):
+            self.skipTest("OP AMI/OpenBMC PNOR Flash test")
+        if "AMI" in self.bmc_type:
+            self.cv_BMC.validate_pflash_tool("/tmp")
+            self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
         self.cv_BMC.pnor_img_transfer(self.images_dir, self.pnor_name)
-        self.cv_BMC.pnor_img_flash("/tmp", self.pnor_name)
+        if "AMI" in self.bmc_type:
+            self.cv_BMC.pnor_img_flash_ami("/tmp", self.pnor_name)
+        elif "OpenBMC" in self.bmc_type:
+            self.cv_BMC.pnor_img_flash_openbmc(self.pnor_name)
+        console = self.cv_SYSTEM.console.get_console()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.validate_side_activated()
+        if "AMI" in self.bmc_type:
+            self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
 
 
@@ -103,16 +109,22 @@ class SkibootLidFLASH(OpTestFlashBase):
         super(SkibootLidFLASH, self).setUp()
 
     def runTest(self):
-        if "AMI" not in self.bmc_type:
-            self.skipTest("OP AMI BMC Skiboot lid flash test")
-        self.cv_BMC.validate_pflash_tool("/tmp")
-        self.validate_side_activated()
+        if any(s in self.bmc_type for s in ("FSP", "QEMU")):
+            self.skipTest("OP AMI/OpenBMC PNOR Flash test")
+        if "AMI" in self.bmc_type:
+            self.cv_BMC.validate_pflash_tool("/tmp")
+            self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
         self.cv_BMC.pnor_img_transfer(self.images_dir, self.lid_name)
-        self.cv_BMC.skiboot_img_flash("/tmp", self.lid_name)
+        if "AMI" in self.bmc_type:
+            self.cv_BMC.skiboot_img_flash_ami("/tmp", self.lid_name)
+        elif "OpenBMC" in self.bmc_type:
+            self.cv_BMC.skiboot_img_flash_openbmc(self.lid_name)
+        console = self.cv_SYSTEM.console.get_console()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.validate_side_activated()
+        if "AMI" in self.bmc_type:
+            self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
 
 class OOBHpmFLASH(OpTestFlashBase):

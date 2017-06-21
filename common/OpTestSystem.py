@@ -1324,6 +1324,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
     def sys_sdr_clear(self):
         self.rest.clear_sel()
 
+    def sys_sel_check(self):
+        return 0
+
     def sys_wait_for_standby_state(self, i_timeout=120):
         self.rest.wait_for_standby()
         return 0
