@@ -44,12 +44,13 @@ from OpTestError import OpTestError
 from OpTestWeb import OpTestWeb
 
 class OpTestBMC():
-    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None, ipmi=None, web=None):
+    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None, ipmi=None, rest=None, web=None):
         self.cv_bmcIP = ip
         self.cv_bmcUser = username
         self.cv_bmcPasswd = password
         self.cv_ffdcDir = i_ffdcDir
         self.cv_IPMI = ipmi
+        self.rest = rest
         self.cv_WEB = web
 
     def bmc_host(self):
@@ -57,6 +58,9 @@ class OpTestBMC():
 
     def get_ipmi(self):
         return self.cv_IPMI
+
+    def get_rest_api(self):
+        return self.rest
 
     def get_host_console(self):
         return self.cv_IPMI.get_host_console()
@@ -139,7 +143,10 @@ class OpTestBMC():
     def reboot(self):
 
         retries = 0
-        self._cmd_run('reboot', logFile='bmc_reboot.log')
+        try:
+            self._cmd_run('reboot', logFile='bmc_reboot.log')
+        except pexpect.EOF:
+            pass
         print 'Sent reboot command now waiting for reboot to complete...'
         time.sleep(10)
         '''  Ping the system until it reboots  '''

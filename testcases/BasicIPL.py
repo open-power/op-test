@@ -25,6 +25,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.OpTestError import OpTestError
 
 class BasicIPL(unittest.TestCase):
     def setUp(self):
@@ -49,7 +50,7 @@ class BootToPetitbootShell(BasicIPL):
 class SoftPowerOff(BasicIPL):
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT)
-        self.ipmi.ipmi_power_soft()
+        self.system.sys_power_soft()
         print "soft powered off"
         self.system.set_state(OpSystemState.POWERING_OFF)
         print "set state, going to off"
@@ -62,7 +63,7 @@ class BMCReset(BasicIPL):
         c = 0
         while True:
             try:
-                self.ipmi.ipmi_wait_for_standby_state()
+                self.system.sys_wait_for_standby_state()
             except OpTestError as e:
                 c+=1
                 if c == 10:
@@ -87,14 +88,17 @@ class OutOfBandWarmReset(BasicIPL):
         self.system.goto_state(OpSystemState.PETITBOOT)
         # TODO skip if no IPMI
         # TODO use abstracted out-of-band warm reset
-        self.ipmi.ipmi_warm_reset()
-        self.system.set_state(OpSystemState.IPLing)
+        self.system.sys_warm_reset()
+        # BMC reset disconnects the old console
+        self.system.console.terminate()
+        self.system.goto_state(OpSystemState.OFF)
         self.system.goto_state(OpSystemState.PETITBOOT)
 
 class HardPowerCycle(BasicIPL):
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT)
-        self.ipmi.ipmi_power_reset()
+        self.system.sys_power_reset()
+        self.system.console.close()
         self.system.set_state(OpSystemState.IPLing)
         self.system.goto_state(OpSystemState.PETITBOOT)
 

@@ -590,7 +590,7 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_warm_reset(self):
-
+        l_initstatus = self.ipmi_power_status()
         l_cmd = BMC_CONST.BMC_WARM_RESET
         print ("Applying Warm reset. Wait for "
                             + str(BMC_CONST.BMC_WARM_RESET_DELAY) + "sec")
@@ -598,11 +598,19 @@ class OpTestIPMI():
         if BMC_CONST.BMC_PASS_WARM_RESET in rc:
             print rc
             time.sleep(BMC_CONST.BMC_WARM_RESET_DELAY)
+            self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
+            l_finalstatus = self.ipmi_power_status()
+            if (l_initstatus != l_finalstatus):
+                print('initial status ' + str(l_initstatus))
+                print('final status ' + str(l_finalstatus))
+                print ('Power status changed during cold reset')
+                raise OpTestError('Power status changed')
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Warm reset Failed"
             print l_msg
             raise OpTestError(l_msg)
+
 
 
     ##

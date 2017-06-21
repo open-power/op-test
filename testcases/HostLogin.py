@@ -64,3 +64,13 @@ class SSHHostLogin(unittest.TestCase):
             r = self.host.host_run_command("false")
         except CommandFailed as r:
             self.assertEqual(r.exitcode, 1)
+
+class ExampleRestAPI(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.system = conf.system()
+
+    def runTest(self):
+        self.system.sys_inventory()
+        self.system.sys_sensors()
+        self.system.sys_bmc_state()

@@ -75,6 +75,7 @@ class OpTestSystem(object):
         self.bmc = self.cv_BMC = bmc
         self.cv_HOST = host
         self.cv_IPMI = bmc.get_ipmi()
+        self.rest = self.bmc.get_rest_api()
         self.console = self.bmc.get_host_console()
         self.util = OpTestUtil()
 
@@ -117,6 +118,9 @@ class OpTestSystem(object):
     def bmc(self):
         return self.cv_BMC
 
+    def rest(self):
+        return self.rest
+
     def ipmi(self):
         return self.cv_IPMI
 
@@ -150,10 +154,10 @@ class OpTestSystem(object):
         if state == OpSystemState.OS:
             # By default auto-boot will be enabled, set no override
             # otherwise system endup booting in default disk.
-            self.cv_IPMI.ipmi_set_no_override()
+            self.sys_set_bootdev_no_override()
             #self.cv_IPMI.ipmi_set_boot_to_disk()
         if state == OpSystemState.PETITBOOT or state == OpSystemState.PETITBOOT_SHELL:
-            self.cv_IPMI.ipmi_set_boot_to_petitboot()
+            self.sys_set_bootdev_setup()
 
         r = self.sys_power_on()
         # Only retry once
@@ -380,6 +384,15 @@ class OpTestSystem(object):
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return rc
+
+    def sys_set_bootdev_setup(self):
+        self.cv_IPMI.ipmi_set_boot_to_petitboot()
+
+    def sys_set_bootdev_no_override(self):
+        self.cv_IPMI.ipmi_set_no_override()
+
+    def sys_power_reset(self):
+        self.cv_IPMI.ipmi_power_reset()
 
     ##
     # @brief Warm reset on the bmc system
@@ -1282,6 +1295,53 @@ class OpTestOpenBMCSystem(OpTestSystem):
                                               host=host,
                                               bmc=bmc,
                                               state=state)
+    # REST Based management
+    def sys_inventory(self):
+        self.rest.get_inventory()
+
+    def sys_sensors(self):
+        self.rest.sensors()
+
+    def sys_bmc_state(self):
+        self.rest.get_bmc_state()
+
+    def sys_power_on(self):
+        self.rest.power_on()
+
+    def sys_power_off(self):
+        self.rest.power_off()
+
+    def sys_power_reset(self):
+        self.rest.hard_reboot()
+
+    def sys_power_cycle(self):
+        self.rest.soft_reboot()
+
+    def sys_power_soft(self):
+        #self.rest.power_soft() currently rest command for softPowerOff failing
+        self.rest.power_off()
+
+    def sys_sdr_clear(self):
+        self.rest.clear_sel()
+
+    def sys_wait_for_standby_state(self, i_timeout=120):
+        self.rest.wait_for_standby()
+        return 0
+
+    def wait_for_petitboot(self):
+        # Ensure IPMI console is open so not to miss petitboot
+        console = self.console.get_console()
+        self.rest.wait_for_runtime()
+        return super(OpTestOpenBMCSystem, self).wait_for_petitboot()
+
+    def sys_set_bootdev_setup(self):
+        self.rest.set_bootdev_to_setup()
+
+    def sys_set_bootdev_no_override(self):
+        self.rest.set_bootdev_to_none()
+
+    def sys_warm_reset(self):
+        self.rest.bmc_reset()
 
 class OpTestQemuSystem(OpTestSystem):
     def __init__(self,
