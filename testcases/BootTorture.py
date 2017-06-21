@@ -43,5 +43,7 @@ class BootTorture(unittest.TestCase, TestPCI):
             self.system.host_console_unique_prompt()
             self.c.run_command("cat /sys/firmware/opal/msglog")
             self.check_pci_devices()
+            self.c.run_command("dmesg -r|grep '<[4321]>'")
+            self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
             self.system.goto_state(OpSystemState.OFF)
 
