@@ -41,6 +41,8 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+from common.Exceptions import CommandFailed
+
 
 class TestPCI():
     def setUp(self):
@@ -49,6 +51,23 @@ class TestPCI():
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.pci_good_data_file = conf.lspci_file()
+
+    def pcie_link_errors(self):
+        total_entries = link_down_entries = timeout_entries = []
+        try:
+            link_down_entries = self.c.run_command("grep 'PHB#.* Link down' /sys/firmware/opal/msglog")
+        except CommandFailed as cf:
+            pass
+        if link_down_entries:
+            total_entries = total_entries + link_down_entries
+        try:
+            timeout_entries = self.c.run_command("grep 'Timeout waiting for' /sys/firmware/opal/msglog")
+        except CommandFailed as cf:
+            pass
+        if timeout_entries:
+            total_entries = total_entries + timeout_entries
+        msg = '\n'.join(filter(None, total_entries))
+        self.assertTrue( len(total_entries) == 0, "pcie link down/timeout Errors in OPAL log:\n%s" % msg)
 
     def check_pci_devices(self):
         c = self.c
@@ -77,7 +96,7 @@ class TestPCI():
                                      "lspci -vvxxx",
                                      ]
         for cmd in list_pci_devices_commands:
-            c.run_command(cmd, timeout=120)
+            c.run_command(cmd, timeout=300)
 
         list_usb_devices_commands = ["lsusb",
                                      "lsusb -t",
@@ -87,9 +106,12 @@ class TestPCI():
             c.run_command(cmd)
 
         # Test we don't EEH on reading all config space
-        c.run_command("hexdump -C /sys/bus/pci/devices/*/config")
+        c.run_command("hexdump -C /sys/bus/pci/devices/*/config", timeout=600)
 
+        if not self.pci_good_data_file:
+            self.skipTest("No good pci data provided")
         self.check_pci_devices()
+
 
 class TestPCISkiroot(TestPCI, unittest.TestCase):
     def setup_test(self):
@@ -101,4 +123,16 @@ class TestPCIHost(TestPCI, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.host().get_ssh_connection()
+
+class PcieLinkErrorsHost(TestPCIHost, unittest.TestCase):
+
+    def runTest(self):
+        self.setup_test()
+        self.pcie_link_errors()
+
+class PcieLinkErrorsSkiroot(TestPCISkiroot, unittest.TestCase):
+
+    def runTest(self):
+        self.setup_test()
+        self.pcie_link_errors()
 
