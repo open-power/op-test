@@ -189,6 +189,11 @@ class OpTestEMSuite():
         self.s.addTest(OpTestEM.skiroot_suite())
         return self.s
 
+class BasicPCISuite():
+    '''Basic PCI tests'''
+    def suite(self):
+        return OpTestPCI.suite()
+
 class OpTestEEHSuite():
     '''PCI EEH error recovery'''
     def suite(self):
@@ -287,6 +292,7 @@ suites = {
     'host'    : HostSuite(),
     'default' : DefaultSuite(),
     'BasicIPL' : BasicIPLSuite(),
+    'BasicPCI' : BasicPCISuite(),
     'em' :       OpTestEMSuite(),
     'experimental': ExperimentalSuite(),
     'experimental-eeh': OpTestEEHSuite(),
