@@ -71,6 +71,21 @@ class TestPCI():
         msg = '\n'.join(filter(None, total_entries))
         self.assertTrue( len(total_entries) == 0, "pcie link down/timeout Errors in OPAL log:\n%s" % msg)
 
+
+    def get_list_of_pci_devices(self):
+        cmd = "ls /sys/bus/pci/devices/ | awk {'print $1'}"
+        res = self.c.run_command(cmd)
+        return res
+
+    def get_driver(self, pe):
+        cmd = "lspci -ks %s" % pe
+        output = self.c.run_command(cmd, timeout=120)
+        if output:
+            for line in output:
+                if 'Kernel driver in use:' in line:
+                    return (line.rsplit(":")[1]).strip(" ")
+        return None
+
     def check_pci_devices(self):
         c = self.c
         l_res = c.run_command("lspci -mm -n")
@@ -202,6 +217,88 @@ class TestPciSkirootvsOS(TestPCI, unittest.TestCase):
         diff_stdout, diff_stderr = diff_process.communicate(self.pci_data_hostos)
         r = diff_process.wait()
         self.assertEqual(r, 0, "Skiroot and Host OS PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
+
+class TestPciDriverBindHost(TestPCIHost, unittest.TestCase):
+
+    def set_up(self):
+        self.test = "host"
+
+    def test_bind(self):
+        self.set_up()
+        if "skiroot" in self.test:
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.cv_SYSTEM.host_console_unique_prompt()
+            root_domain = "xxxx"
+        else:
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.cv_SYSTEM.host_console_login()
+            self.cv_SYSTEM.host_console_unique_prompt()
+            root_domain = self.cv_HOST.host_get_root_phb()
+            self.c.run_command("dmesg -D")
+        list = self.get_list_of_pci_devices()
+        failure_list = {}
+        for slot in list:
+            rc = 0
+            driver = self.get_driver(slot)
+            if root_domain in slot:
+                continue
+            if driver is None:
+                continue
+            index = "%s_%s" % (driver, slot)
+            cmd = "echo -n %s > /sys/bus/pci/drivers/%s/unbind" % (slot, driver)
+            try:
+                self.c.run_command(cmd)
+            except CommandFailed as cf:
+                msg = "Driver unbind operation failed for driver %s, slot %s" % (slot, driver)
+                failure[index] = msg
+            time.sleep(5)
+            cmd = 'ls /sys/bus/pci/drivers/%s' % driver
+            self.c.run_command(cmd)
+            path = "/sys/bus/pci/drivers/%s/%s" % (driver, slot)
+            try:
+                self.c.run_command("test -d %s" % path)
+                rc = 1
+            except CommandFailed as cf:
+                pass
+            cmd = "echo -n %s > /sys/bus/pci/drivers/%s/bind" % (slot, driver)
+            try:
+                self.c.run_command(cmd)
+            except CommandFailed as cf:
+                msg = "Driver bind operation failed for driver %s, slot %s" % (slot, driver)
+                failure_list[index] = msg
+            time.sleep(5)
+            cmd = 'ls /sys/bus/pci/drivers/%s' % driver
+            self.c.run_command(cmd)
+            try:
+                self.c.run_command("test -d %s" % path)
+            except CommandFailed as cf:
+                rc = 2
+            # Gather all errors from kernel and opal logs
+            try:
+                self.c.run_command("dmesg -r|grep '<[4321]>'")
+            except CommandFailed:
+                pass
+            try:
+                self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            except CommandFailed:
+                pass
+
+            if rc == 1:
+                msg = "%s not unbound for driver %s" % (slot, driver)
+                failure_list[index] = msg
+
+            if rc == 2:
+                msg = "%s not bound back for driver %s" % (slot, driver)
+                failure_list[index] = msg
+        self.assertEqual(failure_list, {}, "Driver bind/unbind failures %s" % failure_list)
+
+
+class TestPciDriverBindSkiroot(TestPciDriverBindHost, unittest.TestCase):
+
+    def set_up(self):
+        self.test = "skiroot"
 
 def suite():
     s = unittest.TestSuite()
