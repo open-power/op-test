@@ -35,12 +35,12 @@ import commands
 import re
 import sys
 import os
-import pexpect
 import os.path
 
 import unittest
 
 import OpTestConfiguration
+from distutils.version import LooseVersion
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
@@ -53,6 +53,7 @@ class TestPCI():
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.pci_good_data_file = conf.lspci_file()
+        self.bmc_type = conf.args.bmc_type
 
     def pcie_link_errors(self):
         total_entries = link_down_entries = timeout_entries = []
@@ -85,6 +86,33 @@ class TestPCI():
                 if 'Kernel driver in use:' in line:
                     return (line.rsplit(":")[1]).strip(" ")
         return None
+
+    def get_list_of_slots(self):
+        cmd = "ls /sys/bus/pci/slots/ -1"
+        res = self.c.run_command(cmd)
+        return res
+
+    def get_root_pe_address(self):
+        cmd = "df -h /boot | awk 'END {print $1}'"
+        res = self.c.run_command(cmd)
+        boot_disk = ''.join(res).split("/dev/")[1]
+        boot_disk = boot_disk.replace("\r\n", "")
+        cmd  = "ls -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
+        res = self.c.run_command(cmd)
+        root_pe = res[0].split("-")[1]
+        return  root_pe
+
+    def gather_errors(self):
+        # Gather all errors from kernel and opal logs
+        try:
+            self.c.run_command("dmesg -r|grep '<[4321]>'")
+        except CommandFailed:
+            pass
+        try:
+            self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+        except CommandFailed:
+            pass
+
 
     def check_pci_devices(self):
         c = self.c
@@ -229,20 +257,20 @@ class TestPciDriverBindHost(TestPCIHost, unittest.TestCase):
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c = self.cv_SYSTEM.sys_get_ipmi_console()
             self.cv_SYSTEM.host_console_unique_prompt()
-            root_domain = "xxxx"
+            root_pe = "xxxx"
         else:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             self.c = self.cv_SYSTEM.sys_get_ipmi_console()
             self.cv_SYSTEM.host_console_login()
             self.cv_SYSTEM.host_console_unique_prompt()
-            root_domain = self.cv_HOST.host_get_root_phb()
+            root_pe = self.get_root_pe_address()
             self.c.run_command("dmesg -D")
         list = self.get_list_of_pci_devices()
         failure_list = {}
         for slot in list:
             rc = 0
             driver = self.get_driver(slot)
-            if root_domain in slot:
+            if root_pe in slot:
                 continue
             if driver is None:
                 continue
@@ -275,15 +303,7 @@ class TestPciDriverBindHost(TestPCIHost, unittest.TestCase):
                 self.c.run_command("test -d %s" % path)
             except CommandFailed as cf:
                 rc = 2
-            # Gather all errors from kernel and opal logs
-            try:
-                self.c.run_command("dmesg -r|grep '<[4321]>'")
-            except CommandFailed:
-                pass
-            try:
-                self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
-            except CommandFailed:
-                pass
+            self.gather_errors()
 
             if rc == 1:
                 msg = "%s not unbound for driver %s" % (slot, driver)
@@ -299,6 +319,70 @@ class TestPciDriverBindSkiroot(TestPciDriverBindHost, unittest.TestCase):
 
     def set_up(self):
         self.test = "skiroot"
+
+class TestPciHotplugHost(TestPCI, unittest.TestCase):
+
+    def runTest(self):
+        # Currently this feature enabled for fsp systems
+        if "FSP" not in self.bmc_type:
+            self.skipTest("FSP Platform OPAL specific PCI Hotplug tests")
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        c = self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.host_console_login()
+        self.cv_SYSTEM.host_console_unique_prompt()
+        res = self.c.run_command("uname -r")[-1].split("-")[0]
+        if LooseVersion(res) < LooseVersion("4.10.0"):
+            self.skipTest("This kernel does not support hotplug %s" % res)
+        self.cv_HOST.host_load_module("pnv_php")
+        device_list = self.get_list_of_pci_devices()
+        root_pe = self.get_root_pe_address()
+        slot_list = self.get_list_of_slots()
+        self.c.run_command("dmesg -D")
+        print device_list, slot_list
+        pair = {} # Pair of device vs slot location code
+        for device in device_list:
+            cmd = "lspci -k -s %s -vmm" % device
+            res = self.c.run_command(cmd)
+            for line in res:
+                #if "PhySlot:\t" in line:
+                obj = re.match('PhySlot:\t(.*)', line)
+                if obj:
+                    pair[device] = obj.group(1)
+        print pair
+        failure_list = {}
+        for device, phy_slot in pair.iteritems():
+            if root_pe in device:
+                continue
+            index = "%s_%s" % (device, phy_slot)
+            path = "/sys/bus/pci/slots/%s/power" % phy_slot
+            try:
+                self.c.run_command("test -f %s" % path)
+            except CommandFailed as cf:
+                print "Slot %s does not support hotplug" % phy_slot
+                continue # slot does not support hotplug
+            try:
+                self.c.run_command("echo 0 > %s" % path)
+            except CommandFailed as cf:
+                msg = "PCI device/slot power off operation failed"
+                failure_list[index] = msg
+            time.sleep(5)
+            cmd = "lspci -k -s %s" % device
+            res = self.c.run_command(cmd)
+            if device in "\n".join(res):
+                msg = "PCI device failed to remove after power off operation"
+                failure_list[index] = msg
+            try:
+                self.c.run_command("echo 1 > %s" % path)
+            except CommandFailed as cf:
+                msg = "PCI device/slot power on operation failed"
+                failure_list[index] = msg
+            res = self.c.run_command(cmd)
+            if device not in "\n".join(res):
+                msg = "PCI device failed to attach back after power on operation"
+                failure_list[index] = msg
+            self.gather_errors()
+        self.assertEqual(failure_list, {}, "PCI Hotplug failures %s" % failure_list)
+
 
 def suite():
     s = unittest.TestSuite()
