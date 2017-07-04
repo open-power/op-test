@@ -41,7 +41,7 @@ You **MUST** have `fwts` installed. To do this:
 It must also have (package names for Debian/Ubuntu systems):
 
     linux-tools-common linux-tools-generic lm-sensors ipmitool i2c-tools
-    pciutils opal-prd git make gcc
+    pciutils opal-prd opal-utils
 
 On RHEL-like systems, package names are:
 
