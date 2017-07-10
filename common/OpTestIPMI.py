@@ -183,14 +183,37 @@ class IPMIConsole():
             print "# LAST COMMAND EXIT CODE %d (%s)" % (exitcode, repr(console.before))
         except pexpect.TIMEOUT as e:
             print e
-            print console
-            self.terminate()
+            print "# TIMEOUT waiting for command to finish."
+            print "# Attempting to control-c"
+            try:
+                console.sendcontrol('c')
+                rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], 10)
+                if rc == 0:
+                    print "# BMC Disconnect while cancelling timed-out command"
+                    print "# Failing test, disconnecting/reconnecting"
+                    self.terminate()
+                    raise CommandFailed("ipmitool", BMC_DISCONNECT, -1)
+                if rc == 1:
+                    raise CommandFailed(command, "TIMEOUT", -1)
+            except pexpect.TIMEOUT:
+                print "# Timeout trying to kill timed-out command."
+                print "# Failing current command and attempting to continue"
+                self.terminate()
+                raise CommandFailed("ipmitool", "timeout", -1)
             raise e
         except BMCDisconnected as e:
             print "# %s" % str(e)
             print "# We can possibly continue..."
             print "# Failing current command and attempting to continue"
             self.terminate()
+            self.connect()
+            print "# On reconnect, attempt to cancel last command (ctrl-c)"
+            # Note: this is a terrible idea. If BMC vendors created reliable
+            # SoL implementations this kind of crap wouldn't be needed.
+            # This is incorrect on so many levels it's not funny. For a start,
+            # we really don't want to send random control characters during
+            # boot!
+            console.sendcontrol('c')
             raise CommandFailed("ipmitool", BMC_DISCONNECT, -1)
 
         if rc == 1:
