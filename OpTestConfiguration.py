@@ -15,6 +15,26 @@ from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 import argparse
 
+# Look at the addons dir for any additional OpTest supported types
+# If new type was called Kona, the layout would be as follows
+# op-test-framework/addons/Kona/
+#                              /OpTestKona.py
+#                              /OpTestKonaSystem.py
+#                              /OpTestKonaSetup.py
+#
+# OpTestKona and OpTestKonaSystem follow the same format the other supported type modules
+# OpTestKonaSetup is unique for the addons and contains 2 helper functions:
+# addBMCType - used to populate the choices list for --bmc-type
+# createSystem - does creation of bmc and op_system objects
+
+import importlib
+import os
+import addons
+optAddons = dict() # Store all addons found.  We'll loop through it a couple time below
+# Look at the top level of the addons for any directories and load their Setup modules
+for dir in (os.walk('addons').next()[1]):
+    optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
+
 class OpTestConfiguration():
     def __init__(self):
         self.args = []
@@ -42,8 +62,13 @@ class OpTestConfiguration():
 
         bmcgroup = parser.add_argument_group('BMC',
                                              'Options for Service Processor')
+        # The default supported BMC choices in --bmc-type
+        bmcChoices = ['AMI','FSP', 'OpenBMC', 'qemu']
+        # Loop through any addons let it append the extra bmcChoices
+        for opt in optAddons:
+            bmcChoices = optAddons[opt].AddBMCType(bmcChoices)
         bmcgroup.add_argument("--bmc-type",
-                              choices=['AMI','FSP', 'OpenBMC', 'qemu'],
+                              choices=bmcChoices,
                               help="Type of service processor")
         bmcgroup.add_argument("--bmc-ip", help="BMC address")
         bmcgroup.add_argument("--bmc-username", help="SSH username for BMC")
@@ -161,6 +186,10 @@ class OpTestConfiguration():
                              self.args.kernel,
                              self.args.initramfs)
             self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
+        # Check that the bmc_type exists in our loaded addons then create our objects
+        elif self.args.bmc_type in optAddons:
+            print repr(self.args)
+            (bmc, self.op_system) = optAddons[self.args.bmc_type].createSystem(self, host)
         else:
             raise Exception("Unsupported BMC Type")
 
