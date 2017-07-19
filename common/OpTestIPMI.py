@@ -112,6 +112,9 @@ class IPMIConsole():
     def close(self):
         if self.state == IPMIConsoleState.DISCONNECTED:
             return
+        if not self.sol.isalive():
+            print "IPMI SOL Console is already disconnected"
+            return
         try:
             self.sol.send("\r")
             self.sol.send('~.')
