@@ -40,7 +40,7 @@ class KernelLog():
         else:
             raise Exception("Unknow test type")
 
-        log_entries = self.c.run_command(cmd)
+        log_entries = self.c.run_command_ignore_fail(cmd)
         msg = '\n'.join(filter(None, log_entries))
         self.assertTrue( len(log_entries) == 0, "Warnings/Errors in Kernel log:\n%s" % msg)
 
