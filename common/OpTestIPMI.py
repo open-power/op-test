@@ -227,6 +227,13 @@ class IPMIConsole():
             res = res.split(command)
             return res[-1].splitlines()
 
+    # This command just runs and returns the ouput & ignores the failure
+    def run_command_ignore_fail(self, command, timeout=60):
+        try:
+            output = self.run_command(command, timeout)
+        except CommandFailed as cf:
+            output = cf.output
+        return output
 
 class OpTestIPMI():
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, host=None, delaybeforesend=None):

@@ -81,7 +81,7 @@ class OpTestEEH(unittest.TestCase):
     def prepare_logs(self):
         cmd = "cat /sys/firmware/opal/msglog|grep ',[0-4]\]' > /tmp/opal_msglog"
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        c.run_command(cmd)
+        c.run_command_ignore_fail(cmd)
         c.run_command("dmesg -C")
 
     ##
@@ -93,7 +93,7 @@ class OpTestEEH(unittest.TestCase):
     def gather_logs(self):
         cmd = "grep ',[0-4]\]' /sys/firmware/opal/msglog | diff - /tmp/opal_msglog"
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        c.run_command(cmd)
+        c.run_command_ignore_fail(cmd)
         c.run_command("dmesg")
 
 
@@ -290,7 +290,7 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
             self.prepare_logs()
             cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
             print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
-            l_con.run_command(cmd)
+            l_con.run_command_ignore_fail(cmd)
             # Give some time to EEH PCI Error recovery
             tries = 30
             recovery_done = False
@@ -350,7 +350,7 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
                 self.prepare_logs()
                 cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
                 print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
-                l_con.run_command(cmd)
+                l_con.run_command_ignore_fail(cmd)
                 # Give some time to EEH PCI Error recovery
                 tries = 30
                 recovery_done = False

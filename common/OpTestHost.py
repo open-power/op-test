@@ -588,7 +588,7 @@ class OpTestHost():
     def host_load_module(self, i_module):
         try:
             l_res = self.host_run_command("modprobe %s" % i_module)
-        except Commandfailed as c:
+        except CommandFailed as c:
             l_msg = "Error in loading the module %s, modprobe failed: %s" % (i_module,str(c))
             raise OpTestError(l_msg)
         l_res = self.host_run_command("lsmod | grep -i --color=never %s" % i_module)

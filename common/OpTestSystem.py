@@ -221,13 +221,17 @@ class OpTestSystem(object):
         return OpSystemState.POWERING_OFF
 
     def run_POWERING_OFF(self, state):
-        if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-            self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
-            return OpSystemState.OFF
+        rc = int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
+        if rc == BMC_CONST.FW_SUCCESS:
+            msg = "System is in standby/Soft-off state"
+        elif rc == BMC_CONST.FW_PARAMETER:
+            msg = "Host Status sensor is not available/Skipping stand-by state check"
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
+        print msg
+        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
+        return OpSystemState.OFF
 
     def load_ipmi_drivers(self, force=False):
         if self.ipmiDriversLoaded and not force:
