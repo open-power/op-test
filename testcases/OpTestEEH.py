@@ -1,5 +1,3 @@
-#!/usr/bin/python
-# IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
 # $Source: op-test-framework/testcases/OpTestEEH.py $
@@ -105,6 +103,18 @@ class OpTestEEH(unittest.TestCase):
     #
     def check_eeh_phb_recovery(self, i_domain):
         domain = i_domain.split("PCI")[1]
+        cmd = "dmesg  | grep -i 'EEH: Notify device drivers the completion of reset'; echo $?"
+        tries = 60
+        for i in range(1, tries+1):
+            res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+            if int(res[-1]):
+                print "Waiting for PHB %s EEH Completion: (%d/%d)" % (domain, i, tries)
+                time.sleep(1)
+            else:
+                print "PHB recovered successfully........"
+                break
+        else:
+            raise EEHRecoveryFailed("EEH recovery failed", domain)
         list = self.get_list_of_pci_devices()
         for device in list:
             if domain in device:
@@ -121,6 +131,7 @@ class OpTestEEH(unittest.TestCase):
     def get_list_of_pci_devices(self):
         cmd = "ls /sys/bus/pci/devices"
         res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+        print "inside get_list_of_pci_devices %s" % res
         return res
 
         ##
@@ -236,10 +247,24 @@ class OpTestEEH(unittest.TestCase):
                 res = c.run_command("dmesg | grep 'EEH: Frozen'")
             except CommandFailed as cf:
                 continue
+            return true
+            time.sleep(1)
+        else:
+            return False
+
+    def check_eeh_hit_frozen_phb(self):
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        tries = 10
+        for i in range(1, tries+1):
+            try:
+                res = c.run_command("dmesg | grep 'EEH: Detected error'")
+            except CommandFailed as cf:
+                continue
             return True
             time.sleep(1)
         else:
             return False
+
 
     def check_eeh_removed(self):
         tries = 30
@@ -291,20 +316,24 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
             cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
             print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
             l_con.run_command(cmd)
-            # Give some time to EEH PCI Error recovery
-            tries = 30
-            recovery_done = False
-            for i in range(1,tries):
-                time.sleep(1)
-                if self.check_eeh_phb_recovery(domain):
-                    print "PHB %s recovery successful" % domain
-                    recovery_done = True
-                    break
-                else:
-                    print "#Waiting for PHB %s recovery. (%d/%d)" % (domain,i,tries)
-            if not recovery_done:
-                self.gather_logs()
-                raise EEHRecoveryFailed("PHB domain", domain)
+            if not self.check_eeh_hit_frozen_phb():
+                print "Error injectiont missed for %s" % domain
+                continue
+            else:
+                # Give some time to EEH PCI Error recovery
+                tries = 30
+                recovery_done = False
+                for i in range(1,tries):
+                    time.sleep(1)
+                    if self.check_eeh_phb_recovery(domain):
+                        print "PHB %s recovery successful" % domain
+                        recovery_done = True
+                        break
+                    else:
+                        print "#Waiting for PHB %s recovery. (%d/%d)" % (domain,i,tries)
+                if not recovery_done:
+                    self.gather_logs()
+                    raise EEHRecoveryFailed("PHB domain", domain)
 
 
 class OpTestEEHmax_fenced_phb(OpTestEEH):
@@ -351,25 +380,29 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
                 cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
                 print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
                 l_con.run_command(cmd)
-                # Give some time to EEH PCI Error recovery
-                tries = 30
-                recovery_done = False
-                for j in range(1,tries):
-                    time.sleep(1)
-                    if i == 0:
-                        if self.check_eeh_phb_recovery(domain):
-                            print "PHB %s recovery successful" % domain
-                            recovery_done = True
-                            break
-                    else:
-                        if not self.check_eeh_phb_recovery(domain):
-                            print "PHB domain %s removed successfully" % domain
-                            recovery_done = True
-                            break
-                    print "# Wating for PHB %s recovery/removal (%d/%d)" % (domain,j,tries)
-                if not recovery_done:
-                    self.gather_logs()
-                    raise EEHRecoveryFailed("PHB domain", domain)
+                if not self.check_eeh_hit_frozen_phb():
+                    print "Error injectiont missed for %s" % domain
+                    continue
+                else:
+                    # Give some time to EEH PCI Error recovery
+                    tries = 30
+                    recovery_done = False
+                    for j in range(1,tries):
+                        time.sleep(1)
+                        if i == 0:
+                            if self.check_eeh_phb_recovery(domain):
+                                print "PHB %s recovery successful" % domain
+                                recovery_done = True
+                                break
+                        else:
+                            if not self.check_eeh_phb_recovery(domain):
+                                print "PHB domain %s removed successfully" % domain
+                                recovery_done = True
+                                break
+                        print "# Wating for PHB %s recovery/removal (%d/%d)" % (domain,j,tries)
+                    if not recovery_done:
+                        self.gather_logs()
+                        raise EEHRecoveryFailed("PHB domain", domain)
 
 class OpTestEEHbasic_frozen_pe(OpTestEEH):
     ##
