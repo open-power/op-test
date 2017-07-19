@@ -53,9 +53,6 @@ class OpTestKernelBase(unittest.TestCase):
         self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.util = self.cv_SYSTEM.util
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-
 
     ##
     # @brief This function will test the kernel crash followed by system
@@ -66,14 +63,7 @@ class OpTestKernelBase(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def kernel_crash(self):
-        # Get OS level
-        self.cv_HOST.host_get_OS_Level()
-
-        # Get Kernel Version
-        l_kernel = self.cv_HOST.host_get_kernel_version()
-
         console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
 	self.cv_SYSTEM.host_console_unique_prompt()
         console.run_command("uname -a")
         console.run_command("cat /etc/os-release")
@@ -90,9 +80,16 @@ class OpTestKernelBase(unittest.TestCase):
         console.close()
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         print "System booted fine to host OS..."
+        self.cv_SYSTEM.set_state(OpSystemState.OS)
         return BMC_CONST.FW_SUCCESS
 
 class KernelCrash_KdumpEnable(OpTestKernelBase):
+
+    def setup_test(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.host_console_login()
 
     ##
     # @brief This function will test the kernel crash followed by crash kernel dump
@@ -104,6 +101,7 @@ class KernelCrash_KdumpEnable(OpTestKernelBase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def runTest(self):
+        self.setup_test()
         self.cv_HOST.host_check_command("kdump")
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
@@ -111,6 +109,12 @@ class KernelCrash_KdumpEnable(OpTestKernelBase):
         self.kernel_crash()
 
 class KernelCrash_KdumpDisable(OpTestKernelBase):
+
+    def setup_test(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.host_console_login()
 
     ##
     # @brief This function will test the kernel crash followed by system IPL
@@ -121,14 +125,46 @@ class KernelCrash_KdumpDisable(OpTestKernelBase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def runTest(self):
+        self.setup_test()
         self.cv_HOST.host_check_command("kdump")
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_disable_kdump_service(os_level)
         self.kernel_crash()
 
+class SkirootKernelCrash(OpTestKernelBase, unittest.TestCase):
+    def setup_test(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.host_console_unique_prompt()
+        output = self.c.run_command("cat /proc/cmdline")
+        res = ""
+        for pair in output[0].split(" "):
+            if "xmon" in pair:
+                pair = "xmon=off"
+            res = "%s %s" % (res, pair)
+        bootargs = "\'%s\'" % res
+        print bootargs
+        self.c.run_command("nvram -p ibm,skiboot --update-config bootargs=%s" % bootargs)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
+    ##
+    # @brief This tests the Skiroot kernel crash followed by system IPL
+    #        1. Skiroot kernel has by default xmon is on, so made it off
+    #        2. Trigger kernel crash: echo c > /proc/sysrq-trigger
+    #        3. Check for system booting
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def runTest(self):
+        self.setup_test()
+        self.cv_SYSTEM.sys_set_bootdev_no_override()
+        self.kernel_crash()
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_KdumpEnable())
     s.addTest(KernelCrash_KdumpDisable())
+    s.addTest(SkirootKernelCrash())
     return s
