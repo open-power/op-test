@@ -289,6 +289,14 @@ class FspOpalSuite():
     def suite(self):
         return self.s
 
+class KnownBugs():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(Console.ControlC())
+    def suite(self):
+        return self.s
+
+
 suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
@@ -296,6 +304,7 @@ suites = {
     'BasicIPL' : BasicIPLSuite(),
     'BasicPCI' : BasicPCISuite(),
     'em' :       OpTestEMSuite(),
+    'known-bugs' : KnownBugs(),
     'experimental': ExperimentalSuite(),
     'experimental-eeh': OpTestEEHSuite(),
     'experimental-energyscale' : OpTestEnergyScaleSuite(),

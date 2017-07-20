@@ -19,6 +19,8 @@
 #
 
 import unittest
+import pexpect
+import time
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
@@ -56,6 +58,37 @@ class Console16k(Console, unittest.TestCase):
 class Console32k(Console, unittest.TestCase):
     bs = 1024
     count = 32
+
+class ControlC(unittest.TestCase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.bmc = conf.bmc()
+        self.system = conf.system()
+
+    def runTest(self):
+        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        console = self.bmc.get_host_console()
+        self.system.host_console_unique_prompt()
+        # I should really make this API less nasty...
+        raw_console = console.get_console()
+        #raw_console.sendline("hexdump -C -v /dev/zero")
+        raw_console.sendline("find /")
+        time.sleep(0.2)
+        raw_console.sendcontrol('c')
+        BMC_DISCONNECT = 'SOL session closed by BMC'
+        timeout = 15
+        try:
+            rc = raw_console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            if rc == 0:
+                raise BMCDisconnected(BMC_DISCONNECT)
+            self.assertEqual(rc, 1, "Failed to find expected prompt")
+        except pexpect.TIMEOUT as e:
+            print e
+            print "# TIMEOUT waiting for command to finish with ctrl-c."
+            print "# Everything is terrible. Fail the world, power cycle (if lucky)"
+            self.system.set_state(OpSystemState.UNKNOWN)
+            self.fail("Could not ctrl-c running command in reasonable time")
+
 
 def suite():
     s = unittest.TestSuite()
