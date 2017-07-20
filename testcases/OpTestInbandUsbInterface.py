@@ -58,22 +58,39 @@ def full_suite():
 def skiroot_full_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootInbandUSB)
 
+conf = OpTestConfiguration.conf
+
 class BasicInbandUSB(BasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
+        self.bmc_type = conf.args.bmc_type
+        if "FSP" in self.bmc_type:
+            self.skipTest("OP BMC specific")
         super(BasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class InbandUSB(OpTestInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
+        self.bmc_type = conf.args.bmc_type
+        if "FSP" in self.bmc_type:
+            self.skipTest("OP BMC specific")
         super(InbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class SkirootBasicInbandUSB(SkirootBasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
+        self.bmc_type = conf.args.bmc_type
+        if "FSP" in self.bmc_type:
+            self.skipTest("OP BMC specific")
         super(SkirootBasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class SkirootInbandUSB(SkirootFullInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
+        self.bmc_type = conf.args.bmc_type
+        if "FSP" in self.bmc_type:
+            self.skipTest("OP BMC specific")
         super(SkirootInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class ExperimentalInbandUSB(ExperimentalInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
+        self.bmc_type = conf.args.bmc_type
+        if "FSP" in self.bmc_type:
+            self.skipTest("OP BMC specific")
         super(ExperimentalInbandUSB, self).setUp(ipmi_method=ipmi_method)
