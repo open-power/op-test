@@ -71,6 +71,7 @@ from testcases import fspresetReload
 from testcases import OpTestPrdDaemon
 from testcases import OpalUtils
 from testcases import fspTODCorruption
+from testcases import Console
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -102,6 +103,7 @@ class SkirootSuite():
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
+        self.s.addTest(Console.suite())
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
