@@ -33,6 +33,14 @@ from Exceptions import CommandFailed
 from common.OpTestError import OpTestError
 from OpTestConstants import OpTestConstants as BMC_CONST
 
+class FailedCurlInvocation(Exception):
+    def __init__(self, command, output):
+        self.command = command
+        self.output = output
+
+    def __str__(self):
+        return "CURL invocation '%s' failed\nOutput:\n%s" % (self.command, self.exitcode)
+
 
 class ConsoleState():
     DISCONNECTED = 0
@@ -244,7 +252,7 @@ class CurlTool():
             #print output
             if '"status": "error"' in output:
                 print output
-                raise OpTestError("Rest api Command failed")
+                raise FailedCurlInvocation(cmd, output)
             return output
 
 class HostManagement():
@@ -366,8 +374,12 @@ class HostManagement():
     def clear_sel(self):
         data = '\'{"data" : []}\''
         obj = "/org/openbmc/records/events/action/clear"
-        self.curl.feed_data(dbus_object=obj, operation='r', command="POST", data=data)
-        self.curl.run()
+        try:
+            self.curl.feed_data(dbus_object=obj, operation='r', command="POST", data=data)
+            self.curl.run()
+        except FailedCurlInvocation as f:
+            print "# Ignoring failure clearing SELs, not all OpenBMC builds support this yet"
+            pass
 
     '''
     set boot device to setup
