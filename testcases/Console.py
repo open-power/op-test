@@ -60,10 +60,14 @@ class Console32k(Console, unittest.TestCase):
     count = 32
 
 class ControlC(unittest.TestCase):
+    CONTROL = 'c'
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.bmc = conf.bmc()
         self.system = conf.system()
+
+    def cleanup(self):
+        pass
 
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -74,7 +78,7 @@ class ControlC(unittest.TestCase):
         #raw_console.sendline("hexdump -C -v /dev/zero")
         raw_console.sendline("find /")
         time.sleep(0.2)
-        raw_console.sendcontrol('c')
+        raw_console.sendcontrol(self.CONTROL)
         BMC_DISCONNECT = 'SOL session closed by BMC'
         timeout = 15
         try:
@@ -88,10 +92,18 @@ class ControlC(unittest.TestCase):
             print "# Everything is terrible. Fail the world, power cycle (if lucky)"
             self.system.set_state(OpSystemState.UNKNOWN)
             self.fail("Could not ctrl-c running command in reasonable time")
+        self.cleanup()
 
+class ControlZ(ControlC):
+    CONTROL='z'
+    def cleanup(self):
+        console = self.bmc.get_host_console()
+        console.run_command("kill %1")
+        console.run_command_ignore_fail("fg")
 
 def suite():
     s = unittest.TestSuite()
     s.addTest(Console8k())
     s.addTest(Console16k())
+    s.addTest(ControlZ())
     return s
