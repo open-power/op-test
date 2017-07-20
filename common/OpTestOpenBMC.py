@@ -124,6 +124,15 @@ class HostConsole():
             res = res.split(command)
             return res[-1].splitlines()
 
+    # This command just runs and returns the ouput & ignores the failure
+    # A straight copy of what's in OpTestIPMI
+    def run_command_ignore_fail(self, command, timeout=60):
+        try:
+            output = self.run_command(command, timeout)
+        except CommandFailed as cf:
+            output = cf.output
+        return output
+
 class CurlTool():
     def __init__(self, binary="curl",
                  ip=None, username=None, password=None):
