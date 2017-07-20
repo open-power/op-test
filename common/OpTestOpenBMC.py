@@ -39,7 +39,7 @@ class FailedCurlInvocation(Exception):
         self.output = output
 
     def __str__(self):
-        return "CURL invocation '%s' failed\nOutput:\n%s" % (self.command, self.exitcode)
+        return "CURL invocation '%s' failed\nOutput:\n%s" % (self.command, self.output)
 
 
 class ConsoleState():
