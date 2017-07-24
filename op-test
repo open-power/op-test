@@ -324,6 +324,10 @@ suites = {
     'full' : FullSuite(),
 }
 
+# Loop through the addons and load in suites defined there
+for opt in OpTestConfiguration.optAddons:
+    suites = OpTestConfiguration.optAddons[opt].addSuites(suites)
+
 if OpTestConfiguration.conf.args.list_suites:
     print '{0:34}{1}'.format('Test Suite', 'Description')
     print '{0:34}{1}'.format('----------', '-----------')
