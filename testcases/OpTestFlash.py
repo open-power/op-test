@@ -40,9 +40,13 @@
 
 
 import os
+import re
+import time
+import commands
 import unittest
 
 import OpTestConfiguration
+from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
@@ -55,6 +59,7 @@ class OpTestFlashBase(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.platform = conf.platform()
+        self.util = OpTestUtil()
         self.bmc_type = conf.args.bmc_type
 
     def validate_side_activated(self):
@@ -66,6 +71,21 @@ class OpTestFlashBase(unittest.TestCase):
     def get_pnor_level(self):
         rc = self.cv_IPMI.ipmi_get_PNOR_level()
         print rc
+
+    def bmc_down_check(self):
+        cmd = "ping -c 1 " + self.cv_BMC.host_name + " 1> /dev/null; echo $?"
+        count = 0
+        while count < 500:
+            output = commands.getstatusoutput(cmd)
+            if output[1] != '0':
+                print "FSP/BMC Comes down"
+                break
+            count = count + 1
+            time.sleep(2)
+        else:
+            self.assertTrue(False, "FSP/BMC keeps on pinging up")
+
+        return True
 
 
 class PNORFLASH(OpTestFlashBase):
@@ -175,3 +195,49 @@ class InbandHpmFLASH(OpTestFlashBase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
+
+
+class FSPFWImageFLASH(OpTestFlashBase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.image = conf.args.host_img
+        super(FSPFWImageFLASH, self).setUp()
+
+    def runTest(self):
+        if "FSP" not in self.bmc_type:
+            self.skipTest("FSP In-band firmware Update test")
+
+        self.cv_BMC.fsp_get_console()
+        # Fetch the FSP side of flash active to verify after the update
+        preup_boot = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Boot Side\"")
+        preup_build = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Side Driver\"")
+        print "System boot side %s, build: %s" % (preup_boot, preup_build)
+        preup_boot = re.search('.*([T|P])', preup_boot)
+        preup_boot = preup_boot.group(1)
+
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.host_console_unique_prompt()
+        con = self.cv_SYSTEM.sys_get_ipmi_console()
+        con.run_command("wget %s -O /tmp/firm.img" % self.image)
+        con.run_command("update_flash -d")
+        con.sol.sendline("update_flash -f /tmp/firm.img")
+        con.sol.expect('Projected Flash Update Results')
+        con.sol.expect('Requesting system reboot')
+        con.sol.sendcontrol(']')
+        con.sol.send('quit\r')
+        con.close()
+        self.bmc_down_check()
+        self.util.PingFunc(self.cv_BMC.host_name, BMC_CONST.PING_RETRY_POWERCYCLE)
+        time.sleep(10)
+        self.cv_BMC.fsp_get_console()
+        con = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.host_console_unique_prompt()
+        con.run_command("update_flash -d")
+        postup_boot = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Boot Side\"")
+        postup_boot = re.search('.*([T|P])', postup_boot)
+        postup_boot = postup_boot.group(1)
+        postup_build = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Side Driver\"")
+        print "System Boot side: %s, build: %s" % (postup_boot, postup_build)
+        self.assertEqual(preup_boot, postup_boot, "System booted from different bootside")
