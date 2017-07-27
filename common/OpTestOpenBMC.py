@@ -17,6 +17,7 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+import re
 import sys
 import time
 import pexpect
@@ -249,7 +250,7 @@ class CurlTool():
                 print str(e)
                 raise OpTestError(l_msg)
             output = cmd.communicate()[0]
-            #print output
+            print output
             if '"status": "error"' in output:
                 print output
                 raise FailedCurlInvocation(cmd, output)
@@ -288,26 +289,26 @@ class HostManagement():
 
     '''
     Inventory enumerate:
-    /org/openbmc/inventory
-    curl -b cjar -k https://bmc/org/openbmc/inventory/enumerate
+    /xyz/openbmc_project/inventory
+    curl -b cjar -k https://bmc/xyz/openbmc_project/inventory/enumerate
     '''
     def get_inventory(self):
-        self.curl.feed_data(dbus_object="/org/openbmc/inventory/enumerate", operation="r")
+        self.curl.feed_data(dbus_object="/xyz/openbmc_project/inventory/enumerate", operation="r")
         self.curl.run()
 
     def sensors(self):
-        self.curl.feed_data(dbus_object="/org/openbmc/sensors/enumerate", operation="r")
+        self.curl.feed_data(dbus_object="/xyz/openbmc_project/sensors/enumerate", operation="r")
         self.curl.run()
 
     '''
     Get Power State:
     curl -c cjar -b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/getPowerState
+    []}' https://bmc/xyz/openbmc_project/control/chassis0/action/getPowerState
     '''
     def get_power_state(self):
         data = '\'{"data" : []}\''
-        obj = '/org/openbmc/control/chassis0/action/getPowerState'
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        obj = '/xyz/openbmc_project/state/chassis0/attr/CurrentPowerState'
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
         self.curl.run()
 
     '''
@@ -364,6 +365,34 @@ class HostManagement():
         obj = "/org/openbmc/control/chassis0/action/powerOn"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
         self.curl.run()
+
+    '''
+    List SEL
+    curl -b cjar -k -H "Content-Type: application/json" -X GET \
+    -d '{"data" : []}' \
+    https://bmc/xyz/openbmc_project/logging/enumerate
+    '''
+    def list_sel(self):
+        data = '\'{"data" : []}\''
+        obj = "/xyz/openbmc_project/logging/enumerate"
+        self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
+        return self.curl.run()
+
+    def get_sel_ids(self):
+        list = []
+        data = self.list_sel()
+        list = re.findall(r"/xyz/openbmc_project/logging/entry/(\d{1,})", str(data))
+        if list:
+            print list
+        return list
+
+    def clear_sel_by_id(self):
+        list = self.get_sel_ids()
+        for id in list:
+            data = '\'{"data" : []}\''
+            obj = "/xyz/openbmc_project/logging/entry/%s/action/Delete" % id
+            self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+            self.curl.run()
 
     '''
     clear SEL

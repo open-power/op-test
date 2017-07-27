@@ -72,6 +72,7 @@ from testcases import OpTestPrdDaemon
 from testcases import OpalUtils
 from testcases import fspTODCorruption
 from testcases import Console
+from testcases import testRestAPI
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -166,6 +167,7 @@ class FullSuite():
     '''Every stable test'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(testRestAPI.RestAPI())
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
         self.s.addTest(OpalUtils.OpalUtils())
