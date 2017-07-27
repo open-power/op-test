@@ -149,6 +149,7 @@ class CurlTool():
         self.username = username
         self.password = password
         self.binary = binary
+        self.logresult = False
 
     def feed_data(self, dbus_object=None, action=None,
                   operation=None, command=None,
@@ -250,11 +251,15 @@ class CurlTool():
                 print str(e)
                 raise OpTestError(l_msg)
             output = cmd.communicate()[0]
-            #print output
+            if self.logresult:
+                print output
             if '"status": "error"' in output:
                 print output
                 raise FailedCurlInvocation(cmd, output)
             return output
+
+    def log_result(self):
+        self.logresult = True
 
 class HostManagement():
     def __init__(self, ip=None, username=None, password=None):

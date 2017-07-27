@@ -38,10 +38,12 @@ class RestAPI(unittest.TestCase):
         self.system = conf.system()
         self.rest = conf.system().rest
         self.bmc_type = conf.args.bmc_type
+        self.curltool = conf.system().rest.curl
 
     def runTest(self):
         if "OpenBMC" not in self.bmc_type:
             self.skipTest("OpenBMC specific Rest API Tests")
+        self.curltool.log_result()
         # FRU Inventory
         self.rest.get_inventory()
         # Sensors
