@@ -250,7 +250,7 @@ class CurlTool():
                 print str(e)
                 raise OpTestError(l_msg)
             output = cmd.communicate()[0]
-            print output
+            #print output
             if '"status": "error"' in output:
                 print output
                 raise FailedCurlInvocation(cmd, output)
@@ -445,6 +445,9 @@ class HostManagement():
         timeout = time.time() + 60*timeout
         while True:
             output = self.curl.run()
+            obj = re.search('"value": "(.*?)"', output)
+            if obj:
+                print "System state: %s" % obj.group(1)
             if "FW Progress, Starting OS" in output:
                 print "System FW booted to runtime: IPL finished"
                 break
@@ -462,6 +465,9 @@ class HostManagement():
         timeout = time.time() + 60*timeout
         while True:
             output = self.curl.run()
+            obj = re.search('"value": "(.*?)"', output)
+            if obj:
+                print "System state: %s" % obj.group(1)
             if '"value": "Off"' in output:
                 print "System reached standby state"
                 break
