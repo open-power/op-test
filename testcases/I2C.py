@@ -318,13 +318,13 @@ class FullI2C(I2C, unittest.TestCase):
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
         l_chips = self.host_get_list_of_eeprom_chips()
         if self.cv_SYSTEM.has_host_accessible_eeprom():
-            self.assertNotEqual(l_chips, None, "No EEPROMs detected, while OpTestSystem says there should be")
+            self.assertNotEqual(len(l_chips), 0, "No EEPROMs detected, while OpTestSystem says there should be")
             for l_args in l_chips:
                 # Accessing the registers visible through the i2cbus using i2cdump utility
                 # l_args format: "0 0x51","1 0x53",.....etc
                 self.i2c_dump(l_args)
         else:
-            self.assertEqual(l_chips, None, "Detected EEPROM where OpTestSystem said there should be none")
+            self.assertEqual(len(l_chips), 0, "Detected EEPROM where OpTestSystem said there should be none")
 
         if self.cv_SYSTEM.has_host_accessible_eeprom():
             # Currently testing only getting the data from a data address,

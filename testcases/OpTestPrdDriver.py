@@ -242,7 +242,7 @@ class OpTestPrdDriver(unittest.TestCase):
         l_con.run_command("stty rows 30")
 
         try:
-            l_con.run_command("opal-prd --pnor /dev/mtd0 --debug --stdio")
+            l_con.run_command_ignore_fail("opal-prd --pnor /dev/mtd0 --debug --stdio")
         except CommandFailed as cf:
             print "opal-prd failed to activate %s" % str(cf)
 

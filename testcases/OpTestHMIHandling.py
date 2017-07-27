@@ -62,32 +62,18 @@ class OpTestHMIHandling(unittest.TestCase):
         self.util = OpTestUtil()
 
     def ipmi_monitor_sol_ipl(self, console, timeout):
-        ipl_status = False
+        # Error injection causing the SOL console to terminate immediately.
+        # So Let's re-connect the console
+        console.close()
+        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         try:
-            console.sol.expect('login:', timeout=timeout)
-        except pexpect.EOF:
-            print "Waiting for system to IPL...."
-        except pexpect.TIMEOUT:
-            ipl_status = False
-
-        res = console.sol.before
-        if console.sol.isalive():
-            console.close()
-        if "login:" in res:
-            print "System IPLed to host OS"
-            ipl_status = True
-        elif "Petitboot" in res:
-            print "System IPLed to Petitboot"
-        elif "ISTEP" in res:
-            print "System IPL still in HB Stage"
-        elif "Kernel panic - not syncing" in res:
-            print "Malfunction alert: kernel got panic, re-IPL not started"
-        else:
-            print "HMI: Malfunction alert failed, IPL not started"
-        if not ipl_status:
-            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
-        self.assertTrue(ipl_status, "HMI Core checkstop: IPL not started/finished")
-        return
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        except:
+            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+            self.cv_SYSTEM.set_state(OpSystemState.OS)
+        console.close()
+        print "System booted fine to host OS..."
+        return BMC_CONST.FW_SUCCESS
 
     def verify_proc_recovery(self, l_res):
         if any("Processor Recovery done" in line for line in l_res) and \

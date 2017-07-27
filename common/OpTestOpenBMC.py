@@ -17,6 +17,7 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+import re
 import sys
 import time
 import pexpect
@@ -148,6 +149,7 @@ class CurlTool():
         self.username = username
         self.password = password
         self.binary = binary
+        self.logresult = False
 
     def feed_data(self, dbus_object=None, action=None,
                   operation=None, command=None,
@@ -249,11 +251,15 @@ class CurlTool():
                 print str(e)
                 raise OpTestError(l_msg)
             output = cmd.communicate()[0]
-            #print output
+            if self.logresult:
+                print output
             if '"status": "error"' in output:
                 print output
                 raise FailedCurlInvocation(cmd, output)
             return output
+
+    def log_result(self):
+        self.logresult = True
 
 class HostManagement():
     def __init__(self, ip=None, username=None, password=None):
@@ -288,52 +294,65 @@ class HostManagement():
 
     '''
     Inventory enumerate:
-    /org/openbmc/inventory
-    curl -b cjar -k https://bmc/org/openbmc/inventory/enumerate
+    /xyz/openbmc_project/inventory
+    curl -b cjar -k https://bmc/xyz/openbmc_project/inventory/enumerate
     '''
     def get_inventory(self):
-        self.curl.feed_data(dbus_object="/org/openbmc/inventory/enumerate", operation="r")
+        self.curl.feed_data(dbus_object="/xyz/openbmc_project/inventory/enumerate", operation="r")
         self.curl.run()
 
     def sensors(self):
-        self.curl.feed_data(dbus_object="/org/openbmc/sensors/enumerate", operation="r")
+        self.curl.feed_data(dbus_object="/xyz/openbmc_project/sensors/enumerate", operation="r")
         self.curl.run()
 
     '''
-    Get Power State:
-    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/getPowerState
+    Get Chassis Power State:
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X GET -d '{"data":
+    []}' https://bmc/xyz/openbmc_project/state/chassis0/attr/CurrentPowerState
     '''
     def get_power_state(self):
         data = '\'{"data" : []}\''
-        obj = '/org/openbmc/control/chassis0/action/getPowerState'
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        obj = '/xyz/openbmc_project/state/chassis0/attr/CurrentPowerState'
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
+        self.curl.run()
+
+    '''
+    Get Host State:
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X GET -d '{"data":
+    []}' https://bmc/xyz/openbmc_project/state/host0/attr/CurrentHostState
+    '''
+    def get_host_state(self):
+        data = '\'{"data" : []}\''
+        obj = '/xyz/openbmc_project/state/host0/attr/CurrentHostState'
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
         self.curl.run()
 
     '''
     Reboot server gracefully:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/softReboot
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.Reboot"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def soft_reboot(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/softReboot"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Reboot\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
     Reboot server Immediately:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/softReboot
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.Reboot"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def hard_reboot(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/reboot"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Reboot\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
-    power soft server:
+    power soft server: Not yet implemented (TODO)
     curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
     []}' https://bmc/org/openbmc/control/chassis0/action/softPowerOff
     '''
@@ -345,28 +364,60 @@ class HostManagement():
 
     '''
     power off server:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/powerOff
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.Off"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def power_off(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/powerOff"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Off\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
     power on server:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/powerOn
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.On"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def power_on(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/powerOn"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.On\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
-    clear SEL
+    List SEL
+    curl -b cjar -k -H "Content-Type: application/json" -X GET \
+    -d '{"data" : []}' \
+    https://bmc/xyz/openbmc_project/logging/enumerate
+    '''
+    def list_sel(self):
+        print "List of SEL entries"
+        data = '\'{"data" : []}\''
+        obj = "/xyz/openbmc_project/logging/enumerate"
+        self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
+        return self.curl.run()
+
+    def get_sel_ids(self):
+        list = []
+        data = self.list_sel()
+        list = re.findall(r"/xyz/openbmc_project/logging/entry/(\d{1,})", str(data))
+        if list:
+            print "SEL entries list by ID: %s" % list
+        return list
+
+    def clear_sel_by_id(self):
+        print "Clearing SEL entries by id"
+        list = self.get_sel_ids()
+        for id in list:
+            data = '\'{"data" : []}\''
+            obj = "/xyz/openbmc_project/logging/entry/%s/action/Delete" % id
+            self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+            self.curl.run()
+
+    '''
+    clear SEL : Clearing complete SEL is not yet implemented (TODO)
     curl -b cjar -k -H "Content-Type: application/json" -X POST \
     -d '{"data" : []}' \
     https://bmc/org/openbmc/records/events/action/clear
@@ -416,6 +467,9 @@ class HostManagement():
         timeout = time.time() + 60*timeout
         while True:
             output = self.curl.run()
+            obj = re.search('"value": "(.*?)"', output)
+            if obj:
+                print "System state: %s" % obj.group(1)
             if "FW Progress, Starting OS" in output:
                 print "System FW booted to runtime: IPL finished"
                 break
@@ -433,6 +487,9 @@ class HostManagement():
         timeout = time.time() + 60*timeout
         while True:
             output = self.curl.run()
+            obj = re.search('"value": "(.*?)"', output)
+            if obj:
+                print "System state: %s" % obj.group(1)
             if '"value": "Off"' in output:
                 print "System reached standby state"
                 break
