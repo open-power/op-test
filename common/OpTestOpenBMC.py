@@ -373,6 +373,7 @@ class HostManagement():
     https://bmc/xyz/openbmc_project/logging/enumerate
     '''
     def list_sel(self):
+        print "List of SEL entries"
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/logging/enumerate"
         self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
@@ -383,10 +384,11 @@ class HostManagement():
         data = self.list_sel()
         list = re.findall(r"/xyz/openbmc_project/logging/entry/(\d{1,})", str(data))
         if list:
-            print list
+            print "SEL entries list by ID: %s" % list
         return list
 
     def clear_sel_by_id(self):
+        print "Clearing SEL entries by id"
         list = self.get_sel_ids()
         for id in list:
             data = '\'{"data" : []}\''

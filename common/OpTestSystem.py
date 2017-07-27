@@ -173,6 +173,8 @@ class OpTestSystem(object):
             return OpSystemState.POWERING_OFF
 
         self.wait_for_petitboot()
+        # Once reached to petitboot check for any SEL events
+        self.sys_sel_check()
         return OpSystemState.PETITBOOT
 
     def run_PETITBOOT(self, state):
@@ -1326,10 +1328,13 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.power_off()
 
     def sys_sdr_clear(self):
-        self.rest.clear_sel()
+        # We can delete individual SEL entry by id
+        self.rest.clear_sel_by_id()
+        # Deleting complete SEL repository is not yet implemented
+        #self.rest.clear_sel()
 
     def sys_sel_check(self):
-        return 0
+        self.rest.list_sel()
 
     def sys_wait_for_standby_state(self, i_timeout=120):
         self.rest.wait_for_standby()
