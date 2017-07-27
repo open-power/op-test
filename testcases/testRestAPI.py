@@ -52,6 +52,8 @@ class RestAPI(unittest.TestCase):
         self.rest.get_bmc_state()
         # Get Chassis Power State
         self.rest.get_power_state()
+        # Get Host State
+        self.rest.get_host_state()
         # List SEL records
         self.rest.list_sel()
         # get list of SEL event ID's if any exist
