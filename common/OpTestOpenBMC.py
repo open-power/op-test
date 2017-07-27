@@ -306,9 +306,9 @@ class HostManagement():
         self.curl.run()
 
     '''
-    Get Power State:
-    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/xyz/openbmc_project/control/chassis0/action/getPowerState
+    Get Chassis Power State:
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X GET -d '{"data":
+    []}' https://bmc/xyz/openbmc_project/state/chassis0/attr/CurrentPowerState
     '''
     def get_power_state(self):
         data = '\'{"data" : []}\''
@@ -317,29 +317,42 @@ class HostManagement():
         self.curl.run()
 
     '''
+    Get Host State:
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X GET -d '{"data":
+    []}' https://bmc/xyz/openbmc_project/state/host0/attr/CurrentHostState
+    '''
+    def get_host_state(self):
+        data = '\'{"data" : []}\''
+        obj = '/xyz/openbmc_project/state/host0/attr/CurrentHostState'
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
+        self.curl.run()
+
+    '''
     Reboot server gracefully:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/softReboot
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.Reboot"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def soft_reboot(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/softReboot"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Reboot\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
     Reboot server Immediately:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/softReboot
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.Reboot"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def hard_reboot(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/reboot"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Reboot\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
-    power soft server:
+    power soft server: Not yet implemented (TODO)
     curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
     []}' https://bmc/org/openbmc/control/chassis0/action/softPowerOff
     '''
@@ -351,24 +364,26 @@ class HostManagement():
 
     '''
     power off server:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/powerOff
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.Off"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def power_off(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/powerOff"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Off\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
     power on server:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/powerOn
+    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Host.Transition.On"}'
+    https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def power_on(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/powerOn"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.On\"}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
@@ -402,7 +417,7 @@ class HostManagement():
             self.curl.run()
 
     '''
-    clear SEL
+    clear SEL : Clearing complete SEL is not yet implemented (TODO)
     curl -b cjar -k -H "Content-Type: application/json" -X POST \
     -d '{"data" : []}' \
     https://bmc/org/openbmc/records/events/action/clear
