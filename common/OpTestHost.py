@@ -135,6 +135,13 @@ class SSHConnection():
             raise CommandFailed(command, output, exitcode)
         return output
 
+    # This command just runs and returns the ouput & ignores the failure
+    def run_command_ignore_fail(self, command, timeout=60):
+        try:
+            output = self.run_command(command, timeout)
+        except CommandFailed as cf:
+            output = cf.output
+        return output
 
 class OpTestHost():
 
