@@ -327,6 +327,7 @@ class FullI2C(I2C, unittest.TestCase):
             self.assertEqual(l_chips, None, "Detected EEPROM where OpTestSystem said there should be none")
 
         if self.cv_SYSTEM.has_host_accessible_eeprom():
+            self.assertGreater(len(l_chips), 0, "Expected to find EEPROM chips")
             # Currently testing only getting the data from a data address,
             # avoiding setting data.
             # Only four samples are gathered to check whether reading eeprom
