@@ -66,7 +66,7 @@ class OpTestConfiguration():
         bmcChoices = ['AMI','FSP', 'OpenBMC', 'qemu']
         # Loop through any addons let it append the extra bmcChoices
         for opt in optAddons:
-            bmcChoices = optAddons[opt].AddBMCType(bmcChoices)
+            bmcChoices = optAddons[opt].addBMCType(bmcChoices)
         bmcgroup.add_argument("--bmc-type",
                               choices=bmcChoices,
                               help="Type of service processor")
