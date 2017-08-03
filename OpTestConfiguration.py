@@ -193,7 +193,6 @@ class OpTestConfiguration():
             self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
         # Check that the bmc_type exists in our loaded addons then create our objects
         elif self.args.bmc_type in optAddons:
-            print repr(self.args)
             (bmc, self.op_system) = optAddons[self.args.bmc_type].createSystem(self, host)
         else:
             raise Exception("Unsupported BMC Type")
