@@ -332,7 +332,6 @@ suites = {
     'system-ipl' : SystemIPLSuite(),
     'fsp-opal-suite' :  FspOpalSuite(),
     'full' : FullSuite(),
-    'flash' : FlashFirmware(),
 }
 
 # Loop through the addons and load in suites defined there
@@ -359,8 +358,9 @@ if OpTestConfiguration.conf.args.run:
     t.addTest(unittest.TestLoader().loadTestsFromNames(OpTestConfiguration.conf.args.run))
 
 if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
-    print "RUNNING DEFAULT SUITE"
-    t.addTest(suites['default'].suite())
+    if not OpTestConfiguration.conf.args.only_flash:
+        print "RUNNING DEFAULT SUITE"
+        t.addTest(suites['default'].suite())
 
 xml_msg = ""
 def run_tests(t):
@@ -375,10 +375,22 @@ def run_tests(t):
         res = unittest.TextTestRunner(verbosity=2).run(t)
         return res
 
-res = run_tests(FlashFirmware().suite())
+res = None
+if not OpTestConfiguration.conf.args.noflash:
+    res = run_tests(FlashFirmware().suite())
+
 print repr(res)
-if not (res.errors or res.failures):
+
+if OpTestConfiguration.conf.args.only_flash:
+    if res != None:
+        exit(len(res.errors + res.failures))
+    else:
+        exit(0)
+
+if not res or (res and not (res.errors or res.failures)):
     res = run_tests(t)
 else:
     print "Skipping main tests as flashing failed"
+    exit(-1)
+
 exit(len(res.errors + res.failures))

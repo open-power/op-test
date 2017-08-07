@@ -105,6 +105,10 @@ class OpTestConfiguration():
                               help="petitboot zImage.epapr to use/flash.")
         imagegroup.add_argument("--flash-initramfs",
                               help="petitboot rootfs to use/flash. Not all platforms support this option")
+        imagegroup.add_argument("--noflash", action='store_true', default=False,
+                                help="Even if images are specified, don't flash them")
+        imagegroup.add_argument("--only-flash", action='store_true', default=False,
+                                help="Only flash, don't run any tests (even if specified)")
 
         self.args , self.remaining_args = parser.parse_known_args(argv)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
