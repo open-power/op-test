@@ -355,6 +355,7 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
 
 
 xml_msg = ""
+res = -1
 try:
     import xmlrunner  # requires unittest-xml-reporting package
     xml_dir = 'test-reports'
@@ -363,3 +364,5 @@ try:
 except ImportError, err:
     sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
     res = unittest.TextTestRunner(verbosity=2).run(t)
+
+exit(len(res.errors + res.failures))
