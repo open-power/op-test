@@ -61,6 +61,9 @@ class OpTestFlashBase(unittest.TestCase):
         self.platform = conf.platform()
         self.util = OpTestUtil()
         self.bmc_type = conf.args.bmc_type
+        self.bmc_ip = conf.args.bmc_ip
+        self.bmc_username = conf.args.bmc_username
+        self.bmc_password = conf.args.bmc_password
 
     def validate_side_activated(self):
         l_bmc_side, l_pnor_side = self.cv_IPMI.ipmi_get_side_activated()
@@ -87,6 +90,9 @@ class OpTestFlashBase(unittest.TestCase):
 
         return True
 
+    def scp_file(self, src_file_path, dst_file_path):
+        self.util.copyFilesToDest(src_file_path, self.bmc_username, self.bmc_ip,
+                                  dst_file_path, self.bmc_password, "2", BMC_CONST.SCP_TO_REMOTE)
 
 class PNORFLASH(OpTestFlashBase):
     def setUp(self):
@@ -106,7 +112,7 @@ class PNORFLASH(OpTestFlashBase):
             self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
-        self.cv_BMC.pnor_img_transfer(self.images_dir, self.pnor_name)
+        self.cv_BMC.image_transfer(self.images_dir, self.pnor_name)
         if "AMI" in self.bmc_type:
             self.cv_BMC.pnor_img_flash_ami("/tmp", self.pnor_name)
         elif "OpenBMC" in self.bmc_type:
@@ -118,31 +124,80 @@ class PNORFLASH(OpTestFlashBase):
         self.cv_SYSTEM.sys_sel_check()
 
 
-class SkibootLidFLASH(OpTestFlashBase):
+class OpalLidsFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.images_dir = conf.args.firmware_images
-        self.lid_name = conf.args.host_lid
-        self.lid_path = os.path.join(self.images_dir, self.lid_name)
-        self.assertNotEqual(os.path.exists(self.lid_path), 0,
-            "Skiboot lid %s not doesn't exist" % self.lid_path)
-        super(SkibootLidFLASH, self).setUp()
+        self.skiboot = conf.args.host_skiboot
+        self.skiroot_kernel = conf.args.host_skiroot_kernel
+        self.skiroot_initramfs = conf.args.host_skiroot_initrd
+        self.ext_lid_test_path = "/opt/extucode/lid_test"
+        for lid in [self.skiboot, self.skiroot_kernel, self.skiroot_initramfs]:
+            if lid:
+                self.lid_path = os.path.join(self.images_dir, lid)
+                self.assertNotEqual(os.path.exists(self.lid_path), 0,
+                    "OPAL lid %s not doesn't exist" % self.lid_path)
+        super(OpalLidsFLASH, self).setUp()
 
     def runTest(self):
-        if any(s in self.bmc_type for s in ("FSP", "QEMU")):
-            self.skipTest("OP AMI/OpenBMC PNOR Flash test")
+        self.assertIsNotNone(self.skiboot, "No skiboot/OPAL lid provided")
+
         if "AMI" in self.bmc_type:
             self.cv_BMC.validate_pflash_tool("/tmp")
             self.validate_side_activated()
+
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
-        self.cv_BMC.pnor_img_transfer(self.images_dir, self.lid_name)
+        if "FSP" in self.bmc_type:
+            self.cv_BMC.fsp_get_console()
+            if not self.cv_BMC.mount_exists():
+                raise OpTestError("Please mount NFS and retry the test")
+            self.cv_BMC.fsp_run_command("/usr/sbin/sshd")
+            cmd = "rm -fr {0} 2> dev/null; mkdir -p {0}".format(self.ext_lid_test_path)
+            self.cv_BMC.fsp_run_command(cmd)
+            if self.skiboot:
+                self.cv_BMC.fsp_run_command("cp /opt/extucode/80f00100.lid %s/80f00100_bkp.lid" % self.ext_lid_test_path)
+                print "Backup of skiboot lid is in %s/80f00100_bkp.lid" % self.ext_lid_test_path
+                self.lid_path = os.path.join(self.images_dir, self.skiboot)
+                self.scp_file(self.lid_path, self.ext_lid_test_path + "/80f00100.lid")
+                self.cv_BMC.fsp_run_command("cp %s/80f00100.lid /opt/extucode/" % self.ext_lid_test_path)
+
+            if not self.skiroot_kernel and not self.skiroot_initramfs:
+                print "No skiroot lids provided, Flashing only skiboot"
+            else:
+                self.cv_BMC.fsp_run_command("cp /opt/extucode/80f00101.lid %s/80f00101_bkp.lid" % self.ext_lid_test_path)
+                print "Backup of skiroot kernel lid is in %s/80f00101_bkp.lid" % self.ext_lid_test_path
+                self.cv_BMC.fsp_run_command("cp /opt/extucode/80f00102.lid %s/80f00102_bkp.lid" % self.ext_lid_test_path)
+                print "Backup of skiroot initrd lid is in %s/80f00102_bkp.lid" % self.ext_lid_test_path
+                self.lid_path = os.path.join(self.images_dir, self.skiroot_kernel)
+                self.scp_file(self.lid_path, self.ext_lid_test_path + "/80f00101.lid")
+                self.lid_path = os.path.join(self.images_dir, self.skiroot_initramfs)
+                self.scp_file(self.lid_path, self.ext_lid_test_path + "/80f00102.lid")
+                self.cv_BMC.fsp_run_command("cp %s/80f00101.lid /opt/extucode/" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command("cp %s/80f00102.lid /opt/extucode/" % self.ext_lid_test_path)
+            print "Regenerating the hashes by running command cupdmfg -opt"
+            self.cv_BMC.fsp_run_command("cupdmfg -opt")
+
         if "AMI" in self.bmc_type:
-            self.cv_BMC.skiboot_img_flash_ami("/tmp", self.lid_name)
-        elif "OpenBMC" in self.bmc_type:
-            self.cv_BMC.skiboot_img_flash_openbmc(self.lid_name)
+            self.cv_BMC.image_transfer(self.images_dir, self.skiboot)
+            self.cv_BMC.skiboot_img_flash_ami("/tmp", self.skiboot)
+            if self.skiroot_kernel:
+                self.cv_BMC.image_transfer(self.images_dir, self.skiroot_kernel)
+                self.cv_BMC.skiroot_img_flash_ami("/tmp", self.skiroot_kernel)
+            else:
+                print "No skiroot lid provided, flashed only Skiboot"
+
+        if "OpenBMC" in self.bmc_type:
+            self.cv_BMC.image_transfer(self.images_dir, self.skiboot)
+            self.cv_BMC.skiboot_img_flash_openbmc(self.skiboot)
+            if self.skiroot_kernel:
+                self.cv_BMC.image_transfer(self.images_dir, self.skiroot_kernel)
+                self.cv_BMC.skiroot_img_flash_openbmc("/tmp", self.skiroot_kernel)
+            else:
+                print "No skiroot lid provided, flashed only Skiboot"
+
         console = self.cv_SYSTEM.console.get_console()
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         if "AMI" in self.bmc_type:
             self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
