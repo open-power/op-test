@@ -191,7 +191,6 @@ class OpalLidsFLASH(OpTestFlashBase):
                 self.cv_BMC.skiroot_img_flash_openbmc("/tmp", os.path.basename(self.skiroot_kernel))
 
         console = self.cv_SYSTEM.console.get_console()
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         if "AMI" in self.bmc_type:
             self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
