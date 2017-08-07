@@ -65,6 +65,8 @@ class BasicInbandUSB(BasicInbandIPMI):
         self.bmc_type = conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
+        if "OpenBMC" in self.bmc_type:
+            self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(BasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class InbandUSB(OpTestInbandIPMI):
@@ -72,6 +74,8 @@ class InbandUSB(OpTestInbandIPMI):
         self.bmc_type = conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
+        if "OpenBMC" in self.bmc_type:
+            self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(InbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class SkirootBasicInbandUSB(SkirootBasicInbandIPMI):
@@ -79,6 +83,8 @@ class SkirootBasicInbandUSB(SkirootBasicInbandIPMI):
         self.bmc_type = conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
+        if "OpenBMC" in self.bmc_type:
+            self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(SkirootBasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class SkirootInbandUSB(SkirootFullInbandIPMI):
@@ -86,6 +92,8 @@ class SkirootInbandUSB(SkirootFullInbandIPMI):
         self.bmc_type = conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
+        if "OpenBMC" in self.bmc_type:
+            self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(SkirootInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 class ExperimentalInbandUSB(ExperimentalInbandIPMI):
@@ -93,4 +101,6 @@ class ExperimentalInbandUSB(ExperimentalInbandIPMI):
         self.bmc_type = conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
+        if "OpenBMC" in self.bmc_type:
+            self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(ExperimentalInbandUSB, self).setUp(ipmi_method=ipmi_method)
