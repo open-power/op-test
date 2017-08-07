@@ -563,14 +563,17 @@ class OpTestOpenBMC():
         # After a BMC reboot REST API needs login again
         self.rest_api.login()
 
-    def pnor_img_transfer(self, i_pflash_dir, i_imageName):
-        self.bmc.pnor_img_transfer(i_pflash_dir, i_imageName)
+    def image_transfer(self, i_imageName):
+        self.bmc.image_transfer(i_imageName)
 
     def pnor_img_flash_openbmc(self, pnor_name):
         self.bmc.pnor_img_flash_openbmc(pnor_name)
 
     def skiboot_img_flash_openbmc(self, lid_name):
         self.bmc.skiboot_img_flash_openbmc(lid_name)
+
+    def skiroot_img_flash_openbmc(self, lid_name):
+        self.bmc.skiroot_img_flash_openbmc(lid_name)
 
     def bmc_host(self):
         return self.hostname

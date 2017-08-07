@@ -79,12 +79,6 @@ class OpTestConfiguration():
                               help="Prompt for BMC ssh session")
         bmcgroup.add_argument("--qemu-binary", default="qemu-system-ppc64",
                               help="[QEMU Only] qemu simulator binary")
-        bmcgroup.add_argument("--skiboot", default="skiboot.lid",
-                              help="[QEMU Only] skiboot.lid")
-        bmcgroup.add_argument("--kernel", default="zImage.epapr",
-                              help="[QEMU Only] petitboot zImage.epapr")
-        bmcgroup.add_argument("--initramfs", default="rootfs.cpio.xz",
-                              help="[QEMU Only] petitboot rootfs")
 
         hostgroup = parser.add_argument_group('Host', 'Installed OS information')
         hostgroup.add_argument("--host-ip", help="Host address")
@@ -102,11 +96,15 @@ class OpTestConfiguration():
         ffdcgroup.add_argument("--ffdcdir", help="FFDC directory")
 
         imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
-        imagegroup.add_argument("--firmware-images", help="Firmware images directory")
         imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
-        imagegroup.add_argument("--host-lid", help="Skiboot LID to flash")
         imagegroup.add_argument("--host-hpm", help="HPM image to flash")
         imagegroup.add_argument("--host-img-url", help="URL to Host Firmware image to flash on FSP systems (Must be URL accessible petitboot shell on the host)")
+        imagegroup.add_argument("--flash-skiboot",
+                              help="skiboot to use/flash. Depending on platform, may need to be xz compressed")
+        imagegroup.add_argument("--flash-kernel",
+                              help="petitboot zImage.epapr to use/flash.")
+        imagegroup.add_argument("--flash-initramfs",
+                              help="petitboot rootfs to use/flash. Not all platforms support this option")
 
         self.args , self.remaining_args = parser.parse_known_args(argv)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
@@ -183,9 +181,9 @@ class OpTestConfiguration():
         elif self.args.bmc_type in ['qemu']:
             print repr(self.args)
             bmc = OpTestQemu(self.args.qemu_binary,
-                             self.args.skiboot,
-                             self.args.kernel,
-                             self.args.initramfs)
+                             self.args.flash_skiboot,
+                             self.args.flash_kernel,
+                             self.args.flash_initramfs)
             self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
         # Check that the bmc_type exists in our loaded addons then create our objects
         elif self.args.bmc_type in optAddons:

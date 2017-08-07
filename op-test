@@ -299,6 +299,14 @@ class KnownBugs():
     def suite(self):
         return self.s
 
+class FlashFirmware():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(testcases.OpTestFlash.FSPFWImageFLASH())
+        self.s.addTest(testcases.OpTestFlash.OpalLidsFLASH())
+    def suite(self):
+        return self.s
+
 
 suites = {
     'skiroot' : SkirootSuite(),
@@ -324,6 +332,7 @@ suites = {
     'system-ipl' : SystemIPLSuite(),
     'fsp-opal-suite' :  FspOpalSuite(),
     'full' : FullSuite(),
+    'flash' : FlashFirmware(),
 }
 
 # Loop through the addons and load in suites defined there
@@ -353,16 +362,23 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
     print "RUNNING DEFAULT SUITE"
     t.addTest(suites['default'].suite())
 
-
 xml_msg = ""
-res = -1
-try:
-    import xmlrunner  # requires unittest-xml-reporting package
-    xml_dir = 'test-reports'
-    res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=1).run(t)
-    xml_msg = ", XML output of tests available in %s directory" % xml_dir
-except ImportError, err:
-    sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
-    res = unittest.TextTestRunner(verbosity=2).run(t)
+def run_tests(t):
+    try:
+        import xmlrunner  # requires unittest-xml-reporting package
+        xml_dir = 'test-reports'
+        res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=1).run(t)
+        xml_msg = ", XML output of tests available in %s directory" % xml_dir
+        return res
+    except ImportError, err:
+        sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
+        res = unittest.TextTestRunner(verbosity=2).run(t)
+        return res
 
+res = run_tests(FlashFirmware().suite())
+print repr(res)
+if not (res.errors or res.failures):
+    res = run_tests(t)
+else:
+    print "Skipping main tests as flashing failed"
 exit(len(res.errors + res.failures))
