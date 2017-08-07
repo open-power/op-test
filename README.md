@@ -106,3 +106,21 @@ For example:
 The above will assume the machine is sitting at the petitboot prompt
 and will run the OpTestPCISkiroot test.
 
+### Flashing Firmware ###
+
+In addition to running tests, you can flash firmware before running
+the tests. You can also only flash firmware (``--only-flash``).
+
+      ./op-test --bmc-type FSP  ........ \
+            --host-img-url http://example.com/images/firenze/b0628b_1726.861/SIGNED/01SV860_103_056.img \
+            --flash-skiboot ~/skiboot/skiboot.lid --flash-kernel zImage.epapr \
+            --flash-initramfs rootfs.cpio.xz
+
+      ./op-test --bmc-type OpenBMC  ........ \
+            --flash-skiboot ~/skiboot/skiboot.lid.xz
+
+Flashing is BMC dependent, so new platforms may not support it.
+
+The ``--host-img-url`` option for FSP systems uses ``update_flash`` from
+the petitboot shell to update the firmware image. If additional ``--flash``
+options are given, these are flashed *after* the FSP firmware image.

@@ -84,7 +84,7 @@ class OpTestPrdDaemon(unittest.TestCase):
 
         # To check if opal-prd daemon is spawned again even after killing
         try:
-            l_res = self.cv_HOST.host_run_command(l_cmd)
+            l_res = self.cv_HOST.host_run_command("pidof opal-prd")
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, "opal-prd daemon is not running always:Need to raise a bug: %s" % str(c))
 
