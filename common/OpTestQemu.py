@@ -140,3 +140,6 @@ class OpTestQemu():
 
     def power_on(self):
         self.console.connect()
+
+    def get_rest_api(self):
+        return None
