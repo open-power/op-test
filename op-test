@@ -303,6 +303,7 @@ class FlashFirmware():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(testcases.OpTestFlash.FSPFWImageFLASH())
+        self.s.addTest(testcases.OpTestFlash.PNORFLASH())
         self.s.addTest(testcases.OpTestFlash.OpalLidsFLASH())
     def suite(self):
         return self.s

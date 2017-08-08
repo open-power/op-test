@@ -97,14 +97,12 @@ class OpTestFlashBase(unittest.TestCase):
 class PNORFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.images_dir = conf.args.firmware_images
-        self.pnor_name = conf.args.host_pnor
-        self.pnor_path = os.path.join(self.images_dir, self.pnor_name)
-        self.assertNotEqual(os.path.exists(self.pnor_path), 0,
-            "PNOR image %s not doesn't exist" % self.pnor_path)
+        self.pnor = conf.args.host_pnor
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
+        if not os.path.exists(self.pnor):
+            self.skipTest("PNOR image %s not doesn't exist" % self.pnor)
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
             self.skipTest("OP AMI/OpenBMC PNOR Flash test")
         if "AMI" in self.bmc_type:
@@ -112,13 +110,12 @@ class PNORFLASH(OpTestFlashBase):
             self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
-        self.cv_BMC.image_transfer(self.pnor_name)
+        self.cv_BMC.image_transfer(self.pnor)
         if "AMI" in self.bmc_type:
-            self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor_name))
+            self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
         elif "OpenBMC" in self.bmc_type:
-            self.cv_BMC.pnor_img_flash_openbmc(os.path.basename(self.pnor_name))
+            self.cv_BMC.pnor_img_flash_openbmc(os.path.basename(self.pnor))
         console = self.cv_SYSTEM.console.get_console()
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if "AMI" in self.bmc_type:
             self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
