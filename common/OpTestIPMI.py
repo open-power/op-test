@@ -112,16 +112,17 @@ class IPMIConsole():
     def close(self):
         if self.state == IPMIConsoleState.DISCONNECTED:
             return
-        if not self.sol.isalive():
-            print "IPMI SOL Console is already disconnected"
-            return
         try:
+            if not self.sol.isalive():
+                print "IPMI SOL Console is already disconnected"
+                pass
             self.sol.send("\r")
             self.sol.send('~.')
             self.sol.expect('[terminated ipmitool]')
             self.sol.close()
         except pexpect.ExceptionPexpect:
             raise OpTestError("IPMI: failed to close ipmi console")
+
         self.sol.terminate()
         self.state = IPMIConsoleState.DISCONNECTED
 
