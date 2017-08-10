@@ -101,7 +101,7 @@ class PNORFLASH(OpTestFlashBase):
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
-        if not os.path.exists(self.pnor):
+        if not self.pnor or not os.path.exists(self.pnor):
             self.skipTest("PNOR image %s not doesn't exist" % self.pnor)
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
             self.skipTest("OP AMI/OpenBMC PNOR Flash test")
