@@ -368,7 +368,7 @@ def run_tests(t):
     try:
         import xmlrunner  # requires unittest-xml-reporting package
         xml_dir = 'test-reports'
-        res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=1).run(t)
+        res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=2).run(t)
         xml_msg = ", XML output of tests available in %s directory" % xml_dir
         return res
     except ImportError, err:
