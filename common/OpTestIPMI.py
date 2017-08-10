@@ -562,16 +562,18 @@ class OpTestIPMI():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def ipmi_sel_check(self, i_string="Transition to Non-recoverable"):
-        logFile = self.cv_ffdcDir + '/' + 'host_sel_elist.log'
         output = self.ipmitool.run('sel elist')
 
-        with open('%s' % logFile, 'w') as f:
-            for line in output:
-                f.write(line)
+        if self.cv_ffdcDir:
+            logFile = self.cv_ffdcDir + '/' + 'host_sel_elist.log'
+            with open('%s' % logFile, 'w') as f:
+                for line in output:
+                    f.write(line)
 
         if i_string in output:
             l_msg = 'Error log(s) detected during IPL. Please see %s' % logFile
             print l_msg
+            print output
             raise OpTestError(l_msg)
         else:
             return BMC_CONST.FW_SUCCESS
