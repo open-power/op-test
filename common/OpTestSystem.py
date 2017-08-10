@@ -131,7 +131,7 @@ class OpTestSystem(object):
         self.state = state
 
     def goto_state(self, state):
-        print "OpTestSystem START STATE: %s" % (self.state)
+        print "OpTestSystem START STATE: %s (target %s)" % (self.state, state)
         while 1:
             self.state = self.stateHandlers[self.state](state)
             print "OpTestSystem TRANSITIONED TO: %s" % (self.state)
@@ -172,7 +172,12 @@ class OpTestSystem(object):
             self.sys_power_off()
             return OpSystemState.POWERING_OFF
 
-        self.wait_for_petitboot()
+        try:
+            self.wait_for_petitboot()
+        except pexpect.TIMEOUT:
+            self.sys_sel_check()
+            return OpSystemState.UNKNOWN
+
         # Once reached to petitboot check for any SEL events
         self.sys_sel_check()
         return OpSystemState.PETITBOOT
@@ -1223,10 +1228,25 @@ class OpTestSystem(object):
 
     def wait_for_petitboot(self):
         console = self.console.get_console()
-        # Wait for petitboot
-        console.expect('Petitboot', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
-        console.expect('x=exit', timeout=10)
-        # there will be extra things in the pexpect buffer here
+        try:
+            # Wait for petitboot (for a *LOOONNNG* time due to verbose IPLs)
+            r = 1
+            t = 40
+            while r == 1 and t:
+                # TODO check for forward progress
+                r = console.expect(['Petitboot', pexpect.TIMEOUT], timeout=10)
+                if r == 1 and t == 0:
+                    raise pexpect.TIMEOUT
+
+            # Newer petitboot may render banner *after* the x=exit line
+            # So, work around that by asking for a redraw.
+            console.sendcontrol('l')
+            console.expect('x=exit', timeout=10)
+            # there will be extra things in the pexpect buffer here
+        except pexpect.TIMEOUT as e:
+            print "Timeout waiting for Petitboot!"
+            print str(e)
+            raise e
 
     def wait_for_kexec(self):
         console = self.console.get_console()
