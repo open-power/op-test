@@ -251,8 +251,8 @@ class FSPFWImageFLASH(OpTestFlashBase):
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP In-band firmware Update test")
-
-        self.assertIsNotNone(self.image, "No FSP firmware image provided")
+	if not self.image:
+	    self.skipTest("No FSP firmware image provided")
 
         self.cv_BMC.fsp_get_console()
         # Fetch the FSP side of flash active to verify after the update
