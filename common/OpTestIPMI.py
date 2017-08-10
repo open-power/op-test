@@ -166,6 +166,27 @@ class IPMIConsole():
 
         return self.sol
 
+    def mc_reset(self):
+        self.ipmitool.run('mc reset cold')
+        retries = 0
+        print '# Waiting for BMC reboot to complete...'
+        time.sleep(10)
+        while True:
+            try:
+                subprocess.check_call(["ping", self.cv_bmcIP, "-c1"])
+                break
+            except subprocess.CalledProcessError as e:
+                print "Ping return code: ", e.returncode, "retrying..."
+                retries += 1
+                time.sleep(10)
+
+            if retries > 10:
+                l_msg = "Error. BMC is not responding to pings"
+                print l_msg
+                raise OpTestError(l_msg)
+
+
+
     def run_command(self, command, timeout=60):
         console = self.get_console()
         BMC_DISCONNECT = 'SOL session closed by BMC'
@@ -211,6 +232,7 @@ class IPMIConsole():
             print "# Failing current command and attempting to continue"
             self.terminate()
             self.connect()
+            console = self.get_console()
             print "# On reconnect, attempt to cancel last command (ctrl-c)"
             # Note: this is a terrible idea. If BMC vendors created reliable
             # SoL implementations this kind of crap wouldn't be needed.
@@ -218,6 +240,19 @@ class IPMIConsole():
             # we really don't want to send random control characters during
             # boot!
             console.sendcontrol('c')
+            try:
+                rc = console.expect([BMC_DISCONNECT,
+                                     "\[console-pexpect\]#$"], 10)
+                if rc == 0:
+                    self.terminate()
+                    raise BMCDisconnected(BMC_DISCONNECT)
+            except pexpect.TIMEOUT:
+                print "# No response from BMC... trying 'mc reset cold'"
+                self.mc_reset()
+                self.terminate()
+                self.connect()
+                console = self.get_console()
+                console.sendcontrol('c')
             raise CommandFailed("ipmitool", BMC_DISCONNECT, -1)
 
         if rc == 1:
