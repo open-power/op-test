@@ -44,6 +44,10 @@ class RestAPI(unittest.TestCase):
         if "OpenBMC" not in self.bmc_type:
             self.skipTest("OpenBMC specific Rest API Tests")
         self.curltool.log_result()
+        # Upload image
+        self.rest.upload_image(os.path.basename("README.md"))
+        # Software enumerate
+        self.rest.software_enumerate()
         # FRU Inventory
         self.rest.get_inventory()
         # Sensors
