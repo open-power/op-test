@@ -44,6 +44,7 @@ import re
 import time
 import commands
 import unittest
+import tarfile
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
@@ -56,6 +57,7 @@ class OpTestFlashBase(unittest.TestCase):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
         self.cv_BMC = conf.bmc()
+        self.cv_REST = self.cv_BMC.get_rest_api()
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.platform = conf.platform()
@@ -94,6 +96,45 @@ class OpTestFlashBase(unittest.TestCase):
         self.util.copyFilesToDest(src_file_path, self.bmc_username, self.bmc_ip,
                                   dst_file_path, self.bmc_password, "2", BMC_CONST.SCP_TO_REMOTE)
 
+    def get_version_tar(self, file_path):
+        tar = tarfile.open(file_path)
+        for member in tar.getmembers():
+            fd = tar.extractfile(member)
+            content = fd.read()
+            if "version=" in content:
+                content = content.split("\n")
+                content = [x for x in content if "version=" in x]
+                version = content[0].split("=")[-1]
+                break
+        tar.close()
+        print version
+        return version
+
+    def delete_images_dir(self):
+        self.cv_BMC.run_command("rm -rf /tmp/images/*")
+
+    def get_image_version(self, path):
+        output = self.cv_BMC.run_command("cat %s | grep \"version=\"" % path)
+        return output[0].split("=")[-1]
+
+    def get_image_path(self, image_version):
+        image_list = self.cv_BMC.run_command("ls -d /tmp/images/*/ --color=never")
+        retry = 0
+        while (retry < 10):
+            for i in range(0, len(image_list)):
+                version = self.get_image_version(image_list[i] + "MANIFEST")
+                if (version == image_version):
+                    return image_list[i]
+            time.sleep(10)
+            retry += 1
+
+    def get_image_id(self, version):
+        img_path = self.get_image_path(version)
+        img_id = img_path.split("/")[-2]
+        print "Image id for Host image is : %s" % img_id
+        return img_id
+
+
 class PNORFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -110,11 +151,25 @@ class PNORFLASH(OpTestFlashBase):
             self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
-        self.cv_BMC.image_transfer(self.pnor)
         if "AMI" in self.bmc_type:
+            self.cv_BMC.image_transfer(self.pnor)
             self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
         elif "OpenBMC" in self.bmc_type:
-            self.cv_BMC.pnor_img_flash_openbmc(os.path.basename(self.pnor))
+            if self.cv_REST.has_new_pnor_code_update():
+                print "BMC has code for the new PNOR Code update via REST"
+                self.delete_images_dir()
+                version = self.get_version_tar(os.path.basename(self.pnor))
+                self.cv_REST.upload_image(os.path.basename(self.pnor))
+                img_id = self.get_image_id(version)
+                self.cv_REST.image_ready_for_activation(img_id)
+                self.cv_REST.activate_image(img_id)
+                self.cv_REST.wait_for_image_active_complete(img_id)
+                self.delete_images_dir()
+            else:
+                print "Fallback to old code update method using pflash tool"
+                self.cv_BMC.image_transfer(self.pnor)
+                self.cv_BMC.pnor_img_flash_openbmc(os.path.basename(self.pnor))
+
         console = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:
             self.validate_side_activated()

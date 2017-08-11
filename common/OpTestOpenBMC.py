@@ -153,20 +153,24 @@ class CurlTool():
 
     def feed_data(self, dbus_object=None, action=None,
                   operation=None, command=None,
-                  data=None, header=None):
+                  data=None, header=None, upload_file=None):
         self.object = dbus_object
         self.action = action
         self.operation = operation # 'r-read, w-write, rw-read/write'
         self.command = command
         self.data = data
-        self.header = self.custom_header()
+        self.header = self.custom_header(header)
+        self.upload_file = upload_file
 
     def binary_name(self):
         return self.binary
 
     # -H, --header LINE   Pass custom header LINE to server (H)'
-    def custom_header(self):
-        self.header = " \'Content-Type: application/json\' "
+    def custom_header(self, header=None):
+        if not header:
+            self.header = " \'Content-Type: application/json\' "
+        else:
+            self.header = header
         return self.header
 
     def http_post_data(self):
@@ -217,9 +221,11 @@ class CurlTool():
         args += " %s " % self.get_cookies()
         args += " -k "
         if self.header:
-            args += " -H %s " % self.custom_header()
+            args += " -H %s " % self.header
         if self.data:
             args += " -d %s " % self.http_post_data()
+        if self.upload_file:
+            args += " -T %s " % self.upload_file
         if self.command:
             args += " -X %s " % self.request_command()
         args += self.dbus_interface()
@@ -542,6 +548,99 @@ class HostManagement():
             time.sleep(5)
         return True
 
+    def get_list_of_image_ids(self):
+        obj = "/xyz/openbmc_project/software/enumerate"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        output = self.curl.run()
+        list = re.findall(r'"/xyz/openbmc_project/software/(.*?)"', str(output))
+        if list:
+            print "List of images id's: %s" % list
+            return list
+        return []
+
+    def image_data(self, id):
+        obj = "/xyz/openbmc_project/software/%s" % id
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        return self.curl.run()
+
+    def has_new_pnor_code_update(self):
+        list = self.get_list_of_image_ids()
+        for id in list:
+            output = self.image_data(id)
+            obj = re.search('"Purpose": "(.*?)"', output)
+            if obj:
+                if "BMC" in obj.group(1):
+                    print "BMC image"
+                elif "Host" in obj.group(1):
+                    print "Host image"
+                    return True
+            else:
+                raise OpTestError("Not able to find out which image BMC has")
+        else:
+            return False
+
+    """
+    Upload a image
+    curl   -b cjar  -c cjar   -k  -H  'Content-Type: application/octet-stream'   -T witherspoon.pnor.squashfs.tar  
+    -X POST https://bmc//upload/image
+    """
+    def upload_image(self, image):
+        header = " \'Content-Type: application/octet-stream\' "
+        obj = "/upload/image"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", header=header, upload_file=image)
+        self.curl.run()
+
+    # priority 0 -primary (Boot side of the image)
+    def get_image_priority(self, id):
+        output = self.image_data(id)
+        if "Host" in output:
+            obj = re.search(r'"Priority": ([0-9]),.*', output)
+            if obj:
+                return obj.group(1)
+            else:
+                raise OpTestError("Not able to find the priority")
+        else:
+            raise OpTestError("Given image is not Host image, could be BMC image")
+
+
+    def image_ready_for_activation(self, id, timeout=10):
+        timeout = time.time() + 60*timeout
+        while True:
+            output = self.image_data(id)
+            if "xyz.openbmc_project.Software.Activation.Activations.Ready" in output:
+                print "Image upload is successful & Ready for activation"
+                break
+            if time.time() > timeout:
+                raise OpTestError("Image is not ready for activation/Timeout happened")
+            time.sleep(5)
+        return True
+
+    """
+    Activate a image
+    curl -b cjar -k -H "Content-Type: application/json" -X PUT 
+    -d '{"data":"xyz.openbmc_project.Software.Activation.RequestedActivations.Active"}' 
+    https://bmc/xyz/openbmc_project/software/<image id>/attr/RequestedActivation
+    """
+    def activate_image(self, id):
+        obj = "/xyz/openbmc_project/software/%s/attr/RequestedActivation" % id
+        data =  '\'{\"data\":\"xyz.openbmc_project.Software.Activation.RequestedActivations.Active\"}\''
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.run()
+
+    def wait_for_image_active_complete(self, id, timeout=10):
+        timeout = time.time() + 60*timeout
+        while True:
+            output = self.image_data(id)
+            if 'xyz.openbmc_project.Software.Activation.Activations.Activating' in output:
+                print "Image activation is in progress"
+            if 'xyz.openbmc_project.Software.Activation.Activations.Active' in output:
+                print "Image activated successfully, Good to go for power on...."
+                break
+            if time.time() > timeout:
+                raise OpTestError("Image is failed to activate/Timeout happened")
+            time.sleep(5)
+        return True
+
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None):
         self.hostname = ip
@@ -586,3 +685,6 @@ class OpTestOpenBMC():
 
     def get_rest_api(self):
         return self.rest_api
+
+    def run_command(self, command, timeout=10):
+        return self.bmc.run_command(command, timeout)
