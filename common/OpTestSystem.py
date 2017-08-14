@@ -112,6 +112,9 @@ class OpTestSystem(object):
     def has_centaurs_in_dt(self):
         return True
 
+    def has_mtd_pnor_access(self):
+        return True
+
     def host(self):
         return self.cv_HOST
 
@@ -1305,6 +1308,9 @@ class OpTestFSPSystem(OpTestSystem):
         return True
 
     def has_centaurs_in_dt(self):
+        return False
+
+    def has_mtd_pnor_access(self):
         return False
 
 class OpTestOpenBMCSystem(OpTestSystem):
