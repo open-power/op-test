@@ -510,12 +510,14 @@ class OpTestIPMI():
     def ipmi_wait_for_standby_state(self, i_timeout=120):
         l_timeout = time.time() + i_timeout
         l_cmd = 'sdr elist |grep \'Host Status\''
+        wait_for = BMC_CONST.CHASSIS_SOFT_OFF
         output = self.ipmitool.run(l_cmd)
         if not "Host Status" in output:
-            return BMC_CONST.FW_PARAMETER
+            l_cmd = 'power status'
+            wait_for = 'Chassis Power is off'
         while True:
             l_output = self.ipmitool.run(l_cmd)
-            if BMC_CONST.CHASSIS_SOFT_OFF in l_output:
+            if wait_for in l_output:
                 print "Host Status is S5/G2: soft-off, system reached standby"
                 break
             if time.time() > l_timeout:
