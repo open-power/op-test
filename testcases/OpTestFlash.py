@@ -98,6 +98,7 @@ class PNORFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.host_pnor
+        self.pflash = conf.args.pflash
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
@@ -105,6 +106,9 @@ class PNORFLASH(OpTestFlashBase):
             self.skipTest("PNOR image %s not doesn't exist" % self.pnor)
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
             self.skipTest("OP AMI/OpenBMC PNOR Flash test")
+        if self.pflash:
+            self.cv_BMC.image_transfer(self.pflash, "pflash")
+
         if "AMI" in self.bmc_type:
             self.cv_BMC.validate_pflash_tool("/tmp")
             self.validate_side_activated()

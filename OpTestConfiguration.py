@@ -109,6 +109,8 @@ class OpTestConfiguration():
                                 help="Even if images are specified, don't flash them")
         imagegroup.add_argument("--only-flash", action='store_true', default=False,
                                 help="Only flash, don't run any tests (even if specified)")
+        imagegroup.add_argument("--pflash",
+                                help="pflash to copy to BMC (if needed)")
 
         self.args , self.remaining_args = parser.parse_known_args(argv)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
