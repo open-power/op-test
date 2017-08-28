@@ -45,6 +45,7 @@ from testcases.I2C import I2C
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded, KernelConfigNotSet
+import difflib
 
 class AT24driver(I2C, unittest.TestCase):
     def setUp(self):
@@ -105,10 +106,16 @@ class AT24driver(I2C, unittest.TestCase):
             self.assertNotEqual(len(l_chips), 0, "No EEPROMs detected, while OpTestSystem says there should be")
         else:
             self.assertEqual(len(l_chips), 0)
+
+        # read size of a single byte("b"),
+        # a 16-bit word("w"),
+        # an SMBus block("s"),
+        #  an I2C block("i").
         for l_args in l_chips:
-            # Accessing the registers visible through the i2cbus using i2cdump utility
-            # l_args format: "0 0x51","1 0x53",.....etc
-            self.i2c_dump(l_args)
+            cmds = []
+            for mode in ["b", "w", "i"]:
+                self.diff_commands(["i2cdump -f -y %s %s" % (l_args, mode)]*5,
+                                   err="repeated i2cdump read of EEPROM doesn't match")
 
         # Getting the list of sysfs eeprom interfaces
         try:
@@ -124,24 +131,28 @@ class AT24driver(I2C, unittest.TestCase):
                 pass
         pass
 
-    ##
-    # @brief This i2cdump function takes arguments in pair of a string like "i2cbus address".
-    #        i2cbus indicates the number or name of the I2C bus to be scanned. This number should
-    #        correspond  to  one  of  the busses listed by i2cdetect -l. address indicates
-    #        the address to be scanned on that bus, and is an integer between 0x03 and 0x77
-    #        i2cdump is a program to examine registers visible through the I2C bus
-    #
-    # @param i_args @type string: this is the argument to i2cdump utility
-    #                             args are in the form of "i2c-bus-number eeprom-chip-address"
-    #                             Ex: "0 0x51","3 0x52" ....etc
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
-    def i2c_dump(self, i_args):
-        try:
-            l_res = self.c.run_command("i2cdump -f -y %s" % i_args)
-        except CommandFailed as cf:
-            self.assertEqual(cf.exitcode, 0, "i2cdump failed on addr %s" % i_args)
+    def diff_commands(self, cmds, err="Result doesn't match"):
+        last_r = None
+        last_cmd = None
+        for cmd in cmds:
+            r = None
+            try:
+                r = self.c.run_command(cmd)
+                r = [x+'\n' for x in r]
+            except CommandFailed as cf:
+                self.assertEqual(cf.exitcode, 0, "i2cdump failed on addr %s" % i_args)
+            if last_r is not None:
+                diff = ''
+                for l in difflib.unified_diff(r, last_r,fromfile=last_cmd,tofile=cmd):
+                    diff = diff + l
+                print diff
+                self.assertMultiLineEqual(''.join(r),''.join(last_r), "%s:\n%s" % (err,diff))
+            last_r = r
+            last_cmd = cmd
+
+    def host_hexdump(self, i_dev):
+        cmds = ["hexdump -C %s" % i_dev] * 5
+        self.diff_commands(cmds, err="hexdump of EEPROM doesn't match")
 
 class SkirootAT24(AT24driver, unittest.TestCase):
     def setUp(self):
