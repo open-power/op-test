@@ -22,6 +22,7 @@ import sys
 import time
 import pexpect
 import subprocess
+import json
 
 try:
     import pxssh
@@ -217,7 +218,7 @@ class CurlTool():
         return s
 
     def arguments(self):
-        args = " "
+        args = " -s"
         args += " %s " % self.get_cookies()
         args += " -k "
         if self.header:
@@ -406,12 +407,16 @@ class HostManagement():
         return self.curl.run()
 
     def get_sel_ids(self):
-        list = []
+        sels = []
         data = self.list_sel()
-        list = re.findall(r"/xyz/openbmc_project/logging/entry/(\d{1,})", str(data))
-        if list:
-            print "SEL entries list by ID: %s" % list
-        return list
+        data = json.loads(data)
+        for k in data['data']:
+            print repr(k)
+            m = re.match(r"/xyz/openbmc_project/logging/entry/(\d{1,})", k)
+            if m:
+                sels.append(m.group(1))
+        print repr(sels)
+        return sels
 
     def clear_sel_by_id(self):
         print "Clearing SEL entries by id"
@@ -473,10 +478,11 @@ class HostManagement():
         timeout = time.time() + 60*timeout
         while True:
             output = self.curl.run()
-            obj = re.search('"value": "(.*?)"', output)
-            if obj:
-                print "System state: %s" % obj.group(1)
-            if "FW Progress, Starting OS" in output:
+            result = json.loads(output)
+            print repr(result)
+            state = result['data']['value']
+            print "System state: %s" % state
+            if state == 'FW Progress, Starting OS':
                 print "System FW booted to runtime: IPL finished"
                 break
             if time.time() > timeout:
@@ -493,10 +499,11 @@ class HostManagement():
         timeout = time.time() + 60*timeout
         while True:
             output = self.curl.run()
-            obj = re.search('"value": "(.*?)"', output)
-            if obj:
-                print "System state: %s" % obj.group(1)
-            if '"value": "Off"' in output:
+            result = json.loads(output)
+            print repr(result)
+            state = result['data']['value']
+            print "System state: %s" % state
+            if state == 'Off':
                 print "System reached standby state"
                 break
             if time.time() > timeout:
@@ -552,16 +559,21 @@ class HostManagement():
         obj = "/xyz/openbmc_project/software/enumerate"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
         output = self.curl.run()
-        list = re.findall(r'"/xyz/openbmc_project/software/(.*?)"', str(output))
-        if list:
-            print "List of images id's: %s" % list
-            return list
-        return []
+        r = json.loads(output)
+        print repr(r)
+        ids = []
+        for k in r['data']:
+            m = re.match(r'/xyz/openbmc_project/software/(.*)', k)
+            if m:
+                ids.append(m.group(1))
+
+        print "List of images id's: %s" % ids
+        return ids
 
     def image_data(self, id):
         obj = "/xyz/openbmc_project/software/%s" % id
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
-        return self.curl.run()
+        return json.loads(self.curl.run())
 
     """
     Upload a image
@@ -577,21 +589,15 @@ class HostManagement():
     # priority 0 -primary (Boot side of the image)
     def get_image_priority(self, id):
         output = self.image_data(id)
-        if "Host" in output:
-            obj = re.search(r'"Priority": ([0-9]),.*', output)
-            if obj:
-                return obj.group(1)
-            else:
-                raise OpTestError("Not able to find the priority")
-        else:
-            raise OpTestError("Given image is not Host image, could be BMC image")
-
+        print repr(output)
+        return output['data']['Priority']
 
     def image_ready_for_activation(self, id, timeout=10):
         timeout = time.time() + 60*timeout
         while True:
             output = self.image_data(id)
-            if "xyz.openbmc_project.Software.Activation.Activations.Ready" in output:
+            print repr(output)
+            if output['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
                 print "Image upload is successful & Ready for activation"
                 break
             if time.time() > timeout:
@@ -615,9 +621,9 @@ class HostManagement():
         timeout = time.time() + 60*timeout
         while True:
             output = self.image_data(id)
-            if 'xyz.openbmc_project.Software.Activation.Activations.Activating' in output:
+            if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Activating':
                 print "Image activation is in progress"
-            if 'xyz.openbmc_project.Software.Activation.Activations.Active' in output:
+            if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Active':
                 print "Image activated successfully, Good to go for power on...."
                 break
             if time.time() > timeout:
@@ -628,13 +634,9 @@ class HostManagement():
     def host_image_ids(self):
         l = self.get_list_of_image_ids()
         for id in l:
-            output = self.image_data(id)
-            obj = re.search('"Purpose": "(.*?)"', output)
-            if obj:
-                if "BMC" in obj.group(1):
-                    l.remove(id)
-                elif "Host" in obj.group(1):
-                    print "Host image"
+            i = self.image_data(id)
+            if i['data']['Purpose'] != 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
+                l.remove(id)
         return l
 
 
@@ -656,14 +658,10 @@ class OpTestOpenBMC():
     def has_new_pnor_code_update(self):
         list = self.rest_api.get_list_of_image_ids()
         for id in list:
-            output = self.rest_api.image_data(id)
-            obj = re.search('"Purpose": "(.*?)"', output)
-            if obj:
-                if "BMC" in obj.group(1):
-                    print "BMC image"
-                elif "Host" in obj.group(1):
-                    print "Host image"
-                    return True
+            i = self.rest_api.image_data(id)
+            if i['data']['Purpose'] == 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
+                print "Host image"
+                return True
         print "# Checking for pflash os BMC to determine update method"
         return not self.bmc.validate_pflash_tool()
 
