@@ -195,7 +195,7 @@ class OpTestBMC():
     def image_transfer(self,i_imageName, copy_as=None):
 
         img_path = i_imageName
-        rsync_cmd = 'rsync -v -e "ssh -k -o StrictHostKeyChecking=no" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
+        rsync_cmd = 'rsync -P -v -e "ssh -k -o StrictHostKeyChecking=no" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
 
