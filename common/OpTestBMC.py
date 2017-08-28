@@ -33,6 +33,7 @@
 import sys
 import time
 import pexpect
+import os.path
 try:
     import pxssh
 except ImportError:
@@ -266,11 +267,13 @@ class OpTestBMC():
     #
     # @return BMC_CONST.FW_SUCCESS if pflash tool is available or raise OpTestError
     #
-    def validate_pflash_tool(self, i_dir):
-        l_cmd = "which " + i_dir + "/pflash"
+    def validate_pflash_tool(self, i_dir="pflash"):
+        if i_dir:
+            i_dir = os.path.join(i_dir, "pflash")
         try:
-            l_res = self.run_command(l_cmd)
+            l_res = self.run_command("which %s" % i_dir)
         except CommandFailed:
-            l_msg = "pflash tool is not available in BMC busybox"
+            l_msg = "# pflash tool is not available on BMC"
             print l_msg
-            raise OpTestError(l_msg)
+            return False
+        return True

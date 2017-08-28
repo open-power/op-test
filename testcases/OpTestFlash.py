@@ -110,29 +110,9 @@ class OpTestFlashBase(unittest.TestCase):
         print version
         return version
 
-    def delete_images_dir(self):
-        self.cv_BMC.run_command("rm -rf /tmp/images/*")
-
     def get_image_version(self, path):
         output = self.cv_BMC.run_command("cat %s | grep \"version=\"" % path)
         return output[0].split("=")[-1]
-
-    def get_image_path(self, image_version):
-        image_list = self.cv_BMC.run_command("ls -d /tmp/images/*/ --color=never")
-        retry = 0
-        while (retry < 10):
-            for i in range(0, len(image_list)):
-                version = self.get_image_version(image_list[i] + "MANIFEST")
-                if (version == image_version):
-                    return image_list[i]
-            time.sleep(10)
-            retry += 1
-
-    def get_image_id(self, version):
-        img_path = self.get_image_path(version)
-        img_id = img_path.split("/")[-2]
-        print "Image id for Host image is : %s" % img_id
-        return img_id
 
 
 class PNORFLASH(OpTestFlashBase):
@@ -151,7 +131,8 @@ class PNORFLASH(OpTestFlashBase):
             self.cv_BMC.image_transfer(self.pflash, "pflash")
 
         if "AMI" in self.bmc_type:
-            self.cv_BMC.validate_pflash_tool("/tmp")
+            if not self.cv_BMC.validate_pflash_tool("/tmp"):
+                raise OpTestError("No pflash on BMC")
             self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
@@ -159,16 +140,14 @@ class PNORFLASH(OpTestFlashBase):
             self.cv_BMC.image_transfer(self.pnor)
             self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
         elif "OpenBMC" in self.bmc_type:
-            if self.cv_REST.has_new_pnor_code_update():
+            if self.cv_BMC.has_new_pnor_code_update():
                 print "BMC has code for the new PNOR Code update via REST"
-                self.delete_images_dir()
-                version = self.get_version_tar(os.path.basename(self.pnor))
-                self.cv_REST.upload_image(os.path.basename(self.pnor))
-                img_id = self.get_image_id(version)
+                version = self.get_version_tar(self.pnor)
+                self.cv_REST.upload_image(self.pnor)
+                img_id = self.cv_REST.host_image_ids()[0]
                 self.cv_REST.image_ready_for_activation(img_id)
                 self.cv_REST.activate_image(img_id)
                 self.cv_REST.wait_for_image_active_complete(img_id)
-                self.delete_images_dir()
             else:
                 print "Fallback to old code update method using pflash tool"
                 self.cv_BMC.image_transfer(self.pnor)
@@ -198,7 +177,8 @@ class OpalLidsFLASH(OpTestFlashBase):
             self.skipTest("No custom skiboot/kernel to flash")
 
         if "AMI" in self.bmc_type:
-            self.cv_BMC.validate_pflash_tool("/tmp")
+            if not self.cv_BMC.validate_pflash_tool("/tmp"):
+                raise OpTestError("No pflash on BMC")
             self.validate_side_activated()
 
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)

@@ -563,22 +563,6 @@ class HostManagement():
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
         return self.curl.run()
 
-    def has_new_pnor_code_update(self):
-        list = self.get_list_of_image_ids()
-        for id in list:
-            output = self.image_data(id)
-            obj = re.search('"Purpose": "(.*?)"', output)
-            if obj:
-                if "BMC" in obj.group(1):
-                    print "BMC image"
-                elif "Host" in obj.group(1):
-                    print "Host image"
-                    return True
-            else:
-                raise OpTestError("Not able to find out which image BMC has")
-        else:
-            return False
-
     """
     Upload a image
     curl   -b cjar  -c cjar   -k  -H  'Content-Type: application/octet-stream'   -T witherspoon.pnor.squashfs.tar  
@@ -641,6 +625,19 @@ class HostManagement():
             time.sleep(5)
         return True
 
+    def host_image_ids(self):
+        l = self.get_list_of_image_ids()
+        for id in l:
+            output = self.image_data(id)
+            obj = re.search('"Purpose": "(.*?)"', output)
+            if obj:
+                if "BMC" in obj.group(1):
+                    l.remove(id)
+                elif "Host" in obj.group(1):
+                    print "Host image"
+        return l
+
+
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None):
         self.hostname = ip
@@ -656,6 +653,19 @@ class OpTestOpenBMC():
                             username=self.username,
                             password=self.password)
 
+    def has_new_pnor_code_update(self):
+        list = self.rest_api.get_list_of_image_ids()
+        for id in list:
+            output = self.rest_api.image_data(id)
+            obj = re.search('"Purpose": "(.*?)"', output)
+            if obj:
+                if "BMC" in obj.group(1):
+                    print "BMC image"
+                elif "Host" in obj.group(1):
+                    print "Host image"
+                    return True
+        print "# Checking for pflash os BMC to determine update method"
+        return not self.bmc.validate_pflash_tool()
 
     def reboot(self):
         self.bmc.reboot()
