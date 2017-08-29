@@ -89,10 +89,6 @@ class OpTestPrdDriver(unittest.TestCase):
         # Get OS level
         self.cv_HOST.host_get_OS_Level()
 
-        # Check whether git and gcc commands are available on host
-        self.cv_HOST.host_check_command("git", "gcc")
-
-
         # Getting list of processor chip Id's(executing getscom -l to get chip id's)
         l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
         l_chips = []
