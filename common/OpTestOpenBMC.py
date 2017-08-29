@@ -150,7 +150,7 @@ class CurlTool():
         self.username = username
         self.password = password
         self.binary = binary
-        self.logresult = False
+        self.logresult = True
 
     def feed_data(self, dbus_object=None, action=None,
                   operation=None, command=None,
@@ -412,7 +412,7 @@ class HostManagement():
         data = json.loads(data)
         for k in data['data']:
             print repr(k)
-            m = re.match(r"/xyz/openbmc_project/logging/entry/(\d{1,})", k)
+            m = re.match(r"/xyz/openbmc_project/logging/entry/(\d{1,})$", k)
             if m:
                 sels.append(m.group(1))
         print repr(sels)
@@ -637,6 +637,7 @@ class HostManagement():
             i = self.image_data(id)
             if i['data']['Purpose'] != 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
                 l.remove(id)
+        print "Host Image IDS: %s" % repr(l)
         return l
 
 
@@ -647,6 +648,7 @@ class OpTestOpenBMC():
         self.password = password
         self.ipmi = ipmi
         self.rest_api = rest_api
+        self.has_vpnor = None
         # We kind of hack our way into pxssh by setting original_prompt
         # to also be \n, which appears to fool it enough to allow us
         # continue.
@@ -656,14 +658,18 @@ class OpTestOpenBMC():
                             password=self.password)
 
     def has_new_pnor_code_update(self):
+        if self.has_vpnor is not None:
+            return self.has_vpnor
         list = self.rest_api.get_list_of_image_ids()
         for id in list:
             i = self.rest_api.image_data(id)
             if i['data']['Purpose'] == 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
                 print "Host image"
+                self.has_vpnor = True
                 return True
         print "# Checking for pflash os BMC to determine update method"
-        return not self.bmc.validate_pflash_tool()
+        self.has_vpnor = not self.bmc.validate_pflash_tool()
+        return self.has_vpnor
 
     def reboot(self):
         self.bmc.reboot()
@@ -677,10 +683,16 @@ class OpTestOpenBMC():
         self.bmc.pnor_img_flash_openbmc(pnor_name)
 
     def skiboot_img_flash_openbmc(self, lid_name):
-        self.bmc.skiboot_img_flash_openbmc(lid_name)
+        if not self.has_new_pnor_code_update():
+            self.bmc.skiboot_img_flash_openbmc(lid_name)
+        else:
+            self.bmc.run_command("mv /tmp/%s /usr/local/share/PAYLOAD" % lid_name, timeout=60)
 
     def skiroot_img_flash_openbmc(self, lid_name):
-        self.bmc.skiroot_img_flash_openbmc(lid_name)
+        if not self.has_new_pnor_code_update():
+            self.bmc.skiroot_img_flash_openbmc(lid_name)
+        else:
+            self.bmc.run_command("mv /tmp/%s /usr/local/share/BOOTKERNEL" % lid_name, timeout=60)
 
     def bmc_host(self):
         return self.hostname

@@ -144,8 +144,13 @@ class PNORFLASH(OpTestFlashBase):
                 print "BMC has code for the new PNOR Code update via REST"
                 version = self.get_version_tar(self.pnor)
                 self.cv_REST.upload_image(self.pnor)
-                img_id = self.cv_REST.host_image_ids()[0]
-                self.cv_REST.image_ready_for_activation(img_id)
+                img_ids = self.cv_REST.host_image_ids()
+                img_id = None
+                for img_id in img_ids:
+                    d = self.cv_REST.image_data(img_id)
+                    if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
+                        break
+                print "Going to activate image id: %s" % img_id 
                 self.cv_REST.activate_image(img_id)
                 self.cv_REST.wait_for_image_active_complete(img_id)
             else:
