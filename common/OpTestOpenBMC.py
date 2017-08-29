@@ -465,13 +465,56 @@ class HostManagement():
         self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
+    '''
+    Wait for OpenBMC Chassis state
+    This is only on more modern OpenBMC builds.
+    If unsupported, return None and fall back to old method.
+    We can't just continue to use the old method until it disappears as
+    it is actively broken (always returns Off).
+    NOTE: The whole BMC:CHassis:Host mapping is completely undocumented and
+    undiscoverable. At some point, this may change from 0,0,0 and one of each and
+    everything is going to be a steaming pile of fail.
+    '''
+    def wait_for_chassis_state(self, target_state, chassis=0, timeout=10):
+        data = '\'{"data" : []}\''
+        obj = "/xyz/openbmc_project/state/chassis%d" % chassis
+        self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
+        timeout = time.time() + 60*timeout
+        target_state = "xyz.openbmc_project.State.Chassis.PowerState.%s" % target_state
+        while True:
+            output = self.curl.run()
+            result = json.loads(output)
+            print repr(result)
+            if result.get('data') is None or result.get('data').get('CurrentPowerState') is None:
+                return None
+            state = result['data']['CurrentPowerState']
+            print "System state: %s (target %s)" % (state, target_state)
+            if state == target_state:
+                break
+            if time.time() > timeout:
+                raise OpTestError("Timeout waiting for chassis state to become %s" % target_state)
+            time.sleep(5)
+        return True
+        
+
+    def wait_for_standby(self, timeout=10):
+        r = self.wait_for_chassis_state("Off", timeout=timeout)
+        if r is None:
+            print "Falling back to old BootProgress"
+            return old_wait_for_standby(timeout)
+
+    def wait_for_runtime(self, timeout=10):
+        r = self.wait_for_chassis_state("On", timeout=timeout)
+        if r is None:
+            print "Falling back to old BootProgress"
+            return old_wait_for_standby(timeout)
 
     '''
     Boot progress
     curl   -b cjar   -k  -H  'Content-Type: application/json'   -d '{"data": [ ] }'
     -X GET https://bmc//org/openbmc/sensors/host/BootProgress
     '''
-    def wait_for_runtime(self, timeout=10):
+    def old_wait_for_runtime(self, timeout=10):
         data = '\'{"data" : []}\''
         obj = "/org/openbmc/sensors/host/BootProgress"
         self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
@@ -492,7 +535,7 @@ class HostManagement():
             time.sleep(5)
         return True
 
-    def wait_for_standby(self, timeout=10):
+    def old_wait_for_standby(self, timeout=10):
         data = '\'{"data" : []}\''
         obj = "/org/openbmc/sensors/host/BootProgress"
         self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
