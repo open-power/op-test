@@ -729,13 +729,21 @@ class OpTestOpenBMC():
         if not self.has_new_pnor_code_update():
             self.bmc.skiboot_img_flash_openbmc(lid_name)
         else:
-            self.bmc.run_command("mv /tmp/%s /usr/local/share/PAYLOAD" % lid_name, timeout=60)
+            # don't ask. There appears to be a bug where we need to be 4k aligned.
+            self.bmc.run_command("dd if=/dev/zero of=/dev/stdout bs=1M count=1 | tr '\\000' '\\377' > /tmp/ones")
+            self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
+            self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/PAYLOAD bs=1M count=1")
+            #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/PAYLOAD" % lid_name, timeout=60)
 
     def skiroot_img_flash_openbmc(self, lid_name):
         if not self.has_new_pnor_code_update():
             self.bmc.skiroot_img_flash_openbmc(lid_name)
         else:
-            self.bmc.run_command("mv /tmp/%s /usr/local/share/BOOTKERNEL" % lid_name, timeout=60)
+            # don't ask. There appears to be a bug where we need to be 4k aligned.
+            self.bmc.run_command("dd if=/dev/zero of=/dev/stdout bs=1M count=1 | tr '\\000' '\\377' > /tmp/ones")
+            self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
+            self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=1M count=1")
+            #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/BOOTKERNEL" % lid_name, timeout=60)
 
     def bmc_host(self):
         return self.hostname
