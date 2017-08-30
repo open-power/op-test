@@ -267,9 +267,8 @@ class OpTestBMC():
     #
     # @return BMC_CONST.FW_SUCCESS if pflash tool is available or raise OpTestError
     #
-    def validate_pflash_tool(self, i_dir="pflash"):
-        if i_dir:
-            i_dir = os.path.join(i_dir, "pflash")
+    def validate_pflash_tool(self, i_dir=""):
+        i_dir = os.path.join(i_dir, "pflash")
         try:
             l_res = self.run_command("which %s" % i_dir)
         except CommandFailed:
