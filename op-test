@@ -30,6 +30,13 @@ import sys
 import os
 import unittest
 
+try:
+  import faulthandler
+  import signal
+  faulthandler.register(signal.SIGUSR1)
+except ImportError:
+  pass
+
 import OpTestConfiguration
 from testcases import HelloWorld
 from testcases import OpTestSwitchEndianSyscall
