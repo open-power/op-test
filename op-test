@@ -375,10 +375,10 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
 xml_msg = ""
 def run_tests(t):
     try:
+        print("Output to be written to: %s/*%s*" % (OpTestConfiguration.conf.output, OpTestConfiguration.conf.outsuffix))
         import xmlrunner  # requires unittest-xml-reporting package
-        xml_dir = 'test-reports'
-        res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=2).run(t)
-        xml_msg = ", XML output of tests available in %s directory" % xml_dir
+        res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
+        print("Output written to: %s/*%s*" % (OpTestConfiguration.conf.output, OpTestConfiguration.conf.outsuffix))
         return res
     except ImportError, err:
         sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")

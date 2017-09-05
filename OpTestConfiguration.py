@@ -14,6 +14,7 @@ from common.OpTestIPMI import OpTestIPMI
 from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 import argparse
+import time
 
 # Look at the addons dir for any additional OpTest supported types
 # If new type was called Kona, the layout would be as follows
@@ -59,6 +60,10 @@ class OpTestConfiguration():
         parser.add_argument("--machine-state", help="Current machine state",
                             choices=['UNKNOWN', 'OFF', 'PETITBOOT',
                                      'PETITBOOT_SHELL', 'OS'])
+
+        # Options to set the output directory and suffix on the output
+        parser.add_argument("-o", "--output", help="Output directory for test reports.  Can also be set via OP_TEST_OUTPUT env variable.")
+        parser.add_argument("--suffix", help="Suffix to add to all reports.  Default is current time.")
 
         bmcgroup = parser.add_argument_group('BMC',
                                              'Options for Service Processor')
@@ -119,6 +124,29 @@ class OpTestConfiguration():
                      'PETITBOOT_SHELL' : OpSystemState.PETITBOOT_SHELL,
                      'OS' : OpSystemState.OS
                  }
+
+        # Setup some defaults for the output options
+        # Order of precedence
+        # 1. cmdline arg
+        # 2. env variable
+        # 3. default path
+        if (self.args.output):
+            outdir = self.args.output
+        elif ("OP_TEST_OUTPUT" in os.environ):
+            outdir = os.environ["OP_TEST_OUTPUT"]
+        else:
+            outdir = "test-reports"
+
+        # Normalize the path to fully qualified and create if not there
+        self.output = os.path.abspath(outdir)
+        if (not os.path.exists(self.output)):
+            os.makedirs(self.output)
+
+        # Grab the suffix, if not given use current time
+        if (self.args.suffix):
+            self.outsuffix = self.args.suffix
+        else:
+            self.outsuffix = time.strftime("%Y%m%d%H%M%S")
 
         if self.args.machine_state == None:
             self.startState = OpSystemState.UNKNOWN
