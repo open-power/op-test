@@ -1380,6 +1380,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
     def sys_warm_reset(self):
         self.rest.bmc_reset()
 
+    def sys_cold_reset_bmc(self):
+        self.rest.bmc_reset()
+
 class OpTestQemuSystem(OpTestSystem):
     def __init__(self,
                  i_ffdcDir=None,

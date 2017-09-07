@@ -63,7 +63,6 @@ from testcases import OpTestNVRAM
 from testcases import OpTestOOBIPMI
 from testcases import OpTestOCC
 from testcases import OpTestSystemBootSequence
-from testcases import OpTestMCColdResetEffects
 from testcases import OpTestDumps
 from testcases import HostLogin
 from testcases import OpalMsglog
@@ -189,7 +188,6 @@ class FullSuite():
         self.s.addTest(OpalErrorLog.FullTest())
         self.s.addTest(DPO.DPOHost())
         self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
-        self.s.addTest(OpTestMCColdResetEffects.OpTestMCColdResetEffects())
     def suite(self):
         return self.s
 
