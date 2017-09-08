@@ -93,40 +93,20 @@ class OpTestHMIHandling(unittest.TestCase):
 
     def init_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        # Getting list of processor chip Id's(executing getscom -l to get chip id's)
-        l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
-        l_chips = []
-        for line in l_res:
-            matchObj = re.search("(\d{8}).*processor", line)
-            if matchObj:
-                l_chips.append(matchObj.group(1))
+        l_chips = self.cv_HOST.host_get_list_of_chips() # ['00000000', '00000001', '00000010']
         if not l_chips:
             raise Exception("Getscom failed to list processor chip ids")
-        l_chips.sort()
-        print l_chips # ['00000000', '00000001', '00000010']
 
-        # Currently getting the list of active core id's with respect to each chip is by using opal msg log
-        # TODO: Need to identify best way to get list of cores(If Opal msg log is empty)
-        l_cmd = "cat /sys/firmware/opal/msglog | grep -i CHIP"
-        l_res = self.cv_HOST.host_run_command(l_cmd)
-        l_cores = {}
-        self.l_dic = []
-        for line in l_res:
-            matchObj = re.search("Chip (\d{1,2}) Core ([a-z0-9])", line)
-            if matchObj:
-                if l_cores.has_key(int(matchObj.group(1))):
-                    (l_cores[int(matchObj.group(1))]).append(matchObj.group(2))
-                else:
-                    l_cores[int(matchObj.group(1))] = list(matchObj.group(2))
+        l_cores = self.cv_HOST.host_get_cores()
         if not l_cores:
-            raise Exception("Failed in getting core ids information from OPAL msg log")
+            raise Exception("Failed to get list of core id's")
 
         print l_cores # {0: ['4', '5', '6', 'c', 'd', 'e'], 1: ['4', '5', '6', 'c', 'd', 'e'], 10: ['4', '5', '6', 'c', 'd', 'e']}
-        l_cores = sorted(l_cores.iteritems())
         # Remove master core where injecting core checkstop leads to IPL expected failures
         # after 2 failures system will starts boot in Golden side of PNOR
         l_cores[0][1].pop(0)
         print l_cores
+        self.l_dic = []
         i=0
         for tup in l_cores:
             new_list = [l_chips[i], tup[1]]

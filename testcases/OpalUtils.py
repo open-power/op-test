@@ -193,6 +193,7 @@ class OpalUtils(unittest.TestCase):
             self.skipTest("Unknown CPU type %s" % self.cpu)
 
         self.utils_init()
+        return
         self.disable_cpu_sleepstates()
         self.scom_read_operation()
         self.scom_write_opearation()
