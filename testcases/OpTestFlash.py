@@ -51,6 +51,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
+from common.Exceptions import CommandFailed
 
 class OpTestFlashBase(unittest.TestCase):
     def setUp(self):
@@ -142,7 +143,21 @@ class PNORFLASH(OpTestFlashBase):
         elif "OpenBMC" in self.bmc_type:
             if self.cv_BMC.has_new_pnor_code_update():
                 print "BMC has code for the new PNOR Code update via REST"
+                try:
+                    # because openbmc
+                    l_res = self.cv_BMC.run_command("rm /usr/local/share/pnor/*")
+                except CommandFailed as cf:
+                    # Ok to just keep giong, may not have patched firmware
+                    pass
                 version = self.get_version_tar(self.pnor)
+
+                # Because OpenBMC does not have a way to determine what the image ID
+                # is in advance, and can fill up the filesystem and fail weirdly,
+                # along with the fun of setting priorities...
+                img_ids = self.cv_REST.host_image_ids()
+                for img_id in img_ids:
+                    d = self.cv_REST.delete_image(img_id)
+
                 self.cv_REST.upload_image(self.pnor)
                 img_ids = self.cv_REST.host_image_ids()
                 img_id = None
@@ -229,7 +244,7 @@ class OpalLidsFLASH(OpTestFlashBase):
                 self.cv_BMC.skiboot_img_flash_openbmc(os.path.basename(self.skiboot))
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
-                self.cv_BMC.skiroot_img_flash_openbmc("/tmp", os.path.basename(self.skiroot_kernel))
+                self.cv_BMC.skiroot_img_flash_openbmc(os.path.basename(self.skiroot_kernel))
 
         console = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:

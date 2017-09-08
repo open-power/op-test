@@ -660,6 +660,17 @@ class HostManagement():
         self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
+    """
+    Delete a image
+    curl -b cjar -k -H "Content-Type: application/json" -X DELETE 
+
+    https://bmc/xyz/openbmc_project/software/<image id>/attr/RequestedActivation
+    """
+    def delete_image(self, id):
+        obj = "/xyz/openbmc_project/software/%s" % id
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="DELETE")
+        self.curl.run()
+        
     def wait_for_image_active_complete(self, id, timeout=10):
         timeout = time.time() + 60*timeout
         while True:
