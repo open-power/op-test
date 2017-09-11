@@ -751,9 +751,9 @@ class OpTestOpenBMC():
             self.bmc.skiroot_img_flash_openbmc(lid_name)
         else:
             # don't ask. There appears to be a bug where we need to be 4k aligned.
-            self.bmc.run_command("dd if=/dev/zero of=/dev/stdout bs=1M count=1 | tr '\\000' '\\377' > /tmp/ones")
+            self.bmc.run_command("dd if=/dev/zero of=/dev/stdout bs=16M count=1 | tr '\\000' '\\377' > /tmp/ones")
             self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
-            self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=1M count=1")
+            self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
             #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/BOOTKERNEL" % lid_name, timeout=60)
 
     def bmc_host(self):
