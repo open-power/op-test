@@ -644,6 +644,7 @@ class OpTestIPMI():
         if BMC_CONST.BMC_PASS_COLD_RESET in rc:
             time.sleep(BMC_CONST.SHORT_WAIT_IPL)
             self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
+            self.ipmi_wait_for_bmc_runtime()
             l_finalstatus = self.ipmi_power_status()
             if (l_initstatus != l_finalstatus):
                 print('initial status ' + str(l_initstatus))
@@ -655,6 +656,40 @@ class OpTestIPMI():
             print "Cold reset failed"
             print rc
             raise OpTestError(rc)
+
+
+
+    ##
+    # @brief This function waits until BMC Boot finishes after a BMC Cold reset
+    #        0x00 = Boot Complete
+    #        0xC0 = Not Complete
+    #        Here AMI systems returns 00 and SMC Systems return NULL for success
+    #
+    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
+    #
+    def ipmi_wait_for_bmc_runtime(self, i_timeout=10):
+        l_timeout = time.time() + 60*i_timeout
+        l_cmd = ' raw 0x3a 0x0a '
+        while True:
+            try:
+                l_output = self.ipmitool.run(l_cmd)
+                print l_output
+            except:
+                continue
+            if "0xc0"in l_output:
+                print "BMC Still booting..."
+            elif "00" in l_output: # AMI BMC returns 00 as output
+                print "BMC Completed booting..."
+                break
+            else: # SMC BMC returns empty as output
+                print "BMC Completed booting..."
+                break
+            if time.time() > l_timeout:
+                l_msg = "BMC Boot timeout..."
+                print l_msg
+                raise OpTestError(l_msg)
+            time.sleep(BMC_CONST.SHORT_WAIT_IPL)
+        return BMC_CONST.FW_SUCCESS
 
 
     ##

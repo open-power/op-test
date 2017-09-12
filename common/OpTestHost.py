@@ -918,17 +918,27 @@ class OpTestHost():
         return chips
 
     def host_get_cores(self):
-        cmd = "cat /sys/firmware/opal/msglog | grep -i CHIP"
-        res = self.host_run_command(cmd)
-        cores = {}
-        for line in res:
-            matchObj = re.search("Chip (\d{1,2}) Core ([a-z0-9])", line)
-            if matchObj:
-                if cores.has_key(int(matchObj.group(1))):
-                    (cores[int(matchObj.group(1))]).append(matchObj.group(2))
-                else:
-                    cores[int(matchObj.group(1))] = list(matchObj.group(2))
-        if not cores:
-            raise Exception("Failed in getting core ids information from OPAL msg log")
-        cores = sorted(cores.iteritems())
-        return cores
+        proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        core_ids = {}
+        cpu_files = self.host_run_command("find /sys/devices/system/cpu/ -name 'cpu[0-9]*'")
+        for cpu_file in cpu_files:
+            cpu_id = self.host_run_command("basename %s | tr -dc '0-9'" % cpu_file)[-1]
+            pir = self.host_run_command("cat %s/pir" % cpu_file)[-1]
+            if proc_gen in ["POWER8", "POWER8E"]:
+                core_id = hex((int("0x%s" % pir, 16) >> 3 ) & 0xf)
+                chip_id = hex((int("0x%s" % pir, 16) >> 7 ) & 0x3f)
+            elif proc_gen in ["POWER9"]:
+                core_id =hex((int("0x%s" % pir, 16) >> 2 ) & 0x3f)
+                chip_id = hex((int("0x%s" % pir, 16) >> 8 ) & 0x7f)
+            else:
+                raise OpTestError("Unknown or new processor type")
+            core_id = core_id.split('x')[1]
+            chip_id = chip_id.split('x')[1]
+            if core_ids.has_key(chip_id):
+                if core_id not in core_ids[chip_id]:
+                    core_ids[chip_id].append(core_id)
+            else:
+                core_ids[chip_id] = list(core_id)
+        core_ids = sorted(core_ids.iteritems())
+        print core_ids
+        return core_ids
