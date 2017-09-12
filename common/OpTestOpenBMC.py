@@ -599,7 +599,7 @@ class HostManagement():
         return True
 
     def get_list_of_image_ids(self):
-        obj = "/xyz/openbmc_project/software/enumerate"
+        obj = "/xyz/openbmc_project/software/"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
         output = self.curl.run()
         r = json.loads(output)
