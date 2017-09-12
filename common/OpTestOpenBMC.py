@@ -607,7 +607,16 @@ class HostManagement():
         ids = []
         for k in r['data']:
             m = re.match(r'/xyz/openbmc_project/software/(.*)', k)
-            if m:
+            # According to the OpenBMC docs, Image ID can be
+            # Implementation defined, and thus, the word 'active'
+            # would be a valid ID.
+            # Except that it isn't. The documentation is lies.
+            # It seems that 'active' is special.
+            # There is no documentation as to what other
+            # strings are special, or could become special.
+            # So, HACK HACK HACK around it. :(
+            # https://github.com/openbmc/phosphor-dbus-interfaces/tree/55d03ca/xyz/openbmc_project/Software#image-identifier
+            if m and m.group(1) not in ["active"]:
                 ids.append(m.group(1))
 
         print "List of images id's: %s" % ids
