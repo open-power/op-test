@@ -313,13 +313,13 @@ class HostManagement():
         self.curl.run()
 
     '''
-    Get Chassis Power State:
+    Get Current Host Power State:
     curl -c cjar -b cjar -k -H "Content-Type: application/json" -X GET -d '{"data":
-    []}' https://bmc/xyz/openbmc_project/state/chassis0/attr/CurrentPowerState
+    []}' https://bmc/xyz/openbmc_project/state/host0/attr/CurrentHost
     '''
     def get_power_state(self):
         data = '\'{"data" : []}\''
-        obj = '/xyz/openbmc_project/state/chassis0/attr/CurrentPowerState'
+        obj = '/xyz/openbmc_project/state/host0/attr/CurrentHostState'
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
         self.curl.run()
 
@@ -466,7 +466,7 @@ class HostManagement():
         self.curl.run()
 
     '''
-    Wait for OpenBMC Chassis state
+    Wait for OpenBMC Host state
     This is only on more modern OpenBMC builds.
     If unsupported, return None and fall back to old method.
     We can't just continue to use the old method until it disappears as
@@ -475,36 +475,36 @@ class HostManagement():
     undiscoverable. At some point, this may change from 0,0,0 and one of each and
     everything is going to be a steaming pile of fail.
     '''
-    def wait_for_chassis_state(self, target_state, chassis=0, timeout=10):
+    def wait_for_host_state(self, target_state, host=0, timeout=10):
         data = '\'{"data" : []}\''
-        obj = "/xyz/openbmc_project/state/chassis%d" % chassis
+        obj = "/xyz/openbmc_project/state/host%d" % host
         self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
         timeout = time.time() + 60*timeout
-        target_state = "xyz.openbmc_project.State.Chassis.PowerState.%s" % target_state
+        target_state = "xyz.openbmc_project.State.Host.HostState.%s" % target_state
         while True:
             output = self.curl.run()
             result = json.loads(output)
             print repr(result)
-            if result.get('data') is None or result.get('data').get('CurrentPowerState') is None:
+            if result.get('data') is None or result.get('data').get('CurrentHostState') is None:
                 return None
-            state = result['data']['CurrentPowerState']
+            state = result['data']['CurrentHostState']
             print "System state: %s (target %s)" % (state, target_state)
             if state == target_state:
                 break
             if time.time() > timeout:
-                raise OpTestError("Timeout waiting for chassis state to become %s" % target_state)
+                raise OpTestError("Timeout waiting for host state to become %s" % target_state)
             time.sleep(5)
         return True
         
 
     def wait_for_standby(self, timeout=10):
-        r = self.wait_for_chassis_state("Off", timeout=timeout)
+        r = self.wait_for_host_state("Off", timeout=timeout)
         if r is None:
             print "Falling back to old BootProgress"
             return old_wait_for_standby(timeout)
 
     def wait_for_runtime(self, timeout=10):
-        r = self.wait_for_chassis_state("On", timeout=timeout)
+        r = self.wait_for_host_state("Running", timeout=timeout)
         if r is None:
             print "Falling back to old BootProgress"
             return old_wait_for_standby(timeout)
