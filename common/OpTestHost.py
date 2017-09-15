@@ -942,3 +942,14 @@ class OpTestHost():
         core_ids = sorted(core_ids.iteritems())
         print core_ids
         return core_ids
+
+    # Supported on OpenPower and P9 FSP system
+    def host_prd_supported(self, bmc_type):
+        if not "FSP" in bmc_type:
+            return True
+
+        proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        if proc_gen in ["POWER8", "POWER8E"]:
+            return False
+
+        return True
