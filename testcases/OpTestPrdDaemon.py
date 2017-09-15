@@ -69,13 +69,25 @@ class OpTestPrdDaemon(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def runTest(self):
+        l_res = None
+
         self.cv_SYSTEM.host_console_login()
 
         if not self.cv_HOST.host_prd_supported(self.bmc_type):
             self.skipTest("opal-prd not supported on this system")
 
+        # Check opal-prd command
+        self.cv_HOST.host_check_command("opal-prd")
+
         # To check opal-prd daemon is running or not
-        l_res = self.cv_HOST.host_run_command("pidof opal-prd")
+        try:
+            l_res = self.cv_HOST.host_run_command("pidof opal-prd")
+        except CommandFailed as c:
+            self.cv_HOST.host_run_command("/bin/systemctl start opal-prd.service")
+            try:
+                l_res = self.cv_HOST.host_run_command("pidof opal-prd")
+            except CommandFailed as c:
+                self.assertEqual(c.exitcode, 0, "Failed to start opal-prd daemon:Need to raise a bug: %s" % str(c))
 
         # To kill the opal-prd daemon using its PID
         l_cmd = "kill -9 %d" % int(l_res[0])
