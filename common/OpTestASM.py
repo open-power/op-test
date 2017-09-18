@@ -44,7 +44,11 @@ import urllib
 import urllib2
 import re
 import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
+# Work around issues with python < 2.7.9
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
 
 class OpTestASM:
 
