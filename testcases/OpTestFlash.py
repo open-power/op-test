@@ -67,6 +67,8 @@ class OpTestFlashBase(unittest.TestCase):
         self.bmc_ip = conf.args.bmc_ip
         self.bmc_username = conf.args.bmc_username
         self.bmc_password = conf.args.bmc_password
+        self.pupdate_binary = conf.args.pupdate
+        self.pflash = conf.args.pflash
 
     def validate_side_activated(self):
         l_bmc_side, l_pnor_side = self.cv_IPMI.ipmi_get_side_activated()
@@ -120,7 +122,6 @@ class PNORFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.host_pnor
-        self.pflash = conf.args.pflash
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
@@ -132,14 +133,21 @@ class PNORFLASH(OpTestFlashBase):
             self.cv_BMC.image_transfer(self.pflash, "pflash")
 
         if "AMI" in self.bmc_type:
-            if not self.cv_BMC.validate_pflash_tool("/tmp"):
+            supermicro = False
+            if self.cv_IPMI.is_supermicro():
+                supermicro = True
+                self.cv_IPMI.pUpdate.set_binary(self.pupdate_binary)
+            elif not self.cv_BMC.validate_pflash_tool("/tmp"):
                 raise OpTestError("No pflash on BMC")
-            self.validate_side_activated()
+                self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
         if "AMI" in self.bmc_type:
-            self.cv_BMC.image_transfer(self.pnor)
-            self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
+            if supermicro:
+                self.cv_IPMI.pUpdate.run(" -pnor %s" % self.pnor)
+            else:
+                self.cv_BMC.image_transfer(self.pnor)
+                self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
         elif "OpenBMC" in self.bmc_type:
             if self.cv_BMC.has_new_pnor_code_update():
                 print "BMC has code for the new PNOR Code update via REST"
@@ -175,7 +183,8 @@ class PNORFLASH(OpTestFlashBase):
 
         console = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:
-            self.validate_side_activated()
+            if not supermicro:
+                self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
 
 
@@ -197,9 +206,21 @@ class OpalLidsFLASH(OpTestFlashBase):
             self.skipTest("No custom skiboot/kernel to flash")
 
         if "AMI" in self.bmc_type:
-            if not self.cv_BMC.validate_pflash_tool("/tmp"):
+            path = "/tmp"
+            dest = "/tmp"
+            supermicro = False
+            if self.cv_IPMI.is_supermicro():
+                supermicro = True
+                # Enable rsync backdoor to copy files into BMC
+                self.cv_IPMI.ipmitool.run("raw 0x30 0x70 0xf9")
+                path = "/files"
+                dest = "/tmp/rsync_file"
+            else:
+                self.validate_side_activated()
+            if self.pflash:
+                self.cv_BMC.image_transfer(self.pflash, "pflash", path)
+            if not self.cv_BMC.validate_pflash_tool(dest):
                 raise OpTestError("No pflash on BMC")
-            self.validate_side_activated()
 
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
@@ -232,11 +253,11 @@ class OpalLidsFLASH(OpTestFlashBase):
 
         if "AMI" in self.bmc_type:
             if self.skiboot:
-                self.cv_BMC.image_transfer(self.skiboot)
-                self.cv_BMC.skiboot_img_flash_ami("/tmp", os.path.basename(self.skiboot))
+                self.cv_BMC.image_transfer(self.skiboot, os.path.basename(self.skiboot), path)
+                self.cv_BMC.skiboot_img_flash_ami(dest, dest, os.path.basename(self.skiboot))
             if self.skiroot_kernel:
-                self.cv_BMC.image_transfer(self.skiroot_kernel)
-                self.cv_BMC.skiroot_img_flash_ami("/tmp", os.path.basename(self.skiroot_kernel))
+                self.cv_BMC.image_transfer(self.skiroot_kernel, os.path.basename(self.skiboot), path)
+                self.cv_BMC.skiroot_img_flash_ami(dest, dest, os.path.basename(self.skiroot_kernel))
 
         if "OpenBMC" in self.bmc_type:
             if self.skiboot:
@@ -248,7 +269,8 @@ class OpalLidsFLASH(OpTestFlashBase):
 
         console = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:
-            self.validate_side_activated()
+            if not supermicro:
+                self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
 
 class OOBHpmFLASH(OpTestFlashBase):

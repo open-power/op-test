@@ -116,6 +116,8 @@ class OpTestConfiguration():
                                 help="Only flash, don't run any tests (even if specified)")
         imagegroup.add_argument("--pflash",
                                 help="pflash to copy to BMC (if needed)")
+        imagegroup.add_argument("--pupdate",
+                                help="pupdate to flash PNOR for Supermicro systems")
 
         self.args , self.remaining_args = parser.parse_known_args(argv)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
@@ -172,6 +174,7 @@ class OpTestConfiguration():
                             password=self.args.bmc_password,
                             ipmi=ipmi,
                             web=web,
+                            bmctype=self.args.bmc_type,
             )
             self.op_system = OpTestSystem(
                 i_ffdcDir=self.args.ffdcdir,

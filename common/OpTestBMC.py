@@ -50,7 +50,7 @@ class SSHConnectionState():
     CONNECTED = 1
 
 class OpTestBMC():
-    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None, ipmi=None, rest=None, web=None):
+    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None, ipmi=None, rest=None, web=None, bmctype=None):
         self.cv_bmcIP = ip
         self.cv_bmcUser = username
         self.cv_bmcPasswd = password
@@ -58,6 +58,7 @@ class OpTestBMC():
         self.cv_IPMI = ipmi
         self.rest = rest
         self.cv_WEB = web
+        self.bmctype = bmctype
         self.state = SSHConnectionState.DISCONNECTED
 
     def bmc_host(self):
@@ -188,14 +189,25 @@ class OpTestBMC():
         return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief This function copies the given image to the BMC /tmp dir
+    # @brief This function copies the given image to the BMC dest dir(default=/tmp)
     #
     # @return the rsync command return code
     #
-    def image_transfer(self,i_imageName, copy_as=None):
+    def image_transfer(self,i_imageName, copy_as=None, to_dir="/tmp"):
 
         img_path = i_imageName
-        rsync_cmd = 'rsync -P -v -e "ssh -k -o StrictHostKeyChecking=no" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
+        if self.bmctype == "AMI":
+            if self.cv_IPMI.is_supermicro():
+                rsync_cmd = "rsync -av %s rsync://%s%s/" % (img_path, self.cv_bmcIP, to_dir)
+                if copy_as:
+                    rsync_cmd = rsync_cmd + '/' + copy_as
+                print rsync_cmd
+                rsync = pexpect.spawn(rsync_cmd)
+                rsync.logfile = sys.stdout
+                rsync.expect(pexpect.EOF, timeout=300)
+                rsync.close()
+                return rsync.exitstatus
+        rsync_cmd = 'rsync -P -v -e "ssh -k -o StrictHostKeyChecking=no" %s %s@%s:%s' % (img_path, self.cv_bmcUser, self.cv_bmcIP, to_dir)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
 
@@ -239,13 +251,13 @@ class OpTestBMC():
         rc = self.run_command(cmd, timeout=1800)
         return rc
 
-    def skiboot_img_flash_ami(self, i_pflash_dir, i_imageName):
-        cmd = i_pflash_dir + '/pflash -p /tmp/%s -e -f -P PAYLOAD' % i_imageName
+    def skiboot_img_flash_ami(self, i_pflash_dir, i_payload_dir, i_imageName):
+        cmd = i_pflash_dir + '/pflash -p /%s/%s -e -f -P PAYLOAD' % (i_payload_dir, i_imageName)
         rc = self.run_command(cmd, timeout=1800)
         return rc
 
-    def skiroot_img_flash_ami(self, i_pflash_dir, i_imageName):
-        cmd = i_pflash_dir + '/pflash -p /tmp/%s -e -f -P BOOTKERNEL' % i_imageName
+    def skiroot_img_flash_ami(self, i_pflash_dir, i_bootkernel_dir, i_imageName):
+        cmd = i_pflash_dir + '/pflash -p /%s/%s -e -f -P BOOTKERNEL' % (i_bootkernel_dir, i_imageName)
         rc = self.run_command(cmd, timeout=1800)
         return rc
 
@@ -269,8 +281,12 @@ class OpTestBMC():
     #
     def validate_pflash_tool(self, i_dir=""):
         i_dir = os.path.join(i_dir, "pflash")
+        cmd = "which %s" % i_dir
+        # Supermicro BMC busybox doesn't have inbuilt which command
+        if self.bmctype == "AMI" and self.cv_IPMI.is_supermicro():
+            cmd = "ls %s" % i_dir
         try:
-            l_res = self.run_command("which %s" % i_dir)
+            l_res = self.run_command(cmd)
         except CommandFailed:
             l_msg = "# pflash tool is not available on BMC"
             print l_msg
