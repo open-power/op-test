@@ -28,14 +28,14 @@
 #  Firmware flash tests for OpenPower testing.
 #
 #  This class contains the OpenPower Firmware flashing scripts for
-#  AMI platforms 
+#  all the OPAL platforms(AMI, FSP, SMC and OpenBMC).
 #
-#   PNOR Flash Update
-#   Lid Updates(Currently skiboot lid) TODO: Add skiroot lid support
+#   Host PNOR Firmware Updates
+#   OPAL Lid Updates(Both Skiboot and Skiroot lids flashing)
 #   Out-of-band HPM Update
 #   In-band HPM Update
 # 
-#  pre-requistes pflash tool should be in /tmp directory of BMC busy box
+#  Tools needed: ipmitool, pflash and pUpdate
 #
 
 
