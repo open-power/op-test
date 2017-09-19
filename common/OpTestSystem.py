@@ -1352,6 +1352,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
         #self.rest.power_soft() currently rest command for softPowerOff failing
         self.rest.power_off()
 
+    def sys_get_sel_list(self):
+        self.rest.list_sel()
+
     def sys_sdr_clear(self):
         # We can delete individual SEL entry by id
         self.rest.clear_sel_by_id()
