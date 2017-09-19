@@ -166,10 +166,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
             try:
                 try:
                     r = c.run_command(self.ipmi_method + 'chassis bootdev %s' % (bootdev))
-                except CommandFailed as c:
+                except CommandFailed as cf:
                     if 'Error loading interface usb' in cf.output:
                         self.skipTest("No USB IPMI interface")
-                    self.fail("Could not set boot device %s. Errored with %s" % (dev,str(c)))
+                    self.fail("Could not set boot device %s. Errored with %s" % (bootdev,str(cf)))
                 self.verify_bootdev(bootdev, ipmiresponse)
             except UnexpectedBootDevice as e:
                 self.fail(str(e))
