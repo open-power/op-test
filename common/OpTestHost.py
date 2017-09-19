@@ -942,3 +942,15 @@ class OpTestHost():
         core_ids = sorted(core_ids.iteritems())
         print core_ids
         return core_ids
+
+    def host_copy_fake_gard(self):
+        path = os.path.abspath(os.path.join("common", os.pardir))
+        i_image = path + "/test_binaries/fake.gard"
+        # Copy the fake.gard file to the tmp folder in the host
+        try:
+            self.util.copyFilesToDest(i_image, self.user,
+                                             self.ip, "/tmp/", self.passwd)
+        except:
+            l_msg = "Copying fake.gard file to host failed"
+            print l_msg
+            raise OpTestError(l_msg)
