@@ -54,13 +54,13 @@ class UnexpectedBootDevice(Exception):
         return "Expected to set %s but instead got %s" % (self.expected, self.actual)
 
 
-class OpTestInbandIPMIBase(unittest.TestCase):
-
+class OpTestInbandIPMIBase(object):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.host = conf.host()
         self.ipmi = conf.ipmi()
         self.system = conf.system()
+        self.bmc = conf.bmc()
         self.util = OpTestUtil()
         pass
 
@@ -94,7 +94,7 @@ class OpTestInbandIPMIBase(unittest.TestCase):
             else:
                 raise cf
 
-class BasicInbandIPMI(OpTestInbandIPMIBase):
+class BasicInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"
@@ -109,7 +109,7 @@ class BasicInbandIPMI(OpTestInbandIPMIBase):
         print "Inband IPMI[OPEN]: Sensor tests"
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SENSOR_LIST])
 
-class OpTestInbandIPMI(OpTestInbandIPMIBase):
+class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"
@@ -169,6 +169,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
                 except CommandFailed as cf:
                     if 'Error loading interface usb' in cf.output:
                         self.skipTest("No USB IPMI interface")
+                    if not self.bmc.has_inband_bootdev():
+                        self.skipTest("Does not support inband bootdev")
                     self.fail("Could not set boot device %s. Errored with %s" % (bootdev,str(cf)))
                 self.verify_bootdev(bootdev, ipmiresponse)
             except UnexpectedBootDevice as e:
@@ -234,7 +236,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     def test_sdr_type_list(self):
         print "Inband IPMI[OPEN]: SDR type list tests"
         c = self.set_up()
-        self.run_ipmi_cmnds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_LIST,
+        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_LIST,
                                 self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_TEMPERATURE,
                                 self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_FAN,
                                 self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_POWER_SUPPLY])
@@ -429,7 +431,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
-    def test_sensor_byid(self, i_sensor=BMC_CONST.SENSOR_HOST_STATUS):
+    def sensor_byid(self, i_sensor=BMC_CONST.SENSOR_HOST_STATUS):
         l_cmd = self.ipmi_method + "sensor get \"%s\"" % i_sensor
         c = self.set_up()
         c.run_command(l_cmd)
@@ -573,7 +575,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sensor_get_host_status(self):
-        self.test_sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
+        try:
+            self.sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
+        except CommandFailed as cf:
+            if not self.bmc.has_host_status_sensor():
+                if 'not found' in ''.join(cf.output):
+                    self.skipTest("Platform doesn't Sensor")
+            self.fail(str(cf))
 
     ##
     # @brief  It will execute and test the ipmi sensor get "OS Boot" functionality
@@ -581,17 +589,28 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sensor_get_os_boot(self):
-        self.test_sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
-
+        try:
+            self.sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
+        except CommandFailed as cf:
+            if not self.bmc.has_os_boot_sensor():
+                if 'not found' in ''.join(cf.output):
+                    self.skipTest("Platform doesn't Sensor")
+            self.fail(str(cf))
     ##
     # @brief  It will execute and test the ipmi sensor get "OCC Active" functionality
     #
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sensor_get_occ_active(self):
-        self.test_sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
+        try:
+            self.sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
+        except CommandFailed as cf:
+            if not self.bmc.has_occ_active_sensor():
+                if 'not found' in ''.join(cf.output):
+                    self.skipTest("Platform doesn't Sensor")
+            self.fail(str(cf))
 
-class ExperimentalInbandIPMI(OpTestInbandIPMIBase):
+class ExperimentalInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"
