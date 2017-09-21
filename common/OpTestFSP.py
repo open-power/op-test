@@ -479,3 +479,15 @@ class OpTestFSP():
             return
         else:
             raise OpTestError("Failed to power on the machine from FSP")
+
+    def has_inband_bootdev(self):
+        return True
+
+    def has_os_boot_sensor(self):
+        return False
+
+    def has_host_status_sensor(self):
+        return False
+
+    def has_occ_active_sensor(self):
+        return False

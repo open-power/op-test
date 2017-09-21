@@ -276,3 +276,26 @@ class OpTestBMC():
             print l_msg
             return False
         return True
+
+    def has_inband_bootdev(self):
+        return True
+
+    def has_os_boot_sensor(self):
+        return True
+
+    def has_host_status_sensor(self):
+        return True
+
+    def has_occ_active_sensor(self):
+        return True
+
+class OpTestSMC(OpTestBMC):
+
+    def has_os_boot_sensor(self):
+        return False
+
+    def has_host_status_sensor(self):
+        return False
+
+    def has_occ_active_sensor(self):
+        return False

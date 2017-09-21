@@ -779,3 +779,15 @@ class OpTestOpenBMC():
 
     def run_command(self, command, timeout=10):
         return self.bmc.run_command(command, timeout)
+
+    def has_inband_bootdev(self):
+        return False
+
+    def has_os_boot_sensor(self):
+        return False
+
+    def has_host_status_sensor(self):
+        return False
+
+    def has_occ_active_sensor(self):
+        return False

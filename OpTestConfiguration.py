@@ -4,7 +4,7 @@
 # of OpTestSystem and similar objects around for tests to use.
 
 import common
-from common.OpTestBMC import OpTestBMC
+from common.OpTestBMC import OpTestBMC, OpTestSMC
 from common.OpTestFSP import OpTestFSP
 from common.OpTestOpenBMC import OpTestOpenBMC
 from common.OpTestQemu import OpTestQemu
@@ -68,7 +68,7 @@ class OpTestConfiguration():
         bmcgroup = parser.add_argument_group('BMC',
                                              'Options for Service Processor')
         # The default supported BMC choices in --bmc-type
-        bmcChoices = ['AMI','FSP', 'OpenBMC', 'qemu']
+        bmcChoices = ['AMI', 'SMC', 'FSP', 'OpenBMC', 'qemu']
         # Loop through any addons let it append the extra bmcChoices
         for opt in optAddons:
             bmcChoices = optAddons[opt].addBMCType(bmcChoices)
@@ -159,7 +159,7 @@ class OpTestConfiguration():
                           self.args.host_user,
                           self.args.host_password,
                           self.args.bmc_ip)
-        if self.args.bmc_type in ['AMI']:
+        if self.args.bmc_type in ['AMI', 'SMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
                               self.args.bmc_passwordipmi,
@@ -167,12 +167,21 @@ class OpTestConfiguration():
             web = OpTestWeb(self.args.bmc_ip,
                             self.args.bmc_usernameipmi,
                             self.args.bmc_passwordipmi)
-            bmc = OpTestBMC(ip=self.args.bmc_ip,
-                            username=self.args.bmc_username,
-                            password=self.args.bmc_password,
-                            ipmi=ipmi,
-                            web=web,
-            )
+            bmc = None
+            if self.args.bmc_type in ['AMI']:
+                bmc = OpTestBMC(ip=self.args.bmc_ip,
+                                username=self.args.bmc_username,
+                                password=self.args.bmc_password,
+                                ipmi=ipmi,
+                                web=web,
+                )
+            elif self.args.bmc_type in ['SMC']:
+                bmc = OpTestSMC(ip=self.args.bmc_ip,
+                                username=self.args.bmc_username,
+                                password=self.args.bmc_password,
+                                ipmi=ipmi,
+                                web=web,
+                )
             self.op_system = OpTestSystem(
                 i_ffdcDir=self.args.ffdcdir,
                 state=self.startState,
