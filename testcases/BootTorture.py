@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2015,2017
