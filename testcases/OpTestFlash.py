@@ -182,6 +182,7 @@ class PNORFLASH(OpTestFlashBase):
 class OpalLidsFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
+        self.pflash = conf.args.pflash
         self.skiboot = conf.args.flash_skiboot
         self.skiroot_kernel = conf.args.flash_kernel
         self.skiroot_initramfs = conf.args.flash_initramfs
@@ -195,6 +196,8 @@ class OpalLidsFLASH(OpTestFlashBase):
     def runTest(self):
         if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs:
             self.skipTest("No custom skiboot/kernel to flash")
+        if self.pflash:
+            self.cv_BMC.image_transfer(self.pflash, "pflash")
 
         if "AMI" in self.bmc_type:
             if not self.cv_BMC.validate_pflash_tool("/tmp"):
