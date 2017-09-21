@@ -452,13 +452,25 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_dcmi(self):
         print "Inband IPMI[OPEN]: dcmi tests"
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_DCMI_DISCOVER,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_READING,
-                               #self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_TEMP_READING,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_CONF_PARAM,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_SENSORS])
+        cmds = [self.ipmi_method + BMC_CONST.IPMI_DCMI_DISCOVER,
+                self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_READING,
+                #self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT,
+                self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING,
+                self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_TEMP_READING,
+                self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_CONF_PARAM,
+                self.ipmi_method + BMC_CONST.IPMI_DCMI_SENSORS]
+        for cmd in cmds:
+            try:
+                self.run_ipmi_cmds(c, [cmd])
+            except CommandFailed as cf:
+                if 'Command not supported in present state' in ''.join(cf.output):
+                    pass
+                elif 'Invalid command' in ''.join(cf.output):
+                    pass
+                elif 'Requested sensor, data, or record not found' in ''.join(cf.output):
+                    pass
+                else:
+                    self.fail(str(cf))
 
 
     ##
