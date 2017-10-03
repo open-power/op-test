@@ -30,6 +30,7 @@ from common.OpTestSystem import OpSystemState
 from testcases.OpTestPCI import TestPCI
 
 class BootTorture(unittest.TestCase, TestPCI):
+    BOOT_ITERATIONS = 1024
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.system = conf.system()
@@ -37,13 +38,17 @@ class BootTorture(unittest.TestCase, TestPCI):
 
     def runTest(self):
         self.c = self.system.sys_get_ipmi_console()
-        for i in range(1,1024):
+        for i in range(1,self.BOOT_ITERATIONS):
             print "Boot iteration %d..." % i
             self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.system.host_console_unique_prompt()
-            self.c.run_command("cat /sys/firmware/opal/msglog")
-            self.check_pci_devices()
+            self.c.run_command("head /sys/firmware/opal/msglog")
+            self.c.run_command("tail /sys/firmware/opal/msglog")
+            if self.pci_good_data_file:
+                self.check_pci_devices()
             self.c.run_command("dmesg -r|grep '<[4321]>'")
             self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
             self.system.goto_state(OpSystemState.OFF)
 
+class BootTorture10(BootTorture):
+    BOOT_ITERATIONS = 10
