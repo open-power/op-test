@@ -82,6 +82,7 @@ from testcases import testRestAPI
 from testcases import OpTestPNOR
 from testcases import OpalGard
 from testcases import SbePassThrough
+from testcases import DeviceTreeValidation
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -115,6 +116,7 @@ class SkirootSuite():
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
         self.s.addTest(Console.suite())
         self.s.addTest(OpTestPNOR.OpTestPNOR())
+        self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
@@ -144,6 +146,7 @@ class HostSuite():
         self.s.addTest(OpalErrorLog.BasicTest())
         self.s.addTest(OpTestPrdDaemon.OpTestPrdDaemon())
         self.s.addTest(SbePassThrough.SbePassThrough())
+        self.s.addTest(DeviceTreeValidation.DeviceTreeValidationHost())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
     def suite(self):
