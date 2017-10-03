@@ -145,7 +145,7 @@ class PNORFLASH(OpTestFlashBase):
                 print "BMC has code for the new PNOR Code update via REST"
                 try:
                     # because openbmc
-                    l_res = self.cv_BMC.run_command("rm /usr/local/share/pnor/*")
+                    l_res = self.cv_BMC.run_command("rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
                 except CommandFailed as cf:
                     # Ok to just keep giong, may not have patched firmware
                     pass
