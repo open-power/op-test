@@ -23,6 +23,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.Exceptions import CommandFailed
 
 class OpalMsglog():
     def setUp(self):
@@ -33,9 +34,15 @@ class OpalMsglog():
 
     def runTest(self):
         self.setup_test()
-        log_entries = self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
-        msg = '\n'.join(filter(None, log_entries))
-        self.assertTrue( len(log_entries) == 0, "Warnings/Errors in OPAL log:\n%s" % msg)
+        try:
+            log_entries = self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            msg = '\n'.join(filter(None, log_entries))
+            self.assertTrue( len(log_entries) == 0, "Warnings/Errors in OPAL log:\n%s" % msg)
+        except CommandFailed as cf:
+            if cf.exitcode is 1 and len(cf.output) is 0:
+                pass
+            else:
+                raise cf
 
 class Skiroot(OpalMsglog, unittest.TestCase):
     def setup_test(self):
