@@ -608,10 +608,7 @@ class OpTestIPMI():
                     f.write(line)
 
         if i_string in output:
-            l_msg = 'Error log(s) detected during IPL. Please see %s' % logFile
-            print l_msg
-            print output
-            raise OpTestError(l_msg)
+            raise OpTestError('Error log(s) detected during IPL: %s' % output)
         else:
             return BMC_CONST.FW_SUCCESS
 
