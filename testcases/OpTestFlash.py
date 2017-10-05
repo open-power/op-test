@@ -214,22 +214,22 @@ class OpalLidsFLASH(OpTestFlashBase):
             cmd = "rm -fr {0} 2> dev/null; mkdir -p {0}".format(self.ext_lid_test_path)
             self.cv_BMC.fsp_run_command(cmd)
             if self.skiboot:
-                self.cv_BMC.fsp_run_command("cp /opt/extucode/80f00100.lid %s/80f00100_bkp.lid" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command("cp -f /opt/extucode/80f00100.lid %s/80f00100_bkp.lid" % self.ext_lid_test_path)
                 print "Backup of skiboot lid is in %s/80f00100_bkp.lid" % self.ext_lid_test_path
                 self.scp_file(self.skiboot, self.ext_lid_test_path + "/80f00100.lid")
-                self.cv_BMC.fsp_run_command("cp %s/80f00100.lid /opt/extucode/" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command("cp -f %s/80f00100.lid /opt/extucode/" % self.ext_lid_test_path)
 
             if not self.skiroot_kernel and not self.skiroot_initramfs:
                 print "No skiroot lids provided, Flashing only skiboot"
             else:
-                self.cv_BMC.fsp_run_command("cp /opt/extucode/80f00101.lid %s/80f00101_bkp.lid" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command("cp -f /opt/extucode/80f00101.lid %s/80f00101_bkp.lid" % self.ext_lid_test_path)
                 print "Backup of skiroot kernel lid is in %s/80f00101_bkp.lid" % self.ext_lid_test_path
-                self.cv_BMC.fsp_run_command("cp /opt/extucode/80f00102.lid %s/80f00102_bkp.lid" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command("cp -f /opt/extucode/80f00102.lid %s/80f00102_bkp.lid" % self.ext_lid_test_path)
                 print "Backup of skiroot initrd lid is in %s/80f00102_bkp.lid" % self.ext_lid_test_path
                 self.scp_file(self.skiroot_kernel, self.ext_lid_test_path + "/80f00101.lid")
                 self.scp_file(self.skiroot_initramfs, self.ext_lid_test_path + "/80f00102.lid")
-                self.cv_BMC.fsp_run_command("cp %s/80f00101.lid /opt/extucode/" % self.ext_lid_test_path)
-                self.cv_BMC.fsp_run_command("cp %s/80f00102.lid /opt/extucode/" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command("cp -f %s/80f00101.lid /opt/extucode/" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command("cp -f %s/80f00102.lid /opt/extucode/" % self.ext_lid_test_path)
             print "Regenerating the hashes by running command cupdmfg -opt"
             self.cv_BMC.fsp_run_command("cupdmfg -opt")
 
