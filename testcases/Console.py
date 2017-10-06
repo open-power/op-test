@@ -42,7 +42,7 @@ class Console():
         count = self.count
         self.assertTrue( (bs*count)%16 == 0, "Bug in test writer. Must be multiple of 16 bytes: bs %u count %u / 16 = %u" % (bs, count, (bs*count)%16))
         try:
-            zeros = console.run_command("dd if=/dev/zero bs=%u count=%u|hexdump -C -v" % (bs, count), timeout=120)
+            zeros = console.run_command("dd if=/dev/zero bs=%u count=%u|hexdump -C -v" % (bs, count), timeout=240)
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0)
         self.assertTrue( len(zeros) == 3+(count*bs)/16, "Unexpected length of zeros %u" % (len(zeros)))
