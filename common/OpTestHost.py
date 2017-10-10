@@ -916,7 +916,7 @@ class OpTestHost():
         return chips
 
     def host_get_cores(self):
-        proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        proc_gen = self.host_get_proc_gen()
         core_ids = {}
         cpu_files = self.host_run_command("find /sys/devices/system/cpu/ -name 'cpu[0-9]*'")
         for cpu_file in cpu_files:
@@ -946,8 +946,33 @@ class OpTestHost():
         if not "FSP" in bmc_type:
             return True
 
-        proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        proc_gen = self.host_get_proc_gen()
         if proc_gen in ["POWER8", "POWER8E"]:
             return False
 
         return True
+
+    def host_get_proc_gen(self):
+        try:
+            if self.proc_gen:
+                pass
+        except AttributeError:
+            self.proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        return self.proc_gen
+
+    def host_get_smt(self):
+        self.cpu = self.host_get_proc_gen()
+        if self.cpu in ["POWER8", "POWER8E"]:
+            return 8
+        elif self.cpu in ["POWER9"]:
+            return 4
+        else:
+            return 1
+
+    def host_get_core_count(self):
+        res = self.host_run_command("lscpu --all -e| wc -l")
+        return int(res[0])/(self.host_get_smt())
+
+    def host_gather_debug_logs(self):
+        self.ssh.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+        self.ssh.run_command_ignore_fail("dmesg -T --level=alert,crit,err,warn")
