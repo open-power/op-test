@@ -117,7 +117,7 @@ class OpTestConfiguration():
 
         hostgroup.add_argument("--platform",
                                help="Platform (used for EnergyScale tests)",
-                               choices=['unknown','habanero','firestone','garrison','firenze'])
+                               choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
 
         imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
         imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
