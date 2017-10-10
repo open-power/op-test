@@ -1299,3 +1299,11 @@ class OpTestIPMI():
 
     def mc_get_watchdog(self):
         return self.ipmitool.run("mc watchdog get")
+
+class OpTestSMCIPMI(OpTestIPMI):
+
+    def enter_ipmi_lockdown_mode(self):
+        self.ipmitool.run('raw 0x3a 0xf3 0x4c 0x4f 0x43 0x4b 0x00')
+
+    def exit_ipmi_lockdown_mode(self):
+        self.ipmitool.run('raw 0x3a 0xF4 0x55 0x4e 0x4c 0x4f 0x43 0x4b 0x00')

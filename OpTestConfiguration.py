@@ -95,7 +95,7 @@ class OpTestConfiguration():
 
         hostgroup.add_argument("--platform",
                                help="Platform (used for EnergyScale tests)",
-                               choices=['unknown','habanero','firestone','garrison','firenze'])
+                               choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
 
         ffdcgroup = parser.add_argument_group('FFDC', 'First Failure Data Capture')
         ffdcgroup.add_argument("--ffdcdir", help="FFDC directory")

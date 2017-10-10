@@ -67,7 +67,7 @@ class OpTestIPMILockMode(unittest.TestCase):
     #        8. At the end of test issue a ipmi unlock command to revert the availablity of all
     #           in-band ipmi commands in unlocked mode.
     def runTest(self):
-        if not self.platform in ['habanero','firestone','garrison']:
+        if not self.platform in ['habanero','firestone','garrison', 'p9dsu']:
             raise unittest.SkipTest("Platform %s doesn't support IPMI Lockdown mode" % self.platform)
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
