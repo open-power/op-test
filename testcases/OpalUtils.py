@@ -187,7 +187,7 @@ class OpalUtils(unittest.TestCase):
 	self.cv_SYSTEM.host_console_unique_prompt()
 
         self.c.run_command("dmesg -D")
-        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        self.cpu = self.cv_HOST.host_get_proc_gen()
 
         if self.cpu not in ["POWER8", "POWER8E", "POWER9"]:
             self.skipTest("Unknown CPU type %s" % self.cpu)
