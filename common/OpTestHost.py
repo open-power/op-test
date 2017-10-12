@@ -977,3 +977,27 @@ class OpTestHost():
     def host_gather_debug_logs(self):
         self.ssh.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
         self.ssh.run_command_ignore_fail("dmesg -T --level=alert,crit,err,warn")
+
+    def host_copy_fake_gard(self):
+        path = os.path.abspath(os.path.join("common", os.pardir))
+        i_image = path + "/test_binaries/fake.gard"
+        # Copy the fake.gard file to the tmp folder in the host
+        try:
+            self.util.copyFilesToDest(i_image, self.user,
+                                             self.ip, "/tmp/", self.passwd)
+        except:
+            l_msg = "Copying fake.gard file to host failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    def host_pflash_get_partition(self, partition):
+        d = self.host_run_command("pflash --info")
+        for line in d:
+            s = re.search(partition, line)
+            if s:
+                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\).*', line)
+                offset = int(m.group(1), 16)
+                length = int(m.group(4), 16)
+                ret = {'offset': offset, 'length': length}
+        return ret
+
