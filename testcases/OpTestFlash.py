@@ -28,16 +28,15 @@
 #  Firmware flash tests for OpenPower testing.
 #
 #  This class contains the OpenPower Firmware flashing scripts for
-#  AMI platforms 
+#  all the OPAL PowerNV platforms(AMI, FSP, SMC and OpenBMC).
 #
-#   PNOR Flash Update
-#   Lid Updates(Currently skiboot lid) TODO: Add skiroot lid support
+#   Host PNOR Firmware Updates
+#   OPAL Lid Updates(Both Skiboot and Skiroot lids flashing)
 #   Out-of-band HPM Update
 #   In-band HPM Update
 # 
-#  pre-requistes pflash tool should be in /tmp directory of BMC busy box
+#  Tools needed: ipmitool, pflash and pUpdate
 #
-
 
 import os
 import re
@@ -67,6 +66,8 @@ class OpTestFlashBase(unittest.TestCase):
         self.bmc_ip = conf.args.bmc_ip
         self.bmc_username = conf.args.bmc_username
         self.bmc_password = conf.args.bmc_password
+        self.pupdate_binary = conf.args.pupdate
+        self.pflash = conf.args.pflash
 
     def validate_side_activated(self):
         l_bmc_side, l_pnor_side = self.cv_IPMI.ipmi_get_side_activated()
@@ -120,7 +121,6 @@ class PNORFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.host_pnor
-        self.pflash = conf.args.pflash
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
@@ -135,11 +135,15 @@ class PNORFLASH(OpTestFlashBase):
             if not self.cv_BMC.validate_pflash_tool("/tmp"):
                 raise OpTestError("No pflash on BMC")
             self.validate_side_activated()
+        elif "SMC" in self.bmc_type:
+            self.cv_IPMI.pUpdate.set_binary(self.pupdate_binary)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
         if "AMI" in self.bmc_type:
             self.cv_BMC.image_transfer(self.pnor)
             self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
+        elif "SMC" in self.bmc_type:
+            self.cv_IPMI.pUpdate.run(" -pnor %s" % self.pnor)
         elif "OpenBMC" in self.bmc_type:
             if self.cv_BMC.has_new_pnor_code_update():
                 print "BMC has code for the new PNOR Code update via REST"
@@ -196,6 +200,11 @@ class OpalLidsFLASH(OpTestFlashBase):
     def runTest(self):
         if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs:
             self.skipTest("No custom skiboot/kernel to flash")
+
+        if "SMC" in self.bmc_type:
+            # Enable rsync backdoor to copy files into BMC
+            self.cv_IPMI.ipmitool.run("raw 0x30 0x70 0xf9")
+
         if self.pflash:
             self.cv_BMC.image_transfer(self.pflash, "pflash")
 
@@ -203,6 +212,9 @@ class OpalLidsFLASH(OpTestFlashBase):
             if not self.cv_BMC.validate_pflash_tool("/tmp"):
                 raise OpTestError("No pflash on BMC")
             self.validate_side_activated()
+        elif "SMC" in self.bmc_type:
+            if not self.cv_BMC.validate_pflash_tool("/tmp/rsync_file"):
+                raise OpTestError("No pflash on BMC")
 
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
@@ -240,6 +252,14 @@ class OpalLidsFLASH(OpTestFlashBase):
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
                 self.cv_BMC.skiroot_img_flash_ami("/tmp", os.path.basename(self.skiroot_kernel))
+
+        if "SMC" in self.bmc_type:
+            if self.skiboot:
+                self.cv_BMC.image_transfer(self.skiboot)
+                self.cv_BMC.skiboot_img_flash_smc("/tmp/rsync_file", os.path.basename(self.skiboot))
+            if self.skiroot_kernel:
+                self.cv_BMC.image_transfer(self.skiroot_kernel)
+                self.cv_BMC.skiroot_img_flash_smc("/tmp/rsync_file", os.path.basename(self.skiroot_kernel))
 
         if "OpenBMC" in self.bmc_type:
             if self.skiboot:

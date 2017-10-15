@@ -299,3 +299,38 @@ class OpTestSMC(OpTestBMC):
 
     def has_occ_active_sensor(self):
         return False
+
+    def image_transfer(self,i_imageName, copy_as=None):
+
+        img_path = i_imageName
+        rsync_cmd = "rsync -av %s rsync://%s/files/" % (img_path, self.cv_bmcIP)
+        if copy_as:
+            rsync_cmd = rsync_cmd + '/' + copy_as
+        print rsync_cmd
+        rsync = pexpect.spawn(rsync_cmd)
+        rsync.logfile = sys.stdout
+        rsync.expect(pexpect.EOF, timeout=300)
+        rsync.close()
+        return rsync.exitstatus
+
+    def skiboot_img_flash_smc(self, i_pflash_dir, i_imageName):
+        cmd = i_pflash_dir + '/pflash -p /tmp/rsync_file/%s -e -f -P PAYLOAD' % i_imageName
+        rc = self.run_command(cmd, timeout=1800)
+        return rc
+
+    def skiroot_img_flash_smc(self, i_pflash_dir, i_imageName):
+        cmd = i_pflash_dir + '/pflash -p /tmp/rsync_file/%s -e -f -P BOOTKERNEL' % i_imageName
+        rc = self.run_command(cmd, timeout=1800)
+        return rc
+
+    def validate_pflash_tool(self, i_dir=""):
+        i_dir = os.path.join(i_dir, "pflash")
+        # Supermicro BMC busybox doesn't have inbuilt which command
+        cmd = "ls %s" % i_dir
+        try:
+            l_res = self.run_command(cmd)
+        except CommandFailed:
+            l_msg = "# pflash tool is not available on BMC"
+            print l_msg
+            return False
+        return True
