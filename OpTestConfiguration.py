@@ -100,6 +100,7 @@ class OpTestConfiguration():
         bmcgroup.add_argument("--bmc-passwordipmi", help="IPMI password for BMC")
         bmcgroup.add_argument("--bmc-prompt", default="#",
                               help="Prompt for BMC ssh session")
+        bmcgroup.add_argument("--smc-presshipmicmd")
         bmcgroup.add_argument("--qemu-binary", default="qemu-system-ppc64",
                               help="[QEMU Only] qemu simulator binary")
 
@@ -131,6 +132,8 @@ class OpTestConfiguration():
                                 help="Only flash, don't run any tests (even if specified)")
         imagegroup.add_argument("--pflash",
                                 help="pflash to copy to BMC (if needed)")
+        imagegroup.add_argument("--pupdate",
+                                help="pupdate to flash PNOR for Supermicro systems")
 
         self.args , self.remaining_args = parser.parse_known_args(remaining_args)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
