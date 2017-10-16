@@ -77,7 +77,7 @@ class ControlC(unittest.TestCase):
         raw_console = console.get_console()
         #raw_console.sendline("hexdump -C -v /dev/zero")
         raw_console.sendline("find /")
-        time.sleep(0.2)
+        time.sleep(2)
         raw_console.sendcontrol(self.CONTROL)
         BMC_DISCONNECT = 'SOL session closed by BMC'
         timeout = 15
