@@ -353,7 +353,14 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_sel_time_get(self):
         print "Inband IPMI[OPEN]: SEL Time get test"
         c = self.set_up()
-        l_res = c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_TIME_GET)
+        l_res = None
+        try:
+            l_res = c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_TIME_GET)
+        except CommandFailed as cf:
+            if 'Error loading interface usb' in cf.output:
+                self.skipTest("No USB IPMI interface")
+            raise cf
+
         return l_res
 
     ##
@@ -396,15 +403,21 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     #
     def test_sel_get_functionality(self):
         c = self.set_up()
-        l_res = c.run_command(self.ipmi_method + "sel list first 3 | awk '{print $1}'")
-        for entry in l_res:
-            if entry.__contains__("SEL has no entries"):
-                print "IPMI: There are no sel entries to fetch"
-                pass
-            else:
-                l_id = "0x" + entry
-                l_cmd = "sel get %s" % l_id
-                c.run_command(self.ipmi_method + l_cmd)
+        try:
+            l_res = c.run_command(self.ipmi_method + "sel list first 3 | awk '{print $1}'")
+            for entry in l_res:
+                if entry.__contains__("SEL has no entries"):
+                    print "IPMI: There are no sel entries to fetch"
+                    pass
+                else:
+                    l_id = "0x" + entry
+                    l_cmd = "sel get %s" % l_id
+                    c.run_command(self.ipmi_method + l_cmd)
+        except CommandFailed as cf:
+            if 'Error loading interface usb' in cf.output:
+                self.skipTest("No USB IPMI interface")
+            raise cf
+
 
     ##
     # @brief  It will execute and test the ipmi sel clear functionality
@@ -593,6 +606,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             if not self.bmc.has_host_status_sensor():
                 if 'not found' in ''.join(cf.output):
                     self.skipTest("Platform doesn't Sensor")
+                if 'Error loading interface usb' in cf.output:
+                    self.skipTest("No USB IPMI interface")
             self.fail(str(cf))
 
     ##
@@ -607,6 +622,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             if not self.bmc.has_os_boot_sensor():
                 if 'not found' in ''.join(cf.output):
                     self.skipTest("Platform doesn't Sensor")
+                if 'Error loading interface usb' in cf.output:
+                    self.skipTest("No USB IPMI interface")
             self.fail(str(cf))
     ##
     # @brief  It will execute and test the ipmi sensor get "OCC Active" functionality
@@ -620,6 +637,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             if not self.bmc.has_occ_active_sensor():
                 if 'not found' in ''.join(cf.output):
                     self.skipTest("Platform doesn't Sensor")
+                if 'Error loading interface usb' in cf.output:
+                    self.skipTest("No USB IPMI interface")
             self.fail(str(cf))
 
 class ExperimentalInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
