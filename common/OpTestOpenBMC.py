@@ -696,6 +696,9 @@ class HostManagement():
             if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Active':
                 print "Image activated successfully, Good to go for power on...."
                 break
+            if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Failed':
+                print "Image activation failed. Good luck."
+                return False
             if time.time() > timeout:
                 raise OpTestError("Image is failed to activate/Timeout happened")
             time.sleep(5)

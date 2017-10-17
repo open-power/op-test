@@ -167,7 +167,7 @@ class PNORFLASH(OpTestFlashBase):
                         break
                 print "Going to activate image id: %s" % img_id 
                 self.cv_REST.activate_image(img_id)
-                self.cv_REST.wait_for_image_active_complete(img_id)
+                self.assertTrue(self.cv_REST.wait_for_image_active_complete(img_id), "Failed to activate image")
             else:
                 print "Fallback to old code update method using pflash tool"
                 self.cv_BMC.image_transfer(self.pnor)
