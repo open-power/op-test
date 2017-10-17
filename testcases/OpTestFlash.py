@@ -242,6 +242,14 @@ class OpalLidsFLASH(OpTestFlashBase):
                 self.cv_BMC.skiroot_img_flash_ami("/tmp", os.path.basename(self.skiroot_kernel))
 
         if "OpenBMC" in self.bmc_type:
+            try:
+                # OpenBMC started removing overrides *after* flashing new image
+                # but on boot of the host, so we can't assume that just writing
+                # new overrides is going to work. We're going to have to do
+                # this sequence.
+                self.cv_BMC.run_command("systemctl restart mboxd.service")
+            except CommandFailed as cf:
+                pass
             if self.skiboot:
                 self.cv_BMC.image_transfer(self.skiboot)
                 self.cv_BMC.skiboot_img_flash_openbmc(os.path.basename(self.skiboot))
