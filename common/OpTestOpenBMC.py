@@ -616,8 +616,15 @@ class HostManagement():
             # strings are special, or could become special.
             # So, HACK HACK HACK around it. :(
             # https://github.com/openbmc/phosphor-dbus-interfaces/tree/55d03ca/xyz/openbmc_project/Software#image-identifier
-            if m and m.group(1) not in ["active"]:
-                ids.append(m.group(1))
+            # This is getting insane, it's not just 'active'
+            # It's 'functional' as well. Or some other things.
+            # So, we assume that if we don't have 'Purpose' it's something special
+            # like the 'active' or (new) 'functional'.
+            # Adriana has promised me that this is safe into the future.
+            if m:
+                i = self.image_data(m.group(1))
+                if i['data'].get('Purpose') is not None:
+                    ids.append(m.group(1))
 
         print "List of images id's: %s" % ids
         return ids
@@ -698,7 +705,11 @@ class HostManagement():
         l = self.get_list_of_image_ids()
         for id in l:
             i = self.image_data(id)
-            if i['data']['Purpose'] != 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
+            # Here, we assume that if we don't have 'Purpose' it's something special
+            # like the 'active' or (new) 'functional'.
+            # Adriana has promised me that this is safe.
+            print repr(i)
+            if i['data'].get('Purpose') != 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
                 l.remove(id)
         print "Host Image IDS: %s" % repr(l)
         return l
@@ -726,7 +737,7 @@ class OpTestOpenBMC():
         list = self.rest_api.get_list_of_image_ids()
         for id in list:
             i = self.rest_api.image_data(id)
-            if i['data']['Purpose'] == 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
+            if i['data'].get('Purpose') == 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
                 print "Host image"
                 self.has_vpnor = True
                 return True
