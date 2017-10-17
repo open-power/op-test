@@ -93,6 +93,59 @@ class IPMITool():
             output = cmd.communicate()[0]
             return output
 
+class pUpdate():
+    def __init__(self, method='lan', binary='pUpdate',
+                 ip=None, username=None, password=None):
+        self.method = 'lan'
+        self.ip = ip
+        self.username = username
+        self.password = password
+        self.binary = binary
+
+    def set_binary(self, binary):
+        self.binary = binary
+
+    def binary_name(self):
+        return self.binary
+
+    def arguments(self):
+        s = ' -h %s -i %s' % (self.ip, self.method)
+        if self.username:
+            s += ' -u %s' % (self.username)
+        if self.password:
+            s += ' -p %s' % (self.password)
+        s += ' '
+        return s
+
+    def run(self, cmd, background=False, cmdprefix=None, logcmd=True):
+        if cmdprefix:
+            cmd = cmdprefix + self.binary + self.arguments() + cmd
+        else:
+            cmd = self.binary + self.arguments() + cmd
+        if logcmd:
+            print cmd
+        if background:
+            try:
+                child = subprocess.Popen(cmd, shell=True)
+            except:
+                l_msg = "pUpdate Command Failed"
+                print l_msg
+                raise OpTestError(l_msg)
+            return child
+        else:
+            # TODO - need python 2.7
+            # output = check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+            try:
+                cmd = subprocess.Popen(cmd,stderr=subprocess.STDOUT,
+                                       stdout=subprocess.PIPE,shell=True)
+            except:
+                l_msg = "pUpdate Command Failed"
+                print l_msg
+                raise OpTestError(l_msg)
+            output = cmd.communicate()[0]
+            print output
+            return output
+
 class IPMIConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
@@ -284,6 +337,10 @@ class OpTestIPMI():
                                  ip=i_bmcIP,
                                  username=i_bmcUser,
                                  password=i_bmcPwd)
+        self.pUpdate = pUpdate(method='lan',
+                               ip=i_bmcIP,
+                               username=i_bmcUser,
+                               password=i_bmcPwd)
         self.console = IPMIConsole(ipmitool=self.ipmitool,
                                    logdir=i_ffdcDir,
                                    delaybeforesend=delaybeforesend)
