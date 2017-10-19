@@ -52,7 +52,7 @@ except AttributeError:
 
 class OpTestASM:
 
-    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, i_ffdcDir=None):
+    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
         self.password = i_fspPasswd

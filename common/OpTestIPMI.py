@@ -46,12 +46,13 @@ from Exceptions import BMCDisconnected
 
 class IPMITool():
     def __init__(self, method='lanplus', binary='ipmitool',
-                 ip=None, username=None, password=None):
+                 ip=None, username=None, password=None, logfile=sys.stdout):
         self.method = 'lanplus'
         self.ip = ip
         self.username = username
         self.password = password
         self.binary = binary
+        self.logfile = logfile
 
     def binary_name(self):
         return self.binary
@@ -98,10 +99,10 @@ class IPMIConsoleState():
     CONNECTED = 1
 
 class IPMIConsole():
-    def __init__(self, ipmitool=None, logdir=None, delaybeforesend=None):
+    def __init__(self, ipmitool=None, logfile=sys.stdout, delaybeforesend=None):
         self.ipmitool = ipmitool
         self.state = IPMIConsoleState.DISCONNECTED
-        self.logdir = logdir
+        self.logfile = logfile
         self.delaybeforesend = delaybeforesend
 
     def terminate(self):
@@ -139,7 +140,7 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=sys.stdout)
+        solChild = pexpect.spawn(cmd,logfile=self.logfile)
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild
         if self.delaybeforesend:
@@ -275,17 +276,18 @@ class IPMIConsole():
         return output
 
 class OpTestIPMI():
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, i_ffdcDir, host=None, delaybeforesend=None):
+    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, logfile=sys.stdout, host=None, delaybeforesend=None):
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd
-        self.cv_ffdcDir = i_ffdcDir
+        self.logfile = logfile
         self.ipmitool = IPMITool(method='lanplus',
                                  ip=i_bmcIP,
                                  username=i_bmcUser,
-                                 password=i_bmcPwd)
+                                 password=i_bmcPwd,
+                                 logfile=logfile)
         self.console = IPMIConsole(ipmitool=self.ipmitool,
-                                   logdir=i_ffdcDir,
+                                   logfile=logfile,
                                    delaybeforesend=delaybeforesend)
         self.util = OpTestUtil()
         self.host = host
@@ -601,11 +603,9 @@ class OpTestIPMI():
     def ipmi_sel_check(self, i_string="Transition to Non-recoverable"):
         output = self.ipmitool.run('sel elist')
 
-        if self.cv_ffdcDir:
-            logFile = self.cv_ffdcDir + '/' + 'host_sel_elist.log'
-            with open('%s' % logFile, 'w') as f:
-                for line in output:
-                    f.write(line)
+        if self.logfile:
+            for line in output:
+                self.logfile.write(line)
 
         if i_string in output:
             raise OpTestError('Error log(s) detected during IPL: %s' % output)

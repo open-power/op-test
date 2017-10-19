@@ -62,14 +62,13 @@ class OpTestSystem(object):
     #  @param i_bmcPasswd The password of the userid to log into the BMC with
     #  @param i_bmcUserIpmi The userid to issue the BMC IPMI commands with
     #  @param i_bmcPasswdIpmi The password of BMC IPMI userid
-    #  @param i_ffdcDir Optional param to indicate where to write FFDC
     #
     # "Only required for inband tests" else Default = None
     # @param i_hostIP The IP address of the Host
     # @param i_hostuser The userid to log into the Host
     # @param i_hostPasswd The password of the userid to log into the host with
     #
-    def __init__(self,i_ffdcDir=None,
+    def __init__(self,
                  bmc=None, host=None,
                  state=OpSystemState.UNKNOWN):
         self.bmc = self.cv_BMC = bmc
@@ -1279,13 +1278,11 @@ class OpTestSystem(object):
 
 class OpTestFSPSystem(OpTestSystem):
     def __init__(self,
-                 i_ffdcDir=None,
                  host=None,
                  bmc=None,
                  state=OpSystemState.UNKNOWN):
         bmc.fsp_get_console()
-        super(OpTestFSPSystem, self).__init__(i_ffdcDir=i_ffdcDir,
-                                              host=host,
+        super(OpTestFSPSystem, self).__init__(host=host,
                                               bmc=bmc,
                                               state=state)
 
@@ -1315,17 +1312,15 @@ class OpTestFSPSystem(OpTestSystem):
 
 class OpTestOpenBMCSystem(OpTestSystem):
     def __init__(self,
-                 i_ffdcDir=None,
                  host=None,
                  bmc=None,
                  state=OpSystemState.UNKNOWN):
         # Ensure we grab host console early, in order to not miss
         # any messages
         self.console = bmc.get_host_console()
-        super(OpTestOpenBMCSystem, self).__init__(i_ffdcDir=i_ffdcDir,
-                                              host=host,
-                                              bmc=bmc,
-                                              state=state)
+        super(OpTestOpenBMCSystem, self).__init__(host=host,
+                                                  bmc=bmc,
+                                                  state=state)
     # REST Based management
     def sys_inventory(self):
         self.rest.get_inventory()
@@ -1385,17 +1380,15 @@ class OpTestOpenBMCSystem(OpTestSystem):
 
 class OpTestQemuSystem(OpTestSystem):
     def __init__(self,
-                 i_ffdcDir=None,
                  host=None,
                  bmc=None,
                  state=OpSystemState.UNKNOWN):
         # Ensure we grab host console early, in order to not miss
         # any messages
         self.console = bmc.get_host_console()
-        super(OpTestQemuSystem, self).__init__(i_ffdcDir=i_ffdcDir,
-                                              host=host,
-                                              bmc=bmc,
-                                              state=state)
+        super(OpTestQemuSystem, self).__init__(host=host,
+                                               bmc=bmc,
+                                               state=state)
 
     def sys_wait_for_standby_state(self, i_timeout=120):
         self.bmc.power_off()

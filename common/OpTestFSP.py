@@ -53,9 +53,8 @@ class OpTestFSP():
     # @param i_fspIP @type string: IP Address of the FSP
     # @param i_fspUser @type string: Userid to log into the FSP
     # @param i_fspPasswd @type string: Password of the userid to log into the FSP
-    # @param i_ffdcDir @type string: Optional param to indicate where to write FFDC
     #
-    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, i_ffdcDir=None, ipmi=None, rest=None):
+    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, ipmi=None, rest=None):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
         self.password = i_fspPasswd

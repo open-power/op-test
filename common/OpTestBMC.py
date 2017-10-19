@@ -50,14 +50,14 @@ class SSHConnectionState():
     CONNECTED = 1
 
 class OpTestBMC():
-    def __init__(self, ip=None, username=None, password=None, i_ffdcDir=None, ipmi=None, rest=None, web=None):
+    def __init__(self, ip=None, username=None, password=None, logfile=sys.stdout, ipmi=None, rest=None, web=None):
         self.cv_bmcIP = ip
         self.cv_bmcUser = username
         self.cv_bmcPasswd = password
-        self.cv_ffdcDir = i_ffdcDir
         self.cv_IPMI = ipmi
         self.rest = rest
         self.cv_WEB = web
+        self.logfile = logfile
         self.state = SSHConnectionState.DISCONNECTED
 
     def bmc_host(self):
@@ -80,7 +80,7 @@ class OpTestBMC():
         p.SSH_OPTS = p.SSH_OPTS + " -o 'StrictHostKeyChecking=no'"
         p.SSH_OPTS = p.SSH_OPTS + " -o 'UserKnownHostsFile /dev/null' "
         p.force_password = True
-        p.logfile = sys.stdout
+        p.logfile = self.logfile
         p.PROMPT = '# '
         self.pxssh = p
         return p
@@ -201,7 +201,7 @@ class OpTestBMC():
 
         print rsync_cmd
         rsync = pexpect.spawn(rsync_cmd)
-        rsync.logfile = sys.stdout
+        rsync.logfile = self.logfile
         rsync.expect('assword: ')
         rsync.sendline(self.cv_bmcPasswd)
         rsync.expect('total size is', timeout=1800)

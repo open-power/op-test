@@ -59,11 +59,12 @@ class SSHConnectionState():
     CONNECTED = 1
 
 class SSHConnection():
-    def __init__(self, ip=None, username=None, password=None):
+    def __init__(self, ip=None, username=None, password=None, logfile=sys.stdout):
         self.ip = ip
         self.username = username
         self.password = password
         self.state = SSHConnectionState.DISCONNECTED
+        self.logfile = logfile
 
     def new_pxssh(self):
         # pxssh has a nice 'echo=False' mode, but only
@@ -73,7 +74,7 @@ class SSHConnection():
         p.SSH_OPTS = p.SSH_OPTS + " -o 'StrictHostKeyChecking=no'"
         p.SSH_OPTS = p.SSH_OPTS + " -o 'UserKnownHostsFile /dev/null' "
         p.force_password = True
-        p.logfile = sys.stdout
+        p.logfile = self.logfile
         self.pxssh = p
         return p
 
@@ -152,18 +153,16 @@ class OpTestHost():
     # @param i_hostuser @type string: Userid to log into the host
     # @param i_hostpasswd @type string: Password of the userid to log into the host
     # @param i_bmcip @type string: IP Address of the bmc
-    # @param i_ffdcDir @type string:specifies the directory under which to save all FFDC data
     #
-    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_ffdcDir=None):
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, logfile=sys.stdout):
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
-        self.cv_ffdcDir = i_ffdcDir
         parent_dir = os.path.dirname(os.path.abspath(__file__))
-        self.results_dir = self.cv_ffdcDir
-        self.ssh = SSHConnection(i_hostip, i_hostuser, i_hostpasswd)
+        self.logfile = logfile
+        self.ssh = SSHConnection(i_hostip, i_hostuser, i_hostpasswd, logfile=self.logfile)
 
     def hostname(self):
         return self.ip
@@ -270,7 +269,6 @@ class OpTestHost():
 
     ##
     # @brief It will gather OPAL Message logs and store the copy in a logfile
-    #        which will be stored in FFDC dir.
     #
     # @return BMC_CONST.FW_SUCCESS  or raise OpTestError
     #

@@ -49,12 +49,13 @@ class ConsoleState():
     CONNECTED = 1
 
 class HostConsole():
-    def __init__(self, host, username, password, port=22):
+    def __init__(self, host, username, password, logfile=sys.stdout, port=22):
         self.state = ConsoleState.DISCONNECTED
         self.host = host
         self.username = username
         self.password = password
         self.port = port
+        self.logfile = logfile
 
     def terminate(self):
         if self.state == ConsoleState.CONNECTED:
@@ -90,7 +91,7 @@ class HostConsole():
                + " -l %s %s" % (self.username, self.host)
            )
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=sys.stdout)
+        solChild = pexpect.spawn(cmd,logfile=self.logfile)
         self.state = ConsoleState.CONNECTED
         self.sol = solChild
         return solChild
@@ -719,17 +720,18 @@ class HostManagement():
 
 
 class OpTestOpenBMC():
-    def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None):
+    def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
         self.hostname = ip
         self.username = username
         self.password = password
         self.ipmi = ipmi
         self.rest_api = rest_api
         self.has_vpnor = None
+        self.logfile = logfile
         # We kind of hack our way into pxssh by setting original_prompt
         # to also be \n, which appears to fool it enough to allow us
         # continue.
-        self.console = HostConsole(ip, username, password, port=2200)
+        self.console = HostConsole(ip, username, password, port=2200, logfile=self.logfile)
         self.bmc = OpTestBMC(ip=self.hostname,
                             username=self.username,
                             password=self.password)

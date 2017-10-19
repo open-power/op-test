@@ -15,6 +15,8 @@ from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 import argparse
 import time
+import subprocess
+import sys
 
 # Look at the addons dir for any additional OpTest supported types
 # If new type was called Kona, the layout would be as follows
@@ -56,6 +58,8 @@ class OpTestConfiguration():
                             help="Run a test suite(s)")
         tgroup.add_argument("--run", action='append',
                             help="Run individual tests")
+        tgroup.add_argument("--quiet", action='store_true', default=False,
+                            help="Don't splat lots of things to the console")
 
         parser.add_argument("--machine-state", help="Current machine state",
                             choices=['UNKNOWN', 'OFF', 'PETITBOOT',
@@ -96,9 +100,6 @@ class OpTestConfiguration():
         hostgroup.add_argument("--platform",
                                help="Platform (used for EnergyScale tests)",
                                choices=['unknown','habanero','firestone','garrison','firenze'])
-
-        ffdcgroup = parser.add_argument_group('FFDC', 'First Failure Data Capture')
-        ffdcgroup.add_argument("--ffdcdir", help="FFDC directory")
 
         imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
         imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
@@ -148,6 +149,27 @@ class OpTestConfiguration():
         else:
             self.outsuffix = time.strftime("%Y%m%d%H%M%S")
 
+        # set up where all the logs go
+        logfile = os.path.join(self.output,"%s.log" % self.outsuffix)
+        print "Log file: %s" % logfile
+        logcmd = "tee %s" % (logfile)
+        # we use 'cat -v' to convert control characters
+        # to something that won't affect the user's terminal
+        if self.args.quiet:
+            logcmd = logcmd + "> /dev/null"
+        else:
+            logcmd = logcmd + "| sed -u -e 's/\\r$//g'|cat -v"
+
+        print "logcmd: %s" % logcmd
+        self.logfile_proc = subprocess.Popen(logcmd,
+                                             stdin=subprocess.PIPE,
+                                             stderr=sys.stderr,
+                                             stdout=sys.stdout,
+                                             shell=True)
+        print repr(self.logfile_proc)
+        self.logfile = self.logfile_proc.stdin
+        self.logfile.write("Hello World\n")
+
         if self.args.machine_state == None:
             self.startState = OpSystemState.UNKNOWN
         else:
@@ -158,12 +180,14 @@ class OpTestConfiguration():
         host = OpTestHost(self.args.host_ip,
                           self.args.host_user,
                           self.args.host_password,
-                          self.args.bmc_ip)
+                          self.args.bmc_ip,
+                          logfile=self.logfile)
         if self.args.bmc_type in ['AMI', 'SMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
                               self.args.bmc_passwordipmi,
-                              self.args.ffdcdir, host=host)
+                              host=host,
+                              logfile=self.logfile)
             web = OpTestWeb(self.args.bmc_ip,
                             self.args.bmc_usernameipmi,
                             self.args.bmc_passwordipmi)
@@ -172,6 +196,7 @@ class OpTestConfiguration():
                 bmc = OpTestBMC(ip=self.args.bmc_ip,
                                 username=self.args.bmc_username,
                                 password=self.args.bmc_password,
+                                logfile=self.logfile,
                                 ipmi=ipmi,
                                 web=web,
                 )
@@ -183,7 +208,6 @@ class OpTestConfiguration():
                                 web=web,
                 )
             self.op_system = OpTestSystem(
-                i_ffdcDir=self.args.ffdcdir,
                 state=self.startState,
                 bmc=bmc,
                 host=host,
@@ -192,14 +216,14 @@ class OpTestConfiguration():
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
                               self.args.bmc_passwordipmi,
-                              self.args.ffdcdir, host=host)
+                              host=host,
+                              logfile=self.logfile)
             bmc = OpTestFSP(self.args.bmc_ip,
                             self.args.bmc_username,
                             self.args.bmc_password,
                             ipmi=ipmi,
             )
             self.op_system = OpTestFSPSystem(
-                i_ffdcDir=self.args.ffdcdir,
                 state=self.startState,
                 bmc=bmc,
                 host=host,
@@ -208,13 +232,15 @@ class OpTestConfiguration():
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
                               self.args.bmc_passwordipmi,
-                              self.args.ffdcdir, host=host)
+                              host=host,
+                              logfile=self.logfile)
             rest_api = HostManagement(self.args.bmc_ip,
                                 self.args.bmc_username,
                                 self.args.bmc_password)
             bmc = OpTestOpenBMC(self.args.bmc_ip,
                                 self.args.bmc_username,
                                 self.args.bmc_password,
+                                logfile=self.logfile,
                                 ipmi=ipmi, rest_api=rest_api)
             self.op_system = OpTestOpenBMCSystem(
                 host=host,
