@@ -17,6 +17,7 @@ import argparse
 import time
 import subprocess
 import sys
+import ConfigParser
 
 # Look at the addons dir for any additional OpTest supported types
 # If new type was called Kona, the layout would be as follows
@@ -49,6 +50,19 @@ class OpTestConfiguration():
             description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter
         )
+
+        parser.add_argument("-c", "--config-file", help="Configuration File",
+                            metavar="FILE")
+
+        args , remaining_args = parser.parse_known_args(argv)
+        defaults = {}
+        config = ConfigParser.SafeConfigParser()
+        if args.config_file:
+            config.read([args.config_file])
+        config.read([os.path.expanduser("~/.op-test-framework.conf")])
+        defaults = dict(config.items('op-test'))
+
+        parser.set_defaults(**defaults)
 
         tgroup = parser.add_argument_group('Test',
                                            'Tests to run')
@@ -118,7 +132,7 @@ class OpTestConfiguration():
         imagegroup.add_argument("--pflash",
                                 help="pflash to copy to BMC (if needed)")
 
-        self.args , self.remaining_args = parser.parse_known_args(argv)
+        self.args , self.remaining_args = parser.parse_known_args(remaining_args)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
                      'OFF' : OpSystemState.OFF,
                      'PETITBOOT' : OpSystemState.PETITBOOT,

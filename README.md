@@ -106,6 +106,23 @@ For example:
 The above will assume the machine is sitting at the petitboot prompt
 and will run the OpTestPCISkiroot test.
 
+### Configuration Files ###
+
+You can save arguments to `op-test` in a configuration file.
+The `~/.op-test-framework.conf` file is always read, and you can
+specify another with `--config-file`.
+
+For example:
+
+    [op-test]
+    bmc_type=OpenBMC
+    bmc_ip=w39
+    bmc_username=root
+    bmc_password=0penBmc
+    host_ip=w39l
+    host_user=ubuntu
+    host_password=abc123
+
 ### Flashing Firmware ###
 
 In addition to running tests, you can flash firmware before running
