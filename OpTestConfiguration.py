@@ -60,7 +60,10 @@ class OpTestConfiguration():
         if args.config_file:
             config.read([args.config_file])
         config.read([os.path.expanduser("~/.op-test-framework.conf")])
-        defaults = dict(config.items('op-test'))
+        try:
+            defaults = dict(config.items('op-test'))
+        except ConfigParser.NoSectionError:
+            pass
 
         parser.set_defaults(**defaults)
 
