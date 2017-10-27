@@ -93,6 +93,8 @@ class OpTestHMIHandling(unittest.TestCase):
 
     def init_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.proc_gen = self.cv_HOST.host_get_proc_gen()
+
         l_chips = self.cv_HOST.host_get_list_of_chips() # ['00000000', '00000001', '00000010']
         if not l_chips:
             raise Exception("Getscom failed to list processor chip ids")
@@ -117,15 +119,13 @@ class OpTestHMIHandling(unittest.TestCase):
         # [['00000000', ['4', '5', '6', 'c', 'd', 'e']], ['00000001', ['4', '5', '6', 'c', 'd', 'e']], ['00000010', ['4', '5', '6', 'c', 'd', 'e']]]
 
         # In-order to inject HMI errors on cpu's, cpu should be running, so disabling the sleep states 1 and 2 of all CPU's
-        self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE2)
-        self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE1)
-        self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE0)
-        self.cv_HOST.host_run_command(BMC_CONST.DISABLE_CPU_SLEEP_STATE1)
-        self.cv_HOST.host_run_command(BMC_CONST.DISABLE_CPU_SLEEP_STATE2)
-        self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE2)
-        self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE1)
-        self.cv_HOST.host_run_command(BMC_CONST.GET_CPU_SLEEP_STATE0)
+        self.disable_cpu_idle_states()
 
+        # Disable kdump to check behaviour of IPL caused due to kernel panic after injection of core/system checkstop
+        self.disable_kdump_service()
+
+
+    def disable_kdump_service(self):
         l_oslevel = self.cv_HOST.host_get_OS_Level()
         try:
             if "Ubuntu" in l_oslevel:
@@ -136,6 +136,23 @@ class OpTestHMIHandling(unittest.TestCase):
             if cf.exitcode == 5:
                 # kdump may not be enabled, so it's not a failure to stop it
                 pass
+
+    # Disable all CPU idle states except snooze state
+    def disable_cpu_idle_states(self):
+        states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
+        for state in states:
+            if state is "0":
+                self.cv_HOST.host_run_command("cpupower idle-set -e 0")
+                continue
+            self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state)
+
+    def form_scom_addr(self, addr, core):
+        if self.proc_gen in ["POWER8", "POWER8E"]:
+            val = addr[0]+str(core)+addr[2:]
+        elif self.proc_gen in ["POWER9"]:
+            val = hex(eval("0x%s | (((%s & 0x1f) + 0x20) << 24)" % (addr, int(core, 16))))
+            print val
+        return val
 
     def clearGardEntries(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -226,10 +243,17 @@ class OpTestHMIHandling(unittest.TestCase):
     #        and also this function injecting error on all the cpus one by one and 
     #        verify whether cpu is recovered or not.
     def _test_proc_recv_done(self):
+        if self.proc_gen in ["POWER9"]:
+            scom_addr = "20010A40"
+        elif self.proc_gen in ["POWER8", "POWER8E"]:
+            scom_addr = "10013100"
+        else:
+            return
+
         for l_pair in self.l_dic:
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
-                l_reg = "1%s013100" % l_core
+                l_reg = self.form_scom_addr(scom_addr, l_core)
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000" % (l_chip, l_reg)
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
@@ -257,10 +281,17 @@ class OpTestHMIHandling(unittest.TestCase):
     #        Processor went through recovery for an error which is actually masked for reporting
     #        this function also injecting the error on all the cpu's one-by-one.
     def _test_proc_recv_error_masked(self):
+        if self.proc_gen in ["POWER9"]:
+            scom_addr = "20010A40"
+        elif self.proc_gen in ["POWER8", "POWER8E"]:
+            scom_addr = "10013100"
+        else:
+            return
+
         for l_pair in self.l_dic:
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
-                l_reg = "1%s013100" % l_core
+                l_reg = self.form_scom_addr(scom_addr, l_core)
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000" % (l_chip, l_reg)
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
@@ -288,6 +319,13 @@ class OpTestHMIHandling(unittest.TestCase):
     #        A processor core in the system has to be checkstopped (failed recovery).
     #        Injecting core checkstop on random core of random chip
     def _test_malfunction_allert(self):
+        if self.proc_gen in ["POWER9"]:
+            scom_addr = "20010A40"
+        elif self.proc_gen in ["POWER8", "POWER8E"]:
+            scom_addr = "10013100"
+        else:
+            return
+
         # Get random pair of chip vs cores
         l_pair = random.choice(self.l_dic)
         # Get random chip id
@@ -295,7 +333,7 @@ class OpTestHMIHandling(unittest.TestCase):
         # Get random core number
         l_core = random.choice(l_pair[1])
 
-        l_reg = "1%s013100" % l_core
+        l_reg = self.form_scom_addr(scom_addr, l_core)
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 1000000000000000" % (l_chip, l_reg)
 
         # Core checkstop will lead to system IPL, so we will wait for certain time for IPL
@@ -309,6 +347,13 @@ class OpTestHMIHandling(unittest.TestCase):
     # @brief This function is used to test HMI: Hypervisor resource error
     #        Injecting Hypervisor resource error on random core of random chip
     def _test_hyp_resource_err(self):
+        if self.proc_gen in ["POWER9"]:
+            scom_addr = "20010A40"
+        elif self.proc_gen in ["POWER8", "POWER8E"]:
+            scom_addr = "10013100"
+        else:
+            return
+
         # Get random pair of chip vs cores
         l_pair = random.choice(self.l_dic)
         # Get random chip id
@@ -316,7 +361,7 @@ class OpTestHMIHandling(unittest.TestCase):
         # Get random core number
         l_core = random.choice(l_pair[1])
 
-        l_reg = "1%s013100" % l_core
+        l_reg = self.form_scom_addr(scom_addr, l_core)
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
 
         console = self.cv_SYSTEM.sys_get_ipmi_console()
@@ -336,11 +381,18 @@ class OpTestHMIHandling(unittest.TestCase):
     #                          BMC_CONST.TFMR_PURR_PARITY_ERROR
     #                          BMC_CONST.TFMR_SPURR_PARITY_ERROR
     def _testTFMR_Errors(self, i_error):
+        if self.proc_gen in ["POWER9"]:
+            scom_addr = "20010A84"
+        elif self.proc_gen in ["POWER8", "POWER8E"]:
+            scom_addr = "10013281"
+        else:
+            return
+
         l_error = i_error
         for l_pair in self.l_dic:
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
-                l_reg = "1%s013281" % l_core
+                l_reg = self.form_scom_addr(scom_addr, l_core)
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, l_reg, l_error)
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
