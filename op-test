@@ -80,6 +80,7 @@ from testcases import fspTODCorruption
 from testcases import Console
 from testcases import testRestAPI
 from testcases import OpTestPNOR
+from testcases import OpalGard
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -178,6 +179,7 @@ class FullSuite():
         self.s.addTest(testRestAPI.RestAPI())
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
+        self.s.addTest(OpalGard.OpalGard())
         self.s.addTest(OpalUtils.OpalUtils())
         self.s.addTest(OpTestRTCdriver.HostRTC())
         self.s.addTest(OpTestInbandIPMI.full_suite())
