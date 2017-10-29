@@ -188,7 +188,6 @@ class OpTestConfiguration():
                                              shell=True)
         print repr(self.logfile_proc)
         self.logfile = self.logfile_proc.stdin
-        self.logfile.write("Hello World\n")
 
         if self.args.machine_state == None:
             self.startState = OpSystemState.UNKNOWN
