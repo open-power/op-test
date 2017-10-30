@@ -97,7 +97,11 @@ class OpalUtils(unittest.TestCase):
             self.TFMR_PURR_REGISTER = "1%s013281" % core
 
         if self.cpu in ["POWER9"]:
-            self.TFMR_PURR_REGISTER = "20010A84" # Not yet tested
+            self.DOORBELL_REG = "D0063"
+            value = "0x0800000000000000"
+            cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (chip, self.DOORBELL_REG, value)
+            self.c.run_command(cmd)
+            return
 
         cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (chip, self.TFMR_PURR_REGISTER, value)
         try:
@@ -187,12 +191,11 @@ class OpalUtils(unittest.TestCase):
 	self.cv_SYSTEM.host_console_unique_prompt()
 
         self.c.run_command("dmesg -D")
-        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        self.cpu = self.cv_HOST.host_get_proc_gen()
 
         if self.cpu not in ["POWER8", "POWER8E", "POWER9"]:
             self.skipTest("Unknown CPU type %s" % self.cpu)
 
-        self.utils_init()
         self.disable_cpu_sleepstates()
         self.scom_read_operation()
         self.scom_write_opearation()

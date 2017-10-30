@@ -762,6 +762,8 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sensor_get_host_status(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         self.sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
 
     ##
@@ -770,15 +772,15 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sensor_get_os_boot(self):
+        if "AMI" not in self.bmc_type:
+            self.skipTest("OP AMI BMC specific")
         self.sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
 
-    ##
-    # @brief  It will execute and test the ipmi sensor get "OCC Active" functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-    def test_sensor_get_occ_active(self):
-        self.sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
+    def test_sensor_get_boot_progress(self):
+        if "SMC" not in self.bmc_type:
+            self.skipTest("OP SMC BMC specific")
+        self.sensor_byid("Boot Progress")
+
 
     ##
     # @brief  It will execute and test the ipmi sel set <time string> functionality

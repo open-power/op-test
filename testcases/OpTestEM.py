@@ -283,7 +283,10 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         cpu_num = self.get_first_available_cpu()
 
         # Check cpuidle driver enabled
-        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
+        try:
+            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
+        except CommandFailed:
+            self.assertTrue(False, "cpuidle driver is not enabled in kernel")
 
         # TODO: Check the runtime idle states = expected idle states!
         idle_states = self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")

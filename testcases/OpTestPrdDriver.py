@@ -190,7 +190,7 @@ class OpTestPrdDriver(unittest.TestCase):
         self.cv_SYSTEM.host_console_login()
 	self.cv_SYSTEM.host_console_unique_prompt()
 
-        cpu = ''.join(l_con.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        cpu = self.cv_HOST.host_get_proc_gen()
 
         if cpu not in ["POWER8", "POWER8E", "POWER9"]:
             self.skipTest("Unknown CPU type %s" % cpu)

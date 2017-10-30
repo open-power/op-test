@@ -101,14 +101,6 @@ class fspresetReload(unittest.TestCase):
             time.sleep(5)
         return False
 
-    # check the surveilance b/w opal and fsp
-    def check_for_surveillance(self):
-        tries = 20
-        for i in range(0, tries):
-            if self.look_for_in_opal_log("Received heartbeat acknowledge from FSP"):
-                return True
-            time.sleep(6)
-        return False
 
     # check for inband ipmi interface
     def check_for_inbandipmi(self):
@@ -169,7 +161,6 @@ class fspresetReload(unittest.TestCase):
     # Check all these fsp-host interfaces are working fine after fsp rr
     def check_for_fsp_host_interfaces(self):
         self.assertTrue(self.check_psi_link_active(), "PSI Link is not active after fsp rr")
-        self.assertTrue(self.check_for_surveillance(), "Surveilance failed after fsp rr")
         self.assertTrue(self.check_for_rtc(), "Set/Read HW Clock failed after fsp rr")
         self.assertTrue(self.check_for_inbandipmi(), "inband ipmi interface failed after fsp rr")
         self.assertTrue(self.check_for_sensors(), "inband sensors failed after fsp rr")
