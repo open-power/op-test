@@ -45,7 +45,8 @@ class Console():
             zeros = console.run_command("dd if=/dev/zero bs=%u count=%u|hexdump -C -v" % (bs, count), timeout=240)
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0)
-        self.assertTrue( len(zeros) == 3+(count*bs)/16, "Unexpected length of zeros %u" % (len(zeros)))
+        expected = 3+(count*bs)/16
+        self.assertTrue( len(zeros) == expected, "Unexpected length of zeros %u != %u" % (len(zeros), expected))
 
 class Console8k(Console, unittest.TestCase):
     bs = 1024
