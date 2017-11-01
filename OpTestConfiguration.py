@@ -46,15 +46,16 @@ class OpTestConfiguration():
         return
 
     def parse_args(self, argv=None):
+        conf_parser = argparse.ArgumentParser(add_help=False)
         parser = argparse.ArgumentParser(
             description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter
         )
 
-        parser.add_argument("-c", "--config-file", help="Configuration File",
+        conf_parser.add_argument("-c", "--config-file", help="Configuration File",
                             metavar="FILE")
 
-        args , remaining_args = parser.parse_known_args(argv)
+        args , remaining_args = conf_parser.parse_known_args(argv)
         defaults = {}
         config = ConfigParser.SafeConfigParser()
         if args.config_file:
