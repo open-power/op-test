@@ -52,7 +52,10 @@ class OpTestConfiguration():
             formatter_class=argparse.RawDescriptionHelpFormatter
         )
 
+        # We have two parsers so we have correct --help, we need -c in both
         conf_parser.add_argument("-c", "--config-file", help="Configuration File",
+                                 metavar="FILE")
+        parser.add_argument("-c", "--config-file", help="Configuration File",
                             metavar="FILE")
 
         args , remaining_args = conf_parser.parse_known_args(argv)
