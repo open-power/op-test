@@ -32,12 +32,13 @@ class ConsoleState():
     CONNECTED = 1
 
 class QemuConsole():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None):
+    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout):
         self.qemu_binary = qemu_binary
         self.skiboot = skiboot
         self.kernel = kernel
         self.initramfs = initramfs
         self.state = ConsoleState.DISCONNECTED
+        self.logfile = logfile
 
     def terminate(self):
         if self.state == ConsoleState.CONNECTED:
@@ -67,7 +68,7 @@ class QemuConsole():
                + " -initrd %s" % (self.initramfs)
            )
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=sys.stdout)
+        solChild = pexpect.spawn(cmd,logfile=self.logfile)
         self.state = ConsoleState.CONNECTED
         self.sol = solChild
         return solChild
@@ -124,9 +125,12 @@ class QemuIPMI():
     def ipmi_set_boot_to_petitboot(self):
         return 0
 
+    def ipmi_sel_check(self, i_string="Transition to Non-recoverable"):
+        pass
+
 class OpTestQemu():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None):
-        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs)
+    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout):
+        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile)
         self.ipmi = QemuIPMI(self.console)
 
     def get_host_console(self):

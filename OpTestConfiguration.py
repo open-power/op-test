@@ -271,7 +271,8 @@ class OpTestConfiguration():
             bmc = OpTestQemu(self.args.qemu_binary,
                              self.args.flash_skiboot,
                              self.args.flash_kernel,
-                             self.args.flash_initramfs)
+                             self.args.flash_initramfs,
+                             logfile=self.logfile)
             self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
         # Check that the bmc_type exists in our loaded addons then create our objects
         elif self.args.bmc_type in optAddons:
