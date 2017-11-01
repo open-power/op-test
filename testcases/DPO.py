@@ -71,7 +71,8 @@ class DPOSkiroot(Base):
                                           "Chassis Power Control: Soft",
                                           "Power down",
                                           "Invalid command",
-                                          "Unspecified error"
+                                          "Unspecified error",
+                                          "Could not open device at"
                                       ], timeout=120)
             self.assertIn(rc, [0, 1, 2], "Failed to power down")
         except pexpect.TIMEOUT:
