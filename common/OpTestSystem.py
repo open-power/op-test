@@ -312,7 +312,7 @@ class OpTestSystem(object):
             self.host_console_unique_prompt()
         elif l_rc != 1:
             raise Exception("Invalid response to newline. expected $ or # prompt, got: %s" % (l_con.before))
-            
+
         return BMC_CONST.FW_SUCCESS
 
     def host_console_unique_prompt(self):
