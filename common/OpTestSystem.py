@@ -1242,6 +1242,8 @@ class OpTestSystem(object):
                     raise pexpect.TIMEOUT
                 if r in [0,1]:
                     seen = seen + 1
+                else:
+                    t = t - 1
 
             # there will be extra things in the pexpect buffer here
         except pexpect.TIMEOUT as e:
