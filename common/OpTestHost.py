@@ -154,13 +154,14 @@ class OpTestHost():
     # @param i_hostpasswd @type string: Password of the userid to log into the host
     # @param i_bmcip @type string: IP Address of the bmc
     #
-    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, logfile=sys.stdout):
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir, logfile=sys.stdout):
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
         parent_dir = os.path.dirname(os.path.abspath(__file__))
+        self.results_dir = i_results_dir
         self.logfile = logfile
         self.ssh = SSHConnection(i_hostip, i_hostuser, i_hostpasswd, logfile=self.logfile)
 
@@ -737,7 +738,7 @@ class OpTestHost():
     #
     def host_gather_kernel_log(self):
         try:
-            l_data = self.host_run_command("dmesg")
+            l_data = '\n'.join(self.host_run_command("dmesg"))
         except OpTestError:
             l_msg = "Failed to gather kernel dmesg log"
             raise OpTestError(l_msg)
