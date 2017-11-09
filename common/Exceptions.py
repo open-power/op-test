@@ -50,3 +50,38 @@ class KernelConfigNotSet(Exception):
         self.opt = opt
     def __str__(self):
         return "Kernel config %s not present" % (self.opt)
+
+class KernelSoftLockup(Exception):
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Soft lockup (machine in state %s): %s" % (self.state, self.log)
+
+class KernelBug(Exception):
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Kernel bug in state %s: %s" % (self.state, self.log)
+
+class SkibootAssert(Exception):
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Hit skiboot assert in state %s: %s" % (self.state, self.log)
+
+class SkibootException(Exception):
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Hit skiboot unexpected exception in state %s: %s" % (self.state, self.log)
+
+class KernelPanic(Exception):
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Kernel panic in state %s: %s" % (self.state, self.log)

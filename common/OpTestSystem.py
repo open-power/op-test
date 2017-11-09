@@ -34,9 +34,7 @@ import time
 import subprocess
 import pexpect
 
-from OpTestBMC import OpTestBMC
 from OpTestFSP import OpTestFSP
-from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestHost import OpTestHost

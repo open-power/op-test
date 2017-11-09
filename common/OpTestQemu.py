@@ -26,6 +26,7 @@ import pexpect
 import subprocess
 
 from common.Exceptions import CommandFailed
+from common import OPexpect
 
 class ConsoleState():
     DISCONNECTED = 0
@@ -68,7 +69,7 @@ class QemuConsole():
                + " -initrd %s" % (self.initramfs)
            )
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=self.logfile)
+        solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         self.state = ConsoleState.CONNECTED
         self.sol = solChild
         return solChild

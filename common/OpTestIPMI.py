@@ -43,6 +43,7 @@ from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
 from Exceptions import CommandFailed
 from Exceptions import BMCDisconnected
+from common import OPexpect
 
 class IPMITool():
     def __init__(self, method='lanplus', binary='ipmitool',
@@ -193,7 +194,7 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=self.logfile)
+        solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild
         if self.delaybeforesend:

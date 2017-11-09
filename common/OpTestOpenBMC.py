@@ -34,6 +34,7 @@ from OpTestBMC import OpTestBMC
 from Exceptions import CommandFailed
 from common.OpTestError import OpTestError
 from OpTestConstants import OpTestConstants as BMC_CONST
+from common import OPexpect
 
 class FailedCurlInvocation(Exception):
     def __init__(self, command, output):
@@ -91,7 +92,7 @@ class HostConsole():
                + " -l %s %s" % (self.username, self.host)
            )
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=self.logfile)
+        solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         self.state = ConsoleState.CONNECTED
         self.sol = solChild
         return solChild
