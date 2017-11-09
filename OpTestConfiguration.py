@@ -201,6 +201,7 @@ class OpTestConfiguration():
                           self.args.host_user,
                           self.args.host_password,
                           self.args.bmc_ip,
+                          self.output,
                           logfile=self.logfile)
         if self.args.bmc_type in ['AMI', 'SMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
