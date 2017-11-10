@@ -384,14 +384,15 @@ class HostManagement():
         self.curl.run()
 
     '''
-    power soft server: Not yet implemented (TODO)
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X POST -d '{"data":
-    []}' https://bmc/org/openbmc/control/chassis0/action/softPowerOff
+    power soft server:
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data": "xyz.openbmc_project.State.Chassis.Transition.Off"}'
+    https://bmc/xyz/openbmc_project/state/chassis0/attr/RequestedPowerTransition
     '''
     def power_soft(self):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/control/chassis0/action/softPowerOff"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        data = '\'{"data" : \"xyz.openbmc_project.State.Chassis.Transition.Off\"}\''
+        obj = "xyz/openbmc_project/state/chassis0/attr/RequestedPowerTransition"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
@@ -458,16 +459,23 @@ class HostManagement():
             obj = "/xyz/openbmc_project/logging/entry/%s/action/Delete" % id
             self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
             self.curl.run()
+    def verify_clear_sel(self):
+        print "Check if SEL has really zero entries or not"
+        list = []
+        list = self.get_sel_ids()
+        if not list:
+            return True
+        return False
 
     '''
-    clear SEL : Clearing complete SEL is not yet implemented (TODO)
+    clear SEL : Clearing complete SEL
     curl -b cjar -k -H "Content-Type: application/json" -X POST \
     -d '{"data" : []}' \
-    https://bmc/org/openbmc/records/events/action/clear
+    https://bmc/xyz/openbmc_project/logging/action/DeleteAll
     '''
     def clear_sel(self):
         data = '\'{"data" : []}\''
-        obj = "/org/openbmc/records/events/action/clear"
+        obj = "/xyz/openbmc_project/logging/action/DeleteAll"
         try:
             self.curl.feed_data(dbus_object=obj, operation='r', command="POST", data=data)
             self.curl.run()
@@ -476,25 +484,50 @@ class HostManagement():
             pass
 
     '''
+    get current boot device info
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -d '{"data" : []}' -X GET
+    https://bmc/xyz/openbmc_project/control/host0/boot/attr/bootmode
+    '''
+    def get_current_bootdev(self):
+        data = '\'{"data" : []}\''
+        obj = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
+        self.curl.run()
+
+    '''
     set boot device to setup
-    curl -c cjar -b cjar -k -H "Content-Type: application/json" -d "{\"data\": \"Setup\"}" -X PUT
-    https://bmc/org/openbmc/settings/host0/attr/boot_flags
+    curl -c cjar -b cjar -k -H "Content-Type: application/json"
+    -d "{"data": \"xyz.openbmc_project.Control.Boot.Mode.Modes.Setup\"}" -X PUT
+    https://bmc/xyz/openbmc_project/control/host0/boot/attr/bootmode
     '''
     def set_bootdev_to_setup(self):
-        data = '\'{"data": \"Setup\"}\''
-        obj = "/org/openbmc/settings/host0/attr/boot_flags"
+        data = '\'{"data": \"xyz.openbmc_project.Control.Boot.Mode.Modes.Setup\"}\''
+        obj = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
 
     '''
-    set boot device to default
-    curl -c cjar -b cjar -k -H "Content-Type: application/json" -d "{\"data\": \"Default\"}" -X PUT
-    https://bmc/org/openbmc/settings/host0/attr/boot_flags
+    set boot device to regular/default
+    curl -c cjar -b cjar -k -H "Content-Type: application/json"
+    -d "{"data": \"xyz.openbmc_project.Control.Boot.Mode.Modes.Regular\"}" -X PUT
+    https://bmc/xyz/openbmc_project/control/host0/boot/attr/bootmode
     '''
     def set_bootdev_to_none(self):
-        data = '\'{\"data\": \"Default\"}\''
-        obj = "/org/openbmc/settings/host0/attr/boot_flags"
+        data = '\'{"data": \"xyz.openbmc_project.Control.Boot.Mode.Modes.Regular\"}\''
+        obj = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.run()
+
+    '''
+    get boot progress info
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -d
+    '{"data": [ ] }' -X GET
+    https://bmc//xyz/openbmc_project/state/host0/attr/BootProgress
+    '''
+    def get_boot_progress(self):
+        data = '\'{"data" : []}\''
+        obj = "/xyz/openbmc_project/state/host0/attr/BootProgress"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
         self.curl.run()
 
     '''
@@ -544,7 +577,7 @@ class HostManagement():
     '''
     Boot progress
     curl   -b cjar   -k  -H  'Content-Type: application/json'   -d '{"data": [ ] }'
-    -X GET https://bmc//org/openbmc/sensors/host/BootProgress
+    -X GET https://bmc//xyz/openbmc_project/state/host0/attr/BootProgress
     '''
     def old_wait_for_runtime(self, timeout=10):
         data = '\'{"data" : []}\''
