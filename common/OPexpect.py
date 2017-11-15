@@ -41,10 +41,7 @@ class spawn(pexpect.spawn):
                                     searchwindowsize=searchwindowsize,
                                     logfile=logfile,
                                     cwd=cwd, env=env,
-                                    ignore_sighup=ignore_sighup, echo=echo,
-                                    preexec_fn=preexec_fn, encoding=encoding,
-                                    codec_errors=codec_errors,
-                                    dimensions=dimensions)
+                                    ignore_sighup=ignore_sighup)
 
     def expect(self, pattern, timeout=-1, searchwindowsize=-1, async=False):
         op_patterns = ["qemu: could find kernel",
@@ -63,8 +60,8 @@ class spawn(pexpect.spawn):
 
         r = super(spawn,self).expect(patterns,
                                      timeout=timeout,
-                                     searchwindowsize=searchwindowsize,
-                                     async=async)
+                                     searchwindowsize=searchwindowsize)
+
         if r in [pexpect.EOF, pexpect.TIMEOUT]:
             return r
 
