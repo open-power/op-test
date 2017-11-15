@@ -38,7 +38,8 @@ class RestAPI(unittest.TestCase):
         self.system = conf.system()
         self.rest = conf.system().rest
         self.bmc_type = conf.args.bmc_type
-        self.curltool = conf.system().rest.curl
+        if "OpenBMC" in self.bmc_type:
+            self.curltool = conf.system().rest.curl
 
     def runTest(self):
         if "OpenBMC" not in self.bmc_type:
@@ -46,8 +47,6 @@ class RestAPI(unittest.TestCase):
         self.curltool.log_result()
         # Upload image
         self.rest.upload_image(os.path.basename("README.md"))
-        # Software enumerate
-        self.rest.software_enumerate()
         # FRU Inventory
         self.rest.get_inventory()
         # Sensors
