@@ -373,11 +373,18 @@ class HostManagement():
 
     '''
     power off server:
-    curl -c cjar b cjar -k -H "Content-Type: application/json" -X PUT
-    -d '{"data": "xyz.openbmc_project.State.Host.Transition.Off"}'
+    https://bmc/xyz/openbmc_project/state/chassis0/attr/RequestedHostTransition
     https://bmc/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
     '''
     def power_off(self):
+        data = '\'{\"data\" : \"xyz.openbmc_project.State.Chassis.Transition.Off\"}\''
+        obj = "/xyz/openbmc_project/state/chassis0/attr/RequestedPowerTransition"
+        try:
+            self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+            self.curl.run()
+        except FailedCurlInvocation as f:
+            print "# Ignoring failure powering off chassis, trying powering off host"
+            pass
         data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Off\"}\''
         obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
