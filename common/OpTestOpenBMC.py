@@ -117,13 +117,31 @@ class HostConsole():
         console = self.get_console()
         console.sendline(command)
         console.expect("\n") # from us
-        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
-        output = console.before
-
-        console.sendline("echo $?")
-        console.expect("\n") # from us
-        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
-        exitcode = int(console.before)
+        rc = None
+        output = None
+        exitcode = None
+        try:
+            rc = console.expect(["\[console-pexpect\]#$"], timeout)
+            output = console.before
+            console.sendline("echo $?")
+            console.expect("\n") # from us
+            rc = console.expect(["\[console-pexpect\]#$"], timeout)
+            exitcode = int(console.before)
+        except pexpect.TIMEOUT as e:
+            print e
+            print "# TIMEOUT waiting for command to finish."
+            print "# Attempting to control-c"
+            try:
+                console.sendcontrol('c')
+                rc = console.expect(["\[console-pexpect\]#$"], 10)
+                if rc == 0:
+                    raise CommandFailed(command, "TIMEOUT", -1)
+            except pexpect.TIMEOUT:
+                print "# Timeout trying to kill timed-out command."
+                print "# Failing current command and attempting to continue"
+                self.terminate()
+                raise CommandFailed("ssh -p 2222", "timeout", -1)
+            raise e
 
         if rc == 0:
             res = output
