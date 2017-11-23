@@ -20,10 +20,12 @@
 
 # Support testing against Qemu simulator
 
+import atexit
 import sys
 import time
 import pexpect
 import subprocess
+import tempfile
 
 from common.Exceptions import CommandFailed
 from common import OPexpect
@@ -33,11 +35,12 @@ class ConsoleState():
     CONNECTED = 1
 
 class QemuConsole():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout):
+    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None):
         self.qemu_binary = qemu_binary
         self.skiboot = skiboot
         self.kernel = kernel
         self.initramfs = initramfs
+        self.hda = hda
         self.state = ConsoleState.DISCONNECTED
         self.logfile = logfile
 
@@ -66,8 +69,12 @@ class QemuConsole():
                + " -nographic"
                + " -bios %s" % (self.skiboot)
                + " -kernel %s" % (self.kernel)
-               + " -initrd %s" % (self.initramfs)
            )
+        if self.initramfs is not None:
+            cmd = cmd + " -initrd %s" % (self.initramfs)
+        if self.hda is not None:
+            cmd = cmd + " -hda %s" % (self.hda)
+
         print cmd
         solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         self.state = ConsoleState.CONNECTED
@@ -132,8 +139,17 @@ class QemuIPMI():
 
 class OpTestQemu():
     def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout):
-        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile)
+        self.qemu_hda_file = tempfile.NamedTemporaryFile(delete=True)
+        atexit.register(self.__del__)
+        create_hda = subprocess.check_call(["qemu-img", "create",
+                                            "-fqcow2",
+                                            self.qemu_hda_file.name,
+                                            "10G"])
+        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile, hda=self.qemu_hda_file.name)
         self.ipmi = QemuIPMI(self.console)
+
+    def __del__(self):
+        self.qemu_hda_file.close()
 
     def get_host_console(self):
         return self.console
