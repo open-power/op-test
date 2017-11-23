@@ -207,7 +207,7 @@ class OpTestSystem(object):
 
         if state == OpSystemState.PETITBOOT:
             self.exit_petitboot_shell()
-            return OpSystemState.PETITBOOT_SHELL
+            return OpSystemState.PETITBOOT
 
         self.sys_power_off()
         return OpSystemState.POWERING_OFF
