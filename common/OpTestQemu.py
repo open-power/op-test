@@ -35,7 +35,7 @@ class ConsoleState():
     CONNECTED = 1
 
 class QemuConsole():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None):
+    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None, ubuntu_cdrom=None):
         self.qemu_binary = qemu_binary
         self.skiboot = skiboot
         self.kernel = kernel
@@ -43,6 +43,7 @@ class QemuConsole():
         self.hda = hda
         self.state = ConsoleState.DISCONNECTED
         self.logfile = logfile
+        self.ubuntu_cdrom = ubuntu_cdrom
 
     def terminate(self):
         if self.state == ConsoleState.CONNECTED:
@@ -74,6 +75,9 @@ class QemuConsole():
             cmd = cmd + " -initrd %s" % (self.initramfs)
         if self.hda is not None:
             cmd = cmd + " -hda %s" % (self.hda)
+        if self.ubuntu_cdrom is not None:
+            cmd = cmd + " -cdrom %s" % (self.ubuntu_cdrom)
+        cmd = cmd + " -netdev user,id=u1 -device e1000,netdev=u1"
 
         print cmd
         solChild = OPexpect.spawn(cmd,logfile=self.logfile)
@@ -138,14 +142,14 @@ class QemuIPMI():
         pass
 
 class OpTestQemu():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout):
+    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, ubuntu_cdrom=None, logfile=sys.stdout):
         self.qemu_hda_file = tempfile.NamedTemporaryFile(delete=True)
         atexit.register(self.__del__)
         create_hda = subprocess.check_call(["qemu-img", "create",
                                             "-fqcow2",
                                             self.qemu_hda_file.name,
                                             "10G"])
-        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile, hda=self.qemu_hda_file.name)
+        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile, hda=self.qemu_hda_file.name, ubuntu_cdrom=ubuntu_cdrom)
         self.ipmi = QemuIPMI(self.console)
 
     def __del__(self):

@@ -154,7 +154,8 @@ class OpTestHost():
     # @param i_hostpasswd @type string: Password of the userid to log into the host
     # @param i_bmcip @type string: IP Address of the bmc
     #
-    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir, logfile=sys.stdout):
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
+                 scratch_disk="", proxy="", logfile=sys.stdout):
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
@@ -164,6 +165,9 @@ class OpTestHost():
         self.results_dir = i_results_dir
         self.logfile = logfile
         self.ssh = SSHConnection(i_hostip, i_hostuser, i_hostpasswd, logfile=self.logfile)
+        self.scratch_disk = scratch_disk
+        self.proxy = proxy
+        self.scratch_disk_size = None
 
     def hostname(self):
         return self.ip
@@ -173,6 +177,25 @@ class OpTestHost():
 
     def password(self):
         return self.passwd
+
+    def get_scratch_disk(self):
+        return self.scratch_disk
+
+    def get_scratch_disk_size(self, console=None):
+        if self.scratch_disk_size is not None:
+            return self.scratch_disk_size
+        if console is None:
+            raise Exception("You need to call get_scratch_disk_size() with a console first")
+        console.run_command("stty cols 300")
+        dev_sdX = console.run_command("readlink -f %s" % self.get_scratch_disk())
+        dev_sdX = dev_sdX[0].replace("/dev/","")
+        scratch_disk_size = console.run_command("cat /sys/block/%s/size" % dev_sdX)
+        # Use the (undocumented) /size sysfs property of nr 512byte sectors
+        self.scratch_disk_size = int(scratch_disk_size[0])*512
+
+
+    def get_proxy(self):
+        return self.proxy
 
     def get_ssh_connection(self):
         return self.ssh

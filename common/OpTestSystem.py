@@ -33,6 +33,7 @@
 import time
 import subprocess
 import pexpect
+import socket
 
 from OpTestFSP import OpTestFSP
 from OpTestConstants import OpTestConstants as BMC_CONST
@@ -1275,6 +1276,21 @@ class OpTestSystem(object):
         console.sendline('')
         console.expect('login: ', timeout)
 
+    def get_my_ip_from_host_perspective(self):
+        rawc = self.console.get_console()
+        port = 12340
+        rawc.send("nc -c -l -p %u -v -e /bin/true\n" % port)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        time.sleep(0.5)
+        print "# Connecting to %s:%u" % (self.host().hostname(),port)
+        sock.connect((self.host().hostname(), port))
+        sock.send('Hello World!')
+        sock.close()
+        rawc.expect('Connection from ')
+        rawc.expect(':')
+        my_ip = rawc.before
+        rawc.expect('\n')
+        return my_ip
 
 class OpTestFSPSystem(OpTestSystem):
     def __init__(self,
@@ -1386,6 +1402,8 @@ class OpTestQemuSystem(OpTestSystem):
         # Ensure we grab host console early, in order to not miss
         # any messages
         self.console = bmc.get_host_console()
+        if host.scratch_disk is None:
+            host.scratch_disk = "/dev/sda"
         super(OpTestQemuSystem, self).__init__(host=host,
                                                bmc=bmc,
                                                state=state)
@@ -1399,3 +1417,6 @@ class OpTestQemuSystem(OpTestSystem):
 
     def sys_power_on(self):
         self.bmc.power_on()
+
+    def get_my_ip_from_host_perspective(self):
+        return "10.0.2.2"

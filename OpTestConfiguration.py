@@ -116,12 +116,18 @@ class OpTestConfiguration():
         hostgroup.add_argument("--host-user", help="SSH username for Host")
         hostgroup.add_argument("--host-password", help="SSH password for Host")
         hostgroup.add_argument("--host-lspci", help="Known 'lspci -n -m' for host")
+        hostgroup.add_argument("--host-scratch-disk", help="A block device we can erase", default="")
+        hostgroup.add_argument("--proxy", default="", help="proxy for the Host to access the internet. "
+                               "Only needed for tests that install an OS")
         hostgroup.add_argument("--host-prompt", default="#",
                                help="Prompt for Host SSH session")
 
         hostgroup.add_argument("--platform",
                                help="Platform (used for EnergyScale tests)",
                                choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
+
+        osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
+        osgroup.add_argument("--ubuntu-cdrom", help="Ubuntu ppc64el CD/DVD install image")
 
         imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
         imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
@@ -205,6 +211,8 @@ class OpTestConfiguration():
                           self.args.host_password,
                           self.args.bmc_ip,
                           self.output,
+                          scratch_disk=self.args.host_scratch_disk,
+                          proxy=self.args.proxy,
                           logfile=self.logfile)
         if self.args.bmc_type in ['AMI', 'SMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
@@ -277,6 +285,7 @@ class OpTestConfiguration():
                              self.args.flash_skiboot,
                              self.args.flash_kernel,
                              self.args.flash_initramfs,
+                             ubuntu_cdrom=self.args.ubuntu_cdrom,
                              logfile=self.logfile)
             self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
         # Check that the bmc_type exists in our loaded addons then create our objects
