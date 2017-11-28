@@ -744,6 +744,19 @@ class HostManagement():
         print "Host Image IDS: %s" % repr(l)
         return l
 
+    def bmc_image_ids(self):
+        l = self.get_list_of_image_ids()
+        for id in l[:]:
+            i = self.image_data(id)
+            # Here, we assume that if we don't have 'Purpose' it's something special
+            # like the 'active' or (new) 'functional'.
+            # Adriana has promised me that this is safe.
+            print repr(i)
+            if i['data'].get('Purpose') != 'xyz.openbmc_project.Software.Version.VersionPurpose.BMC':
+                l.remove(id)
+        print "BMC Image IDS: %s" % repr(l)
+        return l
+
 
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
