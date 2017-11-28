@@ -164,12 +164,18 @@ class PNORFLASH(OpTestFlashBase):
 
                 self.cv_REST.upload_image(self.pnor)
                 img_ids = self.cv_REST.host_image_ids()
-                img_id = None
+                retries = 60
+                while len(img_ids) == 0 and retries > 0:
+                    time.sleep(1)
+                    img_ids = self.cv_REST.host_image_ids()
+                    retries = retries - 1
+                self.assertTrue(retries > 0, "Uploaded image but it never showed up")
                 for img_id in img_ids:
                     d = self.cv_REST.image_data(img_id)
                     if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
                         break
-                print "Going to activate image id: %s" % img_id 
+                print "Going to activate image id: %s" % img_id
+                self.assertIsNotNone(img_id, "Could not find Image ID")
                 self.cv_REST.activate_image(img_id)
                 self.assertTrue(self.cv_REST.wait_for_image_active_complete(img_id), "Failed to activate image")
             else:
