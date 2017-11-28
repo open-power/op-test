@@ -48,6 +48,7 @@ class spawn(pexpect.spawn):
                        "INFO: rcu_sched self-detected stall on CPU",
                        "kernel BUG at",
                        "Kernel panic",
+                       "Watchdog .* Hard LOCKUP",
                        "\[[0-9. ]+,0\] Assert fail:",
                        "\[[0-9. ]+,[0-9]\] Unexpected exception",
         ]
@@ -68,7 +69,7 @@ class spawn(pexpect.spawn):
         if r == 0:
             raise CommandFailed(self.command, patterns[r], -1)
 
-        if r in [1,2,3,4,5]:
+        if r in [1,2,3,4,5,6]:
             # We set the system state to UNKNOWN as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
@@ -77,17 +78,18 @@ class spawn(pexpect.spawn):
             if self.op_test_system is not None:
                 state = self.op_test_system.get_state()
                 self.op_test_system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
-        if r in [1,2,3]:
+        if r in [1,2,3,4]:
             log = self.after
             l = 0
 
             while l is not pexpect.TIMEOUT:
                 l = super(spawn,self).expect(["INFO: rcu_sched self-detected stall on CPU",
-                                             ":mon>",
-                                             "Rebooting in \d+ seconds"],
+                                              ":mon>",
+                                              "Rebooting in \d+ seconds",
+                                              "Kernel panic - not syncing: Hard LOCKUP"],
                                              timeout=10)
                 log = log + self.before + self.after
-                if l in [1,2]:
+                if l in [1,2,3]:
                     # We know we have the end of the error message, so let's stop here.
                     break
 
@@ -97,8 +99,10 @@ class spawn(pexpect.spawn):
                 raise KernelBug(state, log)
             if r == 3:
                 raise KernelPanic(state, log)
+            if r == 4:
+                raise KernelHardLockup(state, log)
 
-        if r in [4,5]:
+        if r in [5,6]:
             l = 0
             log = self.after
             l = super(spawn,self).expect("boot_entry.*\r\n", timeout=10)
