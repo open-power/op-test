@@ -116,6 +116,79 @@ class OpTestFlashBase(unittest.TestCase):
         output = self.cv_BMC.run_command("cat %s | grep \"version=\"" % path)
         return output[0].split("=")[-1]
 
+    def wait_for_bmc_runtime(self):
+        self.util.PingFunc(self.bmc_ip, BMC_CONST.PING_RETRY_FOR_STABILITY)
+        if "SMC" in self.bmc_type:
+            self.cv_IPMI.ipmi_wait_for_bmc_runtime()
+        elif "OpenBMC" in self.bmc_type:
+            self.cv_REST.wait_for_bmc_runtime()
+        return
+
+
+class BmcImageFlash(OpTestFlashBase):
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.bmc_image = conf.args.bmc_image
+        super(BmcImageFlash, self).setUp()
+
+    def runTest(self):
+        if not self.bmc_image or not os.path.exists(self.bmc_image):
+            self.skipTest("BMC image %s not doesn't exist" % self.bmc_image)
+
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.sys_sdr_clear()
+
+        if "SMC" in self.bmc_type:
+            self.cv_IPMI.pUpdate.set_binary(self.pupdate_binary)
+            self.cv_IPMI.pUpdate.run(" -f  %s" % self.bmc_image)
+            self.wait_for_bmc_runtime()
+        elif "OpenBMC" in self.bmc_type:
+            if self.cv_BMC.has_new_pnor_code_update():
+                # Assume all new systems has new BMC code update via REST
+                print "BMC has code for the new PNOR Code update via REST"
+                try:
+                    # because openbmc
+                    l_res = self.cv_BMC.run_command("rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
+                except CommandFailed as cf:
+                    # Ok to just keep giong, may not have patched firmware
+                    pass
+                self.cv_REST.upload_image(self.bmc_image)
+                img_ids = self.cv_REST.bmc_image_ids()
+                retries = 60
+                while len(img_ids) == 0 and retries > 0:
+                    time.sleep(1)
+                    img_ids = self.cv_REST.bmc_image_ids()
+                    retries = retries - 1
+                self.assertTrue(retries > 0, "Uploaded image but it never showed up")
+                for img_id in img_ids:
+                    d = self.cv_REST.image_data(img_id)
+                    if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
+                        break
+                print "Going to activate image id: %s" % img_id
+                self.assertIsNotNone(img_id, "Could not find Image ID")
+                self.cv_REST.activate_image(img_id)
+                self.assertTrue(self.cv_REST.wait_for_image_active_complete(img_id), "Failed to activate image")
+                # On SMC reboot will happen automatically, but on OpenBMC needs manual reboot to upgrade the BMC FW.
+                self.cv_BMC.reboot()
+                self.wait_for_bmc_runtime()
+        c = 0
+        while True:
+            time.sleep(5)
+            try:
+                self.cv_SYSTEM.sys_wait_for_standby_state()
+            except OpTestError as e:
+                c+=1
+                if c == 10:
+                    raise e
+            else:
+                break
+
+        self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        console = self.cv_SYSTEM.console.get_console()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.sys_sel_check()
+
 
 class PNORFLASH(OpTestFlashBase):
     def setUp(self):
