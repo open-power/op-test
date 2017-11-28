@@ -733,7 +733,7 @@ class HostManagement():
 
     def host_image_ids(self):
         l = self.get_list_of_image_ids()
-        for id in l:
+        for id in l[:]:
             i = self.image_data(id)
             # Here, we assume that if we don't have 'Purpose' it's something special
             # like the 'active' or (new) 'functional'.
