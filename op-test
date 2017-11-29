@@ -113,9 +113,9 @@ class SkirootSuite():
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
         self.s.addTest(Console.suite())
+        self.s.addTest(OpTestPNOR.OpTestPNOR())
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
-        self.s.addTest(OpTestPNOR.OpTestPNOR())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
@@ -141,9 +141,9 @@ class HostSuite():
         self.s.addTest(OpTestHeartbeat.HeartbeatHost())
         self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(OpalErrorLog.BasicTest())
+        self.s.addTest(OpTestPrdDaemon.OpTestPrdDaemon())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
-        self.s.addTest(OpTestPrdDaemon.OpTestPrdDaemon())
     def suite(self):
         return self.s
 
@@ -190,6 +190,8 @@ class FullSuite():
         self.s.addTest(OpalErrorLog.FullTest())
         self.s.addTest(DPO.DPOHost())
         self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
+        self.s.addTest(OpalMsglog.Host())
+        self.s.addTest(KernelLog.Host())
     def suite(self):
         return self.s
 
