@@ -41,7 +41,6 @@
 import os
 import re
 import time
-import commands
 import unittest
 import tarfile
 
@@ -80,19 +79,7 @@ class OpTestFlashBase(unittest.TestCase):
         print rc
 
     def bmc_down_check(self):
-        cmd = "ping -c 1 " + self.cv_BMC.host_name + " 1> /dev/null; echo $?"
-        count = 0
-        while count < 500:
-            output = commands.getstatusoutput(cmd)
-            if output[1] != '0':
-                print "FSP/BMC Comes down"
-                break
-            count = count + 1
-            time.sleep(2)
-        else:
-            self.assertTrue(False, "FSP/BMC keeps on pinging up")
-
-        return True
+        self.assertTrue(self.util.ping_fail_check(self.cv_BMC.host_name), "FSP/BMC keeps on pinging up")
 
     def scp_file(self, src_file_path, dst_file_path):
         self.util.copyFilesToDest(src_file_path, self.bmc_username, self.bmc_ip,
