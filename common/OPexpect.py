@@ -49,6 +49,7 @@ class spawn(pexpect.spawn):
                        "kernel BUG at",
                        "Kernel panic",
                        "Watchdog .* Hard LOCKUP",
+                       "Oops: Kernel access of bad area"
                        "\[[0-9. ]+,0\] Assert fail:",
                        "\[[0-9. ]+,[0-9]\] Unexpected exception",
                        "OPAL: Reboot requested due to Platform error."
@@ -70,7 +71,7 @@ class spawn(pexpect.spawn):
         if r == 0:
             raise CommandFailed(self.command, patterns[r], -1)
 
-        if r in [1,2,3,4,5,6,7]:
+        if r in [1,2,3,4,5,6,7,8]:
             # We set the system state to UNKNOWN as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
@@ -79,7 +80,7 @@ class spawn(pexpect.spawn):
             if self.op_test_system is not None:
                 state = self.op_test_system.get_state()
                 self.op_test_system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
-        if r in [1,2,3,4]:
+        if r in [1,2,3,4,5]:
             log = self.after
             l = 0
 
@@ -102,18 +103,20 @@ class spawn(pexpect.spawn):
                 raise KernelPanic(state, log)
             if r == 4:
                 raise KernelHardLockup(state, log)
+            if r == 5:
+                raise KernelOOPS(state, log)
 
-        if r in [5,6]:
+        if r in [6,7]:
             l = 0
             log = self.after
             l = super(spawn,self).expect("boot_entry.*\r\n", timeout=10)
             log = log + self.before + self.after
-            if r == 4:
+            if r == 6:
                 raise SkibootAssert(state, log)
-            if r == 5:
+            if r == 7:
                 raise SkibootException(state, log)
 
-        if r in [7]:
+        if r in [8]:
             # Reboot due to Platform error
             # Let's attempt to capture Hostboot output
             log = self.before + self.after
