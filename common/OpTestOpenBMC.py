@@ -174,7 +174,7 @@ class CurlTool():
 
     def feed_data(self, dbus_object=None, action=None,
                   operation=None, command=None,
-                  data=None, header=None, upload_file=None):
+                  data=None, header=None, upload_file=None, remote_name=None):
         self.object = dbus_object
         self.action = action
         self.operation = operation # 'r-read, w-write, rw-read/write'
@@ -182,6 +182,7 @@ class CurlTool():
         self.data = data
         self.header = self.custom_header(header)
         self.upload_file = upload_file
+        self.remote_file = remote_name
 
     def binary_name(self):
         return self.binary
@@ -241,6 +242,10 @@ class CurlTool():
         args = " -s"
         args += " %s " % self.get_cookies()
         args += " -k "
+        # -J, --remote-header-name  Use the header-provided filename (H)
+        #  -O, --remote-name   Write output to a file named as the remote file
+        if self.remote_file:
+            args += " -O -J "
         if self.header:
             args += " -H %s " % self.header
         if self.data:
@@ -757,6 +762,91 @@ class HostManagement():
                 l.remove(id)
         print "BMC Image IDS: %s" % repr(l)
         return l
+
+    """
+    Listing available Dumps:
+    $ curl -c cjar -b cjar -k https://$BMC_IP/xyz/openbmc_project/dump/list
+    """
+    def list_available_dumps(self):
+        obj = "/xyz/openbmc_project/dump/list"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        return self.curl.run()
+
+
+    def get_dump_ids(self):
+        dump_ids = []
+        output = self.list_available_dumps()
+        data = json.loads(output)
+        print repr(data)
+        for k in data['data']:
+            print repr(k)
+            m = re.match(r"/xyz/openbmc_project/dump/entry/(\d{1,})$", k)
+            if m:
+                dump_ids.append(m.group(1))
+        print repr(dump_ids)
+        return dump_ids
+
+    """
+    Down Load Dump:
+    $ curl -O -J -c cjar -b cjar -k -X GET https://$BMC_IP/download/dump/$ID
+    """
+    def download_dump(self, dump_id):
+        obj = "/download/dump/%s" % dump_id
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", remote_name=True)
+        self.curl.run()
+
+    """
+    Delete dump.
+    $ curl -c cjar -b cjar -k -H "Content-Type: application/json" -d "{\"data\": []}"
+      -X POST  https://$BMC_IP/xyz/openbmc_project/dump/entry/3/action/Delete
+    """
+    def delete_dump(self, dump_id):
+        obj = "/xyz/openbmc_project/dump/entry/%s/action/Delete" % dump_id
+        data = '\'{"data" : []}\''
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.run()
+
+    def delete_all_dumps(self):
+        ids = self.get_dump_ids()
+        for id in ids:
+            self.delete_dump(id)
+
+    """
+    Create new Dump:
+    $ curl -c cjar -b cjar -k -H "Content-Type: application/json" -d "{\"data\": []}" 
+       -X POST  https://$BMC_IP/xyz/openbmc_project/dump/action/CreateDump
+    """
+    def create_new_dump(self):
+        obj = "/xyz/openbmc_project/dump/action/CreateDump"
+        data = '\'{"data" : []}\''
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        dump_capture = False
+        try:
+            output = self.curl.run()
+            dump_capture = True
+        except FailedCurlInvocation as cf:
+            output = cf.output
+        data = json.loads(output)
+        if dump_capture:
+            print "OpenBMC Dump capture was successful"
+            return data['data']
+        print repr(data['data'].get('exception'))
+        if data['data']['exception'] == "DBusException('Dump not captured due to a cap.',)":
+            print "Dumps are exceeded in the system, trying to delete existing ones"
+            self.delete_all_dumps()
+            output = self.curl.run()
+            data = json.loads(output)
+            return data['data']
+
+    def wait_for_dump_finish(self, dump_id):
+        for i in range(20):
+            ids = self.get_dump_ids()
+            if str(dump_id) in ids:
+                print "Dump %s is ready to download/offload" % str(dump_id)
+                return True
+            time.sleep(5)
+        else:
+            return False
 
 
 class OpTestOpenBMC():
