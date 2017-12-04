@@ -71,7 +71,9 @@ class OpTestEEH(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
-        self.skip_phbs = []
+        # By default test will run on all PHBs/PE's, if one want to skip certain ones mention in this format.
+        self.skip_phbs = [] # ['PCI0001', 'PCI0002', 'PCI0003', 'PCI0004', 'PCI0005', 'PCI0030', 'PCI0031', 'PCI0032']
+        self.skip_pes = [] # ['0002:00:00.0']
 
     def set_up(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -95,6 +97,9 @@ class OpTestEEH(unittest.TestCase):
         pci_domains = self.cv_HOST.host_get_list_of_pci_domains()
         print "Skipping the root phb %s for both fenced/frozen EEH Testcases" % root_domain
         pci_domains.remove(root_domain)
+        if len(self.skip_phbs) != 0:
+            print "Skipping the known phbs %s from user" % self.skip_phbs
+            pci_domains = [domain for domain in pci_domains if domain not in self.skip_phbs]
         return pci_domains
 
     ##
@@ -177,8 +182,10 @@ class OpTestEEH(unittest.TestCase):
         # Get list of PE's
         console = self.cv_SYSTEM.sys_get_ipmi_console()
         res = console.run_command("ls /sys/bus/pci/devices/ | awk {'print $1'}")
+        if len(self.skip_pes) != 0:
+            print "Skipping the known PE's %s from user" % self.skip_pes
         for pe in res:
-            if not pe:
+            if not pe or pe in self.skip_pes:
                 continue
             cmd = "cat /sys/bus/pci/devices/%s/eeh_pe_config_addr" % pe
             addr = console.run_command(cmd)
