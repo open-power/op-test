@@ -36,6 +36,7 @@ import select
 import time
 import pty
 import pexpect
+import commands
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -196,3 +197,19 @@ class OpTestUtil():
 
         print(list)
         return list
+
+    # It waits for a ping to fail, Ex: After a BMC/FSP reboot
+    def ping_fail_check(self, i_ip):
+        cmd = "ping -c 1 " + i_ip + " 1> /dev/null; echo $?"
+        count = 0
+        while count < 500:
+            output = commands.getstatusoutput(cmd)
+            if output[1] != '0':
+                print "IP %s Comes down" % i_ip
+                break
+            count = count + 1
+            time.sleep(2)
+        else:
+            print "IP %s keeps on pinging up" % i_ip
+            return False
+        return True

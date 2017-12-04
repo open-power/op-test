@@ -130,6 +130,7 @@ class OpTestConfiguration():
         osgroup.add_argument("--ubuntu-cdrom", help="Ubuntu ppc64el CD/DVD install image")
 
         imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
+        imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
         imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
         imagegroup.add_argument("--host-hpm", help="HPM image to flash")
         imagegroup.add_argument("--host-img-url", help="URL to Host Firmware image to flash on FSP systems (Must be URL accessible petitboot shell on the host)")

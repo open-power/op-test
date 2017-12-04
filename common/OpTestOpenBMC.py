@@ -594,10 +594,11 @@ class HostManagement():
         obj = "/xyz/openbmc_project/state/bmc0/attr/RequestedBMCTransition"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         self.curl.run()
-        time.sleep(10)
+        # Wait for BMC to go down.
+        self.util.ping_fail_check(self.hostname)
+        # Wait for BMC to ping back.
         self.util.PingFunc(self.hostname, BMC_CONST.PING_RETRY_FOR_STABILITY)
-        time.sleep(5) # Need some stablity here
-        self.login()
+        # Wait for BMC ready state.
         self.wait_for_bmc_runtime()
 
     def get_bmc_state(self):
@@ -613,8 +614,8 @@ class HostManagement():
                 self.login()
             try:
                 output = self.get_bmc_state()
-            except:
-                pass
+            except FailedCurlInvocation as cf:
+                output = cf.output
             if '"data": "xyz.openbmc_project.State.BMC.BMCState.Ready"' in output:
                 print "BMC is UP & Ready"
                 break
@@ -744,6 +745,19 @@ class HostManagement():
         print "Host Image IDS: %s" % repr(l)
         return l
 
+    def bmc_image_ids(self):
+        l = self.get_list_of_image_ids()
+        for id in l[:]:
+            i = self.image_data(id)
+            # Here, we assume that if we don't have 'Purpose' it's something special
+            # like the 'active' or (new) 'functional'.
+            # Adriana has promised me that this is safe.
+            print repr(i)
+            if i['data'].get('Purpose') != 'xyz.openbmc_project.Software.Version.VersionPurpose.BMC':
+                l.remove(id)
+        print "BMC Image IDS: %s" % repr(l)
+        return l
+
 
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
@@ -778,8 +792,8 @@ class OpTestOpenBMC():
 
     def reboot(self):
         self.bmc.reboot()
-        # After a BMC reboot REST API needs login again
-        self.rest_api.login()
+        # After a BMC reboot, wait for it to reach ready state
+        self.rest_api.wait_for_bmc_runtime()
 
     def image_transfer(self, i_imageName):
         self.bmc.image_transfer(i_imageName)
