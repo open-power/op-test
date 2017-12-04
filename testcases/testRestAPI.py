@@ -66,3 +66,13 @@ class RestAPI(unittest.TestCase):
         self.rest.get_sel_ids()
         # Clear Complete SEL Repository (Not yet implemented)
         self.rest.clear_sel()
+        # List available dumps
+        self.rest.list_available_dumps()
+
+        # OpenBMC Dump capture procedure
+        # Initiate a dump nd get the dump id
+        id = self.rest.create_new_dump()
+        # Wait for the dump to finish which can be downloaded
+        self.assertTrue(self.rest.wait_for_dump_finish(id), "OpenBMC Dump capture timeout")
+        # Download the dump which is ready to offload
+        self.rest.download_dump(id)
