@@ -173,7 +173,6 @@ class BmcImageFlash(OpTestFlashBase):
         self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         console = self.cv_SYSTEM.console.get_console()
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.cv_SYSTEM.sys_sel_check()
 
 
