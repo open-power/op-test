@@ -65,6 +65,13 @@ class KernelHardLockup(Exception):
     def __str__(self):
         return "Hard lockup (machine in state %s): %s" % (self.state, self.log)
 
+class KernelOOPS(Exception):
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Kernel OOPS (machine in state %s): %s" % (self.state, self.log)
+
 class KernelBug(Exception):
     def __init__(self, state, log):
         self.log = log

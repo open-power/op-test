@@ -173,7 +173,6 @@ class BmcImageFlash(OpTestFlashBase):
         self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         console = self.cv_SYSTEM.console.get_console()
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.cv_SYSTEM.sys_sel_check()
 
 
@@ -328,6 +327,12 @@ class OpalLidsFLASH(OpTestFlashBase):
                 self.cv_BMC.skiroot_img_flash_smc("/tmp/rsync_file", os.path.basename(self.skiroot_kernel))
 
         if "OpenBMC" in self.bmc_type:
+            # Check for field mode first, if it is enabled, clear that and flash host firmware.
+            # otherwise OpenBMC won't allow to patch any Host FW code in field mode.
+            if self.cv_REST.has_field_mode_set():
+                self.cv_BMC.clear_field_mode()
+                self.assertFalse(self.cv_REST.has_field_mode_set(), "Field mode disable failed")
+
             try:
                 # OpenBMC started removing overrides *after* flashing new image
                 # but on boot of the host, so we can't assume that just writing
