@@ -848,6 +848,32 @@ class HostManagement():
         else:
             return False
 
+    def software_enumerate(self):
+        obj = "/xyz/openbmc_project/software"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        return json.loads(self.curl.run())
+
+    # Returns True  - if field mode enabled.
+    #         False - if it is disabled.
+    def has_field_mode_set(self):
+        data = self.software_enumerate()
+        print repr(data)
+        val = data['data'].get('FieldModeEnabled')
+        if int(val) == 1:
+            return True
+        return False
+
+    """
+    Set field mode : 1 - enables it
+    curl -b cjar -k -H 'Content-Type: application/json' -X PUT -d '{"data":0}'
+    https://bmcip/xyz/openbmc_project/software/attr/FieldModeEnabled
+    """
+    def set_field_mode(self, mode):
+        obj = "/xyz/openbmc_project/software/attr/FieldModeEnabled"
+        data = '\'{"data" : %s}\'' % int(mode)
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        return json.loads(self.curl.run())
+
 
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
@@ -910,6 +936,11 @@ class OpTestOpenBMC():
             self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
             self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
             #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/BOOTKERNEL" % lid_name, timeout=60)
+
+    def clear_field_mode(self):
+        self.bmc.run_command("fw_setenv fieldmode")
+        self.bmc.run_command("systemctl unmask usr-local.mount")
+        self.reboot()
 
     def bmc_host(self):
         return self.hostname
