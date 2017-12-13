@@ -959,11 +959,14 @@ class OpTestHost():
                 raise OpTestError("Unknown or new processor type")
             core_id = core_id.split('x')[1]
             chip_id = chip_id.split('x')[1]
-            if core_ids.has_key(chip_id):
-                if core_id not in core_ids[chip_id]:
-                    core_ids[chip_id].append(core_id)
+
+            if chip_id in core_ids:
+                core_ids[chip_id].append(core_id)
             else:
-                core_ids[chip_id] = list(core_id)
+                core_ids[chip_id] = [core_id]
+
+        for i in core_ids:
+            core_ids[i] = list(set(core_ids[i]))
         core_ids = sorted(core_ids.iteritems())
         print core_ids
         return core_ids
