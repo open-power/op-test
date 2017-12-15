@@ -103,6 +103,29 @@ class OpTestFlashBase(unittest.TestCase):
         output = self.cv_BMC.run_command("cat %s | grep \"version=\"" % path)
         return output[0].split("=")[-1]
 
+    def delete_images_dir(self):
+        try:
+            self.cv_BMC.run_command("rm -rf /tmp/images/*")
+        except CommandFailed:
+            pass
+
+    def get_image_path(self, image_version):
+        image_list = self.cv_BMC.run_command("ls -d /tmp/images/*/ --color=never")
+        retry = 0
+        while (retry < 10):
+            for i in range(0, len(image_list)):
+                version = self.get_image_version(image_list[i] + "MANIFEST")
+                if (version == image_version):
+                    return image_list[i]
+            time.sleep(10)
+            retry += 1
+
+    def get_image_id(self, version):
+        img_path = self.get_image_path(version)
+        img_id = img_path.split("/")[-2]
+        print "Image id for Host image is : %s" % img_id
+        return img_id
+
     def wait_for_bmc_runtime(self):
         self.util.PingFunc(self.bmc_ip, BMC_CONST.PING_RETRY_FOR_STABILITY)
         if "SMC" in self.bmc_type:
@@ -139,18 +162,39 @@ class BmcImageFlash(OpTestFlashBase):
                 except CommandFailed as cf:
                     # Ok to just keep giong, may not have patched firmware
                     pass
+                # OpenBMC implementation for updating code level 'X' to 'X' is really a no-operation
+                # it only updates the code from 'X' to 'Y' or 'Y' to 'X'  to avoid duplicates
+                self.delete_images_dir()
                 self.cv_REST.upload_image(self.bmc_image)
+                version = self.get_version_tar(self.bmc_image)
+                id = self.get_image_id(version)
                 img_ids = self.cv_REST.bmc_image_ids()
+
+                if self.cv_REST.is_image_already_active(id):
+                    print "# The given BMC image %s is already active on the system" % id
+                    if self.cv_REST.validate_functional_bootside(id):
+                        print "# And the given BMC image is already functional"
+                        return True
+                    # If non functional set the priority and reboot the BMC
+                    self.cv_REST.set_image_priority(id, "0")
+                    self.cv_BMC.reboot()
+                    self.wait_for_bmc_runtime()
+                    return True
+
                 retries = 60
-                while len(img_ids) == 0 and retries > 0:
+                while retries > 0:
                     time.sleep(1)
                     img_ids = self.cv_REST.bmc_image_ids()
                     retries = retries - 1
-                self.assertTrue(retries > 0, "Uploaded image but it never showed up")
-                for img_id in img_ids:
-                    d = self.cv_REST.image_data(img_id)
-                    if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
-                        break
+                    for img_id in img_ids:
+                        d = self.cv_REST.image_data(img_id)
+                        if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
+                            print "BMC image %s is ready to activate" % img_id
+                            break
+                    else:
+                        continue
+                    break
+                self.assertTrue(retries > 0, "Uploaded image but it never is ready to activate it")
                 print "Going to activate image id: %s" % img_id
                 self.assertIsNotNone(img_id, "Could not find Image ID")
                 self.cv_REST.activate_image(img_id)
@@ -158,6 +202,11 @@ class BmcImageFlash(OpTestFlashBase):
                 # On SMC reboot will happen automatically, but on OpenBMC needs manual reboot to upgrade the BMC FW.
                 self.cv_BMC.reboot()
                 self.wait_for_bmc_runtime()
+                # Once BMC comes up, verify whether BMC really booted from the code which we flashed.
+                # As BMC maintains two levels of code, so there may be possibilities/bugs which causes
+                # the boot from alternate side or other code.
+                self.assertTrue(self.cv_REST.validate_functional_bootside(img_id), "BMC failed to boot from the right code")
+                print "# BMC booting from the right code with image ID: %s" % img_id
         c = 0
         while True:
             time.sleep(5)
@@ -237,6 +286,9 @@ class PNORFLASH(OpTestFlashBase):
                 self.assertIsNotNone(img_id, "Could not find Image ID")
                 self.cv_REST.activate_image(img_id)
                 self.assertTrue(self.cv_REST.wait_for_image_active_complete(img_id), "Failed to activate image")
+                # We need to have below check after power on of the host.
+                #self.assertTrue(self.cv_REST.validate_functional_bootside(img_id), "PNOR failed to boot from the right code")
+                print "# PNOR boots from the right code with image ID: %s" % img_id
             else:
                 print "Fallback to old code update method using pflash tool"
                 self.cv_BMC.image_transfer(self.pnor)
