@@ -728,6 +728,18 @@ class HostManagement():
         print repr(output)
         return output['data']['Priority']
 
+    """
+    Set the image priority
+    curl -b cjar -k -H "Content-Type: application/json" -X PUT -d '{"data":0}'
+    https://$BMC_IP/xyz/openbmc_project/software/061c4bdb/attr/Priority
+    """
+    def set_image_priority(self, id, level):
+        obj = "/xyz/openbmc_project/software/%s/attr/Priority" % id
+        data =  '\'{\"data\":%s}\'' % level
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.run()
+
+
     def image_ready_for_activation(self, id, timeout=10):
         timeout = time.time() + 60*timeout
         while True:
@@ -918,6 +930,31 @@ class HostManagement():
         self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
         return json.loads(self.curl.run())
 
+    """
+    1. functional boot side validation for both BMC and PNOR.
+    $ curl -c cjar -b cjar -k -H "Content-Type: application/json" https://$BMC_IP/xyz/openbmc_project/software/functional
+    {
+    "data": {
+        "endpoints": [
+        "/xyz/openbmc_project/software/061c4bdb",
+        "/xyz/openbmc_project/software/608e9ebe"
+        ]
+    }
+    """
+    def validate_functional_bootside(self, id):
+        obj = "/xyz/openbmc_project/software/functional"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        output = self.curl.run()
+        print output
+        if id in output:
+            return True
+        return False
+
+    def is_image_already_active(self, id):
+        output = self.image_data(id)
+        if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Active':
+            return True
+        return False
 
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
