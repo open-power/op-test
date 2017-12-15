@@ -92,3 +92,10 @@ class KernelPanic(Exception):
         self.state = state
     def __str__(self):
         return "Kernel panic in state %s: %s" % (self.state, self.log)
+
+class PlatformError(Exception):
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Platform error at state %s. Log: %s" % (self.state, self.log)

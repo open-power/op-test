@@ -51,6 +51,7 @@ class spawn(pexpect.spawn):
                        "Watchdog .* Hard LOCKUP",
                        "\[[0-9. ]+,0\] Assert fail:",
                        "\[[0-9. ]+,[0-9]\] Unexpected exception",
+                       "OPAL: Reboot requested due to Platform error."
         ]
 
         patterns = list(op_patterns) # we want a *copy*
@@ -69,7 +70,7 @@ class spawn(pexpect.spawn):
         if r == 0:
             raise CommandFailed(self.command, patterns[r], -1)
 
-        if r in [1,2,3,4,5,6]:
+        if r in [1,2,3,4,5,6,7]:
             # We set the system state to UNKNOWN as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
@@ -111,5 +112,19 @@ class spawn(pexpect.spawn):
                 raise SkibootAssert(state, log)
             if r == 5:
                 raise SkibootException(state, log)
+
+        if r in [7]:
+            # Reboot due to Platform error
+            # Let's attempt to capture Hostboot output
+            log = self.before + self.after
+            l = super(spawn,self).expect("================================================", timeout=120)
+            log = log + self.before + self.after
+            l = super(spawn,self).expect("Error reported by", timeout=10)
+            log = log + self.before + self.after
+            l = super(spawn,self).expect("================================================", timeout=60)
+            log = log + self.before + self.after
+            l = super(spawn,self).expect("ISTEP", timeout=20)
+            log = log + self.before + self.after
+            raise PlatformError(state, log)
 
         return r - len(op_patterns)
