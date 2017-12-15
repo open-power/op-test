@@ -912,6 +912,67 @@ class HostManagement():
             return True
         return False
 
+    def get_occ_ids(self):
+        obj = "/org/open_power/control/enumerate"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        output = self.curl.run()
+        data = json.loads(output)
+        occ_ids = []
+        for k in data['data']:
+            print repr(k)
+            m = re.match(r"/org/open_power/control/occ(\d{1,})$", k)
+            if m:
+                occ_ids.append(m.group(1))
+        print repr(occ_ids)
+        return occ_ids
+
+    """
+    Get state of OCC's
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X  GET
+    https://$BMC_IP/org/open_power/control/occ0
+    """
+    def is_occ_active(self, id):
+        obj = "/org/open_power/control/occ%s" % str(id)
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        output = self.curl.run()
+        data = json.loads(output)
+        if data['data']['OccActive'] == 1:
+            print "# OCC%s is active" % str(id)
+            return True
+        print "# OCC%s is not active" % str(id)
+        return False
+
+    """
+    curl -b cjar -k -H 'Content-Type: application/json' -X PUT -d '{"data":0}'
+    https://$BMC_IP/xyz/openbmc_project/control/host0/power_cap/attr/PowerCapEnable
+    0 - Disable by default, 1 - Enable
+    """
+    def enable_power_cap(self, enable):
+        obj = "/xyz/openbmc_project/control/host0/power_cap/attr/PowerCapEnable"
+        data = '\'{"data" : %s}\'' % int(enable)
+        self.curl.feed_data(dbus_object=obj, operation='rw', data=data, command="PUT")
+        self.curl.run()
+
+    # Enables the power cap.
+    def power_cap_enable(self):
+        self.enable_power_cap("1")
+
+    # Disables the power cap.
+    def power_cap_disable(self):
+        self.enable_power_cap("0")
+
+    """
+    /xyz/openbmc_project/control/host0/power_cap
+    """
+    def get_power_cap_settings(self):
+        obj = "/xyz/openbmc_project/control/host0/power_cap"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        output = self.curl.run()
+        data = json.loads(output)
+        PowerCapEnable = data['data']['PowerCapEnable']
+        PowerCap = data['data']['PowerCap']
+        return PowerCapEnable, PowerCap
+
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
         self.hostname = ip

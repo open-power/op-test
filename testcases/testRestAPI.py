@@ -46,6 +46,17 @@ class RestAPI(unittest.TestCase):
         if "OpenBMC" not in self.bmc_type:
             self.skipTest("OpenBMC specific Rest API Tests")
         self.curltool.log_result()
+        # System power cap enable/disable tests
+        self.rest.power_cap_enable()
+        PowerCapEnable, PowerCap =self.rest.get_power_cap_settings()
+        self.assertEqual(int(PowerCapEnable), 1, "system power cap enable failed")
+        self.rest.power_cap_disable()
+        PowerCapEnable, PowerCap =self.rest.get_power_cap_settings()
+        self.assertEqual(int(PowerCapEnable), 0, "system power cap disable failed")
+        # OCC Active state tests using RestAPI
+        ids = self.rest.get_occ_ids()
+        for id in ids:
+            self.assertTrue(self.rest.is_occ_active(id), "OCC%s is not in active state" % id)
         # Field mode tests
         self.rest.software_enumerate()
         self.rest.has_field_mode_set()
