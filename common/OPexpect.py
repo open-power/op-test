@@ -49,7 +49,7 @@ class spawn(pexpect.spawn):
                        "kernel BUG at",
                        "Kernel panic",
                        "Watchdog .* Hard LOCKUP",
-                       "Oops: Kernel access of bad area"
+                       "Oops: Kernel access of bad area",
                        "\[[0-9. ]+,0\] Assert fail:",
                        "\[[0-9. ]+,[0-9]\] Unexpected exception",
                        "OPAL: Reboot requested due to Platform error."
