@@ -176,9 +176,9 @@ class FullSuite():
     '''Every stable test'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(testRestAPI.RestAPI())
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
+        self.s.addTest(testRestAPI.RestAPI())
         self.s.addTest(OpalGard.OpalGard())
         self.s.addTest(OpalUtils.OpalUtils())
         self.s.addTest(OpTestRTCdriver.HostRTC())
