@@ -19,6 +19,7 @@
 #
 
 import unittest
+import re
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
@@ -41,6 +42,21 @@ class KernelLog():
             raise Exception("Unknow test type")
 
         log_entries = self.c.run_command_ignore_fail(cmd)
+        filter_out = ["Unable to open file.* /etc/keys/x509",
+                    "This architecture does not have kernel memory protection.",
+                    "aacraid.* Comm Interface type3 enabled",
+                    "mpt3sas_cm0.* MSI-X vectors supported",
+                    "i40e.*PCI-Express bandwidth available for this device may be insu",
+                    "i40e.*Please move the device to a different PCI-e link with more",
+                    "systemd.*Dependency failed for pNFS block layout mapping daemon.",
+                    "NFSD.* Using .* as the NFSv4 state recovery directory",
+                    "ipmi_si.* Unable to find any System Interface",
+                    "mpt3sas.*invalid short VPD tag 00 at offset 1"]
+
+        for f in filter_out:
+            fre = re.compile(f)
+            log_entries = [l for l in log_entries if not fre.search(l)]
+
         msg = '\n'.join(filter(None, log_entries))
         self.assertTrue( len(log_entries) == 0, "Warnings/Errors in Kernel log:\n%s" % msg)
 
