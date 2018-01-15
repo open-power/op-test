@@ -37,7 +37,7 @@ class KernelLog():
         if "skiroot" in self.test:
             cmd = "dmesg -r|grep '<[4321]>'"
         elif "host" in self.test:
-            cmd = "dmesg -T --level=alert,crit,err,warn"
+            cmd = "dmesg --color=never -T --level=alert,crit,err,warn"
         else:
             raise Exception("Unknow test type")
 
