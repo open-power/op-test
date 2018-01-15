@@ -107,16 +107,6 @@ class AT24driver(I2C, unittest.TestCase):
         else:
             self.assertEqual(len(l_chips), 0)
 
-        # read size of a single byte("b"),
-        # a 16-bit word("w"),
-        # an SMBus block("s"),
-        #  an I2C block("i").
-        for l_args in l_chips:
-            cmds = []
-            for mode in ["b", "w", "i"]:
-                self.diff_commands(["i2cdump -f -y %s %s" % (l_args, mode)]*5,
-                                   err="repeated i2cdump read of EEPROM doesn't match")
-
         # Getting the list of sysfs eeprom interfaces
         try:
             l_res = self.c.run_command("find /sys/ -name eeprom")
