@@ -73,8 +73,10 @@ class RestAPI(unittest.TestCase):
         # Clear SEL entry by ID- Clear individual SEL Entry
         self.rest.clear_sel_by_id()
         self.rest.get_sel_ids()
-        # Clear Complete SEL Repository (Not yet implemented)
+        # Clear Complete SEL Repository
         self.rest.clear_sel()
+        # Check if SEL has really zero entries or not
+        self.assertTrue(self.rest.verify_clear_sel(), "openBMC failed to clear SEL repository")
         # List available dumps
         self.rest.list_available_dumps()
 
@@ -85,3 +87,13 @@ class RestAPI(unittest.TestCase):
         self.assertTrue(self.rest.wait_for_dump_finish(id), "OpenBMC Dump capture timeout")
         # Download the dump which is ready to offload
         self.rest.download_dump(id)
+        # Set bootdev to setup
+        self.rest.set_bootdev_to_setup()
+        # Get current bootdev
+        self.rest.get_current_bootdev()
+        # Set bootdev to Default
+        self.rest.set_bootdev_to_none()
+        # Get current bootdev
+        self.rest.get_current_bootdev()
+        # Get boot progress info
+        self.rest.get_boot_progress()
