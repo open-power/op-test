@@ -43,6 +43,7 @@ class KernelLog():
 
         log_entries = self.c.run_command_ignore_fail(cmd)
         filter_out = ["Unable to open file.* /etc/keys/x509",
+                      "OF: reserved mem: not enough space all defined regions.",
                     "This architecture does not have kernel memory protection.",
                     "aacraid.* Comm Interface type3 enabled",
                     "mpt3sas_cm0.* MSI-X vectors supported",
