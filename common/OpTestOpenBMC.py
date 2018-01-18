@@ -560,7 +560,6 @@ class HostManagement():
                 raise OpTestError("Timeout waiting for host state to become %s" % target_state)
             time.sleep(5)
         return True
-        
 
     def wait_for_standby(self, timeout=10):
         r = self.wait_for_host_state("Off", timeout=timeout)
@@ -702,7 +701,7 @@ class HostManagement():
 
     """
     Upload a image
-    curl   -b cjar  -c cjar   -k  -H  'Content-Type: application/octet-stream'   -T witherspoon.pnor.squashfs.tar  
+    curl   -b cjar  -c cjar   -k  -H  'Content-Type: application/octet-stream'   -T witherspoon.pnor.squashfs.tar
     -X POST https://bmc//upload/image
     """
     def upload_image(self, image):
@@ -732,8 +731,8 @@ class HostManagement():
 
     """
     Activate a image
-    curl -b cjar -k -H "Content-Type: application/json" -X PUT 
-    -d '{"data":"xyz.openbmc_project.Software.Activation.RequestedActivations.Active"}' 
+    curl -b cjar -k -H "Content-Type: application/json" -X PUT
+    -d '{"data":"xyz.openbmc_project.Software.Activation.RequestedActivations.Active"}'
     https://bmc/xyz/openbmc_project/software/<image id>/attr/RequestedActivation
     """
     def activate_image(self, id):
@@ -744,7 +743,7 @@ class HostManagement():
 
     """
     Delete a image
-    curl -b cjar -k -H "Content-Type: application/json" -X DELETE 
+    curl -b cjar -k -H "Content-Type: application/json" -X DELETE
 
     https://bmc/xyz/openbmc_project/software/<image id>/attr/RequestedActivation
     """
@@ -752,7 +751,7 @@ class HostManagement():
         obj = "/xyz/openbmc_project/software/%s" % id
         self.curl.feed_data(dbus_object=obj, operation='rw', command="DELETE")
         self.curl.run()
-        
+
     def wait_for_image_active_complete(self, id, timeout=10):
         timeout = time.time() + 60*timeout
         while True:
@@ -846,7 +845,7 @@ class HostManagement():
 
     """
     Create new Dump:
-    $ curl -c cjar -b cjar -k -H "Content-Type: application/json" -d "{\"data\": []}" 
+    $ curl -c cjar -b cjar -k -H "Content-Type: application/json" -d "{\"data\": []}"
        -X POST  https://$BMC_IP/xyz/openbmc_project/dump/action/CreateDump
     """
     def create_new_dump(self):
