@@ -196,6 +196,16 @@ class OpTestEM():
         cur_value = self.c.run_command(l_cmd)
         self.assertEqual(cur_value[0], "1", "CPU state%s not disabled" % i_idle)
 
+    def get_pstate_limits(self):
+        cpu_num = self.get_first_available_cpu()
+
+        # Check cpufreq driver enabled
+        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+        pstate_min = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_min_freq" % cpu_num)[0]
+        pstate_max = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_max_freq" % cpu_num)[0]
+        pstate_nom = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_nominal_freq" % cpu_num)[0]
+        return pstate_min, pstate_max, pstate_nom
+
 
 class slw_info(OpTestEM, unittest.TestCase):
     def setUp(self):
@@ -249,6 +259,20 @@ class cpu_freq_states_host(OpTestEM, unittest.TestCase):
         print l_res
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
+
+        pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
+        print pstate_min,pstate_max, pstate_nom
+        # performance(Pstate_max),
+        # ondemand(Workload based),
+        # userspace(User request),
+        # powersave(Pstate_min)
+        self.set_cpu_gov("performance")
+        self.verify_cpu_gov("performance")
+        self.verify_cpu_freq(pstate_max, True)
+        self.set_cpu_gov("powersave")
+        self.verify_cpu_gov("powersave")
+        self.verify_cpu_freq(pstate_min, True)
+        self.set_cpu_gov("performance")
 
         # Set the cpu governer to userspace
         self.set_cpu_gov("userspace")
