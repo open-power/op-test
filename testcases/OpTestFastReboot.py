@@ -92,9 +92,12 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_SYSTEM.host_console_unique_prompt()
         cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
 
-        if cpu not in ["POWER8", "POWER8E"]:
+        if cpu not in ["POWER9", "POWER8", "POWER8E"]:
             self.skipTest("Fast Reboot not supported on %s" % cpu)
 
+        c.run_command("nvram -p ibm,skiboot --update-config fast-reset=1")
+        res = c.run_command("nvram --print-config=fast-reset -p ibm,skiboot")
+        self.assertNotIn("0", res, "Failed to set the fast-reset mode")
         c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
