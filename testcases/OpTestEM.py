@@ -248,8 +248,7 @@ class cpu_freq_states_host(OpTestEM, unittest.TestCase):
         # Set the cpu governer to userspace
         self.set_cpu_gov("userspace")
         self.verify_cpu_gov("userspace")
-        for i in range(1, self.NR_FREQUENCIES_SET):
-            i_freq = random.choice(freq_list)
+        for i_freq in freq_list:
             self.set_cpu_freq(i_freq)
             self.verify_cpu_freq(i_freq, False)
         for i in range(1, self.NR_FREQUENCIES_VERIFIED):
