@@ -208,9 +208,14 @@ class slw_info(OpTestEM, unittest.TestCase):
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
 
-        self.c.run_command("hexdump -c /proc/device-tree/ibm,enabled-idle-states")
+        proc_gen = self.cv_HOST.host_get_proc_gen()
+        if proc_gen in ["POWER8", "POWER8E"]:
+            self.c.run_command("hexdump -c /proc/device-tree/ibm,enabled-idle-states")
         try:
-            self.c.run_command("cat /sys/firmware/opal/msglog | grep -i slw")
+            if proc_gen in ["POWER8", "POWER8E"]:
+                self.c.run_command("cat /sys/firmware/opal/msglog | grep -i slw")
+            elif proc_gen in ["POWER9"]:
+                self.c.run_command("cat /sys/firmware/opal/msglog | grep -i stop")
         except CommandFailed as cf:
             pass # we may have no slw entries in msglog
         self.tear_down()
