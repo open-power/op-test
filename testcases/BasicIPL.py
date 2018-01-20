@@ -60,6 +60,10 @@ class BMCReset(BasicIPL):
     def runTest(self):
         self.system.goto_state(OpSystemState.OFF)
         self.bmc.reboot()
+
+        # BMC reset disconnects the old console
+        self.system.console.terminate()
+
         c = 0
         while True:
             try:
