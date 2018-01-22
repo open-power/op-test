@@ -81,6 +81,7 @@ from testcases import Console
 from testcases import testRestAPI
 from testcases import OpTestPNOR
 from testcases import OpalGard
+from testcases import PciSlotLocCodes
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -107,6 +108,8 @@ class SkirootSuite():
         self.s.addTest(AT24driver.SkirootAT24())
         self.s.addTest(I2C.BasicSkirootI2C())
         self.s.addTest(OpTestPCI.TestPCISkiroot())
+        self.s.addTest(PciSlotLocCodes.Skiroot())
+        self.s.addTest(PciSlotLocCodes.SkirootDT())
         self.s.addTest(OpTestPCI.PcieLinkErrorsSkiroot())
         self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
@@ -127,6 +130,8 @@ class HostSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(HostLogin.OOBHostLogin())
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
+        self.s.addTest(PciSlotLocCodes.Host())
+        self.s.addTest(PciSlotLocCodes.HostDT())
         self.s.addTest(OpTestPCI.TestPCIHost())
         self.s.addTest(OpTestPCI.PcieLinkErrorsHost())
         self.s.addTest(FWTS.FWTS())
