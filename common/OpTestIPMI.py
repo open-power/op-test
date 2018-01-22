@@ -808,26 +808,25 @@ class OpTestIPMI():
     def ipmi_code_update(self, i_image, i_imagecomponent):
 
         self.ipmi_cold_reset()
+        time.sleep(5)
         l_cmd = BMC_CONST.BMC_HPM_UPDATE + i_image + " " + i_imagecomponent
-        self.ipmi_preserve_network_setting()
-        try:
-            # FIXME: This is currently broken with the ipmitool rework
-            # We're likely to timeout waiting for the user to hit 'y'
+        # We need to do a re-try of hpm code update if it fails for the first time
+        # As AMI systems are some times failed to flash for the first time.
+        count = 0
+        while (count <2):
+            self.ipmi_preserve_network_setting()
+            time.sleep(5)
             rc = self.ipmitool.run(l_cmd, background=False, cmdprefix = "echo y |")
             print rc
-            self.ipmi_cold_reset()
-
-        except subprocess.CalledProcessError:
-            l_msg = "Code Update Failed"
-            print l_msg
-            raise OpTestError(l_msg)
-
-        if(rc.__contains__("Firmware upgrade procedure successful")):
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Code Update Failed"
-            print l_msg
-            raise OpTestError(l_msg)
+            if(rc.__contains__("Firmware upgrade procedure successful")):
+                return BMC_CONST.FW_SUCCESS
+            elif count == 1:
+                l_msg = "Code Update Failed"
+                print l_msg
+                raise OpTestError(l_msg)
+            else:
+                count = count + 1
+                continue
 
     ##
     # @brief Get information on active sides for both BMC and PNOR
