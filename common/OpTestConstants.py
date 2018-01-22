@@ -65,7 +65,7 @@ class OpTestConstants():
     BMC_FLASH_IMAGE = "echo y | ipmitool -H "
     BMC_FW_IMAGE_UPDATE = "component 1 -z 30000 force"
     BMC_PNOR_IMAGE_UPDATE = "component 2 -z 30000"
-    BMC_FWANDPNOR_IMAGE_UPDATE = "-z 30000 force"
+    BMC_FWANDPNOR_IMAGE_UPDATE = "-z 15000 force"
     BMC_LANPLUS = " -I lanplus"
     BMC_LANPLUS = " -I lanplus"
     BMC_HPM_UPDATE = " hpm upgrade "
