@@ -1369,6 +1369,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
         # Deleting complete SEL repository is not yet implemented
         #self.rest.clear_sel()
 
+    def sys_get_sel_list(self):
+        self.rest.list_sel()
+
     def sys_sel_check(self):
         self.rest.list_sel()
 
