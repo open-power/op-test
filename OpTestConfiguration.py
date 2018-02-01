@@ -149,6 +149,11 @@ class OpTestConfiguration():
         imagegroup.add_argument("--pupdate",
                                 help="pupdate to flash PNOR for Supermicro systems")
 
+        parser.add_argument("--check-ssh-keys", action='store_true', default=False,
+                                help="Check remote host keys when using SSH (auto-yes on new)")
+        parser.add_argument("--known-hosts-file",
+                                help="Specify a custom known_hosts file")
+
         self.args , self.remaining_args = parser.parse_known_args(remaining_args)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
                      'OFF' : OpSystemState.OFF,
@@ -156,6 +161,10 @@ class OpTestConfiguration():
                      'PETITBOOT_SHELL' : OpSystemState.PETITBOOT_SHELL,
                      'OS' : OpSystemState.OS
                  }
+
+        # Some quick sanity checking
+        if self.args.known_hosts_file and not self.args.check_ssh_keys:
+            parser.error("--known-hosts-file requires --check-ssh-keys")
 
         # Setup some defaults for the output options
         # Order of precedence
@@ -214,7 +223,9 @@ class OpTestConfiguration():
                           self.output,
                           scratch_disk=self.args.host_scratch_disk,
                           proxy=self.args.proxy,
-                          logfile=self.logfile)
+                          logfile=self.logfile,
+                          check_ssh_keys=self.args.check_ssh_keys,
+                          known_hosts_file=self.args.known_hosts_file)
         if self.args.bmc_type in ['AMI', 'SMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
@@ -232,6 +243,8 @@ class OpTestConfiguration():
                                 logfile=self.logfile,
                                 ipmi=ipmi,
                                 web=web,
+                                check_ssh_keys=self.args.check_ssh_keys,
+                                known_hosts_file=self.args.known_hosts_file
                 )
             elif self.args.bmc_type in ['SMC']:
                 bmc = OpTestSMC(ip=self.args.bmc_ip,
@@ -239,6 +252,8 @@ class OpTestConfiguration():
                                 password=self.args.bmc_password,
                                 ipmi=ipmi,
                                 web=web,
+                                check_ssh_keys=self.args.check_ssh_keys,
+                                known_hosts_file=self.args.known_hosts_file
                 )
             self.op_system = OpTestSystem(
                 state=self.startState,
@@ -276,7 +291,9 @@ class OpTestConfiguration():
                                 self.args.bmc_username,
                                 self.args.bmc_password,
                                 logfile=self.logfile,
-                                ipmi=ipmi, rest_api=rest_api)
+                                ipmi=ipmi, rest_api=rest_api,
+                                check_ssh_keys=self.args.check_ssh_keys,
+                                known_hosts_file=self.args.known_hosts_file)
             self.op_system = OpTestOpenBMCSystem(
                 host=host,
                 bmc=bmc,

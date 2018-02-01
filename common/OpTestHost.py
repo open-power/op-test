@@ -61,7 +61,8 @@ class OpTestHost():
     # @param i_bmcip @type string: IP Address of the bmc
     #
     def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
-                 scratch_disk="", proxy="", logfile=sys.stdout):
+                 scratch_disk="", proxy="", logfile=sys.stdout,
+                 check_ssh_keys=False, known_hosts_file=None):
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
@@ -71,8 +72,8 @@ class OpTestHost():
         self.results_dir = i_results_dir
         self.logfile = logfile
         self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
-                logfile=self.logfile)
-
+                logfile=self.logfile, check_ssh_keys=check_ssh_keys,
+                known_hosts_file=known_hosts_file)
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None

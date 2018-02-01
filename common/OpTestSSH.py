@@ -45,7 +45,7 @@ def set_system_to_UNKNOWN(system):
 
 class OpTestSSH():
     def __init__(self, host, username, password, logfile=sys.stdout, port=22,
-            prompt=None):
+            prompt=None, check_ssh_keys=False, known_hosts_file=None):
         self.state = ConsoleState.DISCONNECTED
         self.host = host
         self.username = username
@@ -53,6 +53,8 @@ class OpTestSSH():
         self.port = port
         self.logfile = logfile
         self.prompt = prompt
+        self.check_ssh_keys=check_ssh_keys
+        self.known_hosts_file=known_hosts_file
         self.system = None
 
     def set_system(self, system):
@@ -82,13 +84,20 @@ class OpTestSSH():
             self.state = ConsoleState.DISCONNECTED
 
         cmd = ("sshpass -p %s " % (self.password)
-               + " ssh -q"
+               + " ssh"
                + " -p %s" % str(self.port)
                + " -l %s %s" % (self.username, self.host)
-               + " -o'RSAAuthentication=no' -o 'PubkeyAuthentication=no'"
-               + " -o 'UserKnownHostsFile=/dev/null' "
-               + " -o 'StrictHostKeyChecking=no'"
-           )
+               + " -o PubkeyAuthentication=no"
+               )
+
+        if not self.check_ssh_keys:
+            cmd = (cmd
+                    + " -q"
+                    + " -o 'UserKnownHostsFile=/dev/null' "
+                    + " -o 'StrictHostKeyChecking=no'"
+                    )
+        elif self.known_hosts_file:
+            cmd = (cmd + " -o UserKnownHostsFile=" + self.known_hosts_file)
 
         print cmd
         consoleChild = OPexpect.spawn(cmd,logfile=self.logfile,
@@ -127,8 +136,17 @@ class OpTestSSH():
         console.sendline('PS1=' + prompt)
         console.expect("\n") # from us, because echo
 
-        rc = console.expect([prompt], timeout)
-        output = console.before
+        # Check for an early EOF - this can happen if we had a bad ssh host key
+        # console.isalive() can still return True in this case if called
+        # quickly enough.
+        try:
+            console.expect([prompt], timeout)
+            output = console.before
+        except pexpect.EOF:
+            if self.check_ssh_keys:
+                raise Exception("SSH session exited early - bad host key?")
+            else:
+                raise Exception("SSH session exited early!")
 
         console.sendline(command)
         console.expect("\n") # from us

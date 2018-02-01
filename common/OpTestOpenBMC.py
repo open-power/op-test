@@ -788,7 +788,9 @@ class HostManagement():
 
 
 class OpTestOpenBMC():
-    def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
+    def __init__(self, ip=None, username=None, password=None, ipmi=None,
+            rest_api=None, logfile=sys.stdout,
+            check_ssh_keys=False, known_hosts_file=None):
         self.hostname = ip
         self.username = username
         self.password = password
@@ -799,10 +801,14 @@ class OpTestOpenBMC():
         # We kind of hack our way into pxssh by setting original_prompt
         # to also be \n, which appears to fool it enough to allow us
         # continue.
-        self.console = OpTestSSH(ip, username, password, port=2200, logfile=self.logfile)
+        self.console = OpTestSSH(ip, username, password, port=2200,
+                logfile=self.logfile, check_ssh_keys=check_ssh_keys,
+                known_hosts_file=known_hosts_file)
         self.bmc = OpTestBMC(ip=self.hostname,
                             username=self.username,
-                            password=self.password)
+                            password=self.password,
+                            check_ssh_keys=check_ssh_keys,
+                            known_hosts_file=known_hosts_file)
 
     def set_system(self, system):
         self.console.set_system(system)
