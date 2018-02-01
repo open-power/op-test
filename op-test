@@ -81,6 +81,7 @@ from testcases import Console
 from testcases import testRestAPI
 from testcases import OpTestPNOR
 from testcases import OpalGard
+from testcases import DeviceTreeWarnings
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -100,6 +101,7 @@ class SkirootSuite():
     '''Tests in Petitboot environment'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(DeviceTreeWarnings.Skiroot())
         self.s.addTest(OpTestEM.skiroot_suite())
         self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
         self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
@@ -126,6 +128,7 @@ class HostSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(HostLogin.OOBHostLogin())
+        self.s.addTest(DeviceTreeWarnings.Host())
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(OpTestPCI.TestPCIHost())
         self.s.addTest(OpTestPCI.PcieLinkErrorsHost())

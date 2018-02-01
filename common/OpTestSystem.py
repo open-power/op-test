@@ -1234,7 +1234,7 @@ class OpTestSystem(object):
             # Wait for petitboot (for a *LOOONNNG* time due to verbose IPLs)
             seen = 0
             r = 1
-            t = 40
+            t = 100
             while seen < 2 and t:
                 # TODO check for forward progress
                 r = console.expect(['x=exit', 'Petitboot', pexpect.TIMEOUT], timeout=10)

@@ -63,6 +63,14 @@ class EEHRemoveFailed(Exception):
     def __str__(self):
         return "%s %s remove failed: %s" % (self.thing, self.dev, self.log)
 
+class EEHLocCodeFailed(Exception):
+    def __init__(self, thing, dev, log=None):
+        self.thing = thing
+        self.dev = dev
+        self.log = log
+    def __str__(self):
+        return "%s %s location code failure: %s" % (self.thing, self.dev, self.log)
+
 
 class OpTestEEH(unittest.TestCase):
     def setUp(self):
@@ -327,6 +335,28 @@ class OpTestEEH(unittest.TestCase):
         self.cv_SYSTEM.host_console_login()
         self.cv_SYSTEM.host_console_unique_prompt()
 
+    def verify_location_code_logging(self, pe):
+        tries = 60
+        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        for i in range(1, tries+1):
+            try:
+                res = c.run_command("dmesg | grep -i --color=never 'EEH: PE location:'")
+                found = True
+            except CommandFailed as cf:
+                continue
+            if found:
+                break
+            time.sleep(1)
+        else:
+            raise EEHLocCodeFailed("PE ", pe, "Kernel failed to log the location codes for a PCI EEH error")
+
+        matchObj = re.match("(.*) EEH: PE location: (.*), PHB.*", res[-1], re.I)
+        if matchObj:
+            loc_code = matchObj.group(2)
+            if loc_code == 'N/A':
+                print "FW/Kernel failed to log the pcie slot/device location code"
+
+
 class OpTestEEHbasic_fenced_phb(OpTestEEH):
     ##
     # @brief  This testcase has below steps
@@ -474,6 +504,7 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
                             else:
                                 print "PE %s removed successfully after 6th EEH hit" % pe
                         self.check_eeh_slot_resets()
+                        self.verify_location_code_logging(pe)
 
 
 class OpTestEEHmax_frozen_pe(OpTestEEH):
@@ -551,7 +582,7 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
                             else:
                                 print "PE %s removed successfully" % pe
                         self.check_eeh_slot_resets()
-
+                        self.verify_location_code_logging(pe)
 
 def suite():
     s = unittest.TestSuite()

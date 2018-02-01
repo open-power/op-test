@@ -356,9 +356,7 @@ class OpalLidsFLASH(OpTestFlashBase):
 class OOBHpmFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.images_dir = conf.args.firmware_images
-        self.hpm_name = conf.args.host_hpm
-        self.hpm_path = os.path.join(self.images_dir, self.hpm_name)
+        self.hpm_path = conf.args.host_hpm
         self.assertNotEqual(os.path.exists(self.hpm_path), 0,
             "HPM File %s not doesn't exist" % self.hpm_path)
         super(OOBHpmFLASH, self).setUp()
@@ -369,10 +367,7 @@ class OOBHpmFLASH(OpTestFlashBase):
         self.cv_SYSTEM.sys_sdr_clear()
         self.validate_side_activated()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        try:
-            self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
-        except OpTestError:
-            self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
@@ -381,9 +376,7 @@ class OOBHpmFLASH(OpTestFlashBase):
 class InbandHpmFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.images_dir = conf.args.firmware_images
-        self.hpm_name = conf.args.host_hpm
-        self.hpm_path = os.path.join(self.images_dir, self.hpm_name)
+        self.hpm_path = conf.args.host_hpm
         self.assertNotEqual(os.path.exists(self.hpm_path), 0,
             "HPM File %s not doesn't exist" % self.hpm_path)
         super(InbandHpmFLASH, self).setUp()
@@ -393,10 +386,7 @@ class InbandHpmFLASH(OpTestFlashBase):
             self.skipTest("OP AMI BMC In-band firmware Update test")
         self.cv_SYSTEM.sys_sdr_clear()
         self.validate_side_activated()
-        try:
-            self.cv_HOST.host_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
-        except OpTestError:
-            self.cv_HOST.host_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        self.cv_HOST.host_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.validate_side_activated()
