@@ -81,6 +81,7 @@ from testcases import Console
 from testcases import testRestAPI
 from testcases import OpTestPNOR
 from testcases import OpalGard
+from testcases import SbePassThrough
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -142,6 +143,7 @@ class HostSuite():
         self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(OpalErrorLog.BasicTest())
         self.s.addTest(OpTestPrdDaemon.OpTestPrdDaemon())
+        self.s.addTest(SbePassThrough.SbePassThrough())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
     def suite(self):
