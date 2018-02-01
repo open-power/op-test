@@ -17,7 +17,18 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+'''
+op-test Exceptions
+------------------
+
+These exceptions are used throughout op-test to help testing error
+conditions as well as failing tests when unexpected errors occur.
+'''
+
 class CommandFailed(Exception):
+    '''
+    Running a command (BMC or Host) failed with non-zero exit code.
+    '''
     def __init__(self, command, output, exitcode):
         self.command = command
         self.output = output
@@ -27,12 +38,19 @@ class CommandFailed(Exception):
         return "Command '%s' exited with %d.\nOutput:\n%s" % (self.command, self.exitcode, self.output)
 
 class BMCDisconnected(Exception):
+    '''
+    BMC was disconnected unexpectedly. e.g. it may have crashed
+    '''
     def __init__(self, notice):
         self.notice = notice
     def __str__(self):
         return "BMC disconnected due to '%s'" % self.notice
 
 class NoKernelConfig(Exception):
+    '''
+    We needed to grep host kernel config for a config option, but could not
+    find the needed config file
+    '''
     def __init__(self, kernel, path):
         self.kernel = kernel
         self.path = path
@@ -40,6 +58,9 @@ class NoKernelConfig(Exception):
         return "kernel config for %s not found, looked for %s" % (self.kernel, self.path)
 
 class KernelModuleNotLoaded(Exception):
+    '''
+    Kernel module needed to run test wasn't loaded
+    '''
     def __init__(self, module):
         self.module = module
     def __str__(self):
@@ -52,6 +73,11 @@ class KernelConfigNotSet(Exception):
         return "Kernel config %s not present" % (self.opt)
 
 class KernelSoftLockup(Exception):
+    '''
+    We caught a soft lockup. Mostly this will mean we need to fail the test and reboot.
+    Some test cases may *intentionally* cause these, so they can catch them and act
+    appropriately.
+    '''
     def __init__(self, state, log):
         self.log = log
         self.state = state

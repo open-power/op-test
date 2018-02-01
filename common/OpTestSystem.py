@@ -44,6 +44,10 @@ from OpTestHost import SSHConnectionState
 
 
 class OpSystemState():
+    '''
+    This class is used as an enum as to what state op-test *thinks* the host is in.
+    These states are used to drive a state machine in OpTestSystem.
+    '''
     UNKNOWN = 0
     OFF = 1
     IPLing = 2
@@ -333,12 +337,12 @@ class OpTestSystem(object):
     # System Interfaces
     ############################################################################
 
-    ##
-    # @brief Clear all SDR's in the System
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_sdr_clear(self):
+        '''
+        Clear all SDRs in the System
+
+        Returns BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             rc =  self.cv_IPMI.ipmi_sdr_clear()
         except OpTestError as e:
@@ -350,35 +354,29 @@ class OpTestSystem(object):
                 return BMC_CONST.FW_FAILED
         return rc
 
-    ##
-    # @brief Power on the system
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_on(self):
+        '''
+        Power on the host system, probably via `ipmitool power on`
+        '''
         try:
             rc = self.cv_IPMI.ipmi_power_on()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return rc
 
-    ##
-    # @brief Power cycle the system
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_cycle(self):
+        '''
+        Power cycle the host, most likely `ipmitool power cycle`
+        '''
         try:
             return self.cv_IPMI.ipmi_power_cycle()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
-    ##
-    # @brief Power soft the system
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_soft(self):
+        '''
+        Soft power cycle the system. This allows OS to gracefully shutdown
+        '''
         try:
             rc = self.cv_IPMI.ipmi_power_soft()
         except OpTestError as e:
@@ -466,42 +464,40 @@ class OpTestSystem(object):
             return BMC_CONST.FW_FAILED
         return rc
 
-    ##
-    # @brief Wait for system to reach standby or[S5/G2: soft-off]
-    #
-    # @param i_timeout @type int: The number of seconds to wait for system to reach standby,
-    #       i.e. How long to poll the ACPI sensor for soft-off state before giving up.
-    #
-    # @return l_rc @type constant BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_wait_for_standby_state(self, i_timeout=120):
+        '''
+        Wait for system to reach standby or[S5/G2: soft-off]
+
+        :param i_timeout: The number of seconds to wait for system to reach standby, i.e. How long to poll the ACPI sensor for soft-off state before giving up.
+        :rtype: BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             l_rc = self.cv_IPMI.ipmi_wait_for_standby_state(i_timeout)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return l_rc
 
-    ##
-    # @brief Wait for system boot to host OS, It uses OS Boot sensor
-    #
-    # @param i_timeout @type int: The number of minutes to wait for IPL to complete or Boot time,
-    #       i.e. How long to poll the OS Boot sensor for working state before giving up.
-    #
-    # @return l_rc @type constant BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_wait_for_os_boot_complete(self, i_timeout=10):
+        '''
+        Wait for system boot to host OS, It uses OS Boot sensor
+
+        :param i_timeout: The number of minutes to wait for IPL to complete or Boot time,
+            i.e. How long to poll the OS Boot sensor for working state before giving up.
+        :rtype: BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             l_rc = self.cv_IPMI.ipmi_wait_for_os_boot_complete(i_timeout)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return l_rc
 
-    ##
-    # @brief Check for error during IPL that would result in test case failure
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_sel_check(self,i_string="Transition to Non-recoverable"):
+        '''
+        Check for error during IPL that would result in test case failure
+
+        :param i_string: string to search for
+        :rtype: BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             rc = self.cv_IPMI.ipmi_sel_check(i_string)
         except OpTestError as e:
@@ -509,12 +505,12 @@ class OpTestSystem(object):
         return rc
 
 
-    ##
-    # @brief Reboot the BMC
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_bmc_reboot(self):
+        '''
+        Reboot the BMC
+
+        This may use ``ipmitool mc reset cold`` or it may do an inline ``reboot``
+        '''
         try:
             rc = self.cv_BMC.reboot()
         except OpTestError as e:
@@ -1293,6 +1289,12 @@ class OpTestSystem(object):
         return my_ip
 
 class OpTestFSPSystem(OpTestSystem):
+    '''
+    Implementation of an OpTestSystem for IBM FSP based systems (such as Tuleta and ZZ)
+
+    Main differences are that some functions need to be done via the service processor
+    rather than via IPMI due to differences in functionality.
+    '''
     def __init__(self,
                  host=None,
                  bmc=None,
@@ -1327,6 +1329,11 @@ class OpTestFSPSystem(OpTestSystem):
         return False
 
 class OpTestOpenBMCSystem(OpTestSystem):
+    '''
+    Implementation of an OpTestSystem for OpenBMC based platforms.
+
+    Near all IPMI functionality is done via the OpenBMC REST interface instead.
+    '''
     def __init__(self,
                  host=None,
                  bmc=None,
@@ -1395,6 +1402,13 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.bmc_reset()
 
 class OpTestQemuSystem(OpTestSystem):
+    '''
+    Implementation of OpTestSystem for the Qemu Simulator
+
+    Running against a simulator is rather different than running against a machine,
+    but only in some *specific* cases. Many tests will run as-is, but ones that require
+    a bunch of manipulation of the BMC will likely not.
+    '''
     def __init__(self,
                  host=None,
                  bmc=None,
