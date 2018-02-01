@@ -152,12 +152,21 @@ class IPMIConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
 
+def set_system_to_UNKNOWN(system):
+    s = system.get_state()
+    system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
+    return s
+
 class IPMIConsole():
     def __init__(self, ipmitool=None, logfile=sys.stdout, delaybeforesend=None):
         self.ipmitool = ipmitool
         self.state = IPMIConsoleState.DISCONNECTED
         self.logfile = logfile
         self.delaybeforesend = delaybeforesend
+        self.system = None
+
+    def set_system(self, system):
+        self.system = system
 
     def terminate(self):
         if self.state == IPMIConsoleState.CONNECTED:
@@ -194,7 +203,9 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         print cmd
-        solChild = OPexpect.spawn(cmd,logfile=self.logfile)
+        solChild = OPexpect.spawn(cmd,logfile=self.logfile,
+                                  failure_callback=set_system_to_UNKNOWN,
+                                  failure_callback_data=self.system)
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild
         if self.delaybeforesend:
@@ -349,6 +360,9 @@ class OpTestIPMI():
                                    delaybeforesend=delaybeforesend)
         self.util = OpTestUtil()
         self.host = host
+
+    def set_system(self, system):
+        self.console.set_system(system)
 
     # Get the IPMIConsole object, to run commands on the host etc.
     def get_host_console(self):

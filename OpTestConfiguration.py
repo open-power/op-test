@@ -245,6 +245,7 @@ class OpTestConfiguration():
                 bmc=bmc,
                 host=host,
             )
+            ipmi.set_system(self.op_system)
         elif self.args.bmc_type in ['FSP']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
@@ -261,6 +262,7 @@ class OpTestConfiguration():
                 bmc=bmc,
                 host=host,
             )
+            ipmi.set_system(self.op_system)
         elif self.args.bmc_type in ['OpenBMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
@@ -280,6 +282,7 @@ class OpTestConfiguration():
                 bmc=bmc,
                 state=self.startState,
             )
+            bmc.set_system(self.op_system)
         elif self.args.bmc_type in ['qemu']:
             print repr(self.args)
             bmc = OpTestQemu(self.args.qemu_binary,

@@ -33,15 +33,20 @@ class spawn(pexpect.spawn):
                  searchwindowsize=None, logfile=None, cwd=None, env=None,
                  ignore_sighup=False, echo=True, preexec_fn=None,
                  encoding=None, codec_errors='strict', dimensions=None,
-                 op_test_system=None):
+                 failure_callback=None, failure_callback_data=None):
         self.command = command
-        self.op_test_system = op_test_system
+        self.failure_callback = failure_callback
+        self.failure_callback_data = failure_callback_data
         super(spawn, self).__init__(command, args=args, timeout=timeout,
                                     maxread=maxread,
                                     searchwindowsize=searchwindowsize,
                                     logfile=logfile,
                                     cwd=cwd, env=env,
                                     ignore_sighup=ignore_sighup)
+
+    def set_system(self, system):
+        self.op_test_system = op_test_system
+        return
 
     def expect(self, pattern, timeout=-1, searchwindowsize=-1, async=False):
         op_patterns = ["qemu: could find kernel",
@@ -71,15 +76,16 @@ class spawn(pexpect.spawn):
         if r == 0:
             raise CommandFailed(self.command, patterns[r], -1)
 
+        state = None
+
         if r in [1,2,3,4,5,6,7,8]:
             # We set the system state to UNKNOWN as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
-            # This code path isn't really hooked up yet though...
-            state = None
-            if self.op_test_system is not None:
-                state = self.op_test_system.get_state()
-                self.op_test_system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
+            # We do this via a callback rather than any other method as that's
+            # just a *lot* easier with current code structure
+            if self.failure_callback:
+                state = self.failure_callback(self.failure_callback_data)
         if r in [1,2,3,4,5]:
             log = self.after
             l = 0
@@ -120,14 +126,19 @@ class spawn(pexpect.spawn):
             # Reboot due to Platform error
             # Let's attempt to capture Hostboot output
             log = self.before + self.after
-            l = super(spawn,self).expect("================================================", timeout=120)
-            log = log + self.before + self.after
-            l = super(spawn,self).expect("Error reported by", timeout=10)
-            log = log + self.before + self.after
-            l = super(spawn,self).expect("================================================", timeout=60)
-            log = log + self.before + self.after
-            l = super(spawn,self).expect("ISTEP", timeout=20)
-            log = log + self.before + self.after
+            try:
+                l = super(spawn,self).expect("================================================",
+                                             timeout=120)
+                log = log + self.before + self.after
+                l = super(spawn,self).expect("Error reported by", timeout=10)
+                log = log + self.before + self.after
+                l = super(spawn,self).expect("================================================",
+                                             timeout=60)
+                log = log + self.before + self.after
+                l = super(spawn,self).expect("ISTEP", timeout=20)
+                log = log + self.before + self.after
+            except pexpect.TIMEOUT as t:
+                pass
             raise PlatformError(state, log)
 
         return r - len(op_patterns)

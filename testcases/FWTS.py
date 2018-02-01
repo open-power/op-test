@@ -129,9 +129,20 @@ class FWTS(unittest.TestSuite):
         self.host = conf.host()
         self.system = conf.system()
         self.centaurs_present = self.system.has_centaurs_in_dt()
-        self.system.goto_state(OpSystemState.OS)
         self.bmc_type = conf.args.bmc_type
         self.real_fwts_suite = unittest.TestSuite()
+        try:
+            self.system.goto_state(OpSystemState.OS)
+        except Exception as e:
+            # In the event of something going wrong during IPL,
+            # We need to catch that here as we're abusing UnitTest
+            # TestSuite infra and we don't have the catch-all that
+            # a TestCase provides.
+            f = FWTSCommandFailed()
+            f.FAIL = e
+            self.real_fwts_suite.addTest(f)
+            self.real_fwts_suite.run(result)
+            return
 
         host = self.host
 

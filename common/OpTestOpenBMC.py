@@ -35,6 +35,7 @@ from Exceptions import CommandFailed
 from common.OpTestError import OpTestError
 from OpTestConstants import OpTestConstants as BMC_CONST
 from common import OPexpect
+import OpTestSystem
 
 class FailedCurlInvocation(Exception):
     def __init__(self, command, output):
@@ -49,6 +50,11 @@ class ConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
 
+def set_system_to_UNKNOWN(system):
+    s = system.get_state()
+    system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
+    return s
+
 class HostConsole():
     def __init__(self, host, username, password, logfile=sys.stdout, port=22):
         self.state = ConsoleState.DISCONNECTED
@@ -57,6 +63,10 @@ class HostConsole():
         self.password = password
         self.port = port
         self.logfile = logfile
+        self.system = None
+
+    def set_system(self, system):
+        self.system = system
 
     def terminate(self):
         if self.state == ConsoleState.CONNECTED:
@@ -92,7 +102,9 @@ class HostConsole():
                + " -l %s %s" % (self.username, self.host)
            )
         print cmd
-        solChild = OPexpect.spawn(cmd,logfile=self.logfile)
+        solChild = OPexpect.spawn(cmd,logfile=self.logfile,
+                                  failure_callback=set_system_to_UNKNOWN,
+                                  failure_callback_data=self.system)
         self.state = ConsoleState.CONNECTED
         self.sol = solChild
         return solChild
@@ -923,6 +935,9 @@ class OpTestOpenBMC():
         self.bmc = OpTestBMC(ip=self.hostname,
                             username=self.username,
                             password=self.password)
+
+    def set_system(self, system):
+        self.console.set_system(system)
 
     def has_new_pnor_code_update(self):
         if self.has_vpnor is not None:

@@ -137,11 +137,16 @@ class OpTestSystem(object):
 
     def goto_state(self, state):
         print "OpTestSystem START STATE: %s (target %s)" % (self.state, state)
+        never_unknown = False
         while 1:
+            if self.state != OpSystemState.UNKNOWN:
+                never_unknown = True
             self.state = self.stateHandlers[self.state](state)
             print "OpTestSystem TRANSITIONED TO: %s" % (self.state)
             if self.state == state:
                 break;
+            if never_unknown and self.state == OpSystemState.UNKNOWN:
+                raise 'System State transition failure: should not have progressed to UNKNOWN!'
 
     def run_UNKNOWN(self, state):
         self.sys_power_off()
@@ -223,7 +228,7 @@ class OpTestSystem(object):
             # Wait for ip to ping as we run host commands immediately
             self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
             return OpSystemState.OS
-        raise 'Failed to boot'
+        return OpSystemState.UNKNOWN
 
     def run_OS(self, state):
         if state == OpSystemState.OS:
