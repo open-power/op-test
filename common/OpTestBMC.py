@@ -43,7 +43,9 @@ from OpTestWeb import OpTestWeb
 from Exceptions import CommandFailed
 
 class OpTestBMC():
-    def __init__(self, ip=None, username=None, password=None, logfile=sys.stdout, ipmi=None, rest=None, web=None):
+    def __init__(self, ip=None, username=None, password=None,
+            logfile=sys.stdout, ipmi=None, rest=None,
+            web=None, check_ssh_keys=False, known_hosts_file=None):
         self.cv_bmcIP = ip
         self.cv_bmcUser = username
         self.cv_bmcPasswd = password
@@ -51,8 +53,10 @@ class OpTestBMC():
         self.rest = rest
         self.cv_WEB = web
         self.logfile = logfile
-        self.ssh = OpTestSSH(ip, username, password, logfile, prompt='#')
-        self.ssh = OpTestSSH(ip, username, password, logfile, prompt='\[PEXPECT\]#')
+        self.check_ssh_keys = check_ssh_keys
+        self.known_hosts_file = known_hosts_file
+        self.ssh = OpTestSSH(ip, username, password, logfile, prompt='\[PEXPECT\]#',
+                check_ssh_keys=check_ssh_keys, known_hosts_file=known_hosts_file)
 
     def bmc_host(self):
         return self.cv_bmcIP
@@ -114,7 +118,13 @@ class OpTestBMC():
     def image_transfer(self,i_imageName, copy_as=None):
 
         img_path = i_imageName
-        rsync_cmd = 'rsync -P -v -e "ssh -k -o StrictHostKeyChecking=no" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
+        ssh_opts = ' -k'
+        if not self.check_ssh_keys:
+            ssh_opts = ssh_opts + ' -o StrictHostKeyChecking=no'
+        elif self.known_hosts_file:
+            ssh_opts = ssh_opts + ' -o UserKnownHostsFile=' + self.known_hosts_file
+
+        rsync_cmd = 'rsync -P -v -e "ssh' + ssh_opts + '" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
 
@@ -222,7 +232,7 @@ class OpTestSMC(OpTestBMC):
     def image_transfer(self,i_imageName, copy_as=None):
 
         img_path = i_imageName
-        rsync_cmd = "rsync -av %s rsync://%s/files/" % (img_path, self.cv_bmcIP)
+        rsync_cmd = 'rsync -av %s rsync://%s/files/' % (img_path, self.cv_bmcIP)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
         print rsync_cmd
