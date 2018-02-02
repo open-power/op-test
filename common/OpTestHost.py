@@ -43,106 +43,12 @@ import select
 import pty
 import pexpect
 import commands
-try:
-    import pxssh
-except ImportError:
-    from pexpect import pxssh
-
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
+from OpTestSSH import OpTestSSH
 from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
-
-class SSHConnectionState():
-    DISCONNECTED = 0
-    CONNECTED = 1
-
-class SSHConnection():
-    def __init__(self, ip=None, username=None, password=None, logfile=sys.stdout):
-        self.ip = ip
-        self.username = username
-        self.password = password
-        self.state = SSHConnectionState.DISCONNECTED
-        self.logfile = logfile
-
-    def new_pxssh(self):
-        # pxssh has a nice 'echo=False' mode, but only
-        # on more recent distros, so we can't use it :(
-        p = pxssh.pxssh()
-        # Work-around for old pxssh not having options= parameter
-        p.SSH_OPTS = p.SSH_OPTS + " -o 'StrictHostKeyChecking=no'"
-        p.SSH_OPTS = p.SSH_OPTS + " -o 'UserKnownHostsFile /dev/null' "
-        p.force_password = True
-        p.logfile = self.logfile
-        self.pxssh = p
-        return p
-
-    def terminate(self):
-        if self.state == SSHConnectionState.CONNECTED:
-            self.pxssh.terminate()
-            self.state = SSHConnectionState.DISCONNECTED
-
-
-    def connect(self):
-        if self.state == SSHConnectionState.CONNECTED:
-            self.pxssh.terminate()
-            self.state = SSHConnectionState.DISCONNECTED
-
-        print "#SSH CONNECT"
-        p = self.new_pxssh()
-        p.login(self.ip, self.username, self.password)
-        p.sendline()
-        p.prompt(timeout=60)
-        # Ubuntu likes to be "helpful" and alias grep to
-        # include color, which isn't helpful at all. So let's
-        # go back to absolutely no messing around with the shell
-        if self.username != "root":
-            p.sendline('sudo -s')
-            p.expect("password for")
-            p.sendline(self.password)
-            p.set_unique_prompt()
-        p.sendline('exec bash --norc --noprofile')
-        p.set_unique_prompt()
-        self.state = SSHConnectionState.CONNECTED
-
-
-    def get_console(self):
-        if self.state == SSHConnectionState.DISCONNECTED:
-            self.connect()
-
-        count = 0
-        while (not self.pxssh.isalive()):
-            print '# Reconnecting'
-            if (count > 0):
-                time.sleep(2)
-            self.connect()
-            count += 1
-            if count > 120:
-                raise Exception("Cannot login via SSH")
-
-        return self.pxssh
-
-    def run_command(self, command, timeout=300):
-        c = self.get_console()
-        c.sendline(command)
-        c.expect("\n") # from us
-        c.expect(c.PROMPT, timeout=timeout)
-        output = c.before.splitlines()
-        c.sendline("echo $?")
-        c.prompt(timeout)
-        exitcode = int(''.join(c.before.splitlines()[1:]))
-        if exitcode != 0:
-            raise CommandFailed(command, output, exitcode)
-        return output
-
-    # This command just runs and returns the ouput & ignores the failure
-    def run_command_ignore_fail(self, command, timeout=60):
-        try:
-            output = self.run_command(command, timeout)
-        except CommandFailed as cf:
-            output = cf.output
-        return output
 
 class OpTestHost():
 
@@ -164,7 +70,9 @@ class OpTestHost():
         parent_dir = os.path.dirname(os.path.abspath(__file__))
         self.results_dir = i_results_dir
         self.logfile = logfile
-        self.ssh = SSHConnection(i_hostip, i_hostuser, i_hostpasswd, logfile=self.logfile)
+        self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
+                logfile=self.logfile)
+
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None
@@ -177,6 +85,7 @@ class OpTestHost():
 
     def password(self):
         return self.passwd
+
 
     def get_scratch_disk(self):
         return self.scratch_disk
@@ -515,7 +424,7 @@ class OpTestHost():
     def host_putscom(self, i_xscom_dir, i_error):
 
         print('Injecting Error.')
-        l_rc = self._execute_no_return(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_PUTSCOM_ERROR + i_error)
+        l_rc = self.ssh.run_command_ignore_fail(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_PUTSCOM_ERROR + i_error)
 
     ##
     # @brief Clears the gard records
@@ -557,32 +466,6 @@ class OpTestHost():
             l_errmsg = "Can't clear gard records"
             print l_errmsg
             raise OpTestError(l_errmsg)
-
-
-    ##
-    # @brief  Execute a command on the targeted host but don't expect
-    #             any return data.
-    #
-    # @param     i_cmd: @type str: command to be executed
-    # @param     i_timeout: @type int:
-    #
-    # @return   BMC_CONST.FW_SUCCESS or else raise OpTestError
-    #
-    def _execute_no_return(self, i_cmd, i_timeout=60):
-
-        print('Executing command: ' + i_cmd)
-        try:
-            p = pxssh.pxssh()
-            p.login(self.ip, self.user, self.passwd)
-            p.sendline()
-            p.prompt()
-            p.sendline(i_cmd)
-            p.prompt(i_timeout)
-            return BMC_CONST.FW_SUCCESS
-        except:
-            l_msg = "Failed to execute command: " + i_cmd
-            print l_msg
-            raise OpTestError(l_msg)
 
     ##
     # @brief enable/disable cpu states

@@ -46,7 +46,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
-from common.OpTestHost import SSHConnectionState
+from common.OpTestSSH import ConsoleState as SSHConnectionState
 from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
