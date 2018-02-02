@@ -34,20 +34,13 @@ import sys
 import time
 import pexpect
 import os.path
-try:
-    import pxssh
-except ImportError:
-    from pexpect import pxssh
 import subprocess
 from OpTestIPMI import OpTestIPMI
+from OpTestSSH import OpTestSSH
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestWeb import OpTestWeb
 from Exceptions import CommandFailed
-
-class SSHConnectionState():
-    DISCONNECTED = 0
-    CONNECTED = 1
 
 class OpTestBMC():
     def __init__(self, ip=None, username=None, password=None, logfile=sys.stdout, ipmi=None, rest=None, web=None):
@@ -58,7 +51,8 @@ class OpTestBMC():
         self.rest = rest
         self.cv_WEB = web
         self.logfile = logfile
-        self.state = SSHConnectionState.DISCONNECTED
+        self.ssh = OpTestSSH(ip, username, password, logfile, prompt='#')
+        self.ssh = OpTestSSH(ip, username, password, logfile, prompt='\[PEXPECT\]#')
 
     def bmc_host(self):
         return self.cv_bmcIP
@@ -72,83 +66,8 @@ class OpTestBMC():
     def get_host_console(self):
         return self.cv_IPMI.get_host_console()
 
-    def new_pxssh(self):
-        # pxssh has a nice 'echo=False' mode, but only
-        # on more recent distros, so we can't use it :(
-        p = pxssh.pxssh()
-        # Work-around for old pxssh not having options= parameter
-        p.SSH_OPTS = p.SSH_OPTS + " -o 'StrictHostKeyChecking=no'"
-        p.SSH_OPTS = p.SSH_OPTS + " -o 'UserKnownHostsFile /dev/null' "
-        p.force_password = True
-        p.logfile = self.logfile
-        p.PROMPT = '# '
-        self.pxssh = p
-        return p
-
-    def terminate(self):
-        if self.state == SSHConnectionState.CONNECTED:
-            self.pxssh.terminate()
-            self.state = SSHConnectionState.DISCONNECTED
-
-    def connect(self):
-        if self.state == SSHConnectionState.CONNECTED:
-            self.pxssh.terminate()
-            self.state = SSHConnectionState.DISCONNECTED
-
-        print "#SSH CONNECT"
-        p = self.new_pxssh()
-        p.login(self.cv_bmcIP, self.cv_bmcUser, self.cv_bmcPasswd, auto_prompt_reset=False)
-        p.sendline()
-        p.prompt(timeout=60)
-        p.sendcontrol('l')
-        p.expect(r'.+#')
-        p.sendline('PS1=[PEXPECT]\#')
-        p.expect("\n") # from us, because echo
-        l_rc = p.expect("\[PEXPECT\]#$")
-        if l_rc == 0:
-            print "Shell prompt changed"
-        else:
-            raise Exception("Failed during change of shell prompt")
-        self.state = SSHConnectionState.CONNECTED
-
-
-    def get_console(self):
-        if self.state == SSHConnectionState.DISCONNECTED:
-            self.connect()
-
-        count = 0
-        while (not self.pxssh.isalive()):
-            print '# Reconnecting'
-            if (count > 0):
-                time.sleep(2)
-            self.connect()
-            count += 1
-            if count > 120:
-                raise Exception("Cannot login via SSH")
-
-        return self.pxssh
-
-    def run_command(self, command, timeout=300):
-        c = self.get_console()
-        c.sendline(command)
-        c.expect("\n") # from us
-        c.expect("\[PEXPECT\]#$", timeout=timeout)
-        output = c.before.splitlines()
-        c.sendline("echo $?")
-        c.expect("\[PEXPECT\]#$", timeout=timeout)
-        exitcode = int(''.join(c.before.splitlines()[1:]))
-        if exitcode != 0:
-            raise CommandFailed(command, output, exitcode)
-        return output
-
-    # This command just runs and returns the ouput & ignores the failure
-    def run_command_ignore_fail(self, command, timeout=60):
-        try:
-            output = self.run_command(command, timeout)
-        except CommandFailed as cf:
-            output = cf.output
-        return output
-
+    def run_command(self, command, timeout=60):
+        return self.ssh.run_command(command, timeout=timeout)
 
     ##
     # @brief This function issues the reboot command on the BMC console.  It then
@@ -163,7 +82,7 @@ class OpTestBMC():
 
         retries = 0
         try:
-            self.run_command('reboot')
+            self.ssh.run_command('reboot')
         except pexpect.EOF:
             pass
         print 'Sent reboot command now waiting for reboot to complete...'
@@ -230,33 +149,33 @@ class OpTestBMC():
     #
     def pnor_img_flash_ami(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -e -f -p /tmp/%s' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     # on openbmc systems pflash tool available
     def pnor_img_flash_openbmc(self, i_imageName):
         cmd = 'pflash -E -f -p /tmp/%s' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     def skiboot_img_flash_ami(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -p /tmp/%s -e -f -P PAYLOAD' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     def skiroot_img_flash_ami(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -p /tmp/%s -e -f -P BOOTKERNEL' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     def skiboot_img_flash_openbmc(self, i_imageName):
         cmd = 'pflash -p /tmp/%s -e -f -P PAYLOAD' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     def skiroot_img_flash_openbmc(self, i_imageName):
         cmd = 'pflash -p /tmp/%s -e -f -P BOOTKERNEL' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     ##
@@ -270,7 +189,7 @@ class OpTestBMC():
     def validate_pflash_tool(self, i_dir=""):
         i_dir = os.path.join(i_dir, "pflash")
         try:
-            l_res = self.run_command("which %s" % i_dir)
+            l_res = self.ssh.run_command("which %s" % i_dir)
         except CommandFailed:
             l_msg = "# pflash tool is not available on BMC"
             print l_msg
@@ -315,12 +234,12 @@ class OpTestSMC(OpTestBMC):
 
     def skiboot_img_flash_smc(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -p /tmp/rsync_file/%s -e -f -P PAYLOAD' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     def skiroot_img_flash_smc(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -p /tmp/rsync_file/%s -e -f -P BOOTKERNEL' % i_imageName
-        rc = self.run_command(cmd, timeout=1800)
+        rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
     def validate_pflash_tool(self, i_dir=""):
@@ -328,7 +247,7 @@ class OpTestSMC(OpTestBMC):
         # Supermicro BMC busybox doesn't have inbuilt which command
         cmd = "ls %s" % i_dir
         try:
-            l_res = self.run_command(cmd)
+            l_res = self.ssh.run_command(cmd)
         except CommandFailed:
             l_msg = "# pflash tool is not available on BMC"
             print l_msg
