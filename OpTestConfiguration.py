@@ -15,9 +15,12 @@ from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 import argparse
 import time
+from datetime import datetime
 import subprocess
 import sys
 import ConfigParser
+import OpTestLogger
+import logging
 
 # Look at the addons dir for any additional OpTest supported types
 # If new type was called Kona, the layout would be as follows
@@ -34,6 +37,7 @@ import ConfigParser
 import importlib
 import os
 import addons
+
 optAddons = dict() # Store all addons found.  We'll loop through it a couple time below
 # Look at the top level of the addons for any directories and load their Setup modules
 for dir in (os.walk('addons').next()[1]):
@@ -88,6 +92,7 @@ class OpTestConfiguration():
 
         # Options to set the output directory and suffix on the output
         parser.add_argument("-o", "--output", help="Output directory for test reports.  Can also be set via OP_TEST_OUTPUT env variable.")
+        parser.add_argument("-l", "--logdir", help="Output directory for log files.  Can also be set via OP_TEST_LOGDIR env variable.")
         parser.add_argument("--suffix", help="Suffix to add to all reports.  Default is current time.")
 
         bmcgroup = parser.add_argument_group('BMC',
@@ -174,6 +179,19 @@ class OpTestConfiguration():
         if (not os.path.exists(self.output)):
             os.makedirs(self.output)
 
+        if (self.args.logdir):
+            logdir = self.args.logdir
+        elif ("OP_TEST_LOGDIR" in os.environ):
+            logdir = os.environ["OP_TEST_LOGDIR"]
+        else:
+            logdir = self.output
+
+        self.logdir = os.path.abspath(logdir)
+        if (not os.path.exists(self.logdir)):
+            os.makedirs(self.logdir)
+
+        OpTestLogger.optest_logger_glob.logdir = self.logdir
+
         # Grab the suffix, if not given use current time
         if (self.args.suffix):
             self.outsuffix = self.args.suffix
@@ -181,23 +199,32 @@ class OpTestConfiguration():
             self.outsuffix = time.strftime("%Y%m%d%H%M%S")
 
         # set up where all the logs go
-        logfile = os.path.join(self.output,"%s.log" % self.outsuffix)
-        print "Log file: %s" % logfile
+        logfile = os.path.join(self.output, "%s.log" % self.outsuffix)
+
         logcmd = "tee %s" % (logfile)
         # we use 'cat -v' to convert control characters
         # to something that won't affect the user's terminal
         if self.args.quiet:
             logcmd = logcmd + "> /dev/null"
+            # save sh_level for later refresh loggers
+            OpTestLogger.optest_logger_glob.sh_level = logging.ERROR
+            OpTestLogger.optest_logger_glob.sh.setLevel(logging.ERROR)
         else:
             logcmd = logcmd + "| sed -u -e 's/\\r$//g'|cat -v"
+            # save sh_level for later refresh loggers
+            OpTestLogger.optest_logger_glob.sh_level = logging.INFO
+            OpTestLogger.optest_logger_glob.sh.setLevel(logging.INFO)
 
-        print "logcmd: %s" % logcmd
+        OpTestLogger.optest_logger_glob.setUpLoggerFile(datetime.utcnow().strftime("%Y%m%d%H%M%S%f")+'.main.log')
+        OpTestLogger.optest_logger_glob.setUpLoggerDebugFile(datetime.utcnow().strftime("%Y%m%d%H%M%S%f")+'.debug.log')
+        OpTestLogger.optest_logger_glob.optest_logger.info('TestCase Log files: {}/*{}*'.format(self.output, self.outsuffix))
+        OpTestLogger.optest_logger_glob.optest_logger.info('StreamHandler setup {}'.format('quiet' if self.args.quiet else 'normal'))
+
         self.logfile_proc = subprocess.Popen(logcmd,
                                              stdin=subprocess.PIPE,
                                              stderr=sys.stderr,
                                              stdout=sys.stdout,
                                              shell=True)
-        print repr(self.logfile_proc)
         self.logfile = self.logfile_proc.stdin
 
         if self.args.machine_state == None:

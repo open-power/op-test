@@ -18,17 +18,26 @@
 # permissions and limitations under the License.
 
 import unittest
+import logging
 
 import OpTestConfiguration
+import OpTestLogger
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+
+module_logger = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger+'.{}'.format(__name__))
 
 class HelloWorld(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
+        self.my_logger = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger+'.{}'.format(__name__))
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
+        self.my_logger.info('setUp info call in HelloWorld class')
+        self.my_logger.debug('setUp debug call in HelloWorld class')
 
     def runTest(self):
+        module_logger.info('HelloWorld runTest info call')
+        module_logger.debug('HelloWorld runTest debug call')
         self.assertEqual("Hello World", "Hello World")
