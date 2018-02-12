@@ -10,7 +10,7 @@ from common.OpTestOpenBMC import OpTestOpenBMC
 from common.OpTestQemu import OpTestQemu
 from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem, OpTestOpenBMCSystem, OpTestQemuSystem
 from common.OpTestHost import OpTestHost
-from common.OpTestIPMI import OpTestIPMI
+from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
 from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 import argparse
@@ -216,16 +216,18 @@ class OpTestConfiguration():
                           proxy=self.args.proxy,
                           logfile=self.logfile)
         if self.args.bmc_type in ['AMI', 'SMC']:
-            ipmi = OpTestIPMI(self.args.bmc_ip,
-                              self.args.bmc_usernameipmi,
-                              self.args.bmc_passwordipmi,
-                              host=host,
-                              logfile=self.logfile)
             web = OpTestWeb(self.args.bmc_ip,
                             self.args.bmc_usernameipmi,
                             self.args.bmc_passwordipmi)
             bmc = None
             if self.args.bmc_type in ['AMI']:
+                ipmi = OpTestIPMI(self.args.bmc_ip,
+                                  self.args.bmc_usernameipmi,
+                                  self.args.bmc_passwordipmi,
+                                  host=host,
+                                  logfile=self.logfile,
+                )
+
                 bmc = OpTestBMC(ip=self.args.bmc_ip,
                                 username=self.args.bmc_username,
                                 password=self.args.bmc_password,
@@ -234,6 +236,12 @@ class OpTestConfiguration():
                                 web=web,
                 )
             elif self.args.bmc_type in ['SMC']:
+                ipmi = OpTestSMCIPMI(self.args.bmc_ip,
+                                  self.args.bmc_usernameipmi,
+                                  self.args.bmc_passwordipmi,
+                                  logfile=self.logfile,
+                                  host=host,
+                )
                 bmc = OpTestSMC(ip=self.args.bmc_ip,
                                 username=self.args.bmc_username,
                                 password=self.args.bmc_password,
