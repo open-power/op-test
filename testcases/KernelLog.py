@@ -44,6 +44,11 @@ class KernelLog():
         log_entries = self.c.run_command_ignore_fail(cmd)
         filter_out = ["Unable to open file.* /etc/keys/x509",
                       "OF: reserved mem: not enough space all defined regions.",
+                      "Could not find start_pfn for node 25.",
+                      "nvidia: loading out-of-tree module taints kernel",
+                      "nvidia: module license 'NVIDIA' taints kernel.",
+                      "Disabling lock debugging due to kernel taint",
+                      "NVRM: loading NVIDIA UNIX ppc64le Kernel Module",
                     "This architecture does not have kernel memory protection.",
                     "aacraid.* Comm Interface type3 enabled",
                     "mpt3sas_cm0.* MSI-X vectors supported",
