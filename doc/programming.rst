@@ -83,3 +83,9 @@ OpTestQemu
 .. automodule:: common.OpTestQemu
    :members:
    :undoc-members:
+
+Firmware Flashing
+=================
+
+.. automodule:: testcases.OpTestFlash
+   :members:

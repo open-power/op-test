@@ -37,7 +37,10 @@ try:
 except ImportError:
   pass
 
+
 import OpTestConfiguration
+OpTestConfiguration.conf = OpTestConfiguration.OpTestConfiguration()
+
 from testcases import HelloWorld
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestSensors

@@ -36,13 +36,14 @@ import os
 import addons
 optAddons = dict() # Store all addons found.  We'll loop through it a couple time below
 # Look at the top level of the addons for any directories and load their Setup modules
-for dir in (os.walk('addons').next()[1]):
-    optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
 
 class OpTestConfiguration():
     def __init__(self):
         self.args = []
         self.remaining_args = []
+        for dir in (os.walk('addons').next()[1]):
+            optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
+
         return
 
     def parse_args(self, argv=None):
@@ -70,6 +71,10 @@ class OpTestConfiguration():
             pass
 
         parser.set_defaults(**defaults)
+
+        qemu_default = "qemu-system-ppc64"
+        if defaults.get('qemu_binary'):
+            qemu_default = defaults['qemu_binary']
 
         tgroup = parser.add_argument_group('Test',
                                            'Tests to run')
@@ -108,7 +113,7 @@ class OpTestConfiguration():
         bmcgroup.add_argument("--bmc-prompt", default="#",
                               help="Prompt for BMC ssh session")
         bmcgroup.add_argument("--smc-presshipmicmd")
-        bmcgroup.add_argument("--qemu-binary", default="qemu-system-ppc64",
+        bmcgroup.add_argument("--qemu-binary", default=qemu_default,
                               help="[QEMU Only] qemu simulator binary")
 
         hostgroup = parser.add_argument_group('Host', 'Installed OS information')
@@ -324,4 +329,3 @@ class OpTestConfiguration():
         return self.args.platform
 
 global conf
-conf = OpTestConfiguration()

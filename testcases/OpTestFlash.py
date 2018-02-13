@@ -140,6 +140,14 @@ class OpTestFlashBase(unittest.TestCase):
 
 
 class BmcImageFlash(OpTestFlashBase):
+    '''
+    Flashes the BMC with BMC firmware.
+    This enables a single op-test incantation to test with a specific
+    BMC firmware build.
+
+    Currently supports SuperMicro (SMC) BMCs and OpenBMC.
+    FSP systems need to use a separate mechanism.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.bmc_image = conf.args.bmc_image
@@ -230,6 +238,20 @@ class BmcImageFlash(OpTestFlashBase):
 
 
 class PNORFLASH(OpTestFlashBase):
+    '''
+    Flash full PNOR image
+
+    For OpenBMC, uses REST image upload
+    For SMC, uses pUpdate
+    For AMI, relies on pflash
+
+    op-test needs to be provided locations of pUpdate and pflash
+    binaries to successfully flash machines that need them.
+
+    Supports SMC, AMI and OpenBMC based BMCs.
+
+    FSP systems use a different mechanism.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.host_pnor
@@ -305,6 +327,24 @@ class PNORFLASH(OpTestFlashBase):
 
 
 class OpalLidsFLASH(OpTestFlashBase):
+    '''
+    Flash specific LIDs (partitions).
+    Can be combined with a full PNOR flash to test a base firmware image
+    plus new code. For example, if testing a new skiboot (before incorporating
+    it into upstream) you can test a base image plus new skiboot.
+
+    Compatible with AMI, SMC, OpenBMC and FSP.
+
+    This just flashes the raw file you provide, so you need to provide it
+    with the correct format for the system.
+
+    e.g. for skiboot:
+    FSP systems needs raw skiboot.lid
+    AMI,SMC,OpenBMC systems need skiboot.lid.xz
+    unless secure boot is enabled, and then they need skiboot.lid.xz.stb
+
+    TODO support arbitrary partition flashing.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pflash = conf.args.pflash
