@@ -772,9 +772,19 @@ class HostManagement():
     https://bmc/xyz/openbmc_project/software/<image id>/attr/RequestedActivation
     """
     def delete_image(self, id):
-        obj = "/xyz/openbmc_project/software/%s" % id
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="DELETE")
-        self.curl.run()
+        try:
+            # First, we try the "new" method, as of at least ibm-v2.0-0-r26.1-0-gfb7714a
+            obj = "/xyz/openbmc_project/software/%s/action/delete" % id
+            data = '\'{"data" : []}\''
+            self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+            self.curl.run()
+        except FailedCurlInvocation as f:
+            # Try falling back to the old method (everything prior? who knows)
+            obj = "/xyz/openbmc_project/software/%s" % id
+            self.curl.feed_data(dbus_object=obj, operation='rw', command="DELETE")
+            self.curl.run()
+
+
 
     def wait_for_image_active_complete(self, id, timeout=10):
         timeout = time.time() + 60*timeout
