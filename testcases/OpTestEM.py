@@ -316,16 +316,46 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         except CommandFailed:
             self.assertTrue(False, "cpuidle driver is not enabled in kernel")
 
+        nrcpus = self.c.run_command("grep -c 'processor.*: ' /proc/cpuinfo")
+        nrcpus = int(nrcpus[0])
+        self.assertGreater(nrcpus, 0, "You can't have 0 CPUs")
+        # We currently hack around trying every CPU and just try the first 10.
+        # This may/may not be a great test, but it takes a lot less time :)
+        nrcpus = 10
+
         # TODO: Check the runtime idle states = expected idle states!
         idle_states = self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
         print repr(idle_states)
-        # currently p8 cpu has 3 states
+        idle_state_names = {}
         for i in idle_states:
-            self.enable_idle_state(i)
-            self.verify_enable_idle_state(i)
+            idle_state_names[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/name" % i)
+
+        # We first disable everything, then enable one idle state and check residency
         for i in idle_states:
             self.disable_idle_state(i)
             self.verify_disable_idle_state(i)
+
+        # With all idle disabled, gather current usage (as a baseline)
+        before_usage = {}
+        for i in idle_states:
+            before_usage[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/usage" % (i))
+            before_usage[i] = [int(a) for a in before_usage[i]]
+
+        after_usage = {}
+        for i in idle_states:
+            self.enable_idle_state(i)
+            self.verify_enable_idle_state(i)
+            for c in range(nrcpus):
+                self.c.run_command("taskset -c %d find / |head -n 200000 > /dev/null" % c)
+            after_usage[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/usage" % i)
+            after_usage[i] = [int(a) for a in after_usage[i]]
+            print repr(before_usage[i])
+            print repr(after_usage[i])
+            for c in range(nrcpus):
+                print "# CPU %d entered idle state %s %u times" % (c, idle_state_names[i], after_usage[i][c] - before_usage[i][c])
+                self.assertGreater(after_usage[i][c], before_usage[i][c], "CPU %d did not enter expected idle state %s (%s)" % (c,i,idle_state_names[i]))
+            self.disable_idle_state(i)
+
         # and reset back to enabling idle.
         for i in idle_states:
             self.enable_idle_state(i)
