@@ -27,7 +27,9 @@ machine:
   host_user=root
   host_password=abc123
 
-It can be used as such: ::
+It can be used as such:
+
+.. code-block:: bash
 
   ./op-test --config-file witherspoon.conf
 
@@ -106,7 +108,9 @@ of `witherspoon.pnor.squashfs.tar` you may need to use `witherspoon.pnor`.
 
 For example, this command will use the ``witherspoon.conf`` configuration file
 (see :ref:`config-file`) for login credentials to a Witherspoon machine, and
-will flash *host* firmware before running the default test suite: ::
+will flash *host* firmware before running the default test suite:
+
+.. code-block:: bash
 
   ./op-test --config-file witherspoon.conf \
   --host-pnor ~/op-build/output/images/witherspoon.pnor.squashfs.tar
@@ -114,7 +118,9 @@ will flash *host* firmware before running the default test suite: ::
 In this example we've provided the *full* path to a witherspoon firmware image
 that we've built using `op-build`.
 
-If you *also* want to flash BMC firmware, you can do that with the addition of the ``--bmc-image`` command line option: ::
+If you *also* want to flash BMC firmware, you can do that with the addition of the ``--bmc-image`` command line option:
+
+.. code-block:: bash
 
   ./op-test --config-file witherspoon.conf \
   --bmc-image obmc-phosphor-image-witherspoon.ubi.mtd.tar \
@@ -125,7 +131,9 @@ In this example, `op-test` will first update the BMC firmware, then update the h
 If you're a skiboot/OPAL developer and wanting to test your latest code when
 applied on top of a known-good BMC and PNOR image, you can use the
 ``--flash-skiboot`` command line option to instruct `op-test` to, as a final
-step, overwrite the `PAYLOAD` partition with your skiboot: ::
+step, overwrite the `PAYLOAD` partition with your skiboot:
+
+.. code-block:: bash
 
   ./op-test --config-file witherspoon.conf \
   --bmc-image obmc-phosphor-image-witherspoon.ubi.mtd.tar \
@@ -159,14 +167,18 @@ firmware.
 **TODO** Document HPM flashing.
 
 An example of flashing a full `habanero.pnor` image and running the default
-test suite is: ::
+test suite is:
+
+.. code-block:: bash
 
   ./op-test --config-file hab4.conf \
   --host-pnor ~/op-build/output/images/habanero.pnor
 
 Just like on other systems, if you're an OPAL/skiboot developer and you want
 to test your changes along with a known-good full PNOR image, you'd do that
-the same way, using the ``--flash-skiboot`` parameter: ::
+the same way, using the ``--flash-skiboot`` parameter:
+
+  .. code-block:: bash
 
   ./op-test --config-file hab4.conf \
   --host-pnor ~/op-build/output/images/habanero.pnor \
@@ -192,7 +204,9 @@ are split up into two separate LIDs, and must be pointed to separately.
 
 This example will run the stest suite against our ZZ machine *after* flashing
 our skiboot, kernel and initramfs built fresh from `op-build` (with the
-configuration `zz_defconfig`). ::
+configuration `zz_defconfig`).
+
+.. code-block:: bash
 
   ./op-test --config-file zz.conf \
   --flash-skiboot ~/op-build/output/images/skiboot.lid \
@@ -233,7 +247,9 @@ In this configuration file example, we point to a `qemu` development tree
 rather than using the system default `qemu-system-ppc64` binary.
 
 To run the "boot to petitboot" test in qemu with the above configuration file,
-you can do so like this: ::
+you can do so like this:
+
+.. code-block:: bash
 
   ./op-test --config-file qemu.conf \
   --run testcases.BasicIPL.BootToPetitbootShell
