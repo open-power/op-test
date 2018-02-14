@@ -18,7 +18,9 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-# Support testing against Qemu simulator
+"""
+Support testing against Qemu simulator
+"""
 
 import atexit
 import sys
@@ -35,6 +37,10 @@ class ConsoleState():
     CONNECTED = 1
 
 class QemuConsole():
+    """
+    A 'connection' to the Qemu Console involves *launching* qemu.
+    Terminating a connection will *terminate* the qemu process.
+    """
     def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None, ubuntu_cdrom=None):
         self.qemu_binary = qemu_binary
         self.skiboot = skiboot
@@ -134,13 +140,21 @@ class QemuConsole():
         return output
 
 class QemuIPMI():
+    """
+    Qemu has fairly limited IPMI capability, and we probably need to
+    extend the capability checks so that more of the IPMI test suite
+    gets skipped.
+
+    """
     def __init__(self, console):
         self.console = console
 
     def ipmi_power_off(self):
+        """For Qemu, this just kills the simulator"""
         self.console.terminate()
 
     def ipmi_wait_for_standby_state(self, i_timeout=10):
+        """For Qemu, we just kill the simulator"""
         self.console.terminate()
 
     def ipmi_set_boot_to_petitboot(self):
