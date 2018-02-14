@@ -37,7 +37,6 @@ try:
 except ImportError:
   pass
 
-
 import OpTestLogger
 import OpTestConfiguration
 OpTestConfiguration.conf = OpTestConfiguration.OpTestConfiguration()
