@@ -88,6 +88,7 @@ from testcases import SbePassThrough
 from testcases import DeviceTreeValidation
 from testcases import DeviceTreeWarnings
 from testcases import PciSlotLocCodes
+from testcases import InstallUbuntu
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -184,6 +185,16 @@ class DefaultSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(SkirootSuite().suite())
+        self.s.addTest(HostSuite().suite())
+    def suite(self):
+        return self.s
+
+class QemuSuite():
+    '''Basic regression tests'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+#        self.s.addTest(SkirootSuite().suite())
+        self.s.addTest(InstallUbuntu.InstallUbuntu())
         self.s.addTest(HostSuite().suite())
     def suite(self):
         return self.s
@@ -341,6 +352,7 @@ suites = {
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
     'default' : DefaultSuite(),
+    'qemu' : QemuSuite(),
     'BasicIPL' : BasicIPLSuite(),
     'BasicPCI' : BasicPCISuite(),
     'em' :       OpTestEMSuite(),

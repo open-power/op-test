@@ -1424,7 +1424,7 @@ class OpTestQemuSystem(OpTestSystem):
         # Ensure we grab host console early, in order to not miss
         # any messages
         self.console = bmc.get_host_console()
-        if host.scratch_disk is None:
+        if host.scratch_disk in [None,'']:
             host.scratch_disk = "/dev/sda"
         super(OpTestQemuSystem, self).__init__(host=host,
                                                bmc=bmc,
@@ -1442,3 +1442,6 @@ class OpTestQemuSystem(OpTestSystem):
 
     def get_my_ip_from_host_perspective(self):
         return "10.0.2.2"
+
+    def has_host_accessible_eeprom(self):
+        return False

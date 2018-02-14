@@ -78,7 +78,7 @@ class QemuConsole():
         if self.ubuntu_cdrom is not None:
             cmd = cmd + " -cdrom %s" % (self.ubuntu_cdrom)
         cmd = cmd + " -netdev user,id=u1 -device e1000,netdev=u1"
-
+        cmd = cmd + " -device ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10"
         print cmd
         solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         self.state = ConsoleState.CONNECTED
@@ -125,6 +125,14 @@ class QemuConsole():
             res = res.split(command)
             return res[-1].splitlines()
 
+    # This command just runs and returns the ouput & ignores the failure
+    def run_command_ignore_fail(self, command, timeout=60):
+        try:
+            output = self.run_command(command, timeout)
+        except CommandFailed as cf:
+            output = cf.output
+        return output
+
 class QemuIPMI():
     def __init__(self, console):
         self.console = console
@@ -139,6 +147,9 @@ class QemuIPMI():
         return 0
 
     def ipmi_sel_check(self, i_string="Transition to Non-recoverable"):
+        pass
+
+    def sys_set_bootdev_no_override(self):
         pass
 
 class OpTestQemu():
@@ -169,3 +180,12 @@ class OpTestQemu():
 
     def get_rest_api(self):
         return None
+
+    def has_os_boot_sensor(self):
+        return False
+
+    def has_occ_active_sensor(self):
+        return False
+
+    def has_host_status_sensor(self):
+        return False

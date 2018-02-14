@@ -143,7 +143,7 @@ class InstallUbuntu(unittest.TestCase):
             rawc.send('\t\t\t\t') # FIXME :)
             rawc.send('\b\b\b\b') # remove ' ---'
             rawc.send('\b\b\b\b\b') #remove 'quiet'
-            rawc.send(kernelargs)
+            rawc.send(kernel_args)
             rawc.send('\t')
             rawc.sendline('')
             rawc.sendline('')
