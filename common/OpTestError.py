@@ -24,15 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 
-## @package OpTestError
-#  BMC package which contains all BMC related Errors
+"""
+A catch-all exception.
 
-#
-# @par Class description:
-# Exception Class, for the raising Bmc related Exceptions
-#
-# Attributes: @li ExceptionCode -- Code to indicate the error \n @li Reason -- explanation of the error
-##
+Use of this exception is **DEPRECATED** and will be removed in the future.
+
+Some existing code uses this, and it should be gradually converted to use
+more specialized exceptions.
+"""
+
 class OpTestError(Exception):
     pass
 

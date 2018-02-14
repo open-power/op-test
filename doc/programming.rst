@@ -11,6 +11,12 @@ Exceptions
    :members:
    :undoc-members:
 
+OpTestError
+^^^^^^^^^^^
+.. automodule:: common.OpTestError
+   :members:
+   :undoc-members:
+
 OPExpect
 --------
 
