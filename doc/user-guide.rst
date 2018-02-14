@@ -14,7 +14,9 @@ you may keep a configuration file per-machine you test against, to save on
 typing out all the IP addresses and login credentials.
 
 For example, this ``witherspoon.conf`` file will connect to a Witherspoon
-machine: ::
+machine:
+
+.. code-block:: ini
 
   [op-test]
   bmc_type=OpenBMC
@@ -33,7 +35,9 @@ Other options can also be specified on the commandline, such as ``--host-pnor``
 which is documented in :ref:`flashing-firmware`.
 
 There is also a *per user* configuration file, at ``~/.op-test-framework.conf``
-where you can store global options, for example: ::
+where you can store global options, for example:
+
+.. code-block:: ini
 
   [op-test]
   smc_presshipmicmd=foo
@@ -207,7 +211,9 @@ This can be useful for test development/debug as well as testing the qemu
 simulator itself.
 
 It may be useful to keep a configuration file with your qemu configuration
-in it for running tests. An example of such a configuration file is below: ::
+in it for running tests. An example of such a configuration file is below:
+
+.. code-block:: ini
 
   [op-test]
   bmc_type=qemu
