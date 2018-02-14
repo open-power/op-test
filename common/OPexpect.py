@@ -17,16 +17,27 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-#
-# OPexpect
-# A wrapper around pexpect, but expects a bunch of common failures
-# so that each expect call doesn't have to watch out for them.
-# Things like OPAL asserts, kernel crashes, RCU stalls etc.
-#
+"""
+The OPexpect module is a wrapper around the standard Python pexpect module
+that will *always* look for certain error conditions for OpenPOWER machines.
+
+This is to enable op-test test cases to fail *quickly* in the event of errors
+such as kernel panics, RCU stalls, machine checks, firmware crashes etc.
+
+In the event of error, the failure_callback function will be called, which
+typically will be set up to set the machine state to UNKNOWN, so that when
+the next test starts executing, we re-IPL the system to get back to a clean
+slate.
+
+When developing test cases, use OPexpect over pexpect. If you *intend* for
+certain error conditions to occur, you can catch the exceptions that OPexpect
+throws.
+"""
 
 import pexpect
 from Exceptions import *
 import OpTestSystem
+
 
 class spawn(pexpect.spawn):
     def __init__(self, command, args=[], timeout=30, maxread=2000,
