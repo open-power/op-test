@@ -67,6 +67,10 @@ class KernelModuleNotLoaded(Exception):
         return "Kernel module %s not loaded" % (self.module)
 
 class KernelConfigNotSet(Exception):
+    '''
+    A kernel config option needed by the test was not set for the running
+    kernel.
+    '''
     def __init__(self, opt):
         self.opt = opt
     def __str__(self):
@@ -85,6 +89,9 @@ class KernelSoftLockup(Exception):
         return "Soft lockup (machine in state %s): %s" % (self.state, self.log)
 
 class KernelHardLockup(Exception):
+    '''
+    We detected a hard lockup from the running kernel.
+    '''
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -106,6 +113,9 @@ class KernelBug(Exception):
         return "Kernel bug in state %s: %s" % (self.state, self.log)
 
 class SkibootAssert(Exception):
+    '''
+    We detected an assert from OPAL (skiboot) firmware.
+    '''
     def __init__(self, state, log):
         self.log = log
         self.state = state
