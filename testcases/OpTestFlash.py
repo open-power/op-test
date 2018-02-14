@@ -151,11 +151,15 @@ class BmcImageFlash(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.bmc_image = conf.args.bmc_image
+        self.pupdate = conf.args.pupdate
         super(BmcImageFlash, self).setUp()
 
     def runTest(self):
         if not self.bmc_image or not os.path.exists(self.bmc_image):
             self.skipTest("BMC image %s not doesn't exist" % self.bmc_image)
+
+        if "SMC" in self.bmc_type and not self.pupdate:
+                self.fail("pupdate tool is needed for flashing BMC on SMC platforms")
 
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
@@ -255,6 +259,7 @@ class PNORFLASH(OpTestFlashBase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.host_pnor
+        self.pupdate = conf.args.pupdate
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
@@ -262,6 +267,14 @@ class PNORFLASH(OpTestFlashBase):
             self.skipTest("PNOR image %s not doesn't exist" % self.pnor)
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
             self.skipTest("OP AMI/OpenBMC PNOR Flash test")
+
+        if "AMI" in self.bmc_type and not self.pflash:
+                self.fail("pflash tool is needed for flashing PNOR on AMI platforms")
+        elif "SMC" in self.bmc_type and not self.pupdate:
+                self.fail("pupdate tool is needed for flashing PNOR on SMC platforms")
+        else:
+            pass
+
         if self.pflash:
             self.cv_BMC.image_transfer(self.pflash, "pflash")
 
@@ -353,6 +366,7 @@ class OpalLidsFLASH(OpTestFlashBase):
         self.skiroot_initramfs = conf.args.flash_initramfs
         self.smc_presshipmicmd = conf.args.smc_presshipmicmd
         self.ext_lid_test_path = "/opt/extucode/lid_test"
+
         for lid in [self.skiboot, self.skiroot_kernel, self.skiroot_initramfs]:
             if lid:
                 self.assertNotEqual(os.path.exists(lid), 0,
@@ -362,6 +376,9 @@ class OpalLidsFLASH(OpTestFlashBase):
     def runTest(self):
         if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs:
             self.skipTest("No custom skiboot/kernel to flash")
+
+        if self.bmc_type in ["AMI", "SMC"] and not self.pflash:
+                self.fail("pflash tool is needed for flashing OPAL lids")
 
         if "SMC" in self.bmc_type and self.smc_presshipmicmd:
             self.cv_IPMI.ipmitool.run(self.smc_presshipmicmd)
