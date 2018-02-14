@@ -34,6 +34,7 @@ import time
 import subprocess
 import pexpect
 import socket
+import commands
 
 from OpTestFSP import OpTestFSP
 from OpTestConstants import OpTestConstants as BMC_CONST
@@ -1280,17 +1281,34 @@ class OpTestSystem(object):
     def get_my_ip_from_host_perspective(self):
         rawc = self.console.get_console()
         port = 12340
-        rawc.send("nc -c -l -p %u -v -e /bin/true\n" % port)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        time.sleep(0.5)
-        print "# Connecting to %s:%u" % (self.host().hostname(),port)
-        sock.connect((self.host().hostname(), port))
-        sock.send('Hello World!')
-        sock.close()
-        rawc.expect('Connection from ')
-        rawc.expect(':')
-        my_ip = rawc.before
-        rawc.expect('\n')
+        my_ip = None
+        try:
+            rawc.send("nc -l -p %u -v -e /bin/true\n" % port)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            time.sleep(0.5)
+            print "# Connecting to %s:%u" % (self.host().hostname(), port)
+            sock.connect((self.host().hostname(), port))
+            sock.send('Hello World!')
+            sock.close()
+            rawc.expect('Connection from ')
+            rawc.expect(':')
+            my_ip = rawc.before
+            rawc.expect('\n')
+        except Exception:  # Looks like older nc does not support -v, lets fallback
+            rawc.sendcontrol('c')  # to avoid incase nc command hangs
+            my_ip = None
+            ip = commands.getoutput("hostname -i")
+            ip_lst = commands.getoutput("hostname -I").split(" ")
+            # Let's validate the IP
+            for item in ip_lst:
+                if item == ip:
+                    my_ip = ip
+                    break
+            if not my_ip:
+                if len(ip_lst) == 1:
+                    my_ip = ip_lst[0]
+                else:
+                    print "hostname -i does not provide valid IP, correct and proceed with installation"
         return my_ip
 
 class OpTestFSPSystem(OpTestSystem):

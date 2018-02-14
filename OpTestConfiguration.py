@@ -92,6 +92,11 @@ def get_parser():
     hostgroup.add_argument("--host-password", help="SSH password for Host")
     hostgroup.add_argument("--host-lspci", help="Known 'lspci -n -m' for host")
     hostgroup.add_argument("--host-scratch-disk", help="A block device we can erase", default="")
+    hostgroup.add_argument("--host-gateway", help="Host Gateway", default="")
+    hostgroup.add_argument("--host-submask", help="Host Subnet Mask", default="255.255.255.0")
+    hostgroup.add_argument("--host-mac", help="Host Mac address", default="")
+    hostgroup.add_argument("--host-dns", help="Host DNS", default="")
+    hostgroup.add_argument("--host-cmd", help="Shell command to run inside Host", default="")
     hostgroup.add_argument("--proxy", default="", help="proxy for the Host to access the internet. "
                            "Only needed for tests that install an OS")
     hostgroup.add_argument("--host-prompt", default="#",
@@ -102,8 +107,8 @@ def get_parser():
                            choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
 
     osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
-    osgroup.add_argument("--ubuntu-cdrom", help="Ubuntu ppc64el CD/DVD install image")
-
+    osgroup.add_argument("--os-cdrom", help="OS CD/DVD install image", default="")
+    osgroup.add_argument("--os-repo", help="OS repo", default="")
     imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
     imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
     imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
