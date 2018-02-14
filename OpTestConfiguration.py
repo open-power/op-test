@@ -37,6 +37,96 @@ import addons
 optAddons = dict() # Store all addons found.  We'll loop through it a couple time below
 # Look at the top level of the addons for any directories and load their Setup modules
 
+qemu_default = "qemu-system-ppc64"
+
+def get_parser():
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("-c", "--config-file", help="Configuration File",
+                        metavar="FILE")
+    tgroup = parser.add_argument_group('Test',
+                                       'Tests to run')
+    tgroup.add_argument("--list-suites", action='store_true',
+                        help="List available suites to run")
+    tgroup.add_argument("--run-suite", action='append',
+                        help="Run a test suite(s)")
+    tgroup.add_argument("--run", action='append',
+                        help="Run individual tests")
+    tgroup.add_argument("--quiet", action='store_true', default=False,
+                        help="Don't splat lots of things to the console")
+
+    parser.add_argument("--machine-state", help="Current machine state",
+                        choices=['UNKNOWN', 'OFF', 'PETITBOOT',
+                                 'PETITBOOT_SHELL', 'OS'])
+
+    # Options to set the output directory and suffix on the output
+    parser.add_argument("-o", "--output", help="Output directory for test reports.  Can also be set via OP_TEST_OUTPUT env variable.")
+    parser.add_argument("--suffix", help="Suffix to add to all reports.  Default is current time.")
+
+    bmcgroup = parser.add_argument_group('BMC',
+                                         'Options for Service Processor')
+    # The default supported BMC choices in --bmc-type
+    bmcChoices = ['AMI', 'SMC', 'FSP', 'OpenBMC', 'qemu']
+    # Loop through any addons let it append the extra bmcChoices
+    for opt in optAddons:
+        bmcChoices = optAddons[opt].addBMCType(bmcChoices)
+    bmcgroup.add_argument("--bmc-type",
+                          choices=bmcChoices,
+                          help="Type of service processor")
+    bmcgroup.add_argument("--bmc-ip", help="BMC address")
+    bmcgroup.add_argument("--bmc-username", help="SSH username for BMC")
+    bmcgroup.add_argument("--bmc-password", help="SSH password for BMC")
+    bmcgroup.add_argument("--bmc-usernameipmi", help="IPMI username for BMC")
+    bmcgroup.add_argument("--bmc-passwordipmi", help="IPMI password for BMC")
+    bmcgroup.add_argument("--bmc-prompt", default="#",
+                          help="Prompt for BMC ssh session")
+    bmcgroup.add_argument("--smc-presshipmicmd")
+    bmcgroup.add_argument("--qemu-binary", default=qemu_default,
+                          help="[QEMU Only] qemu simulator binary")
+
+    hostgroup = parser.add_argument_group('Host', 'Installed OS information')
+    hostgroup.add_argument("--host-ip", help="Host address")
+    hostgroup.add_argument("--host-user", help="SSH username for Host")
+    hostgroup.add_argument("--host-password", help="SSH password for Host")
+    hostgroup.add_argument("--host-lspci", help="Known 'lspci -n -m' for host")
+    hostgroup.add_argument("--host-scratch-disk", help="A block device we can erase", default="")
+    hostgroup.add_argument("--proxy", default="", help="proxy for the Host to access the internet. "
+                           "Only needed for tests that install an OS")
+    hostgroup.add_argument("--host-prompt", default="#",
+                           help="Prompt for Host SSH session")
+
+    hostgroup.add_argument("--platform",
+                           help="Platform (used for EnergyScale tests)",
+                           choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
+
+    osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
+    osgroup.add_argument("--ubuntu-cdrom", help="Ubuntu ppc64el CD/DVD install image")
+
+    imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
+    imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
+    imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
+    imagegroup.add_argument("--host-hpm", help="HPM image to flash")
+    imagegroup.add_argument("--host-img-url", help="URL to Host Firmware image to flash on FSP systems (Must be URL accessible petitboot shell on the host)")
+    imagegroup.add_argument("--flash-skiboot",
+                            help="skiboot to use/flash. Depending on platform, may need to be xz compressed")
+    imagegroup.add_argument("--flash-kernel",
+                            help="petitboot zImage.epapr to use/flash.")
+    imagegroup.add_argument("--flash-initramfs",
+                            help="petitboot rootfs to use/flash. Not all platforms support this option")
+    imagegroup.add_argument("--noflash","--no-flash", action='store_true', default=False,
+                            help="Even if images are specified, don't flash them")
+    imagegroup.add_argument("--only-flash", action='store_true', default=False,
+                            help="Only flash, don't run any tests (even if specified)")
+    imagegroup.add_argument("--pflash",
+                            help="pflash to copy to BMC (if needed)")
+    imagegroup.add_argument("--pupdate",
+                            help="pupdate to flash PNOR for Supermicro systems")
+
+    return parser
+
+
 class OpTestConfiguration():
     def __init__(self):
         self.args = []
@@ -48,16 +138,10 @@ class OpTestConfiguration():
 
     def parse_args(self, argv=None):
         conf_parser = argparse.ArgumentParser(add_help=False)
-        parser = argparse.ArgumentParser(
-            description=__doc__,
-            formatter_class=argparse.RawDescriptionHelpFormatter
-        )
 
         # We have two parsers so we have correct --help, we need -c in both
         conf_parser.add_argument("-c", "--config-file", help="Configuration File",
                                  metavar="FILE")
-        parser.add_argument("-c", "--config-file", help="Configuration File",
-                            metavar="FILE")
 
         args , remaining_args = conf_parser.parse_known_args(argv)
         defaults = {}
@@ -70,89 +154,12 @@ class OpTestConfiguration():
         except ConfigParser.NoSectionError:
             pass
 
+        parser = get_parser()
         parser.set_defaults(**defaults)
 
-        qemu_default = "qemu-system-ppc64"
         if defaults.get('qemu_binary'):
             qemu_default = defaults['qemu_binary']
 
-        tgroup = parser.add_argument_group('Test',
-                                           'Tests to run')
-        tgroup.add_argument("--list-suites", action='store_true',
-                            help="List available suites to run")
-        tgroup.add_argument("--run-suite", action='append',
-                            help="Run a test suite(s)")
-        tgroup.add_argument("--run", action='append',
-                            help="Run individual tests")
-        tgroup.add_argument("--quiet", action='store_true', default=False,
-                            help="Don't splat lots of things to the console")
-
-        parser.add_argument("--machine-state", help="Current machine state",
-                            choices=['UNKNOWN', 'OFF', 'PETITBOOT',
-                                     'PETITBOOT_SHELL', 'OS'])
-
-        # Options to set the output directory and suffix on the output
-        parser.add_argument("-o", "--output", help="Output directory for test reports.  Can also be set via OP_TEST_OUTPUT env variable.")
-        parser.add_argument("--suffix", help="Suffix to add to all reports.  Default is current time.")
-
-        bmcgroup = parser.add_argument_group('BMC',
-                                             'Options for Service Processor')
-        # The default supported BMC choices in --bmc-type
-        bmcChoices = ['AMI', 'SMC', 'FSP', 'OpenBMC', 'qemu']
-        # Loop through any addons let it append the extra bmcChoices
-        for opt in optAddons:
-            bmcChoices = optAddons[opt].addBMCType(bmcChoices)
-        bmcgroup.add_argument("--bmc-type",
-                              choices=bmcChoices,
-                              help="Type of service processor")
-        bmcgroup.add_argument("--bmc-ip", help="BMC address")
-        bmcgroup.add_argument("--bmc-username", help="SSH username for BMC")
-        bmcgroup.add_argument("--bmc-password", help="SSH password for BMC")
-        bmcgroup.add_argument("--bmc-usernameipmi", help="IPMI username for BMC")
-        bmcgroup.add_argument("--bmc-passwordipmi", help="IPMI password for BMC")
-        bmcgroup.add_argument("--bmc-prompt", default="#",
-                              help="Prompt for BMC ssh session")
-        bmcgroup.add_argument("--smc-presshipmicmd")
-        bmcgroup.add_argument("--qemu-binary", default=qemu_default,
-                              help="[QEMU Only] qemu simulator binary")
-
-        hostgroup = parser.add_argument_group('Host', 'Installed OS information')
-        hostgroup.add_argument("--host-ip", help="Host address")
-        hostgroup.add_argument("--host-user", help="SSH username for Host")
-        hostgroup.add_argument("--host-password", help="SSH password for Host")
-        hostgroup.add_argument("--host-lspci", help="Known 'lspci -n -m' for host")
-        hostgroup.add_argument("--host-scratch-disk", help="A block device we can erase", default="")
-        hostgroup.add_argument("--proxy", default="", help="proxy for the Host to access the internet. "
-                               "Only needed for tests that install an OS")
-        hostgroup.add_argument("--host-prompt", default="#",
-                               help="Prompt for Host SSH session")
-
-        hostgroup.add_argument("--platform",
-                               help="Platform (used for EnergyScale tests)",
-                               choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
-
-        osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
-        osgroup.add_argument("--ubuntu-cdrom", help="Ubuntu ppc64el CD/DVD install image")
-
-        imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
-        imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
-        imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
-        imagegroup.add_argument("--host-hpm", help="HPM image to flash")
-        imagegroup.add_argument("--host-img-url", help="URL to Host Firmware image to flash on FSP systems (Must be URL accessible petitboot shell on the host)")
-        imagegroup.add_argument("--flash-skiboot",
-                              help="skiboot to use/flash. Depending on platform, may need to be xz compressed")
-        imagegroup.add_argument("--flash-kernel",
-                              help="petitboot zImage.epapr to use/flash.")
-        imagegroup.add_argument("--flash-initramfs",
-                              help="petitboot rootfs to use/flash. Not all platforms support this option")
-        imagegroup.add_argument("--noflash","--no-flash", action='store_true', default=False,
-                                help="Even if images are specified, don't flash them")
-        imagegroup.add_argument("--only-flash", action='store_true', default=False,
-                                help="Only flash, don't run any tests (even if specified)")
-        imagegroup.add_argument("--pflash",
-                                help="pflash to copy to BMC (if needed)")
-        imagegroup.add_argument("--pupdate",
-                                help="pupdate to flash PNOR for Supermicro systems")
 
         self.args , self.remaining_args = parser.parse_known_args(remaining_args)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,

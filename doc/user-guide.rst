@@ -3,6 +3,19 @@
 op-test User Guide
 ==================
 
+.. _commandline:
+
+Command Line Options
+--------------------
+
+All configuration options can be specified via the command line or in a
+configuration file (see :ref:`config-file`).
+
+.. argparse::
+   :module: OpTestConfiguration
+   :func: get_parser
+   :prog: op-test
+
 .. _config-file:
 
 Configuration Files and Command Line Options
