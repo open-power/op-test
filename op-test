@@ -29,6 +29,7 @@ op-test: run OpenPOWER test suite(s)
 import sys
 import os
 import unittest
+import re
 
 try:
   import faulthandler
@@ -37,7 +38,10 @@ try:
 except ImportError:
   pass
 
-
+import logging
+import OpTestLogger
+# op-test is the parent logger
+optestlog = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 import OpTestConfiguration
 OpTestConfiguration.conf = OpTestConfiguration.OpTestConfiguration()
 
@@ -102,8 +106,6 @@ import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
 OpTestConfiguration.conf.objs()
-
-print args
 
 class SystemAccessSuite():
     '''
@@ -390,6 +392,8 @@ class FspOpalSuite():
 class KnownBugs():
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(Console.Console32k())
+        self.s.addTest(Console.ControlC())
     def suite(self):
         return self.s
 
@@ -411,18 +415,18 @@ class InstallHost():
         if conf.args.host_scratch_disk and target:
             if "ubuntu" in target.lower():
                 self.s.addTest(InstallUbuntu.InstallUbuntu())
-                print 'InstallUbuntu added to default suite'
+                optestlog.info('InstallUbuntu added to default suite')
             elif "rhel" in target.lower():
                 self.s.addTest(InstallRhel.InstallRhel())
-                print 'InstallRhel added to default suite'
+                optestlog.info('InstallRhel added to default suite')
             elif "hostos" in target.lower():
                 self.s.addTest(InstallHostOS.InstallHostOS())
-                print 'InstallHostOS added to default suite'
+                optestlog.info('InstallHostOS added to default suite')
             else:
-                print("Could not parse OS name from '{}'".format(target))
+                optestlog.info("Could not parse OS name from '{}'".format(target))
                 exit(-1)
         else:
-            print("Missing parameters for InstallHost suite")
+            optestlog.info("Missing parameters for InstallHost suite")
             exit(-1)
 
     def suite(self):
@@ -486,30 +490,30 @@ if OpTestConfiguration.conf.args.run:
 
 if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
     if not OpTestConfiguration.conf.args.only_flash:
-        print "RUNNING DEFAULT SUITE"
         t.addTest(suites['default'].suite())
 
 xml_msg = ""
 def run_tests(t):
     try:
-        print("Output to be written to: %s/*%s*" % (OpTestConfiguration.conf.output, OpTestConfiguration.conf.outsuffix))
         import xmlrunner  # requires unittest-xml-reporting package
-        res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
-        print("Output written to: %s/*%s*" % (OpTestConfiguration.conf.output, OpTestConfiguration.conf.outsuffix))
-        return res
+        with open(os.path.join(OpTestLogger.optest_logger_glob.logdir, OpTestLogger.optest_logger_glob.logger_file), 'a') as main_logfile:
+            res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
+            return res
     except ImportError, err:
-        sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
-        res = unittest.TextTestRunner(verbosity=2).run(t)
-        return res
+        optestlog.warning('xmlrunner module not available, falling back to using unittest...')
+        with open(os.path.join(OpTestLogger.optest_logger_glob.logdir, OpTestLogger.optest_logger_glob.logger_file), 'a') as main_logfile:
+            res = unittest.TextTestRunner(verbosity=2).run(t)
+            return res
 
 res = None
+
 if not OpTestConfiguration.conf.args.noflash:
     res = run_tests(FlashFirmware().suite())
-
-print repr(res)
+    print repr(res)
 
 if OpTestConfiguration.conf.args.only_flash:
     if res != None:
+        optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
         exit(len(res.errors + res.failures))
     else:
         exit(0)
@@ -517,7 +521,11 @@ if OpTestConfiguration.conf.args.only_flash:
 if not res or (res and not (res.errors or res.failures)):
     res = run_tests(t)
 else:
-    print "Skipping main tests as flashing failed"
+    optestlog.error('Skipping main tests as flashing failed')
+    optestlog.info('OP-TEST')
     exit(-1)
+
+optestlog.info('Exit with Result errors="{}" and failures="{}"'.format(len(res.errors), len(res.failures)))
+optestlog.info('See Main Log File for Results')
 
 exit(len(res.errors + res.failures))
