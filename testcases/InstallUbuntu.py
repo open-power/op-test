@@ -172,7 +172,7 @@ class InstallUbuntu(unittest.TestCase):
         rawc.expect('Loading additional components', timeout=300)
         rawc.expect('Setting up the clock', timeout=300)
         rawc.expect('Detecting hardware', timeout=300)
-        rawc.expect('Partitions formatting', timeout=300)
+        rawc.expect('Partitions formatting', timeout=600)
         rawc.expect('Installing the base system', timeout=300)
         r = None
         while r != 0:
