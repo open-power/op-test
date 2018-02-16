@@ -89,6 +89,7 @@ from testcases import DeviceTreeValidation
 from testcases import DeviceTreeWarnings
 from testcases import PciSlotLocCodes
 from testcases import InstallUbuntu
+from testcases import OpTestCAPI
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -305,6 +306,11 @@ class OCCSuite():
     def suite(self):
         return self.s
 
+class CAPISuite():
+    '''CAPI Tests'''
+    def suite(self):
+        return OpTestCAPI.capi_test_suite()
+
 class SystemIPLSuite():
     '''System IPL's'''
     def suite(self):
@@ -369,6 +375,7 @@ suites = {
     'full-inbandipmi' : InbandIPMISuite(),
     'full-outofbandipmi' : OutofbandIPMISuite(),
     'full-occ' : OCCSuite(),
+    'capi' : CAPISuite(),
     'crash-suite' : CrashSuite(),
     'system-ipl' : SystemIPLSuite(),
     'fsp-opal-suite' :  FspOpalSuite(),
