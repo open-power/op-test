@@ -914,3 +914,62 @@ class OpTestHost():
                 ret = {'offset': offset, 'length': length}
         return ret
 
+    ##
+    # @brief Check that host has a CAPI FPGA card
+    #
+    # @return True or False
+    #
+    def host_has_capi_fpga_card(self):
+        l_cmd = "lspci -d \"1014:0477\""
+        l_res = self.host_run_command(l_cmd)
+        l_res = " ".join(l_res)
+        if (l_res.__contains__('IBM Device 0477')):
+            l_msg = "Host has a CAPI FPGA card"
+            print l_msg
+            return True
+        else:
+            l_msg = "Host has no CAPI FPGA card; skipping test"
+            print l_msg
+            return False
+
+    ##
+    # @brief Clone latest cxl-tests git repository in i_dir directory
+    #
+    # @param i_dir @type string: directory where cxl-tests will be cloned
+    #
+    # @return True or False
+    #
+    def host_clone_cxl_tests(self, i_dir):
+        l_msg = "https://github.com/ibm-capi/cxl-tests.git"
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self.host_run_command("git config --global http.sslverify false")
+        self.host_run_command("rm -rf %s" % i_dir)
+        self.host_run_command("mkdir %s" % i_dir)
+        try:
+            l_res = self.host_run_command(l_cmd)
+            return True
+        except:
+            l_msg = "Cloning cxl-tests git repository is failed"
+            return False
+
+    def host_build_cxl_tests(self, i_dir):
+        l_cmd = "cd %s; make" % i_dir
+        self.host_run_command(l_cmd)
+        l_cmd = "test -x %s/libcxl/libcxl.so" % i_dir
+        self.host_run_command(l_cmd)
+        l_cmd = "test -x %s/libcxl_tests; echo $?" % i_dir
+        self.host_run_command(l_cmd)
+        l_cmd = "test -x %s/memcpy_afu_ctx; echo $?" % i_dir
+        self.host_run_command(l_cmd)
+
+    def host_check_binary(self, i_dir, i_file):
+        l_cmd = "test -x %s/%s;" % (i_dir, i_file)
+        try:
+            self.host_run_command(l_cmd)
+            l_msg = "Executable file %s/%s is available" % (i_dir, i_file)
+            print l_msg
+            return True
+        except CommandFailed:
+            l_msg = "Executable file %s/%s is not present" % (i_dir, i_file)
+            print l_msg
+            return False
