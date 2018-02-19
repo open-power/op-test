@@ -41,6 +41,7 @@ import commands
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
+from OpTestSystem import OpTestSystem
 from Exceptions import CommandFailed
 from Exceptions import BMCDisconnected
 from common import OPexpect
