@@ -24,10 +24,7 @@ import pexpect
 import subprocess
 import json
 
-try:
-    import pxssh
-except ImportError:
-    from pexpect import pxssh
+from OpTestSSH import OpTestSSH
 from OpTestIPMI import OpTestIPMI
 from OpTestUtil import OpTestUtil
 from OpTestBMC import OpTestBMC
@@ -45,135 +42,6 @@ class FailedCurlInvocation(Exception):
     def __str__(self):
         return "CURL invocation '%s' failed\nOutput:\n%s" % (self.command, self.output)
 
-
-class ConsoleState():
-    DISCONNECTED = 0
-    CONNECTED = 1
-
-def set_system_to_UNKNOWN(system):
-    s = system.get_state()
-    system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
-    return s
-
-class HostConsole():
-    def __init__(self, host, username, password, logfile=sys.stdout, port=22):
-        self.state = ConsoleState.DISCONNECTED
-        self.host = host
-        self.username = username
-        self.password = password
-        self.port = port
-        self.logfile = logfile
-        self.system = None
-
-    def set_system(self, system):
-        self.system = system
-
-    def terminate(self):
-        if self.state == ConsoleState.CONNECTED:
-            self.sol.terminate()
-            self.state = ConsoleState.DISCONNECTED
-
-    def close(self):
-        if self.state == ConsoleState.DISCONNECTED:
-            return
-        try:
-            self.sol.send("\r")
-            self.sol.send('~.')
-            self.sol.expect(pexpect.EOF)
-            self.sol.close()
-        except pexpect.ExceptionPexpect:
-            raise "HostConsole: failed to close OpenBMC host console"
-        self.sol.terminate()
-        self.state = ConsoleState.DISCONNECTED
-
-    def connect(self):
-        if self.state == ConsoleState.CONNECTED:
-            self.sol.terminate()
-            self.state = ConsoleState.DISCONNECTED
-
-        print "#OpenBMC Console CONNECT"
-
-        cmd = ("sshpass -p %s " % (self.password)
-               + " ssh -q"
-               + " -o'RSAAuthentication=no' -o 'PubkeyAuthentication=no'"
-               + " -o 'StrictHostKeyChecking=no'"
-               + " -o 'UserKnownHostsFile=/dev/null' "
-               + " -p %s" % str(self.port)
-               + " -l %s %s" % (self.username, self.host)
-           )
-        print cmd
-        solChild = OPexpect.spawn(cmd,logfile=self.logfile,
-                                  failure_callback=set_system_to_UNKNOWN,
-                                  failure_callback_data=self.system)
-        self.state = ConsoleState.CONNECTED
-        self.sol = solChild
-        return solChild
-
-    def get_console(self):
-        if self.state == ConsoleState.DISCONNECTED:
-            self.connect()
-
-        count = 0
-        while (not self.sol.isalive()):
-            print '# Reconnecting'
-            if (count > 0):
-                time.sleep(1)
-            self.connect()
-            count += 1
-            if count > 120:
-                raise "IPMI: not able to get sol console"
-
-        return self.sol
-
-    def run_command(self, command, timeout=60):
-        console = self.get_console()
-        console.sendline(command)
-        console.expect("\n") # from us
-        rc = None
-        output = None
-        exitcode = None
-        try:
-            rc = console.expect(["\[console-pexpect\]#$"], timeout)
-            output = console.before
-            console.sendline("echo $?")
-            console.expect("\n") # from us
-            rc = console.expect(["\[console-pexpect\]#$"], timeout)
-            exitcode = int(console.before)
-        except pexpect.TIMEOUT as e:
-            print e
-            print "# TIMEOUT waiting for command to finish."
-            print "# Attempting to control-c"
-            try:
-                console.sendcontrol('c')
-                rc = console.expect(["\[console-pexpect\]#$"], 10)
-                if rc == 0:
-                    raise CommandFailed(command, "TIMEOUT", -1)
-            except pexpect.TIMEOUT:
-                print "# Timeout trying to kill timed-out command."
-                print "# Failing current command and attempting to continue"
-                self.terminate()
-                raise CommandFailed("ssh -p 2222", "timeout", -1)
-            raise e
-
-        if rc == 0:
-            res = output
-            res = res.splitlines()
-            if exitcode != 0:
-                raise CommandFailed(command, res, exitcode)
-            return res
-        else:
-            res = console.before
-            res = res.split(command)
-            return res[-1].splitlines()
-
-    # This command just runs and returns the ouput & ignores the failure
-    # A straight copy of what's in OpTestIPMI
-    def run_command_ignore_fail(self, command, timeout=60):
-        try:
-            output = self.run_command(command, timeout)
-        except CommandFailed as cf:
-            output = cf.output
-        return output
 
 class CurlTool():
     def __init__(self, binary="curl",
@@ -1028,7 +896,9 @@ class HostManagement():
         return PowerCapEnable, PowerCap
 
 class OpTestOpenBMC():
-    def __init__(self, ip=None, username=None, password=None, ipmi=None, rest_api=None, logfile=sys.stdout):
+    def __init__(self, ip=None, username=None, password=None, ipmi=None,
+            rest_api=None, logfile=sys.stdout,
+            check_ssh_keys=False, known_hosts_file=None):
         self.hostname = ip
         self.username = username
         self.password = password
@@ -1039,10 +909,14 @@ class OpTestOpenBMC():
         # We kind of hack our way into pxssh by setting original_prompt
         # to also be \n, which appears to fool it enough to allow us
         # continue.
-        self.console = HostConsole(ip, username, password, port=2200, logfile=self.logfile)
+        self.console = OpTestSSH(ip, username, password, port=2200,
+                logfile=self.logfile, check_ssh_keys=check_ssh_keys,
+                known_hosts_file=known_hosts_file)
         self.bmc = OpTestBMC(ip=self.hostname,
                             username=self.username,
-                            password=self.password)
+                            password=self.password,
+                            check_ssh_keys=check_ssh_keys,
+                            known_hosts_file=known_hosts_file)
 
     def set_system(self, system):
         self.console.set_system(system)

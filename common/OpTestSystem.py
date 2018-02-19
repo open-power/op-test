@@ -41,7 +41,7 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
-from OpTestHost import SSHConnectionState
+from OpTestSSH import ConsoleState as SSHConnectionState
 
 
 class OpSystemState():
