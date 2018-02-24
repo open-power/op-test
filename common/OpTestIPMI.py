@@ -260,7 +260,7 @@ class IPMIConsole():
         try:
             console.sendline(command)
             console.expect("\n") # from us
-            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout=timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
             output = console.before
@@ -268,7 +268,7 @@ class IPMIConsole():
             rc = console.expect([BMC_DISCONNECT, "\n"]) # from us
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
-            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout=timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
             exitcode = int(console.before)
