@@ -216,7 +216,7 @@ class FullSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
-        self.s.addTest(testRestAPI.RestAPI())
+        self.s.addTest(testRestAPI.basic_suite())
         self.s.addTest(OpalGard.OpalGard())
         self.s.addTest(OpalUtils.OpalUtils())
         self.s.addTest(OpTestRTCdriver.HostRTC())
@@ -305,6 +305,16 @@ class OutofbandIPMISuite():
     def suite(self):
         return self.s
 
+class RestAPISuite():
+    '''REST API(OpenBMC Specific Out of band management)'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(testRestAPI.basic_suite())
+        self.s.addTest(testRestAPI.standby_suite())
+        self.s.addTest(testRestAPI.runtime_suite())
+    def suite(self):
+        return self.s
+
 class OCCSuite():
     '''OCC Test Suite'''
     def __init__(self):
@@ -385,6 +395,7 @@ suites = {
     'broken-reprovision' : BrokenReprovisionSuite(),
     'full-inbandipmi' : InbandIPMISuite(),
     'full-outofbandipmi' : OutofbandIPMISuite(),
+    'rest-api' : RestAPISuite(),
     'full-occ' : OCCSuite(),
     'capi' : CAPISuite(),
     'crash-suite' : CrashSuite(),
