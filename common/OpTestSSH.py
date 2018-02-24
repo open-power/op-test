@@ -45,7 +45,7 @@ def set_system_to_UNKNOWN(system):
 
 class OpTestSSH():
     def __init__(self, host, username, password, logfile=sys.stdout, port=22,
-            prompt=None, check_ssh_keys=False, known_hosts_file=None):
+            prompt=None, check_ssh_keys=False, known_hosts_file=None, use_default_bash=None):
         self.state = ConsoleState.DISCONNECTED
         self.host = host
         self.username = username
@@ -55,6 +55,7 @@ class OpTestSSH():
         self.prompt = prompt
         self.check_ssh_keys=check_ssh_keys
         self.known_hosts_file=known_hosts_file
+        self.use_default_bash = use_default_bash
         self.system = None
 
     def set_system(self, system):
@@ -107,7 +108,36 @@ class OpTestSSH():
         self.console = consoleChild
         # Users expecting "Host IPMI" will reference console.sol so make it available
         self.sol = self.console
+        self.set_unique_prompt(consoleChild)
         return consoleChild
+
+    def set_unique_prompt(self, console):
+        if self.port == 2200:
+            return
+        if self.use_default_bash:
+            console.sendline("exec bash --norc --noprofile")
+
+        if self.prompt:
+            prompt = self.prompt
+        else:
+            prompt = "\[console-pexpect\]#"
+        expect_prompt = prompt + "$"
+
+        console.sendline('PS1=' + prompt)
+        console.expect("\n") # from us, because echo
+
+        # Check for an early EOF - this can happen if we had a bad ssh host key
+        # console.isalive() can still return True in this case if called
+        # quickly enough.
+        try:
+            console.expect([expect_prompt], timeout=60)
+            output = console.before
+        except pexpect.EOF as cf:
+            print cf
+            if self.check_ssh_keys:
+                raise Exception("SSH session exited early - bad host key?")
+            else:
+                raise Exception("SSH session exited early!")
 
     def get_console(self):
         if self.state == ConsoleState.DISCONNECTED:
@@ -127,26 +157,11 @@ class OpTestSSH():
 
     def run_command(self, command, timeout=60):
         console = self.get_console()
-
         if self.prompt:
             prompt = self.prompt
         else:
             prompt = "\[console-pexpect\]#"
-
-        console.sendline('PS1=' + prompt)
-        console.expect("\n") # from us, because echo
-
-        # Check for an early EOF - this can happen if we had a bad ssh host key
-        # console.isalive() can still return True in this case if called
-        # quickly enough.
-        try:
-            console.expect([prompt], timeout)
-            output = console.before
-        except pexpect.EOF:
-            if self.check_ssh_keys:
-                raise Exception("SSH session exited early - bad host key?")
-            else:
-                raise Exception("SSH session exited early!")
+        expect_prompt = prompt + "$"
 
         console.sendline(command)
         console.expect("\n") # from us
@@ -154,11 +169,11 @@ class OpTestSSH():
         output = None
         exitcode = None
         try:
-            rc = console.expect([prompt], timeout)
+            rc = console.expect([expect_prompt], timeout=timeout)
             output = console.before
             console.sendline("echo $?")
             console.expect("\n") # from us
-            rc = console.expect([prompt], timeout)
+            rc = console.expect([expect_prompt], timeout=timeout)
             exitcode = int(console.before)
         except pexpect.TIMEOUT as e:
             print e

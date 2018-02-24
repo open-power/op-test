@@ -339,6 +339,7 @@ class HostManagement():
             obj = "/xyz/openbmc_project/logging/entry/%s/action/Delete" % id
             self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
             self.curl.run()
+
     def verify_clear_sel(self):
         print "Check if SEL has really zero entries or not"
         list = []
@@ -372,7 +373,15 @@ class HostManagement():
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
-        self.curl.run()
+        output = self.curl.run()
+        result = json.loads(output)
+        data = result.get('data')
+        bootmode = ""
+        if "Setup" in data:
+            bootmode = "Setup"
+        elif "Regular" in data:
+            bootmode = "Regular"
+        return bootmode
 
     '''
     set boot device to setup
@@ -894,6 +903,46 @@ class HostManagement():
         PowerCapEnable = data['data']['PowerCapEnable']
         PowerCap = data['data']['PowerCap']
         return PowerCapEnable, PowerCap
+
+    """
+    curl -b cjar -k -H 'Content-Type: application/json' -X POST -d '{"data":[]}'
+    https://${bmc}/org/open_power/control/gard/action/Reset
+    """
+    def clear_gard_records(self):
+        obj = "/org/open_power/control/gard/action/Reset"
+        data = '\'{"data" : []}\''
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.run()
+
+    """
+    $ curl -c cjar -b cjar -k -H 'Content-Type: application/json' -X POST
+    -d '{"data":[]}' https://${bmc}/xyz/openbmc_project/software/action/Reset
+    """
+    def factory_reset_software(self):
+        obj = "/xyz/openbmc_project/software/action/Reset"
+        data = '\'{"data" : []}\''
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.run()
+
+    """
+    $ curl -c cjar -b cjar -k -H 'Content-Type: application/json' -X POST
+    -d '{"data":[]}' https://${bmc}/xyz/openbmc_project/network/action/Reset
+    """
+    def factory_reset_network(self):
+        obj = "/xyz/openbmc_project/network/action/Reset"
+        data = '\'{"data" : []}\''
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.run()
+
+    """
+    $ curl -c cjar -b cjar -k -H "Content-Type: application/json" -d "{\"data\": [\"abc123\"] }"
+    -X POST  https://${bmc}/xyz/openbmc_project/user/root/action/SetPassword
+    """
+    def update_root_password(self, password):
+        obj = "/xyz/openbmc_project/user/root/action/SetPassword"
+        data = '\'{"data" : ["%s"]}\'' % str(password)
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.run()
 
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None,

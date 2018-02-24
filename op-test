@@ -67,7 +67,7 @@ from testcases import OpTestOOBIPMI
 from testcases import OpTestOCC
 from testcases import OpTestSystemBootSequence
 from testcases import OpTestDumps
-from testcases import HostLogin
+from testcases import SystemLogin
 from testcases import OpalMsglog
 from testcases import KernelLog
 from testcases import OpTestFlash
@@ -96,6 +96,16 @@ args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
 OpTestConfiguration.conf.objs()
 
 print args
+
+class SystemAccessSuite():
+    '''
+    Tests all system interfaces
+    '''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(SystemLogin.system_access_suite())
+    def suite(self):
+        return self.s
 
 class StandbySuite():
     '''Machine at standby. Focused on BMC'''
@@ -138,7 +148,7 @@ class HostSuite():
     '''Tests run in booted OS'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(HostLogin.OOBHostLogin())
+        self.s.addTest(SystemLogin.OOBHostLogin())
         self.s.addTest(DeviceTreeWarnings.Host())
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(PciSlotLocCodes.Host())
@@ -206,7 +216,7 @@ class FullSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
-        self.s.addTest(testRestAPI.RestAPI())
+        self.s.addTest(testRestAPI.basic_suite())
         self.s.addTest(OpalGard.OpalGard())
         self.s.addTest(OpalUtils.OpalUtils())
         self.s.addTest(OpTestRTCdriver.HostRTC())
@@ -295,6 +305,16 @@ class OutofbandIPMISuite():
     def suite(self):
         return self.s
 
+class RestAPISuite():
+    '''REST API(OpenBMC Specific Out of band management)'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(testRestAPI.basic_suite())
+        self.s.addTest(testRestAPI.standby_suite())
+        self.s.addTest(testRestAPI.runtime_suite())
+    def suite(self):
+        return self.s
+
 class OCCSuite():
     '''OCC Test Suite'''
     def __init__(self):
@@ -355,6 +375,7 @@ class FlashFirmware():
 
 
 suites = {
+    'system-access' : SystemAccessSuite(),
     'skiroot' : SkirootSuite(),
     'host'    : HostSuite(),
     'default' : DefaultSuite(),
@@ -374,6 +395,7 @@ suites = {
     'broken-reprovision' : BrokenReprovisionSuite(),
     'full-inbandipmi' : InbandIPMISuite(),
     'full-outofbandipmi' : OutofbandIPMISuite(),
+    'rest-api' : RestAPISuite(),
     'full-occ' : OCCSuite(),
     'capi' : CAPISuite(),
     'crash-suite' : CrashSuite(),
