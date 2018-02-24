@@ -73,7 +73,7 @@ class OpTestHost():
         self.logfile = logfile
         self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
                 logfile=self.logfile, check_ssh_keys=check_ssh_keys,
-                known_hosts_file=known_hosts_file)
+                known_hosts_file=known_hosts_file, use_default_bash=True)
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None

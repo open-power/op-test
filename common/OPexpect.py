@@ -40,7 +40,7 @@ import OpTestSystem
 
 
 class spawn(pexpect.spawn):
-    def __init__(self, command, args=[], timeout=30, maxread=2000,
+    def __init__(self, command, args=[], timeout=60, maxread=8000,
                  searchwindowsize=None, logfile=None, cwd=None, env=None,
                  ignore_sighup=False, echo=True, preexec_fn=None,
                  encoding=None, codec_errors='strict', dimensions=None,
