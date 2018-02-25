@@ -230,11 +230,11 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
 class DeviceTreeValidationHost(DeviceTreeValidation):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.host().get_ssh_connection()
         self.get_proc_gen()
         self.validate_idle_state_properties()
         self.vaildate_pstate_properties()
 
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
         props = self.c.run_command("find %s -type d" % self.node)
         for prop in props:
             prop_val_pair_host[prop] = "".join(self.c.run_command("lsprop %s" % prop)[1:])
