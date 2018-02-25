@@ -50,10 +50,10 @@ class DeviceTreeValidation(unittest.TestCase):
         self.node = "/proc/device-tree/ibm,opal/"
 
     def get_proc_gen(self):
-        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
-
+        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        print repr(self.cpu)
         if self.cpu not in ["POWER8", "POWER8E", "POWER9"]:
-            self.skipTest("Unknown CPU type %s" % cpu)
+            self.skipTest("Unknown CPU type %s" % self.cpu)
 
     # Checks for monotonocity/strictly increase/decrease of values
     def strictly_increasing(self, L):
