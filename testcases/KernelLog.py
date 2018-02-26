@@ -49,15 +49,16 @@ class KernelLog():
                       "nvidia: module license 'NVIDIA' taints kernel.",
                       "Disabling lock debugging due to kernel taint",
                       "NVRM: loading NVIDIA UNIX ppc64le Kernel Module",
-                    "This architecture does not have kernel memory protection.",
-                    "aacraid.* Comm Interface type3 enabled",
-                    "mpt3sas_cm0.* MSI-X vectors supported",
-                    "i40e.*PCI-Express bandwidth available for this device may be insu",
-                    "i40e.*Please move the device to a different PCI-e link with more",
-                    "systemd.*Dependency failed for pNFS block layout mapping daemon.",
-                    "NFSD.* Using .* as the NFSv4 state recovery directory",
-                    "ipmi_si.* Unable to find any System Interface",
-                    "mpt3sas.*invalid short VPD tag 00 at offset 1"]
+                      "This architecture does not have kernel memory protection.",
+                      "aacraid.* Comm Interface type3 enabled",
+                      "mpt3sas_cm.* MSI-X vectors supported",
+                      "i40e.*PCI-Express bandwidth available for this device may be insu",
+                      "i40e.*Please move the device to a different PCI-e link with more",
+                      "systemd.*Dependency failed for pNFS block layout mapping daemon.",
+                      "NFSD.* Using .* as the NFSv4 state recovery directory",
+                      "ipmi_si.* Unable to find any System Interface",
+                      "mpt3sas.*invalid short VPD tag 00 at offset 1",
+        ]
 
         for f in filter_out:
             fre = re.compile(f)
