@@ -871,7 +871,7 @@ class OpTestHost():
             if self.proc_gen:
                 pass
         except AttributeError:
-            self.proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+            self.proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         return self.proc_gen
 
     def host_get_smt(self):
