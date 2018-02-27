@@ -74,11 +74,26 @@ class OpTestEM():
             raise Exception("Unknow test type")
         return self.c
 
+    def tearDown(self):
+        # Only clean up if we're still running normally
+        if self.cv_SYSTEM.get_state() not in [OpSystemState.PETITBOOT_SHELL, OpSystemState.OS]:
+            pass
+        # return back to sane cpu governor
+        self.set_cpu_gov("powersave")
+        # and then re-enable all idle states
+        idle_states = self.get_idle_states()
+        for i in idle_states:
+            self.enable_idle_state(i)
+
+
     def tear_down(self):
         if self.test == "skiroot":
             self.c.close()
         elif self.test == "host":
             self.c.terminate()
+
+    def get_idle_states(self):
+        return self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
 
     def get_first_available_cpu(self):
         cmd = "cat /sys/devices/system/cpu/present | cut -d'-' -f1"
@@ -324,7 +339,7 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         nrcpus = 10
 
         # TODO: Check the runtime idle states = expected idle states!
-        idle_states = self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
+        idle_states = self.get_idle_states()
         print repr(idle_states)
         idle_state_names = {}
         for i in idle_states:
