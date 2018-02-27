@@ -106,7 +106,7 @@ class PciSlotLocCodesOPAL():
 
     def runTest(self):
         self.setup_test()
-        self.log_entries = self.c.run_command("cat /sys/firmware/opal/msglog |  grep 'PHB#' | grep -i  ' C:'")
+        self.log_entries = self.c.run_command_ignore_fail("cat /sys/firmware/opal/msglog |  grep 'PHB#' | grep -i  ' C:'")
         failed_eplist = []
         failed_slotlist = []
         match_list = ["[EP  ]", "[LGCY]", "[PCID]", "[ETOX]" ]
