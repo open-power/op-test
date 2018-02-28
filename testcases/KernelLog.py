@@ -24,6 +24,7 @@ import re
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.Exceptions import CommandFailed
 
 class KernelLog():
     def setUp(self):
@@ -34,14 +35,18 @@ class KernelLog():
 
     def runTest(self):
         self.setup_test()
-        if "skiroot" in self.test:
-            cmd = "dmesg -r|grep '<[4321]>'"
-        elif "host" in self.test:
-            cmd = "dmesg -T --level=alert,crit,err,warn"
-        else:
-            raise Exception("Unknow test type")
 
-        log_entries = self.c.run_command_ignore_fail(cmd)
+        log_entries = []
+        # Depending on where we're running, we may need to do all sorts of
+        # things to get a sane dmesg output. Urgh.
+        try:
+            log_entries = self.c.run_command("dmesg --color=never -T --level=alert,crit,err,warn")
+        except CommandFailed:
+            try:
+                log_entries = self.c.run_command("dmesg -T --level=alert,crit,err,warn")
+            except CommandFailed:
+                log_entries = self.c.run_command("dmesg -r|grep '<[4321]>'")
+
         filter_out = ["Unable to open file.* /etc/keys/x509",
                       "OF: reserved mem: not enough space all defined regions.",
                       "Could not find start_pfn for node 25.",
@@ -58,6 +63,9 @@ class KernelLog():
                       "NFSD.* Using .* as the NFSv4 state recovery directory",
                       "ipmi_si.* Unable to find any System Interface",
                       "mpt3sas.*invalid short VPD tag 00 at offset 1",
+                      "synth uevent.*failed to send uevent",
+                      "vio: uevent: failed to send synthetic uevent",
+                      "pstore: decompression failed: -5",
         ]
 
         for f in filter_out:
