@@ -114,7 +114,7 @@ class OpTestFlashBase(unittest.TestCase):
         while (retry < 20):
             image_list = []
             try:
-                image_list = self.cv_BMC.run_command("ls -d /tmp/images/*/ --color=never")
+                image_list = self.cv_BMC.run_command("ls -1 -d /tmp/images/*/ --color=never")
             except CommandFailed as cf:
                 pass
             for i in range(0, len(image_list)):
