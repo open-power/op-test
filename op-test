@@ -137,7 +137,7 @@ class SkirootSuite():
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
         self.s.addTest(Console.suite())
-        self.s.addTest(OpTestPNOR.OpTestPNOR())
+        self.s.addTest(OpTestPNOR.Skiroot())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
         self.s.addTest(OpTestHMIHandling.suite())
@@ -175,6 +175,7 @@ class HostSuite():
         self.s.addTest(SbePassThrough.SbePassThrough())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationHost())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
+        self.s.addTest(OpTestPNOR.Host())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
     def suite(self):
