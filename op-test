@@ -46,6 +46,7 @@ import OpTestConfiguration
 OpTestConfiguration.conf = OpTestConfiguration.OpTestConfiguration()
 
 from testcases import HelloWorld
+from testcases import OpTestExample
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestSensors
 from testcases import OpTestPrdDriver
@@ -456,6 +457,16 @@ class InstallHost():
     def suite(self):
         return self.s
 
+class OpTestExampleSuite():
+    '''Tests in OpTestExample'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of OpTestExampleSuite')
+        self.s.addTest(OpTestExample.skiroot_full_suite())
+        self.s.addTest(OpTestExample.host_full_suite())
+
+    def suite(self):
+        return self.s
 
 suites = {
     'system-access' : SystemAccessSuite(),
@@ -487,6 +498,7 @@ suites = {
     'system-ipl' : SystemIPLSuite(),
     'fsp-opal-suite' :  FspOpalSuite(),
     'full' : FullSuite(),
+    'example' : OpTestExampleSuite(),
 }
 
 # Loop through the addons and load in suites defined there
@@ -517,7 +529,7 @@ if OpTestConfiguration.conf.args.run:
 
 if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
     if not OpTestConfiguration.conf.args.only_flash:
-	module_logger.info('RUNNING DEFAULT SUITE')
+        module_logger.info('RUNNING DEFAULT SUITE')
         t.addTest(suites['default'].suite())
 
 xml_msg = ""

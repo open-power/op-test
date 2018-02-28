@@ -55,14 +55,14 @@ class OpTestLogger():
           # save the sh level for later refreshes
           self.sh_level = logging.ERROR
           self.sh.setLevel(self.sh_level)
-          self.sh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s'))
+          self.sh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
           self.optest_logger.addHandler(self.sh)
         # set all child instances to use the parent stream handler
         else:
           self.sh = optest_logger_glob.sh
           self.sh_level = optest_logger_glob.sh_level
           self.sh.setLevel(self.sh_level)
-          self.sh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s'))
+          self.sh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
           self.optest_logger.addHandler(self.sh)
         self.fh = None
         self.dh = None
@@ -103,7 +103,7 @@ class OpTestLogger():
           os.makedirs(self.logdir)
         self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file), maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
         self.dh.setLevel(logging.DEBUG)
-        self.dh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s'))
+        self.dh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
         self.optest_logger.addHandler(self.dh)
         self.optest_logger.debug('DebugHandler settings updated')
         self.optest_logger.info('Debug Log file: {}'.format(os.path.join(self.logdir, self.logger_debug_file)))
