@@ -46,7 +46,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
-class OpTestPNOR(unittest.TestCase):
+class OpTestPNOR():
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.host = conf.host()
@@ -137,12 +137,9 @@ class OpTestPNOR(unittest.TestCase):
         self.pflashWrite("/tmp/toc", tocInfo['offset'], tocInfo['length'])
 
     def runTest(self):
+        self.setup_test()
         if not self.system.has_mtd_pnor_access():
             self.skipTest("Host doesn't have MTD PNOR access")
-
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.system.sys_get_ipmi_console()
-        self.system.host_console_unique_prompt()
 
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
@@ -153,3 +150,14 @@ class OpTestPNOR(unittest.TestCase):
         self.runTestReadWritePAYLOAD()
         # Try write to the TOC
         self.runTestWriteTOC()
+
+class Skiroot(OpTestPNOR, unittest.TestCase):
+    def setup_test(self):
+        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.c = self.system.sys_get_ipmi_console()
+        self.system.host_console_unique_prompt()
+
+class Host(OpTestPNOR, unittest.TestCase):
+    def setup_test(self):
+        self.system.goto_state(OpSystemState.OS)
+        self.c = self.system.host().get_ssh_connection()
