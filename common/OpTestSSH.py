@@ -188,7 +188,7 @@ class OpTestSSH():
                 print "# Timeout trying to kill timed-out command."
                 print "# Failing current command and attempting to continue"
                 self.terminate()
-                raise CommandFailed("ssh -p " + self.port, "timeout", -1)
+                raise CommandFailed("ssh -p %u" % self.port, "timeout", -1)
             raise e
 
         if rc == 0:
