@@ -77,10 +77,14 @@ class OpTestPNOR(unittest.TestCase):
         for line in d:
             s = re.search(partition, line)
             if s:
-                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\).*', line)
+                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\).*\[([A-Za-z-]+)\].*', line)
                 offset = int(m.group(1), 16)
                 length = int(m.group(4), 16)
-                ret = {'offset': offset, 'length': length}
+                flags = m.group(6)
+                ret = {'offset': offset,
+                       'length': length,
+                       'flags': [x for x in list(flags) if x != '-'],
+                       }
                 return ret
 
     def comparePartitionFile(self, filename, partition):
@@ -108,14 +112,27 @@ class OpTestPNOR(unittest.TestCase):
 
     def runTestReadWritePAYLOAD(self):
         payloadInfo = self.pflashGetPartition("PAYLOAD")
+        print repr(payloadInfo)
         # Read PAYLOAD to file /tmp/payload
         self.pflashReadPartition("/tmp/payload", "PAYLOAD")
         # Write /tmp/payload to PAYLOAD
-        self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
+        try:
+            self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
+        except CommandFailed as cf:
+            print repr(cf)
+            if 'R' in payloadInfo['flags'] and cf.exitcode in [8]:
+                pass
+            else:
+                raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
         # Try using the pflash -P option as well
-        self.pflashWritePartition("/tmp/payload", "PAYLOAD")
+        try:
+            self.pflashWritePartition("/tmp/payload", "PAYLOAD")
+        except CommandFailed as cf:
+            if 'R' in payloadInfo['flags'] and cf.exitcode in [8]:
+                pass
+            raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
 
