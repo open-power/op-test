@@ -41,7 +41,7 @@ import commands
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
-from OpTestSystem import OpTestSystem
+from OpTestSystem import OpTestSystem,OpSystemState
 from Exceptions import CommandFailed
 from Exceptions import BMCDisconnected
 from common import OPexpect
@@ -155,7 +155,7 @@ class IPMIConsoleState():
 
 def set_system_to_UNKNOWN(system):
     s = system.get_state()
-    system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
+    system.set_state(OpSystemState.UNKNOWN)
     return s
 
 class IPMIConsole():
