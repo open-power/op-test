@@ -53,7 +53,7 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
 
     def number_reboots_to_do(self):
-        return 1;
+        return 2;
 
     def boot_to_os(self):
         return False
@@ -90,8 +90,8 @@ class OpTestFastReboot(unittest.TestCase):
             self.cv_SYSTEM.host_console_login()
             c.get_console().sendline("exec bash --norc --noprofile")
         self.cv_SYSTEM.host_console_unique_prompt()
-        cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
-
+        cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        print repr(cpu)
         if cpu not in ["POWER9", "POWER8", "POWER8E"]:
             self.skipTest("Fast Reboot not supported on %s" % cpu)
 
