@@ -174,6 +174,13 @@ class RestAPI(unittest.TestCase):
         self.rest.update_root_password(str(self.bmc_password))
         self.rest.login()
 
+    def test_tpm_policy_setting(self):
+        self.rest.is_tpm_enabled()
+        self.rest.enable_tpm()
+        self.assertTrue(self.rest.is_tpm_enabled(), "openBMC failed to enable TPM policy")
+        self.rest.disable_tpm()
+        self.assertFalse(self.rest.is_tpm_enabled(), "openBMC failed to disable TPM policy")
+
 
 class RestAPIStandby(RestAPI):
     @classmethod
