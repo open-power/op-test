@@ -178,6 +178,11 @@ class OpTestBMC():
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
+    def flash_part_ami(self, i_pflash_dir, i_imageName, i_partName):
+        cmd = i_pflash_dir + '/pflash -p /tmp/%s -e -f -P %s' % (i_imageName, i_partName)
+        rc = self.ssh.run_command(cmd, timeout=1800)
+        return rc
+
     def skiboot_img_flash_openbmc(self, i_imageName):
         cmd = 'pflash -p /tmp/%s -e -f -P PAYLOAD' % i_imageName
         rc = self.ssh.run_command(cmd, timeout=1800)
@@ -185,6 +190,11 @@ class OpTestBMC():
 
     def skiroot_img_flash_openbmc(self, i_imageName):
         cmd = 'pflash -p /tmp/%s -e -f -P BOOTKERNEL' % i_imageName
+        rc = self.ssh.run_command(cmd, timeout=1800)
+        return rc
+
+    def flash_part_openbmc(self, i_imageName, i_partName):
+        cmd = 'pflash -p /tmp/%s -e -f -P %s' % (i_imageName, i_partName)
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
@@ -249,6 +259,16 @@ class OpTestSMC(OpTestBMC):
 
     def skiroot_img_flash_smc(self, i_pflash_dir, i_imageName):
         cmd = i_pflash_dir + '/pflash -p /tmp/rsync_file/%s -e -f -P BOOTKERNEL' % i_imageName
+        rc = self.ssh.run_command(cmd, timeout=1800)
+        return rc
+
+    def flash_part_smc(self, i_pflash_dir, i_imageName, i_partName):
+        cmd = i_pflash_dir + '/pflash -p /tmp/rsync_file/%s -e -f -P %s' % (i_imageName, i_partName)
+        rc = self.ssh.run_command(cmd, timeout=1800)
+        return rc
+
+    def pnor_img_flash_smc(self, i_pflash_dir, i_imageName):
+        cmd = i_pflash_dir + '/pflash -e -f -p /tmp/rsync_file/%s' % i_imageName
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 

@@ -126,6 +126,8 @@ def get_parser():
                             help="petitboot zImage.epapr to use/flash.")
     imagegroup.add_argument("--flash-initramfs",
                             help="petitboot rootfs to use/flash. Not all platforms support this option")
+    imagegroup.add_argument("--flash-part", nargs=2, metavar=("PART name", "bin file"), action='append',
+                            help="PNOR partition to flash, Ex: --flash-part OCC occ.bin")
     imagegroup.add_argument("--noflash","--no-flash", action='store_true', default=False,
                             help="Even if images are specified, don't flash them")
     imagegroup.add_argument("--only-flash", action='store_true', default=False,

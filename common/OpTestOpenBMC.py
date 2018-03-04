@@ -1048,6 +1048,12 @@ class OpTestOpenBMC():
             self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
             #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/BOOTKERNEL" % lid_name, timeout=60)
 
+    def flash_part_openbmc(self, lid_name, part_name):
+        if not self.has_new_pnor_code_update():
+            self.bmc.flash_part_openbmc(lid_name, part_name)
+        else:
+            self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/%s" % (lid_name, part_name), timeout=60)
+
     def clear_field_mode(self):
         self.bmc.run_command("fw_setenv fieldmode")
         self.bmc.run_command("systemctl unmask usr-local.mount")

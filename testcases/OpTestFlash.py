@@ -355,8 +355,6 @@ class OpalLidsFLASH(OpTestFlashBase):
     FSP systems needs raw skiboot.lid
     AMI,SMC,OpenBMC systems need skiboot.lid.xz
     unless secure boot is enabled, and then they need skiboot.lid.xz.stb
-
-    TODO support arbitrary partition flashing.
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -364,6 +362,7 @@ class OpalLidsFLASH(OpTestFlashBase):
         self.skiboot = conf.args.flash_skiboot
         self.skiroot_kernel = conf.args.flash_kernel
         self.skiroot_initramfs = conf.args.flash_initramfs
+        self.flash_part_list = conf.args.flash_part
         self.smc_presshipmicmd = conf.args.smc_presshipmicmd
         self.ext_lid_test_path = "/opt/extucode/lid_test"
 
@@ -374,7 +373,9 @@ class OpalLidsFLASH(OpTestFlashBase):
         super(OpalLidsFLASH, self).setUp()
 
     def runTest(self):
-        if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs:
+        print self.flash_part_list
+        if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs \
+            and not self.flash_part_list:
             self.skipTest("No custom skiboot/kernel to flash")
 
         if self.bmc_type in ["AMI", "SMC"] and not self.pflash:
@@ -430,6 +431,11 @@ class OpalLidsFLASH(OpTestFlashBase):
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
                 self.cv_BMC.skiroot_img_flash_ami("/tmp", os.path.basename(self.skiroot_kernel))
+            if self.flash_part_list:
+                    for part_pair in self.flash_part_list:
+                        self.cv_BMC.image_transfer(part_pair[1])
+                        self.cv_BMC.flash_part_ami("/tmp", os.path.basename(part_pair[1]),
+                                                   part_pair[0])
 
         if "SMC" in self.bmc_type:
             if self.skiboot:
@@ -438,6 +444,11 @@ class OpalLidsFLASH(OpTestFlashBase):
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
                 self.cv_BMC.skiroot_img_flash_smc("/tmp/rsync_file", os.path.basename(self.skiroot_kernel))
+            if self.flash_part_list:
+                    for part_pair in self.flash_part_list:
+                        self.cv_BMC.image_transfer(part_pair[1])
+                        self.cv_BMC.flash_part_smc("/tmp/rsync_file", os.path.basename(part_pair[1]),
+                                                   part_pair[0])
 
         if "OpenBMC" in self.bmc_type:
             # Check for field mode first, if it is enabled, clear that and flash host firmware.
@@ -460,11 +471,16 @@ class OpalLidsFLASH(OpTestFlashBase):
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
                 self.cv_BMC.skiroot_img_flash_openbmc(os.path.basename(self.skiroot_kernel))
+            if self.flash_part_list:
+                    for part_pair in self.flash_part_list:
+                        self.cv_BMC.image_transfer(part_pair[1])
+                        self.cv_BMC.flash_part_openbmc(os.path.basename(part_pair[1]), part_pair[0])
 
         console = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:
             self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
+
 
 class OOBHpmFLASH(OpTestFlashBase):
     def setUp(self):
