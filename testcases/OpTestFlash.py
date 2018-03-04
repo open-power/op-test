@@ -246,7 +246,7 @@ class PNORFLASH(OpTestFlashBase):
     Flash full PNOR image
 
     For OpenBMC, uses REST image upload
-    For SMC, uses pUpdate
+    For SMC, uses pUpdate for regular images or pflash for upstream images
     For AMI, relies on pflash
 
     op-test needs to be provided locations of pUpdate and pflash
@@ -270,8 +270,12 @@ class PNORFLASH(OpTestFlashBase):
 
         if "AMI" in self.bmc_type and not self.pflash:
                 self.fail("pflash tool is needed for flashing PNOR on AMI platforms")
-        elif "SMC" in self.bmc_type and not self.pupdate:
-                self.fail("pupdate tool is needed for flashing PNOR on SMC platforms")
+        elif "SMC" in self.bmc_type:
+            self.cv_BMC.ssh.run_command("rm -rf /tmp/rsync_file/*")
+            if self.pupdate:
+                pass
+            elif not self.pflash:
+                self.fail("pupdate or pflash tool is needed for flashing PNOR on SMC platforms")
         else:
             pass
 
@@ -283,14 +287,21 @@ class PNORFLASH(OpTestFlashBase):
                 raise OpTestError("No pflash on BMC")
             self.validate_side_activated()
         elif "SMC" in self.bmc_type:
-            self.cv_IPMI.pUpdate.set_binary(self.pupdate_binary)
+            if self.pupdate:
+                self.cv_IPMI.pUpdate.set_binary(self.pupdate_binary)
+            elif self.pflash:
+                self.assertTrue(self.cv_BMC.validate_pflash_tool("/tmp/rsync_file"), "No pflash on BMC")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
         if "AMI" in self.bmc_type:
             self.cv_BMC.image_transfer(self.pnor)
             self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
         elif "SMC" in self.bmc_type:
-            self.cv_IPMI.pUpdate.run(" -pnor %s" % self.pnor)
+            if self.pupdate:
+                self.cv_IPMI.pUpdate.run(" -pnor %s" % self.pnor)
+            elif self.pflash:
+                self.cv_BMC.image_transfer(self.pnor)
+                self.cv_BMC.pnor_img_flash_smc("/tmp/rsync_file", os.path.basename(self.pnor))
         elif "OpenBMC" in self.bmc_type:
             if self.cv_BMC.has_new_pnor_code_update():
                 print "BMC has code for the new PNOR Code update via REST"
