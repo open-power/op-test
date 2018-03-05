@@ -75,9 +75,9 @@ def get_parser():
     bmcgroup.add_argument("--bmc-type",
                           choices=bmcChoices,
                           help="Type of service processor")
-    bmcgroup.add_argument("--bmc-ip", help="BMC address")
-    bmcgroup.add_argument("--bmc-username", help="SSH username for BMC")
-    bmcgroup.add_argument("--bmc-password", help="SSH password for BMC")
+    bmcgroup.add_argument("--bmc-ip", help="BMC address", required=True)
+    bmcgroup.add_argument("--bmc-username", help="SSH username for BMC", required=True)
+    bmcgroup.add_argument("--bmc-password", help="SSH password for BMC", required=True)
     bmcgroup.add_argument("--bmc-usernameipmi", help="IPMI username for BMC")
     bmcgroup.add_argument("--bmc-passwordipmi", help="IPMI password for BMC")
     bmcgroup.add_argument("--bmc-prompt", default="#",
@@ -87,9 +87,9 @@ def get_parser():
                           help="[QEMU Only] qemu simulator binary")
 
     hostgroup = parser.add_argument_group('Host', 'Installed OS information')
-    hostgroup.add_argument("--host-ip", help="Host address")
-    hostgroup.add_argument("--host-user", help="SSH username for Host")
-    hostgroup.add_argument("--host-password", help="SSH password for Host")
+    hostgroup.add_argument("--host-ip", help="Host address", required=True)
+    hostgroup.add_argument("--host-user", help="SSH username for Host", required=True)
+    hostgroup.add_argument("--host-password", help="SSH password for Host", required=True)
     hostgroup.add_argument("--host-lspci", help="Known 'lspci -n -m' for host")
     hostgroup.add_argument("--host-scratch-disk", help="A block device we can erase", default="")
     hostgroup.add_argument("--host-prompt", default="#",
