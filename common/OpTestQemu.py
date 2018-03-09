@@ -121,7 +121,6 @@ class QemuConsole():
 
         if rc == 0:
             res = output.replace("\r\r\n", "\n")
-            print repr(res)
             res = res.splitlines()
             if exitcode != 0:
                 raise CommandFailed(command, res, exitcode)
