@@ -122,17 +122,17 @@ class OpTestMtdPnorDriver(unittest.TestCase):
                 "Cloning ffs repository is failed")
 
         # Compile ffs repository to get fcp utility
-        l_cmd = "cd %s/; make" % l_workdir
+        l_cmd = "cd %s/; autoreconf -i && ./configure && make" % l_workdir
         l_res = commands.getstatusoutput(l_cmd)
         self.assertEqual(int(l_res[0]), 0, "Compiling fcp utility is failed")
 
         # Check existence of fcp utility in ffs repository, after compiling.
-        l_cmd = "test -f %s/fcp/x86/fcp" % l_workdir
+        l_cmd = "test -f %s/fcp/fcp" % l_workdir
         l_res = commands.getstatusoutput(l_cmd)
         self.assertEqual(int(l_res[0]), 0, "Compiling fcp utility is failed")
 
         # Check the PNOR flash contents on an x86 machine using fcp utility
-        l_cmd = "%s/fcp/x86/fcp -o 0x0 -L %s" % (l_workdir, l_file)
+        l_cmd = "%s/fcp/fcp -o 0x0 -L %s" % (l_workdir, l_file)
         l_res = commands.getstatusoutput(l_cmd)
         print l_res[1]
         self.assertEqual(int(l_res[0]), 0,
