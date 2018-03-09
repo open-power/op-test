@@ -91,6 +91,7 @@ from testcases import PciSlotLocCodes
 from testcases import InstallUbuntu
 from testcases import OpTestCAPI
 from testcases import gcov
+from testcases import OpalSysfsTests
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -138,6 +139,7 @@ class SkirootSuite():
         self.s.addTest(Console.suite())
         self.s.addTest(OpTestPNOR.OpTestPNOR())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
@@ -171,6 +173,7 @@ class HostSuite():
         self.s.addTest(OpTestPrdDaemon.OpTestPrdDaemon())
         self.s.addTest(SbePassThrough.SbePassThrough())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationHost())
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
     def suite(self):

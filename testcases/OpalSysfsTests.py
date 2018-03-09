@@ -123,7 +123,7 @@ class OpalSysfsTests():
         self.setup_test()
         self.c.run_command("ls -1 %s" % str(OPAL_SYMBOL_MAP))
         # It may fail due to timeout
-        self.c.run_command("cat %s" % str(OPAL_SYMBOL_MAP), 120)
+        self.c.run_command("grep opal_ %s" % str(OPAL_SYMBOL_MAP), 120)
 
     def test_opal_exports(self):
         self.setup_test()
