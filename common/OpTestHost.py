@@ -826,13 +826,8 @@ class OpTestHost():
     def host_get_cores(self):
         proc_gen = self.host_get_proc_gen()
         core_ids = {}
-        cpu_files = self.host_run_command("find /sys/devices/system/cpu/ -name 'cpu[0-9]*'")
-        for cpu_file in cpu_files:
-            cpu_id = self.host_run_command("basename %s | tr -dc '0-9'" % cpu_file)[-1]
-            try:
-                pir = self.host_run_command("cat %s/pir" % cpu_file)[-1]
-            except CommandFailed:
-                continue
+        cpu_pirs = self.host_run_command("find /sys/devices/system/cpu/*/pir -exec cat {} \;")
+        for pir in cpu_pirs:
             if proc_gen in ["POWER8", "POWER8E"]:
                 core_id = hex((int("0x%s" % pir, 16) >> 3 ) & 0xf)
                 chip_id = hex((int("0x%s" % pir, 16) >> 7 ) & 0x3f)
