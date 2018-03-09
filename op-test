@@ -140,6 +140,7 @@ class SkirootSuite():
         self.s.addTest(OpTestPNOR.OpTestPNOR())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
+        self.s.addTest(OpTestHMIHandling.suite())
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
