@@ -384,7 +384,6 @@ class OpalLidsFLASH(OpTestFlashBase):
         super(OpalLidsFLASH, self).setUp()
 
     def runTest(self):
-        print self.flash_part_list
         if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs \
             and not self.flash_part_list:
             self.skipTest("No custom skiboot/kernel to flash")
