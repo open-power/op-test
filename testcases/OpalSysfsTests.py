@@ -91,7 +91,7 @@ class OpalSysfsTests():
         self.get_proc_gen()
         if self.cpu not in ["POWER9"]:
             return
-        list = self.c.run_command("ls -1 %s" % str(OPAL_PSR))
+        list = self.c.run_command("ls --color=never -1 %s" % str(OPAL_PSR))
         for entry in list:
             value = self.c.run_command("cat %s/%s" % (str(OPAL_PSR), entry))
             self.assertTrue((0 <= int(value[-1]) <= 100), "Out-of-range psr value")
@@ -104,9 +104,9 @@ class OpalSysfsTests():
         self.get_proc_gen()
         if self.cpu not in ["POWER9"]:
             return
-        list = self.c.run_command("ls -1 %s" % str(OPAL_SENSOR_GROUPS))
+        list = self.c.run_command("ls --color=never -1 %s" % str(OPAL_SENSOR_GROUPS))
         for entry in list:
-            self.c.run_command("ls /%s/%s/clear" % (OPAL_SENSOR_GROUPS, entry))
+            self.c.run_command("ls --color=never /%s/%s/clear" % (OPAL_SENSOR_GROUPS, entry))
             if self.test == "skiroot":
                 self.c.run_command("echo 1 > /%s/%s/clear" % (OPAL_SENSOR_GROUPS, entry))
                 continue
@@ -121,14 +121,14 @@ class OpalSysfsTests():
 
     def test_opal_symbol_map(self):
         self.setup_test()
-        self.c.run_command("ls -1 %s" % str(OPAL_SYMBOL_MAP))
+        self.c.run_command("ls --color=never -1 %s" % str(OPAL_SYMBOL_MAP))
         # It may fail due to timeout
         self.c.run_command("grep opal_ %s" % str(OPAL_SYMBOL_MAP), 120)
 
     def test_opal_exports(self):
         self.setup_test()
         # Not all kernel's won't create exports sysfs
-        self.c.run_command_ignore_fail("ls -1 %s" % str(OPAL_EXPORTS))
+        self.c.run_command_ignore_fail("ls --color=never -1 %s" % str(OPAL_EXPORTS))
 
 class Skiroot(OpalSysfsTests, unittest.TestCase):
     def setup_test(self):
