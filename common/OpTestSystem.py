@@ -1283,7 +1283,10 @@ class OpTestSystem(object):
         port = 12340
         my_ip = None
         try:
-            rawc.send("nc -l -p %u -v -e /bin/true\n" % port)
+            if self.get_state() == OpSystemState.PETITBOOT_SHELL:
+                rawc.send("nc -l -p %u -v -e /bin/true\n" % port)
+            else:
+                rawc.send("nc -l -p %u -v\n" % port)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             time.sleep(0.5)
             print "# Connecting to %s:%u" % (self.host().hostname(), port)
@@ -1291,10 +1294,12 @@ class OpTestSystem(object):
             sock.send('Hello World!')
             sock.close()
             rawc.expect('Connection from ')
-            rawc.expect(':')
+            rawc.expect([':', ' '])
             my_ip = rawc.before
             rawc.expect('\n')
-        except Exception:  # Looks like older nc does not support -v, lets fallback
+            print repr(my_ip)
+            return my_ip
+        except Exception as e:  # Looks like older nc does not support -v, lets fallback
             rawc.sendcontrol('c')  # to avoid incase nc command hangs
             my_ip = None
             ip = commands.getoutput("hostname -i")

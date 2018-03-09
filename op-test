@@ -90,6 +90,7 @@ from testcases import DeviceTreeWarnings
 from testcases import PciSlotLocCodes
 from testcases import InstallUbuntu
 from testcases import OpTestCAPI
+from testcases import gcov
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)

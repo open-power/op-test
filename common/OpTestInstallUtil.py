@@ -26,6 +26,7 @@ import threading
 import SocketServer
 import BaseHTTPServer
 import SimpleHTTPServer
+import cgi
 import commands
 import time
 from Exceptions import CommandFailed
@@ -43,6 +44,7 @@ REPO = ""
 BOOTPATH = ""
 conf = OpTestConfiguration.conf
 
+uploaded_files = {}
 
 class InstallUtil():
     def __init__(self, base_path="", initrd="", vmlinux="",
@@ -91,7 +93,10 @@ class InstallUtil():
         retry = 6
         while retry > 0:
             try:
-                cmd = "ping %s -c 1" % self.conf.args.host_gateway
+                ip = self.conf.args.host_gateway
+                if ip in [None, ""]:
+                    ip = self.system.get_my_ip_from_host_perspective()
+                cmd = "ping %s -c 1" % ip
                 self.console.run_command(cmd)
                 return True
             except CommandFailed as cf:
@@ -131,11 +136,25 @@ class InstallUtil():
         except CommandFailed as cf:
             self.assign_ip_petitboot()
             self.ping_network()
-        try:
-            my_ip = self.system.get_my_ip_from_host_perspective()
-        finally:
-            self.console.run_command("ping %s -c 1" % my_ip)
-            return my_ip
+        retry = 30
+        while retry > 0:
+            try:
+                my_ip = self.system.get_my_ip_from_host_perspective()
+                print repr(my_ip)
+                self.console.run_command("ping %s -c 1" % my_ip)
+                break
+            except CommandFailed as cf:
+                if cf.exitcode is 1:
+                    time.sleep(1)
+                    retry = retry - 1
+                    pass
+                else:
+                    raise cf
+
+        return my_ip
+
+    def get_uploaded_file(self, name):
+        return uploaded_files.get(name)
 
     def start_server(self, server_ip):
         """
@@ -321,6 +340,28 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             else:
                 self.send_response(404)
                 return
+
+    def do_POST(self):
+        path = os.path.normpath(self.path)
+        path = path[1:]
+        path_elements = path.split('/')
+
+        print "INCOMING"
+        print repr(path)
+        print repr(path_elements)
+
+        if path_elements[0] != "upload":
+            return
+
+        form = cgi.FieldStorage(
+            fp = self.rfile,
+            headers = self.headers,
+            environ={ "REQUEST_METHOD": "POST",
+                      "CONTENT_TYPE": self.headers['Content-Type']})
+
+        uploaded_files[form["file"].filename] = form["file"].value
+
+        self.wfile.write("Success")
 
 
 class ThreadedHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
