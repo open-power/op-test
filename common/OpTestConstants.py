@@ -47,6 +47,9 @@ class OpTestConstants():
     GARRISON_POWER_LIMIT_LOW = "1240"
     GARRISON_POWER_LIMIT_HIGH = "2880"
 
+    PRIMARY_SIDE = "0x0080"
+    GOLDEN_SIDE = "0x0180"
+
     # BMC COMMANDS
     BMC_COLD_RESET = " mc reset cold"
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"
