@@ -40,7 +40,7 @@ import OpTestSystem
 
 
 class spawn(pexpect.spawn):
-    def __init__(self, command, args=[], timeout=60, maxread=8000,
+    def __init__(self, command, args=[], maxread=8000,
                  searchwindowsize=None, logfile=None, cwd=None, env=None,
                  ignore_sighup=False, echo=True, preexec_fn=None,
                  encoding=None, codec_errors='strict', dimensions=None,
@@ -48,7 +48,7 @@ class spawn(pexpect.spawn):
         self.command = command
         self.failure_callback = failure_callback
         self.failure_callback_data = failure_callback_data
-        super(spawn, self).__init__(command, args=args, timeout=timeout,
+        super(spawn, self).__init__(command, args=args,
                                     maxread=maxread,
                                     searchwindowsize=searchwindowsize,
                                     logfile=logfile,
