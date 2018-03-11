@@ -795,7 +795,7 @@ class OpTestHost():
         else:
             self.host_run_command("systemctl stop kdump.service")
             self.host_run_command("systemctl start kdump.service")
-            self.host_run_command("service status kdump.service")
+            self.host_run_command("systemctl status kdump.service")
 
     def host_check_sysfs_path_availability(self, path):
         res = self.host_run_command("ls %s" % path)
