@@ -98,20 +98,25 @@ class spawn(pexpect.spawn):
             if self.failure_callback:
                 state = self.failure_callback(self.failure_callback_data)
         if r in [1,2,3,4,5]:
-            log = self.after
+            log = str(self.after)
             l = 0
 
-            while l is not pexpect.TIMEOUT:
+            while l != 7:
                 l = super(spawn,self).expect(["INFO: rcu_sched self-detected stall on CPU",
+                                              "Watchdog .* Hard LOCKUP",
+                                              "Sending IPI to other CPUs",
                                               ":mon>",
                                               "Rebooting in \d+ seconds",
-                                              "Kernel panic - not syncing: Hard LOCKUP"],
-                                             timeout=10)
-                log = log + self.before + self.after
-                if l in [1,2,3]:
+                                              "Kernel panic - not syncing: Fatal exception",
+                                              "Kernel panic - not syncing: Hard LOCKUP", pexpect.TIMEOUT],
+                                             timeout=15)
+                log = log + str(self.before) + str(self.after)
+                if l in [2,3,4]:
                     # We know we have the end of the error message, so let's stop here.
                     break
 
+            if l == 7:
+                raise KernelCrashUnknown(state, log)
             if r == 1:
                 raise KernelSoftLockup(state, log)
             if r == 2:
@@ -120,6 +125,8 @@ class spawn(pexpect.spawn):
                 raise KernelPanic(state, log)
             if r == 4:
                 raise KernelHardLockup(state, log)
+            if r == 5 and l == 2:
+                raise KernelKdump(state, log)
             if r == 5:
                 raise KernelOOPS(state, log)
 
