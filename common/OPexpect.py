@@ -56,7 +56,7 @@ class spawn(pexpect.spawn):
                                     ignore_sighup=ignore_sighup)
 
     def set_system(self, system):
-        self.op_test_system = op_test_system
+        self.op_test_system = system
         return
 
     def expect(self, pattern, timeout=-1, searchwindowsize=-1, async=False):
