@@ -189,7 +189,7 @@ class HostManagement():
     -d '{"data": [ "root", "0penBmc" ] }' https://bmc/login
     '''
     def login(self):
-        data = '\'{"data": [ "root", "0penBmc" ] }\''
+        data = '\'{"data": [ "%s", "%s" ] }\'' % (self.username, self.password)
         self.curl.feed_data(dbus_object="/login", operation='w', command="POST", data=data)
         self.curl.run()
 
