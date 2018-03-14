@@ -39,12 +39,12 @@ class CommandFailed(Exception):
 
 class BMCDisconnected(Exception):
     '''
-    BMC was disconnected unexpectedly. e.g. it may have crashed
+    BMC Cosnole was disconnected unexpectedly. e.g. it may have crashed
     '''
     def __init__(self, notice):
         self.notice = notice
     def __str__(self):
-        return "BMC disconnected due to '%s'" % self.notice
+        return "BMC console disconnected due to '%s'" % self.notice
 
 class NoKernelConfig(Exception):
     '''
@@ -99,11 +99,36 @@ class KernelHardLockup(Exception):
         return "Hard lockup (machine in state %s): %s" % (self.state, self.log)
 
 class KernelOOPS(Exception):
+    '''
+    We detected a kernel OOPS. Mostly this will mean we need to fail the test and reboot.
+    Some test cases may *intentionally* cause these, so they can catch them and act
+    appropriately.
+    '''
     def __init__(self, state, log):
         self.log = log
         self.state = state
     def __str__(self):
         return "Kernel OOPS (machine in state %s): %s" % (self.state, self.log)
+
+class KernelKdump(Exception):
+    '''
+    We observe a Kdump kernel booting after a kernel crash, to dump vmcore for debug.
+    '''
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Kernel Kdump (machine in state %s): %s" % (self.state, self.log)
+
+class KernelCrashUnknown(Exception):
+    '''
+    Kernel crashed but it didn't reach the end failure condition(i.e a timeout occured)
+    '''
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Kernel crash unknown state (machine in state %s): %s" % (self.state, self.log)
 
 class KernelBug(Exception):
     def __init__(self, state, log):
@@ -123,6 +148,9 @@ class SkibootAssert(Exception):
         return "Hit skiboot assert in state %s: %s" % (self.state, self.log)
 
 class SkibootException(Exception):
+    '''
+    We detected an exception from OPAL (skiboot) firmware.
+    '''
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -130,6 +158,9 @@ class SkibootException(Exception):
         return "Hit skiboot unexpected exception in state %s: %s" % (self.state, self.log)
 
 class KernelPanic(Exception):
+    '''
+    Kernel got panic due to high seveirty conditions
+    '''
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -137,6 +168,9 @@ class KernelPanic(Exception):
         return "Kernel panic in state %s: %s" % (self.state, self.log)
 
 class PlatformError(Exception):
+    '''
+    We detected a system reboot due to platform error(i.e checkstop, machine check, MCE, etc)
+    '''
     def __init__(self, state, log):
         self.log = log
         self.state = state

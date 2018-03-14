@@ -70,8 +70,16 @@ class OpTestFlashBase(unittest.TestCase):
 
     def validate_side_activated(self):
         l_bmc_side, l_pnor_side = self.cv_IPMI.ipmi_get_side_activated()
+        self.cv_IPMI.ipmi_get_golden_side_sensor_id()
         self.assertIn(BMC_CONST.PRIMARY_SIDE, l_bmc_side, "BMC: Primary side is not active")
-        # TODO force setting of primary side to BIOS Golden side sensor
+        if (l_pnor_side == BMC_CONST.GOLDEN_SIDE):
+            print "PNOR: Primary side is not active"
+            bios_sensor = self.cv_IPMI.ipmi_get_golden_side_sensor_id()
+            self.assertNotEqual(bios_sensor, None, "Failed to get the BIOS Golden side sensor id")
+            boot_count_sensor = self.cv_IPMI.ipmi_get_boot_count_sensor_id()
+            self.assertNotEqual(boot_count_sensor, None, "Failed to get the Boot Count sensor id")
+            self.cv_IPMI.ipmi_set_pnor_primary_side(bios_sensor, boot_count_sensor)
+        l_bmc_side, l_pnor_side = self.cv_IPMI.ipmi_get_side_activated()
         self.assertIn(BMC_CONST.PRIMARY_SIDE, l_pnor_side, "PNOR: Primary side is not active")
 
     def get_pnor_level(self):

@@ -36,6 +36,7 @@ import subprocess
 import os
 import pexpect
 import sys
+import re
 import commands
 #from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
@@ -1377,6 +1378,25 @@ class OpTestIPMI():
 
     def clear_tpm_required(self):
         pass
+
+    def ipmi_get_golden_side_sensor_id(self):
+        cmd = "sdr elist -v | grep -i 'BIOS Golden'"
+        output = self.ipmitool.run(cmd)
+        matchObj = re.search( "BIOS Golden Side \((.*)\)", output)
+        id = None
+        if matchObj:
+            id = matchObj.group(1)
+        return id
+
+    def ipmi_get_boot_count_sensor_id(self):
+        cmd = "sdr elist -v | grep -i 'Boot Count'"
+        output = self.ipmitool.run(cmd)
+        matchObj = re.search( "Boot Count \((.*)\)", output)
+        id = None
+        if matchObj:
+            id = matchObj.group(1)
+        return id
+
 
 class OpTestSMCIPMI(OpTestIPMI):
 
