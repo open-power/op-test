@@ -126,6 +126,8 @@ def get_parser():
                             help="petitboot zImage.epapr to use/flash.")
     imagegroup.add_argument("--flash-initramfs",
                             help="petitboot rootfs to use/flash. Not all platforms support this option")
+    imagegroup.add_argument("--flash-part", nargs=2, metavar=("PART name", "bin file"), action='append',
+                            help="PNOR partition to flash, Ex: --flash-part OCC occ.bin")
     imagegroup.add_argument("--noflash","--no-flash", action='store_true', default=False,
                             help="Even if images are specified, don't flash them")
     imagegroup.add_argument("--only-flash", action='store_true', default=False,
@@ -134,6 +136,13 @@ def get_parser():
                             help="pflash to copy to BMC (if needed)")
     imagegroup.add_argument("--pupdate",
                             help="pupdate to flash PNOR for Supermicro systems")
+
+    stbgroup = parser.add_argument_group('STB', 'Secure and Trusted boot parameters')
+    stbgroup.add_argument("--un-signed-pnor", help="Unsigned or improperly signed PNOR")
+    stbgroup.add_argument("--signed-pnor", help="Properly signed PNOR image(devel)")
+    stbgroup.add_argument("--key-transition-pnor", help="Key transition PNOR image")
+    stbgroup.add_argument("--secure-mode", action='store_true', default=False, help="Secureboot mode")
+    stbgroup.add_argument("--trusted-mode", action='store_true', default=False, help="Trustedboot mode")
 
     return parser
 

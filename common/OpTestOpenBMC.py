@@ -944,6 +944,39 @@ class HostManagement():
         self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
         self.curl.run()
 
+    """
+    $ curl -c cjar -b cjar -k -H "Content-Type: application/json" -X GET
+    https://$BMC_IP/xyz/openbmc_project/control/host0/TPMEnable
+    """
+    def is_tpm_enabled(self):
+        obj = "/xyz/openbmc_project/control/host0/TPMEnable"
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
+        output = self.curl.run()
+        data = json.loads(output)
+        if data['data']['TPMEnable'] == 1:
+            print "# TPMEnable is set"
+            return True
+        print "# TPMEnable is cleared"
+        return False
+
+    """
+    curl -c cjar -b cjar -k -H "Content-Type: application/json" -X PUT
+    https://$BMCIP/xyz/openbmc_project/control/host0/TPMEnable/attr/TPMEnable
+    -d '{"data":1}'
+    """
+    def configure_tpm_enable(self, bit):
+        obj = "/xyz/openbmc_project/control/host0/TPMEnable/attr/TPMEnable"
+        data = '\'{"data" : %s}\'' % int(bit)
+        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.run()
+
+    def enable_tpm(self):
+        self.configure_tpm_enable(1)
+
+    def disable_tpm(self):
+        self.configure_tpm_enable(0)
+
+
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None,
             rest_api=None, logfile=sys.stdout,
@@ -1014,6 +1047,12 @@ class OpTestOpenBMC():
             self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
             self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
             #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/BOOTKERNEL" % lid_name, timeout=60)
+
+    def flash_part_openbmc(self, lid_name, part_name):
+        if not self.has_new_pnor_code_update():
+            self.bmc.flash_part_openbmc(lid_name, part_name)
+        else:
+            self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/%s" % (lid_name, part_name), timeout=60)
 
     def clear_field_mode(self):
         self.bmc.run_command("fw_setenv fieldmode")
