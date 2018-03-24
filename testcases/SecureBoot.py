@@ -27,6 +27,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 from testcases.OpTestFlash import PNORFLASH
+from testcases.OpTestFlash import OpalLidsFLASH
 
 class SecureBoot(unittest.TestCase):
     def setUp(self):
@@ -59,6 +60,13 @@ class SecureBoot(unittest.TestCase):
             if boot:
                 return False
         return True
+
+    def wait_for_secureboot_enforce(self):
+        console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+        self.cv_SYSTEM.sys_power_on()
+        console.expect("STB: secure mode enforced, aborting.", timeout=300)
+        console.expect("secondary_wait", timeout=20)
+        console.expect("host_voltage_config", timeout=100)
 
     def wait_for_sb_kt_start(self):
         console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
@@ -187,9 +195,44 @@ class KeyTransitionPNOR(SecureBoot, PNORFLASH):
         print "set state, going to off"
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
+class OPALContainerTest(SecureBoot, OpalLidsFLASH):
+    '''
+    System having Signed PNOR(either production or developement mode)
+    Flash signed containers with wrong keys
+    Secureboot verify should fail and boot should abort
+    '''
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.skiboot = None
+        self.skiroot_kernel = None
+        self.skiroot_initramfs = None
+        self.test_containers = conf.args.test_container
+        super(OPALContainerTest, self).setUp()
+
+    def runTest(self):
+        test_list = []
+        known_part_list = ["BOOTKERNEL","CAPP", "IMA_CATALOG", "VERSION"]
+        # sort list with known order list
+        for item in known_part_list:
+            for pair in self.test_containers:
+                if item in pair[0]:
+                    test_list.append(pair)
+        for container in test_list:
+            OpalLidsFLASH.flash_part_list = [container]
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            super(OPALContainerTest, self).runTest()
+            if self.securemode:
+                self.wait_for_secureboot_enforce()
+                self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            else:
+                self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+
 def secureboot_suite():
     s = unittest.TestSuite()
     s.addTest(UnSignedPNOR())
+    s.addTest(SignedPNOR())
+    s.addTest(OPALContainerTest())
     s.addTest(SignedPNOR())
     s.addTest(KeyTransitionPNOR())
     s.addTest(SignedPNOR())
