@@ -93,6 +93,7 @@ from testcases import OpTestCAPI
 from testcases import gcov
 from testcases import OpalSysfsTests
 from testcases import SecureBoot
+from testcases import TrustedBoot
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -124,6 +125,7 @@ class SkirootSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(DeviceTreeWarnings.Skiroot())
         self.s.addTest(SecureBoot.VerifyOPALSecureboot())
+        self.s.addTest(TrustedBoot.VerifyOPALTrustedBoot())
         self.s.addTest(OpTestEM.skiroot_suite())
         self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
         self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
@@ -199,10 +201,15 @@ class BasicIPLSuite():
     def suite(self):
         return BasicIPL.suite()
 
-class STBSuite():
-    '''Secure and Trusted boot tests'''
+class SBSuite():
+    '''Secure boot tests'''
     def suite(self):
         return SecureBoot.secureboot_suite()
+
+class TBSuite():
+    '''Trusted boot tests'''
+    def suite(self):
+        return TrustedBoot.trustedboot_suite()
 
 class DefaultSuite():
     '''Basic regression tests'''
@@ -395,7 +402,8 @@ suites = {
     'qemu' : QemuSuite(),
     'BasicIPL' : BasicIPLSuite(),
     'BasicPCI' : BasicPCISuite(),
-    'stb' : STBSuite(),
+    'secure-boot' : SBSuite(),
+    'trusted-boot' : TBSuite(),
     'em' :       OpTestEMSuite(),
     'known-bugs' : KnownBugs(),
     'experimental': ExperimentalSuite(),

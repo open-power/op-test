@@ -1316,6 +1316,15 @@ class OpTestSystem(object):
                     print "hostname -i does not provide valid IP, correct and proceed with installation"
         return my_ip
 
+    def sys_enable_tpm(self):
+        self.cv_IPMI.set_tpm_required()
+
+    def sys_disable_tpm(self):
+        self.cv_IPMI.clear_tpm_required()
+
+    def sys_is_tpm_enabled(self):
+        return self.cv_IPMI.is_tpm_enabled()
+
 class OpTestFSPSystem(OpTestSystem):
     '''
     Implementation of an OpTestSystem for IBM FSP based systems (such as Tuleta and ZZ)
@@ -1431,6 +1440,15 @@ class OpTestOpenBMCSystem(OpTestSystem):
 
     def sys_cold_reset_bmc(self):
         self.rest.bmc_reset()
+
+    def sys_enable_tpm(self):
+       self.rest.enable_tpm()
+
+    def sys_disable_tpm(self):
+       self.rest.disable_tpm()
+
+    def sys_is_tpm_enabled(self):
+        return self.rest.is_tpm_enabled()
 
 class OpTestQemuSystem(OpTestSystem):
     '''
