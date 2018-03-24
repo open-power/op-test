@@ -47,7 +47,7 @@ class SbePassThrough(unittest.TestCase):
 
     def setup_init(self):
         self.c.run_command("dmesg -D")
-        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
 
         if self.cpu not in ["POWER9"]:
             self.skipTest("SBE passthrough test not supported on %s" % self.cpu)
