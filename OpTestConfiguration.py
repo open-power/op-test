@@ -139,10 +139,11 @@ def get_parser():
 
     stbgroup = parser.add_argument_group('STB', 'Secure and Trusted boot parameters')
     stbgroup.add_argument("--un-signed-pnor", help="Unsigned or improperly signed PNOR")
-    stbgroup.add_argument("--signed-pnor", help="Properly signed PNOR image(devel)")
+    stbgroup.add_argument("--signed-pnor", help="Properly signed PNOR image(imprint)")
+    stbgroup.add_argument("--signed-to-pnor", help="Properly signed PNOR image(imprint or production)")
     stbgroup.add_argument("--key-transition-pnor", help="Key transition PNOR image")
     stbgroup.add_argument("--test-container", nargs=2, metavar=("PART name", "bin file"), action='append',
-                            help="PNOR partition container to flash, Ex: --flash-part CAPP capp_unsigned.bin")
+                            help="PNOR partition container to flash, Ex: --test-container CAPP capp_unsigned.bin")
     stbgroup.add_argument("--secure-mode", action='store_true', default=False, help="Secureboot mode")
     stbgroup.add_argument("--trusted-mode", action='store_true', default=False, help="Trustedboot mode")
 
