@@ -79,15 +79,25 @@ class SecureBoot(unittest.TestCase):
     def verify_opal_sb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.host_console_unique_prompt()
+
+        c.run_command("stty cols 300; stty rows 30;")
+        self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        print self.cpu
+        if self.cpu in ["POWER9"]:
+            part_list = ["CAPP", "IMA_CATALOG", "BOOTKERNEL", "VERSION"]
+        elif self.cpu in ["POWER8"]:
+            part_list = ["CAPP", "BOOTKERNEL"]
+        else:
+           self.skipTest("OPAL SB test not supported on %s" % self.cpu)
+
         data = " ".join(c.run_command("cat /sys/firmware/opal/msglog | grep -i stb"))
-        part_list = ["CAPP", "IMA_CATALOG", "BOOTKERNEL", "VERSION"]
         if self.securemode:
             if not "secure mode on" in data:
-                self.assertTrue(False, "OPAL: Secure mode is detected as OFF")
+                self.assertTrue(False, "OPAL-SB: Secure mode is detected as OFF")
         for part in part_list:
             msg = "STB: %s verified" % part
             if not msg in data:
-                self.assertTrue(False, "OPAL: %s is not verified" % part)
+                self.assertTrue(False, "OPAL-SB: %s is not verified" % part)
 
     def verify_dt_sb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
