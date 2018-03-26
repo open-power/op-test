@@ -358,6 +358,7 @@ class OpTestConfiguration():
         else:
             raise Exception("Unsupported BMC Type")
 
+        host.set_system(self.op_system)
         return
 
     def bmc(self):
