@@ -120,9 +120,7 @@ class OpTestPNOR():
             self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
         except CommandFailed as cf:
             print repr(cf)
-            if 'R' in payloadInfo['flags'] and cf.exitcode in [8]:
-                pass
-            else:
+            if not ('R' in payloadInfo['flags'] and cf.exitcode in [8]):
                 raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
@@ -130,9 +128,8 @@ class OpTestPNOR():
         try:
             self.pflashWritePartition("/tmp/payload", "PAYLOAD")
         except CommandFailed as cf:
-            if 'R' in payloadInfo['flags'] and cf.exitcode in [8]:
-                pass
-            raise cf
+            if not ('R' in payloadInfo['flags'] and cf.exitcode in [8]):
+                raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
 
