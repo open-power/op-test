@@ -46,6 +46,7 @@ class OpalSysfsTests():
             if self.cpu:
                 pass
         except AttributeError:
+            self.c.run_command("stty cols 300")
             cmd = "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"
             self.cpu = ''.join(self.c.run_command(cmd))
         return self.cpu
@@ -102,6 +103,7 @@ class OpalSysfsTests():
     def test_opal_sensor_groups(self):
         self.setup_test()
         self.get_proc_gen()
+	print repr(self.cpu)
         if self.cpu not in ["POWER9"]:
             return
         list = self.c.run_command("ls --color=never -1 %s" % str(OPAL_SENSOR_GROUPS))
