@@ -183,9 +183,9 @@ class OpTestHMIHandling(unittest.TestCase):
     #                          BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR: hypervisor resource error
     def _testHMIHandling(self, i_test):
         l_test = i_test
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         self.init_test()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.host_console_login()
