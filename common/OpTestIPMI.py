@@ -205,11 +205,12 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         print cmd
-        solChild = OPexpect.spawn(cmd,logfile=self.logfile,
+        solChild = OPexpect.spawn(cmd,
                                   failure_callback=set_system_to_UNKNOWN,
                                   failure_callback_data=self.system)
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild
+        solChild.logfile_read = self.logfile
         if self.delaybeforesend:
 	    self.sol.delaybeforesend = self.delaybeforesend
         self.sol.expect_exact('[SOL Session operational.  Use ~? for help]')
