@@ -192,7 +192,7 @@ class OpTestSystem(object):
         except HostbootShutdown as e:
             print e
             self.sys_sel_check()
-            return OpSystemState.OFF
+            return OpSystemState.UNKNOWN
 
         # Once reached to petitboot check for any SEL events
         self.sys_sel_check()
