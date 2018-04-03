@@ -1406,10 +1406,12 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.power_off()
 
     def sys_sdr_clear(self):
-        # We can delete individual SEL entry by id
-        self.rest.clear_sel_by_id()
-        # Deleting complete SEL repository is not yet implemented
-        #self.rest.clear_sel()
+        try:
+            # Try clearing all with DeleteAllAPI
+            self.rest.clear_sel()
+        except FailedCurlInvocation as f:
+            # Which may not be implemented, so we try by ID instead
+            self.rest.clear_sel_by_id()
 
     def sys_get_sel_list(self):
         self.rest.list_sel()
