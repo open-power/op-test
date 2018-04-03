@@ -42,6 +42,7 @@ from OpTestError import OpTestError
 from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
 from OpTestSSH import ConsoleState as SSHConnectionState
+from Exceptions import HostbootShutdown
 
 
 class OpSystemState():
@@ -188,6 +189,10 @@ class OpTestSystem(object):
         except pexpect.TIMEOUT:
             self.sys_sel_check()
             return OpSystemState.UNKNOWN
+        except HostbootShutdown as e:
+            print e
+            self.sys_sel_check()
+            return OpSystemState.OFF
 
         # Once reached to petitboot check for any SEL events
         self.sys_sel_check()
@@ -1238,9 +1243,11 @@ class OpTestSystem(object):
             t = 100
             while seen < 2 and t:
                 # TODO check for forward progress
-                r = console.expect(['x=exit', 'Petitboot', pexpect.TIMEOUT], timeout=10)
+                r = console.expect(['x=exit', 'Petitboot', pexpect.TIMEOUT, '[0-9.]+\|IPMI: shutdown requested'], timeout=10)
                 if r == 2 and t == 0:
                     raise pexpect.TIMEOUT
+                if r == 3:
+                    raise HostbootShutdown()
                 if r in [0,1]:
                     seen = seen + 1
                 else:

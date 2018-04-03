@@ -176,3 +176,10 @@ class PlatformError(Exception):
         self.state = state
     def __str__(self):
         return "Platform error at state %s. Log: %s" % (self.state, self.log)
+
+class HostbootShutdown(Exception):
+    '''
+    We detected that Hostboot got an IPMI shutdown request.
+    '''
+    def __str__(self):
+        return "Detected hostboot got IPMI shutdown request"
