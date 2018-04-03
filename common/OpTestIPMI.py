@@ -154,9 +154,9 @@ class IPMIConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
 
-def set_system_to_UNKNOWN(system):
+def set_system_to_UNKNOWN_BAD(system):
     s = system.get_state()
-    system.set_state(OpSystemState.UNKNOWN)
+    system.set_state(OpSystemState.UNKNOWN_BAD)
     return s
 
 class IPMIConsole():
@@ -206,7 +206,7 @@ class IPMIConsole():
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         print cmd
         solChild = OPexpect.spawn(cmd,logfile=self.logfile,
-                                  failure_callback=set_system_to_UNKNOWN,
+                                  failure_callback=set_system_to_UNKNOWN_BAD,
                                   failure_callback_data=self.system)
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild

@@ -36,6 +36,7 @@ import pexpect
 import socket
 import commands
 
+import OpTestIPMI # circular dependencies, use package
 from OpTestFSP import OpTestFSP
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -43,6 +44,7 @@ from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
 from OpTestSSH import ConsoleState as SSHConnectionState
 from Exceptions import HostbootShutdown
+from OpTestSSH import OpTestSSH
 
 
 class OpSystemState():
@@ -58,6 +60,7 @@ class OpSystemState():
     BOOTING = 5
     OS = 6
     POWERING_OFF = 7
+    UNKNOWN_BAD = 8 # special case, use set_state to place system in hold for later goto
 
 class OpTestSystem(object):
 
@@ -85,6 +88,8 @@ class OpTestSystem(object):
 
         # We have a state machine for going in between states of the system
         # initially, everything in UNKNOWN, so we reset things.
+        # UNKNOWN is used to flag the system to auto-detect the state if
+        # possible to efficiently achieve state transitions.
         # But, we allow setting an initial state if you, say, need to
         # run against an already IPLed system
         self.state = state
@@ -97,6 +102,7 @@ class OpTestSystem(object):
         self.stateHandlers[OpSystemState.BOOTING] = self.run_BOOTING
         self.stateHandlers[OpSystemState.OS] = self.run_OS
         self.stateHandlers[OpSystemState.POWERING_OFF] = self.run_POWERING_OFF
+        self.stateHandlers[OpSystemState.UNKNOWN_BAD] = self.run_UNKNOWN
 
         # We track the state of loaded IPMI modules here, that way
         # we only need to try the modprobe once per IPL.
@@ -141,6 +147,13 @@ class OpTestSystem(object):
         self.state = state
 
     def goto_state(self, state):
+        # only perform detection when incoming state is UNKNOWN
+        # if user overrides from command line and machine not at desired state can lead to exceptions
+        if (self.state == OpSystemState.UNKNOWN):
+          print "OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state)
+          self.state = self.run_DETECT(state)
+          print "OpTestSystem CURRENT DETECTED STATE: %s" % (self.state)
+
         print "OpTestSystem START STATE: %s (target %s)" % (self.state, state)
         never_unknown = False
         while 1:
@@ -152,6 +165,138 @@ class OpTestSystem(object):
                 break;
             if never_unknown and self.state == OpSystemState.UNKNOWN:
                 raise 'System State transition failure: should not have progressed to UNKNOWN!'
+
+    def run_DETECT(self, target_state):
+        t = 0
+        detect_state = OpSystemState.UNKNOWN
+        never_rebooted = True
+        while (detect_state == OpSystemState.UNKNOWN) and (t < 2):
+          # two phases
+          detect_state = self.detect_target(target_state, never_rebooted)
+          never_rebooted = False
+          t += 1
+        return detect_state
+
+    def detect_target(self, target_state, reboot):
+        console = self.console.connect()
+        # need to kick the buffer, login needs "r"
+        console.send("\r")
+        r = console.expect(["x=exit", "Petitboot", ".*#", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        if r in [0,1]:
+          if (target_state == OpSystemState.PETITBOOT):
+            return OpSystemState.PETITBOOT
+          elif (target_state == OpSystemState.PETITBOOT_SHELL):
+            self.petitboot_exit_to_shell()
+            return OpSystemState.PETITBOOT_SHELL
+          elif (target_state == OpSystemState.OS) and reboot:
+            self.petitboot_exit_to_shell()
+            self.run_REBOOT(target_state)
+            return OpSystemState.UNKNOWN
+          else:
+            return OpSystemState.UNKNOWN
+        elif r == 2:
+          detect_state = self.check_kernel()
+          if (detect_state == target_state):
+            return detect_state
+          elif reboot:
+            if target_state in [OpSystemState.OS]:
+              self.run_REBOOT(target_state)
+              return OpSystemState.UNKNOWN
+            elif target_state in [OpSystemState.PETITBOOT]:
+              self.exit_petitboot_shell()
+              return OpSystemState.PETITBOOT
+            elif target_state in [OpSystemState.PETITBOOT_SHELL]:
+              return OpSystemState.PETITBOOT_SHELL
+            else:
+              return OpSystemState.UNKNOWN
+          else:
+            return OpSystemState.UNKNOWN
+        elif r == 3:
+          if (target_state == OpSystemState.OS):
+            return OpSystemState.OS
+          elif reboot:
+            if target_state in [OpSystemState.OS,OpSystemState.PETITBOOT,OpSystemState.PETITBOOT_SHELL]:
+              self.run_REBOOT(target_state)
+              return OpSystemState.UNKNOWN
+            else:
+              return OpSystemState.UNKNOWN
+          else:
+            return OpSystemState.UNKNOWN
+        elif (r == 4) or (r == 5):
+          return OpSystemState.UNKNOWN
+
+    def check_kernel(self):
+        console = self.console.get_console()
+        console.sendline("cat /proc/version | cut -d ' ' -f 3 | grep openpower")
+        console.expect("\n")
+        console.expect([".*#"])
+        console.sendline("echo $?")
+        console.expect("\n")
+        console.expect([".*#"])
+        echo_output = console.after
+        try:
+          echo_rc = int(echo_output.splitlines()[0])
+        except Exception as e:
+          # most likely cause is running while booting unknowlingly
+          return OpSystemState.UNKNOWN
+        if (echo_rc == 0):
+          return OpSystemState.PETITBOOT_SHELL
+        else:
+          return OpSystemState.OS
+
+    def wait_for_it(self, my_string=None, refresh=1, buffer_kicker=1, loop_max=50, threshold=1, timeout=10):
+        console = self.console.get_console()
+        previous_before = 'emptyfirst'
+        x = 1
+        reconnect_count = 0
+        while (x <= loop_max):
+            rc = console.expect([my_string, pexpect.TIMEOUT, pexpect.EOF], timeout)
+            if (previous_before == console.before) and (rc != 0):
+              # only attempt reconnect per threshold
+              if (x % threshold == 0):
+                reconnect_count += 1
+                if isinstance(self.console, OpTestIPMI.IPMIConsole):
+                  console = self.console.connect()
+                  if buffer_kicker:
+                    console.sendline("\r")
+                  if refresh:
+                    console.sendcontrol('l')
+                  previous_before = 'emptyagain'
+                else:
+                  console = self.console.connect()
+                  if buffer_kicker:
+                    console.sendline("\r")
+                  previous_before = 'emptyagain'
+            else:
+              previous_before = console.before
+            if (rc == 0):
+              break;
+            else:
+              x += 1
+            if (x >= loop_max):
+              raise Exception('Waiting for "{}" did not succeed, check the loop_max if needing to wait longer'
+                              ' (number of reconnect attempts were {})'.format(my_string, reconnect_count))
+
+    def run_REBOOT(self, target_state):
+        # per console object detect stale indicator
+        # used in conjunction with timeouts and loop_max
+        if isinstance(self.console, OpTestIPMI.IPMIConsole):
+          threshold = 3
+        else:
+          threshold = 6
+        console = self.console.get_console()
+        if (target_state == OpSystemState.PETITBOOT_SHELL) or (target_state == OpSystemState.PETITBOOT):
+          self.sys_set_bootdev_setup()
+          self.host_console_login()
+        else:
+          self.sys_set_bootdev_no_override()
+        console.sendline('reboot')
+        console.expect("\n")
+
+        if (target_state == OpSystemState.OS):
+          self.wait_for_it(my_string='login: ', threshold=threshold)
+        else:
+          self.wait_for_it(my_string='Petitboot', buffer_kicker=0, threshold=threshold)
 
     def run_UNKNOWN(self, state):
         self.sys_power_off()
@@ -1279,6 +1424,7 @@ class OpTestSystem(object):
         else:
             console.sendcontrol('c')
             console.expect('#')
+        console.sendcontrol('u') # remove any characters between cursor and start of line
         # we should have consumed everything in the buffer now.
         print console
 
