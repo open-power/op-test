@@ -1379,6 +1379,9 @@ class OpTestIPMI():
     def clear_tpm_required(self):
         pass
 
+    def is_tpm_enabled(self):
+        pass
+
     def ipmi_get_golden_side_sensor_id(self):
         cmd = "sdr elist -v | grep -i 'BIOS Golden'"
         output = self.ipmitool.run(cmd)
@@ -1411,3 +1414,12 @@ class OpTestSMCIPMI(OpTestIPMI):
 
     def clear_tpm_required(self):
         self.ipmitool.run('raw 0x04 0x30 0x49 0x10 0x00 0x01 0 0 0 0 0 0')
+
+    def is_tpm_enabled(self):
+        res = self.ipmitool.run("sdr elist | grep -i TPM")
+        if "State Deasserted" in res:
+            print "#TPM is disabled"
+            return False
+        elif "State Asserted" in res:
+            print "#TPM is enabled"
+            return True

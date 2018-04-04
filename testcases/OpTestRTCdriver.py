@@ -157,8 +157,6 @@ class FullRTC(unittest.TestCase):
         self.cv_HOST.host_read_hwclock()
         self.hwclock_adjust()
         self.cv_HOST.host_read_hwclock()
-        self.hwclock_compare()
-        self.cv_HOST.host_read_hwclock()
 
     ##
     # @brief This function reads hwclock from special /dev/... file instead of default
@@ -248,20 +246,6 @@ class FullRTC(unittest.TestCase):
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, "Keeping the hwclock in localtime is failed: %s" % str(c))
 
-    ##
-    # @brief This function tests hwclock compare functionality for a time of 100 seconds.
-    #        Here checking the return status of timeout as 124, if compare works fine. any
-    #        other return value means compare function failed.
-    def hwclock_compare(self):
-        print "Testing hwclock compare functionality for a time of 10 seconds"
-        exitcode = 0
-        err = "hwclock compare function succeeded, expected exit code of 124"
-        try:
-            self.cv_HOST.host_run_command("timeout 10 hwclock --compare")
-        except CommandFailed as c:
-            exitcode = c.exitcode
-            err = "hwclock compare function failed: %s" % str(c)
-        self.assertEqual(exitcode, 124, err)
 
     ##
     # @brief This function predict RTC reading at time given with --date

@@ -87,6 +87,8 @@ class OpTestHost():
     def password(self):
         return self.passwd
 
+    def set_system(self, system):
+        self.ssh.set_system(system)
 
     def get_scratch_disk(self):
         return self.scratch_disk
