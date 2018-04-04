@@ -41,7 +41,7 @@ class QemuConsole():
     A 'connection' to the Qemu Console involves *launching* qemu.
     Terminating a connection will *terminate* the qemu process.
     """
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None, ubuntu_cdrom=None):
+    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None, cdrom=None):
         self.qemu_binary = qemu_binary
         self.skiboot = skiboot
         self.kernel = kernel
@@ -49,7 +49,7 @@ class QemuConsole():
         self.hda = hda
         self.state = ConsoleState.DISCONNECTED
         self.logfile = logfile
-        self.ubuntu_cdrom = ubuntu_cdrom
+        self.cdrom = cdrom
 
     def terminate(self):
         if self.state == ConsoleState.CONNECTED:
@@ -81,8 +81,8 @@ class QemuConsole():
             cmd = cmd + " -initrd %s" % (self.initramfs)
         if self.hda is not None:
             cmd = cmd + " -hda %s" % (self.hda)
-        if self.ubuntu_cdrom is not None:
-            cmd = cmd + " -cdrom %s" % (self.ubuntu_cdrom)
+        if self.cdrom is not None:
+            cmd = cmd + " -cdrom %s" % (self.cdrom)
         cmd = cmd + " -netdev user,id=u1 -device e1000,netdev=u1"
         cmd = cmd + " -device ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10"
         print cmd
@@ -166,14 +166,19 @@ class QemuIPMI():
         pass
 
 class OpTestQemu():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, ubuntu_cdrom=None, logfile=sys.stdout):
-        self.qemu_hda_file = tempfile.NamedTemporaryFile(delete=True)
-        atexit.register(self.__del__)
+    def __init__(self, qemu_binary=None, skiboot=None,
+                 kernel=None, initramfs=None, cdrom=None,
+                 logfile=sys.stdout, hda=None):
+        if hda is not None:
+            self.qemu_hda_file = tempfile.NamedTemporaryFile(delete=True)
+            atexit.register(self.__del__)
+        else:
+            self.qemu_hda_file = hda
         create_hda = subprocess.check_call(["qemu-img", "create",
                                             "-fqcow2",
                                             self.qemu_hda_file.name,
                                             "10G"])
-        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile, hda=self.qemu_hda_file.name, ubuntu_cdrom=ubuntu_cdrom)
+        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile, hda=self.qemu_hda_file.name, cdrom=cdrom)
         self.ipmi = QemuIPMI(self.console)
 
     def __del__(self):

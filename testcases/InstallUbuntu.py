@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2015,2017
+# Contributors Listed Below - COPYRIGHT 2015,2018
 # [+] International Business Machines Corp.
 #
 #
@@ -58,10 +58,10 @@ class InstallUbuntu(unittest.TestCase):
         self.util = OpTestUtil()
         self.bmc_type = conf.args.bmc_type
         if not (self.conf.args.os_repo or self.conf.args.os_cdrom):
-            self.fail("Provide installation media for installation, --os-repo is missing")
-        if not (self.conf.args.host_gateway and self.conf.args.host_dns and self.conf.args.host_submask and self.conf.args.host_mac):
+            self.fail("Provide installation media for installation with --os-repo or --os-cdrom")
+        if "qemu" not in self.bmc_type and not (self.conf.args.host_gateway and self.conf.args.host_dns and self.conf.args.host_submask and self.conf.args.host_mac):
             self.fail("Provide host network details refer, --host-{gateway,dns,submask,mac}")
-        if not self.conf.args.host_scratch_disk:
+        if not self.host.get_scratch_disk():
             self.fail("Provide proper host disk to install refer, --host-scratch-disk")
 
     def select_petitboot_item(self, item):
@@ -96,28 +96,26 @@ class InstallUbuntu(unittest.TestCase):
         if not my_ip:
             self.fail("unable to get the ip from host")
 
-        if self.conf.args.os_cdrom and not self.conf.args.os_repo:
-            repo = OpIU.setup_repo(self.conf.args.os_cdrom)
-        if self.conf.args.os_repo:
-            repo = self.conf.args.os_repo
-        if not repo:
-            self.fail("No valid repo to start installation")
-        if not OpIU.extract_install_files(repo):
-            self.fail("Unable to download install files")
+        if "qemu" not in self.bmc_type:
+            if self.conf.args.os_cdrom and not self.conf.args.os_repo:
+                repo = OpIU.setup_repo(self.conf.args.os_cdrom)
+            if self.conf.args.os_repo:
+                repo = self.conf.args.os_repo
+            if not repo:
+                self.fail("No valid repo to start installation")
+            if not OpIU.extract_install_files(repo):
+                self.fail("Unable to download install files")
 
         # start our web server
         port = OpIU.start_server(my_ip)
 
-        if not self.conf.args.os_repo:
+        if "qemu" not in self.bmc_type and not self.conf.args.os_repo:
             repo = 'http://%s:%s/repo' % (my_ip, port)
 
-        kernel_args = (' auto console=ttyS0 '
+        kernel_args = (' auto console=hvc0 '
                        'interface=auto '
-                       'netcfg/disable_autoconfig=true '
-                       'netcfg/get_nameservers=%s '
-                       'netcfg/get_ipaddress=%s '
-                       'netcfg/get_netmask=%s '
-                       'netcfg/get_gateway=%s '
+                       'localechooser/languagelist=en '
+                       'debian-installer/country=US '
                        'debian-installer/locale=en_US '
                        'console-setup/ask_detect=false '
                        'console-setup/layoutcode=us '
@@ -126,12 +124,16 @@ class InstallUbuntu(unittest.TestCase):
                        'netcfg/link_wait_timeout=60 '
                        'partman-auto/disk=%s '
                        'locale=en_US '
-                       'url=http://%s:%s/preseed.cfg' % (self.conf.args.host_dns,
-                                                         self.host.ip,
-                                                         self.conf.args.host_submask,
-                                                         self.conf.args.host_gateway,
-                                                         self.host.get_scratch_disk(),
+                       'url=http://%s:%s/preseed.cfg' % (self.host.get_scratch_disk(),
                                                          my_ip, port))
+
+        if not self.conf.args.host_dns in [None, ""]:
+            kernel_args = kernel_args + ' netcfg/disable_autoconfig=true '
+            kernel_args = kernel_args + 'netcfg/get_nameservers=%s ' % self.conf.args.host_dns
+            kernel_args = kernel_args + 'netcfg/get_ipaddress=%s ' % self.host.ip
+            kernel_args = kernel_args + 'netcfg/get_netmask=%s ' % self.conf.args.host_submask
+            kernel_args = kernel_args + 'netcfg/get_gateway=%s ' % self.conf.args.host_gateway
+
         self.c = self.system.sys_get_ipmi_console()
         self.system.host_console_unique_prompt()
         if "qemu" in self.bmc_type:
@@ -169,9 +171,22 @@ class InstallUbuntu(unittest.TestCase):
 
         # Do things
         rawc.expect('Sent SIGKILL to all processes', timeout=60)
-        rawc.expect('Loading additional components', timeout=300)
-        rawc.expect('Setting up the clock', timeout=300)
-        rawc.expect('Detecting hardware', timeout=300)
+        r = rawc.expect(['Loading additional components','Configure the keyboard'], timeout=300)
+        if r == 1:
+            print "# Preseed isn't perfect when it comes to keyboard selection. Urgh"
+            rawc.expect('Go Back')
+            time.sleep(2)
+            rawc.send("\r\n")
+            rawc.expect(['Keyboard layout'])
+            rawc.expect(['activates buttons'])
+            time.sleep(2)
+            rawc.sendline("\r\n")
+            rawc.expect(['Loading additional components'], timeout=300)
+
+        r = 0
+        while r == 0:
+            r = rawc.expect(['udeb', 'Setting up the clock', 'Detecting hardware'], timeout=300)
+
         rawc.expect('Partitions formatting', timeout=600)
         rawc.expect('Installing the base system', timeout=300)
         r = None

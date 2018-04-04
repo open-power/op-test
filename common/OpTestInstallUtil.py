@@ -331,8 +331,18 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                 elif "rhel" in BASE_PATH:
                     ps = d.format(REPO, PASSWORD, DISK, DISK, DISK)
                 elif "ubuntu" in BASE_PATH:
+                    user = USERNAME
+                    if user == 'root':
+                        user = 'ubuntu'
+
+                    packages = "openssh-server build-essential lvm2 ethtool"
+                    "sg3-utils lsscsi libaio-dev libtime-hires-perl acpid tgt "
+                    "openjdk-8* zip git automake python expect gcc g++ gdb "
+                    "python-dev p7zip python-stevedore python-setuptools "
+                    "libvirt-dev numactl libosinfo-1.0-0 python-pip"
+
                     ps = d.format("openpower", "example.com",
-                                  PASSWORD, PASSWORD, DISK)
+                                  PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
                 else:
                     print "unknown distro"
                 self.wfile.write(ps)

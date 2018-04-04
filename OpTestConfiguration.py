@@ -349,8 +349,9 @@ class OpTestConfiguration():
                              self.args.flash_skiboot,
                              self.args.flash_kernel,
                              self.args.flash_initramfs,
-                             ubuntu_cdrom=self.args.ubuntu_cdrom,
-                             logfile=self.logfile)
+                             cdrom=self.args.os_cdrom,
+                             logfile=self.logfile,
+                             hda=self.args.host_scratch_disk)
             self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
         # Check that the bmc_type exists in our loaded addons then create our objects
         elif self.args.bmc_type in optAddons:
