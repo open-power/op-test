@@ -281,9 +281,7 @@ class OpTestHMIHandling(unittest.TestCase):
     #        Processor went through recovery for an error which is actually masked for reporting
     #        this function also injecting the error on all the cpu's one-by-one.
     def _test_proc_recv_error_masked(self):
-        if self.proc_gen in ["POWER9"]:
-            scom_addr = "20010A40"
-        elif self.proc_gen in ["POWER8", "POWER8E"]:
+        if self.proc_gen in ["POWER8", "POWER8E"]:
             scom_addr = "10013100"
         else:
             return
