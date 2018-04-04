@@ -179,7 +179,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                 # We know that OpenBMC doesn't accept 'floppy'
                 # due to https://github.com/openbmc/phosphor-dbus-interfaces/blob/master/xyz/openbmc_project/Control/Boot/Source.interface.yaml
                 # not having a mapping for it.
-                if bootdev is "floppy":
+                # The same for diag: there's no current mapping.
+                if bootdev in ["floppy", "diag"]:
                     continue
                 self.fail(str(e))
         # reset to bootdev none
