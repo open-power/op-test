@@ -361,7 +361,7 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
             self.enable_idle_state(i)
             self.verify_enable_idle_state(i)
             for c in range(nrcpus):
-                self.c.run_command("taskset -c %d find / |head -n 200000 > /dev/null" % c)
+                self.c.run_command("taskset 0x%x find / |head -n 200000 > /dev/null" % (1 << c))
             after_usage[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/usage" % i)
             after_usage[i] = [int(a) for a in after_usage[i]]
             print repr(before_usage[i])
