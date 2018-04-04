@@ -33,7 +33,7 @@ from common.Exceptions import CommandFailed
 
 class OOBHostLogin(unittest.TestCase):
     '''
-    Log into the host via out of band console and run differenc commands
+    Log into the host via out of band console and run different commands
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -52,6 +52,12 @@ class OOBHostLogin(unittest.TestCase):
             self.assertEqual(r.exitcode, 1)
         for i in range(2):
             l_con.run_command("dmesg", timeout=60)
+        l_con.run_command("lscpu")
+        try:
+            r = l_con.run_command("sleep 20", timeout=10)
+        except CommandFailed as r:
+            print str(r)
+        l_con.run_command("lscpu")
 
 class BMCLogin(unittest.TestCase):
     '''
@@ -91,6 +97,15 @@ class SSHHostLogin(unittest.TestCase):
             self.assertEqual(r.exitcode, 1)
         for i in range(2):
             self.host.host_run_command("dmesg")
+        self.host.host_run_command("whoami")
+        self.host.host_run_command("sudo -s")
+        self.host.host_run_command("lscpu")
+        try:
+            r = self.host.host_run_command("echo \'hai\';sleep 20", timeout=10)
+        except CommandFailed as r:
+            print str(r)
+        self.host.host_run_command("whoami")
+        self.host.host_run_command("lscpu")
 
 class ExampleRestAPI(unittest.TestCase):
     def setUp(self):
