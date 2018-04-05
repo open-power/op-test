@@ -77,14 +77,17 @@ class OpTestPNOR():
         for line in d:
             s = re.search(partition, line)
             if s:
-                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\).*\[([A-Za-z-]+)\].*', line)
+                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\)\s(\[)?([A-Za-z-]+)?(\])?.*', line)
+                if not m:
+                    continue
                 offset = int(m.group(1), 16)
                 length = int(m.group(4), 16)
-                flags = m.group(6)
                 ret = {'offset': offset,
-                       'length': length,
-                       'flags': [x for x in list(flags) if x != '-'],
+                       'length': length
                        }
+                flags = m.group(7)
+                if flags:
+                    ret['flags'] = [x for x in list(flags) if x != '-']
                 return ret
 
     def comparePartitionFile(self, filename, partition):
