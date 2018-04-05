@@ -97,7 +97,7 @@ class SecureBoot(unittest.TestCase):
         for part in part_list:
             msg = "STB: %s verified" % part
             if not msg in data:
-                self.assertTrue(False, "OPAL-SB: %s is not verified" % part)
+                self.assertTrue(False, "OPAL-SB: %s verification failed or not happened" % part)
 
     def verify_dt_sb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
@@ -106,14 +106,16 @@ class SecureBoot(unittest.TestCase):
         if self.securemode:
             c.run_command("ls /proc/device-tree/ibm,secureboot/secure-enabled")
         c.run_command("ls /proc/device-tree/ibm,secureboot/compatible")
-        c.run_command("ls /proc/device-tree/ibm,secureboot/hw-key-hash-size")
         c.run_command("ls /proc/device-tree/ibm,secureboot/hw-key-hash")
         c.run_command("ls /proc/device-tree/ibm,secureboot/name")
         value = c.run_command("cat /proc/device-tree/ibm,secureboot/compatible")[-1]
         if "ibm,secureboot-v2" in value:
+            c.run_command("ls /proc/device-tree/ibm,secureboot/hw-key-hash-size")
             c.run_command("ls /proc/device-tree/ibm,secureboot/ibm,cvc")
             c.run_command("ls /proc/device-tree/ibm,secureboot/ibm,cvc/compatible")
             c.run_command("ls /proc/device-tree/ibm,secureboot/ibm,cvc/memory-region")
+        elif "ibm,secureboot-v1" in value:
+            c.run_command("ls /proc/device-tree/ibm,secureboot/hash-algo")
 
 class VerifyOPALSecureboot(SecureBoot):
 
