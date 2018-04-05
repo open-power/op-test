@@ -59,8 +59,10 @@ class InstallUbuntu(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         if not (self.conf.args.os_repo or self.conf.args.os_cdrom):
             self.fail("Provide installation media for installation with --os-repo or --os-cdrom")
-        if "qemu" not in self.bmc_type and not (self.conf.args.host_gateway and self.conf.args.host_dns and self.conf.args.host_submask and self.conf.args.host_mac):
-            self.fail("Provide host network details refer, --host-{gateway,dns,submask,mac}")
+        if "qemu" not in self.bmc_type and not (self.conf.args.host_ip and self.conf.args.host_gateway and self.conf.args.host_dns and self.conf.args.host_submask and self.conf.args.host_mac):
+            self.fail("Provide host network details refer, --host-{ip,gateway,dns,submask,mac}")
+        if not (self.conf.args.host_user and self.conf.args.host_password):
+            self.fail("Provide host user details refer, --host-{user,password}")
         if not self.host.get_scratch_disk():
             self.fail("Provide proper host disk to install refer, --host-scratch-disk")
 
