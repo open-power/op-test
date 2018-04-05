@@ -66,6 +66,8 @@ class KernelLog():
                       "synth uevent.*failed to send uevent",
                       "vio: uevent: failed to send synthetic uevent",
                       "pstore: decompression failed: -5",
+                      # The below xive message should go away when https://github.com/open-power/skiboot/issues/171 is resolved
+                      "xive: Interrupt.*type mismatch, Linux says Level, FW says Edge",
         ]
 
         for f in filter_out:
