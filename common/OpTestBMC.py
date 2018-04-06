@@ -37,10 +37,11 @@ import os.path
 import subprocess
 from OpTestIPMI import OpTestIPMI
 from OpTestSSH import OpTestSSH
+from OpTestUtil import OpTestUtil
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestWeb import OpTestWeb
-from Exceptions import CommandFailed
+from Exceptions import CommandFailed, SSHSessionDisconnected
 
 class OpTestBMC():
     def __init__(self, ip=None, username=None, password=None,
@@ -57,6 +58,7 @@ class OpTestBMC():
         self.known_hosts_file = known_hosts_file
         self.ssh = OpTestSSH(ip, username, password, logfile, prompt='\[PEXPECT\]#',
                 check_ssh_keys=check_ssh_keys, known_hosts_file=known_hosts_file)
+        self.util = OpTestUtil()
 
     def bmc_host(self):
         return self.cv_bmcIP
@@ -87,10 +89,13 @@ class OpTestBMC():
         retries = 0
         try:
             self.ssh.run_command('reboot')
-        except pexpect.EOF:
+        except SSHSessionDisconnected:
             pass
         print 'Sent reboot command now waiting for reboot to complete...'
-        time.sleep(10)
+        # Wait for BMC to go down.
+        self.util.ping_fail_check(self.cv_bmcIP)
+        # Wait for BMC to ping back.
+        self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
         '''  Ping the system until it reboots  '''
         while True:
             try:

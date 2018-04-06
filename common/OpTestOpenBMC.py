@@ -28,7 +28,7 @@ from OpTestSSH import OpTestSSH
 from OpTestIPMI import OpTestIPMI
 from OpTestUtil import OpTestUtil
 from OpTestBMC import OpTestBMC
-from Exceptions import CommandFailed
+from Exceptions import CommandFailed, LoginFailure
 from common.OpTestError import OpTestError
 from OpTestConstants import OpTestConstants as BMC_CONST
 from common import OPexpect
@@ -51,6 +51,8 @@ class CurlTool():
         self.password = password
         self.binary = binary
         self.logresult = True
+        self.cmd_bkup = ""
+        self.login_retry = 0
 
     def feed_data(self, dbus_object=None, action=None,
                   operation=None, command=None,
@@ -137,8 +139,13 @@ class CurlTool():
         args += self.dbus_interface()
         return args
 
+    def bkup_cmd(self, cmd):
+        self.cmd_bkup = cmd
+
     def run(self, background=False, cmdprefix=None):
-        if cmdprefix:
+        if self.cmd_bkup:
+            cmd = self.cmd_bkup
+        elif cmdprefix:
             cmd = cmdprefix + self.binary + self.arguments() + cmd
         else:
             cmd = self.binary + self.arguments()
@@ -155,16 +162,26 @@ class CurlTool():
             # TODO - need python 2.7
             # output = check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             try:
-                cmd = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
+                obj = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
                                        stdout=subprocess.PIPE, shell=True)
             except Exception as e:
                 l_msg = "Curl Command Failed"
                 print l_msg
                 print str(e)
                 raise OpTestError(l_msg)
-            output = cmd.communicate()[0]
+            output = obj.communicate()[0]
             if self.logresult:
                 print output
+            if '"description": "Login required"' in output:
+                if self.login_retry > 5:
+                    raise LoginFailure("Rest Login retry exceeded")
+                output = ""
+                cmd_bkup =  cmd
+                self.login()
+                self.login_retry += 1
+                self.bkup_cmd(cmd_bkup)
+                output = self.run()
+                self.cmd_bkup = ""
             if '"status": "error"' in output:
                 print output
                 raise FailedCurlInvocation(cmd, output)
@@ -172,6 +189,16 @@ class CurlTool():
 
     def log_result(self):
         self.logresult = True
+
+    def login(self):
+        data = '\'{"data": [ "%s", "%s" ] }\'' % (self.username, self.password)
+        self.feed_data(dbus_object="/login", operation='w', command="POST", data=data)
+        try:
+            output = self.run()
+        except FailedCurlInvocation as fci:
+            output = fci.output
+        if '"description": "Invalid username or password"' in output:
+            raise LoginFailure("Rest login invalid username or password")
 
 class HostManagement():
     def __init__(self, ip=None, username=None, password=None):
@@ -182,7 +209,9 @@ class HostManagement():
                              username=username,
                              password=password)
         self.util = OpTestUtil()
+        self.util.PingFunc(self.hostname, BMC_CONST.PING_RETRY_FOR_STABILITY)
         self.login()
+        self.wait_for_bmc_runtime()
 
     '''
     curl -c cjar -k -X POST -H "Content-Type: application/json" \
@@ -191,7 +220,12 @@ class HostManagement():
     def login(self):
         data = '\'{"data": [ "%s", "%s" ] }\'' % (self.username, self.password)
         self.curl.feed_data(dbus_object="/login", operation='w', command="POST", data=data)
-        self.curl.run()
+        try:
+            output = self.curl.run()
+        except FailedCurlInvocation as fci:
+            output = fci.output
+        if '"description": "Invalid username or password"' in output:
+            raise LoginFailure("Rest login invalid username or password")
 
     '''
     Logout:
