@@ -55,6 +55,8 @@ class FWTSTest(unittest.TestCase):
     SUBTEST_RESULT = None
     CENTAURS_PRESENT = True
     IS_FSP_SYSTEM = False
+    FWTS_MAJOR_VERSION = None
+    FWTS_MINOR_VERSION = None
     def runTest(self):
         if self.SUBTEST_RESULT is None:
             self.skipTest("Test not meant to be run this way.")
@@ -71,6 +73,13 @@ class FWTSTest(unittest.TestCase):
                 self.skipTest("FWTS bug: Incorrect Missing '(status|manufacturer-id|part-number|serial-number)' property in memory-buffer/dimm");
             if re.match('property "serial-number" contains unprintable characters', log_text):
                 self.skipTest("FWTS bug: DIMM VPD has binary serial number")
+            if self.FWTS_MAJOR_VERSION <= 18:
+                # This is a guess based on when
+                # https://lists.ubuntu.com/archives/fwts-devel/2018-April/010318.html
+                # will be merged
+                if self.FWTS_MAJOR_VERSION < 18 or self.FWTS_MINOR_VERSION < 5:
+                    if re.match('CPUFreqClaimedMax', self.SUBTEST_RESULT.get('failure_label')):
+                        self.skipTest("Bug in FWTS r.e. boost frequencies, fixed sometime after April 2018")
 
             # On FSP machines, memory-buffers (centaurs) aren't present in DT
             # and FWTS 17.03 (at least) expects them to be, so skip those failures
@@ -83,7 +92,7 @@ class FWTSTest(unittest.TestCase):
         self.assertEqual(self.SUBTEST_RESULT.get('failure_label'), 'None', self.SUBTEST_RESULT)
 
 class FWTS(unittest.TestSuite):
-    def add_fwts_results(self):
+    def add_fwts_results(self, major_version, minor_version):
         host = self.host
         try:
             fwtsjson = host.host_run_command('fwts -q -r stdout --log-type=json')
@@ -119,6 +128,8 @@ class FWTS(unittest.TestSuite):
                                     t = FWTSTest()
                                     t.SUBTEST_RESULT = st_result
                                     t.CENTAURS_PRESENT = self.centaurs_present
+                                    t.FWTS_MAJOR_VERSION = major_version
+                                    t.FWTS_MINOR_VERSION = minor_version
                                     if self.bmc_type == 'FSP':
                                         t.IS_FSP_SYSTEM = True
                                     suite.addTest(t)
@@ -166,6 +177,6 @@ class FWTS(unittest.TestSuite):
             self.real_fwts_suite.addTest(checkver)
 
             if checkver.version_check():
-                self.add_fwts_results()
+                self.add_fwts_results(int(major),int(minor))
 
         self.real_fwts_suite.run(result)
