@@ -137,14 +137,28 @@ class OpTestHMIHandling(unittest.TestCase):
                 # kdump may not be enabled, so it's not a failure to stop it
                 pass
 
+    def enable_idle_state(self, i_idle):
+        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 0 > $i; done" % i_idle
+        self.cv_HOST.host_run_command(l_cmd)
+
+    def disable_idle_state(self, i_idle):
+        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 1 > $i; done" % i_idle
+        self.cv_HOST.host_run_command(l_cmd)
+
     # Disable all CPU idle states except snooze state
     def disable_cpu_idle_states(self):
         states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
         for state in states:
             if state is "0":
-                self.cv_HOST.host_run_command("cpupower idle-set -e 0")
+                try:
+                    self.cv_HOST.host_run_command("cpupower idle-set -e 0")
+                except CommandFailed:
+                    self.enable_idle_state("0")
                 continue
-            self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state)
+            try:
+                self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state)
+            except CommandFailed:
+                self.disable_idle_state(state)
 
     def form_scom_addr(self, addr, core):
         if self.proc_gen in ["POWER8", "POWER8E"]:
@@ -258,8 +272,9 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd,timeout=120)
+                    l_res = console.run_command(l_cmd,timeout=20)
                 except CommandFailed as cf:
+                    l_res = cf.output
                     if cf.exitcode == 1:
                         pass
                     else:
@@ -294,8 +309,9 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd, timeout=120)
+                    l_res = console.run_command(l_cmd, timeout=20)
                 except CommandFailed as cf:
+                    l_res = cf.output
                     if cf.exitcode == 1:
                         pass
                     else:
@@ -395,8 +411,9 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd, timeout=120)
+                    l_res = console.run_command(l_cmd, timeout=20)
                 except CommandFailed as cf:
+                    l_res = cf.output
                     if cf.exitcode == 1:
                         pass
                     else:
@@ -437,8 +454,9 @@ class OpTestHMIHandling(unittest.TestCase):
         # But getscom to TOD error reg there is no access
         # TOD Error reg has only WO access and there is no read access
         try:
-            l_res = console.run_command(l_cmd, timeout=120)
+            l_res = console.run_command(l_cmd, timeout=20)
         except CommandFailed as cf:
+            l_res = cf.output
             if cf.exitcode == 1:
                 pass
             else:
@@ -451,7 +469,7 @@ class OpTestHMIHandling(unittest.TestCase):
                 elif any("ISTEP" in line for line in l_res):
                     print "System started booting without any kernel panic message"
                 else:
-                    raise Exception("TOD: PSS Hamming distance error injection failed %s", str(c))
+                    raise Exception("TOD: PSS Hamming distance error injection failed %s", str(cf))
         time.sleep(0.2)
         l_res = console.run_command("dmesg")
         self.verify_timer_facility_recovery(l_res)
