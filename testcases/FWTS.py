@@ -128,7 +128,6 @@ class FWTS(unittest.TestSuite):
         conf = OpTestConfiguration.conf
         self.host = conf.host()
         self.system = conf.system()
-        self.centaurs_present = self.system.has_centaurs_in_dt()
         self.bmc_type = conf.args.bmc_type
         self.real_fwts_suite = unittest.TestSuite()
         try:
@@ -143,7 +142,7 @@ class FWTS(unittest.TestSuite):
             self.real_fwts_suite.addTest(f)
             self.real_fwts_suite.run(result)
             return
-
+        self.centaurs_present = self.system.has_centaurs_in_dt()
         host = self.host
 
 	fwts_version = None

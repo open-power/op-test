@@ -114,6 +114,9 @@ class OpTestSystem(object):
         return False
 
     def has_centaurs_in_dt(self):
+        proc_gen = self.host().host_get_proc_gen()
+        if proc_gen in ["POWER9"]:
+            return False
         return True
 
     def has_mtd_pnor_access(self):
