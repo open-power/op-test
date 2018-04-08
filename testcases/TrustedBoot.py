@@ -22,6 +22,15 @@
 # and also a secureboot mode enabled/disabled accordingly.
 # If TPM chip is installed --> provide --trusted-mode in command line
 # If secureboot is enabled --> provide --secure-mode in command line
+#
+# The "TPM Required" policy means:
+# enabled: Node must have at least 1 functional TPM to boot, otherwise system will terminate
+# disabled: Node can boot without a functional TPM
+# ==================
+# If system has a working TPM, the policy is a don't care.  If secure mode is not enabled, the policy is a don't care.
+# if you set policy to "enabled" and remove/inject error on TPM -and- system is in secure mode,  system boot will terminate
+# if you set policy to disable and remove/inject error on the TPM -and- system is in secure mode, system will still boot
+#
 
 import unittest
 import pexpect
@@ -105,7 +114,9 @@ class TrustedBoot(unittest.TestCase):
         c.run_command("ls %s/link-id" % tpm_path)
 
     def tearDown(self):
-        self.cv_SYSTEM.sys_enable_tpm()
+        if self.securemode and not self.trustedmode:
+            self.cv_SYSTEM.sys_disable_tpm()
+        return
 
 class VerifyOPALTrustedBoot(TrustedBoot):
     '''
