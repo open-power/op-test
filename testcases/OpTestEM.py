@@ -151,6 +151,20 @@ class OpTestEM():
                                msg="Set and measured CPU frequency differ too greatly")
 
 
+    def verify_cpu_freq_almost(self, i_freq):
+        l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
+        cur_freq = self.c.run_command(l_cmd)
+        if not cur_freq[0] == i_freq:
+            time.sleep(0.2)
+            cur_freq = self.c.run_command(l_cmd)
+
+        if int(cur_freq[0]) == int(i_freq):
+            return
+
+        delta = int(i_freq) / (100)
+        self.assertAlmostEqual(int(cur_freq[0]), int(i_freq), delta=delta,
+                         msg="CPU frequency not changed to %s" % i_freq)
+
     ##
     # @brief sets the cpu governer with i_gov governer
     #
@@ -275,20 +289,6 @@ class cpu_freq_states_host(OpTestEM, unittest.TestCase):
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
 
-        pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
-        print pstate_min,pstate_max, pstate_nom
-        # performance(Pstate_max),
-        # ondemand(Workload based),
-        # userspace(User request),
-        # powersave(Pstate_min)
-        self.set_cpu_gov("performance")
-        self.verify_cpu_gov("performance")
-        self.verify_cpu_freq(pstate_max, True)
-        self.set_cpu_gov("powersave")
-        self.verify_cpu_gov("powersave")
-        self.verify_cpu_freq(pstate_min, True)
-        self.set_cpu_gov("performance")
-
         # Set the cpu governer to userspace
         self.set_cpu_gov("userspace")
         self.verify_cpu_gov("userspace")
@@ -306,6 +306,90 @@ class cpu_freq_states_skiroot(cpu_freq_states_host):
     def setUp(self):
         self.test = "skiroot"
         super(cpu_freq_states_host, self).setUp()
+
+class cpu_freq_gov_host(OpTestEM, unittest.TestCase):
+    def setUp(self):
+        self.test = "host"
+        super(cpu_freq_gov_host, self).setUp()
+
+    def runTest(self):
+        self.c = self.set_up()
+        self.c.run_command("stty cols 300;stty rows 30")
+        self.c.run_command("uname -a")
+        self.c.run_command("cat /etc/os-release")
+        pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
+        print pstate_min,pstate_max, pstate_nom
+
+        # performance(Pstate_max),
+        # ondemand(Workload based),
+        # userspace(User request),
+        # powersave(Pstate_min)
+        self.set_cpu_gov("performance")
+        self.verify_cpu_gov("performance")
+        self.verify_cpu_freq_almost(pstate_max)
+        self.set_cpu_gov("powersave")
+        self.verify_cpu_gov("powersave")
+        self.verify_cpu_freq_almost(pstate_min)
+        self.set_cpu_gov("performance")
+
+class cpu_freq_gov_skiroot(cpu_freq_gov_host):
+    def setUp(self):
+        self.test = "skiroot"
+        super(cpu_freq_gov_host, self).setUp()
+
+class cpu_boost_freqs_host(OpTestEM, unittest.TestCase):
+    def setUp(self):
+        self.test = "host"
+        super(cpu_boost_freqs_host, self).setUp()
+
+    def runTest(self):
+        self.c = self.set_up()
+        self.c.run_command("stty cols 300;stty rows 30")
+        self.c.run_command("uname -a")
+        self.c.run_command("cat /etc/os-release")
+        pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
+
+        cpu_num = self.get_first_available_cpu()
+
+        # Check cpufreq driver enabled
+        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+
+        # Get available cpu boost frequencies
+        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_boost_frequencies" % cpu_num)
+        print l_res
+        freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
+        print freq_list
+
+        # Boost frequencies will achieve only when cpufreq governor is performance
+        self.set_cpu_gov("performance")
+        self.verify_cpu_gov("performance")
+
+        achieved_freq = ""
+        # Run the workload only on one active core so it should achieve one of boost frequencies
+        res = self.c.run_command_ignore_fail("perf  stat timeout  10 yes > /dev/null")
+        for line in res:
+            if "cycles" in line and "GHz" in line:
+                achieved_freq = int(decimal.Decimal(line.split()[3]) * 1000000)
+                break
+
+        if not achieved_freq:
+            self.assertTrue(False, "Failed to get CPU achieved frequency")
+
+        achieved = False
+        for freq in freq_list:
+            delta = int(freq) / (100)
+            try:
+                self.assertAlmostEqual(int(freq), achieved_freq, delta=delta,
+                                       msg="Set and measured CPU frequency differ too greatly")
+                achieved = True
+                break
+            except AssertionError:
+                pass
+
+        self.assertTrue(achieved, "CPU failed to achieve any one of the frequency in boost frequenies(WoF) range")
+        print "CPU successfully achieved one of the boost freuency"
+        print "Achieved freq: %d, near by WoF freq: %d" % (int(achieved_freq), int(freq))
+
 
 class cpu_idle_states_host(OpTestEM, unittest.TestCase):
     def setUp(self):
@@ -389,11 +473,14 @@ def host_suite():
     s = unittest.TestSuite()
     s.addTest(slw_info())
     s.addTest(cpu_freq_states_host())
+    s.addTest(cpu_freq_gov_host())
+    s.addTest(cpu_boost_freqs_host())
     s.addTest(cpu_idle_states_host())
     return s
 
 def skiroot_suite():
     s = unittest.TestSuite()
     s.addTest(cpu_freq_states_skiroot())
+    s.addTest(cpu_freq_gov_skiroot())
     s.addTest(cpu_idle_states_skiroot())
     return s
