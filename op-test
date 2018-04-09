@@ -49,6 +49,7 @@ from testcases import OpTestPCI
 from testcases import FWTS
 from testcases import BasicIPL
 from testcases import PetitbootDropbearServer
+from testcases import Petitbooti18n
 from testcases import OpTestRTCdriver
 from testcases import OpTestEM
 from testcases import AT24driver
@@ -137,6 +138,7 @@ class SkirootSuite():
         self.s.addTest(PciSlotLocCodes.SkirootDT())
         self.s.addTest(OpTestPCI.PcieLinkErrorsSkiroot())
         self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
+        self.s.addTest(Petitbooti18n.Petitbooti18n())
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
