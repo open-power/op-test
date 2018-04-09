@@ -434,25 +434,25 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
             self.disable_idle_state(i)
             self.verify_disable_idle_state(i)
 
-        # With all idle disabled, gather current usage (as a baseline)
-        before_usage = {}
+        # With all idle disabled, gather total time spent in this idle state (as a baseline)
+        before_time = {}
         for i in idle_states:
-            before_usage[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/usage" % (i))
-            before_usage[i] = [int(a) for a in before_usage[i]]
+            before_time[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/time" % (i))
+            before_time[i] = [int(a) for a in before_time[i]]
 
-        after_usage = {}
+        after_time = {}
         for i in idle_states:
             self.enable_idle_state(i)
             self.verify_enable_idle_state(i)
             for c in range(nrcpus):
                 self.c.run_command("taskset 0x%x find / |head -n 200000 > /dev/null" % (1 << c))
-            after_usage[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/usage" % i)
-            after_usage[i] = [int(a) for a in after_usage[i]]
-            print repr(before_usage[i])
-            print repr(after_usage[i])
+            after_time[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/time" % i)
+            after_time[i] = [int(a) for a in after_time[i]]
+            print repr(before_time[i])
+            print repr(after_time[i])
             for c in range(nrcpus):
-                print "# CPU %d entered idle state %s %u times" % (c, idle_state_names[i], after_usage[i][c] - before_usage[i][c])
-                self.assertGreater(after_usage[i][c], before_usage[i][c], "CPU %d did not enter expected idle state %s (%s)" % (c,i,idle_state_names[i]))
+                print "# CPU %d entered idle state %s for %u microseconds" % (c, idle_state_names[i], after_time[i][c] - before_time[i][c])
+                self.assertGreater(after_time[i][c], before_time[i][c], "CPU %d did not enter expected idle state %s (%s)" % (c,i,idle_state_names[i]))
             self.disable_idle_state(i)
 
         # and reset back to enabling idle.
