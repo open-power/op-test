@@ -22,7 +22,7 @@ import sys
 import time
 import pexpect
 
-from Exceptions import CommandFailed
+from Exceptions import CommandFailed, SSHSessionDisconnected
 import OpTestSystem
 try:
     from common import OPexpect
@@ -131,9 +131,9 @@ class OpTestSSH():
         except pexpect.EOF as cf:
             print cf
             if self.check_ssh_keys:
-                raise Exception("SSH session exited early - bad host key?")
+                raise SSHSessionDisconnected("SSH session exited early - bad host key?")
             else:
-                raise Exception("SSH session exited early!")
+                raise SSHSessionDisconnected("SSH session exited early!")
 
     def build_prompt(self):
         if self.prompt:
@@ -212,7 +212,7 @@ class OpTestSSH():
             raise CommandFailed(command, 'Retry Password TIMEOUT ' + ''.join(retry_list_output), -1)
           elif (rc == 3):
             self.state = ConsoleState.DISCONNECTED
-            raise Exception("SSH session exited early!")
+            raise SSHSessionDisconnected("SSH session exited early!")
 
         return retry_list_output, echo_rc
 
@@ -249,7 +249,7 @@ class OpTestSSH():
           failure_list_output += handle_list_output
           if (rc == 3):
             self.state = ConsoleState.DISCONNECTED
-            raise Exception("SSH session exited early!")
+            raise SSHSessionDisconnected("SSH session exited early!")
           else:
             raise CommandFailed(command, ''.join(failure_list_output), -1)
         return list_output, echo_rc
@@ -292,7 +292,7 @@ class OpTestSSH():
           output_list, echo_rc = self.try_sendcontrol(console, command)
         else:
           self.state = ConsoleState.DISCONNECTED
-          raise Exception("SSH session exited early!")
+          raise SSHSessionDisconnected("SSH session exited early!")
         res = output_list
         if echo_rc != 0:
           raise CommandFailed(command, res, echo_rc)
