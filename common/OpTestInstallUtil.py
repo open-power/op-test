@@ -335,11 +335,16 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                     if user == 'root':
                         user = 'ubuntu'
 
-                    packages = "openssh-server build-essential lvm2 ethtool"
-                    "sg3-utils lsscsi libaio-dev libtime-hires-perl acpid tgt "
-                    "openjdk-8* zip git automake python expect gcc g++ gdb "
-                    "python-dev p7zip python-stevedore python-setuptools "
-                    "libvirt-dev numactl libosinfo-1.0-0 python-pip"
+                    packages = "openssh-server build-essential lvm2 ethtool "
+                    packages+= "sg3-utils lsscsi libaio-dev libtime-hires-perl "
+                    packages+= "acpid tgt openjdk-8* zip git automake python "
+                    packages+= "expect gcc g++ gdb "
+                    packages+= "python-dev p7zip python-stevedore python-setuptools "
+                    packages+= "libvirt-dev numactl libosinfo-1.0-0 python-pip "
+                    packages+= "linux-tools-common linux-tools-generic lm-sensors "
+                    packages+= "ipmitool i2c-tools pciutils opal-prd opal-utils "
+                    packages+= "device-tree-compiler fwts"
+
 
                     ps = d.format("openpower", "example.com",
                                   PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
