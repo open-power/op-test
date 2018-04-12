@@ -67,6 +67,9 @@ class KernelLog():
                       "vio: uevent: failed to send synthetic uevent",
                       "pstore: decompression failed: -5",
                       "NCQ Send/Recv Log not supported",
+                      # Nouveau not supporting our GPUs is expected, not OPAL bug.
+                      "nouveau .* unknown chipset",
+                      "nouveau: probe of .* failed with error -12",
                       # The below xive message should go away when https://github.com/open-power/skiboot/issues/171 is resolved
                       "xive: Interrupt.*type mismatch, Linux says Level, FW says Edge",
                       # This is why we can't have nice things.
