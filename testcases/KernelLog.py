@@ -66,6 +66,7 @@ class KernelLog():
                       "synth uevent.*failed to send uevent",
                       "vio: uevent: failed to send synthetic uevent",
                       "pstore: decompression failed: -5",
+                      "NCQ Send/Recv Log not supported",
                       # The below xive message should go away when https://github.com/open-power/skiboot/issues/171 is resolved
                       "xive: Interrupt.*type mismatch, Linux says Level, FW says Edge",
                       # This is why we can't have nice things.
