@@ -78,8 +78,29 @@ class OpTestEM():
         # Only clean up if we're still running normally
         if self.cv_SYSTEM.get_state() not in [OpSystemState.PETITBOOT_SHELL, OpSystemState.OS]:
             pass
+
+        cpu_num = self.get_first_available_cpu()
+        # Check cpufreq driver enabled
+        cpufreq = False
+        try:
+            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+            cpufreq = True
+        except CommandFailed:
+            pass
         # return back to sane cpu governor
-        self.set_cpu_gov("powersave")
+        if cpufreq:
+            self.set_cpu_gov("powersave")
+
+        # Check cpuidle driver enabled
+        cpuidle = False
+        try:
+            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
+            cpuidle = True
+        except CommandFailed:
+            pass
+
+        if not cpuidle:
+            return
         # and then re-enable all idle states
         idle_states = self.get_idle_states()
         for i in idle_states:
