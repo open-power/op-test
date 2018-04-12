@@ -102,6 +102,15 @@ class SecureBoot(unittest.TestCase):
     def verify_dt_sb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.host_console_unique_prompt()
+
+        # Check for STB support - /ibm,secureboot DT node should exist
+        try:
+            c.run_command("ls /proc/device-tree/ibm,secureboot")
+        except CommandFailed:
+            if self.securemode:
+                self.assertTrue(False, "OPAL-SB: ibm,secureboot DT node not created")
+            else:
+                self.skipTest("Secureboot not supported on this system")
         c.run_command("lsprop /proc/device-tree/ibm,secureboot")
         if self.securemode:
             c.run_command("ls /proc/device-tree/ibm,secureboot/secure-enabled")
