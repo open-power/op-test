@@ -44,7 +44,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestIPMI import IPMIConsoleState
-
+from testcases.DeviceTreeValidation import DeviceTreeValidation
 
 class OpTestEM():
     def setUp(self):
@@ -337,7 +337,7 @@ class cpu_freq_gov_skiroot(cpu_freq_gov_host):
         self.test = "skiroot"
         super(cpu_freq_gov_host, self).setUp()
 
-class cpu_boost_freqs_host(OpTestEM, unittest.TestCase):
+class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
     def setUp(self):
         self.test = "host"
         super(cpu_boost_freqs_host, self).setUp()
@@ -354,8 +354,18 @@ class cpu_boost_freqs_host(OpTestEM, unittest.TestCase):
         # Check cpufreq driver enabled
         self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
 
+        turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-turbo")[0]
+        ultra_turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-ultra-turbo")[0]
+
+        if turbo == ultra_turbo:
+            self.skipTest("No WoF frequencies available to test")
+
         # Get available cpu boost frequencies
-        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_boost_frequencies" % cpu_num)
+        try:
+            l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_boost_frequencies" % cpu_num)
+        except CommandFailed:
+            self.assertTrue(False, "No scaling_boost_frequencies file got created")
+
         print l_res
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
