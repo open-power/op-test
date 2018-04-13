@@ -104,7 +104,7 @@ class ControlZ(ControlC):
 
 def suite():
     s = unittest.TestSuite()
-    s.addTest(Console8k())
-    s.addTest(Console16k())
+    s.addTest(Console32k())
     s.addTest(ControlZ())
+    s.addTest(ControlC())
     return s

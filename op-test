@@ -378,8 +378,6 @@ class FspOpalSuite():
 class KnownBugs():
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(Console.Console32k())
-        self.s.addTest(Console.ControlC())
     def suite(self):
         return self.s
 
