@@ -44,7 +44,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestIPMI import IPMIConsoleState
-
+from testcases.DeviceTreeValidation import DeviceTreeValidation
 
 class OpTestEM():
     def setUp(self):
@@ -78,8 +78,29 @@ class OpTestEM():
         # Only clean up if we're still running normally
         if self.cv_SYSTEM.get_state() not in [OpSystemState.PETITBOOT_SHELL, OpSystemState.OS]:
             pass
+
+        cpu_num = self.get_first_available_cpu()
+        # Check cpufreq driver enabled
+        cpufreq = False
+        try:
+            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+            cpufreq = True
+        except CommandFailed:
+            pass
         # return back to sane cpu governor
-        self.set_cpu_gov("powersave")
+        if cpufreq:
+            self.set_cpu_gov("powersave")
+
+        # Check cpuidle driver enabled
+        cpuidle = False
+        try:
+            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
+            cpuidle = True
+        except CommandFailed:
+            pass
+
+        if not cpuidle:
+            return
         # and then re-enable all idle states
         idle_states = self.get_idle_states()
         for i in idle_states:
@@ -151,19 +172,37 @@ class OpTestEM():
                                msg="Set and measured CPU frequency differ too greatly")
 
 
+    # This function verifies CPU frequency against a single or list of frequency's provided
     def verify_cpu_freq_almost(self, i_freq):
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.c.run_command(l_cmd)
-        if not cur_freq[0] == i_freq:
-            time.sleep(0.2)
-            cur_freq = self.c.run_command(l_cmd)
 
-        if int(cur_freq[0]) == int(i_freq):
-            return
+        if not type(i_freq) is list:
+            if not cur_freq[0] == i_freq:
+                time.sleep(0.2)
+                cur_freq = self.c.run_command(l_cmd)
 
-        delta = int(i_freq) / (100)
-        self.assertAlmostEqual(int(cur_freq[0]), int(i_freq), delta=delta,
-                         msg="CPU frequency not changed to %s" % i_freq)
+            if int(cur_freq[0]) == int(i_freq):
+                return
+
+        achieved = False
+        if not type(i_freq) is list:
+            freq_list = [i_freq]
+        else:
+            freq_list = i_freq
+
+        for freq in freq_list:
+            delta = int(freq) / (100)
+            try:
+                self.assertAlmostEqual(int(cur_freq[0]), int(freq), delta=delta,
+                                       msg="CPU frequency not changed to %s" % i_freq)
+                achieved = True
+                break
+            except AssertionError:
+                pass
+
+        self.assertTrue(achieved, "CPU failed to achieve any one of the frequency in %s" % freq_list)
+
 
     ##
     # @brief sets the cpu governer with i_gov governer
@@ -307,7 +346,7 @@ class cpu_freq_states_skiroot(cpu_freq_states_host):
         self.test = "skiroot"
         super(cpu_freq_states_host, self).setUp()
 
-class cpu_freq_gov_host(OpTestEM, unittest.TestCase):
+class cpu_freq_gov_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
     def setUp(self):
         self.test = "host"
         super(cpu_freq_gov_host, self).setUp()
@@ -320,13 +359,31 @@ class cpu_freq_gov_host(OpTestEM, unittest.TestCase):
         pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
         print pstate_min,pstate_max, pstate_nom
 
+        turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-turbo")[0]
+        ultra_turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-ultra-turbo")[0]
+
+        cpu_num = self.get_first_available_cpu()
+
+        if turbo == ultra_turbo:
+            print "No WoF frequencies"
+            freq_list = [pstate_max]
+        else:
+            # Add boost frequencies
+            l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_boost_frequencies" % cpu_num)
+            freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
+            # Add turbo frequency
+            l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_available_frequencies" % cpu_num)
+            fre_list = l_res[0].split(' ')[:-1]
+            freq_list.append(max(fre_list))
+
         # performance(Pstate_max),
         # ondemand(Workload based),
         # userspace(User request),
         # powersave(Pstate_min)
         self.set_cpu_gov("performance")
         self.verify_cpu_gov("performance")
-        self.verify_cpu_freq_almost(pstate_max)
+        self.verify_cpu_freq_almost(freq_list)
+        print "CPU successfully achieved one of the boost or turbo freuency when performance governor set"
         self.set_cpu_gov("powersave")
         self.verify_cpu_gov("powersave")
         self.verify_cpu_freq_almost(pstate_min)
@@ -337,7 +394,7 @@ class cpu_freq_gov_skiroot(cpu_freq_gov_host):
         self.test = "skiroot"
         super(cpu_freq_gov_host, self).setUp()
 
-class cpu_boost_freqs_host(OpTestEM, unittest.TestCase):
+class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
     def setUp(self):
         self.test = "host"
         super(cpu_boost_freqs_host, self).setUp()
@@ -354,8 +411,18 @@ class cpu_boost_freqs_host(OpTestEM, unittest.TestCase):
         # Check cpufreq driver enabled
         self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
 
+        turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-turbo")[0]
+        ultra_turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-ultra-turbo")[0]
+
+        if turbo == ultra_turbo:
+            self.skipTest("No WoF frequencies available to test")
+
         # Get available cpu boost frequencies
-        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_boost_frequencies" % cpu_num)
+        try:
+            l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_boost_frequencies" % cpu_num)
+        except CommandFailed:
+            self.assertTrue(False, "No scaling_boost_frequencies file got created")
+
         print l_res
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         print freq_list
