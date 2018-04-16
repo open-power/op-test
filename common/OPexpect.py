@@ -66,6 +66,9 @@ class spawn(pexpect.spawn):
                        "Kernel panic",
                        "Watchdog .* Hard LOCKUP",
                        "Oops: Kernel access of bad area",
+                       "watchdog: .* detected hard LOCKUP on other CPUs",
+                       "Watchdog .* detected Hard LOCKUP other CPUS",
+                       "watchdog: BUG: soft lockup",
                        "\[[0-9. ]+,0\] Assert fail:",
                        "\[[0-9. ]+,[0-9]\] Unexpected exception",
                        "OPAL exiting with locks held",
@@ -91,7 +94,7 @@ class spawn(pexpect.spawn):
 
         state = None
 
-        if r in [1,2,3,4,5,6,7,8,9,10]:
+        if r in [1,2,3,4,5,6,7,8,9,10,11,12,13]:
             # We set the system state to UNKNOWN as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
@@ -99,7 +102,7 @@ class spawn(pexpect.spawn):
             # just a *lot* easier with current code structure
             if self.failure_callback:
                 state = self.failure_callback(self.failure_callback_data)
-        if r in [1,2,3,4,5]:
+        if r in [1,2,3,4,5,6,7,8]:
             log = str(self.after)
             l = 0
 
@@ -117,32 +120,32 @@ class spawn(pexpect.spawn):
                     # We know we have the end of the error message, so let's stop here.
                     break
 
-            if l == 7:
-                raise KernelCrashUnknown(state, log)
-            if r == 1:
+            if r == 1 or r == 8:
                 raise KernelSoftLockup(state, log)
             if r == 2:
                 raise KernelBug(state, log)
             if r == 3:
                 raise KernelPanic(state, log)
-            if r == 4:
+            if r == 4 or r == 6 or r == 7:
                 raise KernelHardLockup(state, log)
             if r == 5 and l == 2:
                 raise KernelKdump(state, log)
             if r == 5:
                 raise KernelOOPS(state, log)
+            if l == 7:
+                raise KernelCrashUnknown(state, log)
 
-        if r in [6,7,8,9]:
+        if r in [9,10,11,12]:
             l = 0
             log = self.after
             l = super(spawn,self).expect("boot_entry.*\r\n", timeout=10)
             log = log + self.before + self.after
-            if r in [6,8,9]:
+            if r in [9,11,12]:
                 raise SkibootAssert(state, log)
-            if r == 7:
+            if r == 10:
                 raise SkibootException(state, log)
 
-        if r in [10]:
+        if r in [13]:
             # Reboot due to Platform error
             # Let's attempt to capture Hostboot output
             log = self.before + self.after
