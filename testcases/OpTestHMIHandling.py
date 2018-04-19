@@ -49,7 +49,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestSSH import ConsoleState as SSHConnectionState
 from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.Exceptions import CommandFailed
+from common.Exceptions import CommandFailed, PlatformError
 
 class OpTestHMIHandling(unittest.TestCase):
     def setUp(self):
@@ -68,9 +68,9 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         try:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        except:
-            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-            self.cv_SYSTEM.set_state(OpSystemState.OS)
+        except PlatformError:
+            self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         console.close()
         print "System booted fine to host OS..."
         return BMC_CONST.FW_SUCCESS
