@@ -1271,9 +1271,14 @@ class OpTestSystem(object):
         console = self.console.get_console()
         # Exiting to petitboot shell
         console.sendcontrol('l')
-        console.send('x')
-        console.expect('Exiting petitboot')
-        console.expect('#')
+        r = console.expect(['x=exit','#'])
+        if r == 0:
+            console.send('x')
+            console.expect('Exiting petitboot')
+            console.expect('#')
+        else:
+            console.sendcontrol('c')
+            console.expect('#')
         # we should have consumed everything in the buffer now.
         print console
 
