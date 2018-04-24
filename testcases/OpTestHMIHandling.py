@@ -249,7 +249,7 @@ class OpTestHMIHandling(unittest.TestCase):
         else:
             raise Exception("Please provide valid test case")
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
-
+        l_con.run_command("dmesg -C")
         return BMC_CONST.FW_SUCCESS
 
     ##

@@ -178,6 +178,7 @@ class HostSuite():
         self.s.addTest(SbePassThrough.SbePassThrough())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationHost())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
+        self.s.addTest(KernelLog.Host()) # We run before HMI to clear out HMI errors from kernel log
         self.s.addTest(OpTestHMIHandling.suite())
         self.s.addTest(OpTestPNOR.Host())
         self.s.addTest(OpalMsglog.Host())
