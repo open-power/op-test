@@ -120,13 +120,21 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POH])
         except CommandFailed as cf:
+            if 'Get Chassis Power-On-Hours failed: Invalid command' in cf.output[0]:
+                self.skipTest("OpenBMC doesn't implement POH yet")
             self.fail(str(cf))
 
     def test_chassis(self):
         print "Inband IPMI[OPEN]: Chassis tests"
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_RESTART_CAUSE,
-                               self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POLICY_LIST,
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_RESTART_CAUSE])
+        except CommandFailed as cf:
+            if 'Get Chassis Restart Cause failed: Invalid command' in cf.output[0]:
+                self.skipTest("OpenBMC doesn't implement restart_cause yet")
+            self.fail(str(cf))
+
+        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POLICY_LIST,
                                self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POLICY_ALWAYS_OFF])
 
     ##
@@ -280,10 +288,19 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_fru_read(self):
         print "Inband IPMI[OPEN]: FRU Read Test"
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + "fru read 0 /tmp/file_fru"])
-
-        l_res = c.run_command("hexdump -C /tmp/file_fru")
+        # Not every system has FRU0. But if nothing all the way up to 100, probably a bug.
+        fru_id = 0
+        for fru_id in range(0,100):
+            try:
+                self.run_ipmi_cmds(c, [self.ipmi_method + "fru print %d" % fru_id])
+            except CommandFailed as cf:
+                if cf.exitcode == 1:
+                    continue
+                self.fail(str(cf))
+            break
+        self.run_ipmi_cmds(c, [self.ipmi_method + "fru read %d /tmp/file_fru" % fru_id])
         # TODO: Check for file output
+        l_res = c.run_command("hexdump -C /tmp/file_fru")
 
     ##
     # @brief  It will execute and test the management controller(mc) commands functionality
@@ -304,8 +321,16 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_mc(self):
         print "Inband IPMI[OPEN]: MC tests"
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_INFO,
-                               self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_GET])
+        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_INFO])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_GET])
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_OFF,
+                                   self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_RESET])
+        except CommandFailed as cf:
+            if 'Get Watchdog Timer command failed: Unspecified error' in cf.output[0]:
+                pass
+            else:
+                self.fail(str(cf))
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_SETENABLES_OEM_0_OFF,
                                    self.ipmi_method + BMC_CONST.IPMI_MC_GETENABLES,
@@ -315,9 +340,6 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             # It's valid to fail these tests
             if 'Get Global Enables command failed: Invalid command' in cf.output[0]:
                 pass
-
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_OFF,
-                               self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_RESET])
 
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_GETSYS_INFO,
@@ -589,7 +611,12 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_raw(self):
         print "Inband IPMI[OPEN]: raw command execution tests"
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_RAW_POH])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_RAW_POH])
+        except CommandFailed as cf:
+            if 'Unable to send RAW command (channel=0x0 netfn=0x0 lun=0x0 cmd=0xf rsp=0xc1): Invalid command' in cf.output:
+                self.skipTest("OpenBMC doesn't implement POH yet")
+            self.fail(str(cf))
 
     ##
     # @brief  It will execute and test the ipmi sel set <time string> functionality
