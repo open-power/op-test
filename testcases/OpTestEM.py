@@ -160,13 +160,13 @@ class OpTestEM():
                 freq[m.group(1)] = int(decimal.Decimal(m.group(2)) * 1000000)
         # Frequencies are in KHz
         print repr(freq)
+        delta = int(i_freq) / (100)
+        print "# Set %d, Measured %d, Allowed Delta %d" % (int(i_freq),freq["avg"],delta)
         self.assertAlmostEqual(freq["min"], freq["max"], delta=(freq["avg"]/100),
                                msg="ppc64_cpu measured CPU Frequency differs between min/max when frequency set explicitly")
         self.assertAlmostEqual(freq["avg"], freq["max"], delta=(freq["avg"]/100),
                                msg="ppc64_cpu measured CPU Frequency differs between avg/max when frequency set explicitly")
 
-        delta = int(i_freq) / (100)
-        print "Set %d, Measured %d, Allowed Delta %d" % (int(i_freq),freq["avg"],delta)
 
         self.assertAlmostEqual(freq["avg"], int(i_freq), delta=delta,
                                msg="Set and measured CPU frequency differ too greatly")
