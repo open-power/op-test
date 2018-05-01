@@ -106,13 +106,6 @@ class OpTestEM():
         for i in idle_states:
             self.enable_idle_state(i)
 
-
-    def tear_down(self):
-        if self.test == "skiroot":
-            self.c.close()
-        elif self.test == "host":
-            self.c.terminate()
-
     def get_idle_states(self):
         return self.c.run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
 
@@ -296,8 +289,6 @@ class slw_info(OpTestEM, unittest.TestCase):
                 self.c.run_command("cat /sys/firmware/opal/msglog | grep -i stop")
         except CommandFailed as cf:
             pass # we may have no slw entries in msglog
-        self.tear_down()
-
 
 class cpu_freq_states_host(OpTestEM, unittest.TestCase):
     def setUp(self):
@@ -338,7 +329,6 @@ class cpu_freq_states_host(OpTestEM, unittest.TestCase):
             i_freq = random.choice(freq_list)
             self.set_cpu_freq(i_freq)
             self.verify_cpu_freq(i_freq, True)
-        self.tear_down()
         pass
 
 class cpu_freq_states_skiroot(cpu_freq_states_host):
@@ -537,8 +527,6 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         for i in idle_states:
             self.enable_idle_state(i)
             self.verify_enable_idle_state(i)
-
-        self.tear_down()
         pass
 
 class cpu_idle_states_skiroot(cpu_idle_states_host):
