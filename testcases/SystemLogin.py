@@ -51,10 +51,10 @@ class OOBHostLogin(unittest.TestCase):
         except CommandFailed as r:
             self.assertEqual(r.exitcode, 1)
         for i in range(2):
-            l_con.run_command("dmesg", timeout=60)
+            l_con.run_command("dmesg|tail", timeout=60)
         l_con.run_command("lscpu")
         try:
-            r = l_con.run_command("sleep 20", timeout=10)
+            r = l_con.run_command("sleep 2", timeout=10)
         except CommandFailed as r:
             print str(r)
         l_con.run_command("lscpu")
