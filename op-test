@@ -95,6 +95,7 @@ from testcases import gcov
 from testcases import OpalSysfsTests
 from testcases import SecureBoot
 from testcases import TrustedBoot
+from testcases import IplParams
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -125,6 +126,7 @@ class SkirootSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(DeviceTreeWarnings.Skiroot())
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
         self.s.addTest(SecureBoot.VerifyOPALSecureboot())
         self.s.addTest(TrustedBoot.VerifyOPALTrustedBoot())
         self.s.addTest(OpTestEM.skiroot_suite())
@@ -160,6 +162,7 @@ class HostSuite():
         self.s.addTest(SystemLogin.OOBHostLogin())
         self.s.addTest(DeviceTreeWarnings.Host())
         self.s.addTest(OpTestOCC.basic_suite())
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Host))
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(PciSlotLocCodes.Host())
         self.s.addTest(PciSlotLocCodes.HostDT())
