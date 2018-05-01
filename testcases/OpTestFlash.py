@@ -168,6 +168,11 @@ class BmcImageFlash(OpTestFlashBase):
         if "SMC" in self.bmc_type and not self.pupdate:
                 self.fail("pupdate tool is needed for flashing BMC on SMC platforms")
 
+        # FORCE us to not detect system state.
+        # Since we're flashing, we need to ignore what's currently on the
+        # machine as it may be pretty garbage firmware left over from previous
+        # test runs.
+        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
 
@@ -298,6 +303,11 @@ class PNORFLASH(OpTestFlashBase):
                 self.cv_IPMI.pUpdate.set_binary(self.pupdate_binary)
             elif self.pflash:
                 self.assertTrue(self.cv_BMC.validate_pflash_tool("/tmp/rsync_file"), "No pflash on BMC")
+        # FORCE us to not detect system state.
+        # Since we're flashing, we need to ignore what's currently on the
+        # machine as it may be pretty garbage firmware left over from previous
+        # test runs.
+        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
         if "AMI" in self.bmc_type:
@@ -412,6 +422,11 @@ class OpalLidsFLASH(OpTestFlashBase):
             if not self.cv_BMC.validate_pflash_tool("/tmp/rsync_file"):
                 raise OpTestError("No pflash on BMC")
 
+        # FORCE us to not detect system state.
+        # Since we're flashing, we need to ignore what's currently on the
+        # machine as it may be pretty garbage firmware left over from previous
+        # test runs.
+        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_sdr_clear()
         if "FSP" in self.bmc_type:
@@ -512,6 +527,11 @@ class OOBHpmFLASH(OpTestFlashBase):
             self.skipTest("OP AMI BMC Out-of-band firmware Update test")
         self.cv_SYSTEM.sys_sdr_clear()
         self.validate_side_activated()
+        # FORCE us to not detect system state.
+        # Since we're flashing, we need to ignore what's currently on the
+        # machine as it may be pretty garbage firmware left over from previous
+        # test runs.
+        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
