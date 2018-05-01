@@ -157,6 +157,7 @@ class HostSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(SystemLogin.OOBHostLogin())
         self.s.addTest(DeviceTreeWarnings.Host())
+        self.s.addTest(OpTestOCC.basic_suite())
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(PciSlotLocCodes.Host())
         self.s.addTest(PciSlotLocCodes.HostDT())
@@ -183,6 +184,7 @@ class HostSuite():
         self.s.addTest(OpTestPNOR.Host())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
+        self.s.addTest(OpTestOCC.OCC_RESET())
     def suite(self):
         return self.s
 

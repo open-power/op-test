@@ -224,7 +224,7 @@ class OpTestPrdDriver(unittest.TestCase):
             ]
         if cpu in ["POWER9"]:
             self.IPOLL_MASK_REGISTER = "0xF0033" #TP.TPCHIP.PIB.PCBMS.COMP.INTR_COMP.HOST_MASK_REG
-            self.IPOLL_MASK_REGISTER_CONTENT = "0000000000000000"
+            self.IPOLL_MASK_REGISTER_CONTENT = "a400000000000000"
             PBA_FAULT_ISOLATION_REGISTER = "0x05012840"
             PBA_FAULT_ISOLATION_MASK_REGISTER = "0x05012843"
             faults_to_inject = [
