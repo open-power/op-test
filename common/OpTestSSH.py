@@ -36,9 +36,9 @@ class ConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
 
-def set_system_to_UNKNOWN(system):
+def set_system_to_UNKNOWN_BAD(system):
     s = system.get_state()
-    system.set_state(OpTestSystem.OpSystemState.UNKNOWN)
+    system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
     return s
 
 class OpTestSSH():
@@ -100,7 +100,7 @@ class OpTestSSH():
 
         print cmd
         consoleChild = OPexpect.spawn(cmd,logfile=self.logfile,
-                failure_callback=set_system_to_UNKNOWN,
+                failure_callback=set_system_to_UNKNOWN_BAD,
                 failure_callback_data=self.system)
         self.state = ConsoleState.CONNECTED
         # set for bash, otherwise it takes the 24x80 default

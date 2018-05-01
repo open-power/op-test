@@ -215,7 +215,7 @@ class NoFunctionalTPM_PolicyON(TrustedBoot):
         if self.securemode:
             self.cv_SYSTEM.sys_power_on()
             self.wait_for_system_shutdown()
-            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
+            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             self.cv_SYSTEM.sys_disable_tpm() 
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)

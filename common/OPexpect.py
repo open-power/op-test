@@ -96,7 +96,7 @@ class spawn(pexpect.spawn):
         state = None
 
         if r in [1,2,3,4,5,6,7,8,9,10,11,12,13,14]:
-            # We set the system state to UNKNOWN as we want to have a path
+            # We set the system state to UNKNOWN_BAD as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
             # We do this via a callback rather than any other method as that's

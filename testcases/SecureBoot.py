@@ -162,7 +162,7 @@ class UnSignedPNOR(SecureBoot, PNORFLASH):
             self.verify_opal_sb()
         else:
             self.assertTrue(self.verify_boot_fail(), "Unexpected system boot")
-            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
+            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
 class SignedPNOR(SecureBoot, PNORFLASH):
@@ -279,7 +279,7 @@ class OPALContainerTest(SecureBoot, OpalLidsFLASH):
             super(OPALContainerTest, self).runTest()
             if self.securemode:
                 self.wait_for_secureboot_enforce()
-                self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
+                self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
                 self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             else:
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
