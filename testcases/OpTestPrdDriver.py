@@ -191,6 +191,7 @@ class OpTestPrdDriver(unittest.TestCase):
 	self.cv_SYSTEM.host_console_unique_prompt()
 
         cpu = self.cv_HOST.host_get_proc_gen()
+        faults_to_inject = []
 
         if cpu not in ["POWER8", "POWER8E", "POWER9"]:
             self.skipTest("Unknown CPU type %s" % cpu)
@@ -225,14 +226,6 @@ class OpTestPrdDriver(unittest.TestCase):
         if cpu in ["POWER9"]:
             self.IPOLL_MASK_REGISTER = "0xF0033" #TP.TPCHIP.PIB.PCBMS.COMP.INTR_COMP.HOST_MASK_REG
             self.IPOLL_MASK_REGISTER_CONTENT = "a400000000000000"
-            PBA_FAULT_ISOLATION_REGISTER = "0x05012840"
-            PBA_FAULT_ISOLATION_MASK_REGISTER = "0x05012843"
-            faults_to_inject = [
-                ErrorToInject("PBAFIR_OCI_APAR_ERR: OCI Address Parity Error Det Address parity error detected by PBA OCI Slave logic for any valid address. OCI Operation is ignored.",
-                              PBA_FAULT_ISOLATION_REGISTER,
-                              PBA_FAULT_ISOLATION_MASK_REGISTER,
-                              0x8000000000000000),
-            ]
 
         l_con.run_command("stty cols 300")
         l_con.run_command("stty rows 30")
