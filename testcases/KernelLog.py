@@ -76,6 +76,8 @@ class KernelLog():
                       "systemd-journald.*File.*corrupted or uncleanly shut down, renaming and replacing.",
                       # Not having memory on all NUMA nodes isn't *necessarily* fatal or a problem
                       "Could not find start_pfn for node",
+                      # PNOR tests open a r/w window on a RO partition, currently fails like this
+                      "mtd.*opal_flash_async_op\(op=1\) failed \(rc -6\)"
         ]
 
         for f in filter_out:
