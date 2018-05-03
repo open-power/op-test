@@ -117,7 +117,7 @@ class OpTestFastReboot(unittest.TestCase):
             # FSP based systems) the skiboot log is *not* printed to IPMI
             # console
             if self.cv_SYSTEM.skiboot_log_on_console():
-                self.con.expect(" RESET: Initiating fast reboot", timeout=60)
+                self.con.expect(" RESET: Initiating fast reboot", timeout=100)
             if self.boot_to_os():
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
                 self.cv_SYSTEM.host_console_login()
