@@ -74,6 +74,8 @@ class KernelLog():
                       "xive: Interrupt.*type mismatch, Linux says Level, FW says Edge",
                       # This is why we can't have nice things.
                       "systemd-journald.*File.*corrupted or uncleanly shut down, renaming and replacing.",
+                      # Not having memory on all NUMA nodes isn't *necessarily* fatal or a problem
+                      "Could not find start_pfn for node",
         ]
 
         for f in filter_out:
