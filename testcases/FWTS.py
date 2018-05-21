@@ -91,6 +91,25 @@ class FWTSTest(unittest.TestCase):
 
             if re.match('Attempt was made to stop the opal-prd.service but was not successful', log_text):
                 self.skipTest("FWTS bug: prd did actually stop, and there's something strange with FWTS")
+
+            if re.match('OPAL "/ibm,firmware-versions" firmware version from device tree node "open-power" was not found', log_text):
+                self.skipTest("FWTS known issue: 'open-power' version no longer required")
+
+            # We currently guess that all these are going to be merged for FWTS 18.05 :)
+            # To be extra cautious, allowing them to fail for all of 18.XX though
+            if self.FWTS_MAJOR_VERSION <= 18:
+                if re.match('CPUPstateLimitsTestFail', self.SUBTEST_RESULT.get('failure_label')):
+                    self.skipTest("FWTS known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010315.html")
+
+                if re.match('DeviceTreeBaseDTCWarnings', self.SUBTEST_RESULT.get('failure_label')):
+                    self.skipTest("FWTS known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010326.html")
+
+                if re.match('Property of "(board-info|vendor|ibm,slot-location-code)" for "/sys/firmware/devicetree/base/xscom.*" was not able to be retrieved. Check the installation for the CPU device config for missing nodes in the device tree if you expect CPU devices.', log_text):
+                    self.skipTest("FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010329.html")
+
+                if re.match('No MEM DIMM devices \(memory-buffer\) were found in "/sys/firmware/devicetree/base" with a status of "okay" or "ok".  This is unexpected so please check your system setup for issues.', log_text):
+                    self.skipTest("FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010330.html")
+
         self.assertEqual(self.SUBTEST_RESULT.get('failure_label'), 'None', self.SUBTEST_RESULT)
 
 class FWTS(unittest.TestSuite):
