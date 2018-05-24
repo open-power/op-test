@@ -900,6 +900,17 @@ class OpTestHost():
             print l_msg
             raise OpTestError(l_msg)
 
+    def copy_test_file_to_host(self, filename):
+        path = os.path.abspath(os.path.join("common", os.pardir))
+        i_image = path + "/test_binaries/" + filename
+        try:
+            self.util.copyFilesToDest(i_image, self.user,
+                                             self.ip, "/tmp/", self.passwd)
+        except subprocess.CalledProcessError as e:
+            l_msg = "Copying %s file to host failed" % filename
+            print l_msg
+            raise OpTestError(l_msg + str(e))
+
     def host_pflash_get_partition(self, partition):
         d = self.host_run_command("pflash --info")
         for line in d:
