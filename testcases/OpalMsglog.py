@@ -19,6 +19,7 @@
 #
 
 import unittest
+import re
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
@@ -34,8 +35,19 @@ class OpalMsglog():
 
     def runTest(self):
         self.setup_test()
+        filter_out = [
+            # PRD can send invalid SCOMS, skiboot 6.0 logs these as errors
+            "XSCOM: read error gcid=.* pcb_addr=0x40031 stat=0x4",
+            "XSCOM: Read failed, ret =  -26",
+                      ]
+
         try:
             log_entries = self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+
+            for f in filter_out:
+                fre = re.compile(f)
+                log_entries = [l for l in log_entries if not fre.search(l)]
+
             msg = '\n'.join(filter(None, log_entries))
             self.assertTrue( len(log_entries) == 0, "Warnings/Errors in OPAL log:\n%s" % msg)
         except CommandFailed as cf:
