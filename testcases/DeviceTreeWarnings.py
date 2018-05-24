@@ -23,6 +23,7 @@
 #
 
 import unittest
+import re
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
@@ -38,7 +39,17 @@ class DeviceTreeWarnings():
 
     def runTest(self):
         self.setup_test()
+        filter_out = [
+            # As of skiboot 6.0.1 on POWER9 we produce the following warnings:
+            'dts: Warning \(reg_format\): "reg" property in (/ibm,opal/flash@0|/xscom@603fc00000000/mcbist.*) has invalid length',
+            'dts: Warning \(unit_address_vs_reg\): Node /imc-counters/nx has a reg or ranges property, but no unit name',
+            "dts: Warning \((pci_device_reg|pci_device_bus_num|simple_bus_reg)\): Failed prerequisite 'reg_format'",
+        ]
         log_entries = self.c.run_command("dtc -I fs /proc/device-tree -O dts -o dts")
+        for f in filter_out:
+            fre = re.compile(f)
+            log_entries = [l for l in log_entries if not fre.search(l)]
+
         msg = '\n'.join(filter(None, log_entries))
         self.assertTrue(len(log_entries) == 0, "Warnings/Errors in Device Tree:\n%s" % msg)
 
