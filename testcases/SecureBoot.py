@@ -154,7 +154,6 @@ class UnSignedPNOR(SecureBoot, PNORFLASH):
         if not self.pnor:
             self.skipTest("Un-signed/improper signed PNOR image not provided")
         PNORFLASH.pnor = self.pnor
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         super(UnSignedPNOR, self).runTest()
         if not self.securemode:
             self.verify_boot_pass()
@@ -182,7 +181,6 @@ class SignedPNOR(SecureBoot, PNORFLASH):
         if not self.pnor:
             self.skipTest("signed PNOR image not provided")
         PNORFLASH.pnor = self.pnor
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         super(SignedPNOR, self).runTest()
         self.verify_boot_pass()
         self.verify_dt_sb()
@@ -208,7 +206,6 @@ class SignedToPNOR(SecureBoot, PNORFLASH):
         if not self.pnor:
             self.skipTest("signed PNOR image not provided")
         PNORFLASH.pnor = self.pnor
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         super(SignedToPNOR, self).runTest()
         self.verify_boot_pass()
         self.verify_dt_sb()
@@ -234,9 +231,7 @@ class KeyTransitionPNOR(SecureBoot, PNORFLASH):
         if not self.kt_pnor:
             self.skipTest("No key transition PNOR image is provided")
         console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         PNORFLASH.pnor = self.kt_pnor
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         super(KeyTransitionPNOR, self).runTest()
         self.cv_SYSTEM.sys_power_on()
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
