@@ -231,8 +231,6 @@ class KeyTransitionPNOR(SecureBoot, PNORFLASH):
         super(KeyTransitionPNOR, self).setUp()
 
     def runTest(self):
-        if not self.securemode:
-            return
         if not self.kt_pnor:
             self.skipTest("No key transition PNOR image is provided")
         console = self.cv_SYSTEM.sys_get_ipmi_console()
