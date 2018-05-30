@@ -338,7 +338,10 @@ class FullI2C(I2C, unittest.TestCase):
                 l_val = self.i2c_get(l_chips[1], l_addr)
                 # self.i2c_set(l_list2[1], l_addr, "0x50")
 
-        # list i2c adapter conetents
+        if self.test == "skiroot":
+            return
+
+        # list i2c adapter contents
         try:
             l_res = self.c.run_command("ls -l /sys/class/i2c-adapter")
         except CommandFailed as cf:
