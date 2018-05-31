@@ -256,6 +256,9 @@ class OpTestConfiguration():
         return self.args, self.remaining_args
 
     def objs(self):
+        if self.args.list_suites:
+            return
+
         host = OpTestHost(self.args.host_ip,
                           self.args.host_user,
                           self.args.host_password,
