@@ -281,6 +281,9 @@ class OpTestSSH():
           if rc2 == 0:
             echo_output = console.before
             echo_rc = int(echo_output.splitlines()[-1])
+          elif rc2 == 2:
+            self.state = ConsoleState.DISCONNECTED
+            raise SSHSessionDisconnected("SSH session exited!")
           else:
             raise CommandFailed(command, 'echo TIMEOUT', -1)
         elif rc == 1:
