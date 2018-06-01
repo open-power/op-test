@@ -20,6 +20,7 @@
 
 # Torture the machine with repeatedly trying to boot
 
+import pexpect
 import unittest
 import subprocess
 
@@ -40,15 +41,18 @@ class BootTorture(unittest.TestCase, TestPCI):
         self.c = self.system.sys_get_ipmi_console()
         for i in range(1,self.BOOT_ITERATIONS):
             print "Boot iteration %d..." % i
-            self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.system.goto_state(OpSystemState.OFF)
+            try:
+                self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+            except pexpect.EOF:
+                continue
             self.system.host_console_unique_prompt()
-            self.c.run_command("head /sys/firmware/opal/msglog")
-            self.c.run_command("tail /sys/firmware/opal/msglog")
+            self.c.run_command_ignore_fail("head /sys/firmware/opal/msglog")
+            self.c.run_command_ignore_fail("tail /sys/firmware/opal/msglog")
             if self.pci_good_data_file:
                 self.check_pci_devices()
-            self.c.run_command("dmesg -r|grep '<[4321]>'")
-            self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
-            self.system.goto_state(OpSystemState.OFF)
+            self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
+            self.c.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
 
 class BootTorture10(BootTorture):
     BOOT_ITERATIONS = 10
@@ -70,8 +74,8 @@ class ReBootTorture(unittest.TestCase, TestPCI):
         for i in range(1,self.BOOT_ITERATIONS):
             print "Re-boot iteration %d..." % i
             self.system.host_console_unique_prompt()
-            console.run_command("uname -a")
-            console.run_command("cat /etc/os-release")
+            console.run_command_ignore_fail("uname -a")
+            console.run_command_ignore_fail("cat /etc/os-release")
             if self.pci_good_data_file:
                 self.check_pci_devices()
             console.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
@@ -79,7 +83,11 @@ class ReBootTorture(unittest.TestCase, TestPCI):
             console.sol.sendline("echo 10  > /proc/sys/kernel/printk")
             console.sol.sendline("reboot")
             self.system.set_state(OpSystemState.IPLing)
-            self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+            try:
+                self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+            except pexpect.EOF:
+                self.system.goto_state(OpSystemState.OFF)
+                self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
 
 class ReBootTorture10(ReBootTorture):
     BOOT_ITERATIONS = 10
