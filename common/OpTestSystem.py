@@ -545,14 +545,8 @@ class OpTestSystem(object):
     ##
     # @brief Power off the system
     #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_off(self):
-        try:
-            rc = self.cv_IPMI.ipmi_power_off()
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-        return rc
+        self.cv_IPMI.ipmi_power_off()
 
     def sys_set_bootdev_setup(self):
         self.cv_IPMI.ipmi_set_boot_to_petitboot()
