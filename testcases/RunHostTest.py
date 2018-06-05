@@ -48,6 +48,7 @@ class RunHostTest(unittest.TestCase):
                 self.fail("Provide valid host cmd file path")
             fd = open(self.host_cmd_file, "r")
             for line in fd.readlines():
+                line = line.strip()
                 if "reboot" in line:
                     self.system.goto_state(OpSystemState.OFF)
                     self.system.goto_state(OpSystemState.OS)
