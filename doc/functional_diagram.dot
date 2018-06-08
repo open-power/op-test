@@ -1,0 +1,66 @@
+digraph {
+  labelloc=top;
+  fontsize=30;
+  label="OpenPOWER Test Framework Functional Diagram (Test Flow)";
+  splines=ortho;
+  center=true;
+  width=20;
+
+  rankdir=LR;
+  node [style=filled];
+
+  {
+    rank=same;
+    node [shape=circle, color=gold];
+	"op-test";
+    node [shape=rectangle, color=palegreen3, style=filled];
+	"Flash firmware";
+	"Deploy Operating System";
+	"Run OpenPOWER functional and stress tests";
+    node [shape=folder, color=mediumorchid, style=filled];
+	"Test results and failure analysis";
+}
+{
+rank=same;
+    node [shape=rectangle, color=cornflowerblue, style=filled];
+	"OpenPower Hardware";
+  }
+{
+    rank=same;
+
+    node [shape=oval, color=bisque];
+	"Upstream Firmware";
+	"IBM official daily and weekly builds";
+	"Vendor released BMC Vendor PNOR firmware";
+    node [shape=oval, color=darkorange];
+	"Ubuntu/Debian";
+	"RHEL/Fedora";
+	"HostOS";
+    node [shape=oval, color=darkturquoise];
+	"OPAL Tests";
+	"OpenPOWER firmware tests";
+	"BMC Specific tests";
+	"Linux tests";
+
+}
+
+  edge [style=solid, arrowhead=normal, dir=forward, headport=_, tailport=_, minlen=5];
+	"op-test"->"Flash firmware";
+	"Upstream Firmware"->"Flash firmware";
+	"IBM official daily and weekly builds"->"Flash firmware";
+	"Vendor released BMC Vendor PNOR firmware"->"Flash firmware";
+	"Flash firmware"->"Deploy Operating System";
+	"Ubuntu/Debian"->"Deploy Operating System";
+	"RHEL/Fedora"->"Deploy Operating System";
+	"HostOS"->"Deploy Operating System";
+	"Deploy Operating System"->"Run OpenPOWER functional and stress tests";
+	"OPAL Tests"->"Run OpenPOWER functional and stress tests";
+	"OpenPOWER firmware tests"->"Run OpenPOWER functional and stress tests";
+	"BMC Specific tests"->"Run OpenPOWER functional and stress tests";
+	"Linux tests"->"Run OpenPOWER functional and stress tests";
+	"Run OpenPOWER functional and stress tests"->"Test results and failure analysis";
+	"Flash firmware"->"OpenPower Hardware";
+	"Deploy Operating System"->"OpenPower Hardware";
+	"Run OpenPOWER functional and stress tests"->"OpenPower Hardware";
+
+}
