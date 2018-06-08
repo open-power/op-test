@@ -50,7 +50,7 @@ class InstallHostOS(unittest.TestCase):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         # Local path to keep install files
-        base_path = "osimages/hostos"
+        base_path = os.path.join(self.conf.basedir, "osimages", "hostos")
         # relative path from repo where vmlinux and initrd is present
         boot_path = "ppc/ppc64"
         vmlinux = "vmlinuz"

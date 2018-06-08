@@ -84,7 +84,7 @@ class InstallUbuntu(unittest.TestCase):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         # Set the install paths
-        base_path = "osimages/ubuntu"
+        base_path = os.path.join(self.conf.basedir, "osimages", "ubuntu")
         boot_path = "ubuntu-installer/ppc64el"
         vmlinux = "vmlinux"
         initrd = "initrd.gz"
