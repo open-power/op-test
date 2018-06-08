@@ -53,7 +53,7 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
 
     def number_reboots_to_do(self):
-        return 1;
+        return 2;
 
     def boot_to_os(self):
         return False
@@ -90,11 +90,14 @@ class OpTestFastReboot(unittest.TestCase):
             self.cv_SYSTEM.host_console_login()
             c.get_console().sendline("exec bash --norc --noprofile")
         self.cv_SYSTEM.host_console_unique_prompt()
-        cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
-
-        if cpu not in ["POWER8", "POWER8E"]:
+        cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        print repr(cpu)
+        if cpu not in ["POWER9", "POWER8", "POWER8E"]:
             self.skipTest("Fast Reboot not supported on %s" % cpu)
 
+        c.run_command("nvram -p ibm,skiboot --update-config fast-reset=1")
+        res = c.run_command("nvram --print-config=fast-reset -p ibm,skiboot")
+        self.assertNotIn("0", res, "Failed to set the fast-reset mode")
         c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
@@ -114,7 +117,7 @@ class OpTestFastReboot(unittest.TestCase):
             # FSP based systems) the skiboot log is *not* printed to IPMI
             # console
             if self.cv_SYSTEM.skiboot_log_on_console():
-                self.con.expect(" RESET: Initiating fast reboot", timeout=60)
+                self.con.expect(" RESET: Initiating fast reboot", timeout=100)
             if self.boot_to_os():
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
                 self.cv_SYSTEM.host_console_login()

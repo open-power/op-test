@@ -42,7 +42,8 @@ from common.OpTestError import OpTestError
 import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestHost import SSHConnectionState
+from common.OpTestSSH import ConsoleState as SSHConnectionState
+from common.Exceptions import KernelOOPS, KernelCrashUnknown, KernelKdump
 
 class OpTestKernelBase(unittest.TestCase):
     def setUp(self):
@@ -67,20 +68,33 @@ class OpTestKernelBase(unittest.TestCase):
 	self.cv_SYSTEM.host_console_unique_prompt()
         console.run_command("uname -a")
         console.run_command("cat /etc/os-release")
+        console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
         console.run_command("echo 10  > /proc/sys/kernel/panic")
         console.sol.sendline("echo c > /proc/sysrq-trigger")
-        try:
-            console.sol.expect('login:', timeout=BMC_CONST.PETITBOOT_TIMEOUT)
-        except pexpect.EOF:
-            print "Waiting for system to IPL...."
-        except pexpect.TIMEOUT:
-            raise OpTestError("System failed to reach host")
-        self.cv_SYSTEM.sys_check_host_status_v1()
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        console.close()
+        done = False
+        rc = -1
+        # TODO: We may need to move this kdump expect path to OPexpect wrapper
+        # so that in real kernel crashes we can track kdump vmcore collection as well
+        while not done:
+            try:
+                rc = console.sol.expect(['ISTEP', "kdump: saving vmcore complete"], timeout=300)
+            except KernelOOPS:
+                # if kdump is disabled, system should IPL after kernel crash(oops)
+                self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+            except KernelKdump:
+                print "Kdump kernel started booting, waiting for dump to finish"
+            except KernelCrashUnknown:
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                done = True
+            if rc == 0:
+                self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+                done = True
+            if rc == 1:
+                print "Kdump finished collecting vmcore, waiting for IPL to start"
+
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         print "System booted fine to host OS..."
-        self.cv_SYSTEM.set_state(OpSystemState.OS)
         return BMC_CONST.FW_SUCCESS
 
 class KernelCrash_KdumpEnable(OpTestKernelBase):
@@ -139,9 +153,20 @@ class SkirootKernelCrash(OpTestKernelBase, unittest.TestCase):
         self.cv_SYSTEM.host_console_unique_prompt()
         output = self.c.run_command("cat /proc/cmdline")
         res = ""
+        found = False
+        update = False
         for pair in output[0].split(" "):
             if "xmon" in pair:
+                if pair == "xmon=off":
+                    found = True
+                    continue
                 pair = "xmon=off"
+                update = True
+            res = "%s %s" % (res, pair)
+        if found:
+            return
+        if not update:
+            pair = "xmon=off"
             res = "%s %s" % (res, pair)
         bootargs = "\'%s\'" % res
         print bootargs

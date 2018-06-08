@@ -18,27 +18,38 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-# Support testing against Qemu simulator
+"""
+Support testing against Qemu simulator
+"""
 
+import atexit
 import sys
 import time
 import pexpect
 import subprocess
+import tempfile
 
 from common.Exceptions import CommandFailed
+from common import OPexpect
 
 class ConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
 
 class QemuConsole():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout):
+    """
+    A 'connection' to the Qemu Console involves *launching* qemu.
+    Terminating a connection will *terminate* the qemu process.
+    """
+    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None, cdrom=None):
         self.qemu_binary = qemu_binary
         self.skiboot = skiboot
         self.kernel = kernel
         self.initramfs = initramfs
+        self.hda = hda
         self.state = ConsoleState.DISCONNECTED
         self.logfile = logfile
+        self.cdrom = cdrom
 
     def terminate(self):
         if self.state == ConsoleState.CONNECTED:
@@ -65,10 +76,17 @@ class QemuConsole():
                + " -nographic"
                + " -bios %s" % (self.skiboot)
                + " -kernel %s" % (self.kernel)
-               + " -initrd %s" % (self.initramfs)
            )
+        if self.initramfs is not None:
+            cmd = cmd + " -initrd %s" % (self.initramfs)
+        if self.hda is not None:
+            cmd = cmd + " -hda %s" % (self.hda)
+        if self.cdrom is not None:
+            cmd = cmd + " -cdrom %s" % (self.cdrom)
+        cmd = cmd + " -netdev user,id=u1 -device e1000,netdev=u1"
+        cmd = cmd + " -device ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10"
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=self.logfile)
+        solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         self.state = ConsoleState.CONNECTED
         self.sol = solChild
         return solChild
@@ -103,7 +121,6 @@ class QemuConsole():
 
         if rc == 0:
             res = output.replace("\r\r\n", "\n")
-            print repr(res)
             res = res.splitlines()
             if exitcode != 0:
                 raise CommandFailed(command, res, exitcode)
@@ -113,14 +130,30 @@ class QemuConsole():
             res = res.split(command)
             return res[-1].splitlines()
 
+    # This command just runs and returns the ouput & ignores the failure
+    def run_command_ignore_fail(self, command, timeout=60):
+        try:
+            output = self.run_command(command, timeout)
+        except CommandFailed as cf:
+            output = cf.output
+        return output
+
 class QemuIPMI():
+    """
+    Qemu has fairly limited IPMI capability, and we probably need to
+    extend the capability checks so that more of the IPMI test suite
+    gets skipped.
+
+    """
     def __init__(self, console):
         self.console = console
 
     def ipmi_power_off(self):
+        """For Qemu, this just kills the simulator"""
         self.console.terminate()
 
     def ipmi_wait_for_standby_state(self, i_timeout=10):
+        """For Qemu, we just kill the simulator"""
         self.console.terminate()
 
     def ipmi_set_boot_to_petitboot(self):
@@ -129,10 +162,27 @@ class QemuIPMI():
     def ipmi_sel_check(self, i_string="Transition to Non-recoverable"):
         pass
 
+    def sys_set_bootdev_no_override(self):
+        pass
+
 class OpTestQemu():
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout):
-        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile)
+    def __init__(self, qemu_binary=None, skiboot=None,
+                 kernel=None, initramfs=None, cdrom=None,
+                 logfile=sys.stdout, hda=None):
+        if hda is not None:
+            self.qemu_hda_file = tempfile.NamedTemporaryFile(delete=True)
+            atexit.register(self.__del__)
+        else:
+            self.qemu_hda_file = hda
+        create_hda = subprocess.check_call(["qemu-img", "create",
+                                            "-fqcow2",
+                                            self.qemu_hda_file.name,
+                                            "10G"])
+        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile, hda=self.qemu_hda_file.name, cdrom=cdrom)
         self.ipmi = QemuIPMI(self.console)
+
+    def __del__(self):
+        self.qemu_hda_file.close()
 
     def get_host_console(self):
         return self.console
@@ -148,3 +198,12 @@ class OpTestQemu():
 
     def get_rest_api(self):
         return None
+
+    def has_os_boot_sensor(self):
+        return False
+
+    def has_occ_active_sensor(self):
+        return False
+
+    def has_host_status_sensor(self):
+        return False

@@ -173,9 +173,10 @@ class OpTestIPMILockMode(unittest.TestCase):
         l_con.run_command(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON)
 
         # 13.[App] Get System Interface Capabilities
-        print "Testing Get System Interface Capabilities"
-        l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF)
-        l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS)
+        if not self.platform in ['p9dsu']:
+            print "Testing Get System Interface Capabilities"
+            l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF)
+            l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS)
 
         # 14.[App] Get Message Flags
         print "Testing Get Message Flags"
@@ -187,33 +188,57 @@ class OpTestIPMILockMode(unittest.TestCase):
 
         # 16. [App] Clear Message Flags
         print "Testing Clear Message Flags"
-        l_res = l_con.run_command(BMC_CONST.HOST_CLEAR_MESSAGE_FLAGS)
+        l_res = l_con.run_command_ignore_fail(BMC_CONST.HOST_CLEAR_MESSAGE_FLAGS)
 
-        # 17. [OEM] PNOR Access Status
-        print "Testing the PNOR Access Status"
-        l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)
-        l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_GRANT)
+        if not self.platform in ['p9dsu']:
+            # 17. [OEM] PNOR Access Status
+            print "Testing the PNOR Access Status"
+            l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)
+            l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_GRANT)
 
         # 18. [Storage] Add SEL Entry
         print "Testing Add SEL Entry"
         print "Clearing the SEL list"
         self.cv_IPMI.ipmi_sdr_clear()
         l_res = l_con.run_command(BMC_CONST.HOST_ADD_SEL_ENTRY)
+        time.sleep(1)
         l_res = self.cv_IPMI.last_sel()
         print "Checking for Reserved entry creation in SEL"
-        if "Reserved" not in l_res:
+        print l_res
+        if "eserved" not in l_res:
             raise Exception("IPMI: Add SEL Entry command, doesn't create an SEL event")
 
         # 19. [App] Set Power State
         print "Testing Set Power State"
         l_res = l_con.run_command(BMC_CONST.HOST_SET_ACPI_POWER_STATE)
 
-        # 20. [App] Set watchdog
+
+        # 20.[Sensor/Event] Platform Event (0x02)
+        print "Testing Platform Event"
+        self.cv_IPMI.ipmi_sdr_clear()
+        l_res = l_con.run_command(BMC_CONST.HOST_PLATFORM_EVENT)
+        l_res = self.cv_IPMI.last_sel()
+        if "eserved" not in l_res:
+            raise Exception("IPMI: Platform Event command failed to log SEL event")
+
+        # 21.[Chassis] Chassis Control
+        print "Testing chassis power on"
+        l_res = l_con.run_command(BMC_CONST.HOST_CHASSIS_POWER_ON)
+
+
+        # 22. [App] Get ACPI Power State (0x06)
+        print "Testing Get ACPI Power State"
+        l_res = l_con.run_command(BMC_CONST.HOST_GET_ACPI_POWER_STATE)
+
+        # 23. [App] Set watchdog
         print "Testing Set watchdog"
         l_res = l_con.run_command(BMC_CONST.HOST_SET_WATCHDOG)
         self.cv_IPMI.mc_get_watchdog()
 
-        # 21. [Sensor/Event] Get Sensor Type
+        if self.platform in ['p9dsu']:
+            return
+
+        # 24. [Sensor/Event] Get Sensor Type
         print "Testing Get Sensor Type"
         l_res = self.cv_IPMI.sdr_get_watchdog()
         matchObj = re.search( "Watchdog \((0x\d{1,})\)", l_res)
@@ -223,7 +248,7 @@ class OpTestIPMILockMode(unittest.TestCase):
             raise Exception("Failed to get sensor id for watchdog sensor")
         l_res = l_con.run_command(BMC_CONST.HOST_GET_SENSOR_TYPE_FOR_WATCHDOG + " " + matchObj.group(1))
 
-        # 22.[Sensor/Event] Get Sensor Reading
+        # 25.[Sensor/Event] Get Sensor Reading
         print "Testing Get Sensor Reading"
         l_res = self.cv_IPMI.sdr_get_watchdog()
         matchObj = re.search( "Watchdog \((0x\d{1,})\)", l_res)
@@ -233,30 +258,19 @@ class OpTestIPMILockMode(unittest.TestCase):
             raise Exception("Failed to get sensor id for watchdog sensor")
         l_res = l_con.run_command(BMC_CONST.HOST_GET_SENSOR_READING + " " + matchObj.group(1))
 
-        # 23.[Sensor/Event] Platform Event (0x02)
-        print "Testing Platform Event"
-        self.cv_IPMI.ipmi_sdr_clear()
-        l_res = l_con.run_command(BMC_CONST.HOST_PLATFORM_EVENT)
-        l_res = self.cv_IPMI.last_sel()
-        if "Reserved" not in l_res:
-            raise Exception("IPMI: Platform Event command failed to log SEL event")
 
-        # 24. [OEM] PNOR Access Response (0x08)
+        # 26. [OEM] PNOR Access Response (0x08)
         print "Testing PNOR Access Response"
         l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_GRANT)
         l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_RESPONSE)
         l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)
         l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_RESPONSE)
 
-        # 25.[Chassis] Chassis Control
-        print "Testing chassis power on"
-        l_res = l_con.run_command(BMC_CONST.HOST_CHASSIS_POWER_ON)
-
-        # 26.[App] 0x38 Get Channel Authentication Cap
+        # 27.[App] 0x38 Get Channel Authentication Cap
         print "Testing Get Channel Authentication Capabilities"
         l_res = l_con.run_command(BMC_CONST.HOST_GET_CHANNEL_AUTH_CAP)
 
-        # 27.[App] Reset Watchdog (0x22)
+        # 28.[App] Reset Watchdog (0x22)
         print "Testing reset watchdog"
         self.cv_IPMI.ipmi_sdr_clear()
         l_res = l_con.run_command(BMC_CONST.HOST_RESET_WATCHDOG)
@@ -274,14 +288,11 @@ class OpTestIPMILockMode(unittest.TestCase):
         if "Watchdog" not in l_res:
             raise Exception("IPMI: Reset Watchdog command, doesn't create an SEL event")
 
-        # 28. [App] Get ACPI Power State (0x06)
-        print "Testing Get ACPI Power State"
-        l_res = l_con.run_command(BMC_CONST.HOST_GET_ACPI_POWER_STATE)
 
         # Below commands will effect sensors and fru values and some care to be taken for
         # executing.
-        # 27.[Storage] Write FRU
-        # 28.[Sensor/Event] Set Sensor Reading
-        # 29. [OEM] Partial Add ESEL (0xF0)
+        # 29.[Storage] Write FRU
+        # 30.[Sensor/Event] Set Sensor Reading
+        # 31. [OEM] Partial Add ESEL (0xF0)
         # This is testsed by kernel itself, it will send messages to BMC internally
-        # 30.[App] Send Message
+        # 32.[App] Send Message

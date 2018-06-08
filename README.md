@@ -41,11 +41,11 @@ You **MUST** have `fwts` installed. To do this:
 It must also have (package names for Debian/Ubuntu systems):
 
     linux-tools-common linux-tools-generic lm-sensors ipmitool i2c-tools
-    pciutils opal-prd opal-utils
+    pciutils opal-prd opal-utils device-tree-compiler
 
 On RHEL-like systems, package names are:
 
-    lm_sensors ipmitool i2c-tools pciutils kernel-tools
+    lm_sensors ipmitool i2c-tools pciutils kernel-tools dtc
 
 From skiboot, you will need the xscom-utils and gard installed:
 

@@ -91,7 +91,7 @@ class ControlC(unittest.TestCase):
             print e
             print "# TIMEOUT waiting for command to finish with ctrl-c."
             print "# Everything is terrible. Fail the world, power cycle (if lucky)"
-            self.system.set_state(OpSystemState.UNKNOWN)
+            self.system.set_state(OpSystemState.UNKNOWN_BAD)
             self.fail("Could not ctrl-c running command in reasonable time")
         self.cleanup()
 
@@ -104,7 +104,7 @@ class ControlZ(ControlC):
 
 def suite():
     s = unittest.TestSuite()
-    s.addTest(Console8k())
-    s.addTest(Console16k())
+    s.addTest(Console32k())
     s.addTest(ControlZ())
+    s.addTest(ControlC())
     return s

@@ -47,6 +47,9 @@ class OpTestConstants():
     GARRISON_POWER_LIMIT_LOW = "1240"
     GARRISON_POWER_LIMIT_HIGH = "2880"
 
+    PRIMARY_SIDE = "0x0080"
+    GOLDEN_SIDE = "0x0180"
+
     # BMC COMMANDS
     BMC_COLD_RESET = " mc reset cold"
     BMC_PASS_COLD_RESET = "Sent cold reset command to MC"
@@ -65,7 +68,7 @@ class OpTestConstants():
     BMC_FLASH_IMAGE = "echo y | ipmitool -H "
     BMC_FW_IMAGE_UPDATE = "component 1 -z 30000 force"
     BMC_PNOR_IMAGE_UPDATE = "component 2 -z 30000"
-    BMC_FWANDPNOR_IMAGE_UPDATE = "-z 30000 force"
+    BMC_FWANDPNOR_IMAGE_UPDATE = "-z 15000 force"
     BMC_LANPLUS = " -I lanplus"
     BMC_LANPLUS = " -I lanplus"
     BMC_HPM_UPDATE = " hpm upgrade "

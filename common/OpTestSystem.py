@@ -33,18 +33,25 @@
 import time
 import subprocess
 import pexpect
+import socket
+import commands
 
-from OpTestBMC import OpTestBMC
+import OpTestIPMI # circular dependencies, use package
 from OpTestFSP import OpTestFSP
-from OpTestIPMI import OpTestIPMI
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
-from OpTestHost import SSHConnectionState
+from OpTestSSH import ConsoleState as SSHConnectionState
+from Exceptions import HostbootShutdown
+from OpTestSSH import OpTestSSH
 
 
 class OpSystemState():
+    '''
+    This class is used as an enum as to what state op-test *thinks* the host is in.
+    These states are used to drive a state machine in OpTestSystem.
+    '''
     UNKNOWN = 0
     OFF = 1
     IPLing = 2
@@ -53,6 +60,7 @@ class OpSystemState():
     BOOTING = 5
     OS = 6
     POWERING_OFF = 7
+    UNKNOWN_BAD = 8 # special case, use set_state to place system in hold for later goto
 
 class OpTestSystem(object):
 
@@ -80,6 +88,8 @@ class OpTestSystem(object):
 
         # We have a state machine for going in between states of the system
         # initially, everything in UNKNOWN, so we reset things.
+        # UNKNOWN is used to flag the system to auto-detect the state if
+        # possible to efficiently achieve state transitions.
         # But, we allow setting an initial state if you, say, need to
         # run against an already IPLed system
         self.state = state
@@ -92,6 +102,7 @@ class OpTestSystem(object):
         self.stateHandlers[OpSystemState.BOOTING] = self.run_BOOTING
         self.stateHandlers[OpSystemState.OS] = self.run_OS
         self.stateHandlers[OpSystemState.POWERING_OFF] = self.run_POWERING_OFF
+        self.stateHandlers[OpSystemState.UNKNOWN_BAD] = self.run_UNKNOWN
 
         # We track the state of loaded IPMI modules here, that way
         # we only need to try the modprobe once per IPL.
@@ -109,6 +120,9 @@ class OpTestSystem(object):
         return False
 
     def has_centaurs_in_dt(self):
+        proc_gen = self.host().host_get_proc_gen()
+        if proc_gen in ["POWER9"]:
+            return False
         return True
 
     def has_mtd_pnor_access(self):
@@ -133,12 +147,156 @@ class OpTestSystem(object):
         self.state = state
 
     def goto_state(self, state):
+        # only perform detection when incoming state is UNKNOWN
+        # if user overrides from command line and machine not at desired state can lead to exceptions
+        if (self.state == OpSystemState.UNKNOWN):
+          print "OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state)
+          self.state = self.run_DETECT(state)
+          print "OpTestSystem CURRENT DETECTED STATE: %s" % (self.state)
+
         print "OpTestSystem START STATE: %s (target %s)" % (self.state, state)
+        never_unknown = False
         while 1:
+            if self.state != OpSystemState.UNKNOWN:
+                never_unknown = True
             self.state = self.stateHandlers[self.state](state)
             print "OpTestSystem TRANSITIONED TO: %s" % (self.state)
             if self.state == state:
                 break;
+            if never_unknown and self.state == OpSystemState.UNKNOWN:
+                raise 'System State transition failure: should not have progressed to UNKNOWN!'
+
+    def run_DETECT(self, target_state):
+        t = 0
+        detect_state = OpSystemState.UNKNOWN
+        never_rebooted = True
+        while (detect_state == OpSystemState.UNKNOWN) and (t < 2):
+          # two phases
+          detect_state = self.detect_target(target_state, never_rebooted)
+          never_rebooted = False
+          t += 1
+        return detect_state
+
+    def detect_target(self, target_state, reboot):
+        console = self.console.connect()
+        # need to kick the buffer, login needs "r"
+        console.send("\r")
+        r = console.expect(["x=exit", "Petitboot", ".*#", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        if r in [0,1]:
+          if (target_state == OpSystemState.PETITBOOT):
+            return OpSystemState.PETITBOOT
+          elif (target_state == OpSystemState.PETITBOOT_SHELL):
+            self.petitboot_exit_to_shell()
+            return OpSystemState.PETITBOOT_SHELL
+          elif (target_state == OpSystemState.OS) and reboot:
+            self.petitboot_exit_to_shell()
+            self.run_REBOOT(target_state)
+            return OpSystemState.UNKNOWN
+          else:
+            return OpSystemState.UNKNOWN
+        elif r == 2:
+          detect_state = self.check_kernel()
+          if (detect_state == target_state):
+            return detect_state
+          elif reboot:
+            if target_state in [OpSystemState.OS]:
+              self.run_REBOOT(target_state)
+              return OpSystemState.UNKNOWN
+            elif target_state in [OpSystemState.PETITBOOT]:
+              self.exit_petitboot_shell()
+              return OpSystemState.PETITBOOT
+            elif target_state in [OpSystemState.PETITBOOT_SHELL]:
+              return OpSystemState.PETITBOOT_SHELL
+            else:
+              return OpSystemState.UNKNOWN
+          else:
+            return OpSystemState.UNKNOWN
+        elif r == 3:
+          if (target_state == OpSystemState.OS):
+            return OpSystemState.OS
+          elif reboot:
+            if target_state in [OpSystemState.OS,OpSystemState.PETITBOOT,OpSystemState.PETITBOOT_SHELL]:
+              self.run_REBOOT(target_state)
+              return OpSystemState.UNKNOWN
+            else:
+              return OpSystemState.UNKNOWN
+          else:
+            return OpSystemState.UNKNOWN
+        elif (r == 4) or (r == 5):
+          return OpSystemState.UNKNOWN
+
+    def check_kernel(self):
+        console = self.console.get_console()
+        console.sendline("cat /proc/version | cut -d ' ' -f 3 | grep openpower")
+        console.expect("\n")
+        console.expect([".*#"])
+        console.sendline("echo $?")
+        console.expect("\n")
+        console.expect([".*#"])
+        echo_output = console.after
+        try:
+          echo_rc = int(echo_output.splitlines()[0])
+        except Exception as e:
+          # most likely cause is running while booting unknowlingly
+          return OpSystemState.UNKNOWN
+        if (echo_rc == 0):
+          return OpSystemState.PETITBOOT_SHELL
+        else:
+          return OpSystemState.OS
+
+    def wait_for_it(self, my_string=None, refresh=1, buffer_kicker=1, loop_max=50, threshold=1, timeout=10):
+        console = self.console.get_console()
+        previous_before = 'emptyfirst'
+        x = 1
+        reconnect_count = 0
+        while (x <= loop_max):
+            rc = console.expect([my_string, pexpect.TIMEOUT, pexpect.EOF], timeout)
+            if (previous_before == console.before) and (rc != 0):
+              # only attempt reconnect per threshold
+              if (x % threshold == 0):
+                reconnect_count += 1
+                if isinstance(self.console, OpTestIPMI.IPMIConsole):
+                  console = self.console.connect()
+                  if buffer_kicker:
+                    console.sendline("\r")
+                  if refresh:
+                    console.sendcontrol('l')
+                  previous_before = 'emptyagain'
+                else:
+                  console = self.console.connect()
+                  if buffer_kicker:
+                    console.sendline("\r")
+                  previous_before = 'emptyagain'
+            else:
+              previous_before = console.before
+            if (rc == 0):
+              break;
+            else:
+              x += 1
+            if (x >= loop_max):
+              raise Exception('Waiting for "{}" did not succeed, check the loop_max if needing to wait longer'
+                              ' (number of reconnect attempts were {})'.format(my_string, reconnect_count))
+
+    def run_REBOOT(self, target_state):
+        # per console object detect stale indicator
+        # used in conjunction with timeouts and loop_max
+        if isinstance(self.console, OpTestIPMI.IPMIConsole):
+          threshold = 3
+        else:
+          threshold = 6
+        console = self.console.get_console()
+        if (target_state == OpSystemState.PETITBOOT_SHELL) or (target_state == OpSystemState.PETITBOOT):
+          self.sys_set_bootdev_setup()
+          self.host_console_login()
+        else:
+          self.sys_set_bootdev_no_override()
+        console.sendline('reboot')
+        console.expect("\n")
+
+        if (target_state == OpSystemState.OS):
+          self.wait_for_it(my_string='login: ', threshold=threshold)
+        else:
+          self.wait_for_it(my_string='Petitboot', buffer_kicker=0, threshold=threshold)
 
     def run_UNKNOWN(self, state):
         self.sys_power_off()
@@ -179,6 +337,10 @@ class OpTestSystem(object):
         except pexpect.TIMEOUT:
             self.sys_sel_check()
             return OpSystemState.UNKNOWN
+        except HostbootShutdown as e:
+            print e
+            self.sys_sel_check()
+            return OpSystemState.UNKNOWN
 
         # Once reached to petitboot check for any SEL events
         self.sys_sel_check()
@@ -209,7 +371,7 @@ class OpTestSystem(object):
 
         if state == OpSystemState.PETITBOOT:
             self.exit_petitboot_shell()
-            return OpSystemState.PETITBOOT_SHELL
+            return OpSystemState.PETITBOOT
 
         self.sys_power_off()
         return OpSystemState.POWERING_OFF
@@ -220,7 +382,7 @@ class OpTestSystem(object):
             # Wait for ip to ping as we run host commands immediately
             self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
             return OpSystemState.OS
-        raise 'Failed to boot'
+        return OpSystemState.UNKNOWN
 
     def run_OS(self, state):
         if state == OpSystemState.OS:
@@ -312,7 +474,7 @@ class OpTestSystem(object):
             self.host_console_unique_prompt()
         elif l_rc != 1:
             raise Exception("Invalid response to newline. expected $ or # prompt, got: %s" % (l_con.before))
-            
+
         return BMC_CONST.FW_SUCCESS
 
     def host_console_unique_prompt(self):
@@ -334,12 +496,12 @@ class OpTestSystem(object):
     # System Interfaces
     ############################################################################
 
-    ##
-    # @brief Clear all SDR's in the System
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_sdr_clear(self):
+        '''
+        Clear all SDRs in the System
+
+        Returns BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             rc =  self.cv_IPMI.ipmi_sdr_clear()
         except OpTestError as e:
@@ -351,35 +513,29 @@ class OpTestSystem(object):
                 return BMC_CONST.FW_FAILED
         return rc
 
-    ##
-    # @brief Power on the system
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_on(self):
+        '''
+        Power on the host system, probably via `ipmitool power on`
+        '''
         try:
             rc = self.cv_IPMI.ipmi_power_on()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return rc
 
-    ##
-    # @brief Power cycle the system
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_cycle(self):
+        '''
+        Power cycle the host, most likely `ipmitool power cycle`
+        '''
         try:
             return self.cv_IPMI.ipmi_power_cycle()
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
 
-    ##
-    # @brief Power soft the system
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_soft(self):
+        '''
+        Soft power cycle the system. This allows OS to gracefully shutdown
+        '''
         try:
             rc = self.cv_IPMI.ipmi_power_soft()
         except OpTestError as e:
@@ -389,14 +545,8 @@ class OpTestSystem(object):
     ##
     # @brief Power off the system
     #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_off(self):
-        try:
-            rc = self.cv_IPMI.ipmi_power_off()
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-        return rc
+        self.cv_IPMI.ipmi_power_off()
 
     def sys_set_bootdev_setup(self):
         self.cv_IPMI.ipmi_set_boot_to_petitboot()
@@ -467,42 +617,40 @@ class OpTestSystem(object):
             return BMC_CONST.FW_FAILED
         return rc
 
-    ##
-    # @brief Wait for system to reach standby or[S5/G2: soft-off]
-    #
-    # @param i_timeout @type int: The number of seconds to wait for system to reach standby,
-    #       i.e. How long to poll the ACPI sensor for soft-off state before giving up.
-    #
-    # @return l_rc @type constant BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_wait_for_standby_state(self, i_timeout=120):
+        '''
+        Wait for system to reach standby or[S5/G2: soft-off]
+
+        :param i_timeout: The number of seconds to wait for system to reach standby, i.e. How long to poll the ACPI sensor for soft-off state before giving up.
+        :rtype: BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             l_rc = self.cv_IPMI.ipmi_wait_for_standby_state(i_timeout)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return l_rc
 
-    ##
-    # @brief Wait for system boot to host OS, It uses OS Boot sensor
-    #
-    # @param i_timeout @type int: The number of minutes to wait for IPL to complete or Boot time,
-    #       i.e. How long to poll the OS Boot sensor for working state before giving up.
-    #
-    # @return l_rc @type constant BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_wait_for_os_boot_complete(self, i_timeout=10):
+        '''
+        Wait for system boot to host OS, It uses OS Boot sensor
+
+        :param i_timeout: The number of minutes to wait for IPL to complete or Boot time,
+            i.e. How long to poll the OS Boot sensor for working state before giving up.
+        :rtype: BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             l_rc = self.cv_IPMI.ipmi_wait_for_os_boot_complete(i_timeout)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return l_rc
 
-    ##
-    # @brief Check for error during IPL that would result in test case failure
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_sel_check(self,i_string="Transition to Non-recoverable"):
+        '''
+        Check for error during IPL that would result in test case failure
+
+        :param i_string: string to search for
+        :rtype: BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
+        '''
         try:
             rc = self.cv_IPMI.ipmi_sel_check(i_string)
         except OpTestError as e:
@@ -510,12 +658,12 @@ class OpTestSystem(object):
         return rc
 
 
-    ##
-    # @brief Reboot the BMC
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_bmc_reboot(self):
+        '''
+        Reboot the BMC
+
+        This may use ``ipmitool mc reset cold`` or it may do an inline ``reboot``
+        '''
         try:
             rc = self.cv_BMC.reboot()
         except OpTestError as e:
@@ -1234,14 +1382,18 @@ class OpTestSystem(object):
             # Wait for petitboot (for a *LOOONNNG* time due to verbose IPLs)
             seen = 0
             r = 1
-            t = 40
+            t = 100
             while seen < 2 and t:
                 # TODO check for forward progress
-                r = console.expect(['x=exit', 'Petitboot', pexpect.TIMEOUT], timeout=10)
+                r = console.expect(['x=exit', 'Petitboot', pexpect.TIMEOUT, '[0-9.]+\|IPMI: shutdown requested'], timeout=10)
                 if r == 2 and t == 0:
                     raise pexpect.TIMEOUT
+                if r == 3:
+                    raise HostbootShutdown()
                 if r in [0,1]:
                     seen = seen + 1
+                else:
+                    t = t - 1
 
             # there will be extra things in the pexpect buffer here
         except pexpect.TIMEOUT as e:
@@ -1256,11 +1408,24 @@ class OpTestSystem(object):
 
     def petitboot_exit_to_shell(self):
         console = self.console.get_console()
-        # Exiting to petitboot shell
-        console.sendcontrol('l')
-        console.send('x')
-        console.expect('Exiting petitboot')
-        console.expect('#')
+        retry_count = 0
+        while retry_count < 3:
+            retry_count = retry_count + 1
+            # Exiting to petitboot shell
+            console.sendcontrol('l')
+            r = console.expect(['x=exit','#',pexpect.TIMEOUT])
+            if r == 0:
+                console.send('x')
+                console.expect('Exiting petitboot')
+                console.expect('#')
+                break
+            elif r == 1:
+                console.sendcontrol('c')
+                console.expect('#')
+                break
+            else:
+                continue
+        console.sendcontrol('u') # remove any characters between cursor and start of line
         # we should have consumed everything in the buffer now.
         print console
 
@@ -1275,8 +1440,60 @@ class OpTestSystem(object):
         console.sendline('')
         console.expect('login: ', timeout)
 
+    def get_my_ip_from_host_perspective(self):
+        rawc = self.console.get_console()
+        port = 12340
+        my_ip = None
+        try:
+            if self.get_state() == OpSystemState.PETITBOOT_SHELL:
+                rawc.send("nc -l -p %u -v -e /bin/true\n" % port)
+            else:
+                rawc.send("nc -l -p %u -v\n" % port)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            time.sleep(0.5)
+            print "# Connecting to %s:%u" % (self.host().hostname(), port)
+            sock.connect((self.host().hostname(), port))
+            sock.send('Hello World!')
+            sock.close()
+            rawc.expect('Connection from ')
+            rawc.expect([':', ' '])
+            my_ip = rawc.before
+            rawc.expect('\n')
+            print repr(my_ip)
+            return my_ip
+        except Exception as e:  # Looks like older nc does not support -v, lets fallback
+            rawc.sendcontrol('c')  # to avoid incase nc command hangs
+            my_ip = None
+            ip = commands.getoutput("hostname -i")
+            ip_lst = commands.getoutput("hostname -I").split(" ")
+            # Let's validate the IP
+            for item in ip_lst:
+                if item == ip:
+                    my_ip = ip
+                    break
+            if not my_ip:
+                if len(ip_lst) == 1:
+                    my_ip = ip_lst[0]
+                else:
+                    print "hostname -i does not provide valid IP, correct and proceed with installation"
+        return my_ip
+
+    def sys_enable_tpm(self):
+        self.cv_IPMI.set_tpm_required()
+
+    def sys_disable_tpm(self):
+        self.cv_IPMI.clear_tpm_required()
+
+    def sys_is_tpm_enabled(self):
+        return self.cv_IPMI.is_tpm_enabled()
 
 class OpTestFSPSystem(OpTestSystem):
+    '''
+    Implementation of an OpTestSystem for IBM FSP based systems (such as Tuleta and ZZ)
+
+    Main differences are that some functions need to be done via the service processor
+    rather than via IPMI due to differences in functionality.
+    '''
     def __init__(self,
                  host=None,
                  bmc=None,
@@ -1311,6 +1528,11 @@ class OpTestFSPSystem(OpTestSystem):
         return False
 
 class OpTestOpenBMCSystem(OpTestSystem):
+    '''
+    Implementation of an OpTestSystem for OpenBMC based platforms.
+
+    Near all IPMI functionality is done via the OpenBMC REST interface instead.
+    '''
     def __init__(self,
                  host=None,
                  bmc=None,
@@ -1348,10 +1570,15 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.power_off()
 
     def sys_sdr_clear(self):
-        # We can delete individual SEL entry by id
-        self.rest.clear_sel_by_id()
-        # Deleting complete SEL repository is not yet implemented
-        #self.rest.clear_sel()
+        try:
+            # Try clearing all with DeleteAllAPI
+            self.rest.clear_sel()
+        except FailedCurlInvocation as f:
+            # Which may not be implemented, so we try by ID instead
+            self.rest.clear_sel_by_id()
+
+    def sys_get_sel_list(self):
+        self.rest.list_sel()
 
     def sys_sel_check(self):
         self.rest.list_sel()
@@ -1378,7 +1605,23 @@ class OpTestOpenBMCSystem(OpTestSystem):
     def sys_cold_reset_bmc(self):
         self.rest.bmc_reset()
 
+    def sys_enable_tpm(self):
+       self.rest.enable_tpm()
+
+    def sys_disable_tpm(self):
+       self.rest.disable_tpm()
+
+    def sys_is_tpm_enabled(self):
+        return self.rest.is_tpm_enabled()
+
 class OpTestQemuSystem(OpTestSystem):
+    '''
+    Implementation of OpTestSystem for the Qemu Simulator
+
+    Running against a simulator is rather different than running against a machine,
+    but only in some *specific* cases. Many tests will run as-is, but ones that require
+    a bunch of manipulation of the BMC will likely not.
+    '''
     def __init__(self,
                  host=None,
                  bmc=None,
@@ -1386,6 +1629,8 @@ class OpTestQemuSystem(OpTestSystem):
         # Ensure we grab host console early, in order to not miss
         # any messages
         self.console = bmc.get_host_console()
+        if host.scratch_disk in [None,'']:
+            host.scratch_disk = "/dev/sda"
         super(OpTestQemuSystem, self).__init__(host=host,
                                                bmc=bmc,
                                                state=state)
@@ -1399,3 +1644,9 @@ class OpTestQemuSystem(OpTestSystem):
 
     def sys_power_on(self):
         self.bmc.power_on()
+
+    def get_my_ip_from_host_perspective(self):
+        return "10.0.2.2"
+
+    def has_host_accessible_eeprom(self):
+        return False

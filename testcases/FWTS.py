@@ -55,6 +55,8 @@ class FWTSTest(unittest.TestCase):
     SUBTEST_RESULT = None
     CENTAURS_PRESENT = True
     IS_FSP_SYSTEM = False
+    FWTS_MAJOR_VERSION = None
+    FWTS_MINOR_VERSION = None
     def runTest(self):
         if self.SUBTEST_RESULT is None:
             self.skipTest("Test not meant to be run this way.")
@@ -71,6 +73,13 @@ class FWTSTest(unittest.TestCase):
                 self.skipTest("FWTS bug: Incorrect Missing '(status|manufacturer-id|part-number|serial-number)' property in memory-buffer/dimm");
             if re.match('property "serial-number" contains unprintable characters', log_text):
                 self.skipTest("FWTS bug: DIMM VPD has binary serial number")
+            if self.FWTS_MAJOR_VERSION <= 18:
+                # This is a guess based on when
+                # https://lists.ubuntu.com/archives/fwts-devel/2018-April/010318.html
+                # will be merged
+                if self.FWTS_MAJOR_VERSION < 18 or self.FWTS_MINOR_VERSION < 5:
+                    if re.match('CPUFreqClaimedMax', self.SUBTEST_RESULT.get('failure_label')):
+                        self.skipTest("Bug in FWTS r.e. boost frequencies, fixed sometime after April 2018")
 
             # On FSP machines, memory-buffers (centaurs) aren't present in DT
             # and FWTS 17.03 (at least) expects them to be, so skip those failures
@@ -80,10 +89,31 @@ class FWTSTest(unittest.TestCase):
             if self.IS_FSP_SYSTEM and re.match('Property of "(board-info|part-number|serial-number|vendor|ibm,slot-location-code)" for "/sys/firmware/devicetree/base/xscom@.*" was not able to be retrieved. Check the installation for the CPU device config for missing nodes in the device tree if you expect CPU devices', log_text):
                 self.skipTest("FWTS assumes some nodes present on FSP systems which aren't")
 
+            if re.match('Attempt was made to stop the opal-prd.service but was not successful', log_text):
+                self.skipTest("FWTS bug: prd did actually stop, and there's something strange with FWTS")
+
+            if re.match('OPAL "/ibm,firmware-versions" firmware version from device tree node "open-power" was not found', log_text):
+                self.skipTest("FWTS known issue: 'open-power' version no longer required")
+
+            # We currently guess that all these are going to be merged for FWTS 18.05 :)
+            # To be extra cautious, allowing them to fail for all of 18.XX though
+            if self.FWTS_MAJOR_VERSION <= 18:
+                if re.match('CPUPstateLimitsTestFail', self.SUBTEST_RESULT.get('failure_label')):
+                    self.skipTest("FWTS known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010315.html")
+
+                if re.match('DeviceTreeBaseDTCWarnings', self.SUBTEST_RESULT.get('failure_label')):
+                    self.skipTest("FWTS known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010326.html")
+
+                if re.match('Property of "(board-info|vendor|ibm,slot-location-code)" for "/sys/firmware/devicetree/base/xscom.*" was not able to be retrieved. Check the installation for the CPU device config for missing nodes in the device tree if you expect CPU devices.', log_text):
+                    self.skipTest("FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010329.html")
+
+                if re.match('No MEM DIMM devices \(memory-buffer\) were found in "/sys/firmware/devicetree/base" with a status of "okay" or "ok".  This is unexpected so please check your system setup for issues.', log_text):
+                    self.skipTest("FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010330.html")
+
         self.assertEqual(self.SUBTEST_RESULT.get('failure_label'), 'None', self.SUBTEST_RESULT)
 
 class FWTS(unittest.TestSuite):
-    def add_fwts_results(self):
+    def add_fwts_results(self, major_version, minor_version):
         host = self.host
         try:
             fwtsjson = host.host_run_command('fwts -q -r stdout --log-type=json')
@@ -119,6 +149,8 @@ class FWTS(unittest.TestSuite):
                                     t = FWTSTest()
                                     t.SUBTEST_RESULT = st_result
                                     t.CENTAURS_PRESENT = self.centaurs_present
+                                    t.FWTS_MAJOR_VERSION = major_version
+                                    t.FWTS_MINOR_VERSION = minor_version
                                     if self.bmc_type == 'FSP':
                                         t.IS_FSP_SYSTEM = True
                                     suite.addTest(t)
@@ -128,11 +160,21 @@ class FWTS(unittest.TestSuite):
         conf = OpTestConfiguration.conf
         self.host = conf.host()
         self.system = conf.system()
-        self.centaurs_present = self.system.has_centaurs_in_dt()
-        self.system.goto_state(OpSystemState.OS)
         self.bmc_type = conf.args.bmc_type
         self.real_fwts_suite = unittest.TestSuite()
-
+        try:
+            self.system.goto_state(OpSystemState.OS)
+        except Exception as e:
+            # In the event of something going wrong during IPL,
+            # We need to catch that here as we're abusing UnitTest
+            # TestSuite infra and we don't have the catch-all that
+            # a TestCase provides.
+            f = FWTSCommandFailed()
+            f.FAIL = e
+            self.real_fwts_suite.addTest(f)
+            self.real_fwts_suite.run(result)
+            return
+        self.centaurs_present = self.system.has_centaurs_in_dt()
         host = self.host
 
 	fwts_version = None
@@ -156,6 +198,6 @@ class FWTS(unittest.TestSuite):
             self.real_fwts_suite.addTest(checkver)
 
             if checkver.version_check():
-                self.add_fwts_results()
+                self.add_fwts_results(int(major),int(minor))
 
         self.real_fwts_suite.run(result)

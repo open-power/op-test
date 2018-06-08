@@ -46,10 +46,10 @@ import unittest
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
-from common.OpTestHost import SSHConnectionState
+from common.OpTestSSH import ConsoleState as SSHConnectionState
 from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.Exceptions import CommandFailed
+from common.Exceptions import CommandFailed, PlatformError
 
 class OpTestHMIHandling(unittest.TestCase):
     def setUp(self):
@@ -68,9 +68,9 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         try:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        except:
-            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-            self.cv_SYSTEM.set_state(OpSystemState.OS)
+        except PlatformError:
+            self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         console.close()
         print "System booted fine to host OS..."
         return BMC_CONST.FW_SUCCESS
@@ -137,14 +137,28 @@ class OpTestHMIHandling(unittest.TestCase):
                 # kdump may not be enabled, so it's not a failure to stop it
                 pass
 
+    def enable_idle_state(self, i_idle):
+        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 0 > $i; done" % i_idle
+        self.cv_HOST.host_run_command(l_cmd)
+
+    def disable_idle_state(self, i_idle):
+        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 1 > $i; done" % i_idle
+        self.cv_HOST.host_run_command(l_cmd)
+
     # Disable all CPU idle states except snooze state
     def disable_cpu_idle_states(self):
         states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
         for state in states:
             if state is "0":
-                self.cv_HOST.host_run_command("cpupower idle-set -e 0")
+                try:
+                    self.cv_HOST.host_run_command("cpupower idle-set -e 0")
+                except CommandFailed:
+                    self.enable_idle_state("0")
                 continue
-            self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state)
+            try:
+                self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state)
+            except CommandFailed:
+                self.disable_idle_state(state)
 
     def form_scom_addr(self, addr, core):
         if self.proc_gen in ["POWER8", "POWER8E"]:
@@ -183,9 +197,9 @@ class OpTestHMIHandling(unittest.TestCase):
     #                          BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR: hypervisor resource error
     def _testHMIHandling(self, i_test):
         l_test = i_test
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         self.init_test()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.host_console_login()
@@ -235,7 +249,7 @@ class OpTestHMIHandling(unittest.TestCase):
         else:
             raise Exception("Please provide valid test case")
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
-
+        l_con.run_command("dmesg -C")
         return BMC_CONST.FW_SUCCESS
 
     ##
@@ -258,8 +272,9 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd,timeout=120)
+                    l_res = console.run_command(l_cmd,timeout=20)
                 except CommandFailed as cf:
+                    l_res = cf.output
                     if cf.exitcode == 1:
                         pass
                     else:
@@ -281,9 +296,7 @@ class OpTestHMIHandling(unittest.TestCase):
     #        Processor went through recovery for an error which is actually masked for reporting
     #        this function also injecting the error on all the cpu's one-by-one.
     def _test_proc_recv_error_masked(self):
-        if self.proc_gen in ["POWER9"]:
-            scom_addr = "20010A40"
-        elif self.proc_gen in ["POWER8", "POWER8E"]:
+        if self.proc_gen in ["POWER8", "POWER8E"]:
             scom_addr = "10013100"
         else:
             return
@@ -296,8 +309,9 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd, timeout=120)
+                    l_res = console.run_command(l_cmd, timeout=20)
                 except CommandFailed as cf:
+                    l_res = cf.output
                     if cf.exitcode == 1:
                         pass
                     else:
@@ -397,8 +411,9 @@ class OpTestHMIHandling(unittest.TestCase):
                 console = self.cv_SYSTEM.sys_get_ipmi_console()
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd, timeout=120)
+                    l_res = console.run_command(l_cmd, timeout=20)
                 except CommandFailed as cf:
+                    l_res = cf.output
                     if cf.exitcode == 1:
                         pass
                     else:
@@ -439,8 +454,9 @@ class OpTestHMIHandling(unittest.TestCase):
         # But getscom to TOD error reg there is no access
         # TOD Error reg has only WO access and there is no read access
         try:
-            l_res = console.run_command(l_cmd, timeout=120)
+            l_res = console.run_command(l_cmd, timeout=20)
         except CommandFailed as cf:
+            l_res = cf.output
             if cf.exitcode == 1:
                 pass
             else:
@@ -453,7 +469,7 @@ class OpTestHMIHandling(unittest.TestCase):
                 elif any("ISTEP" in line for line in l_res):
                     print "System started booting without any kernel panic message"
                 else:
-                    raise Exception("TOD: PSS Hamming distance error injection failed %s", str(c))
+                    raise Exception("TOD: PSS Hamming distance error injection failed %s", str(cf))
         time.sleep(0.2)
         l_res = console.run_command("dmesg")
         self.verify_timer_facility_recovery(l_res)

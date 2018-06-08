@@ -36,13 +36,16 @@ import subprocess
 import os
 import pexpect
 import sys
+import re
 import commands
 #from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
+from OpTestSystem import OpTestSystem,OpSystemState
 from Exceptions import CommandFailed
 from Exceptions import BMCDisconnected
+from common import OPexpect
 
 class IPMITool():
     def __init__(self, method='lanplus', binary='ipmitool',
@@ -151,12 +154,21 @@ class IPMIConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
 
+def set_system_to_UNKNOWN_BAD(system):
+    s = system.get_state()
+    system.set_state(OpSystemState.UNKNOWN_BAD)
+    return s
+
 class IPMIConsole():
     def __init__(self, ipmitool=None, logfile=sys.stdout, delaybeforesend=None):
         self.ipmitool = ipmitool
         self.state = IPMIConsoleState.DISCONNECTED
         self.logfile = logfile
         self.delaybeforesend = delaybeforesend
+        self.system = None
+
+    def set_system(self, system):
+        self.system = system
 
     def terminate(self):
         if self.state == IPMIConsoleState.CONNECTED:
@@ -193,9 +205,12 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         print cmd
-        solChild = pexpect.spawn(cmd,logfile=self.logfile)
+        solChild = OPexpect.spawn(cmd,
+                                  failure_callback=set_system_to_UNKNOWN_BAD,
+                                  failure_callback_data=self.system)
         self.state = IPMIConsoleState.CONNECTED
         self.sol = solChild
+        solChild.logfile_read = self.logfile
         if self.delaybeforesend:
 	    self.sol.delaybeforesend = self.delaybeforesend
         self.sol.expect_exact('[SOL Session operational.  Use ~? for help]')
@@ -247,7 +262,7 @@ class IPMIConsole():
         try:
             console.sendline(command)
             console.expect("\n") # from us
-            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout=timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
             output = console.before
@@ -255,7 +270,7 @@ class IPMIConsole():
             rc = console.expect([BMC_DISCONNECT, "\n"]) # from us
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
-            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout=timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
             exitcode = int(console.before)
@@ -348,6 +363,9 @@ class OpTestIPMI():
                                    delaybeforesend=delaybeforesend)
         self.util = OpTestUtil()
         self.host = host
+
+    def set_system(self, system):
+        self.console.set_system(system)
 
     # Get the IPMIConsole object, to run commands on the host etc.
     def get_host_console(self):
@@ -807,26 +825,25 @@ class OpTestIPMI():
     def ipmi_code_update(self, i_image, i_imagecomponent):
 
         self.ipmi_cold_reset()
+        time.sleep(5)
         l_cmd = BMC_CONST.BMC_HPM_UPDATE + i_image + " " + i_imagecomponent
-        self.ipmi_preserve_network_setting()
-        try:
-            # FIXME: This is currently broken with the ipmitool rework
-            # We're likely to timeout waiting for the user to hit 'y'
+        # We need to do a re-try of hpm code update if it fails for the first time
+        # As AMI systems are some times failed to flash for the first time.
+        count = 0
+        while (count <2):
+            self.ipmi_preserve_network_setting()
+            time.sleep(5)
             rc = self.ipmitool.run(l_cmd, background=False, cmdprefix = "echo y |")
             print rc
-            self.ipmi_cold_reset()
-
-        except subprocess.CalledProcessError:
-            l_msg = "Code Update Failed"
-            print l_msg
-            raise OpTestError(l_msg)
-
-        if(rc.__contains__("Firmware upgrade procedure successful")):
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Code Update Failed"
-            print l_msg
-            raise OpTestError(l_msg)
+            if(rc.__contains__("Firmware upgrade procedure successful")):
+                return BMC_CONST.FW_SUCCESS
+            elif count == 1:
+                l_msg = "Code Update Failed"
+                print l_msg
+                raise OpTestError(l_msg)
+            else:
+                count = count + 1
+                continue
 
     ##
     # @brief Get information on active sides for both BMC and PNOR
@@ -1357,6 +1374,34 @@ class OpTestIPMI():
     def mc_get_watchdog(self):
         return self.ipmitool.run("mc watchdog get")
 
+    def set_tpm_required(self):
+        pass
+
+    def clear_tpm_required(self):
+        pass
+
+    def is_tpm_enabled(self):
+        pass
+
+    def ipmi_get_golden_side_sensor_id(self):
+        cmd = "sdr elist -v | grep -i 'BIOS Golden'"
+        output = self.ipmitool.run(cmd)
+        matchObj = re.search( "BIOS Golden Side \((.*)\)", output)
+        id = None
+        if matchObj:
+            id = matchObj.group(1)
+        return id
+
+    def ipmi_get_boot_count_sensor_id(self):
+        cmd = "sdr elist -v | grep -i 'Boot Count'"
+        output = self.ipmitool.run(cmd)
+        matchObj = re.search( "Boot Count \((.*)\)", output)
+        id = None
+        if matchObj:
+            id = matchObj.group(1)
+        return id
+
+
 class OpTestSMCIPMI(OpTestIPMI):
 
     def enter_ipmi_lockdown_mode(self):
@@ -1364,3 +1409,24 @@ class OpTestSMCIPMI(OpTestIPMI):
 
     def exit_ipmi_lockdown_mode(self):
         self.ipmitool.run('raw 0x3a 0xF4 0x55 0x4e 0x4c 0x4f 0x43 0x4b 0x00')
+
+    def set_tpm_required(self):
+        self.ipmitool.run('raw 0x04 0x30 0x49 0x10 0x00 0x02 0 0 0 0 0 0')
+
+    def clear_tpm_required(self):
+        self.ipmitool.run('raw 0x04 0x30 0x49 0x10 0x00 0x01 0 0 0 0 0 0')
+
+    def is_tpm_enabled(self):
+        res = self.ipmitool.run("sdr elist | grep -i TPM")
+        if "State Deasserted" in res:
+            print "#TPM is disabled"
+            return False
+        elif "State Asserted" in res:
+            print "#TPM is enabled"
+            return True
+
+    def disable_sensor_polling(self):
+        self.ipmitool.run("raw 0x30 0x70 0xdf 0")
+
+    def enable_sensor_polling(self):
+        self.ipmitool.run("raw 0x30 0x70 0xdf 1")

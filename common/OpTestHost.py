@@ -43,106 +43,12 @@ import select
 import pty
 import pexpect
 import commands
-try:
-    import pxssh
-except ImportError:
-    from pexpect import pxssh
-
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
+from OpTestSSH import OpTestSSH
 from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
-
-class SSHConnectionState():
-    DISCONNECTED = 0
-    CONNECTED = 1
-
-class SSHConnection():
-    def __init__(self, ip=None, username=None, password=None, logfile=sys.stdout):
-        self.ip = ip
-        self.username = username
-        self.password = password
-        self.state = SSHConnectionState.DISCONNECTED
-        self.logfile = logfile
-
-    def new_pxssh(self):
-        # pxssh has a nice 'echo=False' mode, but only
-        # on more recent distros, so we can't use it :(
-        p = pxssh.pxssh()
-        # Work-around for old pxssh not having options= parameter
-        p.SSH_OPTS = p.SSH_OPTS + " -o 'StrictHostKeyChecking=no'"
-        p.SSH_OPTS = p.SSH_OPTS + " -o 'UserKnownHostsFile /dev/null' "
-        p.force_password = True
-        p.logfile = self.logfile
-        self.pxssh = p
-        return p
-
-    def terminate(self):
-        if self.state == SSHConnectionState.CONNECTED:
-            self.pxssh.terminate()
-            self.state = SSHConnectionState.DISCONNECTED
-
-
-    def connect(self):
-        if self.state == SSHConnectionState.CONNECTED:
-            self.pxssh.terminate()
-            self.state = SSHConnectionState.DISCONNECTED
-
-        print "#SSH CONNECT"
-        p = self.new_pxssh()
-        p.login(self.ip, self.username, self.password)
-        p.sendline()
-        p.prompt(timeout=60)
-        # Ubuntu likes to be "helpful" and alias grep to
-        # include color, which isn't helpful at all. So let's
-        # go back to absolutely no messing around with the shell
-        if self.username != "root":
-            p.sendline('sudo -s')
-            p.expect("password for")
-            p.sendline(self.password)
-            p.set_unique_prompt()
-        p.sendline('exec bash --norc --noprofile')
-        p.set_unique_prompt()
-        self.state = SSHConnectionState.CONNECTED
-
-
-    def get_console(self):
-        if self.state == SSHConnectionState.DISCONNECTED:
-            self.connect()
-
-        count = 0
-        while (not self.pxssh.isalive()):
-            print '# Reconnecting'
-            if (count > 0):
-                time.sleep(2)
-            self.connect()
-            count += 1
-            if count > 120:
-                raise Exception("Cannot login via SSH")
-
-        return self.pxssh
-
-    def run_command(self, command, timeout=300):
-        c = self.get_console()
-        c.sendline(command)
-        c.expect("\n") # from us
-        c.expect(c.PROMPT, timeout=timeout)
-        output = c.before.splitlines()
-        c.sendline("echo $?")
-        c.prompt(timeout)
-        exitcode = int(''.join(c.before.splitlines()[1:]))
-        if exitcode != 0:
-            raise CommandFailed(command, output, exitcode)
-        return output
-
-    # This command just runs and returns the ouput & ignores the failure
-    def run_command_ignore_fail(self, command, timeout=60):
-        try:
-            output = self.run_command(command, timeout)
-        except CommandFailed as cf:
-            output = cf.output
-        return output
 
 class OpTestHost():
 
@@ -154,15 +60,23 @@ class OpTestHost():
     # @param i_hostpasswd @type string: Password of the userid to log into the host
     # @param i_bmcip @type string: IP Address of the bmc
     #
-    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, logfile=sys.stdout):
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
+                 scratch_disk="", proxy="", logfile=sys.stdout,
+                 check_ssh_keys=False, known_hosts_file=None):
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
         parent_dir = os.path.dirname(os.path.abspath(__file__))
+        self.results_dir = i_results_dir
         self.logfile = logfile
-        self.ssh = SSHConnection(i_hostip, i_hostuser, i_hostpasswd, logfile=self.logfile)
+        self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
+                logfile=self.logfile, check_ssh_keys=check_ssh_keys,
+                known_hosts_file=known_hosts_file, use_default_bash=True)
+        self.scratch_disk = scratch_disk
+        self.proxy = proxy
+        self.scratch_disk_size = None
 
     def hostname(self):
         return self.ip
@@ -172,6 +86,28 @@ class OpTestHost():
 
     def password(self):
         return self.passwd
+
+    def set_system(self, system):
+        self.ssh.set_system(system)
+
+    def get_scratch_disk(self):
+        return self.scratch_disk
+
+    def get_scratch_disk_size(self, console=None):
+        if self.scratch_disk_size is not None:
+            return self.scratch_disk_size
+        if console is None:
+            raise Exception("You need to call get_scratch_disk_size() with a console first")
+        console.run_command("stty cols 300")
+        dev_sdX = console.run_command("readlink -f %s" % self.get_scratch_disk())
+        dev_sdX = dev_sdX[0].replace("/dev/","")
+        scratch_disk_size = console.run_command("cat /sys/block/%s/size" % dev_sdX)
+        # Use the (undocumented) /size sysfs property of nr 512byte sectors
+        self.scratch_disk_size = int(scratch_disk_size[0])*512
+
+
+    def get_proxy(self):
+        return self.proxy
 
     def get_ssh_connection(self):
         return self.ssh
@@ -491,7 +427,7 @@ class OpTestHost():
     def host_putscom(self, i_xscom_dir, i_error):
 
         print('Injecting Error.')
-        l_rc = self._execute_no_return(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_PUTSCOM_ERROR + i_error)
+        l_rc = self.ssh.run_command_ignore_fail(BMC_CONST.SUDO_COMMAND + i_xscom_dir + BMC_CONST.OS_PUTSCOM_ERROR + i_error)
 
     ##
     # @brief Clears the gard records
@@ -533,32 +469,6 @@ class OpTestHost():
             l_errmsg = "Can't list gard records"
             print l_errmsg
             raise OpTestError(l_errmsg)
-
-
-    ##
-    # @brief  Execute a command on the targeted host but don't expect
-    #             any return data.
-    #
-    # @param     i_cmd: @type str: command to be executed
-    # @param     i_timeout: @type int:
-    #
-    # @return   BMC_CONST.FW_SUCCESS or else raise OpTestError
-    #
-    def _execute_no_return(self, i_cmd, i_timeout=60):
-
-        print('Executing command: ' + i_cmd)
-        try:
-            p = pxssh.pxssh()
-            p.login(self.ip, self.user, self.passwd)
-            p.sendline()
-            p.prompt()
-            p.sendline(i_cmd)
-            p.prompt(i_timeout)
-            return BMC_CONST.FW_SUCCESS
-        except:
-            l_msg = "Failed to execute command: " + i_cmd
-            print l_msg
-            raise OpTestError(l_msg)
 
     ##
     # @brief enable/disable cpu states
@@ -737,7 +647,7 @@ class OpTestHost():
     #
     def host_gather_kernel_log(self):
         try:
-            l_data = self.host_run_command("dmesg")
+            l_data = '\n'.join(self.host_run_command("dmesg"))
         except OpTestError:
             l_msg = "Failed to gather kernel dmesg log"
             raise OpTestError(l_msg)
@@ -887,7 +797,7 @@ class OpTestHost():
         else:
             self.host_run_command("systemctl stop kdump.service")
             self.host_run_command("systemctl start kdump.service")
-            self.host_run_command("service status kdump.service")
+            self.host_run_command("systemctl status kdump.service")
 
     def host_check_sysfs_path_availability(self, path):
         res = self.host_run_command("ls %s" % path)
@@ -918,10 +828,8 @@ class OpTestHost():
     def host_get_cores(self):
         proc_gen = self.host_get_proc_gen()
         core_ids = {}
-        cpu_files = self.host_run_command("find /sys/devices/system/cpu/ -name 'cpu[0-9]*'")
-        for cpu_file in cpu_files:
-            cpu_id = self.host_run_command("basename %s | tr -dc '0-9'" % cpu_file)[-1]
-            pir = self.host_run_command("cat %s/pir" % cpu_file)[-1]
+        cpu_pirs = self.host_run_command("find /sys/devices/system/cpu/*/pir -exec cat {} \;")
+        for pir in cpu_pirs:
             if proc_gen in ["POWER8", "POWER8E"]:
                 core_id = hex((int("0x%s" % pir, 16) >> 3 ) & 0xf)
                 chip_id = hex((int("0x%s" % pir, 16) >> 7 ) & 0x3f)
@@ -932,11 +840,14 @@ class OpTestHost():
                 raise OpTestError("Unknown or new processor type")
             core_id = core_id.split('x')[1]
             chip_id = chip_id.split('x')[1]
-            if core_ids.has_key(chip_id):
-                if core_id not in core_ids[chip_id]:
-                    core_ids[chip_id].append(core_id)
+
+            if chip_id in core_ids:
+                core_ids[chip_id].append(core_id)
             else:
-                core_ids[chip_id] = list(core_id)
+                core_ids[chip_id] = [core_id]
+
+        for i in core_ids:
+            core_ids[i] = list(set(core_ids[i]))
         core_ids = sorted(core_ids.iteritems())
         print core_ids
         return core_ids
@@ -957,7 +868,7 @@ class OpTestHost():
             if self.proc_gen:
                 pass
         except AttributeError:
-            self.proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ .*//;'"))
+            self.proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         return self.proc_gen
 
     def host_get_smt(self):
@@ -976,3 +887,103 @@ class OpTestHost():
     def host_gather_debug_logs(self):
         self.ssh.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
         self.ssh.run_command_ignore_fail("dmesg -T --level=alert,crit,err,warn")
+
+    def host_copy_fake_gard(self):
+        i_image = os.path.join(self.conf.basedir, "test_binaries", "fake.gard")
+        # Copy the fake.gard file to the tmp folder in the host
+        try:
+            self.util.copyFilesToDest(i_image, self.user,
+                                             self.ip, "/tmp/", self.passwd)
+        except:
+            l_msg = "Copying fake.gard file to host failed"
+            print l_msg
+            raise OpTestError(l_msg)
+
+    def copy_test_file_to_host(self, filename):
+        i_image = os.path.join(self.conf.basedir, "test_binaries", filename)
+        try:
+            self.util.copyFilesToDest(i_image, self.user,
+                                             self.ip, "/tmp/", self.passwd)
+        except subprocess.CalledProcessError as e:
+            l_msg = "Copying %s file to host failed" % filename
+            print l_msg
+            raise OpTestError(l_msg + str(e))
+
+    def host_pflash_get_partition(self, partition):
+        d = self.host_run_command("pflash --info")
+        for line in d:
+            s = re.search(partition, line)
+            if s:
+                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\)\s(\[)?([A-Za-z-]+)?(\])?.*', line)
+                if not m:
+                    continue
+                offset = int(m.group(1), 16)
+                length = int(m.group(4), 16)
+                ret = {'offset': offset,
+                       'length': length
+                       }
+                flags = m.group(7)
+                if flags:
+                    ret['flags'] = [x for x in list(flags) if x != '-']
+                return ret
+
+
+    ##
+    # @brief Check that host has a CAPI FPGA card
+    #
+    # @return True or False
+    #
+    def host_has_capi_fpga_card(self):
+        l_cmd = "lspci -d \"1014:0477\""
+        l_res = self.host_run_command(l_cmd)
+        l_res = " ".join(l_res)
+        if (l_res.__contains__('IBM Device 0477')):
+            l_msg = "Host has a CAPI FPGA card"
+            print l_msg
+            return True
+        else:
+            l_msg = "Host has no CAPI FPGA card; skipping test"
+            print l_msg
+            return False
+
+    ##
+    # @brief Clone latest cxl-tests git repository in i_dir directory
+    #
+    # @param i_dir @type string: directory where cxl-tests will be cloned
+    #
+    # @return True or False
+    #
+    def host_clone_cxl_tests(self, i_dir):
+        l_msg = "https://github.com/ibm-capi/cxl-tests.git"
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self.host_run_command("git config --global http.sslverify false")
+        self.host_run_command("rm -rf %s" % i_dir)
+        self.host_run_command("mkdir %s" % i_dir)
+        try:
+            l_res = self.host_run_command(l_cmd)
+            return True
+        except:
+            l_msg = "Cloning cxl-tests git repository is failed"
+            return False
+
+    def host_build_cxl_tests(self, i_dir):
+        l_cmd = "cd %s; make" % i_dir
+        self.host_run_command(l_cmd)
+        l_cmd = "test -x %s/libcxl/libcxl.so" % i_dir
+        self.host_run_command(l_cmd)
+        l_cmd = "test -x %s/libcxl_tests; echo $?" % i_dir
+        self.host_run_command(l_cmd)
+        l_cmd = "test -x %s/memcpy_afu_ctx; echo $?" % i_dir
+        self.host_run_command(l_cmd)
+
+    def host_check_binary(self, i_dir, i_file):
+        l_cmd = "test -x %s/%s;" % (i_dir, i_file)
+        try:
+            self.host_run_command(l_cmd)
+            l_msg = "Executable file %s/%s is available" % (i_dir, i_file)
+            print l_msg
+            return True
+        except CommandFailed:
+            l_msg = "Executable file %s/%s is not present" % (i_dir, i_file)
+            print l_msg
+            return False

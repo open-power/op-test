@@ -58,13 +58,13 @@ class TestPCI():
     def pcie_link_errors(self):
         total_entries = link_down_entries = timeout_entries = []
         try:
-            link_down_entries = self.c.run_command("grep 'PHB#.* Link down' /sys/firmware/opal/msglog")
+            link_down_entries = self.c.run_command("grep ',[432]\].*PHB#.* Link down' /sys/firmware/opal/msglog")
         except CommandFailed as cf:
             pass
         if link_down_entries:
             total_entries = total_entries + link_down_entries
         try:
-            timeout_entries = self.c.run_command("grep 'Timeout waiting for' /sys/firmware/opal/msglog")
+            timeout_entries = self.c.run_command("grep ',[432]\].*Timeout waiting for' /sys/firmware/opal/msglog")
         except CommandFailed as cf:
             pass
         if timeout_entries:

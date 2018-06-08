@@ -46,7 +46,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
-class OpTestPNOR(unittest.TestCase):
+class OpTestPNOR():
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.host = conf.host()
@@ -77,10 +77,17 @@ class OpTestPNOR(unittest.TestCase):
         for line in d:
             s = re.search(partition, line)
             if s:
-                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\).*', line)
+                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\)\s(\[)?([A-Za-z-]+)?(\])?.*', line)
+                if not m:
+                    continue
                 offset = int(m.group(1), 16)
                 length = int(m.group(4), 16)
-                ret = {'offset': offset, 'length': length}
+                ret = {'offset': offset,
+                       'length': length
+                       }
+                flags = m.group(7)
+                if flags:
+                    ret['flags'] = [x for x in list(flags) if x != '-']
                 return ret
 
     def comparePartitionFile(self, filename, partition):
@@ -108,14 +115,24 @@ class OpTestPNOR(unittest.TestCase):
 
     def runTestReadWritePAYLOAD(self):
         payloadInfo = self.pflashGetPartition("PAYLOAD")
+        print repr(payloadInfo)
         # Read PAYLOAD to file /tmp/payload
         self.pflashReadPartition("/tmp/payload", "PAYLOAD")
         # Write /tmp/payload to PAYLOAD
-        self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
+        try:
+            self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
+        except CommandFailed as cf:
+            print repr(cf)
+            if not ('R' in payloadInfo['flags'] and cf.exitcode in [8]):
+                raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
         # Try using the pflash -P option as well
-        self.pflashWritePartition("/tmp/payload", "PAYLOAD")
+        try:
+            self.pflashWritePartition("/tmp/payload", "PAYLOAD")
+        except CommandFailed as cf:
+            if not ('R' in payloadInfo['flags'] and cf.exitcode in [8]):
+                raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
 
@@ -137,12 +154,9 @@ class OpTestPNOR(unittest.TestCase):
         self.pflashWrite("/tmp/toc", tocInfo['offset'], tocInfo['length'])
 
     def runTest(self):
+        self.setup_test()
         if not self.system.has_mtd_pnor_access():
             self.skipTest("Host doesn't have MTD PNOR access")
-
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.system.sys_get_ipmi_console()
-        self.system.host_console_unique_prompt()
 
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
@@ -153,3 +167,14 @@ class OpTestPNOR(unittest.TestCase):
         self.runTestReadWritePAYLOAD()
         # Try write to the TOC
         self.runTestWriteTOC()
+
+class Skiroot(OpTestPNOR, unittest.TestCase):
+    def setup_test(self):
+        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.c = self.system.sys_get_ipmi_console()
+        self.system.host_console_unique_prompt()
+
+class Host(OpTestPNOR, unittest.TestCase):
+    def setup_test(self):
+        self.system.goto_state(OpSystemState.OS)
+        self.c = self.system.host().get_ssh_connection()

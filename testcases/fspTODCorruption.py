@@ -37,7 +37,7 @@ from common.OpTestError import OpTestError
 import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestHost import SSHConnectionState
+from common.OpTestSSH import ConsoleState as SSHConnectionState
 
 
 class fspTODCorruption():

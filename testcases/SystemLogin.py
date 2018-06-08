@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2017
+# Contributors Listed Below - COPYRIGHT 2017, 2018
 # [+] International Business Machines Corp.
 #
 #
@@ -32,7 +32,9 @@ from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
 class OOBHostLogin(unittest.TestCase):
-    '''Log into the host via out of band console'''
+    '''
+    Log into the host via out of band console and run different commands
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.system = conf.system()
@@ -48,9 +50,38 @@ class OOBHostLogin(unittest.TestCase):
             r = l_con.run_command("false")
         except CommandFailed as r:
             self.assertEqual(r.exitcode, 1)
+        for i in range(2):
+            l_con.run_command("dmesg|tail", timeout=60)
+        l_con.run_command("lscpu")
+        try:
+            r = l_con.run_command("sleep 2", timeout=10)
+        except CommandFailed as r:
+            print str(r)
+        l_con.run_command("lscpu")
+
+class BMCLogin(unittest.TestCase):
+    '''
+    Log into the BMC via SSH and run different commands
+    '''
+    def setUp(self):
+        conf = OpTestConfiguration.conf
+        self.system = conf.system()
+        self.bmc = conf.bmc()
+
+    def runTest(self):
+        r = self.bmc.run_command("echo 'Hello World'")
+        self.assertIn("Hello World", r)
+        try:
+            r = self.bmc.run_command("false")
+        except CommandFailed as r:
+            self.assertEqual(r.exitcode, 1)
+        for i in range(2):
+            self.bmc.run_command("dmesg")
 
 class SSHHostLogin(unittest.TestCase):
-    '''Log into the host via SSH'''
+    '''
+    Log into the host via SSH and run different commands
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.system = conf.system()
@@ -64,13 +95,35 @@ class SSHHostLogin(unittest.TestCase):
             r = self.host.host_run_command("false")
         except CommandFailed as r:
             self.assertEqual(r.exitcode, 1)
+        for i in range(2):
+            self.host.host_run_command("dmesg")
+        self.host.host_run_command("whoami")
+        self.host.host_run_command("sudo -s")
+        self.host.host_run_command("lscpu")
+        try:
+            r = self.host.host_run_command("echo \'hai\';sleep 20", timeout=10)
+        except CommandFailed as r:
+            print str(r)
+        self.host.host_run_command("whoami")
+        self.host.host_run_command("lscpu")
 
 class ExampleRestAPI(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.system = conf.system()
+        self.bmc_type = conf.args.bmc_type
 
     def runTest(self):
+        if "OpenBMC" not in self.bmc_type:
+            self.skipTest("OpenBMC specific Rest API Tests")
         self.system.sys_inventory()
         self.system.sys_sensors()
         self.system.sys_bmc_state()
+
+def system_access_suite():
+    s = unittest.TestSuite()
+    s.addTest(OOBHostLogin())
+    s.addTest(BMCLogin())
+    s.addTest(SSHHostLogin())
+    s.addTest(ExampleRestAPI())
+    return s

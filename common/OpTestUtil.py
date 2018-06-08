@@ -36,6 +36,7 @@ import select
 import time
 import pty
 import pexpect
+import commands
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -80,119 +81,30 @@ class OpTestUtil():
         raise OpTestError(stderr_value)
 
 
-    ##
-    #   @brief    This method does a scp from local system (where files are found)
-    #             to destination(Path where files will be stored) or
-    #             scp to local system(where files will be stored) from
-    #             destination(where files are found).
-    #   @param    hostfile
-    #   @param    destid
-    #   @param    destName
-    #   @param    destPath
-    #   @param    passwd
-    #   @param    ssh_ver
-    #   @param    i_function @type int: SCP_TO_REMOTE = 1(scp to remote system(default))
-    #                                   SCP_TO_LOCAL = 2 (scp to local system)
-    #   @return   output from terminal
-    #   @throw    subprocess or OpTestError
-    #
-    def copyFilesToDest(
-            self,
+    def copyFilesToDest(self, hostfile, destid, destName, destPath, passwd):
+        arglist = (
+            "sshpass",
+            "-p", passwd,
+            "/usr/bin/scp",
+            "-o","UserKnownHostsFile=/dev/null",
+            "-o","StrictHostKeyChecking=no",
             hostfile,
-            destid,
-            destName,
-            destPath,
-            passwd,
-            ssh_ver="2",
-            i_function=1):
-        pid, fd = pty.fork()
-        Password = passwd + "\r\n"
-        list = ''
-        destinationPath = destid.strip() + "@" + destName.strip() + \
-            ":" + destPath
+            "{}@{}:{}".format(destid,destName,destPath))
+        print(' '.join(arglist))
+        subprocess.check_call(arglist)
 
-        # We've spawned a separate process with the .fork above so one process
-        # will execute the scp command, and the other process will handle the
-        # back and forth of the password and the error paths
-        if pid == 0:
-            if i_function == 1:
-                arglist = (
-                    "/usr/bin/scp",
-                    "-o AfsTokenPassing=no",
-                    "-" +
-                    ssh_ver.strip(),
-                    hostfile,
-                    destinationPath)
-            elif i_function == 2:
-                arglist = (
-                    "/usr/bin/scp",
-                    "-" +
-                    ssh_ver.strip(),
-                    destinationPath,
-                    hostfile)
-            else:
-                l_msg = "Please provide valid scp function"
-                print l_msg
-                raise OpTestError(l_msg)
-            print(arglist)
-            os.execv("/usr/bin/scp", arglist)
+    # It waits for a ping to fail, Ex: After a BMC/FSP reboot
+    def ping_fail_check(self, i_ip):
+        cmd = "ping -c 1 " + i_ip + " 1> /dev/null; echo $?"
+        count = 0
+        while count < 500:
+            output = commands.getstatusoutput(cmd)
+            if output[1] != '0':
+                print "IP %s Comes down" % i_ip
+                break
+            count = count + 1
+            time.sleep(2)
         else:
-            while True:
-                try:
-                    x = os.read(fd, 1024)
-                    print("x=" + x)
-                    if(x.__contains__('(yes/no)')):
-                        l_res = "yes\r\n"
-                        os.write(fd, l_res)
-                    if(x.__contains__('s password:')):
-                        x = ''
-                        print("Entered password")
-                        pwd = Password
-                        os.write(fd, pwd)
-                    if(x.__contains__('Password:')):
-                        x = ''
-                        os.write(fd, Password)
-                    if(x.__contains__('password')):
-                        response = Password
-                        os.write(fd, response)
-                    if(x.__contains__('yes')):
-                        response = '1' + "\r\n"
-                        os.write(fd, response)
-                    if(x.__contains__('100%')):
-                        # We copied 100% of file so break out
-                        break
-                    if(x.__contains__("Invalid ssh2 packet type")):
-                        print(x)
-                        raise OpTestError(x)
-                    if(x.__contains__("Protocol major versions differ: 1 vs. 2")):
-                        print (x)
-                        raise OpTestError(x)
-                    if(x.__contains__("Connection refused")):
-                        print (x)
-                        raise OpTestError(x)
-                    if(x.__contains__('Connection closed by')):
-                        print (x)
-                        raise OpTestError(x)
-                    if(x.__contains__("WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED")):
-                        print (x)
-                        raise OpTestError("Its a RSA key problem : \n" + x)
-                    if(x.__contains__("WARNING: POSSIBLE DNS SPOOFING DETECTED")):
-                        print(x)
-                        raise OpTestError("Its a RSA key problem : \n" + x)
-                    if(x.__contains__("Permission denied")):
-                        print(x)
-                        raise OpTestError("Wrong Login or Password :" + x)
-                    list = list + x
-                    time.sleep(1)
-                except OSError as e:
-                    print("OSError string: " + e.strerror)
-                    raise OpTestError(e.strerror)
-
-        if list.__contains__("Name or service not known"):
-            reason = 'SSH Failed for :' + destid + \
-                "\n Please provide a valid Hostname"
-            print("scp command failed!")
-            raise OpTestError(reason)
-
-        print(list)
-        return list
+            print "IP %s keeps on pinging up" % i_ip
+            return False
+        return True
