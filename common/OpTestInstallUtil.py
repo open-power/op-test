@@ -270,7 +270,7 @@ class InstallUtil():
         self.console.run_command("stty rows 30")
         # FIXME: wait till the device(disk) discovery in petitboot
         time.sleep(60)
-        cmd = 'blkid %s-*' % disk
+        cmd = 'blkid %s*' % disk
         output = self.console.run_command(cmd)
         uuid = output[0].split(':')[1].split('=')[1].replace("\"", "")
         cmd = 'nvram --update-config "auto-boot?=true"'

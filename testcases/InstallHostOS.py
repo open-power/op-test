@@ -20,6 +20,7 @@
 
 
 import unittest
+import os
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
