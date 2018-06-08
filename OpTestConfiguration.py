@@ -219,16 +219,16 @@ class OpTestConfiguration():
         else:
             outdir = os.path.join(self.basedir, "test-reports")
 
+        self.outsuffix = "test-run-%s" % self.get_suffix()
+        outdir = os.path.join(outdir, self.outsuffix)
+
         # Normalize the path to fully qualified and create if not there
         self.output = os.path.abspath(outdir)
         if (not os.path.exists(self.output)):
             os.makedirs(self.output)
 
         # Grab the suffix, if not given use current time
-        if (self.args.suffix):
-            self.outsuffix = self.args.suffix
-        else:
-            self.outsuffix = time.strftime("%Y%m%d%H%M%S")
+        self.outsuffix = self.get_suffix()
 
         # set up where all the logs go
         logfile = os.path.join(self.output,"%s.log" % self.outsuffix)
@@ -255,6 +255,14 @@ class OpTestConfiguration():
         else:
             self.startState = stateMap[self.args.machine_state]
         return self.args, self.remaining_args
+
+    def get_suffix(self):
+        # Grab the suffix, if not given use current time
+        if (self.args.suffix):
+            outsuffix = self.args.suffix
+        else:
+            outsuffix = time.strftime("%Y%m%d%H%M%S")
+        return outsuffix
 
     def objs(self):
         if self.args.list_suites:
