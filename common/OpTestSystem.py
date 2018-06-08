@@ -545,14 +545,8 @@ class OpTestSystem(object):
     ##
     # @brief Power off the system
     #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def sys_power_off(self):
-        try:
-            rc = self.cv_IPMI.ipmi_power_off()
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-        return rc
+        self.cv_IPMI.ipmi_power_off()
 
     def sys_set_bootdev_setup(self):
         self.cv_IPMI.ipmi_set_boot_to_petitboot()
@@ -1414,16 +1408,23 @@ class OpTestSystem(object):
 
     def petitboot_exit_to_shell(self):
         console = self.console.get_console()
-        # Exiting to petitboot shell
-        console.sendcontrol('l')
-        r = console.expect(['x=exit','#'])
-        if r == 0:
-            console.send('x')
-            console.expect('Exiting petitboot')
-            console.expect('#')
-        else:
-            console.sendcontrol('c')
-            console.expect('#')
+        retry_count = 0
+        while retry_count < 3:
+            retry_count = retry_count + 1
+            # Exiting to petitboot shell
+            console.sendcontrol('l')
+            r = console.expect(['x=exit','#',pexpect.TIMEOUT])
+            if r == 0:
+                console.send('x')
+                console.expect('Exiting petitboot')
+                console.expect('#')
+                break
+            elif r == 1:
+                console.sendcontrol('c')
+                console.expect('#')
+                break
+            else:
+                continue
         console.sendcontrol('u') # remove any characters between cursor and start of line
         # we should have consumed everything in the buffer now.
         print console

@@ -58,7 +58,7 @@ def get_parser():
                         help="Don't splat lots of things to the console")
 
     parser.add_argument("--machine-state", help="Current machine state",
-                        choices=['UNKNOWN', 'OFF', 'PETITBOOT',
+                        choices=['UNKNOWN', 'UNKNOWN_BAD', 'OFF', 'PETITBOOT',
                                  'PETITBOOT_SHELL', 'OS'])
 
     # Options to set the output directory and suffix on the output
@@ -195,6 +195,7 @@ class OpTestConfiguration():
 
         self.args , self.remaining_args = parser.parse_known_args(remaining_args)
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
+                     'UNKNOWN_BAD' : OpSystemState.UNKNOWN_BAD,
                      'OFF' : OpSystemState.OFF,
                      'PETITBOOT' : OpSystemState.PETITBOOT,
                      'PETITBOOT_SHELL' : OpSystemState.PETITBOOT_SHELL,
@@ -255,6 +256,9 @@ class OpTestConfiguration():
         return self.args, self.remaining_args
 
     def objs(self):
+        if self.args.list_suites:
+            return
+
         host = OpTestHost(self.args.host_ip,
                           self.args.host_user,
                           self.args.host_password,
