@@ -889,8 +889,7 @@ class OpTestHost():
         self.ssh.run_command_ignore_fail("dmesg -T --level=alert,crit,err,warn")
 
     def host_copy_fake_gard(self):
-        path = os.path.abspath(os.path.join("common", os.pardir))
-        i_image = path + "/test_binaries/fake.gard"
+        i_image = os.path.join(self.conf.basedir, "test_binaries", "fake.gard")
         # Copy the fake.gard file to the tmp folder in the host
         try:
             self.util.copyFilesToDest(i_image, self.user,
@@ -901,8 +900,7 @@ class OpTestHost():
             raise OpTestError(l_msg)
 
     def copy_test_file_to_host(self, filename):
-        path = os.path.abspath(os.path.join("common", os.pardir))
-        i_image = path + "/test_binaries/" + filename
+        i_image = os.path.join(self.conf.basedir, "test_binaries", filename)
         try:
             self.util.copyFilesToDest(i_image, self.user,
                                              self.ip, "/tmp/", self.passwd)

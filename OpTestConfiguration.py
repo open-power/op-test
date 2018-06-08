@@ -158,7 +158,8 @@ class OpTestConfiguration():
     def __init__(self):
         self.args = []
         self.remaining_args = []
-        for dir in (os.walk('addons').next()[1]):
+        self.basedir = os.path.dirname(sys.argv[0])
+        for dir in (os.walk(os.path.join(self.basedir, 'addons')).next()[1]):
             optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
 
         return
@@ -215,7 +216,7 @@ class OpTestConfiguration():
         elif ("OP_TEST_OUTPUT" in os.environ):
             outdir = os.environ["OP_TEST_OUTPUT"]
         else:
-            outdir = "test-reports"
+            outdir = os.path.join(self.basedir, "test-reports")
 
         # Normalize the path to fully qualified and create if not there
         self.output = os.path.abspath(outdir)
