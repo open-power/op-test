@@ -99,7 +99,7 @@ class OpTestSSH():
             cmd = (cmd + " -o UserKnownHostsFile=" + self.known_hosts_file)
 
         print cmd
-        consoleChild = OPexpect.spawn(cmd,logfile=self.logfile,
+        consoleChild = OPexpect.spawn(cmd,
                 failure_callback=set_system_to_UNKNOWN_BAD,
                 failure_callback_data=self.system)
         self.state = ConsoleState.CONNECTED
@@ -108,6 +108,7 @@ class OpTestSSH():
         self.console = consoleChild
         # Users expecting "Host IPMI" will reference console.sol so make it available
         self.sol = self.console
+        consoleChild.logfile_read = self.logfile
         self.set_unique_prompt(consoleChild)
 
         return consoleChild
