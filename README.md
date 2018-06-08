@@ -15,9 +15,13 @@ ready.
 
 This framework runs on most Linux based systems.
 
-You need python 2.7 or greater.
+You need python 2.7 or greater and also needs below modules to be installed
 
-You will also need (recent) ipmiutil - 1.8.15 or above should be adequate.
+	pexpect, importlib, ptyprocess
+
+You will also need below packages need to be installed
+
+	sshpass and (recent) ipmitool - 1.8.15 or above should be adequate.
 
 You will need to run the test suite on a machine that has access to both
 the BMC and the host of the machine(s) you're testing.
