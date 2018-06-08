@@ -530,7 +530,7 @@ class OpTestHost():
         try:
             return self.ssh.run_command(BMC_CONST.SUDO_COMMAND + i_gard_dir + BMC_CONST.LIST_GARD_CMD, timeout=60)
         except:
-            l_errmsg = "Can't clear gard records"
+            l_errmsg = "Can't list gard records"
             print l_errmsg
             raise OpTestError(l_errmsg)
 
