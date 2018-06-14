@@ -1,7 +1,7 @@
 # RHEL Preseed for op-test
 %pre
 %end
-url --url={}
+url --url={} --proxy={}
 text
 keyboard --vckeymap=us --xlayouts='us'
 lang en_US.UTF-8
