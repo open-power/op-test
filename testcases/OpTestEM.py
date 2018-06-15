@@ -219,11 +219,15 @@ class OpTestEM():
     #
     # @param i_idle @type str: this is the cpu idle state to be enabled
     def enable_idle_state(self, i_idle):
+        sysfs_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 0 > $i; done" % i_idle
         if self.test == "host":
             l_cmd = "cpupower idle-set -e %s" % i_idle
         elif self.test == "skiroot":
             l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 0 > $i; done" % i_idle
-        self.c.run_command(l_cmd)
+        try:
+            self.c.run_command(l_cmd)
+        except CommandFailed:
+            self.c.run_command(sysfs_cmd)
 
     ##
     # @brief disable cpu idle state i_idle
@@ -233,11 +237,15 @@ class OpTestEM():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def disable_idle_state(self, i_idle):
+        sysfs_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 1 > $i; done" % i_idle
         if self.test == "host":
             l_cmd = "cpupower idle-set -d %s" % i_idle
         elif self.test == "skiroot":
             l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 1 > $i; done" % i_idle
-        self.c.run_command(l_cmd)
+        try:
+            self.c.run_command(l_cmd)
+        except CommandFailed:
+            self.c.run_command(sysfs_cmd)
 
     ##
     # @brief verify whether cpu idle state i_idle enabled

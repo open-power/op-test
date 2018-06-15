@@ -261,6 +261,14 @@ class FullSuite():
     def suite(self):
         return self.s
 
+class OpTestEMHostSuite():
+    '''Energy Management'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+    def suite(self):
+        self.s.addTest(OpTestEM.host_suite())
+        return self.s
+
 class OpTestEMSuite():
     '''Energy Management'''
     def __init__(self):
@@ -411,6 +419,7 @@ suites = {
     'secure-boot' : SBSuite(),
     'trusted-boot' : TBSuite(),
     'em' :       OpTestEMSuite(),
+    'em-host' :  OpTestEMHostSuite(),
     'known-bugs' : KnownBugs(),
     'experimental': ExperimentalSuite(),
     'experimental-eeh': OpTestEEHSuite(),
