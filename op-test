@@ -267,8 +267,8 @@ class OpTestEMHostSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
     def suite(self):
-        self.s.addTest(OCCSuite().suite())
         self.s.addTest(OpTestEM.host_suite())
+        self.s.addTest(OCCSuite().suite())
         self.s.addTest(CpuHotPlug.CpuHotPlug())
         self.s.addTest(OpTestSensors.OpTestSensors())
 
