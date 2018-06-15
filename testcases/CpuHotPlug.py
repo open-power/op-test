@@ -44,13 +44,15 @@ class CpuHotPlug(unittest.TestCase):
         self.c.run_command("stty cols 300;stty rows 30")
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
-        num_avail_cores = self.cv_HOST.host_get_core_count()
+        self.num_avail_cores = self.cv_HOST.host_get_core_count()
         smt_range = ["on", "off"] + range(1, self.cv_HOST.host_get_smt()+1)
         print "Possible smt values: %s" % smt_range
         for smt in smt_range:
             self.c.run_command("ppc64_cpu --smt=%s" % str(smt))
-            for core in range(1, num_avail_cores + 1):
+            for core in range(1, self.num_avail_cores + 1):
                 self.c.run_command("ppc64_cpu --cores-on=%s" % core)
 
     def tearDown(self):
+        self.c.run_command("ppc64_cpu --smt=on")
+        self.c.run_command("ppc64_cpu --cores-on=%s" % self.num_avail_cores)
         self.cv_HOST.host_gather_debug_logs()

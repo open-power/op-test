@@ -96,6 +96,7 @@ from testcases import OpalSysfsTests
 from testcases import SecureBoot
 from testcases import TrustedBoot
 from testcases import IplParams
+from testcases import CpuHotPlug
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -266,7 +267,11 @@ class OpTestEMHostSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
     def suite(self):
+        self.s.addTest(OCCSuite().suite())
         self.s.addTest(OpTestEM.host_suite())
+        self.s.addTest(CpuHotPlug.CpuHotPlug())
+        self.s.addTest(OpTestSensors.OpTestSensors())
+
         return self.s
 
 class OpTestEMSuite():
