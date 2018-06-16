@@ -164,7 +164,7 @@ class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
         console.sendline()
         console.expect("login:", timeout=600)
         console.close()
-        self.cv_HOST.ssh.terminate()
+        self.cv_HOST.ssh.close()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         res = self.cv_HOST.host_run_command("ls /var/log/dump")
         print res

@@ -56,9 +56,7 @@ class OpTestOCCBase(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         self.rest = conf.system().rest
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection() # use ssh, console is chatty
         if "OpenBMC" in self.bmc_type:
             self.occ_ids = self.rest.get_occ_ids()
 

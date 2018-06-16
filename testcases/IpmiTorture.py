@@ -232,7 +232,6 @@ class SkirootConsoleTorture(ConsoleIpmiTorture):
         self.test = "skiroot_runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 
 class SkirootIpmiTorture(IpmiInterfaceTorture):
@@ -246,8 +245,6 @@ class RuntimeConsoleTorture(ConsoleIpmiTorture):
 	self.test = "runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class StandbyConsoleTorture(ConsoleIpmiTorture):
     def setup_test(self):
@@ -260,8 +257,6 @@ class RuntimeIpmiInterfaceTorture(IpmiInterfaceTorture):
         self.test = "runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class StandbyIpmiInterfaceTorture(IpmiInterfaceTorture):
     def setup_test(self):

@@ -580,7 +580,6 @@ class FSPFWImageFLASH(OpTestFlashBase):
         preup_boot = preup_boot.group(1)
 
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_SYSTEM.host_console_unique_prompt()
         con = self.cv_SYSTEM.sys_get_ipmi_console()
 
         # Wait until we have a route (i.e. network is up)
@@ -609,7 +608,6 @@ class FSPFWImageFLASH(OpTestFlashBase):
         con = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_SYSTEM.host_console_unique_prompt()
         con.run_command("update_flash -d")
         postup_boot = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Boot Side\"")
         postup_boot = re.search('.*([T|P])', postup_boot)

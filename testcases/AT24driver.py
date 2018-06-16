@@ -121,7 +121,7 @@ class AT24driver(I2C, unittest.TestCase):
                 pass
         pass
 
-    def diff_commands(self, cmds, err="Result doesn't match"):
+    def diff_commands(self, cmds, i_dev, err="Result doesn't match"):
         last_r = None
         last_cmd = None
         for cmd in cmds:
@@ -130,7 +130,7 @@ class AT24driver(I2C, unittest.TestCase):
                 r = self.c.run_command(cmd)
                 r = [x+'\n' for x in r]
             except CommandFailed as cf:
-                self.assertEqual(cf.exitcode, 0, "i2cdump failed on addr %s" % i_args)
+                self.assertEqual(cf.exitcode, 0, "i2cdump failed on addr %s" % i_dev)
             if last_r is not None:
                 diff = ''
                 for l in difflib.unified_diff(r, last_r,fromfile=last_cmd,tofile=cmd):
@@ -142,7 +142,7 @@ class AT24driver(I2C, unittest.TestCase):
 
     def host_hexdump(self, i_dev):
         cmds = ["hexdump -C %s" % i_dev] * 5
-        self.diff_commands(cmds, err="hexdump of EEPROM doesn't match")
+        self.diff_commands(cmds, i_dev, err="hexdump of EEPROM doesn't match")
 
 class SkirootAT24(AT24driver, unittest.TestCase):
     def setUp(self):

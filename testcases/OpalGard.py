@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -31,7 +31,6 @@
 import re
 import random
 
-
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
@@ -59,14 +58,14 @@ class OpalGard(unittest.TestCase):
     def clear_gard_records(self):
         cmd = "PATH=/usr/local/sbin:$PATH opal-gard clear all"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd,timeout=240)
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "Clear gard records operation failed: %s" % str(cf))
 
     def show_gard_record(self, id):
         cmd = "PATH=/usr/local/sbin:$PATH opal-gard show %s" % id
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd,timeout=240)
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, "show gard records operation failed: %s" % str(cf))
 
@@ -81,8 +80,6 @@ class OpalGard(unittest.TestCase):
             self.skipTest("OpenPOWER BMC specific")
 
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-	self.cv_SYSTEM.host_console_unique_prompt()
         self.cv_HOST.host_check_command("pflash")
         self.cv_HOST.host_copy_fake_gard()
         self.c.run_command("dmesg -D")
@@ -91,7 +88,10 @@ class OpalGard(unittest.TestCase):
         if self.cpu not in ["POWER8", "POWER8E", "POWER9"]:
             self.skipTest("Unknown CPU type %s" % self.cpu)
         data = self.cv_HOST.host_pflash_get_partition("GUARD")
-        offset =  hex(int(data["offset"])/16)
+        try:
+          offset =  hex(int(data["offset"])/16)
+        except Exception as e:
+          self.assertTrue(False, "OpenPOWER BMC unable to find valid offset for partition=GUARD")
         for i in range(0, 11):
             self.list_gard_records()
             self.c.run_command("dd if=/tmp/fake.gard of=/dev/mtd0 bs=$((0x10)) seek=$((%s)) conv=notrunc" % offset)

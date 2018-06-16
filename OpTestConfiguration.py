@@ -119,7 +119,7 @@ def get_parser():
                            choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
 
     osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
-    osgroup.add_argument("--os-cdrom", help="OS CD/DVD install image", default="")
+    osgroup.add_argument("--os-cdrom", help="OS CD/DVD install image", default=None)
     osgroup.add_argument("--os-repo", help="OS repo", default="")
     imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
     imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
@@ -326,6 +326,7 @@ class OpTestConfiguration():
                 host=host,
             )
             ipmi.set_system(self.op_system)
+            bmc.set_system(self.op_system)
         elif self.args.bmc_type in ['FSP']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
@@ -343,6 +344,7 @@ class OpTestConfiguration():
                 host=host,
             )
             ipmi.set_system(self.op_system)
+            bmc.set_system(self.op_system) # this needs testing
         elif self.args.bmc_type in ['OpenBMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
@@ -375,6 +377,7 @@ class OpTestConfiguration():
                              logfile=self.logfile,
                              hda=self.args.host_scratch_disk)
             self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
+            bmc.set_system(self.op_system)
         # Check that the bmc_type exists in our loaded addons then create our objects
         elif self.args.bmc_type in optAddons:
             (bmc, self.op_system) = optAddons[self.args.bmc_type].createSystem(self, host)

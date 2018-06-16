@@ -208,9 +208,6 @@ class OpTestConstants():
     IPMI_CONSOLE_EXPECT_PASSWORD = 0
     IPMI_CONSOLE_EXPECT_PETITBOOT = [2,3]
     IPMI_CONSOLE_EXPECT_RANDOM_STATE = [4,5]
-    IPMI_HOST_UNIQUE_PROMPT = "PS1=[pexpect]#"
-    IPMI_HOST_EXPECT_PEXPECT_PROMPT = "[pexpect]#"
-    IPMI_HOST_EXPECT_PEXPECT_PROMPT_LIST = [r"\[pexpect\]#$", pexpect.TIMEOUT]
 
     # HMI Test case constants
     HMI_PROC_RECV_DONE = 1

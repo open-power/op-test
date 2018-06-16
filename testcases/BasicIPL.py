@@ -62,7 +62,7 @@ class BMCReset(BasicIPL):
         self.bmc.reboot()
 
         # BMC reset disconnects the old console
-        self.system.console.terminate()
+        self.system.console.close()
 
         c = 0
         while True:
@@ -94,7 +94,7 @@ class OutOfBandWarmReset(BasicIPL):
         # TODO use abstracted out-of-band warm reset
         self.system.sys_warm_reset()
         # BMC reset disconnects the old console
-        self.system.console.terminate()
+        self.system.console.close()
         self.system.goto_state(OpSystemState.OFF)
         self.system.goto_state(OpSystemState.PETITBOOT)
 

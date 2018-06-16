@@ -493,7 +493,6 @@ class HostManagement():
     def wait_for_runtime(self, timeout=10):
         r = self.wait_for_host_state("Running", timeout=timeout)
         if r is None:
-            print "Falling back to old BootProgress"
             return old_wait_for_standby(timeout)
 
     '''
@@ -933,7 +932,10 @@ class HostManagement():
         obj = "/xyz/openbmc_project/control/host0/power_cap"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
         output = self.curl.run()
-        data = json.loads(output)
+        try:
+          data = json.loads(output)
+        except Exception as e:
+          return
         PowerCapEnable = data['data']['PowerCapEnable']
         PowerCap = data['data']['PowerCap']
         return PowerCapEnable, PowerCap
@@ -988,8 +990,8 @@ class HostManagement():
         output = self.curl.run()
         data = json.loads(output)
         if data['data']['TPMEnable'] == 1:
-            print "# TPMEnable is set"
-            return True
+          print "# TPMEnable is set"
+          return True
         print "# TPMEnable is cleared"
         return False
 
@@ -1022,9 +1024,6 @@ class OpTestOpenBMC():
         self.rest_api = rest_api
         self.has_vpnor = None
         self.logfile = logfile
-        # We kind of hack our way into pxssh by setting original_prompt
-        # to also be \n, which appears to fool it enough to allow us
-        # continue.
         self.console = OpTestSSH(ip, username, password, port=2200,
                 logfile=self.logfile, check_ssh_keys=check_ssh_keys,
                 known_hosts_file=known_hosts_file)
@@ -1036,6 +1035,7 @@ class OpTestOpenBMC():
 
     def set_system(self, system):
         self.console.set_system(system)
+        self.bmc.set_system(system)
 
     def has_new_pnor_code_update(self):
         if self.has_vpnor is not None:
@@ -1105,8 +1105,8 @@ class OpTestOpenBMC():
     def get_rest_api(self):
         return self.rest_api
 
-    def run_command(self, command, timeout=10):
-        return self.bmc.run_command(command, timeout)
+    def run_command(self, command, timeout=10, retry=0):
+        return self.bmc.run_command(command, timeout, retry)
 
     def has_inband_bootdev(self):
         return False

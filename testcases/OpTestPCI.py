@@ -74,7 +74,7 @@ class TestPCI():
 
 
     def get_list_of_pci_devices(self):
-        cmd = "ls /sys/bus/pci/devices/ | awk {'print $1'}"
+        cmd = "ls --color=never /sys/bus/pci/devices/ | awk {'print $1'}"
         res = self.c.run_command(cmd)
         return res
 
@@ -88,7 +88,7 @@ class TestPCI():
         return None
 
     def get_list_of_slots(self):
-        cmd = "ls /sys/bus/pci/slots/ -1"
+        cmd = "ls --color=never /sys/bus/pci/slots/ -1"
         res = self.c.run_command(cmd)
         return res
 
@@ -97,7 +97,7 @@ class TestPCI():
         res = self.c.run_command(cmd)
         boot_disk = ''.join(res).split("/dev/")[1]
         boot_disk = boot_disk.replace("\r\n", "")
-        cmd  = "ls -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
+        cmd  = "ls --color=never -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
         res = self.c.run_command(cmd)
         root_pe = res[0].split("-")[1]
         return  root_pe
@@ -138,7 +138,7 @@ class TestPCI():
                                      "lspci -n",
                                      "lspci -nn",
                                      "cat /proc/bus/pci/devices",
-                                     "ls /sys/bus/pci/devices/ -l",
+                                     "ls --color=never /sys/bus/pci/devices/ -l",
                                      "lspci -vvxxx",
                                      ]
         for cmd in list_pci_devices_commands:
@@ -163,7 +163,6 @@ class TestPCISkiroot(TestPCI, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class TestPCIHost(TestPCI, unittest.TestCase):
     def setup_test(self):
@@ -195,8 +194,6 @@ class TestPciSkirootReboot(TestPCI, unittest.TestCase):
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         elif "distro_reboot" in self.test:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
-            self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         l_res = c.run_command("lspci -mm -n")
         self.pci_data_hardboot = '\n'.join(l_res) + '\n'
         with open("pci_file_hardboot", 'w') as file:
@@ -205,10 +202,7 @@ class TestPciSkirootReboot(TestPCI, unittest.TestCase):
         file.close()
         # reboot from petitboot kernel
         c.sol.sendline("reboot")
-        self.cv_SYSTEM.wait_for_petitboot()
-        self.cv_SYSTEM.set_state(OpSystemState.PETITBOOT)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_SYSTEM.host_console_unique_prompt()
         l_res = c.run_command("lspci -mm -n")
         self.pci_data_softreboot = '\n'.join(l_res) + '\n'
         diff_process = subprocess.Popen(['diff', "-u", "pci_file_hardboot", "-"],
@@ -227,7 +221,6 @@ class TestPciSkirootvsOS(TestPCI, unittest.TestCase):
     def runTest(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_SYSTEM.host_console_unique_prompt()
         l_res = c.run_command("lspci -mm -n")
         self.pci_data_skiroot = '\n'.join(l_res) + '\n'
         with open("pci_file_skiroot", 'w') as file:
@@ -236,8 +229,6 @@ class TestPciSkirootvsOS(TestPCI, unittest.TestCase):
         file.close()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         l_res = c.run_command("lspci -mm -n")
         self.pci_data_hostos = '\n'.join(l_res) + '\n'
         diff_process = subprocess.Popen(['diff', "-u", "pci_file_skiroot", "-"],
@@ -256,13 +247,10 @@ class TestPciDriverBindHost(TestPCIHost, unittest.TestCase):
         if "skiroot" in self.test:
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-            self.cv_SYSTEM.host_console_unique_prompt()
             root_pe = "xxxx"
         else:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-            self.cv_SYSTEM.host_console_login()
-            self.cv_SYSTEM.host_console_unique_prompt()
             root_pe = self.get_root_pe_address()
             self.c.run_command("dmesg -D")
         list = self.get_list_of_pci_devices()
@@ -282,7 +270,7 @@ class TestPciDriverBindHost(TestPCIHost, unittest.TestCase):
                 msg = "Driver unbind operation failed for driver %s, slot %s" % (slot, driver)
                 failure[index] = msg
             time.sleep(5)
-            cmd = 'ls /sys/bus/pci/drivers/%s' % driver
+            cmd = 'ls --color=never /sys/bus/pci/drivers/%s' % driver
             self.c.run_command(cmd)
             path = "/sys/bus/pci/drivers/%s/%s" % (driver, slot)
             try:
@@ -297,7 +285,7 @@ class TestPciDriverBindHost(TestPCIHost, unittest.TestCase):
                 msg = "Driver bind operation failed for driver %s, slot %s" % (slot, driver)
                 failure_list[index] = msg
             time.sleep(5)
-            cmd = 'ls /sys/bus/pci/drivers/%s' % driver
+            cmd = 'ls --color=never /sys/bus/pci/drivers/%s' % driver
             self.c.run_command(cmd)
             try:
                 self.c.run_command("test -d %s" % path)
@@ -328,8 +316,6 @@ class TestPciHotplugHost(TestPCI, unittest.TestCase):
             self.skipTest("FSP Platform OPAL specific PCI Hotplug tests")
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         c = self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         res = self.c.run_command("uname -r")[-1].split("-")[0]
         if LooseVersion(res) < LooseVersion("4.10.0"):
             self.skipTest("This kernel does not support hotplug %s" % res)

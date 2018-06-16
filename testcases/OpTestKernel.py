@@ -65,7 +65,6 @@ class OpTestKernelBase(unittest.TestCase):
     #
     def kernel_crash(self):
         console = self.cv_SYSTEM.sys_get_ipmi_console()
-	self.cv_SYSTEM.host_console_unique_prompt()
         console.run_command("uname -a")
         console.run_command("cat /etc/os-release")
         console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
@@ -103,7 +102,6 @@ class KernelCrash_KdumpEnable(OpTestKernelBase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
 
     ##
     # @brief This function will test the kernel crash followed by crash kernel dump
@@ -118,7 +116,6 @@ class KernelCrash_KdumpEnable(OpTestKernelBase):
         self.setup_test()
         self.cv_HOST.host_check_command("kdump")
         os_level = self.cv_HOST.host_get_OS_Level()
-        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
         self.kernel_crash()
 
@@ -128,7 +125,6 @@ class KernelCrash_KdumpDisable(OpTestKernelBase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
 
     ##
     # @brief This function will test the kernel crash followed by system IPL
@@ -142,7 +138,6 @@ class KernelCrash_KdumpDisable(OpTestKernelBase):
         self.setup_test()
         self.cv_HOST.host_check_command("kdump")
         os_level = self.cv_HOST.host_get_OS_Level()
-        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_disable_kdump_service(os_level)
         self.kernel_crash()
 
@@ -150,7 +145,6 @@ class SkirootKernelCrash(OpTestKernelBase, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
         output = self.c.run_command("cat /proc/cmdline")
         res = ""
         found = False

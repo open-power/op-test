@@ -92,7 +92,6 @@ class Skiroot(KernelLog, unittest.TestCase):
         self.test = "skiroot"
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class Host(KernelLog, unittest.TestCase):
     def setup_test(self):

@@ -138,8 +138,6 @@ class fspresetReload(unittest.TestCase):
 
     # check for sol console, whether we are able to use or not
     def check_for_sol_console(self):
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         r = l_con.run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)

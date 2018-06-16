@@ -45,11 +45,11 @@ import pexpect
 import commands
 
 import OpTestConfiguration
-
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
 from OpTestSSH import OpTestSSH
+import OpTestQemu
 from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
 
 class OpTestHost():
@@ -75,7 +75,7 @@ class OpTestHost():
         self.logfile = logfile
         self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
                 logfile=self.logfile, check_ssh_keys=check_ssh_keys,
-                known_hosts_file=known_hosts_file, use_default_bash=True)
+                known_hosts_file=known_hosts_file)
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None
@@ -203,8 +203,12 @@ class OpTestHost():
             print l_msg
             raise OpTestError(l_msg)
 
-    def host_run_command(self, i_cmd, timeout=1500):
-        return self.ssh.run_command(i_cmd, timeout)
+    def host_run_command(self, i_cmd, timeout=1500, retry=0):
+        # if we are QEMU use the system console
+        if isinstance(self.ssh.system.console, OpTestQemu.QemuConsole):
+          return self.ssh.system.console.run_command(i_cmd, timeout, retry)
+        else:
+          return self.ssh.run_command(i_cmd, timeout, retry)
 
     ##
     # @brief It will gather OPAL Message logs and store the copy in a logfile
@@ -803,7 +807,7 @@ class OpTestHost():
             self.host_run_command("systemctl status kdump.service")
 
     def host_check_sysfs_path_availability(self, path):
-        res = self.host_run_command("ls %s" % path)
+        res = self.host_run_command("ls --color=never %s" % path)
         if "No such file or directory" in res:
             return False
         return True

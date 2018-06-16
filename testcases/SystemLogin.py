@@ -41,8 +41,6 @@ class OOBHostLogin(unittest.TestCase):
 
     def runTest(self):
         self.system.goto_state(OpSystemState.OS)
-        self.system.host_console_login()
-        self.system.host_console_unique_prompt()
         l_con = self.system.sys_get_ipmi_console()
         r = l_con.run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)

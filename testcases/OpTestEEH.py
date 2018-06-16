@@ -85,17 +85,11 @@ class OpTestEEH(unittest.TestCase):
 
     def set_up(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
         self.set_con_log_lev_crit()
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_gather_kernel_log()
         con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
-        con.run_command("stty cols 300")
-        con.run_command("stty rows 10")
         con.run_command("dmesg -D")
         con.run_command("uname -a")
         con.run_command("cat /etc/os-release")
@@ -332,8 +326,6 @@ class OpTestEEH(unittest.TestCase):
         c.run_command("nvram -p ibm,skiboot --update-config log-level-driver=2")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
     def verify_location_code_logging(self, pe):
         tries = 60

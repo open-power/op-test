@@ -62,7 +62,6 @@ class InstallUtil():
         self.conf = conf
         self.host = conf.host()
         self.system = conf.system()
-        self.system.host_console_unique_prompt()
         self.console = self.system.sys_get_ipmi_console()
         self.server = ""
         self.repo = conf.args.os_repo
@@ -115,8 +114,6 @@ class InstallUtil():
         """
         Assign host ip in petitboot
         """
-        self.console.run_command("stty cols 300")
-        self.console.run_command("stty rows 30")
         # Lets reduce timeout in petitboot
         self.console.run_command("nvram --update-config petitboot,timeout=10")
         cmd = "ip addr|grep -B1 -i %s|grep BROADCAST|awk -F':' '{print $2}'" % self.conf.args.host_mac
@@ -269,9 +266,6 @@ class InstallUtil():
         Sets the given disk as default bootable entry in petitboot
         """
         self.system.sys_set_bootdev_no_override()
-        self.system.host_console_unique_prompt()
-        self.console.run_command("stty cols 300")
-        self.console.run_command("stty rows 30")
         # FIXME: wait till the device(disk) discovery in petitboot
         time.sleep(60)
         cmd = 'blkid %s*' % disk

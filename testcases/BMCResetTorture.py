@@ -60,8 +60,6 @@ class RuntimeBMCResetTorture(unittest.TestCase):
             self.system.sys_cold_reset_bmc()
             con = self.system.sys_get_ipmi_console()
             if self.test == "host":
-                self.system.host_console_login()
-            self.system.host_console_unique_prompt()
             con.run_command("uname -a")
             con.run_command_ignore_fail("PATH=/usr/local/sbin:$PATH getscom -l")
             con.run_command_ignore_fail("sensors")
@@ -116,7 +114,6 @@ class BMCResetvsHostIPLTorture(unittest.TestCase):
             self.c = self.system.sys_get_ipmi_console()
             print "Boot iteration %d..." % i
             self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-            self.system.host_console_unique_prompt()
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
             self.system.goto_state(OpSystemState.OFF)

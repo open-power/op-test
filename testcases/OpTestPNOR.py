@@ -172,7 +172,6 @@ class Skiroot(OpTestPNOR, unittest.TestCase):
     def setup_test(self):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.system.sys_get_ipmi_console()
-        self.system.host_console_unique_prompt()
 
 class Host(OpTestPNOR, unittest.TestCase):
     def setup_test(self):

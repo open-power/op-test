@@ -66,7 +66,6 @@ class FullRTC(unittest.TestCase):
         elif self.test == "skiroot":
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-            self.cv_SYSTEM.host_console_unique_prompt()
 
     # We have a busy box version hwclock with limited options
     # to access the HW RTC
@@ -113,7 +112,7 @@ class FullRTC(unittest.TestCase):
         self.rtc_init()
 
         # Get the device files for rtc driver
-        l_files = self.cv_HOST.host_run_command("ls /dev/ | grep -i --color=never rtc")
+        l_files = self.cv_HOST.host_run_command("ls --color=never /dev/ | grep -i --color=never rtc")
         l_list = []
         for name in l_files:
             if name.__contains__("rtc"):

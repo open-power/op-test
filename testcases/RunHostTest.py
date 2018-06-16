@@ -39,8 +39,6 @@ class RunHostTest(unittest.TestCase):
     def runTest(self):
         self.system.goto_state(OpSystemState.OS)
         con = self.system.sys_get_ipmi_console()
-        self.system.host_console_login()
-        self.system.host_console_unique_prompt()
         if self.host_cmd:
             con.run_command(self.host_cmd, timeout=self.host_cmd_timeout)
         if self.host_cmd_file:
@@ -53,7 +51,5 @@ class RunHostTest(unittest.TestCase):
                     self.system.goto_state(OpSystemState.OFF)
                     self.system.goto_state(OpSystemState.OS)
                     con = self.system.sys_get_ipmi_console()
-                    self.system.host_console_login()
-                    self.system.host_console_unique_prompt()
                     continue
                 con.run_command(line, timeout=self.host_cmd_timeout)
