@@ -90,6 +90,8 @@ from testcases import DeviceTreeValidation
 from testcases import DeviceTreeWarnings
 from testcases import PciSlotLocCodes
 from testcases import InstallUbuntu
+from testcases import InstallRhel
+from testcases import InstallHostOS
 from testcases import OpTestCAPI
 from testcases import gcov
 from testcases import OpalSysfsTests
@@ -224,6 +226,8 @@ class DefaultSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(SkirootSuite().suite())
+        if OpTestConfiguration.conf.args.host_scratch_disk:
+            self.s.addTest(InstallHost().suite())
         self.s.addTest(HostSuite().suite())
     def suite(self):
         return self.s
@@ -396,6 +400,31 @@ class FlashFirmware():
         self.s.addTest(testcases.OpTestFlash.BmcImageFlash())
         self.s.addTest(testcases.OpTestFlash.PNORFLASH())
         self.s.addTest(testcases.OpTestFlash.OpalLidsFLASH())
+    def suite(self):
+        return self.s
+
+class InstallHost():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        conf = OpTestConfiguration.conf
+        target = conf.args.os_repo if conf.args.os_repo else conf.args.os_cdrom
+        if conf.args.host_scratch_disk and target:
+            if "ubuntu" in target.lower():
+                self.s.addTest(InstallUbuntu.InstallUbuntu())
+                print 'InstallUbuntu added to default suite'
+            elif "rhel" in target.lower():
+                self.s.addTest(InstallRhel.InstallRhel())
+                print 'InstallRhel added to default suite'
+            elif "hostos" in target.lower():
+                self.s.addTest(InstallHostOS.InstallHostOS())
+                print 'InstallHostOS added to default suite'
+            else:
+                print("Could not parse OS name from '{}'".format(target))
+                exit(-1)
+        else:
+            print("Missing parameters for InstallHost suite")
+            exit(-1)
+
     def suite(self):
         return self.s
 

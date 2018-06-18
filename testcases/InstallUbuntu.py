@@ -23,6 +23,7 @@
 import unittest
 import time
 import pexpect
+import os
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
