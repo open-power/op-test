@@ -58,6 +58,7 @@ class InstallUtil():
         global PASSWORD
         global BOOTPATH
         global REPO
+        global PROXY
         self.conf = conf
         self.host = conf.host()
         self.system = conf.system()
@@ -73,6 +74,7 @@ class InstallUtil():
         BASE_PATH = base_path
         INITRD = initrd
         VMLINUX = vmlinux
+        PROXY = self.host.get_proxy()
         KS = ks
 
     def wait_for_network(self):
@@ -327,9 +329,9 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                 f = open("%s/%s" % (BASE_PATH, KS), "r")
                 d = f.read()
                 if "hostos" in BASE_PATH:
-                    ps = d.format(REPO, PASSWORD, DISK, DISK, DISK)
+                    ps = d.format(REPO, PROXY, PASSWORD, DISK, DISK, DISK)
                 elif "rhel" in BASE_PATH:
-                    ps = d.format(REPO, PASSWORD, DISK, DISK, DISK)
+                    ps = d.format(REPO, PROXY, PASSWORD, DISK, DISK, DISK)
                 elif "ubuntu" in BASE_PATH:
                     user = USERNAME
                     if user == 'root':
@@ -345,9 +347,8 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                     packages+= "ipmitool i2c-tools pciutils opal-prd opal-utils "
                     packages+= "device-tree-compiler fwts"
 
-
                     ps = d.format("openpower", "example.com",
-                                  PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
+                                  PROXY, PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
                 else:
                     print "unknown distro"
                 self.wfile.write(ps)

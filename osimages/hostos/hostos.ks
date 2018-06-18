@@ -1,7 +1,7 @@
 #HostOS Preseed for op-test
 %pre
 %end
-url --url={}
+url --url={} --proxy={}
 text
 keyboard --vckeymap=us --xlayouts='us'
 services --enabled=NetworkManager,sshd
