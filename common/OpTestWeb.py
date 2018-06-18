@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python2
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
