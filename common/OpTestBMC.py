@@ -123,7 +123,7 @@ class OpTestBMC():
     def image_transfer(self,i_imageName, copy_as=None):
 
         img_path = i_imageName
-        ssh_opts = ' -k'
+        ssh_opts = ' -k -o PubkeyAuthentication=no '
         if not self.check_ssh_keys:
             ssh_opts = ssh_opts + ' -o StrictHostKeyChecking=no'
         elif self.known_hosts_file:
