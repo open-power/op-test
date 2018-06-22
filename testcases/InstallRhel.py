@@ -112,7 +112,7 @@ class InstallRhel(unittest.TestCase):
                              'Setting up the installation environment',
                              'Starting package installation process',
                              'Performing post-installation setup tasks',
-                             'Configuring installed system'], timeout=1500)
+                             'Configuring installed system'], timeout=3000)
         rawc.expect(' Restarting system', timeout=300)
         self.system.set_state(OpSystemState.IPLing)
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)

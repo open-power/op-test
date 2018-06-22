@@ -200,7 +200,7 @@ class InstallUbuntu(unittest.TestCase):
                              'Cleaning up'
                              'Retrieving', 'Installing',
                              'boot loader',
-                             'Running'], timeout=600)
+                             'Running'], timeout=1000)
         rawc.expect('Requesting system reboot', timeout=300)
         self.system.set_state(OpSystemState.IPLing)
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
