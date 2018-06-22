@@ -340,6 +340,7 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                         user = 'ubuntu'
 
                     packages = "openssh-server build-essential lvm2 ethtool "
+                    packages+= "nfs-common ssh ksh lsvpd nfs-kernel-server iprutils procinfo "
                     packages+= "sg3-utils lsscsi libaio-dev libtime-hires-perl "
                     packages+= "acpid tgt openjdk-8* zip git automake python "
                     packages+= "expect gcc g++ gdb "
