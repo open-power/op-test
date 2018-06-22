@@ -174,9 +174,9 @@ class OpTestConfiguration():
         args , remaining_args = conf_parser.parse_known_args(argv)
         defaults = {}
         config = ConfigParser.SafeConfigParser()
+        config.read([os.path.expanduser("~/.op-test-framework.conf")])
         if args.config_file:
             config.read([args.config_file])
-        config.read([os.path.expanduser("~/.op-test-framework.conf")])
         try:
             defaults = dict(config.items('op-test'))
         except ConfigParser.NoSectionError:
