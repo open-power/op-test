@@ -102,6 +102,8 @@ class InstallUtil():
                 self.console.run_command(cmd)
                 return True
             except CommandFailed as cf:
+                if retry == 1:
+                    raise cf
                 if cf.exitcode is 1:
                     time.sleep(5)
                     retry = retry - 1
