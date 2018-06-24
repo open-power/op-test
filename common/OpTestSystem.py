@@ -199,13 +199,13 @@ class OpTestSystem(object):
           if (detect_state == target_state):
             return detect_state
           elif reboot:
-            if target_state in [OpSystemState.OS]:
+            if detect_state in [OpSystemState.OS]:
               self.run_REBOOT(target_state)
               return OpSystemState.UNKNOWN
-            elif target_state in [OpSystemState.PETITBOOT]:
+            elif detect_state in [OpSystemState.PETITBOOT]:
               self.exit_petitboot_shell()
               return OpSystemState.PETITBOOT
-            elif target_state in [OpSystemState.PETITBOOT_SHELL]:
+            elif detect_state in [OpSystemState.PETITBOOT_SHELL]:
               return OpSystemState.PETITBOOT_SHELL
             else:
               return OpSystemState.UNKNOWN
