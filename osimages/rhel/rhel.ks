@@ -37,4 +37,13 @@ ipmitool
 i2c-tools
 pciutils
 kernel-tools
+nano
+sysstat
+rpm-build
+gcc-gfortran
+hdparm
+tk
+tcsh
+lsof
+python-devel
 %end
