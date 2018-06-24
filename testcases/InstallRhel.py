@@ -46,6 +46,8 @@ class InstallRhel(unittest.TestCase):
             self.fail("Provide host user details refer, --host-{user,password}")
         if not self.conf.args.host_scratch_disk:
             self.fail("Provide proper host disk to install refer, --host-scratch-disk")
+        if not self.conf.args.host_name:
+            self.fail("Provide hostname to be set during installation")
 
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -84,7 +86,7 @@ class InstallRhel(unittest.TestCase):
                                                                                                  self.host.ip,
                                                                                                  self.conf.args.host_gateway,
                                                                                                  self.conf.args.host_submask,
-                                                                                                 self.host.hostname(),
+                                                                                                 self.conf.args.host_name,
                                                                                                  self.conf.args.host_dns,
                                                                                                  ks_url)
             self.c = self.system.sys_get_ipmi_console()
