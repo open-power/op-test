@@ -96,6 +96,7 @@ def get_parser():
                            help="Prompt for Host SSH session")
 
     hostinstgroup = parser.add_argument_group('Host OS Install', 'Options for installing an OS on the Host')
+    hostinstgroup.add_argument("--host-name", help="Host name", default="localhost")
     hostinstgroup.add_argument("--host-gateway", help="Host Gateway", default="")
     hostinstgroup.add_argument("--host-submask", help="Host Subnet Mask", default="255.255.255.0")
     hostinstgroup.add_argument("--host-mac",
