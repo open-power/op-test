@@ -18,6 +18,7 @@ import time
 import subprocess
 import sys
 import ConfigParser
+import errno
 
 # Look at the addons dir for any additional OpTest supported types
 # If new type was called Kona, the layout would be as follows
@@ -176,7 +177,10 @@ class OpTestConfiguration():
         config = ConfigParser.SafeConfigParser()
         config.read([os.path.expanduser("~/.op-test-framework.conf")])
         if args.config_file:
-            config.read([args.config_file])
+            if os.access(args.config_file, os.R_OK):
+                config.read([args.config_file])
+            else:
+                raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), args.config_file)
         try:
             defaults = dict(config.items('op-test'))
         except ConfigParser.NoSectionError:
