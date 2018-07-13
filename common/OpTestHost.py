@@ -44,6 +44,8 @@ import pty
 import pexpect
 import commands
 
+import OpTestConfiguration
+
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
@@ -77,6 +79,7 @@ class OpTestHost():
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None
+        self.conf = OpTestConfiguration.conf
 
     def hostname(self):
         return self.ip
@@ -906,6 +909,18 @@ class OpTestHost():
                                              self.ip, "/tmp/", self.passwd)
         except subprocess.CalledProcessError as e:
             l_msg = "Copying %s file to host failed" % filename
+            print l_msg
+            raise OpTestError(l_msg + str(e))
+
+    def copy_files_from_host(self, sourcepath="", destpath="/tmp/"):
+        if sourcepath == "":
+            sourcepath = self.conf.output
+        try:
+            self.util.copyFilesFromDest(self.user,
+                                        self.ip, destpath, self.passwd, sourcepath)
+        except subprocess.CalledProcessError as e:
+            l_msg = "Copying %s file(s) from host failed" % destpath
+            print str(e)
             print l_msg
             raise OpTestError(l_msg + str(e))
 

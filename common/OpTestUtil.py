@@ -93,6 +93,19 @@ class OpTestUtil():
         print(' '.join(arglist))
         subprocess.check_call(arglist)
 
+    def copyFilesFromDest(self, destid, destName, destPath, passwd, sourcepath):
+        arglist = (
+            "sshpass",
+            "-p", passwd,
+            "/usr/bin/scp",
+            "-r",
+            "-o","UserKnownHostsFile=/dev/null",
+            "-o","StrictHostKeyChecking=no",
+            "{}@{}:{}".format(destid,destName,destPath),
+            sourcepath)
+        print(' '.join(arglist))
+        subprocess.check_output(arglist)
+
     # It waits for a ping to fail, Ex: After a BMC/FSP reboot
     def ping_fail_check(self, i_ip):
         cmd = "ping -c 1 " + i_ip + " 1> /dev/null; echo $?"
