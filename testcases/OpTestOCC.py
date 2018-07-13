@@ -72,6 +72,8 @@ class OpTestOCCBase(unittest.TestCase):
         self.c.run_command(BMC_CONST.OCC_ENABLE)
         print "OPAL-PRD: OCC DISABLE"
         self.c.run_command(BMC_CONST.OCC_DISABLE)
+        print "OPAL-PRD: OCC Enable"
+        self.c.run_command(BMC_CONST.OCC_ENABLE)
         print "OPAL-PRD: OCC RESET"
         self.c.run_command(BMC_CONST.OCC_RESET)
 
@@ -324,6 +326,8 @@ class OpTestOCCFull(OpTestOCCBase):
             self.c.run_command(BMC_CONST.OCC_ENABLE)
             print "OPAL-PRD: OCC Disable"
             self.c.run_command(BMC_CONST.OCC_DISABLE)
+            print "OPAL-PRD: OCC Enable"
+            self.c.run_command(BMC_CONST.OCC_ENABLE)
             tries = 12
             for i in range(1, tries):
                 print "Waiting for OCC Enable\Disable (%d\%d)"%(i,tries)

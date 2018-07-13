@@ -50,8 +50,7 @@ class OpTestSensors(unittest.TestCase):
         self.cv_HOST = conf.host()
 
     def tearDown(self):
-        self.cv_HOST.host_gather_opal_msg_log()
-        self.cv_HOST.host_gather_kernel_log()
+        self.cv_HOST.host_gather_debug_logs()
 
     ##
     # @brief This function will cover following test steps
