@@ -46,6 +46,9 @@ from OpTestSSH import ConsoleState as SSHConnectionState
 from Exceptions import HostbootShutdown
 from OpTestSSH import OpTestSSH
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpSystemState():
     '''
@@ -150,17 +153,17 @@ class OpTestSystem(object):
         # only perform detection when incoming state is UNKNOWN
         # if user overrides from command line and machine not at desired state can lead to exceptions
         if (self.state == OpSystemState.UNKNOWN):
-          print "OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state)
+          log.info("OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state))
           self.state = self.run_DETECT(state)
-          print "OpTestSystem CURRENT DETECTED STATE: %s" % (self.state)
+          log.info("OpTestSystem CURRENT DETECTED STATE: %s" % (self.state))
 
-        print "OpTestSystem START STATE: %s (target %s)" % (self.state, state)
+        log.info("OpTestSystem START STATE: %s (target %s)" % (self.state, state))
         never_unknown = False
         while 1:
             if self.state != OpSystemState.UNKNOWN:
                 never_unknown = True
             self.state = self.stateHandlers[self.state](state)
-            print "OpTestSystem TRANSITIONED TO: %s" % (self.state)
+            log.info("OpTestSystem TRANSITIONED TO: %s" % (self.state))
             if self.state == state:
                 break;
             if never_unknown and self.state == OpSystemState.UNKNOWN:
@@ -338,7 +341,7 @@ class OpTestSystem(object):
             self.sys_sel_check()
             return OpSystemState.UNKNOWN
         except HostbootShutdown as e:
-            print e
+            log.error(e)
             self.sys_sel_check()
             return OpSystemState.UNKNOWN
 
@@ -400,7 +403,7 @@ class OpTestSystem(object):
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
-        print msg
+        log.info(msg)
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         return OpSystemState.OFF
 
@@ -418,7 +421,7 @@ class OpTestSystem(object):
         self.cv_HOST.host_check_command("ipmitool")
 
         l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "ipmitool")
-        print "Installed package: %s" % l_pkg
+        log.debug("Installed package: %s" % l_pkg)
 
         # loading below ipmi modules based on config option
         # ipmi_devintf, ipmi_powernv and ipmi_masghandler
@@ -429,7 +432,7 @@ class OpTestSystem(object):
         self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
                                                       BMC_CONST.IPMI_MSG_HANDLER)
         self.ipmiDriversLoaded = True
-        print "IPMI drivers loaded"
+        log.debug("IPMI drivers loaded")
         return
 
     # Login to the host on the console
@@ -461,7 +464,7 @@ class OpTestSystem(object):
             # already at root prompt, success!
             return
         elif l_rc in [pexpect.TIMEOUT, pexpect.EOF]:
-            print l_con.before
+            log.error(l_con.before)
             raise "Timeout/EOF waiting for SOL response"
         elif l_rc in ["$"]:
             pass # fallthrough and sudo into a root shell
@@ -487,7 +490,7 @@ class OpTestSystem(object):
         p.expect("\n") # from us, because echo
         l_rc = p.expect("\[console-pexpect\]#$")
         if l_rc == 0:
-            print "Shell prompt changed"
+            log.debug("Shell prompt changed")
         else:
             raise Exception("Failed during change of shell prompt")
 
@@ -506,7 +509,7 @@ class OpTestSystem(object):
             rc =  self.cv_IPMI.ipmi_sdr_clear()
         except OpTestError as e:
             time.sleep(BMC_CONST.LONG_WAIT_IPL)
-            print ("Retry clearing SDR")
+            log.debug("Retry clearing SDR")
             try:
                 rc = self.cv_IPMI.ipmi_sdr_clear()
             except OpTestError as e:
@@ -681,7 +684,7 @@ class OpTestSystem(object):
         # Check to see if host credentials are present
         if(self.cv_HOST.ip == None):
             l_msg = "Partition credentials not provided"
-            print l_msg
+            log.error(l_msg)
             return BMC_CONST.FW_FAILED
 
         # Check if partition is active
@@ -689,7 +692,7 @@ class OpTestSystem(object):
             self.util.PingFunc(self.cv_HOST.ip, totalSleepTime=2)
             self.cv_HOST.host_get_OS_Level()
         except OpTestError as e:
-            print("Trying to recover partition after error: %s" % (e) )
+            log.error("Trying to recover partition after error: %s" % (e) )
             try:
                 self.cv_IPMI.ipmi_power_off()
                 self.sys_cold_reset_bmc()
@@ -710,18 +713,18 @@ class OpTestSystem(object):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_hard_reboot(self):
-        print "Performing a IPMI Power OFF Operation"
+        log.debug("Performing a IPMI Power OFF Operation")
         self.cv_IPMI.ipmi_power_off()
         rc = int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
         if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
+            log.info("System is in standby/Soft-off state")
         elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
+            log.info("Host Status sensor is not available")
+            log.info("Skipping stand-by state check")
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
-        print "Performing a IPMI Power ON Operation"
+        log.info("Performing a IPMI Power ON Operation")
         self.cv_IPMI.ipmi_power_on()
         self.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
@@ -736,19 +739,19 @@ class OpTestSystem(object):
     def sys_check_host_status(self):
         rc = int(self.sys_ipl_wait_for_working_state())
         if rc == BMC_CONST.FW_SUCCESS:
-            print "System booted to working state"
+            log.info("System booted to working state")
         elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skip wait for IPL runtime check"
+            log.info("Host Status sensor is not available")
+            log.info("Skip wait for IPL runtime check")
         else:
             l_msg = "System failed to boot"
             raise OpTestError(l_msg)
         rc = int(self.sys_wait_for_os_boot_complete())
         if rc == BMC_CONST.FW_SUCCESS:
-            print "System booted to Host OS"
+            log.info("System booted to Host OS")
         elif rc == BMC_CONST.FW_PARAMETER:
-            print "OS Boot sensor is not available"
-            print "Skip wait for wait for OS boot complete check"
+            log.info("OS Boot sensor is not available")
+            log.info("Skip wait for wait for OS boot complete check")
         else:
             l_msg = "System failed to boot Host OS"
             raise OpTestError(l_msg)
@@ -763,13 +766,13 @@ class OpTestSystem(object):
     #
     def sys_check_host_status_v1(self):
         if int(self.cv_IPMI.ipmi_ipl_wait_for_working_state_v1()) == BMC_CONST.FW_SUCCESS:
-            print "System booted to working state"
+            log.info("System booted to working state")
         else:
-            print "There is no Host Status sensor...."
+            log.info("There is no Host Status sensor....")
         if int(self.cv_IPMI.ipmi_wait_for_os_boot_complete_v1()) == BMC_CONST.FW_SUCCESS:
-            print "System booted to Host OS"
+            log.info("System booted to Host OS")
         else:
-            print "There is no OS Boot sensor..."
+            log.info("There is no OS Boot sensor...")
 
         return BMC_CONST.FW_SUCCESS
 
@@ -783,7 +786,7 @@ class OpTestSystem(object):
         try:
             self.cv_HOST.host_run_command(BMC_CONST.HOST_IPMI_REPROVISION_REQUEST)
         except OpTestError as e:
-            print "Failed to issue ipmi pnor reprovision request"
+            log.error("Failed to issue ipmi pnor reprovision request")
             return BMC_CONST.FW_FAILED
         return BMC_CONST.FW_SUCCESS
 
@@ -798,11 +801,11 @@ class OpTestSystem(object):
         while True:
             l_res = self.cv_HOST.host_run_command(BMC_CONST.HOST_IPMI_REPROVISION_PROGRESS)
             if "00" in l_res:
-                print "IPMI: Reprovision completed"
+                log.info("IPMI: Reprovision completed")
                 break
             if time.time() > timeout:
                 l_msg = "Reprovision timeout, progress not reaching to 00"
-                print l_msg
+                log.error(l_msg)
                 raise OpTestError(l_msg)
             time.sleep(10)
         return BMC_CONST.FW_SUCCESS
@@ -1365,7 +1368,7 @@ class OpTestSystem(object):
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
         if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
+            log.info("System is in standby/Soft-off state")
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
@@ -1397,8 +1400,7 @@ class OpTestSystem(object):
 
             # there will be extra things in the pexpect buffer here
         except pexpect.TIMEOUT as e:
-            print "Timeout waiting for Petitboot!"
-            print str(e)
+            log.error("Timeout waiting for Petitboot! error: {}".format(str(e)))
             raise e
 
     def wait_for_kexec(self):
@@ -1427,7 +1429,7 @@ class OpTestSystem(object):
                 continue
         console.sendcontrol('u') # remove any characters between cursor and start of line
         # we should have consumed everything in the buffer now.
-        print console
+        log.debug(console)
 
     def exit_petitboot_shell(self):
         console = self.console.get_console()
@@ -1451,7 +1453,7 @@ class OpTestSystem(object):
                 rawc.send("nc -l -p %u -v\n" % port)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             time.sleep(0.5)
-            print "# Connecting to %s:%u" % (self.host().hostname(), port)
+            log.debug("# Connecting to %s:%u" % (self.host().hostname(), port))
             sock.connect((self.host().hostname(), port))
             sock.send('Hello World!')
             sock.close()
@@ -1459,7 +1461,7 @@ class OpTestSystem(object):
             rawc.expect([':', ' '])
             my_ip = rawc.before
             rawc.expect('\n')
-            print repr(my_ip)
+            log.debug(repr(my_ip))
             return my_ip
         except Exception as e:  # Looks like older nc does not support -v, lets fallback
             rawc.sendcontrol('c')  # to avoid incase nc command hangs
@@ -1475,7 +1477,7 @@ class OpTestSystem(object):
                 if len(ip_lst) == 1:
                     my_ip = ip_lst[0]
                 else:
-                    print "hostname -i does not provide valid IP, correct and proceed with installation"
+                    log.error("hostname -i does not provide valid IP, correct and proceed with installation")
         return my_ip
 
     def sys_enable_tpm(self):

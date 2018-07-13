@@ -22,6 +22,10 @@ import sys
 import time
 import pexpect
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 from Exceptions import CommandFailed, SSHSessionDisconnected
 import OpTestSystem
 try:
@@ -42,14 +46,13 @@ def set_system_to_UNKNOWN_BAD(system):
     return s
 
 class OpTestSSH():
-    def __init__(self, host, username, password, logfile=sys.stdout, port=22,
+    def __init__(self, host, username, password, port=22,
             prompt=None, check_ssh_keys=False, known_hosts_file=None, use_default_bash=None):
         self.state = ConsoleState.DISCONNECTED
         self.host = host
         self.username = username
         self.password = password
         self.port = port
-        self.logfile = logfile
         self.prompt = prompt
         self.check_ssh_keys=check_ssh_keys
         self.known_hosts_file=known_hosts_file
@@ -98,7 +101,7 @@ class OpTestSSH():
         elif self.known_hosts_file:
             cmd = (cmd + " -o UserKnownHostsFile=" + self.known_hosts_file)
 
-        print cmd
+        log.debug(cmd)
         consoleChild = OPexpect.spawn(cmd,
                 failure_callback=set_system_to_UNKNOWN_BAD,
                 failure_callback_data=self.system)
@@ -108,7 +111,7 @@ class OpTestSSH():
         self.console = consoleChild
         # Users expecting "Host IPMI" will reference console.sol so make it available
         self.sol = self.console
-        consoleChild.logfile_read = self.logfile
+        consoleChild.logfile_read = OpTestLogger.FileLikeLogger(log)
         self.set_unique_prompt(consoleChild)
 
         return consoleChild
@@ -130,7 +133,7 @@ class OpTestSSH():
             console.expect([expect_prompt], timeout=60)
             output = console.before
         except pexpect.EOF as cf:
-            print cf
+            log.error(cf)
             if self.check_ssh_keys:
                 raise SSHSessionDisconnected("SSH session exited early - bad host key?")
             else:
@@ -150,7 +153,7 @@ class OpTestSSH():
 
         count = 0
         while (not self.console.isalive()):
-            print '# Reconnecting'
+            log.info('# Reconnecting')
             if (count > 0):
                 time.sleep(1)
             self.connect()
