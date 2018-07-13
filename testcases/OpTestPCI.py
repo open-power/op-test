@@ -439,9 +439,10 @@ class TestPciLink(TestPCI, unittest.TestCase):
                             self.staspeed = float(line[0].split()[-1])
                             self.stawidth = float(line[1].split(",")[0])
 
-            def print_details(self):
-                print "%s, capability=%s, secondary=%s" %(self.get_id(), self.capability, self.secondary)
-                print "capspeed=%s, capwidth=%s, staspeed=%s, stawidth=%s" % (self.capspeed, self.capwidth, self.staspeed, self.stawidth)
+            def get_details(self):
+                msg = "%s, capability=%s, secondary=%s \n" %(self.get_id(), self.capability, self.secondary)
+                msg += "capspeed=%s, capwidth=%s, staspeed=%s, stawidth=%s" % (self.capspeed, self.capwidth, self.staspeed, self.stawidth)
+                return msg
 
             def get_id(self):
                 return "%s:%s:%s" % (self.domain, self.primary, self.slotfunc)
@@ -460,18 +461,22 @@ class TestPciLink(TestPCI, unittest.TestCase):
                             return True
             return False
 
-        # Checking if LnkSta matches LnkCap
-        def optimalLink(upstream, downstream):
+        # Checking if LnkSta matches LnkCap - speed
+        def optimalSpeed(upstream, downstream):
             if upstream.capspeed > downstream.capspeed:
                 optimal_speed = downstream.capspeed
             else:
                 optimal_speed = upstream.capspeed
+            if optimal_speed > upstream.staspeed:
+                return False
+            return True
+
+        # Checking if LnkSta matches LnkCap - width
+        def optimalWidth(upstream, downstream):
             if upstream.capwidth > downstream.capwidth:
                 optimal_width = downstream.capwidth
             else:
                 optimal_width = upstream.capwidth
-            if optimal_speed > upstream.staspeed:
-                return False
             if optimal_width > upstream.stawidth:
                 return False
             return True
@@ -484,7 +489,26 @@ class TestPciLink(TestPCI, unittest.TestCase):
             device_list.append(Device(device_info))
 
         checked_devices = []
-        suboptimal_links = []
+        suboptimal_links = ""
+
+        # Returns a string containing details of the suboptimal link
+        def subLinkInfo(upstream, downstream):
+            msg = "\nSuboptimal link between %s and %s - " % (upstream.get_id(), downstream.get_id())
+            if not optimalSpeed(upstream, downstream):
+                if upstream.capspeed > downstream.capspeed:
+                    optimal_speed = downstream.capspeed
+                else:
+                    optimal_speed = upstream.capspeed
+                actual_speed = upstream.staspeed
+                msg += "Link speed capability is %sGT/s but status was %sGT/s. " % (optimal_speed, actual_speed)
+            if not optimalWidth(upstream, downstream):
+                if upstream.capwidth > downstream.capwidth:
+                    optimal_width = downstream.capwidth
+                else:
+                    optimal_width = upstream.capwidth
+                actual_width = upstream.stawidth
+                msg += "Link width capability is x%s but status was x%s. " % (optimal_width, actual_width)
+            return msg
 
         # Searching through devices to check for links and testing to see if they're optimal
         for device in device_list:
@@ -494,20 +518,15 @@ class TestPciLink(TestPCI, unittest.TestCase):
                     if endpoint not in checked_devices:
                         if devicesLinked(device, endpoint):
                             print "checking link between %s and %s" % (device.get_id(), endpoint.get_id())
-                            device.print_details()
-                            endpoint.print_details()
+                            print device.get_details()
+                            print endpoint.get_details()
                             print ""
                             checked_devices.append(endpoint)
-                            if not optimalLink(device, endpoint):
-                                suboptimal_links.append((device, endpoint))
+                            if (not optimalSpeed(device, endpoint)) or (not optimalWidth(device,endpoint)):
+                                suboptimal_links += subLinkInfo(device, endpoint)
 
-        # asset suboptimal list is empty
-        self.assertEqual(len(suboptimal_links), 0)
-        for link in suboptimal_links:
-            print "Suboptimal link between %s and %s" % (link[0].get_id(), link[1].get_id())
-            link[0].print_details()
-            link[1].print_details()
-
+        # Assert suboptimal list is empty
+        self.assertEqual(len(suboptimal_links), 0, suboptimal_links)
 
 def suite():
     s = unittest.TestSuite()
