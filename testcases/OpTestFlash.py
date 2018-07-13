@@ -90,7 +90,7 @@ class OpTestFlashBase(unittest.TestCase):
 
     def scp_file(self, src_file_path, dst_file_path):
         self.util.copyFilesToDest(src_file_path, self.bmc_username, self.bmc_ip,
-                                  dst_file_path, self.bmc_password, "2", BMC_CONST.SCP_TO_REMOTE)
+                                  dst_file_path, self.bmc_password)
 
     def get_version_tar(self, file_path):
         tar = tarfile.open(file_path)

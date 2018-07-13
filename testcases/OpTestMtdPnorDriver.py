@@ -107,7 +107,7 @@ class OpTestMtdPnorDriver(unittest.TestCase):
 
         # Getting the /tmp/pnor file into local x86 machine
         l_path = "/tmp/"
-        self.util.copyFilesToDest(l_path, self.host_user, self.host_ip, l_file, self.host_Passwd, "2", BMC_CONST.SCP_TO_LOCAL)
+        self.util.copyFilesToDest(l_path, self.host_user, self.host_ip, l_file, self.host_Passwd)
         l_list =  commands.getstatusoutput("ls -l %s" % l_path)
         print l_list
 
