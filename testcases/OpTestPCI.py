@@ -383,6 +383,150 @@ class TestPciHotplugHost(TestPCI, unittest.TestCase):
             self.gather_errors()
         self.assertEqual(failure_list, {}, "PCI Hotplug failures %s" % failure_list)
 
+class TestPciLink(TestPCI, unittest.TestCase):
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.host_console_unique_prompt()
+        lspci_output = self.cv_SYSTEM.console.run_command("lspci")
+
+        # Populating device id list
+        device_ids = []
+        for line in lspci_output:
+            if line:
+                line = line.strip().split(' ')
+                device_ids.append(line[0])
+
+        class Device:
+            def __init__(self, device_info):
+                self.domain = ""
+                self.primary = ""
+                self.slotfunc = ""
+                self.secondary = ""
+                self.capability = ""
+                self.capspeed = 0
+                self.capwidth = 0
+                self.staspeed = 0
+                self.stawidth = 0
+
+                # 0000:00:00.0 PCI bridge: IBM Device 03dc
+                id_components = device_info[0].split()[0].split(":")
+                self.domain = id_components[0]
+                self.primary = id_components[1]
+                self.slotfunc = id_components[2].split()[0]
+
+                for line in device_info[1:]:
+                    if line:
+                        line = line.strip()
+                        if "Bus:" in line:
+                            line = line.split("secondary=")
+                            self.secondary = line[1][:2]
+                        if "Express (v" in line:
+                            self.capability = "Endpoint"
+                            if "Root Port" in line:
+                                self.capability = "Root"
+                            if "Upstream" in line:
+                                self.capability = "Upstream"
+                            if "Downstream" in line:
+                                self.capability = "Downstream"
+                        if "LnkCap:" in line:
+                            # LnkCap:   Port #0, Speed 8GT/s, Width x16, ASPM L0s, Exit Latency L0s unlimited, L1 unlimited
+                            line = line.split("GT/s, Width x")
+                            self.capspeed = float(line[0].split()[-1])
+                            self.capwidth = float(line[1].split(",")[0])
+                        if "LnkSta:" in line:
+                            # LnkSta:   Speed 8GT/s, Width x8, TrErr- Train- SlotClk+ DLActive+ BWMgmt- ABWMgmt+
+                            line = line.split("GT/s, Width x")
+                            self.staspeed = float(line[0].split()[-1])
+                            self.stawidth = float(line[1].split(",")[0])
+
+            def get_details(self):
+                msg = "%s, capability=%s, secondary=%s \n" %(self.get_id(), self.capability, self.secondary)
+                msg += "capspeed=%s, capwidth=%s, staspeed=%s, stawidth=%s" % (self.capspeed, self.capwidth, self.staspeed, self.stawidth)
+                return msg
+
+            def get_id(self):
+                return "%s:%s:%s" % (self.domain, self.primary, self.slotfunc)
+
+        # Checking if two devices are linked together
+        def devicesLinked(upstream,downstream):
+            if upstream.domain == downstream.domain:
+                if upstream.secondary == downstream.primary:
+                    if upstream.capability == "Root":
+                        if downstream.capability == "Upstream":
+                            return True
+                        if downstream.capability == "Endpoint":
+                            return True
+                    if upstream.capability == "Downstream":
+                        if downstream.capability == "Endpoint":
+                            return True
+            return False
+
+        # Checking if LnkSta matches LnkCap - speed
+        def optimalSpeed(upstream, downstream):
+            if upstream.capspeed > downstream.capspeed:
+                optimal_speed = downstream.capspeed
+            else:
+                optimal_speed = upstream.capspeed
+            if optimal_speed > upstream.staspeed:
+                return False
+            return True
+
+        # Checking if LnkSta matches LnkCap - width
+        def optimalWidth(upstream, downstream):
+            if upstream.capwidth > downstream.capwidth:
+                optimal_width = downstream.capwidth
+            else:
+                optimal_width = upstream.capwidth
+            if optimal_width > upstream.stawidth:
+                return False
+            return True
+
+        device_list = []
+
+        # Filling device objects' details
+        for device in device_ids:
+            device_info = self.cv_SYSTEM.console.run_command("lspci -s %s -vv" % (device))
+            device_list.append(Device(device_info))
+
+        checked_devices = []
+        suboptimal_links = ""
+
+        # Returns a string containing details of the suboptimal link
+        def subLinkInfo(upstream, downstream):
+            msg = "\nSuboptimal link between %s and %s - " % (upstream.get_id(), downstream.get_id())
+            if not optimalSpeed(upstream, downstream):
+                if upstream.capspeed > downstream.capspeed:
+                    optimal_speed = downstream.capspeed
+                else:
+                    optimal_speed = upstream.capspeed
+                actual_speed = upstream.staspeed
+                msg += "Link speed capability is %sGT/s but status was %sGT/s. " % (optimal_speed, actual_speed)
+            if not optimalWidth(upstream, downstream):
+                if upstream.capwidth > downstream.capwidth:
+                    optimal_width = downstream.capwidth
+                else:
+                    optimal_width = upstream.capwidth
+                actual_width = upstream.stawidth
+                msg += "Link width capability is x%s but status was x%s. " % (optimal_width, actual_width)
+            return msg
+
+        # Searching through devices to check for links and testing to see if they're optimal
+        for device in device_list:
+            if device not in checked_devices:
+                checked_devices.append(device)
+                for endpoint in device_list:
+                    if endpoint not in checked_devices:
+                        if devicesLinked(device, endpoint):
+                            print "checking link between %s and %s" % (device.get_id(), endpoint.get_id())
+                            print device.get_details()
+                            print endpoint.get_details()
+                            print ""
+                            checked_devices.append(endpoint)
+                            if (not optimalSpeed(device, endpoint)) or (not optimalWidth(device,endpoint)):
+                                suboptimal_links += subLinkInfo(device, endpoint)
+
+        # Assert suboptimal list is empty
+        self.assertEqual(len(suboptimal_links), 0, suboptimal_links)
 
 def suite():
     s = unittest.TestSuite()
@@ -393,5 +537,6 @@ def suite():
     s.addTest(TestPciSkirootvsOS())
     s.addTest(TestPciSkirootReboot())
     s.addTest(TestPciOSReboot())
+    s.addTest(TestPciLink())
     return s
 
