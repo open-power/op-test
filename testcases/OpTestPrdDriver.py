@@ -187,8 +187,6 @@ class OpTestPrdDriver(unittest.TestCase):
         # In P9 FSP systems we need to enable this test
         self.prd_init()
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-	self.cv_SYSTEM.host_console_unique_prompt()
 
         cpu = self.cv_HOST.host_get_proc_gen()
         faults_to_inject = []
@@ -226,9 +224,6 @@ class OpTestPrdDriver(unittest.TestCase):
         if cpu in ["POWER9"]:
             self.IPOLL_MASK_REGISTER = "0xF0033" #TP.TPCHIP.PIB.PCBMS.COMP.INTR_COMP.HOST_MASK_REG
             self.IPOLL_MASK_REGISTER_CONTENT = "a400000000000000"
-
-        l_con.run_command("stty cols 300")
-        l_con.run_command("stty rows 30")
 
         try:
             l_con.run_command("opal-prd --pnor /dev/mtd0 --debug --stdio")

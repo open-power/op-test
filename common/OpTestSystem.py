@@ -35,17 +35,18 @@ import subprocess
 import pexpect
 import socket
 import commands
+import unittest
 
 import OpTestIPMI # circular dependencies, use package
+import OpTestQemu
 from OpTestFSP import OpTestFSP
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestHost import OpTestHost
 from OpTestUtil import OpTestUtil
 from OpTestSSH import ConsoleState as SSHConnectionState
-from Exceptions import HostbootShutdown
+from Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition, ConsoleSettings, UnexpectedCase, StoppingSystem
 from OpTestSSH import OpTestSSH
-
 
 class OpSystemState():
     '''
@@ -76,8 +77,10 @@ class OpTestSystem(object):
     # @param i_hostuser The userid to log into the Host
     # @param i_hostPasswd The password of the userid to log into the host with
     #
+
     def __init__(self,
                  bmc=None, host=None,
+                 prompt=None,
                  state=OpSystemState.UNKNOWN):
         self.bmc = self.cv_BMC = bmc
         self.cv_HOST = host
@@ -85,6 +88,72 @@ class OpTestSystem(object):
         self.rest = self.bmc.get_rest_api()
         self.console = self.bmc.get_host_console()
         self.util = OpTestUtil()
+        self.prompt = prompt # build_prompt located in OpTestUtil
+        # system console state tracking, reset on boot and state changes, set when valid
+        self.PS1_set = -1
+        self.SUDO_set = -1
+        self.LOGIN_set = -1
+        self.expect_prompt = self.util.build_prompt(prompt) + "$"
+        self.previous_state = None # used for PS1, LOGIN, SUDO state tracking
+        self.target_state = None # used in WaitForIt
+        self.detect_counter = 0 # outside scope of detection to prevent loops
+        self.never_rebooted = True # outside scope to prevent loops
+        self.block_setup_term = 0
+        self.stop = 0
+        self.ignore = 0
+
+        self.openpower = 'openpower' # string to define petitboot kernel cat /proc/version column 3, change if using debug petitboot kernel
+
+        # dictionary used in sorted order
+        # column 1 is the string, column 2 is the action
+        # normally None is the action, otherwise a handler mostly used for exceptions
+        self.petitboot_expect_table = {
+          'Petitboot'                              : None,
+          '/ #'                                    : None,
+          'shutdown requested'                     : self.hostboot_callback,
+          'x=exit'                                 : None,
+          'login: '                                : self.login_callback,
+          'mon> '                                  : self.xmon_callback,
+          'System shutting down with error status' : self.guard_callback,
+        }
+
+        self.login_expect_table = {
+          'login: '                           : None,
+          '/ #'                               : self.petitboot_callback,
+          'mon> '                             : self.xmon_callback,
+        }
+
+        # tunables for customizations, put them here all together
+
+        # ipmi versus ssh settings, sometimes tuning is needed based on type, so keeping split for tuning
+        # to basically turn off reconnect based on stale buffers set threshold equal to watermark, e.g. 50
+        if isinstance(self.console, OpTestIPMI.IPMIConsole):
+          self.threshold_petitboot = 12 # stale buffer check
+          self.threshold_login = 12 # long enough to skip the refresh until kexec, stale buffers need to be jumped over
+          self.petitboot_kicker = 0
+          self.petitboot_refresh = 0 # petitboot menu cannot tolerate, cancels default boot
+          self.petitboot_reconnect = 1
+          self.login_refresh = 0
+          self.login_reconnect = 1 # less reliable connections, ipmi act/deact does not trigger default boot cancel
+          self.login_fresh_start = 0
+        else:
+          self.threshold_petitboot = 12 # stale buffer check
+          self.threshold_login = 12 # long enough to skip the refresh until kexec, stale buffers need to be jumped over
+          self.petitboot_kicker = 0
+          self.petitboot_refresh = 0 # petitboot menu cannot tolerate, cancels default boot
+          self.petitboot_reconnect = 1 # NEW ssh triggers default boot cancel, just saying
+          self.login_refresh = 0
+          self.login_reconnect = 1 # NEW ssh triggers default boot cancel, just saying
+          self.login_fresh_start = 0
+
+        # watermark is the loop counter (loop_max) used in conjunction with timeout
+        # timeout is the expect timeout for each iteration
+        # watermark will automatically increase in case the loop is too short
+        self.ipl_watermark = 50
+        self.ipl_timeout = 4 # needs consideration with petitboot timeout
+        self.booting_watermark = 50
+        self.booting_timeout = 5
+        self.kill_cord = 100 # just a ceiling on giving up
 
         # We have a state machine for going in between states of the system
         # initially, everything in UNKNOWN, so we reset things.
@@ -109,6 +178,72 @@ class OpTestSystem(object):
         # We reset as soon as we transition away from OpSystemState.OS
         # a TODO is to support doing this in petitboot shell as well.
         self.ipmiDriversLoaded = False
+
+    def hostboot_callback(self, **kwargs):
+        default_vals = {'my_r': None, 'value': None}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        self.state = OpSystemState.UNKNOWN_BAD
+        self.stop = 1
+        raise HostbootShutdown()
+
+    def login_callback(self, **kwargs):
+        default_vals = {'my_r': None, 'value': None}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        print "\n\n *** OpTestSystem found the login prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value'])
+        # raise the WaitForIt exception to be bubbled back to recycle early rather than having to wait the full loop_max
+        raise WaitForIt(expect_dict=self.petitboot_expect_table, reconnect_count=-1)
+
+    def petitboot_callback(self, **kwargs):
+        default_vals = {'my_r': None, 'value': None}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        print "\n\n *** OpTestSystem found the petitboot prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value'])
+        # raise the WaitForIt exception to be bubbled back to recycle early rather than having to wait the full loop_max
+        raise WaitForIt(expect_dict=self.login_expect_table, reconnect_count=-1)
+
+    def guard_callback(self, **kwargs):
+        default_vals = {'my_r': None, 'value': None}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        guard_exception = UnexpectedCase(state=self.state, msg="We hit the guard_callback value={}, manually restart the system".format(kwargs['value']))
+        self.state = OpSystemState.UNKNOWN_BAD
+        self.stop = 1
+        raise guard_exception
+
+    def xmon_callback(self, **kwargs):
+        default_vals = {'my_r': None, 'value': None}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        xmon_check_r = kwargs['my_r']
+        xmon_value = kwargs['value']
+        time.sleep(2)
+        sys_console = self.console.get_console()
+        time.sleep(2)
+        sys_console.sendline("t")
+        time.sleep(2)
+        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_backtrace = sys_console.after
+        sys_console.sendline("r")
+        time.sleep(2)
+        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_registers = sys_console.after
+        sys_console.sendline("S")
+        time.sleep(2)
+        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_special_registers = sys_console.after
+        self.stop = 1
+        my_msg = ('We hit the xmon_callback with \"{}\" backtrace=\n{}\n registers=\n{}\n special_registers=\n{}\n'
+                  .format(xmon_value, xmon_backtrace, xmon_registers, xmon_special_registers))
+        xmon_exception = UnexpectedCase(state=self.state, msg=my_msg)
+        self.state = OpSystemState.UNKNOWN_BAD
+        raise xmon_exception
 
     def skiboot_log_on_console(self):
         return True
@@ -149,6 +284,10 @@ class OpTestSystem(object):
     def goto_state(self, state):
         # only perform detection when incoming state is UNKNOWN
         # if user overrides from command line and machine not at desired state can lead to exceptions
+        self.block_setup_term = 1 # block in case the system is not on/up
+        self.target_state = state # used in WaitForIt
+        if isinstance(self.console, OpTestQemu.QemuConsole) and (state == OpSystemState.OS):
+          raise unittest.SkipTest("OpTestSystem running QEMU so skipping OpSystemState.OS test")
         if (self.state == OpSystemState.UNKNOWN):
           print "OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state)
           self.state = self.run_DETECT(state)
@@ -157,31 +296,45 @@ class OpTestSystem(object):
         print "OpTestSystem START STATE: %s (target %s)" % (self.state, state)
         never_unknown = False
         while 1:
+            if self.stop == 1:
+              raise StoppingSystem()
+            self.block_setup_term = 1 # block until we are clear, exceptions can re-enter while booting
             if self.state != OpSystemState.UNKNOWN:
                 never_unknown = True
             self.state = self.stateHandlers[self.state](state)
+            # transition from states invalidate the previous PS1 setting, so clear it
+            if self.previous_state != self.state:
+              self.util.clear_state(self)
+              self.previous_state = self.state
             print "OpTestSystem TRANSITIONED TO: %s" % (self.state)
             if self.state == state:
                 break;
             if never_unknown and self.state == OpSystemState.UNKNOWN:
-                raise 'System State transition failure: should not have progressed to UNKNOWN!'
+                 self.stop = 1
+                 raise UnknownStateTransition(state=self.state,
+                         msg=("OpTestSystem something set the system to UNKNOWN,"
+                           " check the logs for details, we will be stopping the system"))
 
     def run_DETECT(self, target_state):
-        t = 0
+        self.detect_counter += 1
         detect_state = OpSystemState.UNKNOWN
-        never_rebooted = True
-        while (detect_state == OpSystemState.UNKNOWN) and (t < 2):
+        if self.detect_counter >= 3:
+          return OpSystemState.UNKNOWN
+        while (detect_state == OpSystemState.UNKNOWN) and (self.detect_counter <= 2):
           # two phases
-          detect_state = self.detect_target(target_state, never_rebooted)
-          never_rebooted = False
-          t += 1
+          detect_state = self.detect_target(target_state, self.never_rebooted)
+          self.block_setup_term = 1 # block after check_kernel unblocked
+          self.never_rebooted = False
+          self.detect_counter += 1
         return detect_state
 
     def detect_target(self, target_state, reboot):
-        console = self.console.connect()
-        # need to kick the buffer, login needs "r"
-        console.send("\r")
-        r = console.expect(["x=exit", "Petitboot", ".*#", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        self.block_setup_term = 0 # unblock to allow setup_term during get_console
+        self.console.enable_setup_term_quiet()
+        sys_console = self.console.get_console()
+        self.console.disable_setup_term_quiet()
+        sys_console.sendline()
+        r = sys_console.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if r in [0,1]:
           if (target_state == OpSystemState.PETITBOOT):
             return OpSystemState.PETITBOOT
@@ -194,24 +347,39 @@ class OpTestSystem(object):
             return OpSystemState.UNKNOWN
           else:
             return OpSystemState.UNKNOWN
-        elif r == 2:
+        elif r in [2,3]:
           detect_state = self.check_kernel()
           if (detect_state == target_state):
+            self.previous_state = detect_state # preserve state
             return detect_state
           elif reboot:
-            if detect_state in [OpSystemState.OS]:
+            if target_state in [OpSystemState.OS]:
               self.run_REBOOT(target_state)
               return OpSystemState.UNKNOWN
-            elif detect_state in [OpSystemState.PETITBOOT]:
-              self.exit_petitboot_shell()
-              return OpSystemState.PETITBOOT
-            elif detect_state in [OpSystemState.PETITBOOT_SHELL]:
-              return OpSystemState.PETITBOOT_SHELL
+            elif target_state in [OpSystemState.PETITBOOT]:
+              if (detect_state == OpSystemState.PETITBOOT_SHELL):
+                self.exit_petitboot_shell()
+                return OpSystemState.PETITBOOT
+              else:
+                self.run_REBOOT(target_state)
+                return OpSystemState.UNKNOWN
+            elif target_state in [OpSystemState.PETITBOOT_SHELL]:
+              self.run_REBOOT(target_state)
+              return OpSystemState.UNKNOWN
             else:
               return OpSystemState.UNKNOWN
           else:
-            return OpSystemState.UNKNOWN
-        elif r == 3:
+            if (detect_state == target_state):
+              self.previous_state = detect_state # preserve state
+              return detect_state
+            elif (detect_state == OpSystemState.PETITBOOT_SHELL) and (target_state == OpSystemState.PETITBOOT):
+              self.exit_petitboot_shell()
+              return OpSystemState.PETITBOOT
+            elif target_state in [OpSystemState.PETITBOOT_SHELL]:
+              return OpSystemState.PETITBOOT_SHELL
+            else:
+              return OpSystemState.UNKNOWN
+        elif r == 4:
           if (target_state == OpSystemState.OS):
             return OpSystemState.OS
           elif reboot:
@@ -222,91 +390,183 @@ class OpTestSystem(object):
               return OpSystemState.UNKNOWN
           else:
             return OpSystemState.UNKNOWN
-        elif (r == 4) or (r == 5):
+        elif (r == 5) or (r == 6):
+          self.detect_counter += 1
           return OpSystemState.UNKNOWN
 
     def check_kernel(self):
-        console = self.console.get_console()
-        console.sendline("cat /proc/version | cut -d ' ' -f 3 | grep openpower")
-        console.expect("\n")
-        console.expect([".*#"])
-        console.sendline("echo $?")
-        console.expect("\n")
-        console.expect([".*#"])
-        echo_output = console.after
-        try:
-          echo_rc = int(echo_output.splitlines()[0])
-        except Exception as e:
-          # most likely cause is running while booting unknowlingly
-          return OpSystemState.UNKNOWN
-        if (echo_rc == 0):
-          return OpSystemState.PETITBOOT_SHELL
-        else:
-          return OpSystemState.OS
+        self.block_setup_term = 0 # unblock to allow setup_term during get_console
+        self.console.enable_setup_term_quiet()
+        sys_console = self.console.get_console()
+        self.console.disable_setup_term_quiet()
+        sys_console.sendline()
+        rc = sys_console.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        if rc in [0,1,5,6]:
+          return OpSystemState.UNKNOWN # we really should not have arrived in here and not much we can do
+        sys_console.sendline("cat /proc/version | cut -d ' ' -f 3 | grep %s; echo $?" % (self.openpower))
+        time.sleep(0.2)
+        rc = sys_console.expect([self.expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=1)
+        if rc == 0:
+          echo_output = sys_console.before
+          try:
+            echo_rc = int(echo_output.splitlines()[-1])
+          except Exception as e:
+            # most likely cause is running while booting unknowlingly
+            return OpSystemState.UNKNOWN
+          if (echo_rc == 0):
+            self.previous_state = OpSystemState.PETITBOOT_SHELL
+            return OpSystemState.PETITBOOT_SHELL
+          elif echo_rc == 1:
+            self.previous_state = OpSystemState.OS
+            return OpSystemState.OS
+          else:
+            return OpSystemState.UNKNOWN
+        else: # TIMEOUT EOF from cat
+            return OpSystemState.UNKNOWN
 
-    def wait_for_it(self, my_string=None, refresh=1, buffer_kicker=1, loop_max=50, threshold=1, timeout=10):
-        console = self.console.get_console()
+    def wait_for_it(self, **kwargs):
+        default_vals = {'expect_dict': None, 'refresh': 1, 'buffer_kicker': 1, 'loop_max': 8, 'threshold': 1, 'reconnect': 1, 'fresh_start' : 1, 'last_try': 1, 'timeout': 5}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        base_seq = [pexpect.TIMEOUT, pexpect.EOF]
+        expect_seq = list(base_seq) # we want a *copy*
+        expect_seq = expect_seq + list(sorted(kwargs['expect_dict'].keys()))
+        if kwargs['fresh_start']:
+          sys_console = self.console.connect() # new connect gets new pexpect buffer, stale buffer from power off can linger
+        else:
+          sys_console = self.console.get_console() # cannot tolerate new connect on transition from 3/4 to 6
+        # we do not perform buffer_kicker here since it can cause changes to things like the petitboot menu and default boot
+        if kwargs['refresh']:
+          sys_console.sendcontrol('l')
         previous_before = 'emptyfirst'
         x = 1
         reconnect_count = 0
-        while (x <= loop_max):
-            rc = console.expect([my_string, pexpect.TIMEOUT, pexpect.EOF], timeout)
-            if (previous_before == console.before) and (rc != 0):
-              # only attempt reconnect per threshold
-              if (x % threshold == 0):
-                reconnect_count += 1
-                if isinstance(self.console, OpTestIPMI.IPMIConsole):
-                  console = self.console.connect()
-                  if buffer_kicker:
-                    console.sendline("\r")
-                  if refresh:
-                    console.sendcontrol('l')
-                  previous_before = 'emptyagain'
-                else:
-                  console = self.console.connect()
-                  if buffer_kicker:
-                    console.sendline("\r")
-                  previous_before = 'emptyagain'
+        timeout_count = 1
+        while (x <= kwargs['loop_max']):
+            sys_console = self.console.get_console() # preemptive in case EOF came
+            r = sys_console.expect(expect_seq, kwargs['timeout'])
+            # if we have a stale buffer and we are still timing out
+            if (previous_before == sys_console.before) and ((r + 1) in range(len(base_seq))):
+              timeout_count += 1
+              # only attempt reconnect if we've timed out per threshold
+              if (timeout_count % kwargs['threshold'] == 0):
+                if kwargs['reconnect']:
+                  reconnect_count += 1
+                  try:
+                    sys_console = self.console.connect()
+                  except Exception as e:
+                    print e
+                  if kwargs['refresh']:
+                    sys_console.sendcontrol('l')
+                  if kwargs['buffer_kicker']:
+                    sys_console.sendline("\r")
+                    sys_console.expect("\n")
+                previous_before = 'emptyagain'
             else:
-              previous_before = console.before
-            if (rc == 0):
-              break;
+              previous_before = sys_console.before
+              timeout_count = 1
+
+            working_r = self.check_it(my_r=r, check_base_seq=base_seq, check_expect_seq=expect_seq, check_expect_dict=kwargs['expect_dict'])
+            # if we found a hit on the callers string return it, otherwise keep looking
+            if working_r != -1:
+              return working_r, reconnect_count
             else:
               x += 1
-            if (x >= loop_max):
-              raise Exception('Waiting for "{}" did not succeed, check the loop_max if needing to wait longer'
-                              ' (number of reconnect attempts were {})'.format(my_string, reconnect_count))
+              # leaving status output here for now, may move to debug log in future
+              print ("\n *** WaitForIt CURRENT STATE \"{:02}\" TARGET STATE \"{:02}\"\n"
+                      " *** WaitForIt working on transition\n"
+                      " *** Current loop iteration \"{:02}\"             - Reconnect attempts \"{:02}\" - loop_max \"{:02}\"\n"
+                      " *** WaitForIt timeout interval \"{:02}\" seconds - Stale buffer check every \"{:02}\" times\n"
+                      " *** WaitForIt variables \"{}\"\n"
+                      " *** WaitForIt Refresh=\"{}\" Buffer Kicker=\"{}\" - Kill Cord=\"{:02}\"\n".format(self.state, self.target_state,
+                      x, reconnect_count, kwargs['loop_max'], kwargs['timeout'], kwargs['threshold'],
+                      sorted(kwargs['expect_dict'].keys()), kwargs['refresh'], kwargs['buffer_kicker'], self.kill_cord))
+            if (x >= kwargs['loop_max']):
+              if kwargs['last_try']:
+                sys_console = self.console.connect()
+                sys_console.sendcontrol('l')
+                sys_console.sendline("\r")
+                r = sys_console.expect(expect_seq, kwargs['timeout'])
+                try:
+                  last_try_r = self.check_it(my_r=r, check_base_seq=base_seq, check_expect_seq=expect_seq,
+                                               check_expect_dict=kwargs['expect_dict'])
+                  if last_try_r != -1:
+                    return last_try_r, reconnect_count
+                  else:
+                    raise WaitForIt(expect_dict=kwargs['expect_dict'], reconnect_count=reconnect_count)
+                except Exception as e:
+                  raise e
+              raise WaitForIt(expect_dict=kwargs['expect_dict'], reconnect_count=reconnect_count)
+
+    def check_it(self, **kwargs):
+        default_vals = {'my_r': None, 'check_base_seq': None, 'check_expect_seq': None, 'check_expect_dict': None}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        check_r = kwargs['my_r']
+        check_expect_seq = kwargs['check_expect_seq']
+        check_base_seq = kwargs['check_base_seq']
+        check_expect_dict = kwargs['check_expect_dict']
+        # if we have a hit on the callers string process it
+        if (check_r + 1) in range(len(check_base_seq) + 1, len(check_expect_seq) + 1):
+          # if there is a handler callback
+          if check_expect_dict[check_expect_seq[check_r]]:
+            try:
+              # this calls the handler callback, mostly intended for raising exceptions
+              check_expect_dict[check_expect_seq[check_r]](my_r=check_r, value=check_expect_seq[check_r])
+              if self.ignore == 1: # future use, set this flag in a handler callback
+                self.ignore = 0
+                # if we go to a callback and get back here flag this to ignore the find
+                # this allows special handling without interrupting the waiting for a good case
+                return -1
+            except Exception as e:
+              # if a callback handler raised an exception this will catch it and then re-raise it
+              raise e
+          # r based on sorted order of dict
+          return check_r - len(check_base_seq)
+        else:
+          if check_r == 1: # EOF
+            self.console.close() # while loop will get_console
+        # we found nothing so return -1
+        return -1
 
     def run_REBOOT(self, target_state):
-        # per console object detect stale indicator
-        # used in conjunction with timeouts and loop_max
-        if isinstance(self.console, OpTestIPMI.IPMIConsole):
-          threshold = 3
-        else:
-          threshold = 6
-        console = self.console.get_console()
+        self.block_setup_term = 0 # allow login/setup
+        # if run_REBOOT is used in the future outside of first time need to review previous_state handling
+        sys_console = self.console.get_console()
         if (target_state == OpSystemState.PETITBOOT_SHELL) or (target_state == OpSystemState.PETITBOOT):
           self.sys_set_bootdev_setup()
-          self.host_console_login()
         else:
           self.sys_set_bootdev_no_override()
-        console.sendline('reboot')
-        console.expect("\n")
+        self.util.clear_state(self)
+        self.block_setup_term = 1 # block during reboot
+        sys_console.sendline('reboot') # connect will have the login/root setup_term done
+        sys_console.expect("\n")
 
-        if (target_state == OpSystemState.OS):
-          self.wait_for_it(my_string='login: ', threshold=threshold)
-        else:
-          self.wait_for_it(my_string='Petitboot', buffer_kicker=0, threshold=threshold)
+        try:
+          if (target_state == OpSystemState.OS):
+            my_r, my_reconnect = self.wait_for_it(expect_dict=self.login_expect_table,
+               reconnect=self.login_reconnect, threshold=self.threshold_login, loop_max=50)
+          else:
+            my_r, my_reconnect = self.wait_for_it(expect_dict=self.petitboot_expect_table,
+               reconnect=self.petitboot_reconnect, refresh=self.petitboot_refresh, buffer_kicker=self.petitboot_kicker,
+               threshold=self.threshold_petitboot, loop_max=50)
+        except Exception as e:
+          return
 
     def run_UNKNOWN(self, state):
+        self.block_setup_term = 1
         self.sys_power_off()
         return OpSystemState.POWERING_OFF
 
     def run_OFF(self, state):
+        self.block_setup_term = 1
         if state == OpSystemState.OFF:
             return OpSystemState.OFF
         if state == OpSystemState.UNKNOWN:
-            raise "Can't trasition to UNKNOWN state"
+            raise UnknownStateTransition(state=self.state,
+                    msg="OpTestSystem in run_OFF and something caused the system to go to UNKNOWN")
 
         # We clear any possible errors at this stage
         self.sys_sdr_clear()
@@ -328,26 +588,49 @@ class OpTestSystem(object):
         return OpSystemState.IPLing
 
     def run_IPLing(self, state):
+        self.block_setup_term = 1
         if state == OpSystemState.OFF:
             self.sys_power_off()
             return OpSystemState.POWERING_OFF
 
         try:
-            self.wait_for_petitboot()
-        except pexpect.TIMEOUT:
-            self.sys_sel_check()
-            return OpSystemState.UNKNOWN
+
+            # if petitboot cannot be reached it will automatically increase the watermark and retry
+            # see the tunables ipl_watermark and ipl_timeout for customization for extra long boot cycles for debugging, etc
+            petit_r, petit_reconnect = self.wait_for_it(expect_dict=self.petitboot_expect_table, reconnect=self.petitboot_reconnect,
+                buffer_kicker=self.petitboot_kicker, threshold=self.threshold_petitboot, refresh=self.petitboot_refresh,
+                loop_max=self.ipl_watermark, timeout=self.ipl_timeout)
         except HostbootShutdown as e:
             print e
             self.sys_sel_check()
-            return OpSystemState.UNKNOWN
+            raise e
+        except WaitForIt as e:
+            if self.ipl_watermark < self.kill_cord:
+              self.ipl_watermark += 1
+              print ("OpTestSystem UNABLE TO REACH PETITBOOT or we missed it - \"{}\", increasing ipl_watermark for loop_max to {},"
+                      " will re-IPL for another try".format(e, self.ipl_watermark))
+              return OpSystemState.UNKNOWN_BAD
+            else:
+              print "OpTestSystem has reached the limit on re-IPL'ing to try to recover, we will be stopping"
+              return OpSystemState.UNKNOWN
+        except Exception as e:
+            self.stop = 1 # Exceptions like in OPexpect Assert fail
+            my_msg = ("OpTestSystem in run_IPLing and the Exception=\n\"{}\"\n caused the system to"
+                       " go to UNKNOWN_BAD and the system will be stopping.".format(e))
+            my_exception = UnknownStateTransition(state=self.state, msg=my_msg)
+            self.state = OpSystemState.UNKNOWN_BAD
+            raise my_exception
 
-        # Once reached to petitboot check for any SEL events
-        self.sys_sel_check()
-        return OpSystemState.PETITBOOT
+        if petit_r != -1:
+          # Once reached to petitboot check for any SEL events
+          self.sys_sel_check()
+          return OpSystemState.PETITBOOT
 
     def run_PETITBOOT(self, state):
+        self.block_setup_term = 1
         if state == OpSystemState.PETITBOOT:
+            # verify that we are at the petitboot menu
+            self.exit_petitboot_shell()
             return OpSystemState.PETITBOOT
         if state == OpSystemState.PETITBOOT_SHELL:
             self.petitboot_exit_to_shell()
@@ -358,15 +641,15 @@ class OpTestSystem(object):
             return OpSystemState.POWERING_OFF
 
         if state == OpSystemState.OS:
-            self.wait_for_kexec()
             return OpSystemState.BOOTING
 
-        raise 'Invalid state transition'
+        raise UnknownStateTransition(state=self.state, msg="OpTestSystem in run_PETITBOOT and something caused the system to go to UNKNOWN")
 
     def run_PETITBOOT_SHELL(self, state):
+        self.block_setup_term = 1
         if state == OpSystemState.PETITBOOT_SHELL:
-            console = self.console.get_console()
-            console.sendcontrol('l')
+            # verify that we are at the petitboot shell
+            self.petitboot_exit_to_shell()
             return OpSystemState.PETITBOOT_SHELL
 
         if state == OpSystemState.PETITBOOT:
@@ -377,14 +660,36 @@ class OpTestSystem(object):
         return OpSystemState.POWERING_OFF
 
     def run_BOOTING(self, state):
-        rc = self.wait_for_login()
-        if rc != BMC_CONST.FW_FAILED:
-            # Wait for ip to ping as we run host commands immediately
-            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-            return OpSystemState.OS
-        return OpSystemState.UNKNOWN
+        self.block_setup_term = 1
+        try:
+          # if login cannot be reached it will automatically increase the watermark and retry
+          # see the tunables booting_watermark and booting_timeout for customization for extra long boot cycles for debugging, etc
+          login_r, login_reconnect = self.wait_for_it(expect_dict=self.login_expect_table, reconnect=self.login_reconnect,
+            threshold=self.threshold_login, refresh=self.login_refresh, loop_max=self.booting_watermark,
+            fresh_start=self.login_fresh_start, timeout=self.booting_timeout)
+        except WaitForIt as e:
+          if self.booting_watermark < self.kill_cord:
+            self.booting_watermark += 1
+            print ("OpTestSystem UNABLE TO REACH LOGIN or we missed it - \"{}\", increasing booting_watermark for loop_max to {},"
+                    " will re-IPL for another try".format(e, self.booting_watermark))
+            return OpSystemState.UNKNOWN_BAD
+          else:
+            print "OpTestSystem has reached the limit on re-IPL'ing to try to recover, we will be stopping"
+            return OpSystemState.UNKNOWN
+        except Exception as e:
+            my_msg = ("OpTestSystem in run_IPLing and Exception=\"{}\" caused the system to"
+                       " go to UNKNOWN_BAD and the system will be stopping.".format(e))
+            my_exception = UnknownStateTransition(state=self.state, msg=my_msg)
+            self.stop = 1 # hits like in OPexpect Assert fail
+            self.state = OpSystemState.UNKNOWN_BAD
+            raise my_exception
+
+        if login_r != -1:
+          self.block_setup_term = 0
+          return OpSystemState.OS
 
     def run_OS(self, state):
+        self.block_setup_term = 0
         if state == OpSystemState.OS:
             return OpSystemState.OS
         self.ipmiDriversLoaded = False
@@ -392,6 +697,7 @@ class OpTestSystem(object):
         return OpSystemState.POWERING_OFF
 
     def run_POWERING_OFF(self, state):
+        self.block_setup_term = 1
         rc = int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
         if rc == BMC_CONST.FW_SUCCESS:
             msg = "System is in standby/Soft-off state"
@@ -402,6 +708,7 @@ class OpTestSystem(object):
             raise OpTestError(l_msg)
         print msg
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
+        self.util.clear_state(self)
         return OpSystemState.OFF
 
     def load_ipmi_drivers(self, force=False):
@@ -431,66 +738,6 @@ class OpTestSystem(object):
         self.ipmiDriversLoaded = True
         print "IPMI drivers loaded"
         return
-
-    # Login to the host on the console
-    # This will behave correctly even if already logged in
-    def host_console_login(self):
-        # we act on the raw pexpect console
-        l_con = self.bmc.get_host_console().get_console()
-        l_user = self.cv_HOST.username()
-        l_pwd = self.cv_HOST.password()
-
-        l_con.send("\r")
-        l_rc = l_con.expect_exact(BMC_CONST.IPMI_CONSOLE_EXPECT_ENTER_OUTPUT, timeout=120)
-        if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_LOGIN:
-            l_con.sendline(l_user)
-            l_rc = l_con.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
-            time.sleep(0.5)
-            if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_PASSWORD:
-                l_con.sendline(l_pwd)
-            else:
-                l_msg = "Error: host login failed"
-                raise OpTestError(l_msg)
-        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_PETITBOOT:
-            l_msg = "Error: system is at petitboot"
-            raise OpTestError(l_msg)
-        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_RANDOM_STATE:
-            l_msg = "Error: system is in random state"
-            raise OpTestError(l_msg)
-        elif l_rc in ["#"]:
-            # already at root prompt, success!
-            return
-        elif l_rc in [pexpect.TIMEOUT, pexpect.EOF]:
-            print l_con.before
-            raise "Timeout/EOF waiting for SOL response"
-        elif l_rc in ["$"]:
-            pass # fallthrough and sudo into a root shell
-        l_con.send("\r")
-        l_rc = l_con.expect_exact(['$','#'])
-        if l_rc == 0:
-            l_con.sendline('sudo -s')
-            l_con.expect("password for")
-            l_con.sendline(l_pwd)
-            self.host_console_unique_prompt()
-        elif l_rc != 1:
-            raise Exception("Invalid response to newline. expected $ or # prompt, got: %s" % (l_con.before))
-
-        return BMC_CONST.FW_SUCCESS
-
-    def host_console_unique_prompt(self):
-        # We do things to the raw pexpect here
-        # Must be logged in or at petitboot shell
-        p = self.bmc.get_host_console().get_console()
-        p.sendcontrol('l')
-        p.expect(r'.+#')
-        p.sendline('PS1=[console-pexpect]\#')
-        p.expect("\n") # from us, because echo
-        l_rc = p.expect("\[console-pexpect\]#$")
-        if l_rc == 0:
-            print "Shell prompt changed"
-        else:
-            raise Exception("Failed during change of shell prompt")
-
 
     ############################################################################
     # System Interfaces
@@ -605,14 +852,6 @@ class OpTestSystem(object):
     def sys_ipl_wait_for_working_state(self,i_timeout=10):
         try:
             rc = self.cv_IPMI.ipl_wait_for_working_state(i_timeout)
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-        return rc
-
-    def sys_ipmi_ipl_wait_for_login(self,i_timeout=10):
-        l_con = self.console.get_console()
-        try:
-            rc = self.cv_IPMI.ipmi_ipl_wait_for_login(l_con, i_timeout)
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return rc
@@ -1351,94 +1590,57 @@ class OpTestSystem(object):
             return BMC_CONST.FW_FAILED
         return BMC_CONST.FW_SUCCESS
 
-    ##
-    # @brief This function is used to boot the system up to petitboot
-    #        So any petitboot related test cases can use this function
-    #        to setupt the petitboot
-    #
-    # @param i_con @type Object: it is a object of pexpect.spawn class
-    #                            this is the active ipmi sol console object
-    #
-    # @return BMC_CONST.FW_SUCCESS or return BMC_CONST.FW_FAILED
-    #
-    def sys_ipmi_boot_system_to_petitboot(self):
-        # Perform a IPMI Power OFF Operation(Immediate Shutdown)
-        self.cv_IPMI.ipmi_power_off()
-        if int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY)) == 0:
-            print "System is in standby/Soft-off state"
-        else:
-            l_msg = "System failed to reach standby/Soft-off state"
-            raise OpTestError(l_msg)
-
-        self.cv_IPMI.ipmi_set_boot_to_petitboot()
-        self.cv_IPMI.ipmi_power_on()
-
-        self.wait_for_petitboot()
-        self.petitboot_exit_to_shell()
-
-    def wait_for_petitboot(self):
-        console = self.console.get_console()
-        try:
-            # Wait for petitboot (for a *LOOONNNG* time due to verbose IPLs)
-            seen = 0
-            r = 1
-            t = 100
-            while seen < 2 and t:
-                # TODO check for forward progress
-                r = console.expect(['x=exit', 'Petitboot', pexpect.TIMEOUT, '[0-9.]+\|IPMI: shutdown requested'], timeout=10)
-                if r == 2 and t == 0:
-                    raise pexpect.TIMEOUT
-                if r == 3:
-                    raise HostbootShutdown()
-                if r in [0,1]:
-                    seen = seen + 1
-                else:
-                    t = t - 1
-
-            # there will be extra things in the pexpect buffer here
-        except pexpect.TIMEOUT as e:
-            print "Timeout waiting for Petitboot!"
-            print str(e)
-            raise e
-
-    def wait_for_kexec(self):
-        console = self.console.get_console()
-        # Wait for kexec to start
-        console.expect(['Performing kexec','kexec_core: Starting new kernel'], timeout=60)
-
     def petitboot_exit_to_shell(self):
-        console = self.console.get_console()
-        retry_count = 0
-        while retry_count < 3:
-            retry_count = retry_count + 1
-            # Exiting to petitboot shell
-            console.sendcontrol('l')
-            r = console.expect(['x=exit','#',pexpect.TIMEOUT])
-            if r == 0:
-                console.send('x')
-                console.expect('Exiting petitboot')
-                console.expect('#')
-                break
-            elif r == 1:
-                console.sendcontrol('c')
-                console.expect('#')
-                break
-            else:
-                continue
-        console.sendcontrol('u') # remove any characters between cursor and start of line
-        # we should have consumed everything in the buffer now.
-        print console
+        sys_console = self.console.get_console()
+        for i in range(3):
+          pp = self.get_petitboot_prompt()
+          if pp == 1:
+            break;
+        if pp != 1:
+            print "OpTestSystem detected something, tried to recover, but still we have a problem, retry"
+            raise ConsoleSettings(before=sys_console.before, after=sys_console.after,
+                    msg="System at Petitboot Menu unable to exit to shell after retry")
+
+    def get_petitboot_prompt(self):
+        my_pp = 0
+        sys_console = self.console.get_console()
+        sys_console.sendline()
+        pes_rc = sys_console.expect([".*#", ".*# $", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        if pes_rc in [0,1]:
+          if self.PS1_set != 1:
+            self.SUDO_set = self.LOGIN_set = self.PS1_set = self.util.set_PS1(self.console, sys_console, self.util.build_prompt(self.prompt))
+          self.block_setup_term = 0 # unblock in case connections are lost during state=4 the get_console/connect can properly setup again
+          self.previous_state = OpSystemState.PETITBOOT_SHELL # preserve state
+          my_pp = 1
+        else:
+          sys_console = self.console.connect() # try new connect, sometimes stale buffers
+        return my_pp
 
     def exit_petitboot_shell(self):
-        console = self.console.get_console()
-        console.sendcontrol('l')
-        console.sendline('exit')
-        self.wait_for_petitboot()
+        sys_console = self.console.get_console()
+        eps_rc = self.try_exit(sys_console)
+        if eps_rc == 0: # Petitboot
+          return
+        else: # we timed out or eof
+          self.util.try_recover(self.console, counter=3)
+          # if we get back here we're good and at the prompt
+          sys_console.sendline()
+          eps_rc = self.try_exit(sys_console)
+          if eps_rc == 0: # Petitboot
+            return
+          else:
+            raise RecoverFailed(before=sys_console.before, after=sys_console.after,
+                    msg="Unable to get the Petitboot prompt stage 3, we were trying to exit back to menu")
 
-    def wait_for_login(self, timeout=600):
-        console = self.console.get_console()
-        console.sendline('')
-        console.expect('login: ', timeout)
+    def try_exit(self, sys_console):
+          self.util.clear_state(self)
+          sys_console.sendline()
+          sys_console.sendline("exit")
+          rc_return = sys_console.expect(["Petitboot", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          if rc_return == 0:
+            return rc_return
+          else:
+            return -1
 
     def get_my_ip_from_host_perspective(self):
         rawc = self.console.get_console()
@@ -1506,11 +1708,11 @@ class OpTestFSPSystem(OpTestSystem):
     def sys_wait_for_standby_state(self, i_timeout=120):
         return self.cv_BMC.wait_for_standby(i_timeout)
 
-    def wait_for_petitboot(self):
+    def wait_for_it(self, **kwargs):
         # Ensure IPMI console is open so not to miss petitboot
-        console = self.console.get_console()
+        sys_console = self.console.get_console()
         self.cv_BMC.wait_for_runtime()
-        return super(OpTestFSPSystem, self).wait_for_petitboot()
+        return super(OpTestFSPSystem, self).wait_for_it(**kwargs)
 
     def skiboot_log_on_console(self):
         return False
@@ -1587,11 +1789,11 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.wait_for_standby()
         return 0
 
-    def wait_for_petitboot(self):
+    def wait_for_it(self, **kwargs):
         # Ensure IPMI console is open so not to miss petitboot
-        console = self.console.get_console()
+        sys_console = self.console.get_console()
         self.rest.wait_for_runtime()
-        return super(OpTestOpenBMCSystem, self).wait_for_petitboot()
+        return super(OpTestOpenBMCSystem, self).wait_for_it(**kwargs)
 
     def sys_set_bootdev_setup(self):
         self.rest.set_bootdev_to_setup()
@@ -1649,4 +1851,7 @@ class OpTestQemuSystem(OpTestSystem):
         return "10.0.2.2"
 
     def has_host_accessible_eeprom(self):
+        return False
+
+    def has_mtd_pnor_access(self):
         return False

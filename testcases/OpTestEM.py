@@ -44,6 +44,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestIPMI import IPMIConsoleState
+import common.OpTestQemu as OpTestQemu
 from testcases.DeviceTreeValidation import DeviceTreeValidation
 
 class OpTestEM():
@@ -54,36 +55,29 @@ class OpTestEM():
         self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
         self.ppc64cpu_freq_re = re.compile(r"([a-z]+):\s+([\d.]+)")
+        self.c = None # use this for tearDown
 
     def set_up(self):
+        self.c = None # clear this, we may not get back from goto and tearDown relies on
         if self.test == "skiroot":
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-            self.cv_SYSTEM.host_console_unique_prompt()
-            if self.c.state == IPMIConsoleState.DISCONNECTED:
-                self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-                self.cv_SYSTEM.host_console_unique_prompt()
-            # if sol console drops in b/w
-            elif not self.c.sol.isalive():
-                print "Console is not active"
-                self.c = self.cv_SYSTEM.sys_get_ipmi_console()
         elif self.test == "host":
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
-            self.c = self.cv_HOST.get_ssh_connection()
+            self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         else:
-            raise Exception("Unknow test type")
+            raise Exception("Unknown test type")
         return self.c
 
     def tearDown(self):
-        # Only clean up if we're still running normally
-        if self.cv_SYSTEM.get_state() not in [OpSystemState.PETITBOOT_SHELL, OpSystemState.OS]:
-            pass
+        if self.c == None: # unable to proceed
+          return
 
         cpu_num = self.get_first_available_cpu()
         # Check cpufreq driver enabled
         cpufreq = False
         try:
-            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+            self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
             cpufreq = True
         except CommandFailed:
             pass
@@ -94,7 +88,7 @@ class OpTestEM():
         # Check cpuidle driver enabled
         cpuidle = False
         try:
-            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
+            self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
             cpuidle = True
         except CommandFailed:
             pass
@@ -111,8 +105,11 @@ class OpTestEM():
 
     def get_first_available_cpu(self):
         cmd = "cat /sys/devices/system/cpu/present | cut -d'-' -f1"
-        res = self.c.run_command(cmd)
-        return res[0]
+        try:
+          res = self.c.run_command(cmd)
+          return res[0]
+        except Exception as e:
+          raise e
 
     ##
     # @brief sets the cpu frequency with i_freq value
@@ -269,7 +266,7 @@ class OpTestEM():
         cpu_num = self.get_first_available_cpu()
 
         # Check cpufreq driver enabled
-        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+        self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
         pstate_min = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_min_freq" % cpu_num)[0]
         pstate_max = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_max_freq" % cpu_num)[0]
         pstate_nom = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_nominal_freq" % cpu_num)[0]
@@ -312,14 +309,17 @@ class cpu_freq_states_host(OpTestEM, unittest.TestCase):
     #        5. test the cpufreq driver by set/verify cpu frequency
     def runTest(self):
         self.c = self.set_up()
-        self.c.run_command("stty cols 300;stty rows 30")
+
+        if isinstance(self.c, OpTestQemu.QemuConsole):
+          raise self.skipTest("OpTestSystem running QEMU frequency checks not applicable")
+
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
 
         cpu_num = self.get_first_available_cpu()
 
         # Check cpufreq driver enabled
-        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+        self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
 
         # Get available cpu scaling frequencies
         l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_available_frequencies" % cpu_num)
@@ -351,7 +351,10 @@ class cpu_freq_gov_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
 
     def runTest(self):
         self.c = self.set_up()
-        self.c.run_command("stty cols 300;stty rows 30")
+
+        if isinstance(self.c, OpTestQemu.QemuConsole):
+          raise self.skipTest("OpTestSystem running QEMU frequency governor checks not applicable")
+
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
@@ -399,7 +402,6 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
 
     def runTest(self):
         self.c = self.set_up()
-        self.c.run_command("stty cols 300;stty rows 30")
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
@@ -407,7 +409,7 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         cpu_num = self.get_first_available_cpu()
 
         # Check cpufreq driver enabled
-        self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
+        self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
 
         turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-turbo")[0]
         ultra_turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-ultra-turbo")[0]
@@ -469,14 +471,17 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
     #        4. test the cpuidle driver by enable/disable/verify the idle states
     def runTest(self):
         self.c = self.set_up()
-        self.c.run_command("stty cols 300;stty rows 30")
+
+        if isinstance(self.c, OpTestQemu.QemuConsole):
+          raise self.skipTest("OpTestSystem running QEMU cpu idle state checks not applicable")
+
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         cpu_num = self.get_first_available_cpu()
 
         # Check cpuidle driver enabled
         try:
-            self.c.run_command("ls /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
+            self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
         except CommandFailed:
             self.assertTrue(False, "cpuidle driver is not enabled in kernel")
 

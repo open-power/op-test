@@ -36,6 +36,7 @@ import unittest
 import pexpect
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+import common.OpTestQemu as OpTestQemu
 
 class Base(unittest.TestCase):
     def setUp(self):
@@ -51,8 +52,6 @@ class DPOSkiroot(Base):
 
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
         self.host = "Skiroot"
 
     ##
@@ -62,21 +61,22 @@ class DPOSkiroot(Base):
     #
     def runTest(self):
         self.setup_test()
-        self.c.run_command("uname -a")
+        # retry added for IPMI cases, seems more sensitive with initial start of state=4
+        if isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole):
+            raise self.skipTest("Performing \"ipmitool power soft\" will terminate QEMU so skipped")
+        self.cv_SYSTEM.console.run_command("uname -a", retry=5)
         if self.host == "Host":
             self.cv_SYSTEM.load_ipmi_drivers(True)
-        self.c.sol.sendline("ipmitool power soft")
-        try:
-            rc = self.c.sol.expect_exact(["reboot: Power down",
-                                          "Chassis Power Control: Soft",
-                                          "Power down",
-                                          "Invalid command",
-                                          "Unspecified error",
-                                          "Could not open device at"
-                                      ], timeout=120)
-            self.assertIn(rc, [0, 1, 2], "Failed to power down")
-        except pexpect.TIMEOUT:
-            raise OpTestError("Soft power off not happening")
+        self.cv_SYSTEM.console.sol.sendline("ipmitool power soft")
+        rc = self.cv_SYSTEM.console.sol.expect_exact(["reboot: Power down",
+                                      "Chassis Power Control: Soft",
+                                      "Power down",
+                                      "Invalid command",
+                                      "Unspecified error",
+                                      "Could not open device at",
+                                      pexpect.TIMEOUT,
+                                      pexpect.EOF], timeout=120)
+        self.assertIn(rc, [0, 1, 2], "Failed to power down")
         rc = self.cv_SYSTEM.sys_wait_for_standby_state()
         print rc
         self.cv_SYSTEM.set_state(OpSystemState.OFF)
@@ -87,6 +87,3 @@ class DPOHost(DPOSkiroot):
         self.host = "Host"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()

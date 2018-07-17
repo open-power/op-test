@@ -31,6 +31,7 @@ import tempfile
 
 from common.Exceptions import CommandFailed
 from common import OPexpect
+from OpTestUtil import OpTestUtil
 
 class ConsoleState():
     DISCONNECTED = 0
@@ -39,9 +40,12 @@ class ConsoleState():
 class QemuConsole():
     """
     A 'connection' to the Qemu Console involves *launching* qemu.
-    Terminating a connection will *terminate* the qemu process.
+    Closing a connection will *terminate* the qemu process.
     """
-    def __init__(self, qemu_binary=None, skiboot=None, kernel=None, initramfs=None, logfile=sys.stdout, hda=None, cdrom=None):
+    def __init__(self, qemu_binary=None, skiboot=None,
+            prompt=None, kernel=None, initramfs=None,
+            block_setup_term=None, delaybeforesend=None,
+            logfile=sys.stdout, hda=None, cdrom=None):
         self.qemu_binary = qemu_binary
         self.skiboot = skiboot
         self.kernel = kernel
@@ -49,31 +53,77 @@ class QemuConsole():
         self.hda = hda
         self.state = ConsoleState.DISCONNECTED
         self.logfile = logfile
+        self.delaybeforesend = delaybeforesend
+        self.system = None
         self.cdrom = cdrom
+        self.util = OpTestUtil()
+        self.prompt = prompt
+        self.expect_prompt = self.util.build_prompt(prompt) + "$"
+        self.sol = None
+        self.console = None
+        self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
+        self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
+        self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
 
-    def terminate(self):
-        if self.state == ConsoleState.CONNECTED:
-            print "#Qemu TERMINATE"
-            self.sol.terminate()
-            self.state = ConsoleState.DISCONNECTED
+        # state tracking, reset on boot and state changes
+        # console tracking done on System object for the system console
+        self.PS1_set = -1
+        self.LOGIN_set = -1
+        self.SUDO_set = -1
+
+    def set_system(self, system):
+        self.system = system
+
+    def set_system_setup_term(self, flag):
+        self.system.block_setup_term = flag
+
+    def get_system_setup_term(self):
+        return self.system.block_setup_term
+
+    def set_block_setup_term(self, flag):
+        self.block_setup_term = flag
+
+    def get_block_setup_term(self):
+        return self.block_setup_term
+
+    def enable_setup_term_quiet(self):
+        self.setup_term_quiet = 1
+        self.setup_term_disable = 0
+
+    def disable_setup_term_quiet(self):
+        self.setup_term_quiet = 0
+        self.setup_term_disable = 0
 
     def close(self):
-        if self.state == ConsoleState.DISCONNECTED:
-            return
+        self.util.clear_state(self)
+        try:
+            rc_child = self.sol.close()
+            exitCode = signalstatus = None
+            if self.sol.status != -1: # leaving for debug
+              if os.WIFEXITED(self.sol.status):
+                exitCode = os.WEXITSTATUS(self.sol.status)
+              else:
+                signalstatus = os.WTERMSIG(self.sol.status)
+            self.state = ConsoleState.DISCONNECTED
+        except pexpect.ExceptionPexpect as e:
+            self.state = ConsoleState.DISCONNECTED
+            raise "Qemu Console: failed to close console"
+        except Exception as e:
+            self.state = ConsoleState.DISCONNECTED
+            pass
         print "Qemu close -> TERMINATE"
-        self.sol.terminate()
-        self.state = ConsoleState.DISCONNECTED
 
     def connect(self):
         if self.state == ConsoleState.CONNECTED:
-            self.sol.terminate()
-            self.state = ConsoleState.DISCONNECTED
+            return self.sol
+        else:
+            self.util.clear_state(self) # clear when coming in DISCONNECTED
 
         print "#Qemu Console CONNECT"
 
         cmd = ("%s" % (self.qemu_binary)
-               + " -M powernv -m 4G"
-               + " -nographic"
+               + " -machine powernv -m 4G"
+               + " -nographic -nodefaults"
                + " -bios %s" % (self.skiboot)
                + " -kernel %s" % (self.kernel)
            )
@@ -83,60 +133,58 @@ class QemuConsole():
             cmd = cmd + " -hda %s" % (self.hda)
         if self.cdrom is not None:
             cmd = cmd + " -cdrom %s" % (self.cdrom)
-        cmd = cmd + " -netdev user,id=u1 -device e1000,netdev=u1"
+        # typical host ip=10.0.2.2 and typical skiroot 10.0.2.15
+        # use skiroot as the source, no sshd in skiroot
+        cmd = cmd + " -nic user,model=virtio-net-pci"
         cmd = cmd + " -device ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10"
+        cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
         print cmd
-        solChild = OPexpect.spawn(cmd,logfile=self.logfile)
+        try:
+          solChild = OPexpect.spawn(cmd,logfile=self.logfile)
+        except Exception as e:
+          self.state = ConsoleState.DISCONNECTED
+          raise CommandFailed('OPexpect.spawn', 'OPexpect.spawn encountered a problem', -1)
+
         self.state = ConsoleState.CONNECTED
+        solChild.setwinsize(1000,1000)
         self.sol = solChild
+        self.console = solChild
+        solChild.logfile_read = self.logfile
+        if self.delaybeforesend:
+          self.sol.delaybeforesend = self.delaybeforesend
+
+        if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
+          self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+
+        time.sleep(0.2)
         return solChild
 
     def get_console(self):
         if self.state == ConsoleState.DISCONNECTED:
+            self.util.clear_state(self)
             self.connect()
 
         count = 0
         while (not self.sol.isalive()):
             print '# Reconnecting'
             if (count > 0):
-                time.sleep(1)
+                time.sleep(20)
             self.connect()
+            time.sleep(120) # not sure on timing of this yet or how to validate qemu is up
             count += 1
             if count > 120:
                 raise "IPMI: not able to get sol console"
 
+        if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
+          self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+
         return self.sol
 
-    def run_command(self, command, timeout=60):
-        console = self.get_console()
-        console.sendline(command)
-        console.expect("\n") # from us
-        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
-        output = console.before
+    def run_command(self, command, timeout=60, retry=0):
+        return self.util.run_command(self, command, timeout, retry)
 
-        console.sendline("echo $?")
-        console.expect("\n") # from us
-        rc = console.expect(["\[console-pexpect\]#$",pexpect.TIMEOUT], timeout)
-        exitcode = int(console.before)
-
-        if rc == 0:
-            res = output.replace("\r\r\n", "\n")
-            res = res.splitlines()
-            if exitcode != 0:
-                raise CommandFailed(command, res, exitcode)
-            return res
-        else:
-            res = console.before
-            res = res.split(command)
-            return res[-1].splitlines()
-
-    # This command just runs and returns the ouput & ignores the failure
-    def run_command_ignore_fail(self, command, timeout=60):
-        try:
-            output = self.run_command(command, timeout)
-        except CommandFailed as cf:
-            output = cf.output
-        return output
+    def run_command_ignore_fail(self, command, timeout=60, retry=0):
+        return self.util.run_command_ignore_fail(self, command, timeout, retry)
 
 class QemuIPMI():
     """
@@ -150,16 +198,19 @@ class QemuIPMI():
 
     def ipmi_power_off(self):
         """For Qemu, this just kills the simulator"""
-        self.console.terminate()
+        self.console.close()
 
     def ipmi_wait_for_standby_state(self, i_timeout=10):
         """For Qemu, we just kill the simulator"""
-        self.console.terminate()
+        self.console.close()
 
     def ipmi_set_boot_to_petitboot(self):
         return 0
 
     def ipmi_sel_check(self, i_string="Transition to Non-recoverable"):
+        pass
+
+    def ipmi_set_no_override(self):
         pass
 
     def sys_set_bootdev_no_override(self):
@@ -178,11 +229,18 @@ class OpTestQemu():
                                             "-fqcow2",
                                             self.qemu_hda_file.name,
                                             "10G"])
-        self.console = QemuConsole(qemu_binary, skiboot, kernel, initramfs, logfile=logfile, hda=self.qemu_hda_file.name, cdrom=cdrom)
+        self.console = QemuConsole(qemu_binary=qemu_binary, skiboot=skiboot,
+                                   kernel=kernel, initramfs=initramfs,
+                                   logfile=logfile,
+                                   hda=self.qemu_hda_file.name, cdrom=cdrom)
         self.ipmi = QemuIPMI(self.console)
+        self.system = None
 
     def __del__(self):
         self.qemu_hda_file.close()
+
+    def set_system(self, system):
+        self.console.system = system
 
     def get_host_console(self):
         return self.console
@@ -191,7 +249,7 @@ class OpTestQemu():
         return self.ipmi
 
     def power_off(self):
-        self.console.terminate()
+        self.console.close()
 
     def power_on(self):
         self.console.connect()
@@ -206,4 +264,7 @@ class OpTestQemu():
         return False
 
     def has_host_status_sensor(self):
+        return False
+
+    def has_inband_bootdev(self):
         return False

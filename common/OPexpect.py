@@ -38,7 +38,6 @@ import pexpect
 from Exceptions import *
 import OpTestSystem
 
-
 class spawn(pexpect.spawn):
     def __init__(self, command, args=[], maxread=8000,
                  searchwindowsize=None, logfile=None, cwd=None, env=None,

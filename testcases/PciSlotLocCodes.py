@@ -224,7 +224,6 @@ class Skiroot(PciSlotLocCodesOPAL, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class Host(PciSlotLocCodesOPAL, unittest.TestCase):
     def setup_test(self):
@@ -235,7 +234,6 @@ class SkirootDT(PciSlotLocCodesDeviceTree, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class HostDT(PciSlotLocCodesDeviceTree, unittest.TestCase):
     def setup_test(self):

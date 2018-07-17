@@ -59,7 +59,6 @@ class I2C():
         if self.test == "skiroot":
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-            self.cv_SYSTEM.host_console_unique_prompt()
         elif self.test == "host":
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             self.c = self.cv_HOST.get_ssh_connection()
@@ -343,14 +342,14 @@ class FullI2C(I2C, unittest.TestCase):
 
         # list i2c adapter contents
         try:
-            l_res = self.c.run_command("ls -l /sys/class/i2c-adapter")
+            l_res = self.c.run_command("ls --color=never -l /sys/class/i2c-adapter")
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0, str(cf))
 
         # Checking the sysfs entry of each i2c bus
         for l_bus in l_list1:
             try:
-                l_res = self.c.run_command("ls -l /sys/class/i2c-adapter/%s" % l_bus)
+                l_res = self.c.run_command("ls --color=never -l /sys/class/i2c-adapter/%s" % l_bus)
             except CommandFailed as cf:
                 self.assertEqual(cf.exitcode, 0, str(cf))
 

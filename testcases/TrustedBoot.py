@@ -61,8 +61,6 @@ class TrustedBoot(unittest.TestCase):
 
     def verify_opal_tb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
-        c.run_command("stty cols 300; stty rows 30;")
         self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         print self.cpu
         if self.cpu in ["POWER9"]:
@@ -95,13 +93,12 @@ class TrustedBoot(unittest.TestCase):
 
     def verify_dt_tb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
         c.run_command("lsprop /proc/device-tree/ibm,secureboot")
 
         if not self.trustedmode:
             return
 
-        c.run_command("ls /proc/device-tree/ibm,secureboot/trusted-enabled")
+        c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/trusted-enabled")
         res = c.run_command("find /proc/device-tree/ -name *tpm*")
         tpm_path = res[-1]
         c.run_command("lsprop %s" % tpm_path)
@@ -109,9 +106,9 @@ class TrustedBoot(unittest.TestCase):
         c.run_command("cat %s/status" % tpm_path)
         c.run_command("cat %s/name" % tpm_path)
         c.run_command("cat %s/label" % tpm_path)
-        c.run_command("ls %s/linux,sml-base" % tpm_path)
-        c.run_command("ls %s/linux,sml-size" % tpm_path)
-        c.run_command("ls %s/link-id" % tpm_path)
+        c.run_command("ls --color=never %s/linux,sml-base" % tpm_path)
+        c.run_command("ls --color=never %s/linux,sml-size" % tpm_path)
+        c.run_command("ls --color=never %s/link-id" % tpm_path)
 
     def tearDown(self):
         if self.securemode and not self.trustedmode:

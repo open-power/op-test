@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -81,8 +81,6 @@ class SbePassThrough(unittest.TestCase):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         # Clear any pre-existing SEL or eSEL's
         self.cv_SYSTEM.sys_sdr_clear()
         self.c.run_command("dmesg -D")

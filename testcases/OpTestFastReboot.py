@@ -32,11 +32,11 @@
 #
 
 import time
+import pexpect
 import subprocess
 import commands
 import re
 import sys
-
 
 import unittest
 
@@ -86,14 +86,13 @@ class OpTestFastReboot(unittest.TestCase):
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        if self.boot_to_os():
-            self.cv_SYSTEM.host_console_login()
-            c.get_console().sendline("exec bash --norc --noprofile")
-        self.cv_SYSTEM.host_console_unique_prompt()
         cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         print repr(cpu)
         if cpu not in ["POWER9", "POWER8", "POWER8E"]:
             self.skipTest("Fast Reboot not supported on %s" % cpu)
+
+        if not self.cv_SYSTEM.has_mtd_pnor_access():
+            self.skipTest("OpTestSystem does not have MTD PNOR access so skipping Fast Reboot")
 
         c.run_command("nvram -p ibm,skiboot --update-config fast-reset=1")
         res = c.run_command("nvram --print-config=fast-reset -p ibm,skiboot")
@@ -117,14 +116,13 @@ class OpTestFastReboot(unittest.TestCase):
             # FSP based systems) the skiboot log is *not* printed to IPMI
             # console
             if self.cv_SYSTEM.skiboot_log_on_console():
-                self.con.expect(" RESET: Initiating fast reboot", timeout=100)
+                rc = self.con.expect([" RESET: Initiating fast reboot", pexpect.TIMEOUT, pexpect.EOF], timeout=100)
+                if rc in [1,2]:
+                  c.close() # close the console obj
             if self.boot_to_os():
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
-                self.cv_SYSTEM.host_console_login()
-                c.get_console().sendline("exec bash --norc --noprofile")
             else:
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-            self.cv_SYSTEM.host_console_unique_prompt()
             newResetCount = self.get_fast_reset_count(c)
             self.assertTrue( loopResetCount < newResetCount, "Did not do fast reboot")
             self.assertTrue( initialResetCount < newResetCount, "Did not do fast reboot")

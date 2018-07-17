@@ -71,8 +71,6 @@ class OpTestPrdDaemon(unittest.TestCase):
     def runTest(self):
         l_res = None
 
-        self.cv_SYSTEM.host_console_login()
-
         if not self.cv_HOST.host_prd_supported(self.bmc_type):
             self.skipTest("opal-prd not supported on this system")
 

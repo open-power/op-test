@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -31,6 +31,7 @@ import difflib
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+import common.OpTestQemu as OpTestQemu
 
 MAX_PSTATES = 256
 CPUIDLE_STATE_MAX = 10
@@ -154,7 +155,7 @@ class DeviceTreeValidation(unittest.TestCase):
         self.non_decreasing(idle_state_residency_ns)
         self.non_decreasing(idle_state_latencies_ns)
 
-    def vaildate_pstate_properties(self):
+    def validate_pstate_properties(self):
         pstate_ids = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-ids")
         pstate_min = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-min")
         pstate_max = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-max")
@@ -213,11 +214,11 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         system_state = self.cv_SYSTEM.get_state()
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
-        self.c.run_command("stty cols 300; stty rows 30;")
+        if isinstance(self.c, OpTestQemu.QemuConsole):
+          raise self.skipTest("OpTestSystem running QEMU so comparing Skiroot to Host is not applicable")
         self.get_proc_gen()
         self.validate_idle_state_properties()
-        self.vaildate_pstate_properties()
+        self.validate_pstate_properties()
 
         # Validate ibm,opal node DT content at skiroot against host
         # We can extend for other nodes as well, which are suspicieous.
@@ -233,7 +234,7 @@ class DeviceTreeValidationHost(DeviceTreeValidation):
         self.c = self.cv_SYSTEM.host().get_ssh_connection()
         self.get_proc_gen()
         self.validate_idle_state_properties()
-        self.vaildate_pstate_properties()
+        self.validate_pstate_properties()
 
         props = self.c.run_command("find %s -type d" % self.node)
         for prop in props:

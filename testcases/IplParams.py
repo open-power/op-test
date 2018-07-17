@@ -70,7 +70,7 @@ class IplParams():
                 return {}
             rl = 0
             try:
-                self.c.run_command("ls /proc/device-tree/ipl-params/sys-params/elevated-risk-level")
+                self.c.run_command("ls --color=never /proc/device-tree/ipl-params/sys-params/elevated-risk-level")
                 rl = 1
             except CommandFailed:
                 rl = 0
@@ -88,7 +88,7 @@ class IplParams():
 
     def file_exists(self, path):
         try:
-            self.c.run_command("ls /proc/device-tree/ibm,opal/fw-features/%s" % path)
+            self.c.run_command("ls --color=never /proc/device-tree/ibm,opal/fw-features/%s" % path)
             exist = True
         except CommandFailed:
             exist = False
@@ -97,7 +97,7 @@ class IplParams():
     def test_feature_enable(self):
         self.setup_test()
         params = self.get_params_table()
-        print "List of features which are expeted to be in enabled state\n"
+        print "List of features which are expected to be in enabled state\n"
         print params
         if not params:
             self.assertTrue(False, "fw-feature set table not found")
@@ -122,7 +122,7 @@ class IplParams():
     def test_feature_disable(self):
         self.setup_test()
         params = self.get_params_table()
-        print "List of features which are expeted to be in disabled state\n"
+        print "List of features which are expected to be in disabled state\n"
         print params
         if not params:
             self.assertTrue(False, "fw-feature set table not found")
@@ -149,8 +149,6 @@ class Skiroot(IplParams, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
-        self.c.run_command("stty cols 300; stty rows 30")
 
 class Host(IplParams, unittest.TestCase):
     def setup_test(self):

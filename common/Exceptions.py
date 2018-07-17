@@ -201,3 +201,97 @@ class HostbootShutdown(Exception):
     '''
     def __str__(self):
         return "Detected hostboot got IPMI shutdown request"
+
+class UnexpectedCase(Exception):
+    '''
+    We detected something we should not have.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'state': None, 'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+        return ('Something unexpected happened in State=\"{}\"'
+                ' Review the following for more details\nMessage=\"{}\"'.format(self.kwargs['state'], self.kwargs['msg']))
+
+class WaitForIt(Exception):
+    '''
+    We need special handling per case so give back desired data.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'expect_dict': None, 'reconnect_count': 0}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+      return ('Waiting for "{}" did not succeed, check the loop_max if needing to wait longer'
+           ' (number of reconnect attempts were {})'.format(self.kwargs['expect_dict'], self.kwargs['reconnect_count']))
+
+class RecoverFailed(Exception):
+    '''
+    We tried to recover and did not succeed.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'before': None, 'after': None, 'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+      return ('Unable to get the proper prompt, probably just retry'
+           ' review the following for more details\nExpect Before Buffer=\"{}\"\nExpect After Buffer=\"{}\"'
+           '\nMessage=\"{}\"'.format(self.kwargs['before'], self.kwargs['after'], self.kwargs['msg']))
+
+class UnknownStateTransition(Exception):
+    '''
+    We tried to transition to UNKNOWN, something happened.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'state': None, 'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+        return ('Something happened system state=\"{}\" and we transitioned to UNKNOWN state. '
+                ' Review the following for more details\nMessage=\"{}\"'.format(self.kwargs['state'], self.kwargs['msg']))
+
+class StoppingSystem(Exception):
+    '''
+    We have either set the system to stop for some condition or reached the kill_cord limit and stopping.
+    '''
+    def __str__(self):
+        return "System has either set the stop flag for some condition or reached the kill_cord limit on trying to continue, check that your system is operational"
+
+class ConsoleSettings(Exception):
+    '''
+    We need special handling per case so give back desired data.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'before': None, 'after': None, 'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+      return ("Setting the prompt or logging in for the console was not successful, check credentials and review the following"
+              " for more details\nExpect Before Buffer=\"{}\"\nExpect After Buffer=\"{}\" \nMessage=\"{}\""
+              "".format(self.kwargs['before'], self.kwargs['after'], self.kwargs['msg']))

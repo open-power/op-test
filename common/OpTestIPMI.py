@@ -38,6 +38,7 @@ import pexpect
 import sys
 import re
 import commands
+
 #from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -160,64 +161,115 @@ def set_system_to_UNKNOWN_BAD(system):
     return s
 
 class IPMIConsole():
-    def __init__(self, ipmitool=None, logfile=sys.stdout, delaybeforesend=None):
+    def __init__(self, ipmitool=None, logfile=sys.stdout, prompt=None,
+            block_setup_term=None, delaybeforesend=None):
         self.ipmitool = ipmitool
         self.state = IPMIConsoleState.DISCONNECTED
         self.logfile = logfile
         self.delaybeforesend = delaybeforesend
         self.system = None
+        self.util = OpTestUtil()
+        self.prompt = prompt
+        self.expect_prompt = self.util.build_prompt(prompt) + "$"
+        self.sol = None
+        self.delaybeforesend = delaybeforesend
+        self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
+        self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
+        self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+
+        # FUTURE - System Console currently tracked in System Object
+        # state tracking, reset on boot and state changes
+        self.PS1_set = -1
+        self.LOGIN_set = -1
+        self.SUDO_set = -1
 
     def set_system(self, system):
         self.system = system
 
-    def terminate(self):
-        if self.state == IPMIConsoleState.CONNECTED:
-            self.sol.terminate()
-            self.state = IPMIConsoleState.DISCONNECTED
+    def set_system_setup_term(self, flag):
+        self.system.block_setup_term = flag
+
+    def get_system_setup_term(self):
+        return self.system.block_setup_term
+
+    def set_block_setup_term(self, flag):
+        self.block_setup_term = flag
+
+    def get_block_setup_term(self):
+        return self.block_setup_term
+
+    def enable_setup_term_quiet(self):
+        self.setup_term_quiet = 1
+        self.setup_term_disable = 0
+
+    def disable_setup_term_quiet(self):
+        self.setup_term_quiet = 0
+        self.setup_term_disable = 0
 
     def close(self):
+        self.util.clear_state(self)
         if self.state == IPMIConsoleState.DISCONNECTED:
             return
         try:
-            if not self.sol.isalive():
-                print "IPMI SOL Console is already disconnected"
-                pass
             self.sol.send("\r")
             self.sol.send('~.')
-            self.sol.expect('[terminated ipmitool]')
-            self.sol.close()
+            close_rc = self.sol.expect(['[terminated ipmitool]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            rc_child = self.sol.close()
+            self.state = IPMIConsoleState.DISCONNECTED
+            exitCode = signalstatus = None
+            if self.sol.status != -1: # leaving for future debug
+              if os.WIFEXITED(self.sol.status):
+                exitCode = os.WEXITSTATUS(self.sol.status)
+              else:
+                signalstatus = os.WTERMSIG(self.sol.status)
         except pexpect.ExceptionPexpect:
+            self.state = IPMIConsoleState.DISCONNECTED
             raise OpTestError("IPMI: failed to close ipmi console")
-
-        self.sol.terminate()
-        self.state = IPMIConsoleState.DISCONNECTED
+        except Exception as e:
+            self.state = IPMIConsoleState.DISCONNECTED
+            pass
 
     def connect(self):
         if self.state == IPMIConsoleState.CONNECTED:
-            self.sol.terminate()
-            self.state = IPMIConsoleState.DISCONNECTED
+          rc_child = self.close()
+        else:
+          self.util.clear_state(self)
 
-        print "#IPMI SOL CONNECT"
         try:
             self.ipmitool.run('sol deactivate')
         except OpTestError:
             print 'SOL already deactivated'
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
-        print cmd
-        solChild = OPexpect.spawn(cmd,
+        try:
+          solChild = OPexpect.spawn(cmd,
                                   failure_callback=set_system_to_UNKNOWN_BAD,
                                   failure_callback_data=self.system)
+        except Exception as e:
+          self.state = IPMIConsoleState.DISCONNECTED
+          raise CommandFailed('OPexpect.spawn', 'OPexpect.spawn encountered a problem', -1)
+
+        print "#IPMI SOL CONNECT"
         self.state = IPMIConsoleState.CONNECTED
+        solChild.setwinsize(1000,1000)
         self.sol = solChild
         solChild.logfile_read = self.logfile
         if self.delaybeforesend:
 	    self.sol.delaybeforesend = self.delaybeforesend
-        self.sol.expect_exact('[SOL Session operational.  Use ~? for help]')
-        # we pause for a moment to allow ipmitool to catch up with
-        # itself and to start accepting input
-        time.sleep(0.2)
-        return solChild
+        rc = self.sol.expect_exact(['[SOL Session operational.  Use ~? for help]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        if rc == 0:
+          if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
+            self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+          time.sleep(0.2)
+          return solChild
+        if rc == 1:
+          self.sol.close()
+          time.sleep(60) # give things a minute to clear
+          raise CommandFailed('sol activate', "IPMI: pexpect.TIMEOUT while trying to establish connection", -1)
+        if rc == 2:
+          self.sol.close()
+          time.sleep(60) # give things a minute to clear
+          raise CommandFailed('sol activate', 'IPMI: insufficient resources for session, unable to establish IPMI v2 / RMCP+ session', -1)
 
     def get_console(self):
         if self.state == IPMIConsoleState.DISCONNECTED:
@@ -232,6 +284,8 @@ class IPMIConsole():
             count += 1
             if count > 120:
                 raise "IPMI: not able to get sol console"
+        if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
+          self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
 
         return self.sol
 
@@ -254,97 +308,15 @@ class IPMIConsole():
                 print l_msg
                 raise OpTestError(l_msg)
 
+    def run_command(self, command, timeout=60, retry=0):
+        return self.util.run_command(self, command, timeout, retry)
 
-
-    def run_command(self, command, timeout=60):
-        console = self.get_console()
-        BMC_DISCONNECT = 'SOL session closed by BMC'
-        try:
-            console.sendline(command)
-            console.expect("\n") # from us
-            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout=timeout)
-            if rc == 0:
-                raise BMCDisconnected(BMC_DISCONNECT)
-            output = console.before
-            console.sendline("echo $?")
-            rc = console.expect([BMC_DISCONNECT, "\n"]) # from us
-            if rc == 0:
-                raise BMCDisconnected(BMC_DISCONNECT)
-            rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout=timeout)
-            if rc == 0:
-                raise BMCDisconnected(BMC_DISCONNECT)
-            exitcode = int(console.before)
-            print "# LAST COMMAND EXIT CODE %d (%s)" % (exitcode, repr(console.before))
-        except pexpect.TIMEOUT as e:
-            print e
-            print "# TIMEOUT waiting for command to finish."
-            print "# Attempting to control-c"
-            try:
-                console.sendcontrol('c')
-                rc = console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], 10)
-                if rc == 0:
-                    print "# BMC Disconnect while cancelling timed-out command"
-                    print "# Failing test, disconnecting/reconnecting"
-                    self.terminate()
-                    raise CommandFailed("ipmitool", BMC_DISCONNECT, -1)
-                if rc == 1:
-                    raise CommandFailed(command, "TIMEOUT", -1)
-            except pexpect.TIMEOUT:
-                print "# Timeout trying to kill timed-out command."
-                print "# Failing current command and attempting to continue"
-                self.terminate()
-                raise CommandFailed("ipmitool", "timeout", -1)
-            raise e
-        except BMCDisconnected as e:
-            print "# %s" % str(e)
-            print "# We can possibly continue..."
-            print "# Failing current command and attempting to continue"
-            self.terminate()
-            self.connect()
-            console = self.get_console()
-            print "# On reconnect, attempt to cancel last command (ctrl-c)"
-            # Note: this is a terrible idea. If BMC vendors created reliable
-            # SoL implementations this kind of crap wouldn't be needed.
-            # This is incorrect on so many levels it's not funny. For a start,
-            # we really don't want to send random control characters during
-            # boot!
-            console.sendcontrol('c')
-            try:
-                rc = console.expect([BMC_DISCONNECT,
-                                     "\[console-pexpect\]#$"], 10)
-                if rc == 0:
-                    self.terminate()
-                    raise BMCDisconnected(BMC_DISCONNECT)
-            except pexpect.TIMEOUT:
-                print "# No response from BMC... trying 'mc reset cold'"
-                self.mc_reset()
-                self.terminate()
-                self.connect()
-                console = self.get_console()
-                console.sendcontrol('c')
-            raise CommandFailed("ipmitool", BMC_DISCONNECT, -1)
-
-        if rc == 1:
-            res = output
-            res = res.splitlines()
-            if exitcode != 0:
-                raise CommandFailed(command, res, exitcode)
-            return res
-        else:
-            res = console.before
-            res = res.split(command)
-            return res[-1].splitlines()
-
-    # This command just runs and returns the ouput & ignores the failure
-    def run_command_ignore_fail(self, command, timeout=60):
-        try:
-            output = self.run_command(command, timeout)
-        except CommandFailed as cf:
-            output = cf.output
-        return output
+    def run_command_ignore_fail(self, command, timeout=60, retry=0):
+        return self.util.run_command_ignore_fail(self, command, timeout, retry)
 
 class OpTestIPMI():
-    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, logfile=sys.stdout, host=None, delaybeforesend=None):
+    def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, logfile=sys.stdout,
+            host=None, delaybeforesend=None):
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd

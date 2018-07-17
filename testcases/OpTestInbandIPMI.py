@@ -68,20 +68,12 @@ class OpTestInbandIPMIBase(object):
         if self.test == "skiroot":
             self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c = self.system.sys_get_ipmi_console()
-            self.system.host_console_unique_prompt()
-            if self.c.state == IPMIConsoleState.DISCONNECTED:
-                self.c = self.system.sys_get_ipmi_console()
-                self.system.host_console_unique_prompt()
-            # if sol console drops in b/w
-            elif not self.c.sol.isalive():
-                print "Console is not active"
-                self.c = self.system.sys_get_ipmi_console()
         elif self.test == "host":
             self.system.goto_state(OpSystemState.OS)
             self.system.load_ipmi_drivers()
             self.c = self.host.get_ssh_connection()
         else:
-            raise Exception("Unknow test type")
+            raise Exception("Unknown test type")
         return self.c
 
     def run_ipmi_cmds(self, c, cmds):
@@ -89,8 +81,11 @@ class OpTestInbandIPMIBase(object):
             for cmd in cmds:
                 c.run_command(cmd)
         except CommandFailed as cf:
-            if 'Error loading interface usb' in cf.output:
-                self.skipTest("No USB IPMI interface")
+            my_responses = ["Invalid command",
+                            "Error loading interface usb"]
+            matching = [xs for xs in my_responses if any(xs in xa for xa in cf.output)]
+            if len(matching):
+                self.skipTest("Invalid command or Error loading interface usb")
             else:
                 raise cf
 
@@ -404,7 +399,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             if 'Error loading interface usb' in cf.output:
                 self.skipTest("No USB IPMI interface")
             raise cf
-
+        except OpTestError as e:
+            self.skipTest("IPMI: Insufficient resources")
         return l_res
 
     ##
@@ -614,7 +610,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     #
     def test_sel_set_time(self):
         l_res = self.test_sel_time_get()
-        i_time = l_res[-1]
+        if l_res is not None:
+          i_time = l_res[-1]
         print "Inband IPMI[OPEN]: SEL Time set test"
         l_cmd = "sel time set \'%s\'" % i_time
         c = self.set_up()

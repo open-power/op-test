@@ -78,9 +78,7 @@ class SecureBoot(unittest.TestCase):
 
     def verify_opal_sb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
-        c.run_command("stty cols 300; stty rows 30;")
         self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         print self.cpu
         if self.cpu in ["POWER9"]:
@@ -101,11 +99,10 @@ class SecureBoot(unittest.TestCase):
 
     def verify_dt_sb(self):
         c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
         # Check for STB support - /ibm,secureboot DT node should exist
         try:
-            c.run_command("ls /proc/device-tree/ibm,secureboot")
+            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot")
         except CommandFailed:
             if self.securemode:
                 self.assertTrue(False, "OPAL-SB: ibm,secureboot DT node not created")
@@ -113,18 +110,18 @@ class SecureBoot(unittest.TestCase):
                 self.skipTest("Secureboot not supported on this system")
         c.run_command("lsprop /proc/device-tree/ibm,secureboot")
         if self.securemode:
-            c.run_command("ls /proc/device-tree/ibm,secureboot/secure-enabled")
-        c.run_command("ls /proc/device-tree/ibm,secureboot/compatible")
-        c.run_command("ls /proc/device-tree/ibm,secureboot/hw-key-hash")
-        c.run_command("ls /proc/device-tree/ibm,secureboot/name")
+            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/secure-enabled")
+        c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/compatible")
+        c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash")
+        c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/name")
         value = c.run_command("cat /proc/device-tree/ibm,secureboot/compatible")[-1]
         if "ibm,secureboot-v2" in value:
-            c.run_command("ls /proc/device-tree/ibm,secureboot/hw-key-hash-size")
-            c.run_command("ls /proc/device-tree/ibm,secureboot/ibm,cvc")
-            c.run_command("ls /proc/device-tree/ibm,secureboot/ibm,cvc/compatible")
-            c.run_command("ls /proc/device-tree/ibm,secureboot/ibm,cvc/memory-region")
+            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash-size")
+            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc")
+            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/compatible")
+            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/memory-region")
         elif "ibm,secureboot-v1" in value:
-            c.run_command("ls /proc/device-tree/ibm,secureboot/hash-algo")
+            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/hash-algo")
 
 class VerifyOPALSecureboot(SecureBoot):
 

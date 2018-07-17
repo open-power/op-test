@@ -158,8 +158,6 @@ class EPOW3Random(EPOWBase):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP specific OPAL EPOW Test.")
         console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         console.run_command("uname -a")
         # Range of EPOW temperatures from EPOW3 to CRITICAL
         temp_list = self.get_epow_list_temps()
@@ -217,8 +215,6 @@ class EPOW3LOW(EPOWBase):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP specific OPAL EPOW Test.")
         console = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         # Range of EPOW temperatures from EPOW3 to CRITICAL
         temp_list = self.get_epow_list_temps()
         print temp_list

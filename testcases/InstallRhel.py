@@ -90,7 +90,6 @@ class InstallRhel(unittest.TestCase):
                                                                                                  self.conf.args.host_dns,
                                                                                                  ks_url)
             self.c = self.system.sys_get_ipmi_console()
-            self.system.host_console_unique_prompt()
             cmd = "[ -f %s ]&& rm -f %s;[ -f %s ] && rm -f %s;true" % (vmlinux,
                                                                        vmlinux,
                                                                        initrd,
@@ -123,8 +122,6 @@ class InstallRhel(unittest.TestCase):
         self.system.goto_state(OpSystemState.OFF)
         self.system.goto_state(OpSystemState.OS)
         con = self.system.sys_get_ipmi_console()
-        self.system.host_console_login()
-        self.system.host_console_unique_prompt()
         con.run_command("uname -a")
         con.run_command("cat /etc/os-release")
         self.host.host_gather_opal_msg_log()

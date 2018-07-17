@@ -202,8 +202,6 @@ class OpTestHMIHandling(unittest.TestCase):
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
         l_con = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
         l_con.run_command("uname -a")
         l_con.run_command("cat /etc/os-release")
         l_con.run_command("lscpu")

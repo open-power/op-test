@@ -25,6 +25,7 @@ import time
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
+from common.OpTestUtil import OpTestUtil
 
 class Console():
     bs = 1024
@@ -33,18 +34,21 @@ class Console():
         conf = OpTestConfiguration.conf
         self.bmc = conf.bmc()
         self.system = conf.system()
+        self.util = OpTestUtil()
 
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.bmc.get_host_console()
-        self.system.host_console_unique_prompt()
         bs = self.bs
         count = self.count
         self.assertTrue( (bs*count)%16 == 0, "Bug in test writer. Must be multiple of 16 bytes: bs %u count %u / 16 = %u" % (bs, count, (bs*count)%16))
         try:
             zeros = console.run_command("dd if=/dev/zero bs=%u count=%u|hexdump -C -v" % (bs, count), timeout=240)
         except CommandFailed as cf:
-            self.assertEqual(cf.exitcode, 0)
+            if cf.exitcode == 0:
+              pass
+            else:
+              raise cf
         expected = 3+(count*bs)/16
         self.assertTrue( len(zeros) == expected, "Unexpected length of zeros %u != %u" % (len(zeros), expected))
 
@@ -66,6 +70,8 @@ class ControlC(unittest.TestCase):
         conf = OpTestConfiguration.conf
         self.bmc = conf.bmc()
         self.system = conf.system()
+        self.util = OpTestUtil()
+        self.prompt = self.util.build_prompt()
 
     def cleanup(self):
         pass
@@ -73,7 +79,6 @@ class ControlC(unittest.TestCase):
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.bmc.get_host_console()
-        self.system.host_console_unique_prompt()
         # I should really make this API less nasty...
         raw_console = console.get_console()
         #raw_console.sendline("hexdump -C -v /dev/zero")
@@ -81,9 +86,9 @@ class ControlC(unittest.TestCase):
         time.sleep(2)
         raw_console.sendcontrol(self.CONTROL)
         BMC_DISCONNECT = 'SOL session closed by BMC'
-        timeout = 15
+        timeout = 60
         try:
-            rc = raw_console.expect([BMC_DISCONNECT, "\[console-pexpect\]#$"], timeout)
+            rc = raw_console.expect([BMC_DISCONNECT, self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
             self.assertEqual(rc, 1, "Failed to find expected prompt")
@@ -99,7 +104,7 @@ class ControlZ(ControlC):
     CONTROL='z'
     def cleanup(self):
         console = self.bmc.get_host_console()
-        console.run_command("kill %1")
+        console.run_command_ignore_fail("kill %1")
         console.run_command_ignore_fail("fg")
 
 def suite():

@@ -43,7 +43,6 @@ class MyIPfromHost(unittest.TestCase):
     def runTest(self):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.system.sys_get_ipmi_console()
-        self.system.host_console_unique_prompt()
         my_ip = self.system.get_my_ip_from_host_perspective()
         print "# FOUND MY IP: %s" % my_ip
 
@@ -138,7 +137,6 @@ class InstallUbuntu(unittest.TestCase):
             kernel_args = kernel_args + 'netcfg/get_gateway=%s ' % self.conf.args.host_gateway
 
         self.c = self.system.sys_get_ipmi_console()
-        self.system.host_console_unique_prompt()
         if "qemu" in self.bmc_type:
             kernel_args = kernel_args + ' netcfg/choose_interface=auto '
             # For Qemu, we boot from CDROM, so let's use petitboot!
@@ -209,8 +207,6 @@ class InstallUbuntu(unittest.TestCase):
         self.system.goto_state(OpSystemState.OFF)
         self.system.goto_state(OpSystemState.OS)
         con = self.system.sys_get_ipmi_console()
-        self.system.host_console_login()
-        self.system.host_console_unique_prompt()
         con.run_command("uname -a")
         con.run_command("cat /etc/os-release")
         self.host.host_gather_opal_msg_log()

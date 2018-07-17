@@ -19,10 +19,12 @@
 
 import re
 import sys
+import os
 import time
 import pexpect
 
 from Exceptions import CommandFailed, SSHSessionDisconnected
+from OpTestUtil import OpTestUtil
 import OpTestSystem
 try:
     from common import OPexpect
@@ -43,44 +45,84 @@ def set_system_to_UNKNOWN_BAD(system):
 
 class OpTestSSH():
     def __init__(self, host, username, password, logfile=sys.stdout, port=22,
-            prompt=None, check_ssh_keys=False, known_hosts_file=None, use_default_bash=None):
+            prompt=None, check_ssh_keys=False, known_hosts_file=None,
+            block_setup_term=None, delaybeforesend=None):
         self.state = ConsoleState.DISCONNECTED
         self.host = host
         self.username = username
         self.password = password
         self.port = port
         self.logfile = logfile
-        self.prompt = prompt
         self.check_ssh_keys=check_ssh_keys
         self.known_hosts_file=known_hosts_file
-        self.use_default_bash = use_default_bash
+        self.delaybeforesend = delaybeforesend
         self.system = None
+        self.util = OpTestUtil()
+        self.prompt = prompt
+        self.expect_prompt = self.util.build_prompt(prompt) + "$"
+        self.console = None
+        self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
+        self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
+        self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+
+        # ssh state tracking, reset on boot and state changes
+        # ssh port 2200 console tracking not done on SSH object, its done on System object for the system console
+        self.PS1_set = -1
+        self.LOGIN_set = -1
+        self.SUDO_set = -1
 
     def set_system(self, system):
         self.system = system
 
-    def terminate(self):
-        if self.state == ConsoleState.CONNECTED:
-            self.console.terminate()
-            self.state = ConsoleState.DISCONNECTED
+    def set_system_setup_term(self, flag):
+        self.system.block_setup_term = flag
+
+    def get_system_setup_term(self):
+        return self.system.block_setup_term
+
+    def set_block_setup_term(self, flag):
+        self.block_setup_term = flag
+
+    def get_block_setup_term(self):
+        return self.block_setup_term
+
+    def enable_setup_term_quiet(self):
+        self.setup_term_quiet = 1
+        self.setup_term_disable = 0
+
+    def disable_setup_term_quiet(self):
+        self.setup_term_quiet = 0
+        self.setup_term_disable = 0
 
     def close(self):
+        self.util.clear_state(self)
         if self.state == ConsoleState.DISCONNECTED:
             return
         try:
             self.console.send("\r")
             self.console.send('~.')
-            self.console.expect(pexpect.EOF)
-            self.console.close()
-        except pexpect.ExceptionPexpect:
+            close_rc = self.console.expect([pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            rc_child = self.console.close()
+            exitCode = signalstatus = None
+            if self.console.status != -1: # leaving here for debug
+              if os.WIFEXITED(self.console.status):
+                exitCode = os.WEXITSTATUS(self.console.status)
+              else:
+                signalstatus = os.WTERMSIG(self.console.status)
+            self.state = ConsoleState.DISCONNECTED
+        except pexpect.ExceptionPexpect as e:
+            self.state = ConsoleState.DISCONNECTED
             raise "SSH Console: failed to close ssh console"
-        self.console.terminate()
-        self.state = ConsoleState.DISCONNECTED
+        except Exception as e:
+            self.state = ConsoleState.DISCONNECTED
+            pass
 
     def connect(self):
         if self.state == ConsoleState.CONNECTED:
-            self.console.terminate()
+            rc_child = self.close()
             self.state = ConsoleState.DISCONNECTED
+        else:
+            self.util.clear_state(self) # clear when coming in DISCONNECTED
 
         cmd = ("sshpass -p %s " % (self.password)
                + " ssh"
@@ -99,54 +141,43 @@ class OpTestSSH():
             cmd = (cmd + " -o UserKnownHostsFile=" + self.known_hosts_file)
 
         print cmd
-        consoleChild = OPexpect.spawn(cmd,
+
+        try:
+          consoleChild = OPexpect.spawn(cmd,
                 failure_callback=set_system_to_UNKNOWN_BAD,
                 failure_callback_data=self.system)
+        except Exception as e:
+          self.state = ConsoleState.DISCONNECTED
+          raise CommandFailed('OPexepct.spawn encountered a problem', -1)
+
         self.state = ConsoleState.CONNECTED
         # set for bash, otherwise it takes the 24x80 default
         consoleChild.setwinsize(1000,1000)
         self.console = consoleChild
+        if self.delaybeforesend:
+          self.console.delaybeforesend = self.delaybeforesend
         # Users expecting "Host IPMI" will reference console.sol so make it available
         self.sol = self.console
         consoleChild.logfile_read = self.logfile
-        self.set_unique_prompt(consoleChild)
-
+        time.sleep(2) # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
+        self.check_set_term()
         return consoleChild
 
-    def set_unique_prompt(self, console):
-        if self.port == 2200:
-            return
-        if self.use_default_bash:
-            console.sendline("exec bash --norc --noprofile")
-
-        expect_prompt = self.build_prompt() + "$"
-
-        console.sendline('PS1=' + self.build_prompt())
-
-        # Check for an early EOF - this can happen if we had a bad ssh host key
-        # console.isalive() can still return True in this case if called
-        # quickly enough.
-        try:
-            console.expect([expect_prompt], timeout=60)
-            output = console.before
-        except pexpect.EOF as cf:
-            print cf
-            if self.check_ssh_keys:
-                raise SSHSessionDisconnected("SSH session exited early - bad host key?")
-            else:
-                raise SSHSessionDisconnected("SSH session exited early!")
-
-    def build_prompt(self):
-        if self.prompt:
-          built_prompt = self.prompt
+    def check_set_term(self):
+        if self.block_setup_term is not None:
+          setup_term_flag = self.block_setup_term # caller control
         else:
-          built_prompt = "\[console-pexpect\]#"
-
-        return built_prompt
+          setup_term_flag = self.system.block_setup_term # system defined control
+        if self.port == 2200:
+          if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
+            self.util.setup_term(self.system, self.console, None, setup_term_flag)
+        else:
+          if self.SUDO_set != 1 or self.LOGIN_set != 1 or self.PS1_set !=1:
+            self.util.setup_term(self.system, self.console, self, setup_term_flag)
 
     def get_console(self):
         if self.state == ConsoleState.DISCONNECTED:
-            self.connect()
+          self.connect()
 
         count = 0
         while (not self.console.isalive()):
@@ -158,155 +189,12 @@ class OpTestSSH():
             if count > 120:
                 raise "SSH: not able to get console"
 
+        self.check_set_term()
+
         return self.console
 
-    def set_env(self, console):
-        set_env_list = []
-        if self.use_default_bash:
-          console.sendline("exec bash --norc --noprofile")
-        expect_prompt = self.build_prompt() + "$"
-        console.sendline('PS1=' + self.build_prompt())
-        console.expect(expect_prompt)
-        combo_io = (console.before + console.after).lstrip()
-        set_env_list += combo_io.splitlines()
-        # remove the expect prompt since matched generic #
-        del set_env_list[-1]
-        return set_env_list
+    def run_command(self, command, timeout=60, retry=0):
+        return self.util.run_command(self, command, timeout, retry)
 
-    def try_sendcontrol(self, console, command):
-        res = console.before
-        expect_prompt = self.build_prompt() + "$"
-        console.sendcontrol('c')
-        try_list = []
-        rc = console.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], 10)
-        if rc != 0:
-          self.terminate()
-          self.state = ConsoleState.DISCONNECTED
-          raise CommandFailed(command, 'run_command TIMEOUT', -1)
-        else:
-          try_list = res.splitlines()
-          echo_rc = 1
-        return try_list, echo_rc
-
-    def retry_password(self, console, command):
-        retry_list_output = []
-        a = 0
-        while a < 3:
-          a += 1
-          console.sendline(self.password)
-          rc = console.expect([".*#", "try again.", pexpect.TIMEOUT, pexpect.EOF])
-          if (rc == 0) or (rc == 1):
-            combo_io = console.before + console.after
-            retry_list_output += combo_io.splitlines()
-            matching = [xs for xs in sudo_responses if any(xs in xa for xa in console.after.splitlines())]
-            if len(matching):
-              echo_rc = 1
-              rc = -1 # use to flag the failure next
-          if rc == 0:
-            retry_list_output += self.set_env(console)
-            echo_rc = 0
-            break
-          elif a == 2:
-            echo_rc = 1
-            break
-          elif (rc == 2):
-            raise CommandFailed(command, 'Retry Password TIMEOUT ' + ''.join(retry_list_output), -1)
-          elif (rc == 3):
-            self.state = ConsoleState.DISCONNECTED
-            raise SSHSessionDisconnected("SSH session exited early!")
-
-        return retry_list_output, echo_rc
-
-    def handle_password(self, console, command):
-        # this is for run_command 'sudo -s' or the like
-        handle_list_output = []
-        failure_list_output = []
-        pre_combo_io = console.before + console.after
-        console.sendline(self.password)
-        rc = console.expect([".*#", "try again.", pexpect.TIMEOUT, pexpect.EOF])
-        if (rc == 0) or (rc == 1):
-          combo_io = pre_combo_io + console.before + console.after
-          handle_list_output += combo_io.splitlines()
-          matching = [xs for xs in sudo_responses if any(xs in xa for xa in console.after.splitlines())]
-          if len(matching):
-            # remove the expect prompt since matched generic #
-            del handle_list_output[-1]
-            echo_rc = 1
-            rc = -1 # use this to flag the failure next
-        if rc == 0:
-          # with unknown prompts and unknown environment unable to capture echo $?
-          echo_rc = 0
-          self.set_env(console)
-          list_output = handle_list_output
-        elif rc == 1:
-          retry_list_output, echo_rc = self.retry_password(console, command)
-          list_output = (handle_list_output + retry_list_output)
-        else:
-          if (rc == 2) or (rc == 3):
-            failure_list_output += ['Password Problem/TIMEOUT ']
-            failure_list_output += pre_combo_io.splitlines()
-          # timeout path needs access to output
-          # handle_list_output empty if timeout or EOF
-          failure_list_output += handle_list_output
-          if (rc == 3):
-            self.state = ConsoleState.DISCONNECTED
-            raise SSHSessionDisconnected("SSH session exited early!")
-          else:
-            raise CommandFailed(command, ''.join(failure_list_output), -1)
-        return list_output, echo_rc
-
-    def run_command(self, command, timeout=60):
-        running_sudo_s = False
-        extra_sudo_output = False
-        console = self.get_console()
-        expect_prompt = self.build_prompt() + "$"
-        console.sendline(command)
-        console.expect("\n") # removes the echo of command from output
-        if command == 'sudo -s':
-          running_sudo_s = True
-          # special case to catch loss of env
-          rc = console.expect([".*#", r"[Pp]assword", pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
-        else:
-          rc = console.expect([expect_prompt, r"[Pp]assword", pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
-        output_list = []
-        output_list += console.before.splitlines()
-        # if we are running 'sudo -s' as root then catch on generic # prompt, restore env
-        if running_sudo_s and (rc == 0):
-          extra_sudo_output = True
-          set_env_list = self.set_env(console)
-        if rc == 0:
-          if extra_sudo_output:
-            output_list += set_env_list
-          console.sendline("echo $?")
-          rc2 = console.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
-          if rc2 == 0:
-            echo_output = console.before
-            echo_rc = int(echo_output.splitlines()[-1])
-          elif rc2 == 2:
-            self.state = ConsoleState.DISCONNECTED
-            raise SSHSessionDisconnected("SSH session exited!")
-          else:
-            raise CommandFailed(command, 'echo TIMEOUT', -1)
-        elif rc == 1:
-          handle_output_list, echo_rc = self.handle_password(console, command)
-          # remove the expect prompt since matched generic #
-          del handle_output_list[-1]
-          output_list = handle_output_list
-        elif rc == 2:
-          output_list, echo_rc = self.try_sendcontrol(console, command)
-        else:
-          self.state = ConsoleState.DISCONNECTED
-          raise SSHSessionDisconnected("SSH session exited early!")
-        res = output_list
-        if echo_rc != 0:
-          raise CommandFailed(command, res, echo_rc)
-        return res
-
-    # This command just runs and returns the ouput & ignores the failure
-    # A straight copy of what's in OpTestIPMI
-    def run_command_ignore_fail(self, command, timeout=60):
-        try:
-            output = self.run_command(command, timeout)
-        except CommandFailed as cf:
-            output = cf.output
-        return output
+    def run_command_ignore_fail(self, command, timeout=60, retry=0):
+        return self.util.run_command_ignore_fail(self, command, timeout, retry)

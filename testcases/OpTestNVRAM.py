@@ -171,6 +171,7 @@ class HostNVRAM(OpTestNVRAM):
 class SkirootNVRAM(OpTestNVRAM):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.cv_SYSTEM.host_console_unique_prompt()
         # Execute these tests in petitboot
+        if not self.cv_SYSTEM.has_mtd_pnor_access():
+            self.skipTest("OpTestSystem Skiroot does not have MTD PNOR access, probably running QEMU")
         self.doNVRAMTest(self.cv_SYSTEM.sys_get_ipmi_console())

@@ -33,7 +33,6 @@ OPAL_SENSOR_GROUPS = "/sys/firmware/opal/sensor_groups/"
 OPAL_SYMBOL_MAP = "/sys/firmware/opal/symbol_map"
 OPAL_EXPORTS = "/sys/firmware/opal/exports/"
 
-
 class OpalSysfsTests():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -47,7 +46,6 @@ class OpalSysfsTests():
             if self.cpu:
                 pass
         except AttributeError:
-            self.c.run_command("stty cols 300")
             cmd = "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"
             self.cpu = ''.join(self.c.run_command(cmd))
         return self.cpu
@@ -82,7 +80,6 @@ class OpalSysfsTests():
 
     def test_opal_powercap(self):
         self.setup_test()
-        self.c.run_command("stty cols 300; stty rows 30;")
         self.get_proc_gen()
         if self.cpu not in ["POWER9"]:
             return
@@ -150,7 +147,6 @@ class Skiroot(OpalSysfsTests, unittest.TestCase):
         self.test = 'skiroot'
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class Host(OpalSysfsTests, unittest.TestCase):
     def setup_test(self):

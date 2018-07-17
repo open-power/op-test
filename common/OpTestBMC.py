@@ -35,6 +35,7 @@ import time
 import pexpect
 import os.path
 import subprocess
+
 from OpTestIPMI import OpTestIPMI
 from OpTestSSH import OpTestSSH
 from OpTestUtil import OpTestUtil
@@ -56,9 +57,12 @@ class OpTestBMC():
         self.logfile = logfile
         self.check_ssh_keys = check_ssh_keys
         self.known_hosts_file = known_hosts_file
-        self.ssh = OpTestSSH(ip, username, password, logfile, prompt='\[PEXPECT\]#',
-                check_ssh_keys=check_ssh_keys, known_hosts_file=known_hosts_file)
+        self.ssh = OpTestSSH(ip, username, password, logfile, prompt=None,
+                block_setup_term=0, check_ssh_keys=check_ssh_keys, known_hosts_file=known_hosts_file)
         self.util = OpTestUtil()
+
+    def set_system(self, system):
+        self.ssh.set_system(system)
 
     def bmc_host(self):
         return self.cv_bmcIP
@@ -72,8 +76,8 @@ class OpTestBMC():
     def get_host_console(self):
         return self.cv_IPMI.get_host_console()
 
-    def run_command(self, command, timeout=60):
-        return self.ssh.run_command(command, timeout=timeout)
+    def run_command(self, command, timeout=60, retry=0):
+        return self.ssh.run_command(command, timeout, retry)
 
     ##
     # @brief This function issues the reboot command on the BMC console.  It then
@@ -89,7 +93,9 @@ class OpTestBMC():
         retries = 0
         try:
             self.ssh.run_command('reboot')
-        except SSHSessionDisconnected:
+        except SSHSessionDisconnected as e:
+            pass
+        except CommandFailed as e:
             pass
         print 'Sent reboot command now waiting for reboot to complete...'
         # Wait for BMC to go down.

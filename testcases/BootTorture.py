@@ -46,7 +46,6 @@ class BootTorture(unittest.TestCase, TestPCI):
                 self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
             except pexpect.EOF:
                 continue
-            self.system.host_console_unique_prompt()
             self.c.run_command_ignore_fail("head /sys/firmware/opal/msglog")
             self.c.run_command_ignore_fail("tail /sys/firmware/opal/msglog")
             if self.pci_good_data_file:
@@ -68,12 +67,10 @@ class ReBootTorture(unittest.TestCase, TestPCI):
     def runTest(self):
         console = self.system.sys_get_ipmi_console()
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.system.host_console_unique_prompt()
         # Disable the fast-reset
         console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
         for i in range(1,self.BOOT_ITERATIONS):
             print "Re-boot iteration %d..." % i
-            self.system.host_console_unique_prompt()
             console.run_command_ignore_fail("uname -a")
             console.run_command_ignore_fail("cat /etc/os-release")
             if self.pci_good_data_file:
