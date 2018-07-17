@@ -352,6 +352,9 @@ class OpTestSystem(object):
           if (detect_state == target_state):
             self.previous_state = detect_state # preserve state
             return detect_state
+          elif target_state in [OpSystemState.OFF]:
+            self.previous_state = detect_state # preserve state
+            return detect_state
           elif reboot:
             if target_state in [OpSystemState.OS]:
               self.run_REBOOT(target_state)
@@ -405,7 +408,7 @@ class OpTestSystem(object):
           return OpSystemState.UNKNOWN # we really should not have arrived in here and not much we can do
         sys_console.sendline("cat /proc/version | cut -d ' ' -f 3 | grep %s; echo $?" % (self.openpower))
         time.sleep(0.2)
-        rc = sys_console.expect([self.expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=1)
+        rc = sys_console.expect([self.expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if rc == 0:
           echo_output = sys_console.before
           try:
