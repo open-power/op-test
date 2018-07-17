@@ -572,11 +572,16 @@ class OpTestUtil():
           my_term.sendline("echo $?")
           rc2 = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
           if rc2 == 0:
-            echo_output = my_term.before
+            echo_output = []
+            echo_output += my_term.before.splitlines()
             try:
-              echo_rc = int(echo_output.splitlines()[-1])
+                del echo_output[:1] # remove command from the list
             except Exception as e:
-              echo_rc = -1
+                pass # nothing there
+            try:
+                echo_rc = int(echo_output[-1])
+            except Exception as e:
+                echo_rc = -1
           else:
             raise CommandFailed(command, "run_command echo TIMEOUT, the command may have been ok,"
                     " but unable to get echo output to confirm result", -1)
