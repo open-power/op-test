@@ -126,7 +126,7 @@ class OpTestSystem(object):
         # tunables for customizations, put them here all together
 
         # ipmi versus ssh settings, sometimes tuning is needed based on type, so keeping split for tuning
-        # to basically turn off reconnect based on stale buffers set threshold equal to watermark, e.g. 50
+        # to basically turn off reconnect based on stale buffers set threshold equal to watermark, e.g. 100
         if isinstance(self.console, OpTestIPMI.IPMIConsole):
           self.threshold_petitboot = 12 # stale buffer check
           self.threshold_login = 12 # long enough to skip the refresh until kexec, stale buffers need to be jumped over
@@ -149,11 +149,11 @@ class OpTestSystem(object):
         # watermark is the loop counter (loop_max) used in conjunction with timeout
         # timeout is the expect timeout for each iteration
         # watermark will automatically increase in case the loop is too short
-        self.ipl_watermark = 50
+        self.ipl_watermark = 100
         self.ipl_timeout = 4 # needs consideration with petitboot timeout
-        self.booting_watermark = 50
+        self.booting_watermark = 100
         self.booting_timeout = 5
-        self.kill_cord = 100 # just a ceiling on giving up
+        self.kill_cord = 150 # just a ceiling on giving up
 
         # We have a state machine for going in between states of the system
         # initially, everything in UNKNOWN, so we reset things.
@@ -547,11 +547,11 @@ class OpTestSystem(object):
         try:
           if (target_state == OpSystemState.OS):
             my_r, my_reconnect = self.wait_for_it(expect_dict=self.login_expect_table,
-               reconnect=self.login_reconnect, threshold=self.threshold_login, loop_max=50)
+               reconnect=self.login_reconnect, threshold=self.threshold_login, loop_max=100)
           else:
             my_r, my_reconnect = self.wait_for_it(expect_dict=self.petitboot_expect_table,
                reconnect=self.petitboot_reconnect, refresh=self.petitboot_refresh, buffer_kicker=self.petitboot_kicker,
-               threshold=self.threshold_petitboot, loop_max=50)
+               threshold=self.threshold_petitboot, loop_max=100)
         except Exception as e:
           return
 
