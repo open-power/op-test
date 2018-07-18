@@ -21,6 +21,7 @@
 import unittest
 import re
 import time
+import pexpect
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
@@ -36,22 +37,24 @@ class RebootTime():
     def runTest(self):
         self.setup_test()
 
-        # Don't use run_command() in case we actually reboot quickly
+        rc = self.c.run_command("uname -a") # run any command to get console setup, if expected to be logged in
+
+        # now console is logged in and you can perform raw pexpect commands that assume log in
         self.c.sol.sendline("reboot")
 
         start = time.time()
-        self.c.sol.expect("OPAL: Reboot request", timeout=120)
-        print("Time to OPAL reboot handler: {} seconds".format(time.time() - start))
+        rc = self.c.sol.expect(["OPAL: Reboot request", "reboot: Restarting system", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+        if rc in [0,1]:
+          print("Time to OPAL reboot handler: {} seconds".format(time.time() - start))
+        else:
+          self.assertTrue(False, "Unexpected rc=%s from reboot request" % rc)
 
 class Skiroot(RebootTime, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_unique_prompt()
 
 class Host(RebootTime, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cv_SYSTEM.host_console_login()
-        self.cv_SYSTEM.host_console_unique_prompt()
