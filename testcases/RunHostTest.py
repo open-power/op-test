@@ -29,7 +29,7 @@ from common.OpTestSystem import OpSystemState
 class RunHostTest(unittest.TestCase):
     def setUp(self):
         self.conf = OpTestConfiguration.conf
-        self.system = self.conf.system()
+        self.cv_SYSTEM = self.conf.system()
         self.host_cmd = self.conf.args.host_cmd
         self.host_cmd_file = self.conf.args.host_cmd_file
         self.host_cmd_timeout = self.conf.args.host_cmd_timeout
@@ -37,8 +37,8 @@ class RunHostTest(unittest.TestCase):
             self.fail("Provide either --host-cmd and --host-cmd-file option")
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.OS)
-        con = self.system.sys_get_ipmi_console()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         if self.host_cmd:
             con.run_command(self.host_cmd, timeout=self.host_cmd_timeout)
         if self.host_cmd_file:
@@ -48,8 +48,8 @@ class RunHostTest(unittest.TestCase):
             for line in fd.readlines():
                 line = line.strip()
                 if "reboot" in line:
-                    self.system.goto_state(OpSystemState.OFF)
-                    self.system.goto_state(OpSystemState.OS)
-                    con = self.system.sys_get_ipmi_console()
+                    self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                    self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                    con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
                     continue
                 con.run_command(line, timeout=self.host_cmd_timeout)

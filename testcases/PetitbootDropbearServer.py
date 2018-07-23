@@ -50,7 +50,7 @@ class PetitbootDropbearServer(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         print "Test Dropbear server not running in Petitboot"
 
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         c.run_command("uname -a")
         # we don't grep for 'dropbear' so that our naive line.count
         # below doesn't hit a false positive.

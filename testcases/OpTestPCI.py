@@ -162,12 +162,12 @@ class TestPCI():
 class TestPCISkiroot(TestPCI, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class TestPCIHost(TestPCI, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
 
 class PcieLinkErrorsHost(TestPCIHost, unittest.TestCase):
 
@@ -188,7 +188,7 @@ class TestPciSkirootReboot(TestPCI, unittest.TestCase):
 
     def runTest(self):
         self.set_up()
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         if "skiroot_reboot" in self.test:
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -219,7 +219,7 @@ class TestPciOSReboot(TestPciSkirootReboot, unittest.TestCase):
 class TestPciSkirootvsOS(TestPCI, unittest.TestCase):
 
     def runTest(self):
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         l_res = c.run_command("lspci -mm -n")
         self.pci_data_skiroot = '\n'.join(l_res) + '\n'
@@ -246,11 +246,11 @@ class TestPciDriverBindHost(TestPCIHost, unittest.TestCase):
         self.set_up()
         if "skiroot" in self.test:
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.c = self.cv_SYSTEM.console
             root_pe = "xxxx"
         else:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
-            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.c = self.cv_SYSTEM.console
             root_pe = self.get_root_pe_address()
             self.c.run_command("dmesg -D")
         list = self.get_list_of_pci_devices()
@@ -315,7 +315,7 @@ class TestPciHotplugHost(TestPCI, unittest.TestCase):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific PCI Hotplug tests")
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        c = self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.c = self.cv_SYSTEM.console
         res = self.c.run_command("uname -r")[-1].split("-")[0]
         if LooseVersion(res) < LooseVersion("4.10.0"):
             self.skipTest("This kernel does not support hotplug %s" % res)

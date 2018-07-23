@@ -87,10 +87,10 @@ class OpTestPrdDriver(unittest.TestCase):
     #
     def prd_init(self):
         # Get OS level
-        self.cv_HOST.host_get_OS_Level()
+        self.cv_HOST.host_get_OS_Level(console=1)
 
         # Getting list of processor chip Id's(executing getscom -l to get chip id's)
-        l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l")
+        l_res = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l", console=1)
         l_chips = []
         for line in l_res:
             matchObj = re.search("(\d{8}).*processor", line)
@@ -113,7 +113,7 @@ class OpTestPrdDriver(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def prd_test_core_fir(self, FIR, FIMR, ERROR):
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         chip_id = "0x" + self.random_chip
         print chip_id
         print "OPAL-PRD: Injecting error 0x%x on FIR: %s" % (ERROR, FIR)
@@ -172,7 +172,7 @@ class OpTestPrdDriver(unittest.TestCase):
 
     ##
     # @brief This function performs below steps
-    #        1. Initially connecting to host and ipmi consoles for execution.
+    #        1. Initially connecting to host for execution.
     #        2. check for IPOLL mask register value to see whether opal-prd is running or not
     #           if it is 0-->opal-prd is running-->continue
     #           else start opal-prd service again
@@ -186,9 +186,10 @@ class OpTestPrdDriver(unittest.TestCase):
             self.skipTest("OpenPower specific")
         # In P9 FSP systems we need to enable this test
         self.prd_init()
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
+        # need console in case of crash or lockups
+        l_con = self.cv_SYSTEM.console
 
-        cpu = self.cv_HOST.host_get_proc_gen()
+        cpu = self.cv_HOST.host_get_proc_gen(console=1)
         faults_to_inject = []
 
         if cpu not in ["POWER8", "POWER8E", "POWER9"]:

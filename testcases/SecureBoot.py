@@ -47,7 +47,7 @@ class SecureBoot(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
     def verify_boot_fail(self):
-        console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+        console = self.cv_SYSTEM.console.get_console()
         self.cv_SYSTEM.sys_power_on()
         count = 4
         boot = False
@@ -62,22 +62,22 @@ class SecureBoot(unittest.TestCase):
         return True
 
     def wait_for_secureboot_enforce(self):
-        console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+        console = self.cv_SYSTEM.console.get_console()
         self.cv_SYSTEM.sys_power_on()
         console.expect("STB: secure mode enforced, aborting.", timeout=300)
         console.expect("secondary_wait", timeout=20)
         console.expect("host_voltage_config", timeout=100)
 
     def wait_for_sb_kt_start(self):
-        console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+        console = self.cv_SYSTEM.console.get_console()
         console.expect("sbe|Performing Secure Boot key transition", timeout=300)
 
     def wait_for_shutdown(self):
-        console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+        console = self.cv_SYSTEM.console.get_console()
         console.expect("shutdown complete", timeout=100)
 
     def verify_opal_sb(self):
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
 
         self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         print self.cpu
@@ -98,7 +98,7 @@ class SecureBoot(unittest.TestCase):
                 self.assertTrue(False, "OPAL-SB: %s verification failed or not happened" % part)
 
     def verify_dt_sb(self):
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
 
         # Check for STB support - /ibm,secureboot DT node should exist
         try:
@@ -227,7 +227,7 @@ class KeyTransitionPNOR(SecureBoot, PNORFLASH):
     def runTest(self):
         if not self.kt_pnor:
             self.skipTest("No key transition PNOR image is provided")
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.console
         PNORFLASH.pnor = self.kt_pnor
         super(KeyTransitionPNOR, self).runTest()
         self.cv_SYSTEM.sys_power_on()

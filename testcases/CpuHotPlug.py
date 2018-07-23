@@ -40,8 +40,7 @@ class CpuHotPlug(unittest.TestCase):
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_HOST.get_ssh_connection()
-        self.c.run_command("stty cols 300;stty rows 30")
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         self.num_avail_cores = self.cv_HOST.host_get_core_count()

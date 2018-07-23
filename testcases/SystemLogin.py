@@ -37,11 +37,11 @@ class OOBHostLogin(unittest.TestCase):
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.system = conf.system()
+        self.cv_SYSTEM = conf.system()
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.OS)
-        l_con = self.system.sys_get_ipmi_console()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        l_con = self.cv_SYSTEM.console
         r = l_con.run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)
         try:
@@ -63,18 +63,18 @@ class BMCLogin(unittest.TestCase):
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.system = conf.system()
-        self.bmc = conf.bmc()
+        self.cv_SYSTEM = conf.system()
+        self.cv_BMC = conf.bmc()
 
     def runTest(self):
-        r = self.bmc.run_command("echo 'Hello World'")
+        r = self.cv_BMC.run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)
         try:
-            r = self.bmc.run_command("false")
+            r = self.cv_BMC.run_command("false")
         except CommandFailed as r:
             self.assertEqual(r.exitcode, 1)
         for i in range(2):
-            self.bmc.run_command("dmesg")
+            self.cv_BMC.run_command("dmesg")
 
 class SSHHostLogin(unittest.TestCase):
     '''
@@ -82,41 +82,41 @@ class SSHHostLogin(unittest.TestCase):
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.system = conf.system()
-        self.host = conf.host()
+        self.cv_SYSTEM = conf.system()
+        self.cv_HOST = conf.host()
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.OS)
-        r = self.host.host_run_command("echo 'Hello World'")
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        r = self.cv_HOST.host_run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)
         try:
-            r = self.host.host_run_command("false")
+            r = self.cv_HOST.host_run_command("false")
         except CommandFailed as r:
             self.assertEqual(r.exitcode, 1)
         for i in range(2):
-            self.host.host_run_command("dmesg")
-        self.host.host_run_command("whoami")
-        self.host.host_run_command("sudo -s")
-        self.host.host_run_command("lscpu")
+            self.cv_HOST.host_run_command("dmesg")
+        self.cv_HOST.host_run_command("whoami")
+        self.cv_HOST.host_run_command("sudo -s")
+        self.cv_HOST.host_run_command("lscpu")
         try:
-            r = self.host.host_run_command("echo \'hai\';sleep 20", timeout=10)
+            r = self.cv_HOST.host_run_command("echo \'hai\';sleep 20", timeout=10)
         except CommandFailed as r:
             print str(r)
-        self.host.host_run_command("whoami")
-        self.host.host_run_command("lscpu")
+        self.cv_HOST.host_run_command("whoami")
+        self.cv_HOST.host_run_command("lscpu")
 
 class ExampleRestAPI(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.system = conf.system()
+        self.cv_SYSTEM = conf.system()
         self.bmc_type = conf.args.bmc_type
 
     def runTest(self):
         if "OpenBMC" not in self.bmc_type:
             self.skipTest("OpenBMC specific Rest API Tests")
-        self.system.sys_inventory()
-        self.system.sys_sensors()
-        self.system.sys_bmc_state()
+        self.cv_SYSTEM.sys_inventory()
+        self.cv_SYSTEM.sys_sensors()
+        self.cv_SYSTEM.sys_bmc_state()
 
 def system_access_suite():
     s = unittest.TestSuite()

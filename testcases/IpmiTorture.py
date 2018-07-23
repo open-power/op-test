@@ -63,7 +63,8 @@ class InbandIpmiThread(threading.Thread):
         self.cmd = cmd
         self.execution_time = execution_time
         conf = OpTestConfiguration.conf
-        self.host = conf.host()
+        self.cv_HOST = conf.host()
+        self.cv_SYSTEM = conf.system()
 
     def run(self):
         print "Starting " + self.name
@@ -72,7 +73,7 @@ class InbandIpmiThread(threading.Thread):
 
     def inband_ipmi_thread(self, threadName, cmd, t):
         execution_time = time.time() + 60*t
-        self.c = self.host.get_ssh_connection()
+        self.c = self.cv_HOST.get_ssh_connection()
         print "Starting %s for inband-ipmi %s" % (threadName, cmd)
         while True:
             try:
@@ -99,7 +100,7 @@ class SolConsoleThread(threading.Thread):
         print "Exiting " + self.name
 
     def sol_console_thread(self, threadName, t):
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
         # Enable kernel logging(printk) to console
         self.c.run_command("echo 10 > /proc/sys/kernel/printk")
         execution_time = time.time() + 60*self.execution_time
@@ -231,35 +232,35 @@ class SkirootConsoleTorture(ConsoleIpmiTorture):
     def setup_test(self):
         self.test = "skiroot_runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 
 class SkirootIpmiTorture(IpmiInterfaceTorture):
     def setup_test(self):
         self.test = "skiroot_runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class RuntimeConsoleTorture(ConsoleIpmiTorture):
     def setup_test(self):
 	self.test = "runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class StandbyConsoleTorture(ConsoleIpmiTorture):
     def setup_test(self):
 	self.test = "standby"
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class RuntimeIpmiInterfaceTorture(IpmiInterfaceTorture):
     def setup_test(self):
         self.test = "runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class StandbyIpmiInterfaceTorture(IpmiInterfaceTorture):
     def setup_test(self):
         self.test = "standby"
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console

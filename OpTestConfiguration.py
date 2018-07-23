@@ -344,7 +344,6 @@ class OpTestConfiguration():
                 host=host,
             )
             ipmi.set_system(self.op_system)
-            bmc.set_system(self.op_system) # this needs testing
         elif self.args.bmc_type in ['OpenBMC']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,

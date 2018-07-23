@@ -51,29 +51,29 @@ from common.Exceptions import CommandFailed
 class OpTestCAPI(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.ipmi = conf.ipmi()
-        self.system = conf.system()
-        self.host = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_HOST = conf.host()
 
     def set_up(self):
-        self.system.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         # Check that host has a CAPI FPGA card
-        if (self.host.host_has_capi_fpga_card() != True):
+        if (self.cv_HOST.host_has_capi_fpga_card() != True):
             raise unittest.SkipTest("No CAPI card available on host \
                                      Skipping the CAPI tests")
 
-        self.host.host_check_command("git", "gcc")
+        self.cv_HOST.host_check_command("git", "gcc")
 
         # Get OS level
-        l_oslevel = self.host.host_get_OS_Level()
+        l_oslevel = self.cv_HOST.host_get_OS_Level()
 
         # Get kernel version
-        l_kernel = self.host.host_get_kernel_version()
+        l_kernel = self.cv_HOST.host_get_kernel_version()
 
         # Load module cxl based on config option
         l_config = "CONFIG_CXL"
         l_module = "cxl"
-        self.host.host_load_module_based_on_config(l_kernel, l_config, \
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, \
                                                    l_module)
 
 class CxlDeviceFileTest(OpTestCAPI, unittest.TestCase):
@@ -89,7 +89,7 @@ class CxlDeviceFileTest(OpTestCAPI, unittest.TestCase):
         # Check device files /dev/cxl/afu0.0{m,s} existence
         l_cmd = "ls -l /dev/cxl/afu0.0{m,s}; echo $?"
         try:
-            self.host.host_run_command(l_cmd)
+            self.cv_HOST.host_run_command(l_cmd)
         except CommandFailed:
             self.assertTrue(False, "cxl device file tests fail")
 
@@ -107,17 +107,17 @@ class SysfsABITest(OpTestCAPI, unittest.TestCase):
         # Check that cxl-tests binary and library are available
         # If not, clone and build cxl-tests (along with libcxl)
         l_dir = "/tmp/cxl-tests"
-        if (self.host.host_check_binary(l_dir, "libcxl_tests") != True or
-            self.host.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
-            self.host.host_clone_cxl_tests(l_dir)
-            self.host.host_build_cxl_tests(l_dir)
+        if (self.cv_HOST.host_check_binary(l_dir, "libcxl_tests") != True or
+            self.cv_HOST.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
+            self.cv_HOST.host_clone_cxl_tests(l_dir)
+            self.cv_HOST.host_build_cxl_tests(l_dir)
 
         # Run sysfs abi tests
         l_exec = "libcxl_tests >/tmp/libcxl_tests.log"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s;" % (l_dir, l_exec)
         print cmd
         try:
-            self.host.host_run_command(cmd)
+            self.cv_HOST.host_run_command(cmd)
             l_msg = "sysfs abi libcxl_tests pass"
             print l_msg
         except CommandFailed:
@@ -138,17 +138,17 @@ class MemCpyAFUTest(OpTestCAPI, unittest.TestCase):
         # Check that cxl-tests binary and library are available
         # If not, clone and build cxl-tests (along with libcxl)
         l_dir = "/tmp/cxl-tests"
-        if (self.host.host_check_binary(l_dir, "memcpy_afu_ctx") != True or
-            self.host.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
-            self.host.host_clone_cxl_tests(l_dir)
-            self.host.host_build_cxl_tests(l_dir)
+        if (self.cv_HOST.host_check_binary(l_dir, "memcpy_afu_ctx") != True or
+            self.cv_HOST.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
+            self.cv_HOST.host_clone_cxl_tests(l_dir)
+            self.cv_HOST.host_build_cxl_tests(l_dir)
 
         # Run memcpy afu tests
         l_exec = "memcpy_afu_ctx -p1 -l1 >/tmp/memcpy_afu_ctx.log"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s; echo $?" % (l_dir, l_exec)
         print cmd
         try:
-            self.host.host_run_command(cmd)
+            self.cv_HOST.host_run_command(cmd)
             l_msg = "memcpy_afu_ctx tests pass"
             print l_msg
         except CommandFailed:
@@ -169,7 +169,7 @@ class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
         # Check PSL timebase sync support
         l_cmd = "grep -q -w 1 /sys/class/cxl/card0/psl_timebase_synced;"
         try:
-            self.host.host_run_command(l_cmd)
+            self.cv_HOST.host_run_command(l_cmd)
         except CommandFailed:
             l_msg = "PSL does not support timebase sync; skipping test"
             raise unittest.SkipTest(l_msg)
@@ -177,17 +177,17 @@ class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
         # Check that cxl-tests binary and library are available
         # If not, clone and build cxl-tests (along with libcxl)
         l_dir = "/tmp/cxl-tests"
-        if (self.host.host_check_binary(l_dir, "memcpy_afu_ctx") != True or
-            self.host.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
-            self.host.host_clone_cxl_tests(l_dir)
-            self.host.host_build_cxl_tests(l_dir)
+        if (self.cv_HOST.host_check_binary(l_dir, "memcpy_afu_ctx") != True or
+            self.cv_HOST.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
+            self.cv_HOST.host_clone_cxl_tests(l_dir)
+            self.cv_HOST.host_build_cxl_tests(l_dir)
 
         # Run timebase sync tests
         l_exec = "memcpy_afu_ctx -t -p1 -l1 >/tmp/memcpy_afu_ctx-t.log"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s; echo $?" % (l_dir, l_exec)
         print cmd
         try:
-            self.host.host_run_command(cmd)
+            self.cv_HOST.host_run_command(cmd)
             print "memcpy_afu_ctx -t tests pass"
         except CommandFailed:
             self.assertTrue(False, "memcpy_afu_ctx -t tests failed")

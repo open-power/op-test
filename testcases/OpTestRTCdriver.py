@@ -42,14 +42,16 @@ from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
 class FullRTC(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
+        cls.cv_HOST = conf.host()
+        cls.cv_IPMI = conf.ipmi()
+        cls.cv_SYSTEM = conf.system()
+        cls.util = OpTestUtil()
+        cls.test = None
 
-    def rtc_init(self):
+    def setUp(self):
         if self.test == "host":
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -65,7 +67,7 @@ class FullRTC(unittest.TestCase):
 
         elif self.test == "skiroot":
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.c = self.cv_SYSTEM.console
 
     # We have a busy box version hwclock with limited options
     # to access the HW RTC
@@ -108,8 +110,7 @@ class FullRTC(unittest.TestCase):
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def runTest(self):
-        self.rtc_init()
+    def RunFullRTC(self):
 
         # Get the device files for rtc driver
         l_files = self.cv_HOST.host_run_command("ls --color=never /dev/ | grep -i --color=never rtc")
@@ -299,7 +300,6 @@ class BasicRTC(FullRTC):
         super(BasicRTC, self).setUp()
 
     def runTest(self):
-        self.rtc_init()
         self.cv_HOST.host_read_hwclock()
         self.cv_HOST.host_read_systime()
 
@@ -308,13 +308,15 @@ class HostRTC(FullRTC):
         self.test = "host"
         super(HostRTC, self).setUp()
 
+    def runTest(self):
+        self.RunFullRTC()
+
 class SkirootRTC(FullRTC):
     def setUp(self):
         self.test = "skiroot"
         super(SkirootRTC, self).setUp()
 
     def runTest(self):
-        self.rtc_init()
         self.skiroot_read_hwclock()
         self.skiroot_assume_hwclock_utc()
         self.skiroot_assume_hwclock_localtime()

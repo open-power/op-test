@@ -79,7 +79,7 @@ class OpalGard(unittest.TestCase):
         if "FSP" in self.bmc_type:
             self.skipTest("OpenPOWER BMC specific")
 
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         self.cv_HOST.host_check_command("pflash")
         self.cv_HOST.host_copy_fake_gard()
         self.c.run_command("dmesg -D")

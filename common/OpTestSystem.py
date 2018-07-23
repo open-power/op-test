@@ -1802,9 +1802,11 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.set_bootdev_to_none()
 
     def sys_warm_reset(self):
+        self.console.close()
         self.rest.bmc_reset()
 
     def sys_cold_reset_bmc(self):
+        self.console.close()
         self.rest.bmc_reset()
 
     def sys_enable_tpm(self):

@@ -34,16 +34,16 @@ from common import OpTestInstallUtil
 class MyIPfromHost(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.host = conf.host()
-        self.ipmi = conf.ipmi()
-        self.system = conf.system()
-        self.bmc = conf.bmc()
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_BMC = conf.bmc()
         self.util = OpTestUtil()
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.system.sys_get_ipmi_console()
-        my_ip = self.system.get_my_ip_from_host_perspective()
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.c = self.cv_SYSTEM.console
+        my_ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
         print "# FOUND MY IP: %s" % my_ip
 
 
@@ -51,10 +51,10 @@ class InstallUbuntu(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.conf = conf
-        self.host = conf.host()
-        self.ipmi = conf.ipmi()
-        self.system = conf.system()
-        self.bmc = conf.bmc()
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_BMC = conf.bmc()
         self.util = OpTestUtil()
         self.bmc_type = conf.args.bmc_type
         if not (self.conf.args.os_repo or self.conf.args.os_cdrom):
@@ -63,11 +63,11 @@ class InstallUbuntu(unittest.TestCase):
             self.fail("Provide host network details refer, --host-{ip,gateway,dns,submask,mac}")
         if not (self.conf.args.host_user and self.conf.args.host_password):
             self.fail("Provide host user details refer, --host-{user,password}")
-        if not self.host.get_scratch_disk():
+        if not self.cv_HOST.get_scratch_disk():
             self.fail("Provide proper host disk to install refer, --host-scratch-disk")
 
     def select_petitboot_item(self, item):
-        self.system.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
         rawc = self.c.get_console()
         r = None
         while r != 0:
@@ -81,7 +81,7 @@ class InstallUbuntu(unittest.TestCase):
             rawc.sendcontrol('l')
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         # Set the install paths
         base_path = os.path.join(self.conf.basedir, "osimages", "ubuntu")
@@ -126,17 +126,17 @@ class InstallUbuntu(unittest.TestCase):
                        'netcfg/link_wait_timeout=60 '
                        'partman-auto/disk=%s '
                        'locale=en_US '
-                       'url=http://%s:%s/preseed.cfg' % (self.host.get_scratch_disk(),
+                       'url=http://%s:%s/preseed.cfg' % (self.cv_HOST.get_scratch_disk(),
                                                          my_ip, port))
 
         if not self.conf.args.host_dns in [None, ""]:
             kernel_args = kernel_args + ' netcfg/disable_autoconfig=true '
             kernel_args = kernel_args + 'netcfg/get_nameservers=%s ' % self.conf.args.host_dns
-            kernel_args = kernel_args + 'netcfg/get_ipaddress=%s ' % self.host.ip
+            kernel_args = kernel_args + 'netcfg/get_ipaddress=%s ' % self.cv_HOST.ip
             kernel_args = kernel_args + 'netcfg/get_netmask=%s ' % self.conf.args.host_submask
             kernel_args = kernel_args + 'netcfg/get_gateway=%s ' % self.conf.args.host_gateway
 
-        self.c = self.system.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
         if "qemu" in self.bmc_type:
             kernel_args = kernel_args + ' netcfg/choose_interface=auto '
             # For Qemu, we boot from CDROM, so let's use petitboot!
@@ -200,14 +200,14 @@ class InstallUbuntu(unittest.TestCase):
                              'boot loader',
                              'Running'], timeout=1000)
         rawc.expect('Requesting system reboot', timeout=300)
-        self.system.set_state(OpSystemState.IPLing)
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         OpIU.stop_server()
-        OpIU.set_bootable_disk(self.host.get_scratch_disk())
-        self.system.goto_state(OpSystemState.OFF)
-        self.system.goto_state(OpSystemState.OS)
-        con = self.system.sys_get_ipmi_console()
+        OpIU.set_bootable_disk(self.cv_HOST.get_scratch_disk())
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        con = self.cv_SYSTEM.console
         con.run_command("uname -a")
         con.run_command("cat /etc/os-release")
-        self.host.host_gather_opal_msg_log()
-        self.host.host_gather_kernel_log()
+        self.cv_HOST.host_gather_opal_msg_log()
+        self.cv_HOST.host_gather_kernel_log()

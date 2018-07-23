@@ -41,7 +41,7 @@ class gcov():
         self.setup_test()
         exports = self.c.run_command("ls -1 --color=never /sys/firmware/opal/exports/")
         if 'gcov' not in exports:
-            self.skip("Not a GCOV build")
+            self.skipTest("Not a GCOV build")
 
         l = self.c.run_command("wc -c /sys/firmware/opal/exports/gcov")
         iutil = OpTestInstallUtil.InstallUtil()
@@ -73,9 +73,9 @@ class gcov():
 class Skiroot(gcov, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class Host(gcov, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()

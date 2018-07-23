@@ -43,7 +43,7 @@ class HeartbeatSkiroot(unittest.TestCase):
 
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
     def runTest(self):
         self.setup_test()
@@ -53,4 +53,4 @@ class HeartbeatSkiroot(unittest.TestCase):
 class HeartbeatHost(HeartbeatSkiroot):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()

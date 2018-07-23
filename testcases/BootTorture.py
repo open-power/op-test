@@ -34,16 +34,16 @@ class BootTorture(unittest.TestCase, TestPCI):
     BOOT_ITERATIONS = 1024
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.system = conf.system()
+        self.cv_SYSTEM = conf.system()
         self.pci_good_data_file = conf.lspci_file()
 
     def runTest(self):
-        self.c = self.system.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
         for i in range(1,self.BOOT_ITERATIONS):
             print "Boot iteration %d..." % i
-            self.system.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             try:
-                self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+                self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             except pexpect.EOF:
                 continue
             self.c.run_command_ignore_fail("head /sys/firmware/opal/msglog")
@@ -61,12 +61,12 @@ class ReBootTorture(unittest.TestCase, TestPCI):
     BOOT_ITERATIONS = 1024
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.system = conf.system()
+        self.cv_SYSTEM = conf.system()
         self.pci_good_data_file = conf.lspci_file()
 
     def runTest(self):
-        console = self.system.sys_get_ipmi_console()
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        console = self.cv_SYSTEM.console
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         # Disable the fast-reset
         console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
         for i in range(1,self.BOOT_ITERATIONS):
@@ -79,12 +79,12 @@ class ReBootTorture(unittest.TestCase, TestPCI):
             console.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
             console.sol.sendline("echo 10  > /proc/sys/kernel/printk")
             console.sol.sendline("reboot")
-            self.system.set_state(OpSystemState.IPLing)
+            self.cv_SYSTEM.set_state(OpSystemState.IPLing)
             try:
-                self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+                self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             except pexpect.EOF:
-                self.system.goto_state(OpSystemState.OFF)
-                self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
 class ReBootTorture10(ReBootTorture):
     BOOT_ITERATIONS = 10

@@ -61,7 +61,7 @@ class OpTestEM():
         self.c = None # clear this, we may not get back from goto and tearDown relies on
         if self.test == "skiroot":
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.c = self.cv_SYSTEM.console
         elif self.test == "host":
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()

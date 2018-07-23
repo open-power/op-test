@@ -54,13 +54,13 @@ class TrustedBoot(unittest.TestCase):
         self.securemode = conf.args.secure_mode
 
     def wait_for_system_shutdown(self):
-        console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+        console = self.cv_SYSTEM.console.get_console()
         console.expect("System shutting down with error status", timeout=100)
         console.expect("RC_TPM_NOFUNCTIONALTPM_FAIL", timeout=50)
         console.expect("================================================", timeout=20)
 
     def verify_opal_tb(self):
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         print self.cpu
         if self.cpu in ["POWER9"]:
@@ -92,7 +92,7 @@ class TrustedBoot(unittest.TestCase):
             self.assertTrue(False, "OPAL: EV_SEPARATOR measured on TPM PCR registers")
 
     def verify_dt_tb(self):
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         c.run_command("lsprop /proc/device-tree/ibm,secureboot")
 
         if not self.trustedmode:

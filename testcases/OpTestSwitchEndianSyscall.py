@@ -63,7 +63,7 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
     #
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
 
         # Get OS level
         self.cv_HOST.host_get_OS_Level()

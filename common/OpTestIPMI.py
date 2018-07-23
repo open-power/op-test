@@ -289,25 +289,6 @@ class IPMIConsole():
 
         return self.sol
 
-    def mc_reset(self):
-        self.ipmitool.run('mc reset cold')
-        retries = 0
-        print '# Waiting for BMC reboot to complete...'
-        time.sleep(10)
-        while True:
-            try:
-                subprocess.check_call(["ping", self.cv_bmcIP, "-c1"])
-                break
-            except subprocess.CalledProcessError as e:
-                print "Ping return code: ", e.returncode, "retrying..."
-                retries += 1
-                time.sleep(10)
-
-            if retries > 10:
-                l_msg = "Error. BMC is not responding to pings"
-                print l_msg
-                raise OpTestError(l_msg)
-
     def run_command(self, command, timeout=60, retry=0):
         return self.util.run_command(self, command, timeout, retry)
 
@@ -438,6 +419,7 @@ class OpTestIPMI():
     #
     def ipmi_power_reset(self):
         r = self.ipmitool.run('chassis power reset')
+        self.console.close()
         if not BMC_CONST.CHASSIS_POWER_RESET in r:
             raise Exception("IPMI 'chassis power reset' failed: %s " % r)
 
@@ -682,6 +664,7 @@ class OpTestIPMI():
         print ("Applying Cold reset.")
         rc = self.ipmitool.run(BMC_CONST.BMC_COLD_RESET)
         if BMC_CONST.BMC_PASS_COLD_RESET in rc:
+            self.console.close()
             time.sleep(BMC_CONST.SHORT_WAIT_IPL)
             self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
             self.ipmi_wait_for_bmc_runtime()
@@ -745,6 +728,7 @@ class OpTestIPMI():
         rc = self.ipmitool.run(l_cmd)
         if BMC_CONST.BMC_PASS_WARM_RESET in rc:
             print rc
+            self.console.close()
             time.sleep(BMC_CONST.BMC_WARM_RESET_DELAY)
             self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
             l_finalstatus = self.ipmi_power_status()

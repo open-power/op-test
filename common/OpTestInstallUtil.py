@@ -60,27 +60,26 @@ class InstallUtil():
         global REPO
         global PROXY
         self.conf = conf
-        self.host = conf.host()
-        self.system = conf.system()
-        self.console = self.system.sys_get_ipmi_console()
+        self.cv_HOST = conf.host()
+        self.cv_SYSTEM = conf.system()
         self.server = ""
         self.repo = conf.args.os_repo
         REPO = self.repo
-        DISK = self.host.get_scratch_disk()
-        USERNAME = self.host.username()
-        PASSWORD = self.host.password()
+        DISK = self.cv_HOST.get_scratch_disk()
+        USERNAME = self.cv_HOST.username()
+        PASSWORD = self.cv_HOST.password()
         BOOTPATH = boot_path
         BASE_PATH = base_path
         INITRD = initrd
         VMLINUX = vmlinux
-        PROXY = self.host.get_proxy()
+        PROXY = self.cv_HOST.get_proxy()
         KS = ks
 
     def wait_for_network(self):
         retry = 6
         while retry > 0:
             try:
-                self.console.run_command("ifconfig -a")
+                self.cv_SYSTEM.console.run_command("ifconfig -a")
                 return True
             except CommandFailed as cf:
                 if cf.exitcode is 1:
@@ -96,9 +95,9 @@ class InstallUtil():
             try:
                 ip = self.conf.args.host_gateway
                 if ip in [None, ""]:
-                    ip = self.system.get_my_ip_from_host_perspective()
+                    ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
                 cmd = "ping %s -c 1" % ip
-                self.console.run_command(cmd)
+                self.cv_SYSTEM.console.run_command(cmd)
                 return True
             except CommandFailed as cf:
                 if retry == 1:
@@ -115,15 +114,15 @@ class InstallUtil():
         Assign host ip in petitboot
         """
         # Lets reduce timeout in petitboot
-        self.console.run_command("nvram --update-config petitboot,timeout=10")
+        self.cv_SYSTEM.console.run_command("nvram --update-config petitboot,timeout=10")
         cmd = "ip addr|grep -B1 -i %s|grep BROADCAST|awk -F':' '{print $2}'" % self.conf.args.host_mac
-        iface = self.console.run_command(cmd)[0].strip()
-        cmd = "ifconfig %s %s netmask %s" % (iface, self.host.ip, self.conf.args.host_submask)
-        self.console.run_command(cmd)
+        iface = self.cv_SYSTEM.console.run_command(cmd)[0].strip()
+        cmd = "ifconfig %s %s netmask %s" % (iface, self.cv_HOST.ip, self.conf.args.host_submask)
+        self.cv_SYSTEM.console.run_command(cmd)
         cmd = "route add default gateway %s" % self.conf.args.host_gateway
-        self.console.run_command_ignore_fail(cmd)
+        self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
         cmd = "echo 'nameserver %s' > /etc/resolv.conf" % self.conf.args.host_dns
-        self.console.run_command(cmd)
+        self.cv_SYSTEM.console.run_command(cmd)
 
     def get_server_ip(self):
         """
@@ -140,9 +139,9 @@ class InstallUtil():
         retry = 30
         while retry > 0:
             try:
-                my_ip = self.system.get_my_ip_from_host_perspective()
+                my_ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
                 print repr(my_ip)
-                self.console.run_command("ping %s -c 1" % my_ip)
+                self.cv_SYSTEM.console.run_command("ping %s -c 1" % my_ip)
                 break
             except CommandFailed as cf:
                 if cf.exitcode is 1:
@@ -265,18 +264,18 @@ class InstallUtil():
         """
         Sets the given disk as default bootable entry in petitboot
         """
-        self.system.sys_set_bootdev_no_override()
+        self.cv_SYSTEM.sys_set_bootdev_no_override()
         # FIXME: wait till the device(disk) discovery in petitboot
         time.sleep(60)
         cmd = 'blkid %s*' % disk
-        output = self.console.run_command(cmd)
+        output = self.cv_SYSTEM.console.run_command(cmd)
         uuid = output[0].split(':')[1].split('=')[1].replace("\"", "")
         cmd = 'nvram --update-config "auto-boot?=true"'
-        output = self.console.run_command(cmd)
+        output = self.cv_SYSTEM.console.run_command(cmd)
         cmd = 'nvram --update-config petitboot,bootdevs=uuid:%s' % uuid
-        output = self.console.run_command(cmd)
+        output = self.cv_SYSTEM.console.run_command(cmd)
         cmd = 'nvram --print-config'
-        output = self.console.run_command(cmd)
+        output = self.cv_SYSTEM.console.run_command(cmd)
         return
 
 

@@ -114,7 +114,7 @@ class FWTSTest(unittest.TestCase):
 
 class FWTS(unittest.TestSuite):
     def add_fwts_results(self, major_version, minor_version):
-        host = self.host
+        host = self.cv_HOST
         try:
             fwtsjson = host.host_run_command('fwts -q -r stdout --log-type=json')
         except CommandFailed as cf:
@@ -158,12 +158,12 @@ class FWTS(unittest.TestSuite):
 
     def run(self, result):
         conf = OpTestConfiguration.conf
-        self.host = conf.host()
-        self.system = conf.system()
+        self.cv_HOST = conf.host()
+        self.cv_SYSTEM = conf.system()
         self.bmc_type = conf.args.bmc_type
         self.real_fwts_suite = unittest.TestSuite()
         try:
-            self.system.goto_state(OpSystemState.OS)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         except Exception as e:
             # In the event of something going wrong during IPL,
             # We need to catch that here as we're abusing UnitTest
@@ -174,8 +174,8 @@ class FWTS(unittest.TestSuite):
             self.real_fwts_suite.addTest(f)
             self.real_fwts_suite.run(result)
             return
-        self.centaurs_present = self.system.has_centaurs_in_dt()
-        host = self.host
+        self.centaurs_present = self.cv_SYSTEM.has_centaurs_in_dt()
+        host = self.cv_HOST
 
 	fwts_version = None
         try:

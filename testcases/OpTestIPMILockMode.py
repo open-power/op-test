@@ -111,7 +111,7 @@ class OpTestIPMILockMode(unittest.TestCase):
     # @brief This function will execute whitelisted in-band ipmi commands
     #        and test the functionality in locked mode.
     def run_inband_ipmi_whitelisted_cmds(self):
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
+        l_con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         l_con.run_command("uname -a")
 
         # Test IPMI white listed commands those should be allowed through un-authenticated
