@@ -97,6 +97,7 @@ class OpTestBMC():
             pass
         except CommandFailed as e:
             pass
+        self.ssh.close()
         print 'Sent reboot command now waiting for reboot to complete...'
         # Wait for BMC to go down.
         self.util.ping_fail_check(self.cv_bmcIP)

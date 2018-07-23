@@ -30,44 +30,41 @@ from common.OpTestError import OpTestError
 class BasicIPL(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.host = conf.host()
-        self.ipmi = conf.ipmi()
-        self.system = conf.system()
-        self.bmc = conf.bmc()
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_BMC = conf.bmc()
         self.util = OpTestUtil()
         self.pci_good_data_file = conf.lspci_file()
 
 class BootToPetitboot(BasicIPL):
     def runTest(self):
-        self.system.goto_state(OpSystemState.OFF)
-        self.system.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
 
 class BootToPetitbootShell(BasicIPL):
     def runTest(self):
-        self.system.goto_state(OpSystemState.OFF)
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
 class SoftPowerOff(BasicIPL):
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT)
-        self.system.sys_power_soft()
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.sys_power_soft()
         print "soft powered off"
-        self.system.set_state(OpSystemState.POWERING_OFF)
+        self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
         print "set state, going to off"
-        self.system.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
 class BMCReset(BasicIPL):
     def runTest(self):
-        self.system.goto_state(OpSystemState.OFF)
-        self.bmc.reboot()
-
-        # BMC reset disconnects the old console
-        self.system.console.close()
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_BMC.reboot()
 
         c = 0
         while True:
             try:
-                self.system.sys_wait_for_standby_state()
+                self.cv_SYSTEM.sys_wait_for_standby_state()
             except OpTestError as e:
                 c+=1
                 if c == 10:
@@ -75,43 +72,40 @@ class BMCReset(BasicIPL):
             else:
                 break
 
-        self.system.set_state(OpSystemState.POWERING_OFF)
-        self.system.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
 class BootToOS(BasicIPL):
     def runTest(self):
         print "Currently powered off!"
-        self.system.goto_state(OpSystemState.OFF)
-        self.system.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         # We booted, SHIP IT!
 
 class OutOfBandWarmReset(BasicIPL):
     def runTest(self):
         # FIXME currently we have to go via OFF to ensure we go to petitboot
-        self.system.goto_state(OpSystemState.OFF)
-        self.system.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
         # TODO skip if no IPMI
         # TODO use abstracted out-of-band warm reset
-        self.system.sys_warm_reset()
-        # BMC reset disconnects the old console
-        self.system.console.close()
-        self.system.goto_state(OpSystemState.OFF)
-        self.system.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.sys_warm_reset()
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
 
 class HardPowerCycle(BasicIPL):
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT)
-        self.system.sys_power_reset()
-        self.system.console.close()
-        self.system.set_state(OpSystemState.IPLing)
-        self.system.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.sys_power_reset()
+        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
 
 class PowerOff(BasicIPL):
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT)
-        self.system.sys_power_off()
-        self.system.set_state(OpSystemState.POWERING_OFF)
-        self.system.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.sys_power_off()
+        self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
 def suite():
     suite = unittest.TestSuite()

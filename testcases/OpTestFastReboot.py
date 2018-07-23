@@ -85,7 +85,7 @@ class OpTestFastReboot(unittest.TestCase):
         else:
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         print repr(cpu)
         if cpu not in ["POWER9", "POWER8", "POWER8E"]:
@@ -108,7 +108,7 @@ class OpTestFastReboot(unittest.TestCase):
             # We do some funny things with the raw console here, as
             # 'reboot' isn't meant to return, so we want the raw
             # pexpect 'console'.
-            self.con = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+            self.con = self.cv_SYSTEM.console.get_console()
             self.con.sendline("reboot")
             self.cv_SYSTEM.set_state(OpSystemState.IPLing)
             # We're looking for a skiboot log message, that it's doing fast

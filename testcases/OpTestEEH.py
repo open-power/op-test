@@ -52,7 +52,7 @@ class EEHRecoveryFailed(Exception):
         self.dev = dev
         self.log = log
     def __str__(self):
-        return "%s %s recovery failed: %s" % (self.thing, self.dev, self.log)
+        return "%s %s recovery failed: Log=%s" % (self.thing, self.dev, self.log)
 
 
 class EEHRemoveFailed(Exception):
@@ -61,7 +61,7 @@ class EEHRemoveFailed(Exception):
         self.dev = dev
         self.log = log
     def __str__(self):
-        return "%s %s remove failed: %s" % (self.thing, self.dev, self.log)
+        return "%s %s remove failed: Log=%s" % (self.thing, self.dev, self.log)
 
 class EEHLocCodeFailed(Exception):
     def __init__(self, thing, dev, log=None):
@@ -69,34 +69,33 @@ class EEHLocCodeFailed(Exception):
         self.dev = dev
         self.log = log
     def __str__(self):
-        return "%s %s location code failure: %s" % (self.thing, self.dev, self.log)
+        return "%s %s location code failure: Log=%s" % (self.thing, self.dev, self.log)
 
 
 class OpTestEEH(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
+        cls.cv_HOST = conf.host()
+        cls.cv_IPMI = conf.ipmi()
+        cls.cv_SYSTEM = conf.system()
+        cls.util = OpTestUtil()
         # By default test will run on all PHBs/PE's, if one want to skip certain ones mention in this format.
-        self.skip_phbs = [] # ['PCI0001', 'PCI0002', 'PCI0003', 'PCI0004', 'PCI0005', 'PCI0030', 'PCI0031', 'PCI0032']
-        self.skip_pes = [] # ['0002:00:00.0']
+        cls.skip_phbs = [] # ['PCI0001', 'PCI0002', 'PCI0003', 'PCI0004', 'PCI0005', 'PCI0030', 'PCI0031', 'PCI0032']
+        cls.skip_pes = [] # ['0002:00:00.0']
 
-    def set_up(self):
+    def setUp(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-
         self.set_con_log_lev_crit()
-        self.cv_HOST.host_gather_opal_msg_log()
-        self.cv_HOST.host_gather_kernel_log()
-        con = self.cv_SYSTEM.sys_get_ipmi_console()
-        con.run_command("dmesg -D")
-        con.run_command("uname -a")
-        con.run_command("cat /etc/os-release")
+        self.cv_HOST.host_gather_opal_msg_log(console=1)
+        self.cv_HOST.host_gather_kernel_log(console=1)
+        self.cv_SYSTEM.console.run_command("dmesg -D")
+        self.cv_SYSTEM.console.run_command("uname -a")
+        self.cv_SYSTEM.console.run_command("cat /etc/os-release")
 
     def get_test_pci_domains(self):
-        root_domain = self.cv_HOST.host_get_root_phb()
-        pci_domains = self.cv_HOST.host_get_list_of_pci_domains()
+        root_domain = self.cv_HOST.host_get_root_phb(console=1)
+        pci_domains = self.cv_HOST.host_get_list_of_pci_domains(console=1)
         print "Skipping the root phb %s for both fenced/frozen EEH Testcases" % root_domain
         pci_domains.remove(root_domain)
         if len(self.skip_phbs) != 0:
@@ -113,9 +112,8 @@ class OpTestEEH(unittest.TestCase):
     #
     def prepare_logs(self):
         cmd = "cat /sys/firmware/opal/msglog|grep ',[0-4]\]' > /tmp/opal_msglog"
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
-        c.run_command_ignore_fail(cmd)
-        c.run_command("dmesg -C")
+        self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
+        self.cv_SYSTEM.console.run_command("dmesg -C")
 
     ##
     # @brief  This function is used to gather opal and kernel logs
@@ -125,10 +123,8 @@ class OpTestEEH(unittest.TestCase):
     #
     def gather_logs(self):
         cmd = "grep ',[0-4]\]' /sys/firmware/opal/msglog | diff - /tmp/opal_msglog"
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
-        c.run_command_ignore_fail(cmd)
-        c.run_command("dmesg")
-
+        self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
+        self.cv_SYSTEM.console.run_command("dmesg")
 
     ##
     # @brief  This function is used to actually check the PHB recovery
@@ -140,7 +136,7 @@ class OpTestEEH(unittest.TestCase):
         cmd = "dmesg  | grep -i 'EEH: Notify device driver to resume'; echo $?"
         tries = 60
         for i in range(1, tries+1):
-            res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+            res = self.cv_SYSTEM.console.run_command(cmd)
             if int(res[-1]):
                 print "Waiting for PHB %s EEH Completion: (%d/%d)" % (i_domain, i, tries)
                 time.sleep(1)
@@ -170,7 +166,7 @@ class OpTestEEH(unittest.TestCase):
     #
     def get_list_of_pci_devices(self):
         cmd = "ls /sys/bus/pci/devices"
-        res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+        res = self.cv_SYSTEM.console.run_command(cmd)
         return res
 
         ##
@@ -182,7 +178,7 @@ class OpTestEEH(unittest.TestCase):
     def get_dic_of_pe_vs_addr(self):
         pe_dic = {}
         # Get list of PE's
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.console
         res = console.run_command("ls /sys/bus/pci/devices/ | awk {'print $1'}")
         if len(self.skip_pes) != 0:
             print "Skipping the known PE's %s from user" % self.skip_pes
@@ -234,7 +230,7 @@ class OpTestEEH(unittest.TestCase):
     #
     def inject_error(self, addr, e, f, phb, pe):
         cmd = "echo %s:%s:%s:0:0 > /sys/kernel/debug/powerpc/PCI%s/err_injct && lspci -ns %s" % (addr, e, f, phb, pe)
-        res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+        res = self.cv_SYSTEM.console.run_command(cmd)
 
     ##
     # @brief   Check for EEH Slot Reset count
@@ -245,7 +241,7 @@ class OpTestEEH(unittest.TestCase):
     #
     def check_eeh_slot_resets(self):
         cmd = "cat /proc/powerpc/eeh | tail -n 1"
-        count = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+        count = self.cv_SYSTEM.console.run_command(cmd)
         output = (count[0].split("="))[1]
         return output
 
@@ -261,7 +257,7 @@ class OpTestEEH(unittest.TestCase):
         cmd = "dmesg  | grep -i 'EEH: Notify device driver to resume'; echo $?"
         tries = 60
         for i in range(1, tries+1):
-            res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(cmd)
+            res = self.cv_SYSTEM.console.run_command(cmd)
             if int(res[-1]):
                 print "Waiting for PE %s EEH Completion: (%d/%d)" % (pe, i, tries)
                 time.sleep(1)
@@ -282,7 +278,7 @@ class OpTestEEH(unittest.TestCase):
             return False
 
     def check_eeh_hit(self):
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         tries = 10
         for i in range(1, tries+1):
             try:
@@ -296,7 +292,7 @@ class OpTestEEH(unittest.TestCase):
 
     def check_eeh_removed(self):
         tries = 60
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         for i in range(1, tries+1):
             try:
                 res = c.run_command("dmesg | grep 'permanently disabled'")
@@ -313,23 +309,22 @@ class OpTestEEH(unittest.TestCase):
     # TODO: Remove this once we have a way of disabling console log level in runtime without 
     #       having an additional IPL.
     def set_con_log_lev_crit(self):
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
-        self.cpu = self.cv_HOST.host_get_proc_gen()
+        self.cpu = self.cv_HOST.host_get_proc_gen(console=1)
         if self.cpu in ["POWER8", "POWER8E"]:
             return
         try:
-            level = "".join(c.run_command("nvram -p ibm,skiboot --print-config=log-level-driver"))
+            level = "".join(self.cv_SYSTEM.console.run_command("nvram -p ibm,skiboot --print-config=log-level-driver"))
         except CommandFailed:
             level = "5"
         if level == "2":
             return
-        c.run_command("nvram -p ibm,skiboot --update-config log-level-driver=2")
+        self.cv_SYSTEM.console.run_command("nvram -p ibm,skiboot --update-config log-level-driver=2")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     def verify_location_code_logging(self, pe):
         tries = 60
-        c = self.cv_SYSTEM.sys_get_ipmi_console()
+        c = self.cv_SYSTEM.console
         for i in range(1, tries+1):
             try:
                 res = c.run_command("dmesg | grep -i --color=never 'EEH: PE location:'")
@@ -362,14 +357,12 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
-        self.set_up()
         pci_domains = self.get_test_pci_domains()
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         for domain in pci_domains:
             self.prepare_logs()
             cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
             print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
-            l_con.run_command_ignore_fail(cmd)
+            self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
             # Give some time to EEH PCI Error recovery
             if self.check_eeh_phb_recovery(domain):
                 print "PHB %s recovery successful" % domain
@@ -397,18 +390,16 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
-        self.set_up()
         pci_domains = self.get_test_pci_domains()
         # Set the max EEH freeze count to 1
         cmd = "echo 1 > /sys/kernel/debug/powerpc/eeh_max_freezes"
-        self.cv_HOST.host_run_command(cmd)
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.cv_SYSTEM.console.run_command(cmd)
         for i in range(0,2):
             for domain in pci_domains:
                 self.prepare_logs()
                 cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
                 print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
-                l_con.run_command_ignore_fail(cmd)
+                self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
                 # Give some time to EEH PCI Error recovery
                 if i == 0:
                     if self.check_eeh_phb_recovery(domain):
@@ -442,10 +433,8 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
-        self.set_up()
         pci_domains = self.get_test_pci_domains()
         pe_dic = self.get_dic_of_pe_vs_addr()
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         print "==============================Testing frozen PE error injection==============================="
 
         # Frequently used function
@@ -473,7 +462,7 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
                     for f in func:
                         print "==========================Running error injection on pe %s func %s======================" % (pe, f)
                         rc = 1
-                        rc = self.run_pe_4(addr, e, f, phb, pe, l_con)
+                        rc = self.run_pe_4(addr, e, f, phb, pe, self.cv_SYSTEM.console)
                         if rc == EEH_MISS:
                             continue
                         count += 1
@@ -516,13 +505,11 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
     # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
     #
     def runTest(self):
-        self.set_up()
         pci_domains = self.get_test_pci_domains()
         # Set the max EEH freeze count to 1
         cmd = "echo 1 > /sys/kernel/debug/powerpc/eeh_max_freezes"
-        self.cv_HOST.host_run_command(cmd)
+        self.cv_SYSTEM.console.run_command(cmd)
         pe_dic = self.get_dic_of_pe_vs_addr()
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
         print "==============================Testing frozen PE error injection==============================="
 
         # Frequently used function
@@ -550,7 +537,7 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
                     for f in func:
                         print "==========================Running error injection on pe %s func %s======================" % (pe, f)
                         rc = 1
-                        rc = self.run_pe_4(addr, e, f, phb, pe, l_con)
+                        rc = self.run_pe_4(addr, e, f, phb, pe, self.cv_SYSTEM.console)
                         if rc == EEH_MISS:
                             continue
                         count += 1

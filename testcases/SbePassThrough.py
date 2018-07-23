@@ -80,7 +80,7 @@ class SbePassThrough(unittest.TestCase):
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
         # Clear any pre-existing SEL or eSEL's
         self.cv_SYSTEM.sys_sdr_clear()
         self.c.run_command("dmesg -D")

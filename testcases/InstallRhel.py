@@ -31,10 +31,10 @@ from common import OpTestInstallUtil
 class InstallRhel(unittest.TestCase):
     def setUp(self):
         self.conf = OpTestConfiguration.conf
-        self.host = self.conf.host()
-        self.ipmi = self.conf.ipmi()
-        self.system = self.conf.system()
-        self.bmc = self.conf.bmc()
+        self.cv_HOST = self.conf.host()
+        self.cv_IPMI = self.conf.ipmi()
+        self.cv_SYSTEM = self.conf.system()
+        self.cv_BMC = self.conf.bmc()
         self.util = OpTestUtil()
         self.bmc_type = self.conf.args.bmc_type
         if not (self.conf.args.os_repo or self.conf.args.os_cdrom):
@@ -50,7 +50,7 @@ class InstallRhel(unittest.TestCase):
             self.fail("Provide hostname to be set during installation")
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         # Local path to keep install files
         base_path = os.path.join(self.conf.basedir, "osimages", "rhel")
@@ -83,13 +83,13 @@ class InstallRhel(unittest.TestCase):
         if "qemu" not in self.bmc_type:
             ks_url = 'http://%s:%s/%s' % (my_ip, port, ks)
             kernel_args = "ifname=net0:%s ip=%s::%s:%s:%s:net0:none nameserver=%s inst.ks=%s" % (self.conf.args.host_mac,
-                                                                                                 self.host.ip,
+                                                                                                 self.cv_HOST.ip,
                                                                                                  self.conf.args.host_gateway,
                                                                                                  self.conf.args.host_submask,
                                                                                                  self.conf.args.host_name,
                                                                                                  self.conf.args.host_dns,
                                                                                                  ks_url)
-            self.c = self.system.sys_get_ipmi_console()
+            self.c = self.cv_SYSTEM.console
             cmd = "[ -f %s ]&& rm -f %s;[ -f %s ] && rm -f %s;true" % (vmlinux,
                                                                        vmlinux,
                                                                        initrd,
@@ -115,14 +115,14 @@ class InstallRhel(unittest.TestCase):
                              'Performing post-installation setup tasks',
                              'Configuring installed system'], timeout=3000)
         rawc.expect(' Restarting system', timeout=300)
-        self.system.set_state(OpSystemState.IPLing)
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         OpIU.stop_server()
-        OpIU.set_bootable_disk(self.host.get_scratch_disk())
-        self.system.goto_state(OpSystemState.OFF)
-        self.system.goto_state(OpSystemState.OS)
-        con = self.system.sys_get_ipmi_console()
+        OpIU.set_bootable_disk(self.cv_HOST.get_scratch_disk())
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        con = self.cv_SYSTEM.console
         con.run_command("uname -a")
         con.run_command("cat /etc/os-release")
-        self.host.host_gather_opal_msg_log()
-        self.host.host_gather_kernel_log()
+        self.cv_HOST.host_gather_opal_msg_log()
+        self.cv_HOST.host_gather_kernel_log()

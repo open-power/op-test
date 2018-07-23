@@ -57,21 +57,21 @@ class UnexpectedBootDevice(Exception):
 class OpTestInbandIPMIBase(object):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.host = conf.host()
-        self.ipmi = conf.ipmi()
-        self.system = conf.system()
-        self.bmc = conf.bmc()
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_BMC = conf.bmc()
         self.util = OpTestUtil()
         pass
 
     def set_up(self):
         if self.test == "skiroot":
-            self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-            self.c = self.system.sys_get_ipmi_console()
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.c = self.cv_SYSTEM.console
         elif self.test == "host":
-            self.system.goto_state(OpSystemState.OS)
-            self.system.load_ipmi_drivers()
-            self.c = self.host.get_ssh_connection()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.cv_SYSTEM.load_ipmi_drivers()
+            self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         else:
             raise Exception("Unknown test type")
         return self.c
@@ -172,7 +172,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                 except CommandFailed as cf:
                     if 'Error loading interface usb' in cf.output:
                         self.skipTest("No USB IPMI interface")
-                    if not self.bmc.has_inband_bootdev():
+                    if not self.cv_BMC.has_inband_bootdev():
                         self.skipTest("Does not support inband bootdev")
                     self.fail("Could not set boot device %s. Errored with %s" % (bootdev,str(cf)))
                 self.verify_bootdev(bootdev, ipmiresponse)
@@ -642,7 +642,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         try:
             self.sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
         except CommandFailed as cf:
-            if not self.bmc.has_host_status_sensor():
+            if not self.cv_BMC.has_host_status_sensor():
                 if 'not found' in ''.join(cf.output):
                     self.skipTest("Platform doesn't Sensor")
                 if 'Error loading interface usb' in cf.output:
@@ -658,7 +658,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         try:
             self.sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
         except CommandFailed as cf:
-            if not self.bmc.has_os_boot_sensor():
+            if not self.cv_BMC.has_os_boot_sensor():
                 if 'not found' in ''.join(cf.output):
                     self.skipTest("Platform doesn't Sensor")
                 if 'Error loading interface usb' in cf.output:
@@ -673,7 +673,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         try:
             self.sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
         except CommandFailed as cf:
-            if not self.bmc.has_occ_active_sensor():
+            if not self.cv_BMC.has_occ_active_sensor():
                 if 'not found' in ''.join(cf.output):
                     self.skipTest("Platform doesn't Sensor")
                 if 'Error loading interface usb' in cf.output:

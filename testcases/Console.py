@@ -32,13 +32,13 @@ class Console():
     count = 8
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.bmc = conf.bmc()
-        self.system = conf.system()
+        self.cv_BMC = conf.bmc()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        console = self.bmc.get_host_console()
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        console = self.cv_BMC.get_host_console()
         bs = self.bs
         count = self.count
         self.assertTrue( (bs*count)%16 == 0, "Bug in test writer. Must be multiple of 16 bytes: bs %u count %u / 16 = %u" % (bs, count, (bs*count)%16))
@@ -68,8 +68,8 @@ class ControlC(unittest.TestCase):
     CONTROL = 'c'
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.bmc = conf.bmc()
-        self.system = conf.system()
+        self.cv_BMC = conf.bmc()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
         self.prompt = self.util.build_prompt()
 
@@ -77,8 +77,8 @@ class ControlC(unittest.TestCase):
         pass
 
     def runTest(self):
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        console = self.bmc.get_host_console()
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        console = self.cv_BMC.get_host_console()
         # I should really make this API less nasty...
         raw_console = console.get_console()
         #raw_console.sendline("hexdump -C -v /dev/zero")
@@ -96,14 +96,14 @@ class ControlC(unittest.TestCase):
             print e
             print "# TIMEOUT waiting for command to finish with ctrl-c."
             print "# Everything is terrible. Fail the world, power cycle (if lucky)"
-            self.system.set_state(OpSystemState.UNKNOWN_BAD)
+            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
             self.fail("Could not ctrl-c running command in reasonable time")
         self.cleanup()
 
 class ControlZ(ControlC):
     CONTROL='z'
     def cleanup(self):
-        console = self.bmc.get_host_console()
+        console = self.cv_BMC.get_host_console()
         console.run_command_ignore_fail("kill %1")
         console.run_command_ignore_fail("fg")
 

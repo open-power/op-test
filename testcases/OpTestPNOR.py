@@ -49,9 +49,9 @@ from common.Exceptions import CommandFailed
 class OpTestPNOR():
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.host = conf.host()
-        self.ipmi = conf.ipmi()
-        self.system = conf.system()
+        self.cv_HOST = conf.host()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
         self.util = OpTestUtil()
 
     def pflashErase(self, offset, length):
@@ -155,7 +155,7 @@ class OpTestPNOR():
 
     def runTest(self):
         self.setup_test()
-        if not self.system.has_mtd_pnor_access():
+        if not self.cv_SYSTEM.has_mtd_pnor_access():
             self.skipTest("Host doesn't have MTD PNOR access")
 
         self.c.run_command("uname -a")
@@ -170,10 +170,10 @@ class OpTestPNOR():
 
 class Skiroot(OpTestPNOR, unittest.TestCase):
     def setup_test(self):
-        self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.system.sys_get_ipmi_console()
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.c = self.cv_SYSTEM.console
 
 class Host(OpTestPNOR, unittest.TestCase):
     def setup_test(self):
-        self.system.goto_state(OpSystemState.OS)
-        self.c = self.system.host().get_ssh_connection()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()

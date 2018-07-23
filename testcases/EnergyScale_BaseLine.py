@@ -40,29 +40,34 @@ from common.Exceptions import CommandFailed
 class EnergyScale_BaseLine(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.ipmi = conf.ipmi()
-        self.system = conf.system()
-        self.host = conf.host()
-        self.bmc = conf.bmc()
+        self.cv_IPMI = conf.ipmi()
+        self.cv_SYSTEM = conf.system()
+        self.cv_HOST = conf.host()
+        self.cv_BMC = conf.bmc()
         self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
-        self.system.goto_state(OpSystemState.OS)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     def get_occ_reset_count(self):
-        c = self.host.get_ssh_connection()
+        c = self.cv_HOST.get_ssh_connection()
         r = c.run_command("/tmp/occtoolp9 -I")
         r = [l for l in r if "resetCount" in l]
-        reset_count = [l.split("resetCount:")[1].split(' ')[0] for l in r]
-        reset_count = [int(l) for l in reset_count]
-        print repr(reset_count)
+        reset_output = []
+        reset_count = []
+        for l in r:
+          matchList = []
+          matchList = re.findall("resetCount:([0-9])", l)
+          if len(matchList) > 0:
+            reset_output.append(matchList)
+        reset_count = [int(l[0]) for l in reset_output]
         # Reset count is [HTMGT, OCC0, OCC1] counts
         # We want to only care about occ0 as it seems that's what happens
         count = reset_count[1] # occ0 reset count
         return count
 
     def runTest(self):
-        self.host.copy_test_file_to_host("occtoolp9")
-        c = self.host.get_ssh_connection()
+        self.cv_HOST.copy_test_file_to_host("occtoolp9")
+        c = self.cv_HOST.get_ssh_connection()
         print "# Clear OCC RESET Counter"
         c.run_command("opal-prd --expert-mode htmgt-passthru 4")
         self.assertEqual(self.get_occ_reset_count(), 0, "OCC Reset Count != 0")

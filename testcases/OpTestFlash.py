@@ -580,7 +580,7 @@ class FSPFWImageFLASH(OpTestFlashBase):
         preup_boot = preup_boot.group(1)
 
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        con = self.cv_SYSTEM.sys_get_ipmi_console()
+        con = self.cv_SYSTEM.console
 
         # Wait until we have a route (i.e. network is up)
         tries = 12
@@ -605,7 +605,7 @@ class FSPFWImageFLASH(OpTestFlashBase):
         self.util.PingFunc(self.cv_BMC.host_name, BMC_CONST.PING_RETRY_POWERCYCLE)
         time.sleep(10)
         self.cv_BMC.fsp_get_console()
-        con = self.cv_SYSTEM.sys_get_ipmi_console()
+        con = self.cv_SYSTEM.console
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         con.run_command("update_flash -d")

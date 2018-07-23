@@ -35,8 +35,8 @@ from common.Exceptions import CommandFailed
 class RestAPI(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.system = conf.system()
-        self.bmc = conf.bmc()
+        self.cv_SYSTEM = conf.system()
+        self.cv_BMC = conf.bmc()
         self.bmc_password = conf.args.bmc_password
         self.rest = conf.system().rest
         self.bmc_type = conf.args.bmc_type
@@ -68,11 +68,11 @@ class RestAPI(unittest.TestCase):
         ids = self.rest.get_occ_ids()
         for id in ids:
             # If system is in runtime OCC should be Active
-            if self.system.get_state() in [OpSystemState.PETITBOOT, OpSystemState.PETITBOOT_SHELL,
+            if self.cv_SYSTEM.get_state() in [OpSystemState.PETITBOOT, OpSystemState.PETITBOOT_SHELL,
                                            OpSystemState.BOOTING, OpSystemState.OS]:
                 self.assertTrue(self.rest.is_occ_active(id), "OCC%s is not in active state" % id)
             # if system is in standby state OCC should be inactive
-            elif self.system.get_state() == OpSystemState.OFF:
+            elif self.cv_SYSTEM.get_state() == OpSystemState.OFF:
                 self.assertFalse(self.rest.is_occ_active(id), "OCC%s is still in active state" % id)
 
     def test_software_enumerate(self):
@@ -91,7 +91,7 @@ class RestAPI(unittest.TestCase):
         self.rest.set_field_mode("1")
         self.assertTrue(self.rest.has_field_mode_set(), "Field mode enable failed")
         self.rest.set_field_mode("0")
-        self.bmc.clear_field_mode()
+        self.cv_BMC.clear_field_mode()
         self.assertFalse(self.rest.has_field_mode_set(), "Field mode disable failed")
 
     def test_upload_image(self):

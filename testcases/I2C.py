@@ -58,12 +58,12 @@ class I2C():
     def set_up(self):
         if self.test == "skiroot":
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-            self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+            self.c = self.cv_SYSTEM.console
         elif self.test == "host":
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             self.c = self.cv_HOST.get_ssh_connection()
         else:
-            raise Exception("Unknow test type")
+            raise Exception("Unknown test type")
         return self.c
 
     def i2c_init(self):

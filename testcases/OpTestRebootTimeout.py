@@ -52,9 +52,9 @@ class RebootTime():
 class Skiroot(RebootTime, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class Host(RebootTime, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console

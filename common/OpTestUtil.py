@@ -367,7 +367,9 @@ class OpTestUtil():
         my_user = host.username()
         my_pwd = host.password()
         my_term.sendline("which sudo && sudo -s")
-        rc = my_term.expect([r"[Pp]assword for", "#", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = my_term.expect([r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        # we must not add # prompt to the expect, we get false hit when complicated user login prompt and control chars,
+        # we need to cleanly ignore everything but password and then we blindly next do PS1 setup, ignoring who knows what
         if rc == 0:
           my_term.sendline(my_pwd)
           time.sleep(0.5) # delays for next call
@@ -375,7 +377,7 @@ class OpTestUtil():
           self.check_root(my_term, prompt)
           my_SUDO_set = 1
           return my_PS1_set, my_SUDO_set # caller needs to save state
-        elif rc in [1,2]: # we must have been root, we first filter out password prompt above
+        elif rc == 1: # we must have been root, we first filter out password prompt above
           my_PS1_set = self.set_PS1(term_obj, my_term, prompt)
           self.check_root(my_term, prompt)
           my_SUDO_set = 1

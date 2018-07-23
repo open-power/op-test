@@ -56,10 +56,10 @@ class DeviceTreeWarnings():
 class Skiroot(DeviceTreeWarnings, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
 class Host(DeviceTreeWarnings, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.host().get_ssh_connection()
+        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         self.cv_HOST.host_check_command("dtc")

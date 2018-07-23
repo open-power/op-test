@@ -186,7 +186,7 @@ class OpalUtils(unittest.TestCase):
     def runTest(self):
         self.l_dic = []
         self.utils_init()
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
 
         self.c.run_command("dmesg -D")
         self.cpu = self.cv_HOST.host_get_proc_gen()

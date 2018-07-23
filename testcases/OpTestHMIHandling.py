@@ -49,31 +49,44 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestSSH import ConsoleState as SSHConnectionState
 from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.Exceptions import CommandFailed, PlatformError
+from common.Exceptions import CommandFailed, UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem
 
 class OpTestHMIHandling(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_FSP = conf.bmc()
-        self.cv_SYSTEM = conf.system()
-        self.bmc_type = conf.args.bmc_type
-        self.util = OpTestUtil()
+        cls.cv_HOST = conf.host()
+        cls.cv_IPMI = conf.ipmi()
+        cls.cv_FSP = conf.bmc()
+        cls.cv_SYSTEM = conf.system()
+        cls.bmc_type = conf.args.bmc_type
+        cls.util = OpTestUtil()
 
-    def ipmi_monitor_sol_ipl(self, console, timeout):
-        # Error injection causing the SOL console to terminate immediately.
-        # So Let's re-connect the console
-        console.close()
-        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
-        try:
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        except PlatformError:
-            self.cv_SYSTEM.set_state(OpSystemState.IPLing)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        console.close()
-        print "System booted fine to host OS..."
-        return BMC_CONST.FW_SUCCESS
+    def setUp(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.cv_HOST.host_enable_all_cores(console=1)
+
+    def clear_stop(self):
+        self.cv_SYSTEM.stop = 0
+        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD) # Witherspoon needs to get out of Quiesced
+
+    def handle_ipl(self):
+        rc = self.cv_SYSTEM.console.sol.expect(["ISTEP", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+        if rc == 0:
+          for i in range(3):
+            try:
+              self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+              self.cv_SYSTEM.goto_state(OpSystemState.OS)
+              break
+            except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
+              print "\n\n\nOpTestSystem OpTestHMIHandling handle_ipl counter i={} (i=0 or i=1 are common test results) Exception={}\n\n\n".format(i, e)
+              self.cv_SYSTEM.stop = 0
+          else:
+            self.clear_stop() # set the machine to recover for whatever comes next
+            self.assertTrue(False, "OpTestHMIHandling failed to normally recover after Error Injection")
+        else:
+          self.clear_stop() # set the machine to recover for whatever comes next
+          self.assertTrue(False, "OpTestHMIHandling failed to get ISTEP after Error Injection")
 
     def verify_proc_recovery(self, l_res):
         if any("Processor Recovery done" in line for line in l_res) and \
@@ -92,14 +105,13 @@ class OpTestHMIHandling(unittest.TestCase):
             raise Exception("HMI handling failed to log message")
 
     def init_test(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.proc_gen = self.cv_HOST.host_get_proc_gen()
+        self.proc_gen = self.cv_HOST.host_get_proc_gen(console=1)
 
-        l_chips = self.cv_HOST.host_get_list_of_chips() # ['00000000', '00000001', '00000010']
+        l_chips = self.cv_HOST.host_get_list_of_chips(console=1) # ['00000000', '00000001', '00000010']
         if not l_chips:
             raise Exception("Getscom failed to list processor chip ids")
 
-        l_cores = self.cv_HOST.host_get_cores()
+        l_cores = self.cv_HOST.host_get_cores(console=1)
         if not l_cores:
             raise Exception("Failed to get list of core id's")
 
@@ -126,12 +138,12 @@ class OpTestHMIHandling(unittest.TestCase):
 
 
     def disable_kdump_service(self):
-        l_oslevel = self.cv_HOST.host_get_OS_Level()
+        l_oslevel = self.cv_HOST.host_get_OS_Level(console=1)
         try:
             if "Ubuntu" in l_oslevel:
-                self.cv_HOST.host_run_command("service kdump-tools stop")
+                self.cv_HOST.host_run_command("service kdump-tools stop", console=1)
             else:
-                self.cv_HOST.host_run_command("service kdump stop")
+                self.cv_HOST.host_run_command("service kdump stop", console=1)
         except CommandFailed as cf:
             if cf.exitcode == 5:
                 # kdump may not be enabled, so it's not a failure to stop it
@@ -139,24 +151,24 @@ class OpTestHMIHandling(unittest.TestCase):
 
     def enable_idle_state(self, i_idle):
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 0 > $i; done" % i_idle
-        self.cv_HOST.host_run_command(l_cmd)
+        self.cv_HOST.host_run_command(l_cmd, console=1)
 
     def disable_idle_state(self, i_idle):
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 1 > $i; done" % i_idle
-        self.cv_HOST.host_run_command(l_cmd)
+        self.cv_HOST.host_run_command(l_cmd, console=1)
 
     # Disable all CPU idle states except snooze state
     def disable_cpu_idle_states(self):
-        states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'")
+        states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'", console=1)
         for state in states:
             if state is "0":
                 try:
-                    self.cv_HOST.host_run_command("cpupower idle-set -e 0")
+                    self.cv_HOST.host_run_command("cpupower idle-set -e 0", console=1)
                 except CommandFailed:
                     self.enable_idle_state("0")
                 continue
             try:
-                self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state)
+                self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state, console=1)
             except CommandFailed:
                 self.disable_idle_state(state)
 
@@ -172,17 +184,20 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         if "FSP" in self.bmc_type:
+            # maybe add gard --dg to first check if None to skip power cycle ?
             res = self.cv_FSP.fspc.run_command("gard --clr all")
             self.assertIn("Success in clearing Gard Data", res,
                 "Failed to clear GARD entries")
             print self.cv_FSP.fspc.run_command("gard --gc cpu")
         else:
-            g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list all")
+            g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list all", console=1)
             if "No GARD entries to display" not in g:
-                self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear all")
-                cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
+                self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear all", console=1)
+                cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list", console=1)
                 self.assertIn("No GARD entries to display", cleared_gard,
                               "Failed to clear GARD entries")
+            else: # all good so skip power cycle
+                return
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -198,20 +213,19 @@ class OpTestHMIHandling(unittest.TestCase):
     def _testHMIHandling(self, i_test):
         l_test = i_test
         self.init_test()
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
-        l_con = self.cv_SYSTEM.sys_get_ipmi_console()
+        l_con = self.cv_SYSTEM.console
         l_con.run_command("uname -a")
         l_con.run_command("cat /etc/os-release")
-        l_con.run_command("lscpu")
+        l_con.run_command("lscpu") # bug https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1732865
         l_con.run_command("dmesg -D")
         if l_test == BMC_CONST.HMI_PROC_RECV_DONE:
             self._test_proc_recv_done()
         elif l_test == BMC_CONST.HMI_PROC_RECV_ERROR_MASKED:
             self._test_proc_recv_error_masked()
         elif l_test == BMC_CONST.HMI_MALFUNCTION_ALERT:
-            self._test_malfunction_allert()
+            self._test_malfunction_alert()
         elif l_test == BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR:
             self._test_hyp_resource_err()
         elif l_test == BMC_CONST.TOD_ERRORS:
@@ -246,9 +260,7 @@ class OpTestHMIHandling(unittest.TestCase):
             self._testTFMR_Errors(BMC_CONST.TFMR_SPURR_PARITY_ERROR)
         else:
             raise Exception("Please provide valid test case")
-        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         l_con.run_command("dmesg -C")
-        return BMC_CONST.FW_SUCCESS
 
     ##
     # @brief This function is used to test HMI: processor recovery done
@@ -267,7 +279,9 @@ class OpTestHMIHandling(unittest.TestCase):
             for l_core in l_pair[1]:
                 l_reg = self.form_scom_addr(scom_addr, l_core)
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000" % (l_chip, l_reg)
-                console = self.cv_SYSTEM.sys_get_ipmi_console()
+                # recoverable errors may not succeed all the time and
+                # ssh may terminate due to soft/hard lockups so use console
+                console = self.cv_SYSTEM.console
                 console.run_command("dmesg -C")
                 try:
                     l_res = console.run_command(l_cmd,timeout=20)
@@ -304,7 +318,9 @@ class OpTestHMIHandling(unittest.TestCase):
             for l_core in l_pair[1]:
                 l_reg = self.form_scom_addr(scom_addr, l_core)
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000" % (l_chip, l_reg)
-                console = self.cv_SYSTEM.sys_get_ipmi_console()
+                # recoverable errors may not succeed all the time and
+                # ssh may terminate due to soft/hard lockups so use console
+                console = self.cv_SYSTEM.console
                 console.run_command("dmesg -C")
                 try:
                     l_res = console.run_command(l_cmd, timeout=20)
@@ -330,7 +346,7 @@ class OpTestHMIHandling(unittest.TestCase):
     # @brief This function is used to test hmi malfunction alert:Core checkstop
     #        A processor core in the system has to be checkstopped (failed recovery).
     #        Injecting core checkstop on random core of random chip
-    def _test_malfunction_allert(self):
+    def _test_malfunction_alert(self):
         if self.proc_gen in ["POWER9"]:
             scom_addr = "20010A40"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
@@ -350,10 +366,14 @@ class OpTestHMIHandling(unittest.TestCase):
 
         # Core checkstop will lead to system IPL, so we will wait for certain time for IPL
         # to finish
-        #l_res = self.cv_SYSTEM.sys_get_ipmi_console().run_command(l_cmd, timeout=600)
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        # recoverable errors may not succeed all the time and
+        # ssh may terminate due to soft/hard lockups so use console
+        console = self.cv_SYSTEM.console
+        res = console.run_command("uname -a") # perform any command to make sure console is logged in
+
+        # now can send raw pexpect commands which assume log in
         console.sol.sendline(l_cmd)
-        self.ipmi_monitor_sol_ipl(console, timeout=600)
+        self.handle_ipl()
 
     ##
     # @brief This function is used to test HMI: Hypervisor resource error
@@ -376,9 +396,12 @@ class OpTestHMIHandling(unittest.TestCase):
         l_reg = self.form_scom_addr(scom_addr, l_core)
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
 
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.console
+        res = console.run_command("uname -a") # perform any command to make sure console is logged in
+
+        # now can send raw pexpect commands which assume log in
         console.sol.sendline(l_cmd)
-        self.ipmi_monitor_sol_ipl(console, timeout=600)
+        self.handle_ipl()
 
     ##
     # @brief This function tests timer facility related error injections and check
@@ -406,7 +429,9 @@ class OpTestHMIHandling(unittest.TestCase):
             for l_core in l_pair[1]:
                 l_reg = self.form_scom_addr(scom_addr, l_core)
                 l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, l_reg, l_error)
-                console = self.cv_SYSTEM.sys_get_ipmi_console()
+                # recoverable errors may not succeed all the time and
+                # ssh may terminate due to soft/hard lockups so use console
+                console = self.cv_SYSTEM.console
                 console.run_command("dmesg -C")
                 try:
                     l_res = console.run_command(l_cmd, timeout=20)
@@ -444,7 +469,7 @@ class OpTestHMIHandling(unittest.TestCase):
         # Get random chip id
         l_chip = l_pair[0]
         l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.console
         console.run_command("dmesg -C")
 
         # As of now putscom command to TOD register will fail with return code -1.
@@ -473,11 +498,6 @@ class OpTestHMIHandling(unittest.TestCase):
         self.verify_timer_facility_recovery(l_res)
         return
 
-    ##
-    # @brief This function enables a single core
-    def host_enable_single_core(self):
-        self.cv_HOST.host_enable_single_core()
-
 class HMI_TFMR_ERRORS(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.TFMR_ERRORS)
@@ -487,8 +507,11 @@ class TOD_ERRORS(OpTestHMIHandling):
         self._testHMIHandling(BMC_CONST.TOD_ERRORS)
 
 class SingleCoreTOD_ERRORS(OpTestHMIHandling):
+    def setUp(self):
+        super(SingleCoreTOD_ERRORS, self).setUp()
+        self.cv_HOST.host_enable_single_core(console=1)
+
     def runTest(self):
-        self.host_enable_single_core()
         self._testHMIHandling(BMC_CONST.TOD_ERRORS)
 
 class PROC_RECOV_DONE(OpTestHMIHandling):
@@ -502,15 +525,12 @@ class PROC_RECV_ERROR_MASKED(OpTestHMIHandling):
 class MalfunctionAlert(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
+        self.clearGardEntries()
 
 class HypervisorResourceError(OpTestHMIHandling):
-    def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        super(HypervisorResourceError, self).setUp()
-
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
+        self.clearGardEntries()
 
 class ClearGard(OpTestHMIHandling):
     def runTest(self):

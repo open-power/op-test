@@ -160,7 +160,7 @@ class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
         self.trigger_dump()
         self.cv_FSP.wait_for_systemdump_to_finish()
         self.cv_FSP.wait_for_runtime()
-        console = self.cv_SYSTEM.sys_get_ipmi_console().get_console()
+        console = self.cv_SYSTEM.console.get_console()
         console.sendline()
         console.expect("login:", timeout=600)
         console.close()

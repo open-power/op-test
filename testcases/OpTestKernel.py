@@ -64,7 +64,7 @@ class OpTestKernelBase(unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def kernel_crash(self):
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.console
         console.run_command("uname -a")
         console.run_command("cat /etc/os-release")
         console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
@@ -101,7 +101,7 @@ class KernelCrash_KdumpEnable(OpTestKernelBase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.console
 
     ##
     # @brief This function will test the kernel crash followed by crash kernel dump
@@ -124,7 +124,7 @@ class KernelCrash_KdumpDisable(OpTestKernelBase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        console = self.cv_SYSTEM.sys_get_ipmi_console()
+        console = self.cv_SYSTEM.console
 
     ##
     # @brief This function will test the kernel crash followed by system IPL
@@ -144,7 +144,7 @@ class KernelCrash_KdumpDisable(OpTestKernelBase):
 class SkirootKernelCrash(OpTestKernelBase, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.sys_get_ipmi_console()
+        self.c = self.cv_SYSTEM.console
         output = self.c.run_command("cat /proc/cmdline")
         res = ""
         found = False
