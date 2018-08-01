@@ -140,6 +140,8 @@ class OpTestASM:
         return self.getpage(form)
 
     def execommand(self, cmd):
+        if not self.login():
+            raise OpTestError("Failed to login ASM page")
         param={'form':'16', 'exe':'Execute', 'CSRF_TOKEN':'', 'cmd':cmd}
         form = "form=16&frm=0"
         self.submit(form, param)
@@ -161,3 +163,12 @@ class OpTestASM:
     def powerstat(self):
         form = "form=%s" % self.frms['pwr']
         return self.getpage(form)
+
+    def start_debugvtty_session(self, partitionId='0', sessionId='0', sessionTimeout='600'):
+        if not self.login():
+            raise OpTestError("Failed to login ASM page")
+        param = {'p':partitionId,'s':sessionId,'t':sessionTimeout,
+                 'Save settings':'Save settings','CSRF_TOKEN':''}
+        form = "form=81"
+        self.submit(form, param)
+        self.logout()
