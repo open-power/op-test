@@ -40,7 +40,6 @@ import sys
 import os
 import random
 import pexpect
-
 import unittest
 
 import OpTestConfiguration
@@ -63,12 +62,27 @@ class OpTestHMIHandling(unittest.TestCase):
         cls.util = OpTestUtil()
 
     def setUp(self):
+        if self.cv_SYSTEM.get_state() == OpSystemState.UNKNOWN_BAD:
+          self.clear_stop()
+
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.clearGardEntries()
         self.cv_HOST.host_enable_all_cores(console=1)
 
     def clear_stop(self):
         self.cv_SYSTEM.stop = 0
-        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD) # Witherspoon needs to get out of Quiesced
+        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
+        for i in range(3):
+          try:
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.clearGardEntries()
+            break
+          except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
+            print "\n\n\nOpTestSystem OpTestHMIHandling clear_stop counter i={} (i=0 or i=1 can be seen recovering from failed test) Exception={}\n\n\n".format(i, e)
+            self.cv_SYSTEM.stop = 0
+            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
+        else:
+          self.assertTrue(False, "OpTestHMIHandling failed to recover from previous OpSystemState.UNKNOWN_BAD")
 
     def handle_ipl(self):
         rc = self.cv_SYSTEM.console.sol.expect(["ISTEP", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
