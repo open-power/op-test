@@ -225,7 +225,8 @@ class OpTestHost():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def host_check_command(self, console=0, *i_cmd):
+    def host_check_command(self, *i_cmd):
+        console = 0 # TODO: Fix this with right function arguments
         l_cmd = 'which ' + ' '.join(i_cmd)
         print l_cmd
         try:
