@@ -225,12 +225,15 @@ class OpTestHost():
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
-    def host_check_command(self, *i_cmd):
-        console = 0 # TODO: Fix this with right function arguments
+    def host_check_command(self, *i_cmd, **kwargs):
+        default_vals = {'console': 0}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
         l_cmd = 'which ' + ' '.join(i_cmd)
         print l_cmd
         try:
-            l_res = self.host_run_command(l_cmd, console=console)
+            l_res = self.host_run_command(l_cmd, console=kwargs['console'])
         except CommandFailed as c:
             l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (','.join(i_cmd), l_cmd, '\n'.join(c.output))
             print l_msg
@@ -245,7 +248,7 @@ class OpTestHost():
     #         or raise OpTestError
     #
     def host_get_kernel_version(self, console=0):
-        l_kernel = self.host_run_command("uname -a | awk {'print $3'}", timeout=60)
+        l_kernel = self.host_run_command("uname -a | awk {'print $3'}", timeout=60, console=0)
         l_kernel = ''.join(l_kernel)
         print l_kernel
         return l_kernel
