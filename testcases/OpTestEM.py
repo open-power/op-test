@@ -457,7 +457,6 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         print "CPU successfully achieved one of the boost freuency"
         print "Achieved freq: %d, near by WoF freq: %d" % (int(achieved_freq), int(freq))
 
-
 class cpu_idle_states_host(OpTestEM, unittest.TestCase):
     def setUp(self):
         self.test = "host"
@@ -475,6 +474,12 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         if isinstance(self.c, OpTestQemu.QemuConsole):
           raise self.skipTest("OpTestSystem running QEMU cpu idle state checks not applicable")
 
+        try:
+            self.c.run_command("taskset")
+        except CommandFailed as cf:
+	    if 'not found' in ''.join(cf.output):
+                self.skipTest("Taskset command not found")
+
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         cpu_num = self.get_first_available_cpu()
@@ -488,18 +493,29 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         nrcpus = self.c.run_command("grep -c 'processor.*: ' /proc/cpuinfo")
         nrcpus = int(nrcpus[0])
         self.assertGreater(nrcpus, 0, "You can't have 0 CPUs")
-        # We currently hack around trying every CPU and just try the first 10.
-        # This may/may not be a great test, but it takes a lot less time :)
-        nrcpus = 10
 
-        # TODO: Check the runtime idle states = expected idle states!
+        # Copy /dev/urandom into temptext.txt
+        self.c.run_command("dd if=/dev/urandom bs=1024 count=30000 2> /dev/null 1> temptext.txt")
+
+        # Setting workloads. Skiroot does not have the -c option for taskset.
+        # This means it must use the CPU affinity which will limit at cpu63 as
+        # printf '%x' $(( 1 << 64 )) becomes 0
+        workload = """for cpu in {0..%d};do taskset -c $cpu sha1sum temptext.txt & done; wait""" % (nrcpus - 1)
+        if self.test == "skiroot":
+            nrcpus = 60
+            workload = """for cpu in `seq 0 1 %d`;do taskset 0x`printf '%%x' $(( 1 << $cpu ))` sha1sum temptext.txt & done; wait""" % (nrcpus - 1)
+
+        # TODO: Check the expected idle states (/proc/device-tree/ibm,opal/power-mgt)
+        # in runtime idle states (idle_state_names)
         idle_states = self.get_idle_states()
         print repr(idle_states)
+        names = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpuidle/state*/name")
+        names = [[a] for a in names]
         idle_state_names = {}
-        for i in idle_states:
-            idle_state_names[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/name" % i)
+        for i in range(len(idle_states)):
+            idle_state_names[idle_states[i]] = names[i]
 
-        # We first disable everything, then enable one idle state and check residency
+        # We first disable everything
         for i in idle_states:
             self.disable_idle_state(i)
             self.verify_disable_idle_state(i)
@@ -514,32 +530,35 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
             before_time[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/time" % (i))
             before_time[i] = [int(a) for a in before_time[i]]
 
+        # Enable one idle state, check residency, disable and repeat.
         after_usage = {}
         after_time = {}
         for i in idle_states:
+            success = 0
+            total = 0
             self.enable_idle_state(i)
             self.verify_enable_idle_state(i)
-            for c in range(nrcpus):
-                self.c.run_command("taskset 0x%x find / |head -n 200000 > /dev/null" % (1 << c))
+
+            self.c.run_command(workload)
+
             after_usage[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/usage" % i)
             after_usage[i] = [int(a) for a in after_usage[i]]
             after_time[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/time" % i)
             after_time[i] = [int(a) for a in after_time[i]]
-            print repr(before_usage[i])
-            print repr(after_usage[i])
-            print repr(before_time[i])
-            print repr(after_time[i])
             for c in range(nrcpus):
                 print "# CPU %d entered idle state %s %u times" % (c, idle_state_names[i], after_usage[i][c] - before_usage[i][c])
                 print "# CPU %d entered idle state %s for %u microseconds" % (c, idle_state_names[i], after_time[i][c] - before_time[i][c])
-                self.assertGreater(after_usage[i][c], before_usage[i][c], "CPU %d did not enter expected idle state %s (%s)" % (c,i,idle_state_names[i]))
-                self.assertGreater(after_time[i][c], before_time[i][c], "CPU %d did not enter expected idle state %s (%s)" % (c,i,idle_state_names[i]))
+                if after_usage[i][c] > before_usage[i][c]:
+                    success += 0.5
+                if after_time[i][c] > before_time[i][c]:
+                    success += 0.5
+                total += 1
+            print "CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total)
+            self.assertGreater(success/total, 0.95, "CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total))
             self.disable_idle_state(i)
 
-        # and reset back to enabling idle.
-        for i in idle_states:
-            self.enable_idle_state(i)
-            self.verify_enable_idle_state(i)
+        # Remove added temptext.txt file. Idle states are re-enabled during tearDown
+        self.c.run_command("rm temptext.txt")
         pass
 
 class cpu_idle_states_skiroot(cpu_idle_states_host):
