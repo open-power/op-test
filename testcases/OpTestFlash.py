@@ -260,7 +260,7 @@ class BmcImageFlash(OpTestFlashBase):
 
         self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        console = self.cv_SYSTEM.console.get_console()
+        raw_pty = self.cv_SYSTEM.console.get_console()
         self.cv_SYSTEM.sys_sel_check()
 
 
@@ -372,7 +372,7 @@ class PNORFLASH(OpTestFlashBase):
                 self.cv_BMC.image_transfer(self.pnor)
                 self.cv_BMC.pnor_img_flash_openbmc(os.path.basename(self.pnor))
 
-        console = self.cv_SYSTEM.console.get_console()
+        raw_pty = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:
             self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
@@ -521,7 +521,7 @@ class OpalLidsFLASH(OpTestFlashBase):
                         self.cv_BMC.image_transfer(part_pair[1])
                         self.cv_BMC.flash_part_openbmc(os.path.basename(part_pair[1]), part_pair[0])
 
-        console = self.cv_SYSTEM.console.get_console()
+        raw_pty = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:
             self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
@@ -600,11 +600,11 @@ class FSPFWImageFLASH(OpTestFlashBase):
         self.OpIU.configure_host_ip()
         con.run_command("wget %s -O /tmp/firm.img" % self.image)
         con.run_command("update_flash -d")
-        con.sol.sendline("update_flash -f /tmp/firm.img")
-        con.sol.expect('Projected Flash Update Results')
-        con.sol.expect('FLASH: Image ready...rebooting the system...')
-        con.sol.sendcontrol(']')
-        con.sol.send('quit\r')
+        con.pty.sendline("update_flash -f /tmp/firm.img")
+        con.pty.expect('Projected Flash Update Results')
+        con.pty.expect('FLASH: Image ready...rebooting the system...')
+        con.pty.sendcontrol(']')
+        con.pty.send('quit\r')
         con.close()
         self.bmc_down_check()
         self.util.PingFunc(self.cv_BMC.host_name, BMC_CONST.PING_RETRY_POWERCYCLE)

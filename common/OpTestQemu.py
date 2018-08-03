@@ -64,8 +64,7 @@ class QemuConsole():
         self.util = OpTestUtil()
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
-        self.sol = None
-        self.console = None
+        self.pty = None
         self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
         self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
         self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
@@ -102,13 +101,13 @@ class QemuConsole():
     def close(self):
         self.util.clear_state(self)
         try:
-            rc_child = self.sol.close()
+            rc_child = self.pty.close()
             exitCode = signalstatus = None
-            if self.sol.status != -1: # leaving for debug
-              if os.WIFEXITED(self.sol.status):
-                exitCode = os.WEXITSTATUS(self.sol.status)
+            if self.pty.status != -1: # leaving for debug
+              if os.WIFEXITED(self.pty.status):
+                exitCode = os.WEXITSTATUS(self.pty.status)
               else:
-                signalstatus = os.WTERMSIG(self.sol.status)
+                signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
         except pexpect.ExceptionPexpect as e:
             self.state = ConsoleState.DISCONNECTED
@@ -120,7 +119,7 @@ class QemuConsole():
 
     def connect(self):
         if self.state == ConsoleState.CONNECTED:
-            return self.sol
+            return self.pty
         else:
             self.util.clear_state(self) # clear when coming in DISCONNECTED
 
@@ -158,30 +157,27 @@ class QemuConsole():
         cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
         print(cmd)
         try:
-          solChild = OPexpect.spawn(cmd,logfile=self.logfile)
+          self.pty = OPexpect.spawn(cmd,logfile=self.logfile)
         except Exception as e:
           self.state = ConsoleState.DISCONNECTED
           raise CommandFailed('OPexpect.spawn',
                   'OPexpect.spawn encountered a problem: ' + str(e), -1)
 
         self.state = ConsoleState.CONNECTED
-        solChild.setwinsize(1000,1000)
-        self.sol = solChild
-        self.console = solChild
+        self.pty.setwinsize(1000,1000)
         if self.delaybeforesend:
-          self.sol.delaybeforesend = self.delaybeforesend
+          self.pty.delaybeforesend = self.delaybeforesend
 
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-          self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+          self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
 
         # Wait a moment for isalive() to read a correct value and then check
         # if the command has already exited. If it has then QEMU has most
         # likely encountered an error and there's no point proceeding.
         time.sleep(0.2)
-        if not solChild.isalive():
-            raise CommandFailed(cmd, solChild.read(), solChild.status)
-
-        return solChild
+        if not self.pty.isalive():
+            raise CommandFailed(cmd, self.pty.read(), self.pty.status)
+        return self.pty
 
     def get_console(self):
         if self.state == ConsoleState.DISCONNECTED:
@@ -191,7 +187,7 @@ class QemuConsole():
             if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
                 self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
 
-        return self.sol
+        return self.pty
 
     def run_command(self, command, timeout=60, retry=0):
         return self.util.run_command(self, command, timeout, retry)

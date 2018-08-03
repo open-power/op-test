@@ -76,17 +76,17 @@ class InstallUbuntu(unittest.TestCase):
 
     def select_petitboot_item(self, item):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
-        rawc = self.c.get_console()
+        raw_pty = self.c.get_console()
         r = None
         while r != 0:
             time.sleep(0.2)
-            r = rawc.expect(['\*.*\s+' + item, '\*.*\s+', pexpect.TIMEOUT],
+            r = raw_pty.expect(['\*.*\s+' + item, '\*.*\s+', pexpect.TIMEOUT],
                             timeout=1)
             if r == 0:
                 break
-            rawc.send("\x1b[A")
-            rawc.expect('')
-            rawc.sendcontrol('l')
+            raw_pty.send("\x1b[A")
+            raw_pty.expect('')
+            raw_pty.sendcontrol('l')
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -149,18 +149,18 @@ class InstallUbuntu(unittest.TestCase):
             kernel_args = kernel_args + ' netcfg/choose_interface=auto '
             # For Qemu, we boot from CDROM, so let's use petitboot!
             self.select_petitboot_item('Install Ubuntu Server')
-            rawc = self.c.get_console()
-            rawc.send('e')
+            raw_pty = self.c.get_console()
+            raw_pty.send('e')
             # In future, we should implement a method like this:
             #  self.petitboot_select_field('Boot arguments:')
             # But, in the meantime:
-            rawc.send('\t\t\t\t')  # FIXME :)
-            rawc.send('\b\b\b\b')  # remove ' ---'
-            rawc.send('\b\b\b\b\b')  # remove 'quiet'
-            rawc.send(kernel_args)
-            rawc.send('\t')
-            rawc.sendline('')
-            rawc.sendline('')
+            raw_pty.send('\t\t\t\t')  # FIXME :)
+            raw_pty.send('\b\b\b\b')  # remove ' ---'
+            raw_pty.send('\b\b\b\b\b')  # remove 'quiet'
+            raw_pty.send(kernel_args)
+            raw_pty.send('\t')
+            raw_pty.sendline('')
+            raw_pty.sendline('')
         else:
             kernel_args = kernel_args + ' netcfg/choose_interface=%s BOOTIF=01-%s' % (self.conf.args.host_mac,
                                                                                       '-'.join(self.conf.args.host_mac.split(':')))
@@ -175,39 +175,39 @@ class InstallUbuntu(unittest.TestCase):
             self.c.run_command("kexec -i %s -c \"%s\" %s -l" % (initrd,
                                                                 kernel_args,
                                                                 vmlinux))
-            rawc = self.c.get_console()
-            rawc.sendline("kexec -e")
+            raw_pty = self.c.get_console()
+            raw_pty.sendline("kexec -e")
 
         # Do things
-        rawc.expect('Sent SIGKILL to all processes', timeout=60)
-        r = rawc.expect(['Loading additional components','Configure the keyboard'], timeout=300)
+        raw_pty.expect('Sent SIGKILL to all processes', timeout=60)
+        r = raw_pty.expect(['Loading additional components','Configure the keyboard'], timeout=300)
         if r == 1:
             print("# Preseed isn't perfect when it comes to keyboard selection. Urgh")
-            rawc.expect('Go Back')
+            raw_pty.expect('Go Back')
             time.sleep(2)
-            rawc.send("\r\n")
-            rawc.expect(['Keyboard layout'])
-            rawc.expect(['activates buttons'])
+            raw_pty.send("\r\n")
+            raw_pty.expect(['Keyboard layout'])
+            raw_pty.expect(['activates buttons'])
             time.sleep(2)
-            rawc.sendline("\r\n")
-            rawc.expect(['Loading additional components'], timeout=300)
+            raw_pty.sendline("\r\n")
+            raw_pty.expect(['Loading additional components'], timeout=300)
 
         r = 0
         while r == 0:
-            r = rawc.expect(['udeb', 'Setting up the clock', 'Detecting hardware'], timeout=300)
+            r = raw_pty.expect(['udeb', 'Setting up the clock', 'Detecting hardware'], timeout=300)
 
-        rawc.expect('Partitions formatting', timeout=600)
-        rawc.expect('Installing the base system', timeout=300)
+        raw_pty.expect('Partitions formatting', timeout=600)
+        raw_pty.expect('Installing the base system', timeout=300)
         r = None
         while r != 0:
-            r = rawc.expect(['Finishing the installation',
+            r = raw_pty.expect(['Finishing the installation',
                              'Select and install software',
                              'Preparing', 'Configuring',
                              'Cleaning up'
                              'Retrieving', 'Installing',
                              'boot loader',
                              'Running'], timeout=1000)
-        rawc.expect('Requesting system reboot', timeout=300)
+        raw_pty.expect('Requesting system reboot', timeout=300)
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         OpIU.stop_server()

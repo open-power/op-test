@@ -829,10 +829,10 @@ class OpTestUtil():
         # callers beware that the connect can affect previous states and objects
         for i in range(counter):
           log.warning("OpTestSystem detected something, working on recovery")
-          my_term = term_obj.connect()
-          my_term.sendcontrol('c')
+          pty = term_obj.connect()
+          pty.sendcontrol('c')
           time.sleep(1)
-          try_rc = my_term.expect([".*#", "Petitboot", "login: ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          try_rc = pty.expect([".*#", "Petitboot", "login: ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
           if try_rc in [0,1,2]:
             log.warning("OpTestSystem recovered from temporary issue, continuing")
             return
@@ -840,16 +840,16 @@ class OpTestUtil():
             log.warning("OpTestSystem Unable to recover from temporary issue, calling close and continuing")
             term_obj.close()
         log.warning("OpTestSystem Unable to recover to known state, raised Exception RecoverFailed but continuing")
-        raise RecoverFailed(before=my_term.before, after=my_term.after, msg='Unable to recover to known state, retry')
+        raise RecoverFailed(before=pty.before, after=pty.after, msg='Unable to recover to known state, retry')
 
     def try_sendcontrol(self, term_obj, command, counter=3):
-        my_term = term_obj.get_console()
-        res = my_term.before
+        pty = term_obj.get_console()
+        res = pty.before
         log.warning("OpTestSystem detected something, working on recovery")
-        my_term.sendcontrol('c')
+        pty.sendcontrol('c')
         time.sleep(1)
         try_list = []
-        rc = my_term.expect([".*#", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = pty.expect([".*#", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc != 0:
           term_obj.close()
           self.try_recover(term_obj, counter)
@@ -865,27 +865,27 @@ class OpTestUtil():
           echo_rc = 1
         return try_list, echo_rc
 
-    def set_PS1(self, term_obj, my_term, prompt):
+    def set_PS1(self, term_obj, pty, prompt):
         # prompt comes in as the string desired, needs to be pre-built
         # on success caller is returned 1, otherwise exception thrown
         # order of execution and commands are sensitive here to provide reliability
         if term_obj.setup_term_disable == 1:
           return -1
         expect_prompt = prompt + "$"
-        my_term.sendline("which bash && exec bash --norc --noprofile")
+        pty.sendline("which bash && exec bash --norc --noprofile")
         time.sleep(0.2)
-        my_term.sendline('PS1=' + prompt)
+        pty.sendline('PS1=' + prompt)
         time.sleep(0.2)
-        rc = my_term.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-        my_term.sendline("which stty && stty cols 300;which stty && stty rows 30")
+        rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        pty.sendline("which stty && stty cols 300;which stty && stty rows 30")
         time.sleep(0.2)
-        rc = my_term.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-        my_term.sendline("export LANG=C")
-        rc = my_term.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        pty.sendline("export LANG=C")
+        rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         time.sleep(0.2)
-        my_term.sendline() # needed to sync buffers later on
+        pty.sendline() # needed to sync buffers later on
         time.sleep(0.2) # pause for first time setup, buffers you know, more sensitive in petitboot shell, pexpect or console buffer not sure
-        rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
           log.debug("Shell prompt changed")
           return 1 # caller needs to save state
@@ -900,20 +900,20 @@ class OpTestUtil():
             self.try_recover(term_obj, counter=3) # if try_recover bails we leave things blocked, they'll get reset
             # if we get back here we have a new prompt and unknown console
             # in future if state can change or block flags can change this needs revisted
-            my_term = term_obj.connect() # need a new my_term since we recovered
+            pty = term_obj.connect() # need a new pty since we recovered
             term_obj.set_system_setup_term = self.orig_system_setup_term
             term_obj.set_block_setup_term = self.orig_block_setup_term
-            my_term.sendline("which bash && exec bash --norc --noprofile")
+            pty.sendline("which bash && exec bash --norc --noprofile")
             time.sleep(0.2)
-            my_term.sendline('PS1=' + prompt)
+            pty.sendline('PS1=' + prompt)
             time.sleep(0.2)
-            my_term.sendline("which stty && stty cols 300;which stty && stty rows 30")
+            pty.sendline("which stty && stty cols 300;which stty && stty rows 30")
             time.sleep(0.2)
-            my_term.sendline("export LANG=C")
+            pty.sendline("export LANG=C")
             time.sleep(0.2)
-            my_term.sendline() # needed to sync buffers later on
+            pty.sendline() # needed to sync buffers later on
             time.sleep(0.2) # pause for first time setup, buffers you know, more sensitive in petitboot shell, pexpect or console buffer not sure
-            rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
             if rc == 0:
               log.debug("Shell prompt changed")
               return 1 # caller needs to save state
@@ -921,7 +921,7 @@ class OpTestUtil():
               if term_obj.setup_term_quiet == 0:
                 log.warning("OpTestSystem Change of shell prompt not completed after last final retry,"
                         " probably a connection issue, raised Exception ConsoleSettings but continuing")
-                raise ConsoleSettings(before=my_term.before, after=my_term.after,
+                raise ConsoleSettings(before=pty.before, after=pty.after,
                         msg="Change of shell prompt not completed after last final retry, probably a connection issue, retry")
               else:
                 term_obj.setup_term_disable = 1
@@ -930,33 +930,33 @@ class OpTestUtil():
             if term_obj.setup_term_quiet == 0:
               log.warning("OpTestSystem Change of shell prompt not completed after last retry,"
                       " probably a connection issue, raised Exception ConsoleSettings but continuing")
-              raise ConsoleSettings(before=my_term.before, after=my_term.after,
+              raise ConsoleSettings(before=pty.before, after=pty.after,
                       msg="Change of shell prompt not completed after last retry, probably a connection issue, retry")
             else:
               term_obj.setup_term_disable = 1
               return -1
 
-    def get_login(self, host, term_obj, my_term, prompt):
+    def get_login(self, host, term_obj, pty, prompt):
         # prompt comes in as the string desired, needs to be pre-built
         if term_obj.setup_term_disable == 1:
           return -1, -1
         my_user = host.username()
         my_pwd = host.password()
-        my_term.sendline()
-        rc = my_term.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        pty.sendline()
+        rc = pty.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          my_term.sendline(my_user)
+          pty.sendline(my_user)
           time.sleep(0.1)
-          rc = my_term.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          rc = pty.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
           if rc == 0:
-            my_term.sendline(my_pwd)
+            pty.sendline(my_pwd)
             time.sleep(0.5)
-            rc = my_term.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
             if rc not in [1,2,3]:
               if term_obj.setup_term_quiet == 0:
                 log.warning("OpTestSystem Problem with the login and/or password prompt,"
                         " raised Exception ConsoleSettings but continuing")
-                raise ConsoleSettings(before=my_term.before, after=my_term.after,
+                raise ConsoleSettings(before=pty.before, after=pty.after,
                         msg="Problem with the login and/or password prompt, probably a connection or credential issue, retry")
               else:
                 term_obj.setup_term_disable = 1
@@ -964,29 +964,29 @@ class OpTestUtil():
           else:
             if term_obj.setup_term_quiet == 0:
               log.warning("OpTestSystem Problem with the login and/or password prompt, raised Exception ConsoleSettings but continuing")
-              raise ConsoleSettings(before=my_term.before, after=my_term.after,
+              raise ConsoleSettings(before=pty.before, after=pty.after,
                       msg="Problem with the login and/or password prompt, probably a connection or credential issue, retry")
             else:
                 term_obj.setup_term_disable = 1
                 return -1, -1
-          my_PS1_set = self.set_PS1(term_obj, my_term, prompt)
+          my_PS1_set = self.set_PS1(term_obj, pty, prompt)
           my_LOGIN_set = 1
         else: # timeout eof
-          my_term.sendline()
-          rc = my_term.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          pty.sendline()
+          rc = pty.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
           if rc == 0:
-            my_term.sendline(my_user)
+            pty.sendline(my_user)
             time.sleep(0.1)
-            rc = my_term.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            rc = pty.expect([r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
             if rc == 0:
-              my_term.sendline(my_pwd)
+              pty.sendline(my_pwd)
               time.sleep(0.5)
-              rc = my_term.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+              rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
               if rc not in [1,2,3]:
                 if term_obj.setup_term_quiet == 0:
                   log.warning("OpTestSystem Problem with the login and/or password prompt,"
                           " raised Exception ConsoleSettings but continuing")
-                  raise ConsoleSettings(before=my_term.before, after=my_term.after,
+                  raise ConsoleSettings(before=pty.before, after=pty.after,
                           msg="Problem with the login and/or password prompt, probably a connection or credential issue, retry")
                 else:
                   term_obj.setup_term_disable = 1
@@ -995,41 +995,41 @@ class OpTestUtil():
               if term_obj.setup_term_quiet == 0:
                 log.warning("OpTestSystem Problem with the login and/or password prompt after a secondary connection issue,"
                         " raised Exception ConsoleSettings but continuing")
-                raise ConsoleSettings(before=my_term.before, after=my_term.after,
+                raise ConsoleSettings(before=pty.before, after=pty.after,
                         msg="Problem with the login and/or password prompt after a secondary connection or credential issue, retry")
               else:
                 term_obj.setup_term_disable = 1
                 return -1, -1
-            my_PS1_set = self.set_PS1(term_obj, my_term, prompt)
+            my_PS1_set = self.set_PS1(term_obj, pty, prompt)
             my_LOGIN_set = 1
           else: # timeout eof
             if term_obj.setup_term_quiet == 0:
               log.warning("OpTestSystem Problem with the login and/or password prompt after a previous connection issue,"
                     " raised Exception ConsoleSettings but continuing")
-              raise ConsoleSettings(before=my_term.before, after=my_term.after,
+              raise ConsoleSettings(before=pty.before, after=pty.after,
                       msg="Problem with the login and/or password prompt last try, probably a connection or credential issue, retry")
             else:
               term_obj.setup_term_disable = 1
               return -1, -1
         return my_PS1_set, my_LOGIN_set # caller needs to save state
 
-    def check_root(self, my_term, prompt):
+    def check_root(self, pty, prompt):
         # we do the best we can to verify, but if not oh well
         expect_prompt = prompt + "$"
-        my_term.sendline("date") # buffer kicker needed
-        my_term.sendline("which whoami && whoami")
+        pty.sendline("date") # buffer kicker needed
+        pty.sendline("which whoami && whoami")
         time.sleep(1)
-        rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          before = my_term.before.replace("\r\r\n", "\n")
+          before = pty.before.replace("\r\r\n", "\n")
           try:
             whoami = before.splitlines()[-1]
           except Exception:
             pass
-          my_term.sendline("echo $?")
+          pty.sendline("echo $?")
           time.sleep(1)
-          rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-          before = my_term.before.replace("\r\r\n", "\n")
+          rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          before = pty.before.replace("\r\r\n", "\n")
           if rc == 0:
             try:
               echo_rc = int(before.splitlines()[-1])
@@ -1039,51 +1039,51 @@ class OpTestUtil():
               if whoami in "root":
                 log.debug("OpTestSystem now running as root")
               else:
-                raise ConsoleSettings(before=my_term.before, after=my_term.after,
+                raise ConsoleSettings(before=pty.before, after=pty.after,
                         msg="Unable to confirm root access setting up terminal, check that you provided"
                         " root credentials or a properly enabled sudo user, retry")
             else:
                 log.debug("OpTestSystem should be running as root, unable to verify")
 
-    def get_sudo(self, host, term_obj, my_term, prompt):
+    def get_sudo(self, host, term_obj, pty, prompt):
         # prompt comes in as the string desired, needs to be pre-built
         # must have PS1 expect_prompt already set
         # must be already logged in
         if term_obj.setup_term_disable == 1:
           return -1, -1
-        my_term.sendline()
+        pty.sendline()
         expect_prompt = prompt + "$"
         my_user = host.username()
         my_pwd = host.password()
-        my_term.sendline("which sudo && sudo -s")
-        rc = my_term.expect([r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        pty.sendline("which sudo && sudo -s")
+        rc = pty.expect([r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         # we must not add # prompt to the expect, we get false hit when complicated user login prompt and control chars,
         # we need to cleanly ignore everything but password and then we blindly next do PS1 setup, ignoring who knows what
         if rc == 0:
-          my_term.sendline(my_pwd)
+          pty.sendline(my_pwd)
           time.sleep(0.5) # delays for next call
-          my_PS1_set = self.set_PS1(term_obj, my_term, prompt)
-          self.check_root(my_term, prompt)
+          my_PS1_set = self.set_PS1(term_obj, pty, prompt)
+          self.check_root(pty, prompt)
           my_SUDO_set = 1
           return my_PS1_set, my_SUDO_set # caller needs to save state
         elif rc == 1: # we must have been root, we first filter out password prompt above
-          my_PS1_set = self.set_PS1(term_obj, my_term, prompt)
-          self.check_root(my_term, prompt)
+          my_PS1_set = self.set_PS1(term_obj, pty, prompt)
+          self.check_root(pty, prompt)
           my_SUDO_set = 1
           return my_PS1_set, my_SUDO_set # caller needs to save state
         else:
           if term_obj.setup_term_quiet == 0:
             log.warning("OpTestSystem Unable to setup root access, probably a connection issue,"
                     " raised Exception ConsoleSettings but continuing")
-            raise ConsoleSettings(before=my_term.before, after=my_term.after,
+            raise ConsoleSettings(before=pty.before, after=pty.after,
                     msg='Unable to setup root access, probably a connection issue, retry')
           else:
             term_obj.setup_term_disable = 1
             return -1, -1
 
-    def setup_term(self, system, my_term, ssh_obj=None, block=0):
+    def setup_term(self, system, pty, ssh_obj=None, block=0):
         # Login and/or setup any terminal
-        # my_term needs to be the opexpect object
+        # pty needs to be the opexpect object
         # This will behave correctly even if already logged in
         # Petitboot Menu is special case to NOT participate in this setup, conditionally checks if system state is PETITBOOT and skips
         # CANNOT CALL GET_CONSOLE OR CONNECT from here since get_console and connect call into setup_term
@@ -1097,77 +1097,77 @@ class OpTestUtil():
           track_obj = system
           term_obj = system.console
           system_obj = system
-        my_term.sendline()
-        rc = my_term.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        pty.sendline()
+        rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(system_obj.cv_HOST, term_obj, my_term, self.build_prompt(system_obj.prompt))
-          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, my_term, self.build_prompt(system_obj.prompt))
+          track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
           return
         if rc in [1,2,3]:
-          track_obj.PS1_set = self.set_PS1(term_obj, my_term, self.build_prompt(system_obj.prompt))
+          track_obj.PS1_set = self.set_PS1(term_obj, pty, self.build_prompt(system_obj.prompt))
           track_obj.LOGIN_set = 1 # ssh port 22 can get in which uses sshpass or Petitboot, do this after set_PS1 to make sure we have something
-          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, my_term, self.build_prompt(system_obj.prompt))
+          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
           return
         if rc == 4:
           return # Petitboot so nothing to do
         if rc == 6: # EOF
           term_obj.close() # mark as bad
-          raise ConsoleSettings(before=my_term.before, after=my_term.after,
+          raise ConsoleSettings(before=pty.before, after=pty.after,
                   msg="Getting login and sudo not successful, probably connection or credential issue, retry")
         # now just timeout
-        my_term.sendline()
-        rc = my_term.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        pty.sendline()
+        rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(system_obj.cv_HOST, term_obj, my_term, self.build_prompt(system_obj.prompt))
-          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, my_term, self.build_prompt(system_obj.prompt))
+          track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
           return
         if rc in [1,2,3]:
-          track_obj.LOGIN_set = track_obj.PS1_set = self.set_PS1(term_obj, my_term, self.build_prompt(system_obj.prompt))
-          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, my_term, self.build_prompt(system_obj.prompt))
+          track_obj.LOGIN_set = track_obj.PS1_set = self.set_PS1(term_obj, pty, self.build_prompt(system_obj.prompt))
+          track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
           return
         if rc == 4:
           return # Petitboot do nothing
         else:
           if term_obj.setup_term_quiet == 0:
             term_obj.close() # mark as bad
-            raise ConsoleSettings(before=my_term.before, after=my_term.after,
+            raise ConsoleSettings(before=pty.before, after=pty.after,
                     msg="Getting login and sudo not successful, probably connection issue, retry")
           else:
             # this case happens when detect_target sets the quiet flag and we are timing out
             log.info("OpTestSystem detected something, checking if your system is powered off, will retry")
 
-    def set_env(self, term_obj, my_term):
+    def set_env(self, term_obj, pty):
         set_env_list = []
-        my_term.sendline("which bash && exec bash --norc --noprofile")
+        pty.sendline("which bash && exec bash --norc --noprofile")
         expect_prompt = self.build_prompt(term_obj.prompt) + "$"
-        my_term.sendline('PS1=' + self.build_prompt(term_obj.prompt))
-        rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        pty.sendline('PS1=' + self.build_prompt(term_obj.prompt))
+        rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          combo_io = (my_term.before + my_term.after).replace("\r\r\n", "\n").lstrip()
+          combo_io = (pty.before + pty.after).replace("\r\r\n", "\n").lstrip()
           set_env_list += combo_io.splitlines()
           # remove the expect prompt since matched generic #
           del set_env_list[-1]
           return set_env_list
         else:
-          raise ConsoleSettings(before=my_term.before, after=my_term.after,
+          raise ConsoleSettings(before=pty.before, after=pty.after,
                   msg="Setting environment for sudo command not successful, probably connection issue, retry")
 
-    def retry_password(self, term_obj, my_term, command):
+    def retry_password(self, term_obj, pty, command):
         retry_list_output = []
         a = 0
         while a < 3:
           a += 1
-          my_term.sendline(term_obj.system.cv_HOST.password())
-          rc = my_term.expect([".*#", "try again.", pexpect.TIMEOUT, pexpect.EOF])
+          pty.sendline(term_obj.system.cv_HOST.password())
+          rc = pty.expect([".*#", "try again.", pexpect.TIMEOUT, pexpect.EOF])
           if (rc == 0) or (rc == 1):
-            combo_io = my_term.before + my_term.after
+            combo_io = pty.before + pty.after
             retry_list_output += combo_io.replace("\r\r\n","\n").splitlines()
-            matching = [xs for xs in sudo_responses if any(xs in xa for xa in my_term.after.splitlines())]
+            matching = [xs for xs in sudo_responses if any(xs in xa for xa in pty.after.splitlines())]
             if len(matching):
               echo_rc = 1
               rc = -1 # use to flag the failure next
           if rc == 0:
-            retry_list_output += self.set_env(term_obj, my_term)
+            retry_list_output += self.set_env(term_obj, pty)
             echo_rc = 0
             break
           elif a == 2:
@@ -1177,22 +1177,22 @@ class OpTestUtil():
             raise CommandFailed(command, 'Retry Password TIMEOUT ' + ''.join(retry_list_output), -1)
           elif (rc == 3):
             term_obj.close()
-            raise ConsoleSettings(before=my_term.before, after=my_term.after,
+            raise ConsoleSettings(before=pty.before, after=pty.after,
                     msg='SSH session/console issue, probably connection issue, retry')
 
         return retry_list_output, echo_rc
 
-    def handle_password(self, term_obj, my_term, command):
+    def handle_password(self, term_obj, pty, command):
         # this is for run_command 'sudo -s' or the like
         handle_list_output = []
         failure_list_output = []
-        pre_combo_io = my_term.before + my_term.after
-        my_term.sendline(term_obj.system.cv_HOST.password())
-        rc = my_term.expect([".*#$", "try again.", pexpect.TIMEOUT, pexpect.EOF])
+        pre_combo_io = pty.before + pty.after
+        pty.sendline(term_obj.system.cv_HOST.password())
+        rc = pty.expect([".*#$", "try again.", pexpect.TIMEOUT, pexpect.EOF])
         if (rc == 0) or (rc == 1):
-          combo_io = pre_combo_io + my_term.before + my_term.after
+          combo_io = pre_combo_io + pty.before + pty.after
           handle_list_output += combo_io.replace("\r\r\n","\n").splitlines()
-          matching = [xs for xs in sudo_responses if any(xs in xa for xa in my_term.after.splitlines())]
+          matching = [xs for xs in sudo_responses if any(xs in xa for xa in pty.after.splitlines())]
           if len(matching):
             # remove the expect prompt since matched generic #
             del handle_list_output[-1]
@@ -1201,10 +1201,10 @@ class OpTestUtil():
         if rc == 0:
           # with unknown prompts and unknown environment unable to capture echo $?
           echo_rc = 0
-          self.set_env(term_obj, my_term)
+          self.set_env(term_obj, pty)
           list_output = handle_list_output
         elif rc == 1:
-          retry_list_output, echo_rc = self.retry_password(term_obj, my_term, command)
+          retry_list_output, echo_rc = self.retry_password(term_obj, pty, command)
           list_output = (handle_list_output + retry_list_output)
         else:
           if (rc == 2) or (rc == 3):
@@ -1239,16 +1239,16 @@ class OpTestUtil():
         running_sudo_s = False
         extra_sudo_output = False
         expect_prompt = self.build_prompt(term_obj.prompt) + "$"
-        my_term = term_obj.get_console() # if previous caller environment leaves buffer hung can show up here, e.g. PS2 prompt
-        my_term.sendline(command)
+        pty = term_obj.get_console() # if previous caller environment leaves buffer hung can show up here, e.g. PS2 prompt
+        pty.sendline(command)
         if command == 'sudo -s':
           running_sudo_s = True
           # special case to catch loss of env
-          rc = my_term.expect([".*#", r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
+          rc = pty.expect([".*#", r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
         else:
-          rc = my_term.expect([expect_prompt, r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
+          rc = pty.expect([expect_prompt, r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
         output_list = []
-        output_list += my_term.before.replace("\r\r\n","\n").splitlines()
+        output_list += pty.before.replace("\r\r\n","\n").splitlines()
         try:
           del output_list[:1] # remove command from the list
         except Exception as e:
@@ -1256,15 +1256,15 @@ class OpTestUtil():
         # if we are running 'sudo -s' as root then catch on generic # prompt, restore env
         if running_sudo_s and (rc == 0):
           extra_sudo_output = True
-          set_env_list = self.set_env(term_obj, my_term)
+          set_env_list = self.set_env(term_obj, pty)
         if rc == 0:
           if extra_sudo_output:
             output_list += set_env_list
-          my_term.sendline("echo $?")
-          rc2 = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
+          pty.sendline("echo $?")
+          rc2 = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
           if rc2 == 0:
             echo_output = []
-            echo_output += my_term.before.replace("\r\r\n","\n").splitlines()
+            echo_output += pty.before.replace("\r\r\n","\n").splitlines()
             try:
                 del echo_output[:1] # remove command from the list
             except Exception as e:
@@ -1277,7 +1277,7 @@ class OpTestUtil():
             raise CommandFailed(command, "run_command echo TIMEOUT, the command may have been ok,"
                     " but unable to get echo output to confirm result", -1)
         elif rc == 1:
-          handle_output_list, echo_rc = self.handle_password(term_obj, my_term, command)
+          handle_output_list, echo_rc = self.handle_password(term_obj, pty, command)
           # remove the expect prompt since matched generic #
           del handle_output_list[-1]
           output_list = handle_output_list

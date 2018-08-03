@@ -64,7 +64,7 @@ class OpTestSSH():
         self.util = OpTestUtil()
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
-        self.console = None
+        self.pty = None
         self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
         self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
         self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
@@ -104,16 +104,16 @@ class OpTestSSH():
         if self.state == ConsoleState.DISCONNECTED:
             return
         try:
-            self.console.send("\r")
-            self.console.send('~.')
-            close_rc = self.console.expect([pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-            rc_child = self.console.close()
+            self.pty.send("\r")
+            self.pty.send('~.')
+            close_rc = self.pty.expect([pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            rc_child = self.pty.close()
             exitCode = signalstatus = None
-            if self.console.status != -1: # leaving here for debug
-              if os.WIFEXITED(self.console.status):
-                exitCode = os.WEXITSTATUS(self.console.status)
+            if self.pty.status != -1: # leaving here for debug
+              if os.WIFEXITED(self.pty.status):
+                exitCode = os.WEXITSTATUS(self.pty.status)
               else:
-                signalstatus = os.WTERMSIG(self.console.status)
+                signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
         except pexpect.ExceptionPexpect as e:
             self.state = ConsoleState.DISCONNECTED
@@ -154,8 +154,8 @@ class OpTestSSH():
         self.log.debug(cmd)
 
         try:
-          consoleChild = OPexpect.spawn(cmd,
-                                        logfile=self.logfile,
+          self.pty = OPexpect.spawn(cmd,
+                                    logfile=self.logfile,
                 failure_callback=set_system_to_UNKNOWN_BAD,
                 failure_callback_data=self.system)
         except Exception as e:
@@ -164,16 +164,13 @@ class OpTestSSH():
 
         self.state = ConsoleState.CONNECTED
         # set for bash, otherwise it takes the 24x80 default
-        consoleChild.setwinsize(1000,1000)
-        self.console = consoleChild
+        self.pty.setwinsize(1000,1000)
         if self.delaybeforesend:
-          self.console.delaybeforesend = self.delaybeforesend
-        # Users expecting "Host IPMI" will reference console.sol so make it available
-        self.sol = self.console
-        consoleChild.logfile_read = OpTestLogger.FileLikeLogger(self.log)
+          self.pty.delaybeforesend = self.delaybeforesend
+        self.pty.logfile_read = OpTestLogger.FileLikeLogger(log)
         time.sleep(2) # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
         self.check_set_term()
-        return consoleChild
+        return self.pty
 
     def check_set_term(self):
         if self.block_setup_term is not None:
@@ -182,17 +179,17 @@ class OpTestSSH():
           setup_term_flag = self.system.block_setup_term # system defined control
         if self.port == 2200:
           if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
-            self.util.setup_term(self.system, self.console, None, setup_term_flag)
+            self.util.setup_term(self.system, self.pty, None, setup_term_flag)
         else:
           if self.SUDO_set != 1 or self.LOGIN_set != 1 or self.PS1_set !=1:
-            self.util.setup_term(self.system, self.console, self, setup_term_flag)
+            self.util.setup_term(self.system, self.pty, self, setup_term_flag)
 
     def get_console(self):
         if self.state == ConsoleState.DISCONNECTED:
           self.connect()
 
         count = 0
-        while (not self.console.isalive()):
+        while (not self.pty.isalive()):
             self.log.info('# Reconnecting')
             if (count > 0):
                 time.sleep(1)
@@ -203,7 +200,7 @@ class OpTestSSH():
 
         self.check_set_term()
 
-        return self.console
+        return self.pty
 
     def run_command(self, command, timeout=60, retry=0):
         return self.util.run_command(self, command, timeout, retry)

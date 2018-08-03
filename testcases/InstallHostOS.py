@@ -109,22 +109,22 @@ class InstallHostOS(unittest.TestCase):
             self.c.run_command("kexec -i %s -c \"%s\" %s -l" % (initrd,
                                                                 kernel_args,
                                                                 vmlinux))
-            rawc = self.c.get_console()
-            rawc.sendline("kexec -e")
+            raw_pty = self.c.get_console()
+            raw_pty.sendline("kexec -e")
         else:
             pass
         # Do things
-        rawc = self.c.get_console()
-        rawc.expect('opal: OPAL detected', timeout=60)
+        raw_pty = self.c.get_console()
+        raw_pty.expect('opal: OPAL detected', timeout=60)
         r = None
         while r != 0:
-            r = rawc.expect(['Running post-installation scripts',
+            r = raw_pty.expect(['Running post-installation scripts',
                              'Starting installer',
                              'Setting up the installation environment',
                              'Starting package installation process',
                              'Performing post-installation setup tasks',
                              'Configuring installed system'], timeout=1500)
-        rawc.expect('reboot: Restarting system', timeout=300)
+        raw_pty.expect('reboot: Restarting system', timeout=300)
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         OpIU.stop_server()

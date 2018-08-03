@@ -125,16 +125,16 @@ class EPOWBase(unittest.TestCase):
         log.debug(cmd)
         return cmd
 
-    def check_graceful_shutdown(self, console):
+    def check_graceful_shutdown(self, pty):
         try:
-            rc = console.expect_exact(["reboot: Power down", "Power down"], timeout=120)
+            rc = pty.expect_exact(["reboot: Power down", "Power down"], timeout=120)
             if rc == 0 or rc == 1:
-                res = console.before
-                log.debug(console.after)
+                res = pty.before
+                log.debug(pty.after)
                 log.debug("System got graceful shutdown")
         except pexpect.TIMEOUT, e:
             log.debug("System is in active state")
-            log.debug(console.before)
+            log.debug(pty.before)
 
     def get_epow_list_temps(self):
         self.limits = self.get_epow_limits()
@@ -190,7 +190,7 @@ class EPOW3Random(EPOWBase):
         log.debug("Simulating the Ambient Temp: %s" % test_temp)
         log.debug("Running the command on FSP: %s" % cmd)
         self.cv_FSP.fspc.run_command(cmd)
-        self.check_graceful_shutdown(console.sol)
+        self.check_graceful_shutdown(console.pty)
         self.cv_FSP.wait_for_standby()
         temp_current = self.get_ambient_temp_ipmi()
         log.debug("Current ambient temp: %s " % temp_current)

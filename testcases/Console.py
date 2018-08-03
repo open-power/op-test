@@ -126,14 +126,14 @@ class ControlC(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.cv_BMC.get_host_console()
         # I should really make this API less nasty...
-        raw_console = console.get_console()
-        raw_console.sendline("find /")
+        raw_pty = console.get_console()
+        raw_pty.sendline("find /")
         time.sleep(2)
-        raw_console.sendcontrol(self.CONTROL)
+        raw_pty.sendcontrol(self.CONTROL)
         BMC_DISCONNECT = 'SOL session closed by BMC'
         timeout = 60
         try:
-            rc = raw_console.expect([BMC_DISCONNECT, self.prompt,
+            rc = raw_pty.expect([BMC_DISCONNECT, self.prompt,
                                      pexpect.TIMEOUT, pexpect.EOF], timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)

@@ -128,18 +128,17 @@ class OpTestFastReboot(unittest.TestCase):
         log.debug("INITIAL reset count: %d" % initialResetCount)
         for i in range(0, self.number_reboots_to_do()):
             loopResetCount = self.get_fast_reset_count(c)
-            # We do some funny things with the raw console here, as
-            # 'reboot' isn't meant to return, so we want the raw
-            # pexpect 'console'.
-            self.con = self.cv_SYSTEM.console.get_console()
-            self.con.sendline("reboot")
+            # We do some funny things with the raw pty here, as
+            # 'reboot' isn't meant to return
+            self.pty = self.cv_SYSTEM.console.get_console()
+            self.pty.sendline("reboot")
             self.cv_SYSTEM.set_state(OpSystemState.IPLing)
             # We're looking for a skiboot log message, that it's doing fast
             # reboot. We *may* not get this, as on some systems (notably IBM
             # FSP based systems) the skiboot log is *not* printed to IPMI
             # console
             if self.cv_SYSTEM.skiboot_log_on_console():
-                rc = self.con.expect([" RESET: Initiating fast reboot",
+                rc = self.pty.expect([" RESET: Initiating fast reboot",
                                       pexpect.TIMEOUT, pexpect.EOF],
                                      timeout=100)
                 if rc in [1, 2]:

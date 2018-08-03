@@ -77,8 +77,8 @@ class DPOSkiroot(Base):
         self.cv_SYSTEM.console.run_command("uname -a", retry=5)
         if self.host == "Host":
             self.cv_SYSTEM.load_ipmi_drivers(True)
-        self.cv_SYSTEM.console.sol.sendline("ipmitool power soft")
-        rc = self.cv_SYSTEM.console.sol.expect_exact([
+        self.cv_SYSTEM.console.pty.sendline("ipmitool power soft")
+        rc = self.cv_SYSTEM.console.pty.expect_exact([
             "reboot: Power down",
             "Chassis Power Control: Soft",
             "Power down",
