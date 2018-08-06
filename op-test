@@ -29,6 +29,7 @@ op-test: run OpenPOWER test suite(s)
 import sys
 import os
 import unittest
+import re
 
 try:
   import faulthandler
@@ -37,11 +38,15 @@ try:
 except ImportError:
   pass
 
-
+import logging
+import OpTestLogger
+# op-test is the parent logger
+module_logger = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 import OpTestConfiguration
 OpTestConfiguration.conf = OpTestConfiguration.OpTestConfiguration()
 
 from testcases import HelloWorld
+from testcases import OpTestExample
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestSensors
 from testcases import OpTestPrdDriver
@@ -104,8 +109,6 @@ import testcases
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
 OpTestConfiguration.conf.objs()
 
-print args
-
 class SystemAccessSuite():
     '''
     Tests all system interfaces
@@ -120,6 +123,7 @@ class StandbySuite():
     '''Machine at standby. Focused on BMC'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of StandbySuite')
 #        self.s.addTest(OpTestEnergyScale.standby_suite())
     def suite(self):
         return self.s
@@ -128,6 +132,7 @@ class SkirootSuite():
     '''Tests in Petitboot environment'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of SkirootSuite')
         self.s.addTest(DeviceTreeWarnings.Skiroot())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
         self.s.addTest(SecureBoot.VerifyOPALSecureboot())
@@ -163,6 +168,7 @@ class HostSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(SystemLogin.OOBHostLogin())
+        module_logger.debug('addSuite of HostSuite')
         self.s.addTest(DeviceTreeWarnings.Host())
         self.s.addTest(OpTestOCC.basic_suite())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Host))
@@ -200,6 +206,7 @@ class ExperimentalSuite():
     '''Tests that need further development'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of ExperimentalSuite')
         self.s.addTest(OpTestEEH.suite())
         # SwitchEndian is here as we need to resolve issue of running
         # kernel self-tests as part of op-test or not.
@@ -210,6 +217,7 @@ class ExperimentalSuite():
 class BasicIPLSuite():
     '''Basic boot/reboot power on/off'''
     def suite(self):
+        module_logger.debug('addSuite of BasicIPLSuite')
         return BasicIPL.suite()
 
 class SBSuite():
@@ -226,6 +234,7 @@ class DefaultSuite():
     '''Basic regression tests'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of DefaultSuite')
         self.s.addTest(SkirootSuite().suite())
         if OpTestConfiguration.conf.args.host_scratch_disk:
             self.s.addTest(InstallHost().suite())
@@ -247,6 +256,7 @@ class FullSuite():
     '''Every stable test'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of FullSuite')
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
         self.s.addTest(testRestAPI.basic_suite())
@@ -282,6 +292,7 @@ class OpTestEMSuite():
     '''Energy Management'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of OpTestEMSuite')
     def suite(self):
         self.s.addTest(OpTestEM.host_suite())
         self.s.addTest(OpTestEM.skiroot_suite())
@@ -290,29 +301,35 @@ class OpTestEMSuite():
 class BasicPCISuite():
     '''Basic PCI tests'''
     def suite(self):
+        module_logger.debug('addSuite of BasicPCISuite')
         return OpTestPCI.suite()
 
 class OpTestEEHSuite():
     '''PCI EEH error recovery'''
     def suite(self):
+        module_logger.debug('addSuite of OpTestEEHSuite')
         return OpTestEEH.suite()
 
 class HMISuite():
     '''HMI handling'''
     def suite(self):
+        module_logger.debug('addSuite of HMISuite')
         return OpTestHMIHandling.suite()
 
 class ExperimentalHMISuite():
     def suite(self):
+        module_logger.debug('addSuite of ExperimentalHMISuite')
         return OpTestHMIHandling.experimental_suite()
 
 class UnrecoverableHMISuite():
     def suite(self):
+        module_logger.debug('addSuite of UnrecoverableHMISuite')
         return OpTestHMIHandling.unrecoverable_suite()
 
 class OpTestEnergyScaleSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of OpTestEnergyScaleSuite')
         self.s.addTest(OpTestEnergyScale.standby_suite())
         self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
@@ -320,15 +337,18 @@ class OpTestEnergyScaleSuite():
 
 class BrokenReprovisionSuite():
     def suite(self):
+        module_logger.debug('addSuite of BrokenReprovisionSuite')
         return OpTestIPMIReprovision.broken_suite()
 
 class ExperimentalReprovisionSuite():
     def suite(self):
+        module_logger.debug('addSuite of ExperimentalReprovisionIPMISuite')
         return OpTestIPMIReprovision.experimental_suite()
 
 class InbandIPMISuite():
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of InbandIPMISuite')
         self.s.addTest(OpTestInbandIPMI.basic_suite())
         self.s.addTest(OpTestInbandIPMI.full_suite())
         self.s.addTest(OpTestInbandUsbInterface.basic_suite())
@@ -344,6 +364,7 @@ class OutofbandIPMISuite():
     '''Out of band IPMI'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of OutofbandIPMISuite')
         self.s.addTest(OpTestOOBIPMI.basic_suite())
         self.s.addTest(OpTestOOBIPMI.standby_suite())
         self.s.addTest(OpTestOOBIPMI.runtime_suite())
@@ -364,6 +385,7 @@ class OCCSuite():
     '''OCC Test Suite'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of OCCSuite')
         self.s.addTest(OpTestOCC.OCC_RESET())
         self.s.addTest(OpTestOCC.basic_suite())
         self.s.addTest(OpTestOCC.full_suite())
@@ -379,16 +401,19 @@ class CAPISuite():
 class SystemIPLSuite():
     '''System IPL's'''
     def suite(self):
+        module_logger.debug('addSuite of SystemIPLSuite')
         return OpTestSystemBootSequence.suite()
 
 class CrashSuite():
     '''Crash Test Suite'''
     def suite(self):
+        module_logger.debug('addSuite of CrashSuite')
         return OpTestKernel.crash_suite()
 
 class FspOpalSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of FspOpalSuite')
         self.s.addTest(OpTestDumps.suite())
         self.s.addTest(OpalErrorLog.BasicTest())
         self.s.addTest(OpalErrorLog.FullTest())
@@ -403,12 +428,16 @@ class FspOpalSuite():
 class KnownBugs():
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of KnownBugs')
+        self.s.addTest(Console.Console32k())
+        self.s.addTest(Console.ControlC())
     def suite(self):
         return self.s
 
 class FlashFirmware():
     def __init__(self):
         self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of FlashFirmware')
         self.s.addTest(testcases.OpTestFlash.FSPFWImageFLASH())
         self.s.addTest(testcases.OpTestFlash.BmcImageFlash())
         self.s.addTest(testcases.OpTestFlash.PNORFLASH())
@@ -441,6 +470,16 @@ class InstallHost():
     def suite(self):
         return self.s
 
+class OpTestExampleSuite():
+    '''Tests in OpTestExample'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        module_logger.debug('addSuite of OpTestExampleSuite')
+        self.s.addTest(OpTestExample.skiroot_full_suite())
+        self.s.addTest(OpTestExample.host_full_suite())
+
+    def suite(self):
+        return self.s
 
 suites = {
     'system-access' : SystemAccessSuite(),
@@ -473,11 +512,13 @@ suites = {
     'system-ipl' : SystemIPLSuite(),
     'fsp-opal-suite' :  FspOpalSuite(),
     'full' : FullSuite(),
+    'example' : OpTestExampleSuite(),
 }
 
 # Loop through the addons and load in suites defined there
 for opt in OpTestConfiguration.optAddons:
     suites = OpTestConfiguration.optAddons[opt].addSuites(suites)
+    module_logger.debug('addSuites of {}'.format(opt))
 
 if OpTestConfiguration.conf.args.list_suites:
     print '{0:34}{1}'.format('Test Suite', 'Description')
@@ -493,45 +534,73 @@ t = unittest.TestSuite()
 
 if OpTestConfiguration.conf.args.run_suite:
     for suite in OpTestConfiguration.conf.args.run_suite:
+        module_logger.debug('conf args run_suite addSuites of {}'.format(suite))
         t.addTest(suites[suite].suite())
 
 if OpTestConfiguration.conf.args.run:
+    module_logger.debug('conf args run addTest of {}'.format(OpTestConfiguration.conf.args.run))
     t.addTest(unittest.TestLoader().loadTestsFromNames(OpTestConfiguration.conf.args.run))
 
 if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
     if not OpTestConfiguration.conf.args.only_flash:
-        print "RUNNING DEFAULT SUITE"
+        module_logger.info('RUNNING DEFAULT SUITE')
         t.addTest(suites['default'].suite())
 
 xml_msg = ""
 def run_tests(t):
+    module_logger.debug('Start of run_tests')
     try:
-        print("Output to be written to: %s/*%s*" % (OpTestConfiguration.conf.output, OpTestConfiguration.conf.outsuffix))
         import xmlrunner  # requires unittest-xml-reporting package
-        res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
-        print("Output written to: %s/*%s*" % (OpTestConfiguration.conf.output, OpTestConfiguration.conf.outsuffix))
-        return res
+        with open(os.path.join(OpTestLogger.optest_logger_glob.logdir, OpTestLogger.optest_logger_glob.logger_file), 'a') as main_logfile:
+            module_logger.debug('Calling XMLTestRunner')
+            res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, stream=main_logfile, verbosity=2).run(t)
+            module_logger.debug('Back from XMLTestRunner')
+            return res
     except ImportError, err:
-        sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
-        res = unittest.TextTestRunner(verbosity=2).run(t)
-        return res
+        module_logger.warning('xmlrunner module not available, falling back to using unittest...')
+        with open(os.path.join(OpTestLogger.optest_logger_glob.logdir, OpTestLogger.optest_logger_glob.logger_file), 'a') as main_logfile:
+            module_logger.debug('Calling TextTestRunner')
+            res = unittest.TextTestRunner(main_logfile, verbosity=2).run(t)
+            module_logger.debug('Back from TextTestRunner')
+            return res
 
+# OP-TEST marker used to clip summary of results from main.log
+module_logger.info('OP-TEST')
 res = None
-if not OpTestConfiguration.conf.args.noflash:
-    res = run_tests(FlashFirmware().suite())
 
-print repr(res)
+if not OpTestConfiguration.conf.args.noflash:
+    module_logger.debug('Calling run_tests FlashFirmware in noflash')
+    res = run_tests(FlashFirmware().suite())
+    module_logger.debug('Back from run_tests FlashFirmware in noflash')
+
+module_logger.debug('Print res {}'.format(repr(res)))
 
 if OpTestConfiguration.conf.args.only_flash:
     if res != None:
+        module_logger.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
+        module_logger.info('OP-TEST')
         exit(len(res.errors + res.failures))
     else:
+        module_logger.info('OP-TEST')
+        module_logger.debug('Exit normal')
         exit(0)
 
 if not res or (res and not (res.errors or res.failures)):
     res = run_tests(t)
 else:
-    print "Skipping main tests as flashing failed"
+    module_logger.error('Skipping main tests as flashing failed')
+    module_logger.info('OP-TEST')
     exit(-1)
+
+module_logger.info('Exit with Result errors="{}" and failures="{}"'.format(len(res.errors), len(res.failures)))
+module_logger.info('See Main Log File for Results')
+module_logger.info('OP-TEST')
+
+with open(os.path.join(OpTestLogger.optest_logger_glob.logdir, OpTestLogger.optest_logger_glob.logger_file), 'r') as f:
+  summary_output = f.read()
+
+summary_text = re.search(r'OP-TEST.*?OP-TEST', summary_output, re.DOTALL)
+if summary_text:
+  print '{}'.format(re.sub('OP-TEST', '', summary_text.group()))
 
 exit(len(res.errors + res.failures))
