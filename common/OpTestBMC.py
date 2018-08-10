@@ -44,10 +44,14 @@ from OpTestError import OpTestError
 from OpTestWeb import OpTestWeb
 from Exceptions import CommandFailed, SSHSessionDisconnected
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestBMC():
     def __init__(self, ip=None, username=None, password=None,
-            logfile=sys.stdout, ipmi=None, rest=None,
-            web=None, check_ssh_keys=False, known_hosts_file=None):
+                 logfile=sys.stdout, ipmi=None, rest=None,
+                 web=None, check_ssh_keys=False, known_hosts_file=None):
         self.cv_bmcIP = ip
         self.cv_bmcUser = username
         self.cv_bmcPasswd = password
@@ -98,7 +102,7 @@ class OpTestBMC():
         except CommandFailed as e:
             pass
         self.ssh.close()
-        print 'Sent reboot command now waiting for reboot to complete...'
+        log.info('Sent reboot command now waiting for reboot to complete...')
         # Wait for BMC to go down.
         self.util.ping_fail_check(self.cv_bmcIP)
         # Wait for BMC to ping back.
@@ -109,16 +113,16 @@ class OpTestBMC():
                 subprocess.check_call(["ping", self.cv_bmcIP, "-c1"])
                 break
             except subprocess.CalledProcessError as e:
-                print "Ping return code: ", e.returncode, "retrying..."
+                log.debug("Ping return code: ", e.returncode, "retrying...")
                 retries += 1
                 time.sleep(10)
 
             if retries > 10:
                 l_msg = "Error. BMC is not responding to pings"
-                print l_msg
+                log.error(l_msg)
                 raise OpTestError(l_msg)
 
-        print 'BMC reboot complete.'
+            log.info('BMC reboot complete.')
 
         return BMC_CONST.FW_SUCCESS
 
@@ -140,9 +144,9 @@ class OpTestBMC():
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
 
-        print rsync_cmd
+        log.debug(rsync_cmd)
         rsync = pexpect.spawn(rsync_cmd)
-        rsync.logfile = self.logfile
+        rsync.logfile = OpTestLogger.FileLikeLogger(log)
         rsync.expect('assword: ')
         rsync.sendline(self.cv_bmcPasswd)
         rsync.expect('total size is', timeout=1800)
@@ -224,7 +228,7 @@ class OpTestBMC():
             l_res = self.ssh.run_command("which %s" % i_dir)
         except CommandFailed:
             l_msg = "# pflash tool is not available on BMC"
-            print l_msg
+            log.error(l_msg)
             return False
         return True
 
@@ -257,9 +261,9 @@ class OpTestSMC(OpTestBMC):
         rsync_cmd = 'rsync -av %s rsync://%s/files/' % (img_path, self.cv_bmcIP)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
-        print rsync_cmd
+        log.debug(rsync_cmd)
         rsync = pexpect.spawn(rsync_cmd)
-        rsync.logfile = sys.stdout
+        rsync.logfile = OpTestLogger.FileLikeLogger(log)
         rsync.expect(pexpect.EOF, timeout=300)
         rsync.close()
         return rsync.exitstatus
@@ -292,6 +296,6 @@ class OpTestSMC(OpTestBMC):
             l_res = self.ssh.run_command(cmd)
         except CommandFailed:
             l_msg = "# pflash tool is not available on BMC"
-            print l_msg
+            log.error(l_msg)
             return False
         return True
