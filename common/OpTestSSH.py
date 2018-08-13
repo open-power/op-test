@@ -23,6 +23,10 @@ import os
 import time
 import pexpect
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 from Exceptions import CommandFailed, SSHSessionDisconnected
 from OpTestUtil import OpTestUtil
 import OpTestSystem
@@ -140,7 +144,7 @@ class OpTestSSH():
         elif self.known_hosts_file:
             cmd = (cmd + " -o UserKnownHostsFile=" + self.known_hosts_file)
 
-        print cmd
+        log.debug(cmd)
 
         try:
           consoleChild = OPexpect.spawn(cmd,
@@ -158,7 +162,7 @@ class OpTestSSH():
           self.console.delaybeforesend = self.delaybeforesend
         # Users expecting "Host IPMI" will reference console.sol so make it available
         self.sol = self.console
-        consoleChild.logfile_read = self.logfile
+        consoleChild.logfile_read = OpTestLogger.FileLikeLogger(log)
         time.sleep(2) # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
         self.check_set_term()
         return consoleChild
@@ -181,7 +185,7 @@ class OpTestSSH():
 
         count = 0
         while (not self.console.isalive()):
-            print '# Reconnecting'
+            log.info('# Reconnecting')
             if (count > 0):
                 time.sleep(1)
             self.connect()

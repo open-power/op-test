@@ -34,6 +34,10 @@ from OpTestConstants import OpTestConstants as BMC_CONST
 from common import OPexpect
 import OpTestSystem
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class FailedCurlInvocation(Exception):
     def __init__(self, command, output):
         self.command = command
@@ -149,7 +153,7 @@ class CurlTool():
             cmd = cmdprefix + self.binary + self.arguments() + cmd
         else:
             cmd = self.binary + self.arguments()
-        print cmd
+        log.debug(cmd)
         if background:
             try:
                 child = subprocess.Popen(cmd, shell=True)
@@ -171,7 +175,7 @@ class CurlTool():
                 raise OpTestError(l_msg)
             output = obj.communicate()[0]
             if self.logresult:
-                print output
+                log.debug(output)
             if '"description": "Login required"' in output:
                 if self.login_retry > 5:
                     raise LoginFailure("Rest Login retry exceeded")
@@ -347,7 +351,7 @@ class HostManagement():
     https://bmc/xyz/openbmc_project/logging/enumerate
     '''
     def list_sel(self):
-        print "List of SEL entries"
+        log.debug('List of SEL entries')
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/logging/enumerate"
         self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
@@ -366,7 +370,7 @@ class HostManagement():
         return sels
 
     def clear_sel_by_id(self):
-        print "Clearing SEL entries by id"
+        log.debug('Clearing SEL entries by id')
         list = self.get_sel_ids()
         for id in list:
             data = '\'{"data" : []}\''
@@ -375,7 +379,7 @@ class HostManagement():
             self.curl.run()
 
     def verify_clear_sel(self):
-        print "Check if SEL has really zero entries or not"
+        log.debug('Check if SEL has really zero entries or not')
         list = []
         list = self.get_sel_ids()
         if not list:
@@ -472,11 +476,11 @@ class HostManagement():
         while True:
             output = self.curl.run()
             result = json.loads(output)
-            print repr(result)
+            log.debug(result)
             if result.get('data') is None or result.get('data').get('CurrentHostState') is None:
                 return None
             state = result['data']['CurrentHostState']
-            print "System state: %s (target %s)" % (state, target_state)
+            log.debug("System state: %s (target %s)" % (state, target_state))
             if state == target_state:
                 break
             if time.time() > timeout:
@@ -510,7 +514,7 @@ class HostManagement():
             result = json.loads(output)
             print repr(result)
             state = result['data']['value']
-            print "System state: %s" % state
+            log.debug("System state: %s" % state)
             if state == 'FW Progress, Starting OS':
                 print "System FW booted to runtime: IPL finished"
                 break
@@ -531,7 +535,7 @@ class HostManagement():
             result = json.loads(output)
             print repr(result)
             state = result['data']['value']
-            print "System state: %s" % state
+            log.debug("System state: %s" % state)
             if state == 'Off':
                 print "System reached standby state"
                 break
@@ -576,11 +580,11 @@ class HostManagement():
             except FailedCurlInvocation as cf:
                 output = cf.output
             if '"data": "xyz.openbmc_project.State.BMC.BMCState.Ready"' in output:
-                print "BMC is UP & Ready"
+                log.debug("BMC is UP & Ready")
                 break
             if time.time() > timeout:
                 l_msg = "BMC Ready timeout"
-                print l_msg
+                log.warning(l_msg)
                 raise OpTestError(l_msg)
             time.sleep(5)
         return True

@@ -48,6 +48,10 @@ from OpTestSSH import ConsoleState as SSHConnectionState
 from Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition, ConsoleSettings, UnexpectedCase, StoppingSystem
 from OpTestSSH import OpTestSSH
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpSystemState():
     '''
     This class is used as an enum as to what state op-test *thinks* the host is in.
@@ -193,7 +197,7 @@ class OpTestSystem(object):
         for key in default_vals:
           if key not in kwargs.keys():
             kwargs[key] = default_vals[key]
-        print "\n\n *** OpTestSystem found the login prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value'])
+        log.warning("\n\n *** OpTestSystem found the login prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value']))
         # raise the WaitForIt exception to be bubbled back to recycle early rather than having to wait the full loop_max
         raise WaitForIt(expect_dict=self.petitboot_expect_table, reconnect_count=-1)
 
@@ -202,7 +206,7 @@ class OpTestSystem(object):
         for key in default_vals:
           if key not in kwargs.keys():
             kwargs[key] = default_vals[key]
-        print "\n\n *** OpTestSystem found the petitboot prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value'])
+        log.warning("\n\n *** OpTestSystem found the petitboot prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value']))
         # raise the WaitForIt exception to be bubbled back to recycle early rather than having to wait the full loop_max
         raise WaitForIt(expect_dict=self.login_expect_table, reconnect_count=-1)
 
@@ -289,11 +293,11 @@ class OpTestSystem(object):
         if isinstance(self.console, OpTestQemu.QemuConsole) and (state == OpSystemState.OS):
           raise unittest.SkipTest("OpTestSystem running QEMU so skipping OpSystemState.OS test")
         if (self.state == OpSystemState.UNKNOWN):
-          print "OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state)
+          log.debug("OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state))
           self.state = self.run_DETECT(state)
-          print "OpTestSystem CURRENT DETECTED STATE: %s" % (self.state)
+          log.debug("OpTestSystem CURRENT DETECTED STATE: %s" % (self.state))
 
-        print "OpTestSystem START STATE: %s (target %s)" % (self.state, state)
+        log.debug("OpTestSystem START STATE: %s (target %s)" % (self.state, state))
         never_unknown = False
         while 1:
             if self.stop == 1:
@@ -306,7 +310,7 @@ class OpTestSystem(object):
             if self.previous_state != self.state:
               self.util.clear_state(self)
               self.previous_state = self.state
-            print "OpTestSystem TRANSITIONED TO: %s" % (self.state)
+            log.debug("OpTestSystem TRANSITIONED TO: %s" % (self.state))
             if self.state == state:
                 break;
             if never_unknown and self.state == OpSystemState.UNKNOWN:
@@ -456,7 +460,7 @@ class OpTestSystem(object):
                   try:
                     sys_console = self.console.connect()
                   except Exception as e:
-                    print e
+                    log.error(e)
                   if kwargs['refresh']:
                     sys_console.sendcontrol('l')
                   if kwargs['buffer_kicker']:
@@ -473,8 +477,7 @@ class OpTestSystem(object):
               return working_r, reconnect_count
             else:
               x += 1
-              # leaving status output here for now, may move to debug log in future
-              print ("\n *** WaitForIt CURRENT STATE \"{:02}\" TARGET STATE \"{:02}\"\n"
+              log.debug("\n *** WaitForIt CURRENT STATE \"{:02}\" TARGET STATE \"{:02}\"\n"
                       " *** WaitForIt working on transition\n"
                       " *** Current loop iteration \"{:02}\"             - Reconnect attempts \"{:02}\" - loop_max \"{:02}\"\n"
                       " *** WaitForIt timeout interval \"{:02}\" seconds - Stale buffer check every \"{:02}\" times\n"
@@ -601,17 +604,17 @@ class OpTestSystem(object):
                 buffer_kicker=self.petitboot_kicker, threshold=self.threshold_petitboot, refresh=self.petitboot_refresh,
                 loop_max=self.ipl_watermark, timeout=self.ipl_timeout)
         except HostbootShutdown as e:
-            print e
+            log.error(e)
             self.sys_sel_check()
             raise e
         except WaitForIt as e:
             if self.ipl_watermark < self.kill_cord:
               self.ipl_watermark += 1
-              print ("OpTestSystem UNABLE TO REACH PETITBOOT or we missed it - \"{}\", increasing ipl_watermark for loop_max to {},"
+              log.warning("OpTestSystem UNABLE TO REACH PETITBOOT or we missed it - \"{}\", increasing ipl_watermark for loop_max to {},"
                       " will re-IPL for another try".format(e, self.ipl_watermark))
               return OpSystemState.UNKNOWN_BAD
             else:
-              print "OpTestSystem has reached the limit on re-IPL'ing to try to recover, we will be stopping"
+              log.error("OpTestSystem has reached the limit on re-IPL'ing to try to recover, we will be stopping")
               return OpSystemState.UNKNOWN
         except Exception as e:
             self.stop = 1 # Exceptions like in OPexpect Assert fail
@@ -670,11 +673,11 @@ class OpTestSystem(object):
         except WaitForIt as e:
           if self.booting_watermark < self.kill_cord:
             self.booting_watermark += 1
-            print ("OpTestSystem UNABLE TO REACH LOGIN or we missed it - \"{}\", increasing booting_watermark for loop_max to {},"
+            log.warning("OpTestSystem UNABLE TO REACH LOGIN or we missed it - \"{}\", increasing booting_watermark for loop_max to {},"
                     " will re-IPL for another try".format(e, self.booting_watermark))
             return OpSystemState.UNKNOWN_BAD
           else:
-            print "OpTestSystem has reached the limit on re-IPL'ing to try to recover, we will be stopping"
+            log.error("OpTestSystem has reached the limit on re-IPL'ing to try to recover, we will be stopping")
             return OpSystemState.UNKNOWN
         except Exception as e:
             my_msg = ("OpTestSystem in run_IPLing and Exception=\"{}\" caused the system to"
@@ -706,7 +709,7 @@ class OpTestSystem(object):
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
-        print msg
+        log.info(msg)
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         self.util.clear_state(self)
         return OpSystemState.OFF
@@ -725,7 +728,7 @@ class OpTestSystem(object):
         self.cv_HOST.host_check_command("ipmitool")
 
         l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "ipmitool")
-        print "Installed package: %s" % l_pkg
+        log.debug("Installed package: %s" % l_pkg)
 
         # loading below ipmi modules based on config option
         # ipmi_devintf, ipmi_powernv and ipmi_masghandler
@@ -736,7 +739,7 @@ class OpTestSystem(object):
         self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
                                                       BMC_CONST.IPMI_MSG_HANDLER)
         self.ipmiDriversLoaded = True
-        print "IPMI drivers loaded"
+        log.debug("IPMI drivers loaded")
         return
 
     ############################################################################
@@ -753,7 +756,7 @@ class OpTestSystem(object):
             rc =  self.cv_IPMI.ipmi_sdr_clear()
         except OpTestError as e:
             time.sleep(BMC_CONST.LONG_WAIT_IPL)
-            print ("Retry clearing SDR")
+            log.debug("Retry clearing SDR")
             try:
                 rc = self.cv_IPMI.ipmi_sdr_clear()
             except OpTestError as e:
@@ -920,7 +923,7 @@ class OpTestSystem(object):
         # Check to see if host credentials are present
         if(self.cv_HOST.ip == None):
             l_msg = "Partition credentials not provided"
-            print l_msg
+            log.error(l_msg)
             return BMC_CONST.FW_FAILED
 
         # Check if partition is active
@@ -928,7 +931,7 @@ class OpTestSystem(object):
             self.util.PingFunc(self.cv_HOST.ip, totalSleepTime=2)
             self.cv_HOST.host_get_OS_Level()
         except OpTestError as e:
-            print("Trying to recover partition after error: %s" % (e) )
+            log.error("Trying to recover partition after error: %s" % (e) )
             try:
                 self.cv_IPMI.ipmi_power_off()
                 self.sys_cold_reset_bmc()
@@ -949,18 +952,18 @@ class OpTestSystem(object):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def sys_hard_reboot(self):
-        print "Performing a IPMI Power OFF Operation"
+        log.debug("Performing a IPMI Power OFF Operation")
         self.cv_IPMI.ipmi_power_off()
         rc = int(self.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
         if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
+            log.info("System is in standby/Soft-off state")
         elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
+            log.info("Host Status sensor is not available")
+            log.info("Skipping stand-by state check")
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
-        print "Performing a IPMI Power ON Operation"
+        log.info("Performing a IPMI Power ON Operation")
         self.cv_IPMI.ipmi_power_on()
         self.sys_check_host_status()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
@@ -975,19 +978,19 @@ class OpTestSystem(object):
     def sys_check_host_status(self):
         rc = int(self.sys_ipl_wait_for_working_state())
         if rc == BMC_CONST.FW_SUCCESS:
-            print "System booted to working state"
+            log.info("System booted to working state")
         elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skip wait for IPL runtime check"
+            log.info("Host Status sensor is not available")
+            log.info("Skip wait for IPL runtime check")
         else:
             l_msg = "System failed to boot"
             raise OpTestError(l_msg)
         rc = int(self.sys_wait_for_os_boot_complete())
         if rc == BMC_CONST.FW_SUCCESS:
-            print "System booted to Host OS"
+            log.info("System booted to Host OS")
         elif rc == BMC_CONST.FW_PARAMETER:
-            print "OS Boot sensor is not available"
-            print "Skip wait for wait for OS boot complete check"
+            log.info("OS Boot sensor is not available")
+            log.info("Skip wait for wait for OS boot complete check")
         else:
             l_msg = "System failed to boot Host OS"
             raise OpTestError(l_msg)
@@ -1003,7 +1006,7 @@ class OpTestSystem(object):
         try:
             self.cv_HOST.host_run_command(BMC_CONST.HOST_IPMI_REPROVISION_REQUEST)
         except OpTestError as e:
-            print "Failed to issue ipmi pnor reprovision request"
+            log.error("Failed to issue ipmi pnor reprovision request")
             return BMC_CONST.FW_FAILED
         return BMC_CONST.FW_SUCCESS
 
@@ -1018,11 +1021,11 @@ class OpTestSystem(object):
         while True:
             l_res = self.cv_HOST.host_run_command(BMC_CONST.HOST_IPMI_REPROVISION_PROGRESS)
             if "00" in l_res:
-                print "IPMI: Reprovision completed"
+                log.info("IPMI: Reprovision completed")
                 break
             if time.time() > timeout:
                 l_msg = "Reprovision timeout, progress not reaching to 00"
-                print l_msg
+                log.error(l_msg)
                 raise OpTestError(l_msg)
             time.sleep(10)
         return BMC_CONST.FW_SUCCESS
@@ -1045,7 +1048,7 @@ class OpTestSystem(object):
           if pp == 1:
             break;
         if pp != 1:
-            print "OpTestSystem detected something, tried to recover, but still we have a problem, retry"
+            log.warning("OpTestSystem detected something, tried to recover, but still we have a problem, retry")
             raise ConsoleSettings(before=sys_console.before, after=sys_console.after,
                     msg="System at Petitboot Menu unable to exit to shell after retry")
 
@@ -1101,7 +1104,7 @@ class OpTestSystem(object):
                 rawc.send("nc -l -p %u -v\n" % port)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             time.sleep(0.5)
-            print "# Connecting to %s:%u" % (self.host().hostname(), port)
+            log.debug("# Connecting to %s:%u" % (self.host().hostname(), port))
             sock.connect((self.host().hostname(), port))
             sock.send('Hello World!')
             sock.close()
@@ -1109,7 +1112,7 @@ class OpTestSystem(object):
             rawc.expect([':', ' '])
             my_ip = rawc.before
             rawc.expect('\n')
-            print repr(my_ip)
+            log.debug(repr(my_ip))
             return my_ip
         except Exception as e:  # Looks like older nc does not support -v, lets fallback
             rawc.sendcontrol('c')  # to avoid incase nc command hangs
@@ -1125,7 +1128,7 @@ class OpTestSystem(object):
                 if len(ip_lst) == 1:
                     my_ip = ip_lst[0]
                 else:
-                    print "hostname -i does not provide valid IP, correct and proceed with installation"
+                    log.error("hostname -i does not provide valid IP, correct and proceed with installation")
         return my_ip
 
     def sys_enable_tpm(self):

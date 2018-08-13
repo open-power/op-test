@@ -44,6 +44,10 @@ from OpTestError import OpTestError
 from Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
 #from OpTestSSH import ConsoleState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 sudo_responses = ["not in the sudoers",
                   "incorrect password"]
 
@@ -72,18 +76,18 @@ class OpTestUtil():
             stdout_value, stderr_value = p1.communicate()
 
             if(stdout_value.__contains__("2 received")):
-                print (i_ip + " is pinging")
+                log.debug(i_ip + " is pinging")
                 return BMC_CONST.PING_SUCCESS
 
             else:
-                print "%s is not pinging (Waited %d of %d, %d tries remaining)" % (i_ip, sleepTime, totalSleepTime, i_try)
+                log.debug("%s is not pinging (Waited %d of %d, %d tries remaining)" % (i_ip, sleepTime, totalSleepTime, i_try))
 		time.sleep(1)
 		sleepTime += 1
 		if (sleepTime == totalSleepTime):
 			i_try -= 1
 			sleepTime = 0
 
-        print stderr_value
+        log.error(stderr_value)
         raise OpTestError(stderr_value)
 
 
@@ -96,7 +100,7 @@ class OpTestUtil():
             "-o","StrictHostKeyChecking=no",
             hostfile,
             "{}@{}:{}".format(destid,destName,destPath))
-        print(' '.join(arglist))
+        log.debug(' '.join(arglist))
         subprocess.check_call(arglist)
 
     def copyFilesFromDest(self, destid, destName, destPath, passwd, sourcepath):
@@ -109,7 +113,7 @@ class OpTestUtil():
             "-o","StrictHostKeyChecking=no",
             "{}@{}:{}".format(destid,destName,destPath),
             sourcepath)
-        print(' '.join(arglist))
+        log.debug(' '.join(arglist))
         subprocess.check_output(arglist)
 
     # It waits for a ping to fail, Ex: After a BMC/FSP reboot
@@ -119,12 +123,12 @@ class OpTestUtil():
         while count < 500:
             output = commands.getstatusoutput(cmd)
             if output[1] != '0':
-                print "IP %s Comes down" % i_ip
+                log.debug("IP %s Comes down" % i_ip)
                 break
             count = count + 1
             time.sleep(2)
         else:
-            print "IP %s keeps on pinging up" % i_ip
+            log.debug("IP %s keeps on pinging up" % i_ip)
             return False
         return True
 
@@ -144,24 +148,24 @@ class OpTestUtil():
     def try_recover(self, term_obj, counter=3):
         # callers beware that the connect can affect previous states and objects
         for i in range(counter):
-          print "OpTestSystem detected something, working on recovery"
+          log.warning("OpTestSystem detected something, working on recovery")
           my_term = term_obj.connect()
           my_term.sendcontrol('c')
           time.sleep(1)
           try_rc = my_term.expect([".*#", "Petitboot", "login: ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
           if try_rc in [0,1,2]:
-            print "OpTestSystem recovered from temporary issue, continuing"
+            log.warning("OpTestSystem recovered from temporary issue, continuing")
             return
           else:
-            print "OpTestSystem Unable to recover from temporary issue, calling close and continuing"
+            log.warning("OpTestSystem Unable to recover from temporary issue, calling close and continuing")
             term_obj.close()
-        print "OpTestSystem Unable to recover to known state, raised Exception RecoverFailed but continuing"
+        log.warning("OpTestSystem Unable to recover to known state, raised Exception RecoverFailed but continuing")
         raise RecoverFailed(before=my_term.before, after=my_term.after, msg='Unable to recover to known state, retry')
 
     def try_sendcontrol(self, term_obj, command, counter=3):
         my_term = term_obj.get_console()
         res = my_term.before
-        print "OpTestSystem detected something, working on recovery"
+        log.warning("OpTestSystem detected something, working on recovery")
         my_term.sendcontrol('c')
         time.sleep(1)
         try_list = []
@@ -170,13 +174,13 @@ class OpTestUtil():
           term_obj.close()
           self.try_recover(term_obj, counter)
           # if we get back here we still fail but have a working prompt to give back
-          print ("OpTestSystem recovered from temporary issue, but the command output is unavailable,"
+          log.warning("OpTestSystem recovered from temporary issue, but the command output is unavailable,"
                   " raised Exception CommandFailed but continuing")
           raise CommandFailed(command, "run_command TIMEOUT in try_sendcontrol, we recovered the prompt,"
                   " but the command output is unavailable", -1)
         else:
           # may have lost prompt
-          print "OpTestSystem recovered from a temporary issue, continuing"
+          log.warning('OpTestSystem recovered from a temporary issue, continuing')
           try_list = res.splitlines() # give back what we do have for triage
           echo_rc = 1
         return try_list, echo_rc
@@ -200,7 +204,7 @@ class OpTestUtil():
         time.sleep(0.2) # pause for first time setup, buffers you know, more sensitive in petitboot shell, pexpect or console buffer not sure
         rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          print "Shell prompt changed"
+          log.debug("Shell prompt changed")
           return 1 # caller needs to save state
         else: # we don't seem to have anything so try to get something
           term_obj.close()
@@ -228,11 +232,11 @@ class OpTestUtil():
             time.sleep(0.2) # pause for first time setup, buffers you know, more sensitive in petitboot shell, pexpect or console buffer not sure
             rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
             if rc == 0:
-              print "Shell prompt changed"
+              log.debug("Shell prompt changed")
               return 1 # caller needs to save state
             else:
               if term_obj.setup_term_quiet == 0:
-                print ("OpTestSystem Change of shell prompt not completed after last final retry,"
+                log.warning("OpTestSystem Change of shell prompt not completed after last final retry,"
                         " probably a connection issue, raised Exception ConsoleSettings but continuing")
                 raise ConsoleSettings(before=my_term.before, after=my_term.after,
                         msg="Change of shell prompt not completed after last final retry, probably a connection issue, retry")
@@ -241,7 +245,7 @@ class OpTestUtil():
                 return -1
           except RecoverFailed as e:
             if term_obj.setup_term_quiet == 0:
-              print ("OpTestSystem Change of shell prompt not completed after last retry,"
+              log.warning("OpTestSystem Change of shell prompt not completed after last retry,"
                       " probably a connection issue, raised Exception ConsoleSettings but continuing")
               raise ConsoleSettings(before=my_term.before, after=my_term.after,
                       msg="Change of shell prompt not completed after last retry, probably a connection issue, retry")
@@ -267,7 +271,7 @@ class OpTestUtil():
             rc = my_term.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
             if rc not in [1,2,3]:
               if term_obj.setup_term_quiet == 0:
-                print ("OpTestSystem Problem with the login and/or password prompt,"
+                log.warning("OpTestSystem Problem with the login and/or password prompt,"
                         " raised Exception ConsoleSettings but continuing")
                 raise ConsoleSettings(before=my_term.before, after=my_term.after,
                         msg="Problem with the login and/or password prompt, probably a connection or credential issue, retry")
@@ -276,7 +280,7 @@ class OpTestUtil():
                 return -1, -1
           else:
             if term_obj.setup_term_quiet == 0:
-              print "OpTestSystem Problem with the login and/or password prompt, raised Exception ConsoleSettings but continuing"
+              log.warning("OpTestSystem Problem with the login and/or password prompt, raised Exception ConsoleSettings but continuing")
               raise ConsoleSettings(before=my_term.before, after=my_term.after,
                       msg="Problem with the login and/or password prompt, probably a connection or credential issue, retry")
             else:
@@ -297,7 +301,7 @@ class OpTestUtil():
               rc = my_term.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
               if rc not in [1,2,3]:
                 if term_obj.setup_term_quiet == 0:
-                  print ("OpTestSystem Problem with the login and/or password prompt,"
+                  log.warning("OpTestSystem Problem with the login and/or password prompt,"
                           " raised Exception ConsoleSettings but continuing")
                   raise ConsoleSettings(before=my_term.before, after=my_term.after,
                           msg="Problem with the login and/or password prompt, probably a connection or credential issue, retry")
@@ -306,7 +310,7 @@ class OpTestUtil():
                   return -1, -1
             else:
               if term_obj.setup_term_quiet == 0:
-                print ("OpTestSystem Problem with the login and/or password prompt after a secondary connection issue,"
+                log.warning("OpTestSystem Problem with the login and/or password prompt after a secondary connection issue,"
                         " raised Exception ConsoleSettings but continuing")
                 raise ConsoleSettings(before=my_term.before, after=my_term.after,
                         msg="Problem with the login and/or password prompt after a secondary connection or credential issue, retry")
@@ -317,7 +321,7 @@ class OpTestUtil():
             my_LOGIN_set = 1
           else: # timeout eof
             if term_obj.setup_term_quiet == 0:
-              print ("OpTestSystem Problem with the login and/or password prompt after a previous connection issue,"
+              log.warning("OpTestSystem Problem with the login and/or password prompt after a previous connection issue,"
                     " raised Exception ConsoleSettings but continuing")
               raise ConsoleSettings(before=my_term.before, after=my_term.after,
                       msg="Problem with the login and/or password prompt last try, probably a connection or credential issue, retry")
@@ -348,13 +352,13 @@ class OpTestUtil():
               echo_rc = -1
             if echo_rc == 0:
               if whoami in "root":
-                print "OpTestSystem now running as root"
+                log.debug("OpTestSystem now running as root")
               else:
                 raise ConsoleSettings(before=my_term.before, after=my_term.after,
                         msg="Unable to confirm root access setting up terminal, check that you provided"
                         " root credentials or a properly enabled sudo user, retry")
             else:
-                print "OpTestSystem should be running as root, unable to verify"
+                log.debug("OpTestSystem should be running as root, unable to verify")
 
     def get_sudo(self, host, term_obj, my_term, prompt):
         # prompt comes in as the string desired, needs to be pre-built
@@ -384,7 +388,7 @@ class OpTestUtil():
           return my_PS1_set, my_SUDO_set # caller needs to save state
         else:
           if term_obj.setup_term_quiet == 0:
-            print ("OpTestSystem Unable to setup root access, probably a connection issue,"
+            log.warning("OpTestSystem Unable to setup root access, probably a connection issue,"
                     " raised Exception ConsoleSettings but continuing")
             raise ConsoleSettings(before=my_term.before, after=my_term.after,
                     msg='Unable to setup root access, probably a connection issue, retry')
@@ -445,7 +449,7 @@ class OpTestUtil():
                     msg="Getting login and sudo not successful, probably connection issue, retry")
           else:
             # this case happens when detect_target sets the quiet flag and we are timing out
-            print "OpTestSystem detected something, checking if your system is powered off, will retry"
+            log.info("OpTestSystem detected something, checking if your system is powered off, will retry")
 
     def set_env(self, term_obj, my_term):
         set_env_list = []
@@ -543,7 +547,7 @@ class OpTestUtil():
               raise cf
             else:
               counter += 1
-              print ("\n \nOpTestSystem detected a command issue, we will retry the command,"
+              log.info("\n \nOpTestSystem detected a command issue, we will retry the command,"
                     " this will be retry \"{:02}\" of a total of \"{:02}\"\n \n".format(counter, retry))
 
     def try_command(self, term_obj, command, timeout=60):
