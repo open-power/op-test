@@ -149,7 +149,6 @@ class QemuConsole():
         solChild.setwinsize(1000,1000)
         self.sol = solChild
         self.console = solChild
-        solChild.logfile_read = self.logfile
         if self.delaybeforesend:
           self.sol.delaybeforesend = self.delaybeforesend
 
