@@ -25,6 +25,10 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 POWERCAP_CURRENT = "/sys/firmware/opal/powercap/system-powercap/powercap-current"
 POWERCAP_MAX = "/sys/firmware/opal/powercap/system-powercap/powercap-max"
 POWERCAP_MIN = "/sys/firmware/opal/powercap/system-powercap/powercap-min"
@@ -88,7 +92,7 @@ class OpalSysfsTests():
         min_powercap = self.c.run_command("cat %s" % str(POWERCAP_MIN))[-1]
 
         self.disable_sensor_polling()
-        print cur_powercap, max_powercap, min_powercap
+        log.debug("Powercap cur:{} max:{} min:{}".format(cur_powercap, max_powercap, min_powercap))
         for i in range(3):
             value = random.randint(int(min_powercap), int(max_powercap))
             self.set_power_cap(value)
@@ -113,7 +117,7 @@ class OpalSysfsTests():
     def test_opal_sensor_groups(self):
         self.setup_test()
         self.get_proc_gen()
-	print repr(self.cpu)
+	log.debug(repr(self.cpu))
         if self.cpu not in ["POWER9"]:
             return
         list = self.c.run_command("ls --color=never -1 %s" % str(OPAL_SENSOR_GROUPS))
