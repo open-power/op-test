@@ -248,6 +248,8 @@ class OpTestConfiguration():
         if (not os.path.exists(self.logdir)):
             os.makedirs(self.logdir)
 
+        print "Logs in: {}".format(self.logdir)
+
         OpTestLogger.optest_logger_glob.logdir = self.logdir
 
         # Grab the suffix, if not given use current time
