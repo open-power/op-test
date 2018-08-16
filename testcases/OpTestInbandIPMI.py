@@ -46,6 +46,10 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestIPMI import IPMIConsoleState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class UnexpectedBootDevice(Exception):
     def __init__(self, expected, actual):
         self.expected = expected
@@ -101,7 +105,7 @@ class BasicInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     #
     def test_sensor_list(self):
         c = self.set_up()
-        print "Inband IPMI[OPEN]: Sensor tests"
+        log.debug("Inband IPMI[OPEN]: Sensor tests")
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SENSOR_LIST])
 
 class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
@@ -120,7 +124,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             self.fail(str(cf))
 
     def test_chassis(self):
-        print "Inband IPMI[OPEN]: Chassis tests"
+        log.debug("Inband IPMI[OPEN]: Chassis tests")
         c = self.set_up()
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_RESTART_CAUSE])
@@ -138,7 +142,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_chassis_identifytests(self):
-        print "Inband IPMI[OPEN]: Chassis Identify tests"
+        log.debug("Inband IPMI[OPEN]: Chassis Identify tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY,
                                self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY_5,
@@ -153,7 +157,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return BMC_CONST.FW_SUCCESS on success or raise OpTestError
     #
     def test_chassis_bootdev(self):
-        print "Inband IPMI[OPEN]: Chassis Bootdevice tests"
+        log.debug("Inband IPMI[OPEN]: Chassis Bootdevice tests")
         c = self.set_up()
         boot_devices = {
             "none" : "No override",
@@ -199,7 +203,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         l_res = c.run_command(self.ipmi_method + "chassis bootparam get 5")
         for l_line in l_res:
             if l_line.__contains__(l_msg):
-                print "Verifying bootdev is successfull for %s" % i_dev
+                log.debug("Verifying bootdev is successfull for %s" % i_dev)
                 return BMC_CONST.FW_SUCCESS
         else:
             raise UnexpectedBootDevice(i_dev, l_res)
@@ -210,7 +214,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sdr_list_by_type(self):
-        print "Inband IPMI[OPEN]: SDR list tests"
+        log.debug("Inband IPMI[OPEN]: SDR list tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_LIST,
                                self.ipmi_method + BMC_CONST.IPMI_SDR_LIST_ALL,
@@ -228,7 +232,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sdr_elist_by_type(self):
-        print "Inband IPMI[OPEN]: SDR elist tests"
+        log.debug("Inband IPMI[OPEN]: SDR elist tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST,
                                self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST_ALL,
@@ -245,7 +249,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sdr_type_list(self):
-        print "Inband IPMI[OPEN]: SDR type list tests"
+        log.debug("Inband IPMI[OPEN]: SDR type list tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_LIST,
                                 self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_TEMPERATURE,
@@ -258,7 +262,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sdr_get_id(self):
-        print "Inband IPMI[OPEN]: SDR get tests"
+        log.debug("Inband IPMI[OPEN]: SDR get tests")
         l_cmd = self.ipmi_method + "sdr get \'Watchdog\'"
         c = self.set_up()
         self.run_ipmi_cmds(c, [l_cmd])
@@ -269,7 +273,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_fru_print(self):
-        print "Inband IPMI[OPEN]: FRU Print Test"
+        log.debug("Inband IPMI[OPEN]: FRU Print Test")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_FRU_PRINT])
 
@@ -281,7 +285,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_fru_read(self):
-        print "Inband IPMI[OPEN]: FRU Read Test"
+        log.debug("Inband IPMI[OPEN]: FRU Read Test")
         c = self.set_up()
         # Not every system has FRU0. But if nothing all the way up to 100, probably a bug.
         fru_id = 0
@@ -314,7 +318,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_mc(self):
-        print "Inband IPMI[OPEN]: MC tests"
+        log.debug("Inband IPMI[OPEN]: MC tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_INFO])
         try:
@@ -353,7 +357,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_info(self):
-        print "Inband IPMI[OPEN]: SEL Info test"
+        log.debug("Inband IPMI[OPEN]: SEL Info test")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_INFO])
 
@@ -364,7 +368,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_list(self):
-        print "Inband IPMI[OPEN]: SEL List test"
+        log.debug("Inband IPMI[OPEN]: SEL List test")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_LIST])
 
@@ -378,7 +382,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_elist(self):
-        print "Inband IPMI[OPEN]: SEL elist test"
+        log.debug("Inband IPMI[OPEN]: SEL elist test")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_ELIST])
 
@@ -390,7 +394,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_sel_time_get(self):
-        print "Inband IPMI[OPEN]: SEL Time get test"
+        log.debug("Inband IPMI[OPEN]: SEL Time get test")
         c = self.set_up()
         l_res = None
         try:
@@ -447,7 +451,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             l_res = c.run_command(self.ipmi_method + "sel list first 3 | awk '{print $1}'")
             for entry in l_res:
                 if entry.__contains__("SEL has no entries"):
-                    print "IPMI: There are no sel entries to fetch"
+                    log.debug("IPMI: There are no sel entries to fetch")
                     pass
                 else:
                     l_id = "0x" + entry
@@ -470,11 +474,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         l_res = c.run_command("ipmitool sel list")
         for l_line in l_res:
             if l_line.__contains__("SEL has no entries"):
-                print "Sel clear function got cleared event entries"
+                log.debug("Sel clear function got cleared event entries")
                 break
         else:
             l_msg = "Inband IPMI[OPEN]: sel clear function failing in clearing entries"
-            print l_msg
+            log.error(l_msg)
             raise OpTestError(l_msg)
 
     ##
@@ -503,7 +507,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_dcmi(self):
-        print "Inband IPMI[OPEN]: dcmi tests"
+        log.debug("Inband IPMI[OPEN]: dcmi tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_DCMI_DISCOVER,
                                self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_READING,
@@ -520,7 +524,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_echo(self):
-        print "Inband IPMI[OPEN]: echo tests"
+        log.debug("Inband IPMI[OPEN]: echo tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_ECHO_DONE])
 
@@ -538,7 +542,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_event(self):
-        print "Inband IPMI[OPEN]: event tests"
+        log.debug("Inband IPMI[OPEN]: event tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_EVENT_1,
                                self.ipmi_method + BMC_CONST.IPMI_EVENT_2,
@@ -550,7 +554,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_exec(self):
-        print "Inband IPMI[OPEN]: exec tests"
+        log.debug("Inband IPMI[OPEN]: exec tests")
         pass
         # TODO: need to execute ipmi commands from a file
 
@@ -560,7 +564,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_firewall(self):
-        print "Inband IPMI[OPEN]: Firewall test"
+        log.debug("Inband IPMI[OPEN]: Firewall test")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_FIREWALL_INFO])
 
@@ -575,7 +579,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     #
 
     def test_pef(self):
-        print "Inband IPMI[OPEN]: Pef tests"
+        log.debug("Inband IPMI[OPEN]: Pef tests")
         c = self.set_up()
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_PEF_INFO,
@@ -593,7 +597,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_raw(self):
-        print "Inband IPMI[OPEN]: raw command execution tests"
+        log.debug("Inband IPMI[OPEN]: raw command execution tests")
         c = self.set_up()
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_RAW_POH])
@@ -612,7 +616,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         l_res = self.test_sel_time_get()
         if l_res is not None:
           i_time = l_res[-1]
-        print "Inband IPMI[OPEN]: SEL Time set test"
+        log.debug("Inband IPMI[OPEN]: SEL Time set test")
         l_cmd = "sel time set \'%s\'" % i_time
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
@@ -691,7 +695,7 @@ class ExperimentalInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # Currently in the Experimental pool as the "ipmitool BLAH info" commands
     # seem to have random return codes, so failure is common.
     def test_Info(self):
-        print "Inband IPMI[OPEN]: Info tests"
+        log.debug("Inband IPMI[OPEN]: Info tests")
         c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_INFO)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_MC_INFO)
@@ -704,7 +708,7 @@ class ExperimentalInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     # @return l_res @type list: output of command or raise OpTestError
     #
     def test_channel(self):
-        print "Inband IPMI[OPEN]: Channel tests"
+        log.debug("Inband IPMI[OPEN]: Channel tests")
         c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_INFO)
