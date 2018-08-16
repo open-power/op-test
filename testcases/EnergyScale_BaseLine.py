@@ -37,6 +37,10 @@ from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class EnergyScale_BaseLine(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -68,34 +72,34 @@ class EnergyScale_BaseLine(unittest.TestCase):
     def runTest(self):
         self.cv_HOST.copy_test_file_to_host("occtoolp9")
         c = self.cv_HOST.get_ssh_connection()
-        print "# Clear OCC RESET Counter"
+        log.debug("# Clear OCC RESET Counter")
         c.run_command("opal-prd --expert-mode htmgt-passthru 4")
         self.assertEqual(self.get_occ_reset_count(), 0, "OCC Reset Count != 0")
-        print "# Validate IPLed to OCC ACTIVE"
+        log.debug("# Validate IPLed to OCC ACTIVE")
         c.run_command("/tmp/occtoolp9 -p")
-        print "# Validate OCC Disabled/Observation"
+        log.debug("# Validate OCC Disabled/Observation")
         c.run_command("opal-prd --expert-mode htmgt-passthru 9 2")
         c.run_command("/tmp/occtoolp9 -p")
-        print "# Validate OCC Enabled/Active"
+        log.debug("# Validate OCC Enabled/Active")
         c.run_command("opal-prd --expert-mode htmgt-passthru 9 3")
         c.run_command("/tmp/occtoolp9 -p")
-        print "# Validate OCC Characterization"
+        log.debug("# Validate OCC Characterization")
         c.run_command("opal-prd --expert-mode htmgt-passthru 9 5")
         c.run_command("/tmp/occtoolp9 -p")
-        print "# Validate OCC Enabled/Active"
+        log.debug("# Validate OCC Enabled/Active")
         c.run_command("opal-prd --expert-mode htmgt-passthru 9 3")
         c.run_command("/tmp/occtoolp9 -p")
-        print "# Validate OCC Reset Counter=0"
+        log.debug("# Validate OCC Reset Counter=0")
         self.assertEqual(self.get_occ_reset_count(), 0, "OCC Reset Count != 0")
-        print "# Validate OCC Reset"
+        log.debug("# Validate OCC Reset")
         c.run_command("opal-prd occ reset")
         c.run_command("/tmp/occtoolp9 -p")
-        print "# Validate OCC Reset Counter=1"
+        log.debug("# Validate OCC Reset Counter=1")
         self.assertEqual(self.get_occ_reset_count(), 1, "OCC Reset Count != 1")
-        print "# Clear OCC RESET Counter"
+        log.debug("# Clear OCC RESET Counter")
         c.run_command("opal-prd --expert-mode htmgt-passthru 4")
         c.run_command("/tmp/occtoolp9 -p")
-        print "# Validate OCC Reset Counter=0"
+        log.debug("# Validate OCC Reset Counter=0")
         self.assertEqual(self.get_occ_reset_count(), 0, "OCC Reset Count != 0")
-        print "# Process any errors OCC is Reporting"
+        log.debug("# Process any errors OCC is Reporting")
         c.run_command("opal-prd occ process-error")

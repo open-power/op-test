@@ -47,6 +47,9 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestCAPI(unittest.TestCase):
     def setUp(self):
@@ -115,11 +118,11 @@ class SysfsABITest(OpTestCAPI, unittest.TestCase):
         # Run sysfs abi tests
         l_exec = "libcxl_tests >/tmp/libcxl_tests.log"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s;" % (l_dir, l_exec)
-        print cmd
+        log.debug(cmd)
         try:
             self.cv_HOST.host_run_command(cmd)
             l_msg = "sysfs abi libcxl_tests pass"
-            print l_msg
+            log.debug(l_msg)
         except CommandFailed:
             self.assertTrue(False, "sysfs abi libcxl_tests have failed")
 
@@ -146,11 +149,11 @@ class MemCpyAFUTest(OpTestCAPI, unittest.TestCase):
         # Run memcpy afu tests
         l_exec = "memcpy_afu_ctx -p1 -l1 >/tmp/memcpy_afu_ctx.log"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s; echo $?" % (l_dir, l_exec)
-        print cmd
+        log.debug(cmd)
         try:
             self.cv_HOST.host_run_command(cmd)
             l_msg = "memcpy_afu_ctx tests pass"
-            print l_msg
+            log.debug(l_msg)
         except CommandFailed:
             self.assertTrue(False, "memcpy_afu_ctx tests failed")
 
@@ -185,10 +188,10 @@ class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
         # Run timebase sync tests
         l_exec = "memcpy_afu_ctx -t -p1 -l1 >/tmp/memcpy_afu_ctx-t.log"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s; echo $?" % (l_dir, l_exec)
-        print cmd
+        log.debug(cmd)
         try:
             self.cv_HOST.host_run_command(cmd)
-            print "memcpy_afu_ctx -t tests pass"
+            log.debug("memcpy_afu_ctx -t tests pass")
         except CommandFailed:
             self.assertTrue(False, "memcpy_afu_ctx -t tests failed")
 

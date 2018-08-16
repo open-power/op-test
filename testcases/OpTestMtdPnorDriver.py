@@ -43,6 +43,10 @@ import OpTestConfiguration
 from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestMtdPnorDriver(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -94,7 +98,7 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 0,
                              "/dev/mtd0 character flash device file doesn't exist on host\n%s" % str(cf))
-        print "/dev/mtd0 character device file exists on host"
+        log.debug("/dev/mtd0 character device file exists on host")
 
         # Copying the contents of the PNOR flash in a file /tmp/pnor
         l_file = "/tmp/pnor"
@@ -109,7 +113,7 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         l_path = "/tmp/"
         self.util.copyFilesToDest(l_path, self.host_user, self.host_ip, l_file, self.host_Passwd)
         l_list =  commands.getstatusoutput("ls -l %s" % l_path)
-        print l_list
+        log.debug(l_list)
 
         l_workdir = "/tmp/ffs"
         # Remove existing /tmp/ffs directory
@@ -134,7 +138,7 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         # Check the PNOR flash contents on an x86 machine using fcp utility
         l_cmd = "%s/fcp/fcp -o 0x0 -L %s" % (l_workdir, l_file)
         l_res = commands.getstatusoutput(l_cmd)
-        print l_res[1]
+        log.debug(l_res[1])
         self.assertEqual(int(l_res[0]), 0,
             "Getting the PNOR data using fcp utility failed")
-        print "Getting PNOR data successfull using fcp utility"
+        log.debug("Getting PNOR data successfull using fcp utility")

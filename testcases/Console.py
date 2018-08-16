@@ -27,6 +27,10 @@ from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class Console():
     bs = 1024
     count = 8
@@ -93,9 +97,9 @@ class ControlC(unittest.TestCase):
                 raise BMCDisconnected(BMC_DISCONNECT)
             self.assertEqual(rc, 1, "Failed to find expected prompt")
         except pexpect.TIMEOUT as e:
-            print e
-            print "# TIMEOUT waiting for command to finish with ctrl-c."
-            print "# Everything is terrible. Fail the world, power cycle (if lucky)"
+            log.debug(e)
+            log.debug("# TIMEOUT waiting for command to finish with ctrl-c.")
+            log.debug("# Everything is terrible. Fail the world, power cycle (if lucky)")
             self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
             self.fail("Could not ctrl-c running command in reasonable time")
         self.cleanup()

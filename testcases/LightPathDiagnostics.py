@@ -40,6 +40,10 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class LightPathDiagnostics(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -93,10 +97,10 @@ class UsysIdentifyTest(LightPathDiagnostics):
     def runTest(self):
         self.lpd_init()
         loc_codes = self.get_location_codes()
-        print "Executing indicator identify tests"
+        log.debug("Executing indicator identify tests")
         # Using -l option(Location code) Identifying a single device
         for loc in loc_codes:
-            print "Turn on identification indicator %s from Host OS" % loc
+            log.debug("Turn on identification indicator %s from Host OS" % loc)
             self.cv_HOST.host_run_command("usysident -l %s -s identify" % (loc))
             tries = 20
             for i in range(1, tries+1):
@@ -106,13 +110,13 @@ class UsysIdentifyTest(LightPathDiagnostics):
                 time.sleep(1)
             self.assertIn("on", response,
                     "Turn ON of identification indicator %s is failed" % loc)
-            print "Current identification state of %s is ON" % loc
+            log.debug("Current identification state of %s is ON" % loc)
 
         self.cv_HOST.host_run_command("usysident")
 
         # Setting to normal state of device(Turn off Device)
         for loc in loc_codes:
-            print "Turn off identification indicator %s from Host OS" % loc
+            log.debug("Turn off identification indicator %s from Host OS" % loc)
             self.cv_HOST.host_run_command("usysident -l %s -s normal" % (loc))
             tries = 20
             for i in range(1, tries+1):
@@ -122,7 +126,7 @@ class UsysIdentifyTest(LightPathDiagnostics):
                 time.sleep(1)
             self.assertIn("off", response,
                     "Turn OFF of identification indicator %s is failed" % loc)
-            print "Current identification state of %s is OFF" % loc
+            log.debug("Current identification state of %s is OFF" % loc)
 
 class UsysAttnFSPTest(LightPathDiagnostics):
 
@@ -132,15 +136,15 @@ class UsysAttnFSPTest(LightPathDiagnostics):
     def runTest(self):
         self.lpd_init()
         loc_code = self.get_sysattn_indicator_loc()
-        print "Executing system attention indicator tests"
+        log.debug("Executing system attention indicator tests")
         response = self.cv_FSP.fsp_run_command("ledscommandline -V")
-        print response
+        log.debug(response)
         # Setting system attention indicator from FSP
-        print "Setting system attention indicator from FSP"
+        log.debug("Setting system attention indicator from FSP")
         response = self.cv_FSP.fsp_run_command("ledscommandline -a -s")
-        print response
+        log.debug(response)
         response = self.cv_FSP.fsp_run_command("ledscommandline -a -q")
-        print response
+        log.debug(response)
         tries = 10
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
@@ -150,14 +154,14 @@ class UsysAttnFSPTest(LightPathDiagnostics):
             time.sleep(1)
         self.assertIn("on", response,
                 "Turn ON of system attention indicator is failed")
-        print "Current system attention indicator state is ON"
+        log.debug("Current system attention indicator state is ON")
 
         # Clearing(resetting) system attention indicator from FSP
-        print "Clearing system attention indicator from FSP"
+        log.debug("Clearing system attention indicator from FSP")
         response = self.cv_FSP.fsp_run_command("ledscommandline -a -r")
-        print response
+        log.debug(response)
         response = self.cv_FSP.fsp_run_command("ledscommandline -a -q")
-        print response
+        log.debug(response)
         tries = 10
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
@@ -167,7 +171,7 @@ class UsysAttnFSPTest(LightPathDiagnostics):
             time.sleep(1)
         self.assertIn("off", response,
                 "Turn OFF of system attention indicator is failed")
-        print "Current system attention indicator state is OFF"
+        log.debug("Current system attention indicator state is OFF")
 
 class UsysAttnHostTest(LightPathDiagnostics):
 
@@ -177,9 +181,9 @@ class UsysAttnHostTest(LightPathDiagnostics):
     def runTest(self):
         self.lpd_init()
         loc_code = self.get_sysattn_indicator_loc()
-        print "Executing system attention indicator tests"
+        log.debug("Executing system attention indicator tests")
         # Setting system attention indicator from HOST
-        print "Setting system attention indicator from Host"
+        log.debug("Setting system attention indicator from Host")
         cmd = "echo 1 > /sys/class/leds/%s:attention/brightness" % loc_code
         self.cv_HOST.host_run_command(cmd)
         tries = 10
@@ -191,10 +195,10 @@ class UsysAttnHostTest(LightPathDiagnostics):
             time.sleep(1)
         self.assertIn("on", response,
                 "Turn ON of system attention indicator is failed")
-        print "Current system attention indicator state is ON"
+        log.debug("Current system attention indicator state is ON")
 
         # Clearing(resetting) system attention indicator
-        print "Clearing system attention indicator from Host"
+        log.debug("Clearing system attention indicator from Host")
         cmd = "echo 0 > /sys/class/leds/%s:attention/brightness" % loc_code
         self.cv_HOST.host_run_command(cmd)
         tries = 10
@@ -206,7 +210,7 @@ class UsysAttnHostTest(LightPathDiagnostics):
             time.sleep(1)
         self.assertIn("off", response,
                 "Turn OFF of system attention indicator is failed")
-        print "Current system attention indicator state is OFF"
+        log.debug("Current system attention indicator state is OFF")
 
 class UsysFaultTest(LightPathDiagnostics):
 
@@ -216,11 +220,11 @@ class UsysFaultTest(LightPathDiagnostics):
     def runTest(self):
         self.lpd_init()
         loc_codes = self.get_location_codes()
-        print "Executing fault indicator tests for all fault locators"
+        log.debug("Executing fault indicator tests for all fault locators")
         for indicator in loc_codes:
-            print "***************Test for %s locator*************" % indicator
+            log.debug("=================Test for %s locator================" % indicator)
             # Setting a fault indicator from HOST os
-            print "Setting fault indicator %s from Host OS" % indicator
+            log.debug("Setting fault indicator %s from Host OS" % indicator)
             cmd = "echo 1 > /sys/class/leds/%s:fault/brightness" % indicator
             self.cv_HOST.host_run_command(cmd)
             tries = 10
@@ -232,10 +236,10 @@ class UsysFaultTest(LightPathDiagnostics):
                 time.sleep(1)
             self.assertIn("on", response,
                     "Turn ON of fault indicator %s is failed" % indicator)
-            print "Current fault indicator state of %s is ON" % indicator
+            log.debug("Current fault indicator state of %s is ON" % indicator)
 
             # Clearing fault indicator from Host OS
-            print "Clearing fault indicator %s from Host OS" % indicator
+            log.debug("Clearing fault indicator %s from Host OS" % indicator)
             cmd = "usysattn -l %s -s normal" % indicator
             self.cv_HOST.host_run_command(cmd)
             tries = 10
@@ -247,7 +251,7 @@ class UsysFaultTest(LightPathDiagnostics):
                 time.sleep(1)
             self.assertIn("off", response,
                     "Turn OFF of fault indicator %s is failed" % indicator)
-            print "Current fault indicator state of %s is OFF" % indicator
+            log.debug("Current fault indicator state of %s is OFF" % indicator)
 
 def suite():
     s = unittest.TestSuite()

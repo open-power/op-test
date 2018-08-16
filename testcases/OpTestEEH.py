@@ -43,6 +43,10 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 EEH_HIT = 0
 EEH_MISS = 1
 
@@ -96,10 +100,10 @@ class OpTestEEH(unittest.TestCase):
     def get_test_pci_domains(self):
         root_domain = self.cv_HOST.host_get_root_phb(console=1)
         pci_domains = self.cv_HOST.host_get_list_of_pci_domains(console=1)
-        print "Skipping the root phb %s for both fenced/frozen EEH Testcases" % root_domain
+        log.debug("Skipping the root phb %s for both fenced/frozen EEH Testcases" % root_domain)
         pci_domains.remove(root_domain)
         if len(self.skip_phbs) != 0:
-            print "Skipping the known phbs %s from user" % self.skip_phbs
+            log.debug("Skipping the known phbs %s from user" % self.skip_phbs)
             pci_domains = [domain for domain in pci_domains if domain not in self.skip_phbs]
         return pci_domains
 
@@ -138,7 +142,7 @@ class OpTestEEH(unittest.TestCase):
         for i in range(1, tries+1):
             res = self.cv_SYSTEM.console.run_command(cmd)
             if int(res[-1]):
-                print "Waiting for PHB %s EEH Completion: (%d/%d)" % (i_domain, i, tries)
+                log.debug("Waiting for PHB %s EEH Completion: (%d/%d)" % (i_domain, i, tries))
                 time.sleep(1)
             else:
                 break
@@ -181,7 +185,7 @@ class OpTestEEH(unittest.TestCase):
         console = self.cv_SYSTEM.console
         res = console.run_command("ls /sys/bus/pci/devices/ | awk {'print $1'}")
         if len(self.skip_pes) != 0:
-            print "Skipping the known PE's %s from user" % self.skip_pes
+            log.debug("Skipping the known PE's %s from user" % self.skip_pes)
         for pe in res:
             if not pe or pe in self.skip_pes:
                 continue
@@ -203,12 +207,12 @@ class OpTestEEH(unittest.TestCase):
             self.inject_error(addr, e, f, phb, pe)
         except CommandFailed as cf:
             if cf.exitcode != 0:
-                print "Skipping verification as command failed"
+                log.debug("Skipping verification as command failed")
                 return EEH_MISS
         if not self.check_eeh_hit():
             return EEH_MISS
         else:
-            print "PE %s EEH hit success" % pe
+            log.debug("PE %s EEH hit success" % pe)
             return EEH_HIT
 
 
@@ -259,7 +263,7 @@ class OpTestEEH(unittest.TestCase):
         for i in range(1, tries+1):
             res = self.cv_SYSTEM.console.run_command(cmd)
             if int(res[-1]):
-                print "Waiting for PE %s EEH Completion: (%d/%d)" % (pe, i, tries)
+                log.debug("Waiting for PE %s EEH Completion: (%d/%d)" % (pe, i, tries))
                 time.sleep(1)
             else:
                 break
@@ -341,7 +345,7 @@ class OpTestEEH(unittest.TestCase):
         if matchObj:
             loc_code = matchObj.group(2)
             if loc_code == 'N/A':
-                print "FW/Kernel failed to log the pcie slot/device location code"
+                log.warning("FW/Kernel failed to log the pcie slot/device location code")
 
 
 class OpTestEEHbasic_fenced_phb(OpTestEEH):
@@ -361,11 +365,11 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
         for domain in pci_domains:
             self.prepare_logs()
             cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
-            print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
+            log.debug("=================Injecting the fenced PHB error on PHB: %s=================" % domain)
             self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
             # Give some time to EEH PCI Error recovery
             if self.check_eeh_phb_recovery(domain):
-                print "PHB %s recovery successful" % domain
+                log.debug("PHB %s recovery successful" % domain)
             else:
                 self.gather_logs()
                 raise EEHRecoveryFailed("PHB domain", domain)
@@ -398,18 +402,18 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
             for domain in pci_domains:
                 self.prepare_logs()
                 cmd = "echo 0x8000000000000000 > /sys/kernel/debug/powerpc/%s/err_injct_outbound; lspci;" % domain
-                print "=================Injecting the fenced PHB error on PHB: %s=================" % domain
+                log.debug("=================Injecting the fenced PHB error on PHB: %s=================" % domain)
                 self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
                 # Give some time to EEH PCI Error recovery
                 if i == 0:
                     if self.check_eeh_phb_recovery(domain):
-                        print "PHB %s recovery successful" % domain
+                        log.debug("PHB %s recovery successful" % domain)
                     else:
                         self.gather_logs()
                         raise EEHRecoveryFailed("PHB domain", domain)
                 else:
                     if self.check_eeh_removed():
-                        print "PHB domain %s removed successfully" % domain
+                        log.debug("PHB domain %s removed successfully" % domain)
                     else:
                         self.gather_logs()
                         raise EEHRemoveFailed("PHB domain", domain)
@@ -435,7 +439,7 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
     def runTest(self):
         pci_domains = self.get_test_pci_domains()
         pe_dic = self.get_dic_of_pe_vs_addr()
-        print "==============================Testing frozen PE error injection==============================="
+        log.debug("==================Testing frozen PE error injection=====================")
 
         # Frequently used function
         # 0 : MMIO read
@@ -460,7 +464,7 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
                 # Skip the PE's under root PHB
                 if any(phb in s for s in pci_domains):
                     for f in func:
-                        print "==========================Running error injection on pe %s func %s======================" % (pe, f)
+                        log.debug("===================Running error injection on pe %s func %s===================" % (pe, f))
                         rc = 1
                         rc = self.run_pe_4(addr, e, f, phb, pe, self.cv_SYSTEM.console)
                         if rc == EEH_MISS:
@@ -471,19 +475,19 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
                                 ret = self.check_eeh_pe_recovery(pe)
                                 self.gather_logs()
                             except EEHRecoveryFailed:
-                                print "EEH_FAIL: PE %s recovery failed after %d EEH error" % (pe, count)
+                                log.error("EEH_FAIL: PE %s recovery failed after %d EEH error" % (pe, count))
                                 recover = False
                                 break
                             if not ret:
-                                print "EEH_FAIL: PE %s recovery failed after %d EEH error" % (pe, count)
+                                log.error("EEH_FAIL: PE %s recovery failed after %d EEH error" % (pe, count))
                                 recover = False
                                 break
-                            print "PE %s recovered after %d EEH error" % (pe, count)
+                            log.debug("PE %s recovered after %d EEH error" % (pe, count))
                         elif count == 6: # sixth time check for removal
                             if not self.check_eeh_removed():
-                                print "EEH_FAIL: PE %s remove failed after 6th EEH hit" % pe
+                                log.error("EEH_FAIL: PE %s remove failed after 6th EEH hit" % pe)
                             else:
-                                print "PE %s removed successfully after 6th EEH hit" % pe
+                                log.debug("PE %s removed successfully after 6th EEH hit" % pe)
                         self.check_eeh_slot_resets()
                         self.verify_location_code_logging(pe)
 
@@ -510,7 +514,7 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
         cmd = "echo 1 > /sys/kernel/debug/powerpc/eeh_max_freezes"
         self.cv_SYSTEM.console.run_command(cmd)
         pe_dic = self.get_dic_of_pe_vs_addr()
-        print "==============================Testing frozen PE error injection==============================="
+        log.debug("======================Testing frozen PE error injection===========================")
 
         # Frequently used function
         # 0 : MMIO read
@@ -535,7 +539,7 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
                 # Skip the PE's under root PHB
                 if any(phb in s for s in pci_domains):
                     for f in func:
-                        print "==========================Running error injection on pe %s func %s======================" % (pe, f)
+                        log.debug("=====================Running error injection on pe %s func %s====================" % (pe, f))
                         rc = 1
                         rc = self.run_pe_4(addr, e, f, phb, pe, self.cv_SYSTEM.console)
                         if rc == EEH_MISS:
@@ -546,20 +550,20 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
                                 ret = self.check_eeh_pe_recovery(pe)
                                 self.gather_logs()
                             except EEHRecoveryFailed:
-                                print "EEH_FAIL: PE %s recovery failed after first EEH error" % pe
+                                log.error("EEH_FAIL: PE %s recovery failed after first EEH error" % pe)
                                 recover = False
                                 break
                             if not ret:
-                                print "EEH_FAIL: PE %s recovery failed after first EEH error" % pe
+                                log.error("EEH_FAIL: PE %s recovery failed after first EEH error" % pe)
                                 recover = False
                                 break
                             else:
-                                print "PE % recovered after first EEH error" % pe
+                                log.debug("PE % recovered after first EEH error" % pe)
                         elif count == 2: # Second time check for removal
                             if not self.check_eeh_removed():
-                                print "EEH_FAIL: PE %s remove failed" % pe
+                                log.error("EEH_FAIL: PE %s remove failed" % pe)
                             else:
-                                print "PE %s removed successfully" % pe
+                                log.debug("PE %s removed successfully" % pe)
                         self.check_eeh_slot_resets()
                         self.verify_location_code_logging(pe)
 

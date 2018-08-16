@@ -41,6 +41,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpalErrorLog(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -92,9 +96,9 @@ class BasicTest(OpalErrorLog):
         self.cv_HOST.host_clear_error_logs()
         count = self.count()
         # Start Generating the error logs from FSP.
-        print "FSP: Start generating the error logs from FSP."
+        log.debug("FSP: Start generating the error logs from FSP.")
         for i in range(count+1):
-            print "=====================================Iteration: %d=====================================" % i
+            log.debug("=====================================Iteration: %d=====================================" % i)
             self.cv_FSP.generate_error_log_from_fsp()
         self.cv_HOST.host_list_all_errorlogs()
         self.cv_HOST.host_list_all_service_action_logs()
@@ -108,7 +112,7 @@ class BasicTest(OpalErrorLog):
                 transfer_complete = True
                 break
             time.sleep(1)
-            print "Waiting for transfer of error logs to Host: (%d\%d)" % (j, tries)
+            log.debug("Waiting for transfer of error logs to Host: (%d\%d)" % (j, tries))
         if not transfer_complete:
                 self.cv_HOST.host_gather_opal_msg_log()
                 self.cv_HOST.host_gather_kernel_log()

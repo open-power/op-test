@@ -39,6 +39,9 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestSSH import ConsoleState as SSHConnectionState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class fspTODCorruption():
     def setUp(self):
@@ -56,31 +59,31 @@ class fspTODCorruption():
         self.cv_HOST.host_gather_kernel_log()
 
     def get_tod(self):
-        print "Running command on FSP: rtim timeofday"
+        log.debug("Running command on FSP: rtim timeofday")
         res = self.cv_FSP.fsp_run_command("rtim timeofday")
         return res
 
     def set_tod(self):
         time = commands.getoutput('date +"%Y%m%d%H%M%S"')
-        print "Setting back the system time using rtim timeofday yyyyMMddhhmmss"
+        log.debug("Setting back the system time using rtim timeofday yyyyMMddhhmmss")
         cmd = "rtim timeofday %s" % time
-        print "Running command on FSP: %s" % cmd
+        log.debug("Running command on FSP: %s" % cmd)
         self.cv_FSP.fsp_run_command(cmd)
         self.get_tod()
 
     def tod_force_clock(self):
         res = self.get_tod()
         if "valid" in res:
-            print "system time is VALID"
+            log.debug("system time is VALID")
         else:
             raise Exception("System time is invalid,exiting...,please set time and rerun")
 
-        print "Running command on FSP: rtim forceClockValue"
+        log.debug("Running command on FSP: rtim forceClockValue")
         out = self.cv_FSP.fsp_run_command("rtim forceClockValue")
-        print out
+        log.debug(out)
         res = self.get_tod()
         if "INVALID" in res:
-            print "system time is INVALID"
+            log.debug("system time is INVALID")
         else:
             raise Exception("rtim: forceClockValue interface not forcing tod value to invalid")
 
@@ -105,7 +108,8 @@ class TOD_CORRUPTION(fspTODCorruption, unittest.TestCase):
         if not self.cv_FSP.mount_exists():
             raise OpTestError("Please mount NFS and retry the test")
 
-        print self.cv_FSP.fsp_run_command("smgr mfgState")
+        state = self.cv_FSP.fsp_run_command("smgr mfgState")
+        log.debug(state)
         self.cv_FSP.clear_fsp_errors()
         self.tod_force_clock()
         self.check_hwclock()

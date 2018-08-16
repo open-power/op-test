@@ -36,6 +36,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class SbePassThrough(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -66,7 +70,7 @@ class SbePassThrough(unittest.TestCase):
         for i in range(31):
             self.data = " ".join(self.c.run_command_ignore_fail(cmd))
             if "SBEIO:<< process_sbe_msg" in self.data:
-                print "OPAL Processed the SBE interrupt and called HBRT accordingly"
+                log.debug("OPAL Processed the SBE interrupt and called HBRT accordingly")
                 return True
             time.sleep(2)
         else:
@@ -74,7 +78,7 @@ class SbePassThrough(unittest.TestCase):
 
     def is_sel_sent_to_bmc(self):
         if "IPMI:sel: <<process_esel" in self.data:
-            print "HBRT/Host Commited error log and sent to BMC/FSP"
+            log.debug("HBRT/Host Commited error log and sent to BMC/FSP")
             return True
         return False
 
@@ -98,10 +102,10 @@ class SbePassThrough(unittest.TestCase):
                 self.c.run_command(cmd)
                 self.assertTrue(self.is_sbe_interrupt_processed(), "OPAL Failed to process the SBE Interrupt")
                 self.assertTrue(self.is_sel_sent_to_bmc(), "HBRT/Host failed to send the eSEL to MC/SP")
-                print self.cv_SYSTEM.sys_get_sel_list()
+                log.debug(self.cv_SYSTEM.sys_get_sel_list())
                 sels = " ".join(self.c.run_command("ipmitool sel list"))
                 if 'SEL has no entries' in sels:
                     self.assertTrue(False, "SP/MC is failed to log eSEL")
                 elif "OEM record df | 040020" in sels:
-                    print "SEL is properly committed and logged by SP/MC"
+                    log.debug("SEL is properly committed and logged by SP/MC")
 

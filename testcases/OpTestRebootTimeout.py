@@ -27,6 +27,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class RebootTime():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -45,7 +49,7 @@ class RebootTime():
         start = time.time()
         rc = self.c.sol.expect(["OPAL: Reboot request", "reboot: Restarting system", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
         if rc in [0,1]:
-          print("Time to OPAL reboot handler: {} seconds".format(time.time() - start))
+          log.debug("Time to OPAL reboot handler: {} seconds".format(time.time() - start))
         else:
           self.assertTrue(False, "Unexpected rc=%s from reboot request" % rc)
 

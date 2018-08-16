@@ -41,6 +41,9 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 '''
 Repeatedly does the BMC Reset at runtime (i.e at both skiroot and host)
@@ -59,10 +62,10 @@ class RuntimeBMCResetTorture(unittest.TestCase):
           self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
     def RunBMCReset(self):
-        print "Test BMC Cold reset versus Host Firmware Status"
+        log.debug("Test BMC Cold reset versus Host Firmware Status")
         con = self.cv_SYSTEM.console
         for i in range(0, 256):
-            print "Issuing BMC Cold reset iteration %s" % i
+            log.debug("Issuing BMC Cold reset iteration %s" % i)
             self.cv_SYSTEM.sys_cold_reset_bmc()
             con = self.cv_SYSTEM.console
             if self.test == "host":
@@ -102,9 +105,9 @@ class StandbyBMCResetTorture(RuntimeBMCResetTorture, unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
     def runTest(self):
-        print "BMC Reset Torture test for 256 cycles..."
+        log.debug("BMC Reset Torture test for 256 cycles...")
         for i in range(0, 256):
-            print "Issuing BMC Cold reset iteration %s" % i
+            log.debug("Issuing BMC Cold reset iteration %s" % i)
             self.cv_SYSTEM.sys_cold_reset_bmc()
 
 '''
@@ -115,12 +118,12 @@ class BMCResetvsHostIPLTorture(RuntimeBMCResetTorture, unittest.TestCase):
         pass
 
     def runTest(self):
-        print "BMC Reset vs Host IPL Torture test for 256 cycles..."
+        log.debug("BMC Reset vs Host IPL Torture test for 256 cycles...")
         for i in range(0, 256):
-            print "Issuing BMC Cold reset iteration %s" % i
+            log.debug("Issuing BMC Cold reset iteration %s" % i)
             self.cv_SYSTEM.sys_cold_reset_bmc()
             self.c = self.cv_SYSTEM.console
-            print "Boot iteration %d..." % i
+            log.debug("Boot iteration %d..." % i)
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")

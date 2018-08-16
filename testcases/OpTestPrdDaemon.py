@@ -48,6 +48,9 @@ from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestPrdDaemon(unittest.TestCase):
     def setUp(self):
@@ -97,7 +100,7 @@ class OpTestPrdDaemon(unittest.TestCase):
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, "opal-prd daemon is not running always:Need to raise a bug: %s" % str(c))
 
-        print "opal-prd daemon is always running"
+        log.debug("opal-prd daemon is always running")
 
         return BMC_CONST.FW_SUCCESS
 

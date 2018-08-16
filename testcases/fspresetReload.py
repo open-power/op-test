@@ -40,6 +40,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class fspresetReload(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -61,22 +65,22 @@ class fspresetReload(unittest.TestCase):
     # FSP initiated reset(FIR)
     def trigger_fir(self):
         cmd = "smgr resetReload"
-        print "Running the cmd %s on FSP" % cmd
+        log.debug("Running the cmd %s on FSP" % cmd)
         self.cv_FSP.fspc.issue_forget(cmd)
 
     # Host initiated reset(HIR)
     def trigger_hir(self):
         cmd = "putmemproc 300000f8 0x00000000deadbeef"
-        print "Running the cmd %s on FSP" % cmd
+        log.debug("Running the cmd %s on FSP" % cmd)
         self.cv_FSP.fspc.issue_forget(cmd)
 
     # Surveilance ACK timeout initiated reset(HIR)
     def trigger_sir(self):
         cmd = "ps aux | grep -i survserver | head -1 | awk {'print $2'}"
-        print "Running the cmd %s on FSP" % cmd
+        log.debug("Running the cmd %s on FSP" % cmd)
         res = self.cv_FSP.fsp_run_command(cmd)
         cmd = "kill -9 %s" % res.rstrip('\n')
-        print "Running the cmd %s on FSP" % cmd
+        log.debug("Running the cmd %s on FSP" % cmd)
         self.cv_FSP.fspc.issue_forget(cmd)
 
     def trigger_rr(self):
@@ -107,7 +111,7 @@ class fspresetReload(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("ipmitool sensor list")
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             return False
         return True
 
@@ -116,7 +120,7 @@ class fspresetReload(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("sensors")
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             return False
         return True
 
@@ -125,12 +129,12 @@ class fspresetReload(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("nvram --update-config test-cfg-rr=test-value")
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             return False
         try:
             output = self.cv_HOST.host_run_command("nvram --print-config")
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             return False
         if "test-cfg-rr=test-value" in ' '.join(output):
             return True
@@ -152,7 +156,7 @@ class fspresetReload(unittest.TestCase):
             self.cv_HOST.host_read_hwclock()
             self.cv_HOST.host_set_hwclock_time("2015-01-01 10:10:10")
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             return False
         return True
 
@@ -189,7 +193,7 @@ class fspresetReload(unittest.TestCase):
             output = self.cv_HOST.host_run_command(cmd)
         except CommandFailed as cf:
             if cf.exitcode == 1:
-                print cf.output
+                log.debug(cf.output)
 
 class resetReload(fspresetReload):
 
@@ -204,7 +208,7 @@ class resetReload(fspresetReload):
         self.cv_FSP.clear_fsp_errors()
         self.cv_SYSTEM.load_ipmi_drivers(True)
         for i in range(0, self.number_of_resets()):
-            print "====================FSP R&R iteration %d=====================" % i
+            log.debug("====================FSP R&R iteration %d=====================" % i)
             self.prepare_opal_log()
             self.trigger_rr()
             # Let fsp goes down

@@ -30,6 +30,10 @@ from common.OpTestSystem import OpSystemState
 
 from testcases.OpTestPCI import TestPCI
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class BootTorture(unittest.TestCase, TestPCI):
     BOOT_ITERATIONS = 1024
     def setUp(self):
@@ -40,7 +44,7 @@ class BootTorture(unittest.TestCase, TestPCI):
     def runTest(self):
         self.c = self.cv_SYSTEM.console
         for i in range(1,self.BOOT_ITERATIONS):
-            print "Boot iteration %d..." % i
+            log.debug("Boot iteration %d..." % i)
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             try:
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -70,7 +74,7 @@ class ReBootTorture(unittest.TestCase, TestPCI):
         # Disable the fast-reset
         console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
         for i in range(1,self.BOOT_ITERATIONS):
-            print "Re-boot iteration %d..." % i
+            log.debug("Re-boot iteration %d..." % i)
             console.run_command_ignore_fail("uname -a")
             console.run_command_ignore_fail("cat /etc/os-release")
             if self.pci_good_data_file:

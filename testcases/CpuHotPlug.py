@@ -31,6 +31,10 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class CpuHotPlug(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -45,7 +49,7 @@ class CpuHotPlug(unittest.TestCase):
         self.c.run_command("cat /etc/os-release")
         self.num_avail_cores = self.cv_HOST.host_get_core_count()
         smt_range = ["on", "off"] + range(1, self.cv_HOST.host_get_smt()+1)
-        print "Possible smt values: %s" % smt_range
+        log.debug("Possible smt values: %s" % smt_range)
         for smt in smt_range:
             self.c.run_command("ppc64_cpu --smt=%s" % str(smt))
             for core in range(1, self.num_avail_cores + 1):

@@ -45,6 +45,9 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class TestPCI():
     def setUp(self):
@@ -324,7 +327,8 @@ class TestPciHotplugHost(TestPCI, unittest.TestCase):
         root_pe = self.get_root_pe_address()
         slot_list = self.get_list_of_slots()
         self.c.run_command("dmesg -D")
-        print device_list, slot_list
+        log.debug(device_list)
+        log.debug(slot_list)
         pair = {} # Pair of device vs slot location code
         for device in device_list:
             cmd = "lspci -k -s %s -vmm" % device
@@ -334,7 +338,7 @@ class TestPciHotplugHost(TestPCI, unittest.TestCase):
                 obj = re.match('PhySlot:\t(.*)', line)
                 if obj:
                     pair[device] = obj.group(1)
-        print pair
+        log.debug(pair)
         failure_list = {}
         for device, phy_slot in pair.iteritems():
             if root_pe in device:
@@ -344,7 +348,7 @@ class TestPciHotplugHost(TestPCI, unittest.TestCase):
             try:
                 self.c.run_command("test -f %s" % path)
             except CommandFailed as cf:
-                print "Slot %s does not support hotplug" % phy_slot
+                log.debug("Slot %s does not support hotplug" % phy_slot)
                 continue # slot does not support hotplug
             try:
                 self.c.run_command("echo 0 > %s" % path)
@@ -509,22 +513,22 @@ class TestPciLink(TestPCI, unittest.TestCase):
                     if endpoint not in checked_devices:
                         if devicesLinked(device, endpoint):
                             checked_devices.append(endpoint)
-                            print "checking link between %s and %s" % (device.get_id(), endpoint.get_id())
-                            print device.get_details()
-                            print endpoint.get_details()
+                            log.debug("checking link between %s and %s" % (device.get_id(), endpoint.get_id()))
+                            log.debug(device.get_details())
+                            log.debug(endpoint.get_details())
                             if endpoint.name in blacklist:
                                 no_check_msg = "Link between %s and %s not checked as %s is in the list of blacklisted devices" \
                                     % (device.get_id(), endpoint.get_id(), endpoint.get_id())
-                                print no_check_msg
+                                log.info(no_check_msg)
                                 blacklist_links += "%s\n" % no_check_msg
                             else:
                                 if(not optimalSpeed(device, endpoint)) or (not optimalWidth(device,endpoint)):
                                     suboptimal_links += subLinkInfo(device, endpoint)
-                            print ""
+                            log.debug("")
 
-        print "Finished testing links\n"
+        log.debug("Finished testing links")
 
-        print blacklist_links
+        log.debug(blacklist_links)
         # Assert suboptimal list is empty
         self.assertEqual(len(suboptimal_links), 0, suboptimal_links)
 

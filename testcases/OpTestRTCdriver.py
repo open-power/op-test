@@ -41,6 +41,10 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class FullRTC(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -72,23 +76,23 @@ class FullRTC(unittest.TestCase):
     # We have a busy box version hwclock with limited options
     # to access the HW RTC
     def skiroot_read_hwclock(self):
-        print "Reading the hwclock"
+        log.debug("Reading the hwclock")
         self.c.run_command("hwclock -r")
 
     def skiroot_set_hwclock_time(self):
-        print "Setting the hwclock time from system time"
+        log.debug("Setting the hwclock time from system time")
         self.c.run_command("hwclock -w")
 
     def skiroot_set_system_time(self):
-        print "Setting the system time from hwclock time"
+        log.debug("Setting the system time from hwclock time")
         self.c.run_command("hwclock -s")
 
     def skiroot_assume_hwclock_utc(self):
-        print "Assume hardware clock is kept in UTC"
+        log.debug("Assume hardware clock is kept in UTC")
         self.c.run_command("hwclock -u")
 
     def skiroot_assume_hwclock_localtime(self):
-        print "Assume hardware clock is kept in local time"
+        log.debug("Assume hardware clock is kept in local time")
         self.c.run_command("hwclock -l")
 
 
@@ -121,7 +125,7 @@ class FullRTC(unittest.TestCase):
                 l_list.append(l_file)
             else:
                 continue
-        print l_list
+        log.debug(l_list)
         # Display the time of hwclock from device files
         for l_file in l_list:
             self.read_hwclock_from_file(l_file)
@@ -163,7 +167,7 @@ class FullRTC(unittest.TestCase):
     #
     # @param i_file @type string: special /dev/ file
     def read_hwclock_from_file(self, i_file):
-        print "Reading the hwclock from special file /dev/ ...: %s" % i_file
+        log.debug("Reading the hwclock from special file /dev/ ...: %s" % i_file)
         try:
             self.cv_HOST.host_run_command("hwclock -r -f %s" % i_file)
         except CommandFailed as c:
@@ -175,7 +179,7 @@ class FullRTC(unittest.TestCase):
     # @param i_time @type string: time to set hwclock
     #                             Ex: "2016-01-01 12:12:12"
     def set_hwclock_in_utc(self, i_time):
-        print "Setting the hwclock in UTC: %s" % i_time
+        log.debug("Setting the hwclock in UTC: %s" % i_time)
         try:
             self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --utc" % i_time)
         except CommandFailed as c:
@@ -186,7 +190,7 @@ class FullRTC(unittest.TestCase):
     #
     # @param i_time @type string: Time to set hwclock
     def set_hwclock_in_localtime(self, i_time):
-        print "Setting the hwclock in localtime: %s" % i_time
+        log.debug("Setting the hwclock in localtime: %s" % i_time)
         try:
             self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --localtime" % i_time)
         except CommandFailed as c:
@@ -195,7 +199,7 @@ class FullRTC(unittest.TestCase):
     ##
     # @brief This function sets the time of hwclock from system time
     def systime_to_hwclock(self):
-        print "Setting the hwclock from system time"
+        log.debug("Setting the hwclock from system time")
         try:
             self.cv_HOST.host_run_command("hwclock --systohc")
         except CommandFailed as c:
@@ -204,7 +208,7 @@ class FullRTC(unittest.TestCase):
     ##
     # @brief This function sets the time of hwclock from system time in UTC format
     def systime_to_hwclock_in_utc(self):
-        print "Setting the hwclock from system time, in UTC format"
+        log.debug("Setting the hwclock from system time, in UTC format")
         try:
             self.cv_HOST.host_run_command("hwclock --systohc --utc")
         except CommandFailed as c:
@@ -213,7 +217,7 @@ class FullRTC(unittest.TestCase):
     ##
     # @brief This function sets the time of hwclock from system time in local time format
     def systime_to_hwclock_in_localtime(self):
-        print "Setting the hwclock from system time, in localtime format"
+        log.debug("Setting the hwclock from system time, in localtime format")
         try:
             self.cv_HOST.host_run_command("hwclock --systohc --localtime")
         except CommandFailed as c:
@@ -222,7 +226,7 @@ class FullRTC(unittest.TestCase):
     ##
     # @brief This function sets the system time from hwclock.
     def hwclock_to_systime(self):
-        print "Setting the system time from hwclock"
+        log.debug("Setting the system time from hwclock")
         try:
             self.cv_HOST.host_run_command("hwclock --hctosys")
         except CommandFailed as c:
@@ -231,7 +235,7 @@ class FullRTC(unittest.TestCase):
     ##
     # @brief This function keeps hwclock in UTC format.
     def hwclock_in_utc(self):
-        print "Keeping the hwclock in UTC format"
+        log.debug("Keeping the hwclock in UTC format")
         try:
             self.cv_HOST.host_run_command("hwclock --utc")
         except CommandFailed as c:
@@ -240,7 +244,7 @@ class FullRTC(unittest.TestCase):
     ##
     # @brief This function keeps hwclock in local time format.
     def hwclock_in_localtime(self):
-        print "Keeping the hwclock in localtime"
+        log.debug("Keeping the hwclock in localtime")
         try:
             self.cv_HOST.host_run_command("hwclock --localtime")
         except CommandFailed as c:
@@ -252,7 +256,7 @@ class FullRTC(unittest.TestCase):
     #
     # @param i_time @type string: time at which predict hwclock reading
     def hwclock_predict(self, i_time):
-        print "Testing the hwclock predict function to a time: %s" % i_time
+        log.debug("Testing the hwclock predict function to a time: %s" % i_time)
         try:
             self.cv_HOST.host_run_command("hwclock --predict --date \'%s\'" % i_time)
         except CommandFailed as c:
@@ -263,7 +267,7 @@ class FullRTC(unittest.TestCase):
     #        In this mode setting hwclock from system time
     #        and setting system time from hwclock
     def hwclock_debug_mode(self):
-        print "Testing the hwclock debug mode"
+        log.debug("Testing the hwclock debug mode")
         try:
             self.cv_HOST.host_run_command("hwclock --systohc --debug")
             self.cv_HOST.host_run_command("hwclock --hctosys --debug")
@@ -276,7 +280,7 @@ class FullRTC(unittest.TestCase):
     #
     # @param i_time @type string: time to set hwclock in test mode
     def hwclock_test_mode(self, i_time):
-        print "Testing the hwclock test mode, set time to: %s" % i_time
+        log.debug("Testing the hwclock test mode, set time to: %s" % i_time)
         try:
             self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --test" % i_time)
         except CommandFailed as c:
@@ -285,13 +289,13 @@ class FullRTC(unittest.TestCase):
     ##
     # @brief This function tests hwclock adjust functionality
     def hwclock_adjust(self):
-        print "Testing the hwclock adjust function"
+        log.debug("Testing the hwclock adjust function")
         try:
             self.cv_HOST.host_run_command("hwclock --adjust")
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, "hwclock adjust function failed: %s" % str(c))
         l_res = self.cv_HOST.host_run_command("cat /etc/adjtime")
-        print '\n'.join(l_res)
+        log.debug('\n'.join(l_res))
 
 
 class BasicRTC(FullRTC):
