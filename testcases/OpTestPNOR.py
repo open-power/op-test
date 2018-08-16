@@ -45,6 +45,9 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestPNOR():
     def setUp(self):
@@ -115,14 +118,14 @@ class OpTestPNOR():
 
     def runTestReadWritePAYLOAD(self):
         payloadInfo = self.pflashGetPartition("PAYLOAD")
-        print repr(payloadInfo)
+        log.debug(repr(payloadInfo))
         # Read PAYLOAD to file /tmp/payload
         self.pflashReadPartition("/tmp/payload", "PAYLOAD")
         # Write /tmp/payload to PAYLOAD
         try:
             self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
         except CommandFailed as cf:
-            print repr(cf)
+            log.debug(repr(cf))
             if not ('R' in payloadInfo['flags'] and cf.exitcode in [8]):
                 raise cf
         # Check the same
@@ -149,7 +152,7 @@ class OpTestPNOR():
             self.c.run_command("diff /tmp/tmp /tmp/zeros")
         except CommandFailed as cf:
             # This is not an error -> expected for vPNOR
-            print "Failed to zero TOC"
+            log.debug("Failed to zero TOC")
         # Better write the toc back now
         self.pflashWrite("/tmp/toc", tocInfo['offset'], tocInfo['length'])
 
