@@ -45,6 +45,10 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestFastReboot(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -87,7 +91,7 @@ class OpTestFastReboot(unittest.TestCase):
 
         c = self.cv_SYSTEM.console
         cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
-        print repr(cpu)
+        log.debug(repr(cpu))
         if cpu not in ["POWER9", "POWER8", "POWER8E"]:
             self.skipTest("Fast Reboot not supported on %s" % cpu)
 
@@ -101,8 +105,7 @@ class OpTestFastReboot(unittest.TestCase):
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
         initialResetCount = self.get_fast_reset_count(c)
-        print ""
-        print "INITIAL reset count: %d" % initialResetCount
+        log.debug("INITIAL reset count: %d" % initialResetCount)
         for i in range(0, self.number_reboots_to_do()):
             loopResetCount = self.get_fast_reset_count(c)
             # We do some funny things with the raw console here, as
@@ -126,7 +129,7 @@ class OpTestFastReboot(unittest.TestCase):
             newResetCount = self.get_fast_reset_count(c)
             self.assertTrue( loopResetCount < newResetCount, "Did not do fast reboot")
             self.assertTrue( initialResetCount < newResetCount, "Did not do fast reboot")
-            print "Completed Fast reboot cycle %d" % i
+            log.debug("Completed Fast reboot cycle %d" % i)
 
         c.run_command(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
         try:
