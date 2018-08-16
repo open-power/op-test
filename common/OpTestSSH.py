@@ -148,6 +148,7 @@ class OpTestSSH():
 
         try:
           consoleChild = OPexpect.spawn(cmd,
+                                        logfile=self.logfile,
                 failure_callback=set_system_to_UNKNOWN_BAD,
                 failure_callback_data=self.system)
         except Exception as e:
@@ -162,7 +163,6 @@ class OpTestSSH():
           self.console.delaybeforesend = self.delaybeforesend
         # Users expecting "Host IPMI" will reference console.sol so make it available
         self.sol = self.console
-        consoleChild.logfile_read = OpTestLogger.FileLikeLogger(log)
         time.sleep(2) # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
         self.check_set_term()
         return consoleChild
