@@ -46,6 +46,9 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class NVRAMUpdateError(Exception):
     def __init__(self, part, key, value, output):
@@ -80,7 +83,7 @@ class OpTestNVRAM(unittest.TestCase):
                 raise NVRAMUpdateError(i_part, key, value, ''.join(cf.output))
         res = ''.join(res_list)
         if "test-value" in res:
-            print "Update config to the partition %s works fine" % part
+            log.debug("Update config to the partition %s works fine" % part)
         else:
             raise NVRAMUpdateError(i_part, key, value, res)
 
@@ -95,9 +98,9 @@ class OpTestNVRAM(unittest.TestCase):
             c.run_command("nvram --print-config -p lnx,oops-log")
         except CommandFailed as cf:
             # These partitions may not exist, so not existing is not a failure
-            print cf.output
+            log.debug(cf.output)
             m = re.match("nvram: ERROR: There is no.*partition", ''.join(cf.output))
-            print repr(m)
+            log.debug(repr(m))
             if not m:
                 raise cf
 
@@ -118,7 +121,7 @@ class OpTestNVRAM(unittest.TestCase):
             c.run_command("nvram --dump lnx,oops-log|head")
         except CommandFailed as cf:
             # These partitions may not exist, so not existing is not a failure
-            print cf.output
+            log.debug(cf.output)
             m = re.match("nvram: ERROR: There is no.*partition", ''.join(cf.output))
             if not m:
                 raise cf
@@ -131,7 +134,7 @@ class OpTestNVRAM(unittest.TestCase):
             c.run_command("nvram --ascii lnx,oops-log|head -c512; echo")
         except CommandFailed as cf:
             # These partitions may not exist, so not existing is not a failure
-            print cf.output
+            log.debug(cf.output)
             m = re.match("nvram: ERROR: There is no.*partition", ''.join(cf.output))
             if not m:
                 raise cf
