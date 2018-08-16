@@ -40,6 +40,9 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class PetitbootDropbearServer(unittest.TestCase):
     def setUp(self):
@@ -48,14 +51,14 @@ class PetitbootDropbearServer(unittest.TestCase):
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        print "Test Dropbear server not running in Petitboot"
+        log.debug("Test Dropbear server not running in Petitboot")
 
         c = self.cv_SYSTEM.console
         c.run_command("uname -a")
         # we don't grep for 'dropbear' so that our naive line.count
         # below doesn't hit a false positive.
         res = c.run_command("ps|grep drop")
-        print res
+        log.debug(res)
         for line in res:
             if line.count('dropbear'):
                 self.fail("drobear is running in the skiroot")

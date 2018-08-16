@@ -28,6 +28,9 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class Petitbooti18n(unittest.TestCase):
     def setUp(self):
@@ -36,7 +39,7 @@ class Petitbooti18n(unittest.TestCase):
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
-        print "Test i18n strings appear correctly in Petitboot"
+        log.debug("Test i18n strings appear correctly in Petitboot")
 
         # Wait a moment for pb-discover to connect
         time.sleep(3)
