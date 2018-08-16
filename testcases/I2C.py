@@ -42,6 +42,11 @@ import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded, KernelConfigNotSet
+
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class I2CDetectUnsupported(Exception):
     """Asked to do i2c detect on a bus that doesn't support detection
     """
@@ -144,12 +149,12 @@ class I2C():
                 if matchObj:
                     l_line = matchObj.group(1)
                     i_args = (l_line.replace("-", " "))
-                    print i_args
+                    log.debug(i_args)
                 else:
                     continue
                 i_args = re.sub(" 00", " 0x", i_args)
                 l_chips.append(i_args)
-                print i_args
+                log.debug(i_args)
         return l_chips
 
     ##
@@ -159,7 +164,7 @@ class I2C():
     #           else raise OpTestError
     #
     def host_get_info_of_eeprom_chips(self):
-        print "Getting the information of EEPROM chips"
+        log.debug("Getting the information of EEPROM chips")
         l_res = None
         try:
             l_res = self.c.run_command("cat /sys/bus/i2c/drivers/at24/*/name")
@@ -199,7 +204,7 @@ class I2C():
     #
     def query_i2c_bus(self, i_bus):
         rc = 0
-        print "Querying the i2c bus %s for devices attached to it" % i_bus
+        log.debug("Querying the i2c bus %s for devices attached to it" % i_bus)
         try:
             l_res = self.c.run_command("i2cdetect -y %i" % int(i_bus))
         except CommandFailed as cf:
@@ -209,7 +214,7 @@ class I2C():
             try:
                 l_res = self.c.run_command("i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes" % int(i_bus))
             except CommandFailed as cf:
-                print "i2c bus %i doesn't support query" % int(i_bus)
+                log.debug("i2c bus %i doesn't support query" % int(i_bus))
                 raise I2CDetectUnsupported;
 
             try:
@@ -312,7 +317,7 @@ class FullI2C(I2C, unittest.TestCase):
             try:
                 self.query_i2c_bus(l_bus)
             except I2CDetectUnsupported:
-                print "Unsupported i2cdetect on bus %s" % l_bus
+                log.debug("Unsupported i2cdetect on bus %s" % l_bus)
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
         l_chips = self.host_get_list_of_eeprom_chips()

@@ -50,6 +50,10 @@ from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed, UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestHMIHandling(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -78,7 +82,7 @@ class OpTestHMIHandling(unittest.TestCase):
             self.clearGardEntries()
             break
           except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
-            print "\n\n\nOpTestSystem OpTestHMIHandling clear_stop counter i={} (i=0 or i=1 can be seen recovering from failed test) Exception={}\n\n\n".format(i, e)
+            log.debug("\n\n\nOpTestSystem OpTestHMIHandling clear_stop counter i={} (i=0 or i=1 can be seen recovering from failed test) Exception={}\n\n\n".format(i, e))
             self.cv_SYSTEM.stop = 0
             self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         else:
@@ -93,7 +97,7 @@ class OpTestHMIHandling(unittest.TestCase):
               self.cv_SYSTEM.goto_state(OpSystemState.OS)
               break
             except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
-              print "\n\n\nOpTestSystem OpTestHMIHandling handle_ipl counter i={} (i=0 or i=1 are common test results) Exception={}\n\n\n".format(i, e)
+              log.debug("\n\n\nOpTestSystem OpTestHMIHandling handle_ipl counter i={} (i=0 or i=1 are common test results) Exception={}\n\n\n".format(i, e))
               self.cv_SYSTEM.stop = 0
           else:
             self.clear_stop() # set the machine to recover for whatever comes next
@@ -105,7 +109,7 @@ class OpTestHMIHandling(unittest.TestCase):
     def verify_proc_recovery(self, l_res):
         if any("Processor Recovery done" in line for line in l_res) and \
             any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
-            print "Processor recovery done"
+            log.debug("Processor recovery done")
             return
         else:
             raise Exception("HMI handling failed to log message: for proc_recv_done")
@@ -113,7 +117,7 @@ class OpTestHMIHandling(unittest.TestCase):
     def verify_timer_facility_recovery(self, l_res):
         if any("Timer facility experienced an error" in line for line in l_res) and \
             any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
-            print "Timer facility experienced an error and got recovered"
+            log.debug("Timer facility experienced an error and got recovered")
             return
         else:
             raise Exception("HMI handling failed to log message")
@@ -129,18 +133,18 @@ class OpTestHMIHandling(unittest.TestCase):
         if not l_cores:
             raise Exception("Failed to get list of core id's")
 
-        print l_cores # {0: ['4', '5', '6', 'c', 'd', 'e'], 1: ['4', '5', '6', 'c', 'd', 'e'], 10: ['4', '5', '6', 'c', 'd', 'e']}
+        log.debug(l_cores) # {0: ['4', '5', '6', 'c', 'd', 'e'], 1: ['4', '5', '6', 'c', 'd', 'e'], 10: ['4', '5', '6', 'c', 'd', 'e']}
         # Remove master core where injecting core checkstop leads to IPL expected failures
         # after 2 failures system will starts boot in Golden side of PNOR
         l_cores[0][1].pop(0)
-        print l_cores
+        log.debug(l_cores)
         self.l_dic = []
         i=0
         for tup in l_cores:
             new_list = [l_chips[i], tup[1]]
             self.l_dic.append(new_list)
             i+=1
-        print self.l_dic
+        log.debug(self.l_dic)
         # self.l_dic is a list of chip id's, core id's . and is of below format 
         # [['00000000', ['4', '5', '6', 'c', 'd', 'e']], ['00000001', ['4', '5', '6', 'c', 'd', 'e']], ['00000010', ['4', '5', '6', 'c', 'd', 'e']]]
 
@@ -191,7 +195,7 @@ class OpTestHMIHandling(unittest.TestCase):
             val = addr[0]+str(core)+addr[2:]
         elif self.proc_gen in ["POWER9"]:
             val = hex(eval("0x%s | (((%s & 0x1f) + 0x20) << 24)" % (addr, int(core, 16))))
-            print val
+            log.debug(val)
         return val
 
     def clearGardEntries(self):
@@ -202,7 +206,7 @@ class OpTestHMIHandling(unittest.TestCase):
             res = self.cv_FSP.fspc.run_command("gard --clr all")
             self.assertIn("Success in clearing Gard Data", res,
                 "Failed to clear GARD entries")
-            print self.cv_FSP.fspc.run_command("gard --gc cpu")
+            log.debug(self.cv_FSP.fspc.run_command("gard --gc cpu"))
         else:
             g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list all", console=1)
             if "No GARD entries to display" not in g:
@@ -247,7 +251,7 @@ class OpTestHMIHandling(unittest.TestCase):
             # Skip this test on single chip systems(as recovery fails on 1S systems)
             if len(self.l_dic) == 1:
                 l_msg = "This is a single chip system, TOD Error recovery won't work"
-                print l_msg
+                log.debug(l_msg)
                 return BMC_CONST.FW_SUCCESS
             elif len(self.l_dic) > 1:
                 self._test_tod_errors(BMC_CONST.PSS_HAMMING_DISTANCE)
@@ -498,13 +502,13 @@ class OpTestHMIHandling(unittest.TestCase):
                 pass
             else:
                 if any("Kernel panic - not syncing" in line for line in l_res):
-                    print "TOD ERROR Injection-kernel got panic"
+                    log.debug("TOD ERROR Injection-kernel got panic")
                 elif any("login:" in line for line in l_res):
-                    print "System booted to host OS without any kernel panic message"
+                    log.debug("System booted to host OS without any kernel panic message")
                 elif any("Petitboot" in line for line in l_res):
-                    print "System reached petitboot without any kernel panic message"
+                    log.debug("System reached petitboot without any kernel panic message")
                 elif any("ISTEP" in line for line in l_res):
-                    print "System started booting without any kernel panic message"
+                    log.debug("System started booting without any kernel panic message")
                 else:
                     raise Exception("TOD: PSS Hamming distance error injection failed %s", str(cf))
         time.sleep(0.2)

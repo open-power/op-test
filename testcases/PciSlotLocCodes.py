@@ -96,6 +96,10 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class PciSlotLocCodesOPAL():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -119,7 +123,7 @@ class PciSlotLocCodesOPAL():
             if matchObj:
                 bdfn = matchObj.group(2)
             else:
-                print entry
+                log.debug(entry)
                 bdfn = entry
 
             ep_present = False
@@ -128,7 +132,7 @@ class PciSlotLocCodesOPAL():
                 if string in entry:
                     ep_present = True
                     if "LOC_CODE" in entry:
-                        print "Location code found for entry %s" % bdfn
+                        log.debug("Location code found for entry %s" % bdfn)
                     else:
                         failed_eplist.append(bdfn)
                     break
@@ -140,11 +144,11 @@ class PciSlotLocCodesOPAL():
 
             # If it is a pcie slot check for SLOT entry
             if "SLOT" in entry:
-                print "Entry %s has the slot label" % bdfn
+                log.debug("Entry %s has the slot label" % bdfn)
             else:
                 failed_slotlist.append(bdfn)
 
-        print failed_eplist, failed_slotlist
+        log.debug(failed_eplist, failed_slotlist)
         if (len(failed_slotlist) == 0) and (len(failed_eplist) == 0):
             return
         failed_eplist = '\n'.join(filter(None, failed_eplist))
@@ -162,16 +166,16 @@ class PciSlotLocCodesDeviceTree():
     def runTest(self):
         self.setup_test()
         node_dirs = self.c.run_command("find /proc/device-tree/ -type d | grep -i pciex | grep -i pci@")
-        print node_dirs
+        log.debug(node_dirs)
         slot_list = []
         device_list = []
         for directory in node_dirs:
             matchObj = re.match(".*/pci@\d{1,}$", directory, re.M)
             if matchObj:
-                print "entry %s is a slot" % directory
+                log.debug("entry %s is a slot" % directory)
                 slot_list.append(directory)
             else:
-                print "entry %s is a device" % directory
+                log.debug("entry %s is a device" % directory)
                 device_list.append(directory)
 
         failed_slot_list = []
@@ -187,7 +191,7 @@ class PciSlotLocCodesDeviceTree():
             if present:
                 if res[0] == "":
                     empty_slot_label_list.append(slot)
-        print failed_slot_list
+        log.warning(failed_slot_list)
 
         failed_loc_code_list = []
         empty_loc_code_list = []
@@ -203,15 +207,15 @@ class PciSlotLocCodesDeviceTree():
                 if res[0] == "":
                     empty_loc_code_list.append(device)
 
-        print failed_loc_code_list
+        log.warning(failed_loc_code_list)
 
         if len(empty_slot_label_list) != 0:
             empty_slot_label_list = '\n'.join(filter(None, empty_slot_label_list))
-            print "List of slot labels with empty string : %s" % empty_slot_label_list
+            log.error("List of slot labels with empty string : %s" % empty_slot_label_list)
 
         if len(empty_loc_code_list) != 0:
             empty_loc_code_list = '\n'.join(filter(None, empty_loc_code_list))
-            print "List of devices with empty location code : %s " % empty_loc_code_list
+            log.error("List of devices with empty location code : %s " % empty_loc_code_list)
 
         if (len(failed_slot_list) == 0) and (len(failed_loc_code_list) == 0):
             return

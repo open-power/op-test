@@ -47,6 +47,10 @@ from common.OpTestIPMI import IPMIConsoleState
 import common.OpTestQemu as OpTestQemu
 from testcases.DeviceTreeValidation import DeviceTreeValidation
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestEM():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -149,9 +153,9 @@ class OpTestEM():
             if m:
                 freq[m.group(1)] = int(decimal.Decimal(m.group(2)) * 1000000)
         # Frequencies are in KHz
-        print repr(freq)
+        log.debug(repr(freq))
         delta = int(i_freq) / (100)
-        print "# Set %d, Measured %d, Allowed Delta %d" % (int(i_freq),freq["avg"],delta)
+        log.debug("# Set %d, Measured %d, Allowed Delta %d" % (int(i_freq),freq["avg"],delta))
         self.assertAlmostEqual(freq["min"], freq["max"], delta=(freq["avg"]/100),
                                msg="ppc64_cpu measured CPU Frequency differs between min/max when frequency set explicitly")
         self.assertAlmostEqual(freq["avg"], freq["max"], delta=(freq["avg"]/100),
@@ -323,9 +327,9 @@ class cpu_freq_states_host(OpTestEM, unittest.TestCase):
 
         # Get available cpu scaling frequencies
         l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_available_frequencies" % cpu_num)
-        print l_res
+        log.debug(l_res)
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
-        print freq_list
+        log.debug(freq_list)
 
         # Set the cpu governer to userspace
         self.set_cpu_gov("userspace")
@@ -358,7 +362,7 @@ class cpu_freq_gov_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         pstate_min, pstate_max, pstate_nom = self.get_pstate_limits()
-        print pstate_min,pstate_max, pstate_nom
+        log.debug("Pstate min:{} max:{} nom:{}".format(pstate_min,pstate_max, pstate_nom))
 
         turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-turbo")[0]
         ultra_turbo = self.dt_prop_read_u32_arr("/ibm,opal/power-mgt/ibm,pstate-ultra-turbo")[0]
@@ -366,7 +370,7 @@ class cpu_freq_gov_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         cpu_num = self.get_first_available_cpu()
 
         if turbo == ultra_turbo:
-            print "No WoF frequencies"
+            log.debug("No WoF frequencies")
             freq_list = [pstate_max]
         else:
             # Add boost frequencies
@@ -384,7 +388,7 @@ class cpu_freq_gov_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         self.set_cpu_gov("performance")
         self.verify_cpu_gov("performance")
         self.verify_cpu_freq_almost(freq_list)
-        print "CPU successfully achieved one of the boost or turbo freuency when performance governor set"
+        log.debug("CPU successfully achieved one of the boost or turbo freuency when performance governor set")
         self.set_cpu_gov("powersave")
         self.verify_cpu_gov("powersave")
         self.verify_cpu_freq_almost(pstate_min)
@@ -423,9 +427,8 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         except CommandFailed:
             self.assertTrue(False, "No scaling_boost_frequencies file got created")
 
-        print l_res
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
-        print freq_list
+        log.debug("Boost frequencies: {}".format(freq_list))
 
         # Boost frequencies will achieve only when cpufreq governor is performance
         self.set_cpu_gov("performance")
@@ -454,8 +457,8 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
                 pass
 
         self.assertTrue(achieved, "CPU failed to achieve any one of the frequency in boost frequenies(WoF) range")
-        print "CPU successfully achieved one of the boost freuency"
-        print "Achieved freq: %d, near by WoF freq: %d" % (int(achieved_freq), int(freq))
+        log.debug("CPU successfully achieved one of the boost freuency")
+        log.debug("Achieved freq: %d, near by WoF freq: %d" % (int(achieved_freq), int(freq)))
 
 class cpu_idle_states_host(OpTestEM, unittest.TestCase):
     def setUp(self):
@@ -508,7 +511,7 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         # TODO: Check the expected idle states (/proc/device-tree/ibm,opal/power-mgt)
         # in runtime idle states (idle_state_names)
         idle_states = self.get_idle_states()
-        print repr(idle_states)
+        log.debug("Discovered idle states: {}".format(repr(idle_states)))
         names = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpuidle/state*/name")
         names = [[a] for a in names]
         idle_state_names = {}
@@ -546,14 +549,14 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
             after_time[i] = self.c.run_command("cat /sys/devices/system/cpu/cpu*/cpuidle/state%s/time" % i)
             after_time[i] = [int(a) for a in after_time[i]]
             for c in range(nrcpus):
-                print "# CPU %d entered idle state %s %u times" % (c, idle_state_names[i], after_usage[i][c] - before_usage[i][c])
-                print "# CPU %d entered idle state %s for %u microseconds" % (c, idle_state_names[i], after_time[i][c] - before_time[i][c])
+                log.debug("# CPU %d entered idle state %s %u times" % (c, idle_state_names[i], after_usage[i][c] - before_usage[i][c]))
+                log.debug("# CPU %d entered idle state %s for %u microseconds" % (c, idle_state_names[i], after_time[i][c] - before_time[i][c]))
                 if after_usage[i][c] > before_usage[i][c]:
                     success += 0.5
                 if after_time[i][c] > before_time[i][c]:
                     success += 0.5
                 total += 1
-            print "CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total)
+            log.debug("CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total))
             self.assertGreater(success/total, 0.95, "CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total))
             self.disable_idle_state(i)
 

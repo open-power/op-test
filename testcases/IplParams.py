@@ -27,6 +27,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class IplParams():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -83,7 +87,7 @@ class IplParams():
         elif self.cpu in ["POWER8", "POWER8E"]:
             return p8_params
         else:
-            print "CPU %s doesn't have the supported fw-feature set" % self.cpu
+            log.error("CPU %s doesn't have the supported fw-feature set" % self.cpu)
             return {}
 
     def file_exists(self, path):
@@ -97,8 +101,7 @@ class IplParams():
     def test_feature_enable(self):
         self.setup_test()
         params = self.get_params_table()
-        print "List of features which are expected to be in enabled state\n"
-        print params
+        log.debug("List of features which are expected to be in enabled state\n{}".format(params))
         if not params:
             self.assertTrue(False, "fw-feature set table not found")
 
@@ -122,8 +125,7 @@ class IplParams():
     def test_feature_disable(self):
         self.setup_test()
         params = self.get_params_table()
-        print "List of features which are expected to be in disabled state\n"
-        print params
+        log.debug("List of features which are expected to be in disabled state\n{}".format(params))
         if not params:
             self.assertTrue(False, "fw-feature set table not found")
 
