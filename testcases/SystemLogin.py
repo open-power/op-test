@@ -31,6 +31,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OOBHostLogin(unittest.TestCase):
     '''
     Log into the host via out of band console and run different commands
@@ -54,7 +58,7 @@ class OOBHostLogin(unittest.TestCase):
         try:
             r = l_con.run_command("sleep 2", timeout=10)
         except CommandFailed as r:
-            print str(r)
+            log.debug(str(r))
         l_con.run_command("lscpu")
 
 class BMCLogin(unittest.TestCase):
@@ -101,7 +105,7 @@ class SSHHostLogin(unittest.TestCase):
         try:
             r = self.cv_HOST.host_run_command("echo \'hai\';sleep 20", timeout=10)
         except CommandFailed as r:
-            print str(r)
+            log.debug(str(r))
         self.cv_HOST.host_run_command("whoami")
         self.cv_HOST.host_run_command("lscpu")
 

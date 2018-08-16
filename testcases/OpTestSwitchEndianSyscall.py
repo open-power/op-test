@@ -47,6 +47,9 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestSwitchEndianSyscall(unittest.TestCase):
     def setUp(self):
@@ -84,7 +87,7 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
         # Run the switch_endian sys call test once
         l_rc = self.run_once(l_dir)
         if int(l_rc) == 1:
-            print "Switch endian sys call test got succesful"
+            log.debug("Switch endian sys call test got succesful")
             return
         else:
             raise "Switch endian sys call test failed"

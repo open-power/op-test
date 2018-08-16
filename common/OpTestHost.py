@@ -52,6 +52,10 @@ from OpTestSSH import OpTestSSH
 import OpTestQemu
 from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestHost():
 
     ##
@@ -131,7 +135,7 @@ class OpTestHost():
     #
     def host_cold_reset(self):
 
-        print ("Applying Cold reset on host.")
+        log.debug(("Applying Cold reset on host."))
         l_rc = self.ssh.run_command(BMC_CONST.HOST_COLD_RESET, timeout=60)
 
         # TODO: enable once defect SW331585 is fixed
@@ -165,26 +169,26 @@ class OpTestHost():
                                              self.ip, "/tmp/", self.passwd)
         except:
             l_msg = "Copying hpm file to host failed"
-            print l_msg
+            log.warning(l_msg)
             raise OpTestError(l_msg)
 
         l_cmd = "\necho y | ipmitool -I usb " + BMC_CONST.BMC_HPM_UPDATE + "/tmp/" \
                 + i_image.rsplit("/", 1)[-1] + " " + imagecomponent
-        print l_cmd
+        log.debug(l_cmd)
         try:
             l_rc = self.ssh.run_command(l_cmd, timeout=1500)
-            print l_rc
+            log.debug(l_rc)
             self.ssh.run_command("rm -rf /tmp/" + i_image.rsplit("/", 1)[1],timeout=120)
         except subprocess.CalledProcessError:
             l_msg = "Code Update Failed"
-            print l_msg
+            log.warning(l_msg)
             raise OpTestError(l_msg)
 
         if(l_rc.__contains__("Firmware upgrade procedure successful")):
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Code Update Failed"
-            print l_msg
+            log.warning(l_msg)
             raise OpTestError(l_msg)
 
     def host_run_command(self, i_cmd, timeout=1500, retry=0, console=0):
@@ -207,13 +211,13 @@ class OpTestHost():
             raise OpTestError(l_msg)
 
         if not self.results_dir:
-            print l_data
+            log.debug(l_data)
             return
 
         l_res = (time.asctime(time.localtime())).replace(" ", "_")
         l_logFile = "Opal_msglog_%s.log" % l_res
         fn = os.path.join(self.results_dir, l_logFile)
-        print fn
+        log.debug(fn)
         with open(fn, 'w') as f:
             f.write(l_data)
 
@@ -231,12 +235,12 @@ class OpTestHost():
           if key not in kwargs.keys():
             kwargs[key] = default_vals[key]
         l_cmd = 'which ' + ' '.join(i_cmd)
-        print l_cmd
+        log.debug(l_cmd)
         try:
             l_res = self.host_run_command(l_cmd, console=kwargs['console'])
         except CommandFailed as c:
             l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (','.join(i_cmd), l_cmd, '\n'.join(c.output))
-            print l_msg
+            log.error(l_msg)
             raise OpTestError(l_msg)
 
         return True
@@ -250,7 +254,7 @@ class OpTestHost():
     def host_get_kernel_version(self, console=0):
         l_kernel = self.host_run_command("uname -a | awk {'print $3'}", timeout=60, console=0)
         l_kernel = ''.join(l_kernel)
-        print l_kernel
+        log.debug(l_kernel)
         return l_kernel
 
     ##
@@ -278,9 +282,10 @@ class OpTestHost():
         except CommandFailed as c:
             raise NoKernelConfig(i_kernel, l_file)
 
-        print "Config file is available"
-        l_cmd = "cat %s" % (l_file)
+        log.debug("Config file is available")
+        l_cmd = "cat %s | grep -i --color=never %s" % (l_file, i_config)
         l_res = self.host_run_command(l_cmd, timeout=60, console=console)
+        log.debug(l_res)
         config_opts = {}
         for o in l_res:
             m = re.match('# (.*) is not set', o)
@@ -328,9 +333,9 @@ class OpTestHost():
                 l_msg = "ibmpowernv module is not loaded, exiting"
                 raise OpTestError(l_msg)
             else:
-                print "ibmpowernv module is loaded"
-            print cmd
-            print response
+                log.debug("ibmpowernv module is loaded")
+            log.debug(cmd)
+            log.debug(response)
             return BMC_CONST.FW_SUCCESS
 
     ##
@@ -357,7 +362,7 @@ class OpTestHost():
                 return BMC_CONST.FW_SUCCESS
             except:
                 l_msg = "loading lm_sensors service failed"
-                print l_msg
+                log.error(l_msg)
                 raise OpTestError(l_msg)
 
     ##
@@ -373,13 +378,13 @@ class OpTestHost():
         self.ssh.run_command("rm -rf %s" % i_dir, timeout=300)
         self.ssh.run_command("mkdir %s" % i_dir, timeout=60)
         try:
-            print l_cmd
+            log.debug(l_cmd)
             res = self.ssh.run_command(l_cmd, timeout=1500)
-            print res
+            log.debug(res)
             return BMC_CONST.FW_SUCCESS
         except:
             l_msg = "Cloning linux git repository is failed"
-            print l_msg
+            log.error(l_msg)
             raise OpTestError(l_msg)
 
     ##
@@ -397,7 +402,7 @@ class OpTestHost():
             raise OpTestError(l_msg)
         l_res = self.host_run_command("lsmod | grep -i --color=never %s" % i_module, console=console)
         if re.search(i_module, ''.join(l_res)):
-            print "%s module is loaded" % i_module
+            log.debug("%s module is loaded" % i_module)
             return BMC_CONST.FW_SUCCESS
         else:
             raise KernelModuleNotLoaded(i_module)
@@ -409,7 +414,7 @@ class OpTestHost():
     #           else raise OpTestError
     #
     def host_read_hwclock(self, console=0):
-        print "Reading the hwclock"
+        log.debug("Reading the hwclock")
         self.host_run_command("hwclock -r;echo $?", console=console)
 
     ##
@@ -419,7 +424,7 @@ class OpTestHost():
     #           else raise OpTestError
     #
     def host_read_systime(self, console=0):
-        print "Reading system time using date utility"
+        log.debug("Reading system time using date utility")
         l_res = self.host_run_command("date", console=console)
         return l_res
 
@@ -432,7 +437,7 @@ class OpTestHost():
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def host_set_hwclock_time(self, i_time, console=0):
-        print "Setting the hwclock time to %s" % i_time
+        log.debug("Setting the hwclock time to %s" % i_time)
         self.host_run_command("hwclock --set --date \'%s\'" % i_time, console=console)
 
     ##
@@ -452,7 +457,7 @@ class OpTestHost():
         if l_val == 'm':
             self.host_load_module(i_module, console=console)
         elif l_val == 'y':
-            print "Driver built into kernel itself"
+            log.debug("Driver built into kernel itself")
         elif l_val == 'n':
             raise KernelConfigNotSet(i_config)
 
@@ -471,13 +476,13 @@ class OpTestHost():
         self.host_run_command("rm -rf %s" % i_dir, console=console)
         self.host_run_command("mkdir %s" % i_dir, console=console)
         try:
-            print l_cmd
+            log.debug(l_cmd)
             l_res = self.host_run_command(l_cmd, console=console)
-            print l_res
+            log.debug(l_res)
             return BMC_CONST.FW_SUCCESS
         except:
             l_msg = "Cloning skiboot git repository is failed"
-            print l_msg
+            log.debug(l_msg)
             raise OpTestError(l_msg)
 
     ##
@@ -508,7 +513,7 @@ class OpTestHost():
             domain = 'PCI' + domain
             if not self.pci_domains.__contains__(domain):
                 self.pci_domains.append(domain)
-        print self.pci_domains
+        log.debug(self.pci_domains)
         return self.pci_domains
 
     ##
@@ -544,12 +549,12 @@ class OpTestHost():
             l_msg = "Failed to gather kernel dmesg log"
             raise OpTestError(l_msg)
         if not self.results_dir:
-            print l_data
+            log.debug(l_data)
             return
         l_res = (time.asctime(time.localtime())).replace(" ", "_")
         l_logFile = "Kernel_dmesg_log_%s.log" % l_res
         fn = os.path.join(self.results_dir, l_logFile)
-        print fn
+        log.debug(fn)
         with open(fn, 'w') as f:
             f.write(l_data)
         return BMC_CONST.FW_SUCCESS
@@ -578,12 +583,12 @@ class OpTestHost():
     #
     def host_get_status_of_opal_errd_daemon(self, console=0):
         res = self.host_run_command("ps -ef | grep -v grep | grep opal_errd | wc -l", console=console)
-        print res
+        log.debug(res)
         if res[0].strip() == "0":
-            print "Opal_errd daemon is not running"
+            log.warning("Opal_errd daemon is not running")
             return False
         elif res[0].strip() == "1":
-            print "Opal_errd daemon is running"
+            log.debug("Opal_errd daemon is running")
             return True
         else:
             raise OpTestError("Not able to get status of opal errd daemon")
@@ -612,7 +617,7 @@ class OpTestHost():
     #
     def host_get_number_of_errorlogs(self, console=0):
         res = self.host_run_command("ls %s | wc -l" % BMC_CONST.OPAL_ELOG_DIR, console=console)
-        print res
+        log.debug(res)
         return res
 
     ##
@@ -623,7 +628,7 @@ class OpTestHost():
     def host_clear_error_logs(self, console=0):
         self.host_run_command("rm -f %s/*" % BMC_CONST.OPAL_ELOG_DIR, console=console)
         res = self.host_run_command("ls %s -1 --color=never" % BMC_CONST.OPAL_ELOG_SYSFS_DIR, console=console)
-        print '\n'.join(res)
+        log.debug('\n'.join(res))
         for entry in res:
             entry = entry.strip()
             if entry == '':
@@ -661,7 +666,7 @@ class OpTestHost():
                 if cf.exitcode == 3:
                     pass
                 else:
-                    print str(cf)
+                    log.debug(str(cf))
                     raise OpTestError("kdump-tools service is failed to stop")
         else:
             self.host_run_command("systemctl stop kdump.service", console=console)
@@ -671,7 +676,7 @@ class OpTestHost():
                 if cf.exitcode == 3:
                     pass
                 else:
-                    print str(cf)
+                    log.debug(str(cf))
                     raise OpTestError("kdump service is failed to stop")
 
     ##
@@ -714,7 +719,7 @@ class OpTestHost():
         if not chips:
             raise Exception("Getscom failed to list processor chip ids")
         chips.sort()
-        print chips # ['00000000', '00000001', '00000010']
+        log.debug(chips) # ['00000000', '00000001', '00000010']
         return chips
 
     def host_get_cores(self, console=0):
@@ -741,7 +746,7 @@ class OpTestHost():
         for i in core_ids:
             core_ids[i] = list(set(core_ids[i]))
         core_ids = sorted(core_ids.iteritems())
-        print core_ids
+        log.debug(core_ids)
         return core_ids
 
     # Supported on OpenPower and P9 FSP system
@@ -788,7 +793,7 @@ class OpTestHost():
                                              self.ip, "/tmp/", self.passwd)
         except:
             l_msg = "Copying fake.gard file to host failed"
-            print l_msg
+            log.error(l_msg)
             raise OpTestError(l_msg)
 
     def copy_test_file_to_host(self, filename):
@@ -798,7 +803,7 @@ class OpTestHost():
                                              self.ip, "/tmp/", self.passwd)
         except subprocess.CalledProcessError as e:
             l_msg = "Copying %s file to host failed" % filename
-            print l_msg
+            log.error(l_msg)
             raise OpTestError(l_msg + str(e))
 
     def copy_files_from_host(self, sourcepath="", destpath="/tmp/"):
@@ -809,8 +814,8 @@ class OpTestHost():
                                         self.ip, destpath, self.passwd, sourcepath)
         except subprocess.CalledProcessError as e:
             l_msg = "Copying %s file(s) from host failed" % destpath
-            print str(e)
-            print l_msg
+            log.debug(str(e))
+            log.error(l_msg)
             raise OpTestError(l_msg + str(e))
 
     def host_pflash_get_partition(self, partition, console=0):
@@ -843,11 +848,11 @@ class OpTestHost():
         l_res = " ".join(l_res)
         if (l_res.__contains__('IBM Device 0477')):
             l_msg = "Host has a CAPI FPGA card"
-            print l_msg
+            log.debug(l_msg)
             return True
         else:
             l_msg = "Host has no CAPI FPGA card; skipping test"
-            print l_msg
+            log.warning(l_msg)
             return False
 
     ##
@@ -885,9 +890,9 @@ class OpTestHost():
         try:
             self.host_run_command(l_cmd, console=console)
             l_msg = "Executable file %s/%s is available" % (i_dir, i_file)
-            print l_msg
+            log.debug(l_msg)
             return True
         except CommandFailed:
             l_msg = "Executable file %s/%s is not present" % (i_dir, i_file)
-            print l_msg
+            log.debug(l_msg)
             return False

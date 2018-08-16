@@ -29,6 +29,10 @@ from common.Exceptions import CommandFailed
 from testcases.OpTestFlash import PNORFLASH
 from testcases.OpTestFlash import OpalLidsFLASH
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class SecureBoot(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -80,7 +84,7 @@ class SecureBoot(unittest.TestCase):
         c = self.cv_SYSTEM.console
 
         self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
-        print self.cpu
+        log.debug(self.cpu)
         if self.cpu in ["POWER9"]:
             part_list = ["CAPP", "IMA_CATALOG", "BOOTKERNEL", "VERSION"]
         elif self.cpu in ["POWER8"]:
@@ -236,7 +240,7 @@ class KeyTransitionPNOR(SecureBoot, PNORFLASH):
         # system should power off automatically after key transition finishes
         self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
         self.wait_for_shutdown()
-        print "set state, going to off"
+        log.debug("set state, going to off")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
 class OPALContainerTest(SecureBoot, OpalLidsFLASH):

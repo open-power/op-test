@@ -40,6 +40,10 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class TrustedBoot(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -62,7 +66,7 @@ class TrustedBoot(unittest.TestCase):
     def verify_opal_tb(self):
         c = self.cv_SYSTEM.console
         self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
-        print self.cpu
+        log.debug(self.cpu)
         if self.cpu in ["POWER9"]:
             part_list = ["CAPP", "IMA_CATALOG", "BOOTKERNEL", "VERSION"]
         elif self.cpu in ["POWER8"]:

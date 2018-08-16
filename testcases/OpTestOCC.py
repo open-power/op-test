@@ -45,6 +45,10 @@ from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestOCCBase(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -66,13 +70,13 @@ class OpTestOCCBase(unittest.TestCase):
         self.assertEqual(int(res[-1]), 0, "occ reset command failed from fsp")
 
     def do_occ_reset(self):
-        print "OPAL-PRD: OCC Enable"
+        log.debug("OPAL-PRD: OCC Enable")
         self.c.run_command(BMC_CONST.OCC_ENABLE)
-        print "OPAL-PRD: OCC DISABLE"
+        log.debug("OPAL-PRD: OCC DISABLE")
         self.c.run_command(BMC_CONST.OCC_DISABLE)
-        print "OPAL-PRD: OCC Enable"
+        log.debug("OPAL-PRD: OCC Enable")
         self.c.run_command(BMC_CONST.OCC_ENABLE)
-        print "OPAL-PRD: OCC RESET"
+        log.debug("OPAL-PRD: OCC RESET")
         self.c.run_command(BMC_CONST.OCC_RESET)
 
     ##
@@ -89,12 +93,12 @@ class OpTestOCCBase(unittest.TestCase):
             return BMC_CONST.FW_SUCCESS
 
         l_status = self.cv_IPMI.ipmi_get_occ_status()
-        print l_status
+        log.debug(l_status)
         if BMC_CONST.OCC_DEVICE_ENABLED in l_status:
-            print "OCC's are up and active"
+            log.debug("OCC's are up and active")
             return BMC_CONST.FW_SUCCESS
         else:
-            print "OCC's are not in active state"
+            log.warning("OCC's are not in active state")
             return BMC_CONST.FW_FAILED
 
     def get_cpu_freq(self):
@@ -154,7 +158,7 @@ class OpTestOCCBase(unittest.TestCase):
         # Get available cpu scaling frequencies
         l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
-        print freq_list
+        log.debug(freq_list)
         return freq_list
 
     def dvfs_test(self):
@@ -167,7 +171,7 @@ class OpTestOCCBase(unittest.TestCase):
             try:
                 self.verify_cpu_freq(i_freq)
             except AssertionError as ae:
-                print str(ae)
+                log.debug(str(ae))
 
     def set_and_get_cpu_freq(self):
         freq_list = self.get_list_of_cpu_freq()
@@ -185,7 +189,7 @@ class OpTestOCCBase(unittest.TestCase):
 #            self.cv_HOST.host_gather_opal_msg_log()
 #            self.cv_HOST.host_gather_kernel_log()
         except:
-            print "Failed to collect debug info"
+            log.debug("Failed to collect debug info")
 
 class OpTestOCCBasic(OpTestOCCBase):
 
@@ -213,7 +217,7 @@ class OpTestOCC(OpTestOCCBase):
         self.do_occ_reset()
         tries = 10
         for j in range(1, tries):
-            print "Waiting for OCC Enable\Disable (%d\%d)"%(j,tries)
+            log.debug("Waiting for OCC Enable\Disable (%d\%d)"%(j,tries))
             time.sleep(10)
             rc = self.check_occ_status()
             if rc == BMC_CONST.FW_SUCCESS:
@@ -227,7 +231,7 @@ class OpTestOCC(OpTestOCCBase):
         try:
             self.verify_cpu_freq(cur_freq)
         except AssertionError as ae:
-            print str(ae)
+            log.debug(str(ae))
         self.dvfs_test()
 
 class OpTestOCCFull(OpTestOCCBase):
@@ -245,12 +249,12 @@ class OpTestOCCFull(OpTestOCCBase):
             "OCC's are not in active state")
         max_reset_count = 4
         for i in range(1, max_reset_count+1):
-            print "*******************OCC Reset count %d*******************" % i
+            log.debug("*******************OCC Reset count %d*******************" % i)
             cur_freq = self.set_and_get_cpu_freq()
             self.do_occ_reset()
             tries = 30
             for j in range(1, tries):
-                print "Waiting for OCC Enable\Disable (%d\%d)"%(j,tries)
+                log.debug("Waiting for OCC Enable\Disable (%d\%d)"%(j,tries))
                 time.sleep(10)
                 rc = self.check_occ_status()
                 if rc == BMC_CONST.FW_SUCCESS:
@@ -263,14 +267,14 @@ class OpTestOCCFull(OpTestOCCBase):
                 try:
                     self.verify_cpu_freq(cur_freq)
                 except AssertionError as ae:
-                    print str(ae)
+                    log.debug(str(ae))
                 self.dvfs_test()
         if rc == BMC_CONST.FW_FAILED:
             self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
         # After max_reset_count times occ reset, occ's will be disabled
         self.assertEqual(rc, BMC_CONST.FW_FAILED,
             "OCC's are still in active state after max occ reset count %s" % max_reset_count) 
-        print "OCC\'s are not in active state, rebooting the system"
+        log.debug("OCC\'s are not in active state, rebooting the system")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
     ##
@@ -287,12 +291,12 @@ class OpTestOCCFull(OpTestOCCBase):
             "OCC's are not in active state")
 
         for i in range(1, BMC_CONST.OCC_RESET_RELOAD_COUNT):
-            print "*******************OCC Reset count %d*******************" % i
+            log.debug("*******************OCC Reset count %d*******************" % i)
             self.do_occ_reset()
             tries = 30
             for j in range(1, tries):
                 time.sleep(10)
-                print "Waiting for OCC Enable\Disable (%d\%d)"%(j,tries)
+                log.debug("Waiting for OCC Enable\Disable (%d\%d)"%(j,tries))
                 rc = self.check_occ_status()
                 if rc == BMC_CONST.FW_SUCCESS:
                     break
@@ -301,11 +305,11 @@ class OpTestOCCFull(OpTestOCCBase):
             self.assertNotEqual(rc, BMC_CONST.FW_FAILED,
                 "OCC's are not in active state")
             self.dvfs_test()
-            print "OPAL-PRD: occ query reset reload count"
+            log.debug("OPAL-PRD: occ query reset reload count")
             self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
-            print "OPAL-PRD: occ reset reset/reload count"
+            log.debug("OPAL-PRD: occ reset reset/reload count")
             self.c.run_command(BMC_CONST.OCC_SET_RESET_RELOAD_COUNT)
-            print "OPAL-PRD: occ query reset reload count"
+            log.debug("OPAL-PRD: occ query reset reload count")
             self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
 
     ##
@@ -320,15 +324,15 @@ class OpTestOCCFull(OpTestOCCBase):
         self.assertNotEqual(self.check_occ_status(), BMC_CONST.FW_FAILED,
             "OCC's are not in active state")
         for count in range(1,7):
-            print "OPAL-PRD: OCC Enable"
+            log.debug("OPAL-PRD: OCC Enable")
             self.c.run_command(BMC_CONST.OCC_ENABLE)
-            print "OPAL-PRD: OCC Disable"
+            log.debug("OPAL-PRD: OCC Disable")
             self.c.run_command(BMC_CONST.OCC_DISABLE)
-            print "OPAL-PRD: OCC Enable"
+            log.debug("OPAL-PRD: OCC Enable")
             self.c.run_command(BMC_CONST.OCC_ENABLE)
             tries = 12
             for i in range(1, tries):
-                print "Waiting for OCC Enable\Disable (%d\%d)"%(i,tries)
+                log.debug("Waiting for OCC Enable\Disable (%d\%d)"%(i,tries))
                 time.sleep(10)
                 rc = self.check_occ_status()
                 if rc == BMC_CONST.FW_SUCCESS:
@@ -351,7 +355,7 @@ class OCCRESET_FSP(OpTestOCCBase):
             tries = 50
             recovered = False
             for j in range(1, tries):
-                print "Waiting for OCC Active (%d\%d)"%(j,tries)
+                log.debug("Waiting for OCC Active (%d\%d)"%(j,tries))
                 time.sleep(1)
                 try:
                     res = self.c.run_command("dmesg | grep -i 'OCC Active'")

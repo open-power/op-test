@@ -47,6 +47,10 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class EPOWBase(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -80,9 +84,9 @@ class EPOWBase(unittest.TestCase):
 
         # Checking for file existence
         rc = self.cv_FSP.fspc.run_command("test -f %s" % file)
-        print "The def file for this machine is available"
+        log.debug("The def file for this machine is available")
         limits = self.cv_FSP.fspc.run_command(cmd)
-        print limits
+        log.debug(limits)
         cmd = cmd + "| cut -d '#' -f 1"
         limits = self.cv_FSP.fspc.run_command(cmd)
         limits = limits.splitlines()
@@ -95,7 +99,7 @@ class EPOWBase(unittest.TestCase):
 
     def get_ambient_temp_ipmi(self):
         res = self.cv_IPMI.ipmitool.run('sdr list')
-        print res
+        log.debug(res)
         temp = r"Inlet Temp       \| (\d{2,})"
         searchObj = re.search(temp, res)
         if searchObj:
@@ -108,7 +112,7 @@ class EPOWBase(unittest.TestCase):
         val_d = temp * 4
         val_h = (str(hex(val_d))).replace('0x', '')
         cmd = 'echo "0000D000A0220004000700%s" | spif -' % val_h
-        print cmd
+        log.debug(cmd)
         return cmd
 
     def check_graceful_shutdown(self, console):
@@ -116,15 +120,15 @@ class EPOWBase(unittest.TestCase):
             rc = console.expect_exact(["reboot: Power down", "Power down"], timeout=120)
             if rc == 0 or rc == 1:
                 res = console.before
-                print console.after
-                print "System got graceful shutdown"
+                log.debug(console.after)
+                log.debug("System got graceful shutdown")
         except pexpect.TIMEOUT, e:
-            print "System is in active state"
-            print console.before
+            log.debug("System is in active state")
+            log.debug(console.before)
 
     def get_epow_list_temps(self):
         self.limits = self.get_epow_limits()
-        print self.limits
+        log.debug(self.limits)
         EPOW3 = self.limits['EPOW3']
         CRITICAL = self.limits['CRITICAL']
         EPOW3_RESET = self.limits['EPOW3_RESET']
@@ -162,37 +166,38 @@ class EPOW3Random(EPOWBase):
         # Range of EPOW temperatures from EPOW3 to CRITICAL
         temp_list = self.get_epow_list_temps()
         test_temp = int(random.choice(temp_list))
-        print temp_list, test_temp
-        print "===================================EPOW3_RANDOM:%i======================================" % test_temp
-        print "*********************Testing EPOW3 at Random EPOW Temperature**************************"
+        log.debug(temp_list)
+        log.debug(test_temp)
+        log.debug("========================EPOW3_RANDOM:%i==========================" % test_temp)
+        log.debug("****************Testing EPOW3 at Random EPOW Temperature*****************")
         temp_prev = self.get_ambient_temp_ipmi()
-        print "Current ambient temp: %s " % temp_prev
-        print "Current system status: %s" % self.cv_FSP.get_sys_status()
+        log.debug("Current ambient temp: %s " % temp_prev)
+        log.debug("Current system status: %s" % self.cv_FSP.get_sys_status())
         cmd = self.get_cmd_for_temp(test_temp)
-        print "Simulating the Ambient Temp: %s" % test_temp
-        print "Running the command on FSP: %s" % cmd
+        log.debug("Simulating the Ambient Temp: %s" % test_temp)
+        log.debug("Running the command on FSP: %s" % cmd)
         self.cv_FSP.fspc.run_command(cmd)
         self.check_graceful_shutdown(console.sol)
         self.cv_FSP.wait_for_standby()
         temp_current = self.get_ambient_temp_ipmi()
-        print "Current ambient temp: %s " % temp_current
+        log.debug("Current ambient temp: %s " % temp_current)
         self.assertEqual(int(temp_current), int(test_temp),
             "EPOW3 is working, looks like temp simulated is slightly different")
-        print "EPOW3 is successfull"
+        log.debug("EPOW3 is successfull")
         self.cv_FSP.wait_for_standby()
         # simulate EPOW3 reset temperature to bring back the system
         reset_temp = self.get_temp_for_param('EPOW3_RESET')
         cmd = self.get_cmd_for_temp(int(reset_temp))
-        print "Issuing the EPOW3 reset temp to bring back the system up"
-        print "Simulating the Ambient Temp: %s" % reset_temp
-        print "Running the command on FSP: %s" % cmd
+        log.debug("Issuing the EPOW3 reset temp to bring back the system up")
+        log.debug("Simulating the Ambient Temp: %s" % reset_temp)
+        log.debug("Running the command on FSP: %s" % cmd)
         res = self.cv_FSP.fspc.run_command(cmd)
-        print res
+        log.debug(res)
         temp_current = self.get_ambient_temp_ipmi()
-        print "Current ambient temp: %s " % temp_current
+        log.debug("Current ambient temp: %s " % temp_current)
         self.assertEqual(int(temp_current), int(reset_temp),
             "Temperature simulated is not equal to EPOW3_RESET")
-        print "EPOW3 RESET Done: Temperature simulated to EPOW3_RESET"
+        log.debug("EPOW3 RESET Done: Temperature simulated to EPOW3_RESET")
         # Power on the system after issuing EPOW3 RESET
         self.cv_FSP.power_on_sys()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
@@ -217,32 +222,32 @@ class EPOW3LOW(EPOWBase):
         console = self.cv_SYSTEM.console
         # Range of EPOW temperatures from EPOW3 to CRITICAL
         temp_list = self.get_epow_list_temps()
-        print temp_list
+        log.debug(temp_list)
         # Testing ambient temperatures lower than EPOW3, system should be alive
         EPOW3 = self.get_temp_for_param('EPOW3')
         temp_2 = int(EPOW3)-2
         temp_1 = int(EPOW3)-1
         for test_temp in [temp_1, temp_2]:
-            print "===============================EPOW3_LOW:%i==================================" % test_temp
-            print "*********Testing ambient temperatures lower than EPOW3, system should be alive***********"
+            log.debug("========================EPOW3_LOW:%i==========================" % test_temp)
+            log.debug("*********Testing ambient temperatures lower than EPOW3, system should be alive***********")
             temp_prev = self.get_ambient_temp_ipmi()
-            print "Current ambient temp: %s " % temp_prev
+            log.debug("Current ambient temp: %s " % temp_prev)
             cmd = self.get_cmd_for_temp(test_temp)
-            print "Simulating the Ambient Temp: %s" % test_temp
-            print "Running the command on FSP: %s" % cmd
+            log.debug("Simulating the Ambient Temp: %s" % test_temp)
+            log.debug("Running the command on FSP: %s" % cmd)
             res = self.cv_FSP.fspc.run_command(cmd)
-            print res
+            log.debug(res)
             # Monitor the system status for any chanages from runtime
             tries = 10
             for i in range(1, tries+1):
                 state = self.cv_FSP.get_sys_status()
-                print "Current system status: %s" % state
+                log.debug("Current system status: %s" % state)
                 self.assertEqual(state, 'runtime',
                         "EPOW3_LOW is failing at this temp: %s" % test_temp)
                 time.sleep(6)
             self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
             temp_current = self.get_ambient_temp_ipmi()
-            print "Current ambient temp: %s " % temp_current
+            log.debug("Current ambient temp: %s " % temp_current)
             self.assertEqual(int(temp_current), int(test_temp),
                 "EPOW3_LOW is working, looks like temp simulated is different")
 

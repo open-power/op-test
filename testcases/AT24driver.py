@@ -47,6 +47,10 @@ from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded, KernelConfigNotSet
 import difflib
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class AT24driver(I2C, unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -98,6 +102,7 @@ class AT24driver(I2C, unittest.TestCase):
         self.set_up()
 
         if self.test == "host":
+            log.debug("Starting AT24driver in Host")
             self.at24_init()
 
         # Get list of pairs of i2c bus and EEPROM device addresses in the host
@@ -119,6 +124,7 @@ class AT24driver(I2C, unittest.TestCase):
                 self.host_hexdump(l_dev)
             else:
                 pass
+        log.debug("Completed AT24driver test")
         pass
 
     def diff_commands(self, cmds, i_dev, err="Result doesn't match"):
@@ -135,7 +141,7 @@ class AT24driver(I2C, unittest.TestCase):
                 diff = ''
                 for l in difflib.unified_diff(r, last_r,fromfile=last_cmd,tofile=cmd):
                     diff = diff + l
-                print diff
+                log.debug(diff)
                 self.assertMultiLineEqual(''.join(r),''.join(last_r), "%s:\n%s" % (err,diff))
             last_r = r
             last_cmd = cmd
@@ -147,4 +153,5 @@ class AT24driver(I2C, unittest.TestCase):
 class SkirootAT24(AT24driver, unittest.TestCase):
     def setUp(self):
         self.test = "skiroot"
+        log.debug("Starting AT24driver test in Skiroot")
         super(AT24driver, self).setUp()

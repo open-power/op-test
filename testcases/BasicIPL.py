@@ -27,6 +27,10 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class BasicIPL(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -39,25 +43,32 @@ class BasicIPL(unittest.TestCase):
 
 class BootToPetitboot(BasicIPL):
     def runTest(self):
+        log.debug("IPL: starting BootToPetitboot test")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        log.debug("IPL: BootToPetitboot test passed")
 
 class BootToPetitbootShell(BasicIPL):
     def runTest(self):
+        log.debug("IPL: starting BootToPetitbootShell test")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        log.debug("IPL: BootToPetitbootShell test passed")
 
 class SoftPowerOff(BasicIPL):
     def runTest(self):
+        log.debug("IPL: starting SoftPowerOff test")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
         self.cv_SYSTEM.sys_power_soft()
-        print "soft powered off"
+        log.debug("IPL: soft powered off")
         self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
-        print "set state, going to off"
+        log.debug("set state, going to off")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        log.debug("IPL: SoftPowerOff test completed")
 
 class BMCReset(BasicIPL):
     def runTest(self):
+        log.debug("IPL: starting BMCReset test")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_BMC.reboot()
 
@@ -74,16 +85,20 @@ class BMCReset(BasicIPL):
 
         self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        log.debug("IPL: BMCReset test completed")
 
 class BootToOS(BasicIPL):
     def runTest(self):
-        print "Currently powered off!"
+        log.debug("IPL: starting BootToOS test")
+        log.debug("IPL: Currently powered off!")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        log.debug("IPL: BootToOS test completed")
         # We booted, SHIP IT!
 
 class OutOfBandWarmReset(BasicIPL):
     def runTest(self):
+        log.debug("IPL: starting OutOfBandWarmReset test")
         # FIXME currently we have to go via OFF to ensure we go to petitboot
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
@@ -92,20 +107,25 @@ class OutOfBandWarmReset(BasicIPL):
         self.cv_SYSTEM.sys_warm_reset()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        log.debug("IPL: OutOfBandWarmReset test completed")
 
 class HardPowerCycle(BasicIPL):
     def runTest(self):
+        log.debug("IPL: starting HardPowerCycle test")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
         self.cv_SYSTEM.sys_power_reset()
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        log.debug("IPL: HardPowerCycle test completed")
 
 class PowerOff(BasicIPL):
     def runTest(self):
+        log.debug("IPL: starting PowerOff test")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
         self.cv_SYSTEM.sys_power_off()
         self.cv_SYSTEM.set_state(OpSystemState.POWERING_OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        log.debug("IPL: PowerOff test completed")
 
 def suite():
     suite = unittest.TestSuite()

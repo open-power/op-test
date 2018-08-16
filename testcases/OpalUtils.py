@@ -40,6 +40,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpalUtils(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -53,13 +57,13 @@ class OpalUtils(unittest.TestCase):
         self.cv_HOST.host_get_OS_Level()
         chips = self.cv_HOST.host_get_list_of_chips()
         cores = self.cv_HOST.host_get_cores()
-        print cores
+        log.debug("cores: %s" % cores)
         i=0
         for tup in cores:
             new_list = [chips[i], tup[1]]
             self.l_dic.append(new_list)
             i+=1
-        print self.l_dic
+        log.debug(self.l_dic)
 
     def disable_cpu_sleepstates(self):
         if self.cpu in ["POWER8", "POWER8E"]:
@@ -81,7 +85,7 @@ class OpalUtils(unittest.TestCase):
         try:
             self.c.run_command(cmd)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("SCOM read operation failed")
 
     def scom_write_opearation(self):
@@ -107,14 +111,14 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("SCOM write operation failed")
 
         cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip, self.TFMR_PURR_REGISTER)
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("SCOM read operation failed")
 
     def list_gard_records(self):
@@ -122,7 +126,7 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("List gard records operation failed")
 
     def clear_gard_records(self):
@@ -130,7 +134,7 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("Clear gard records operation failed")
 
     def flash_info(self):
@@ -138,7 +142,7 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("pflash info operation failed")
 
     def flash_read_part(self):
@@ -146,7 +150,7 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("pflash read PART operation failed")
 
     def flash_read_guard_part(self):
@@ -154,7 +158,7 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("pflash read GUARD PART operation failed")
 
     def flash_erase_guard_part(self):
@@ -162,7 +166,7 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("pflash erase GUARD operation failed")
 
     def flash_program_guard_part(self):
@@ -170,7 +174,7 @@ class OpalUtils(unittest.TestCase):
         try:
             res = self.c.run_command(cmd,timeout=120)
         except CommandFailed as cf:
-            print str(cf)
+            log.debug(str(cf))
             raise Exception("pflash programme GUARD operation failed")
 
 

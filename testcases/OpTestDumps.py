@@ -42,6 +42,10 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class OpTestDumps():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -101,7 +105,7 @@ class OpTestDumps():
             time.sleep(4)
             res = self.cv_HOST.host_run_command('ls /var/log/dump')
             if '\n'.join(res).__contains__(new_dumpname):
-                print "fips dump transfered to host"
+                log.debug("fips dump transfered to host")
                 break
         self.assertIn(new_dumpname, res,
             "fips dump file transfer to host is failed when initiates from host")
@@ -114,14 +118,14 @@ class OpTestDumps():
             time.sleep(5)
             res = self.cv_HOST.host_run_command('ls /var/log/dump')
             if '\n'.join(res).__contains__(dumpname):
-                print "FipS dump transfered to Host"
+                log.debug("FipS dump transfered to Host")
                 break
         self.assertIn(dumpname, '\n'.join(res),
             "fips dump file transfer to host is failed when initiates from host")
         cmd = "ls /var/log/dump/%s -l| awk '{print $5}'" % dumpname
         size_host = '\n'.join((self.cv_HOST.host_run_command(cmd))).strip()
         if size_fsp.__contains__(size_host):
-            print "Total size of FSP dump file transfered to host from fsp"
+            log.debug("Total size of FSP dump file transfered to host from fsp")
         else:
             raise OpTestError("Total size of FSP dump file is not transfered to host from fsp")
 
@@ -150,7 +154,8 @@ class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
             raise OpTestError("Please mount NFS and retry the test")
 
         self.set_up()
-        print self.cv_FSP.fsp_run_command("smgr mfgState")
+        state = self.cv_FSP.fsp_run_command("smgr mfgState")
+        log.debug(state)
         self.cv_FSP.enable_system_dump()
         self.cv_FSP.clear_fsp_errors()
         if "host_dump_boottime" in self.test:
@@ -167,9 +172,9 @@ class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
         self.cv_HOST.ssh.close()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         res = self.cv_HOST.host_run_command("ls /var/log/dump")
-        print res
+        log.debug(res)
         res = self.cv_HOST.host_run_command("opal-dump-parse -l /var/log/dump/SYSDUMP*")
-        print res
+        log.debug(res)
         self.assertIn("Opal", '\n'.join(res), "sysdump test failed in dumping Opal-log section")
         self.assertIn("HostBoot-Runtime-log", '\n'.join(res), "sysdump test failed in dumping HBRT section")
         self.assertIn("printk", '\n'.join(res), "sysdump test failed in dumping printk section")
@@ -203,18 +208,18 @@ class FIPS_DUMP(OpTestDumps, unittest.TestCase):
         self.cv_HOST.host_clear_all_dumps()
         # Check the status of opal_errd daemon.
         if self.cv_HOST.host_get_status_of_opal_errd_daemon():
-            print "Opal_errd daemon is running"
+            log.debug("Opal_errd daemon is running")
         else:
             raise OpTestError("Opal_errd daemon is not running in host OS")
         count = 0
         while(count < 2):
-            print "=========================================Iteration : %d=========================================" % count
-            print "==================================fipsdump initiation from FSP================================="
+            log.debug("===========================Iteration : %d===============================" % count)
+            log.debug("======================fipsdump initiation from FSP=========================")
             dumpname, size = self.cv_FSP.trigger_fipsdump_in_fsp()
             self.verify_fipsdump(dumpname, size)
             count += 1
 
-            print "==================================fipsdump initiation from HOST================================"
+            log.debug("========================fipsdump initiation from HOST============================")
             dumpname, size = self.fipsdump_initiate_from_host()
             self.verify_fipsdump(dumpname, size)
 

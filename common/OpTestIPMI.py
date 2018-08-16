@@ -250,7 +250,7 @@ class IPMIConsole():
           self.state = IPMIConsoleState.DISCONNECTED
           raise CommandFailed('OPexpect.spawn', 'OPexpect.spawn encountered a problem', -1)
 
-        print "#IPMI SOL CONNECT"
+        log.debug("#IPMI SOL CONNECT")
         self.state = IPMIConsoleState.CONNECTED
         solChild.setwinsize(1000,1000)
         self.sol = solChild

@@ -41,6 +41,9 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestSensors(unittest.TestCase):
     def setUp(self):
@@ -71,6 +74,8 @@ class OpTestSensors(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
 
+        log.debug("Starting OpTestSensors test")
+
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
 
@@ -82,9 +87,9 @@ class OpTestSensors(unittest.TestCase):
 
         l_val = self.cv_HOST.host_check_config(l_kernel, l_config)
         if l_val == "y":
-            print "Driver build into kernel itself"
+            log.debug("Driver build into kernel itself")
         else:
-            print "Driver will be built as module"
+            log.debug("Driver will be built as module")
             # Loading ibmpowernv driver only on powernv platform
             self.cv_HOST.host_load_ibmpowernv(l_oslevel)
 
@@ -92,7 +97,7 @@ class OpTestSensors(unittest.TestCase):
         self.cv_HOST.host_check_command("sensors")
 
         l_pkg = self.cv_HOST.host_check_pkg_for_utility(l_oslevel, "sensors")
-        print "Installed package: %s" % l_pkg
+        log.debug("Installed package: %s" % l_pkg)
 
         # Restart the lm_sensor service
         self.cv_HOST.host_start_lm_sensor_svc(l_oslevel)
@@ -107,4 +112,5 @@ class OpTestSensors(unittest.TestCase):
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, str(c))
 
+        log.debug("Completed OpTestSensors test")
         return

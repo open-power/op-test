@@ -148,7 +148,8 @@ class PciSlotLocCodesOPAL():
             else:
                 failed_slotlist.append(bdfn)
 
-        log.debug(repr(failed_eplist), repr(failed_slotlist))
+        log.debug(repr(failed_eplist))
+        log.debug(repr(failed_slotlist))
         if (len(failed_slotlist) == 0) and (len(failed_eplist) == 0):
             return
         failed_eplist = '\n'.join(filter(None, failed_eplist))

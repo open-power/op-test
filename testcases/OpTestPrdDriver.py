@@ -53,6 +53,9 @@ from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class ErrorToInject():
     def __init__(self, desc, FIR, FIMR, ERROR):
@@ -96,10 +99,10 @@ class OpTestPrdDriver(unittest.TestCase):
             matchObj = re.search("(\d{8}).*processor", line)
             if matchObj:
                 l_chips.append(matchObj.group(1))
-        print l_chips, len(l_chips)
+        log.debug("chips list:%s list length: %s" % (l_chips, len(l_chips)))
         self.assertNotEqual(len(l_chips), 0, "Getscom failed to list processor chip id's")
         l_chips.sort()
-        print l_chips # ['00000000', '00000001', '00000010']
+        log.debug(l_chips) # ['00000000', '00000001', '00000010']
         self.random_chip = random.choice(l_chips)
 
     ##
@@ -115,8 +118,8 @@ class OpTestPrdDriver(unittest.TestCase):
     def prd_test_core_fir(self, FIR, FIMR, ERROR):
         console = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         chip_id = "0x" + self.random_chip
-        print chip_id
-        print "OPAL-PRD: Injecting error 0x%x on FIR: %s" % (ERROR, FIR)
+        log.debug(chip_id)
+        log.debug("OPAL-PRD: Injecting error 0x%x on FIR: %s" % (ERROR, FIR))
         # Read Local Fault Isolation register
         l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, FIR)
         l_res = console.run_command(l_cmd)
@@ -124,7 +127,7 @@ class OpTestPrdDriver(unittest.TestCase):
         # Reading Local Fault Isolation mask register
         l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, FIMR)
         l_res = console.run_command(l_cmd)
-        #print l_res
+        log.debug(l_res)
 
         # Changing the FIMR value to un-masked value.
         LEN = 16
@@ -147,7 +150,7 @@ class OpTestPrdDriver(unittest.TestCase):
             l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, FIR)
             l_res = console.run_command(l_cmd)
             if l_res[-1] == BMC_CONST.FAULT_ISOLATION_REGISTER_CONTENT:
-                print "Opal-prd handles core hardware error"
+                log.debug("Opal-prd handles core hardware error")
                 break
             else:
                 l_msg = "Opal-prd not yet cleared hardware error, (%d/%d)" %(i,tries)
@@ -159,15 +162,15 @@ class OpTestPrdDriver(unittest.TestCase):
         # Reading the Local Fault Isolation Mask Register again
         l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, FIMR)
         l_res = console.run_command(l_cmd)
-        #print l_res
+        log.debug(l_res)
 
         # check for IPOLL mask register value to see opal-prd cleared the value
         l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, self.IPOLL_MASK_REGISTER)
         l_res = console.run_command(l_cmd)
-        print l_res
+        log.debug(l_res)
         self.assertEqual(l_res[-1], self.IPOLL_MASK_REGISTER_CONTENT,
             "Opal-prd is not clearing the IPOLL MASK REGISTER after injecting core FIR error")
-        print "Opal-prd cleared the IPOLL MASK REGISTER"
+        log.debug("Opal-prd cleared the IPOLL MASK REGISTER")
         return BMC_CONST.FW_SUCCESS
 
     ##
@@ -229,23 +232,23 @@ class OpTestPrdDriver(unittest.TestCase):
         try:
             l_con.run_command("opal-prd --pnor /dev/mtd0 --debug --stdio")
         except CommandFailed as cf:
-            print "opal-prd failed to activate %s" % str(cf)
+            log.debug("opal-prd failed to activate %s" % str(cf))
 
         # check for IPOLL mask register value to check opal-prd is running or not
         l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c 0x0 %s" % self.IPOLL_MASK_REGISTER
         l_res = l_con.run_command(l_cmd)
         if l_res[-1] == self.IPOLL_MASK_REGISTER_CONTENT:
-            print "Opal-prd is running"
+            log.debug("Opal-prd is running")
         else:
             l_con.run_command("service opal-prd start")
             l_res = l_con.run_command(l_cmd)
             self.assertEqual(l_res[-1], self.IPOLL_MASK_REGISTER_CONTENT,
                     "IPOLL MASK REGISTER is not getting cleared by opal-prd")
-            print "Opal-prd is running"
+            log.debug("Opal-prd is running")
 
         # Test for PBA FIR with different core errors
         for e in faults_to_inject:
-            print "PRD Test: %s" % str(e)
+            log.debug("PRD Test: %s" % str(e))
             self.prd_test_core_fir(e.FIR, e.FIMR, e.ERROR)
 
         pass
