@@ -32,6 +32,9 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import common.OpTestQemu as OpTestQemu
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 MAX_PSTATES = 256
 CPUIDLE_STATE_MAX = 10
@@ -52,7 +55,7 @@ class DeviceTreeValidation(unittest.TestCase):
 
     def get_proc_gen(self):
         self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
-        print repr(self.cpu)
+        log.debug(repr(self.cpu))
         if self.cpu not in ["POWER8", "POWER8E", "POWER9"]:
             self.skipTest("Unknown CPU type %s" % self.cpu)
 
@@ -128,7 +131,7 @@ class DeviceTreeValidation(unittest.TestCase):
         idle_states_control_array = self.dt_prop_read_u64_arr(control_prop)
         idle_states_mask_array = self.dt_prop_read_u64_arr(mask_prop)
 
-        print "\n \
+        log.debug("\n \
                List of idle states: %s\n \
                Idle state flags: %s\n \
                Idle state latencies ns: %s\n \
@@ -136,7 +139,7 @@ class DeviceTreeValidation(unittest.TestCase):
                Idle state control property: %s\n \
                Idle state mask property: %s\n " % \
                (idle_state_names, idle_state_flags, idle_state_latencies_ns, \
-               idle_state_residency_ns, idle_states_control_array, idle_states_mask_array)
+               idle_state_residency_ns, idle_states_control_array, idle_states_mask_array))
 
         # Validate ibm,cpu-idle-state-flags property
         self.assertGreater(len(idle_state_flags), 0, "No idle states found in DT")
@@ -164,7 +167,7 @@ class DeviceTreeValidation(unittest.TestCase):
         pstate_frequencies = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-frequencies-mhz")
         nr_pstates = abs(self.twos_comp(int(pstate_max[0], 16), 32) - self.twos_comp(int(pstate_min[0], 16), 32)) + 1
 
-        print "\n \
+        log.debug("\n \
                 List of pstate_ids: %s\n \
                 Minimum pstate: %s\n \
                 Maximum pstate: %s\n \
@@ -172,7 +175,7 @@ class DeviceTreeValidation(unittest.TestCase):
                 Turbo pstate: %s\n \
                 Pstate frequencies: %s\n \
                 Number of pstates: %s\n" % (pstate_ids, pstate_min, pstate_max, pstate_nominal, \
-                pstate_turbo, pstate_frequencies, nr_pstates)
+                pstate_turbo, pstate_frequencies, nr_pstates))
 
         if (nr_pstates <= 1 or nr_pstates > 128):
             if self.cpu in ["POWER8", "POWER8E"]:
@@ -197,13 +200,13 @@ class DeviceTreeValidation(unittest.TestCase):
             for prop in prop_val_pair_skiroot:
                 if prop in prop_val_pair_host:
                     if prop_val_pair_skiroot[prop] in prop_val_pair_host[prop]:
-                        print "Node %s is the same in both host and skiroot" % prop
+                        log.debug("Node %s is the same in both host and skiroot" % prop)
                     else:
                         failures.append(difflib.unified_diff(prop_val_pair_skiroot[prop], prop_val_pair_host[prop],fromfile="skiroot",tofile="host"))
                 else:
                     failures.append("Node %s is not existed in host OS" % prop)
             if failures:
-                self.assertTrue(False, "DT Property values pair vaildation failed")
+                self.assertTrue(False, "DT Property values pair vaildation failed: {}".format(repr(failures)))
 
     def runTest(self):
         self.skipTest("Not meant to be run directly. Run skiroot/host variants")
