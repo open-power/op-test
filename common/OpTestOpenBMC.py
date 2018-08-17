@@ -212,7 +212,7 @@ class HostManagement():
                              username=username,
                              password=password)
         self.util = OpTestUtil()
-        self.util.PingFunc(self.hostname, BMC_CONST.PING_RETRY_FOR_STABILITY)
+        self.util.PingFunc(self.hostname, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
         self.login()
         self.wait_for_bmc_runtime()
 
@@ -559,7 +559,7 @@ class HostManagement():
         # Wait for BMC to go down.
         self.util.ping_fail_check(self.hostname)
         # Wait for BMC to ping back.
-        self.util.PingFunc(self.hostname, BMC_CONST.PING_RETRY_FOR_STABILITY)
+        self.util.PingFunc(self.hostname, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
         # Wait for BMC ready state.
         self.wait_for_bmc_runtime()
 

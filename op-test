@@ -27,23 +27,37 @@
 op-test: run OpenPOWER test suite(s)
 """
 import sys
+import traceback
 import os
 import unittest
 import re
-
-try:
-    import faulthandler
-    import signal
-    faulthandler.register(signal.SIGUSR1)
-except ImportError:
-    pass
-
+import signal
 import logging
 import OpTestLogger
+from common.OpTestUtil import OpTestUtil
 # op-test is the parent logger
 optestlog = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 import OpTestConfiguration
+
 OpTestConfiguration.conf = OpTestConfiguration.OpTestConfiguration()
+
+def optest_handler(signum, frame):
+    # CURRENTLY we do NOT have any artifacts needing cleanup
+    # during the exposed signal handler window when the OpTestConfiguration
+    # object is not bootstrapped
+    # Future design consideration should provide parent/child
+    # structure to monitor for signals if needing to close this exposure
+    signal_dict = dict((key, value) for value, key in reversed(sorted(signal.__dict__.items()))
+     if value.startswith('SIG') and not value.startswith('SIG_'))
+    if OpTestConfiguration.conf.signal_ready == True:
+      OpTestConfiguration.conf.util.cleanup()
+    traceback.print_stack()
+    optestlog.error("OpTestSystem exiting from signal '{}' signum={}".format(signal_dict[signum], signum))
+    os._exit(1)
+    # do not use sys.exit, sys.exit in python throws an exception
+    # to the stack frame executing at the time the signal is received
+    # by the python interpreter, if the exception was caught during some other
+    # try/except block, control will be given back to that block
 
 from testcases import HelloWorld
 from testcases import OpTestExample
@@ -107,6 +121,16 @@ from testcases import CpuHotPlug
 from testcases import EnergyScale_BaseLine
 import testcases
 
+signal.signal(signal.SIGHUP, optest_handler)
+signal.signal(signal.SIGINT, optest_handler)
+signal.signal(signal.SIGQUIT, optest_handler)
+signal.signal(signal.SIGILL, optest_handler)
+signal.signal(signal.SIGABRT, optest_handler)
+signal.signal(signal.SIGFPE, optest_handler)
+signal.signal(signal.SIGSEGV, optest_handler)
+signal.signal(signal.SIGTERM, optest_handler)
+signal.signal(signal.SIGUSR1, optest_handler)
+signal.signal(signal.SIGUSR2, optest_handler)
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
 OpTestConfiguration.conf.objs()
 
@@ -442,9 +466,11 @@ class InstallHost():
                 optestlog.info('InstallHostOS added to default suite')
             else:
                 optestlog.info("Could not parse OS name from '{}'".format(target))
+                conf.util.cleanup()
                 exit(-1)
         else:
             optestlog.info("Missing parameters for InstallHost suite")
+            conf.util.cleanup()
             exit(-1)
 
     def suite(self):
@@ -494,34 +520,42 @@ suites = {
     'example' : OpTestExampleSuite(),
 }
 
-# Loop through the addons and load in suites defined there
-for opt in OpTestConfiguration.optAddons:
-    suites = OpTestConfiguration.optAddons[opt].addSuites(suites)
+try:
+    # Loop through the addons and load in suites defined there
+    for opt in OpTestConfiguration.optAddons:
+        suites = OpTestConfiguration.optAddons[opt].addSuites(suites)
 
-if OpTestConfiguration.conf.args.list_suites:
-    print '{0:34}{1}'.format('Test Suite', 'Description')
-    print '{0:34}{1}'.format('----------', '-----------')
-    for key in suites:
-        print '{0:34}{1}'.format(key, suites[key].__doc__)
-    exit(0)
+    if OpTestConfiguration.conf.args.list_suites:
+        print '{0:34}{1}'.format('Test Suite', 'Description')
+        print '{0:34}{1}'.format('----------', '-----------')
+        for key in suites:
+            print '{0:34}{1}'.format(key, suites[key].__doc__)
+        OpTestConfiguration.conf.util.cleanup()
+        exit(0)
 
-reload(sys)
-sys.setdefaultencoding("utf8")
+    reload(sys)
+    sys.setdefaultencoding("utf8")
 
-t = unittest.TestSuite()
+    t = unittest.TestSuite()
 
-if OpTestConfiguration.conf.args.run_suite:
-    for suite in OpTestConfiguration.conf.args.run_suite:
-        t.addTest(suites[suite].suite())
+    if OpTestConfiguration.conf.args.run_suite:
+        for suite in OpTestConfiguration.conf.args.run_suite:
+            t.addTest(suites[suite].suite())
 
-if OpTestConfiguration.conf.args.run:
-    t.addTest(unittest.TestLoader().loadTestsFromNames(OpTestConfiguration.conf.args.run))
+    if OpTestConfiguration.conf.args.run:
+        t.addTest(unittest.TestLoader().loadTestsFromNames(OpTestConfiguration.conf.args.run))
 
-if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
-    if not OpTestConfiguration.conf.args.only_flash:
-        t.addTest(suites['default'].suite())
+    if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
+        if not OpTestConfiguration.conf.args.only_flash:
+            t.addTest(suites['default'].suite())
 
-xml_msg = ""
+    xml_msg = ""
+except Exception as e:
+    traceback.print_exc()
+    optestlog.error("Exit unexpectedly with Exception={}".format(e))
+    OpTestConfiguration.conf.util.cleanup()
+    exit(-1)
+
 def run_tests(t, failfast):
     runner = unittest.TextTestRunner
     kwargs = {
@@ -548,28 +582,38 @@ def run_tests(t, failfast):
 
     return runner(**kwargs).run(t)
 
-res = None
+try:
+    res = None
 
-if not OpTestConfiguration.conf.args.noflash:
-    if any(s in OpTestConfiguration.conf.args.bmc_type for s in ("QEMU", "qemu")):
-        optestlog.info("Not adding FlashFirmware suite for QEMU machine")
+    if not OpTestConfiguration.conf.args.noflash:
+        if any(s in OpTestConfiguration.conf.args.bmc_type for s in ("QEMU", "qemu")):
+            optestlog.info("Not adding FlashFirmware suite for QEMU machine")
+        else:
+            res = run_tests(FlashFirmware().suite(),
+                    failfast=OpTestConfiguration.conf.args.failfast)
+
+    if OpTestConfiguration.conf.args.only_flash:
+        if res != None:
+            optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
+            OpTestConfiguration.conf.util.cleanup()
+            exit(len(res.errors + res.failures))
+        else:
+            OpTestConfiguration.conf.util.cleanup()
+            exit(0)
+
+    if not res or (res and not (res.errors or res.failures)):
+        res = run_tests(t, failfast=OpTestConfiguration.conf.args.failfast)
     else:
-        res = run_tests(FlashFirmware().suite(),
-                failfast=OpTestConfiguration.conf.args.failfast)
+        optestlog.error('Skipping main tests as flashing failed')
+        OpTestConfiguration.conf.util.cleanup()
+        exit(-1)
 
-if OpTestConfiguration.conf.args.only_flash:
-    if res != None:
-        optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
-        exit(len(res.errors + res.failures))
-    else:
-        exit(0)
+    optestlog.info('Exit with Result errors="{}" and failures="{}"'.format(len(res.errors), len(res.failures)))
 
-if not res or (res and not (res.errors or res.failures)):
-    res = run_tests(t, failfast=OpTestConfiguration.conf.args.failfast)
-else:
-    optestlog.error('Skipping main tests as flashing failed')
+    OpTestConfiguration.conf.util.cleanup()
+    exit(len(res.errors + res.failures))
+except Exception as e:
+    traceback.print_exc()
+    optestlog.error("Exit unexpectedly with Exception={}".format(e))
+    OpTestConfiguration.conf.util.cleanup()
     exit(-1)
-
-optestlog.info('Exit with Result errors="{}" and failures="{}"'.format(len(res.errors), len(res.failures)))
-
-exit(len(res.errors + res.failures))

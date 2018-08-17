@@ -50,7 +50,11 @@ from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
 from OpTestSSH import OpTestSSH
 import OpTestQemu
-from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
+from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 import logging
 import OpTestLogger
@@ -69,6 +73,9 @@ class OpTestHost():
     def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
                  scratch_disk="", proxy="", logfile=sys.stdout,
                  check_ssh_keys=False, known_hosts_file=None):
+        # testcases.HelloWorld fails with these runtime checks
+#        if i_bmcip is None:
+#          raise ParameterCheck(msg="OpTestHost __init__ passed i_bmcip as None, this doesn't seem right, check your configuration for bmc_ip")
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
@@ -148,7 +155,7 @@ class OpTestHost():
             print l_msg
             raise OpTestError(l_msg)'''
 
-        self.util.PingFunc(self.bmcip, BMC_CONST.PING_RETRY_FOR_STABILITY)
+        self.util.PingFunc(self.bmcip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
 
 
     ##

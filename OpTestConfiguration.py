@@ -13,6 +13,9 @@ from common.OpTestHost import OpTestHost
 from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
 from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
+from common.OpTestUtil import OpTestUtil
+from common.Exceptions import HostLocker, AES, ParameterCheck
+from common.OpTestConstants import OpTestConstants as BMC_CONST
 import argparse
 import time
 from datetime import datetime
@@ -44,6 +47,91 @@ optAddons = dict() # Store all addons found.  We'll loop through it a couple tim
 
 qemu_default = "qemu-system-ppc64"
 
+# HostLocker credentials need to be in Notes Web section ('comment' section of JSON)
+# bmc_type:OpenBMC
+# bmc_username:root
+# bmc_usernameipmi:ADMIN
+# bmc_password:0penBmc
+# bmc_passwordipmi:admin
+# bmc_ip:wl2.aus.stglabs.ibm.com
+# host_user:root
+# host_password:abc123
+# host_ip:wl2l.aus.stglabs.ibm.com
+
+
+default_val = {
+    'hostlocker'              : None,
+    'hostlocker_server'       : 'http://hostlocker.ozlabs.ibm.com',
+    'hostlocker_base_url'     : '/hostlock/api/v1',
+    'hostlocker_user'         : None,
+    'hostlocker_locktime'     : 'never',
+    'hostlocker_keep_lock'    : False,
+    'hostlocker_proxy'        : 'socks5h://localhost:1080',
+    'hostlocker_no_proxy_ips' : ['10.61.0.0/17', '10.61.128.0/17'],
+    'aes'                     : None,
+    'aes_server'              : 'http://fwreport02.austin.ibm.com',
+    'aes_base_url'            : '/pse_ct_dashboard/aes/rest',
+    'aes_user'                : None,
+    'aes_add_locktime'        : 0,
+    'aes_rel_on_expire'       : True,
+    'aes_keep_lock'           : False,
+    'aes_proxy'               : None,
+    'aes_no_proxy_ips'        : None,
+    'bmc_type'                : 'OpenBMC',
+    'bmc_username'            : 'root',
+    'bmc_usernameipmi'        : 'ADMIN',
+    'bmc_password'            : '0penBmc',
+    'bmc_passwordipmi'        : 'admin',
+    'bmc_ip'                  : None,
+    'host_user'               : 'root',
+    'host_password'           : 'abc123',
+    'host_ip'                 : None,
+}
+
+default_val_fsp = {
+    'bmc_type'            : 'FSP',
+    'bmc_username'        : 'dev',
+    'bmc_usernameipmi'    : 'ADMIN',
+    'bmc_password'        : 'FipSdev',
+    'bmc_passwordipmi'    : 'PASSW0RD',
+}
+
+default_val_ami = {
+    'bmc_type'            : 'AMI',
+    'bmc_username'        : 'sysadmin',
+    'bmc_usernameipmi'    : 'ADMIN',
+    'bmc_password'        : 'superuser',
+    'bmc_passwordipmi'    : 'admin',
+}
+
+default_val_smc = {
+    'bmc_type'            : 'SMC',
+    'bmc_username'        : 'sysadmin',
+    'bmc_usernameipmi'    : 'ADMIN',
+    'bmc_password'        : 'superuser',
+    'bmc_passwordipmi'    : 'ADMIN',
+}
+
+default_val_qemu = {
+    'bmc_type'            : 'qemu',
+    'bmc_ip'              : '10.0.2.2',
+     # typical KVM Host IP
+     # see OpTestQemu.py
+    'host_ip'             : '10.0.2.15',
+     # typical VM skiroot IP
+     # see OpTestQemu.py
+}
+
+default_templates = {
+    # lower case insensitive lookup used later
+    'openbmc'             : default_val,
+    'fsp'                 : default_val_fsp,
+    'ami'                 : default_val_ami,
+    'smc'                 : default_val_smc,
+    'qemu'                : default_val_qemu,
+}
+
+
 def get_parser():
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -51,6 +139,7 @@ def get_parser():
     )
     parser.add_argument("-c", "--config-file", help="Configuration File",
                         metavar="FILE")
+
     tgroup = parser.add_argument_group('Test',
                                        'Tests to run')
     tgroup.add_argument("--list-suites", action='store_true',
@@ -73,6 +162,33 @@ def get_parser():
     parser.add_argument("-l", "--logdir", help="Output directory for log files.  Can also be set via OP_TEST_LOGDIR env variable.")
     parser.add_argument("--suffix", help="Suffix to add to all reports.  Default is current time.")
 
+    lockgroup = parser.add_mutually_exclusive_group()
+    lockgroup.add_argument("--hostlocker", metavar="HOST_NAME", help="Hostlocker host name to checkout, see HOSTLOCKER GROUP below for more options")
+    lockgroup.add_argument("--aes", nargs='+', metavar="ENV_NAME|Q|L|U", help="AES environment name to checkout or Q|L|U for query|lock|unlock of AES environment, refine by adding --aes-search-args, see AES GROUP below for more options")
+
+    hostlockergroup = parser.add_argument_group('HOSTLOCKER GROUP',
+                                                'Options for HostLocker (see above optional arguments --hostlocker, mutually exclusive with --aes)')
+    hostlockergroup.add_argument("--hostlocker-user", help="UID login for HostLocker, uses OS UID if not specified, you must have logged in at least once via the web prior to running")
+    hostlockergroup.add_argument("--hostlocker-server", help="Override URL for HostLocker Server")
+    hostlockergroup.add_argument("--hostlocker-base-url", help="Override Base URL for HostLocker")
+    hostlockergroup.add_argument("--hostlocker-locktime", help="Time duration (see web for formats) to lock the host, never is the default, it will unlock post test")
+    hostlockergroup.add_argument("--hostlocker-keep-lock", default=False, help="Release the lock once the test finishes, defaults to always release the lock post test")
+    hostlockergroup.add_argument("--hostlocker-proxy", help="socks5 proxy server setup, defaults to use localhost port 1080, you must have the SSH tunnel open during tests")
+    hostlockergroup.add_argument("--hostlocker-no-proxy-ips", help="Allows dynamic determination if you are on proxy network then no proxy will be used")
+
+    aesgroup = parser.add_argument_group('AES GROUP',
+                                                'Options for AES (see above optional arguments --aes, mutually exclusive with --hostlocker)')
+    aesgroup.add_argument("--aes-search-args", nargs='+', help='AES allowable, match done by regex '
+                          + 'like --aes-search-args Environment_Name=wl2, run --aes Q for more info')
+    aesgroup.add_argument("--aes-user", help="UID login for AES, uses OS UID if not specified, you must have logged in at least once via the web prior to running")
+    aesgroup.add_argument("--aes-server", help="Override URL for AES Server")
+    aesgroup.add_argument("--aes-base-url", help="Override Base URL for AES")
+    aesgroup.add_argument("--aes-rel-on-expire", default=True, help="AES setting related to aes-add-locktime when making the initial reservation, defaults to True, does not affect already existing reservations")
+    aesgroup.add_argument("--aes-keep-lock", default=False, help="Release the AES reservation once the test finishes, defaults to False to always release the reservation post test")
+    aesgroup.add_argument("--aes-add-locktime", default=0, help="Time in hours (float value) of how long to reserve the environment, reservation defaults to never expire but will release the environment post test, if a reservation already exists for UID then extra time will be attempted to be added, this does NOT work on NEVER expiring reservations, be sure to add --aes-keep-lock or else the reservation will be given up after the test, use --aes L option to manage directly and --aes U option to manage directly without running a test")
+    aesgroup.add_argument("--aes-proxy", help="socks5 proxy server setup, defaults to use localhost port 1080, you must have the SSH tunnel open during tests")
+    aesgroup.add_argument("--aes-no-proxy-ips", help="Allows dynamic determination if you are on proxy network then no proxy will be used")
+
     bmcgroup = parser.add_argument_group('BMC',
                                          'Options for Service Processor')
     # The default supported BMC choices in --bmc-type
@@ -84,6 +200,7 @@ def get_parser():
                           choices=bmcChoices,
                           help="Type of service processor")
     bmcgroup.add_argument("--bmc-ip", help="BMC address")
+    bmcgroup.add_argument("--bmc-mac", help="BMC MAC address")
     bmcgroup.add_argument("--bmc-username", help="SSH username for BMC")
     bmcgroup.add_argument("--bmc-password", help="SSH password for BMC")
     bmcgroup.add_argument("--bmc-usernameipmi", help="IPMI username for BMC")
@@ -162,12 +279,19 @@ def get_parser():
 
     return parser
 
-
 class OpTestConfiguration():
     def __init__(self):
+        self.util = OpTestUtil(self) # initialize OpTestUtil with this object the OpTestConfiguration
         self.args = []
         self.remaining_args = []
         self.basedir = os.path.dirname(sys.argv[0])
+        self.signal_ready = False # indicator for properly initialized
+        self.lock_dict = { 'res_id'     : None,
+                           'name'       : None,
+                           'Group_Name' : None,
+                           'envs'       : [],
+                         }
+        self.util_server = None
         for dir in (os.walk(os.path.join(self.basedir, 'addons')).next()[1]):
             optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
 
@@ -200,13 +324,25 @@ class OpTestConfiguration():
         if defaults.get('qemu_binary'):
             qemu_default = defaults['qemu_binary']
 
-
         parser.add_argument("--check-ssh-keys", action='store_true', default=False,
                                 help="Check remote host keys when using SSH (auto-yes on new)")
         parser.add_argument("--known-hosts-file",
                                 help="Specify a custom known_hosts file")
 
         self.args , self.remaining_args = parser.parse_known_args(remaining_args)
+
+        args_dict = vars(self.args)
+
+        # if we have a bmc_type we start with appropriate template
+        if args_dict.get('bmc_type') is not None:
+          dict_merge = default_templates.get(args_dict.get('bmc_type').lower())
+          if dict_merge is not None:
+            default_val.update(dict_merge) # overlays dict merge on top of default_val
+
+        for key in default_val:
+          if args_dict.get(key) is None:
+            args_dict[key] = default_val[key]
+
         stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
                      'UNKNOWN_BAD' : OpSystemState.UNKNOWN_BAD,
                      'OFF' : OpSystemState.OFF,
@@ -286,6 +422,12 @@ class OpTestConfiguration():
                                              shell=True)
         self.logfile = self.logfile_proc.stdin
 
+        # we have enough setup to allow
+        # signal handler cleanup to run
+        self.signal_ready = True
+        # setup AES and Hostlocker configs after the logging is setup
+        self.util.check_lockers()
+
         if self.args.machine_state == None:
             if self.args.bmc_type in ['qemu']:
                 # Force UNKNOWN_BAD so that we don't try to setup the console early
@@ -308,6 +450,13 @@ class OpTestConfiguration():
         if self.args.list_suites:
             return
 
+        # check to see if bmc_ip even pings to validate configuration parms
+        # testcases.HelloWorld fails with these runtime checks
+#        try:
+#          self.util.PingFunc(self.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+#        except Exception as e: # cleanup here this early
+#          self.util.cleanup()
+#          raise ParameterCheck(msg="PingFunc fails to ping '{}', check your configuration and setup, see Exception details: {}".format(self.args.bmc_ip, e))
         host = OpTestHost(self.args.host_ip,
                           self.args.host_user,
                           self.args.host_password,
@@ -417,7 +566,10 @@ class OpTestConfiguration():
         elif self.args.bmc_type in optAddons:
             (bmc, self.op_system) = optAddons[self.args.bmc_type].createSystem(self, host)
         else:
-            raise Exception("Unsupported BMC Type")
+            self.util.cleanup()
+            raise Exception("Unsupported BMC Type '{}', check your upper/lower cases for bmc_type and verify "
+                            "any credentials used from HostLocker or "
+                            "AES Version (see aes_get_creds version_mappings)".format(self.args.bmc_type))
 
         host.set_system(self.op_system)
         return
