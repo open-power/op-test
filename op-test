@@ -131,6 +131,7 @@ class SkirootSuite():
     '''Tests in Petitboot environment'''
     def __init__(self):
         self.s = unittest.TestSuite()
+        self.s.addTest(BasicIPL.GotoPetitbootShell())
         self.s.addTest(DeviceTreeWarnings.Skiroot())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
         self.s.addTest(SecureBoot.VerifyOPALSecureboot())

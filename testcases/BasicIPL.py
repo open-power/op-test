@@ -55,6 +55,16 @@ class BootToPetitbootShell(BasicIPL):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         log.debug("IPL: BootToPetitbootShell test passed")
 
+class GotoPetitbootShell(BasicIPL):
+    """
+    We goto petitboot shell rather than do the off/on-to-petitboot
+    shell so that the skiroot test suite time to run each test is
+    a bit more accurate, rather than hiding the first IPL in the
+    first test that's run.
+    """
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
 class SoftPowerOff(BasicIPL):
     def runTest(self):
         log.debug("IPL: starting SoftPowerOff test")
