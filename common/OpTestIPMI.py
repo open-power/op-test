@@ -242,12 +242,12 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         try:
-          solChild = OPexpect.OPexpect.spawn(cmd,
+          solChild = OPexpect.spawn(cmd,
                                   failure_callback=set_system_to_UNKNOWN_BAD,
                                   failure_callback_data=self.system)
         except Exception as e:
           self.state = IPMIConsoleState.DISCONNECTED
-          raise CommandFailed('OPexpect.spawn', 'OPexpect.spawn encountered a problem', -1)
+          raise CommandFailed('OPexpect.spawn', "OPexpect.spawn encountered a problem, command was '{}'".format(cmd), -1)
 
         log.debug("#IPMI SOL CONNECT")
         self.state = IPMIConsoleState.CONNECTED
@@ -265,11 +265,17 @@ class IPMIConsole():
         if rc == 1:
           self.sol.close()
           time.sleep(60) # give things a minute to clear
-          raise CommandFailed('sol activate', "IPMI: pexpect.TIMEOUT while trying to establish connection", -1)
+          raise CommandFailed('sol activate',
+            "IPMI: pexpect.TIMEOUT while trying to establish"
+            " connection, command was '{}'"
+            .format(cmd), -1)
         if rc == 2:
           self.sol.close()
           time.sleep(60) # give things a minute to clear
-          raise CommandFailed('sol activate', 'IPMI: insufficient resources for session, unable to establish IPMI v2 / RMCP+ session', -1)
+          raise CommandFailed('sol activate',
+            "IPMI: insufficient resources for session, unable"
+            " to establish IPMI v2 / RMCP+ session, command was '{}'"
+            .format(cmd), -1)
 
     def get_console(self):
         if self.state == IPMIConsoleState.DISCONNECTED:
@@ -665,7 +671,7 @@ class OpTestIPMI():
         if BMC_CONST.BMC_PASS_COLD_RESET in rc:
             self.console.close()
             time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-            self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
+            self.util.PingFunc(self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
             self.ipmi_wait_for_bmc_runtime()
             l_finalstatus = self.ipmi_power_status()
             if (l_initstatus != l_finalstatus):
@@ -728,7 +734,7 @@ class OpTestIPMI():
             log.info("Warm reset result: {}".format(rc))
             self.console.close()
             time.sleep(BMC_CONST.BMC_WARM_RESET_DELAY)
-            self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
+            self.util.PingFunc(self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
             l_finalstatus = self.ipmi_power_status()
             if (l_initstatus != l_finalstatus):
                 log.debug('initial status ' + str(l_initstatus))
