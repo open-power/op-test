@@ -244,6 +244,9 @@ class OpTestBMC():
     def has_occ_active_sensor(self):
         return True
 
+    def supports_ipmi_dcmi(self):
+        return True
+
 class OpTestSMC(OpTestBMC):
 
     def has_os_boot_sensor(self):
@@ -254,6 +257,9 @@ class OpTestSMC(OpTestBMC):
 
     def has_occ_active_sensor(self):
         return False
+
+    def supports_ipmi_dcmi(self):
+        return True
 
     def image_transfer(self,i_imageName, copy_as=None):
 

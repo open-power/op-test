@@ -267,3 +267,6 @@ class OpTestQemu():
 
     def has_inband_bootdev(self):
         return False
+
+    def supports_ipmi_dcmi(self):
+        return False

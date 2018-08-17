@@ -509,13 +509,20 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_dcmi(self):
         log.debug("Inband IPMI[OPEN]: dcmi tests")
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_DCMI_DISCOVER,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_READING,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_TEMP_READING,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_CONF_PARAM,
-                               self.ipmi_method + BMC_CONST.IPMI_DCMI_SENSORS])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_DCMI_DISCOVER,
+                                   self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_READING,
+                                   self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT,
+                                   self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_MC_ID_STRING,
+                                   self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_TEMP_READING,
+                                   self.ipmi_method + BMC_CONST.IPMI_DCMI_GET_CONF_PARAM,
+                                   self.ipmi_method + BMC_CONST.IPMI_DCMI_SENSORS])
+        except CommandFailed as cf:
+            if self.cv_BMC.supports_ipmi_dcmi():
+                raise cf
+            else:
+                self.skipTest("BMC Implementation doesn't support DCMI commands")
+
 
 
     ##
