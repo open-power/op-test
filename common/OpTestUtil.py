@@ -196,9 +196,12 @@ class OpTestUtil():
         time.sleep(0.2)
         my_term.sendline('PS1=' + prompt)
         time.sleep(0.2)
+        rc = my_term.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         my_term.sendline("which stty && stty cols 300;which stty && stty rows 30")
         time.sleep(0.2)
+        rc = my_term.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         my_term.sendline("export LANG=C")
+        rc = my_term.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         time.sleep(0.2)
         my_term.sendline() # needed to sync buffers later on
         time.sleep(0.2) # pause for first time setup, buffers you know, more sensitive in petitboot shell, pexpect or console buffer not sure
@@ -338,16 +341,18 @@ class OpTestUtil():
         time.sleep(1)
         rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
+          before = my_term.before.replace("\r\r\n", "\n")
           try:
-            whoami = my_term.before.splitlines()[-1]
+            whoami = before.splitlines()[-1]
           except Exception as e:
             pass
           my_term.sendline("echo $?")
           time.sleep(1)
           rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          before = my_term.before.replace("\r\r\n", "\n")
           if rc == 0:
             try:
-              echo_rc = int(my_term.before.splitlines()[-1])
+              echo_rc = int(before.splitlines()[-1])
             except Exception as e:
               echo_rc = -1
             if echo_rc == 0:
@@ -458,7 +463,7 @@ class OpTestUtil():
         my_term.sendline('PS1=' + self.build_prompt(term_obj.prompt))
         rc = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          combo_io = (my_term.before + my_term.after).lstrip()
+          combo_io = (my_term.before + my_term.after).replace("\r\r\n", "\n").lstrip()
           set_env_list += combo_io.splitlines()
           # remove the expect prompt since matched generic #
           del set_env_list[-1]
@@ -476,7 +481,7 @@ class OpTestUtil():
           rc = my_term.expect([".*#", "try again.", pexpect.TIMEOUT, pexpect.EOF])
           if (rc == 0) or (rc == 1):
             combo_io = my_term.before + my_term.after
-            retry_list_output += combo_io.splitlines()
+            retry_list_output += combo_io.replace("\r\r\n","\n").splitlines()
             matching = [xs for xs in sudo_responses if any(xs in xa for xa in my_term.after.splitlines())]
             if len(matching):
               echo_rc = 1
@@ -506,7 +511,7 @@ class OpTestUtil():
         rc = my_term.expect([".*#$", "try again.", pexpect.TIMEOUT, pexpect.EOF])
         if (rc == 0) or (rc == 1):
           combo_io = pre_combo_io + my_term.before + my_term.after
-          handle_list_output += combo_io.splitlines()
+          handle_list_output += combo_io.replace("\r\r\n","\n").splitlines()
           matching = [xs for xs in sudo_responses if any(xs in xa for xa in my_term.after.splitlines())]
           if len(matching):
             # remove the expect prompt since matched generic #
@@ -524,7 +529,7 @@ class OpTestUtil():
         else:
           if (rc == 2) or (rc == 3):
             failure_list_output += ['Password Problem/TIMEOUT ']
-            failure_list_output += pre_combo_io.splitlines()
+            failure_list_output += pre_combo_io.replace("\r\r\n","\n").splitlines()
           # timeout path needs access to output
           # handle_list_output empty if timeout or EOF
           failure_list_output += handle_list_output
@@ -563,7 +568,7 @@ class OpTestUtil():
         else:
           rc = my_term.expect([expect_prompt, r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
         output_list = []
-        output_list += my_term.before.splitlines()
+        output_list += my_term.before.replace("\r\r\n","\n").splitlines()
         try:
           del output_list[:1] # remove command from the list
         except Exception as e:
@@ -579,7 +584,7 @@ class OpTestUtil():
           rc2 = my_term.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
           if rc2 == 0:
             echo_output = []
-            echo_output += my_term.before.splitlines()
+            echo_output += my_term.before.replace("\r\r\n","\n").splitlines()
             try:
                 del echo_output[:1] # remove command from the list
             except Exception as e:
