@@ -130,9 +130,17 @@ class QemuConsole():
         if self.initramfs is not None:
             cmd = cmd + " -initrd %s" % (self.initramfs)
         if self.hda is not None:
-            cmd = cmd + " -hda %s" % (self.hda)
+            # Put the disk on the first PHB
+            cmd = (cmd
+                    + " -drive file={},id=disk01,if=none".format(self.hda)
+                    + " -device virtio-blk-pci,drive=disk01,id=virtio01,bus=pcie.0,addr=0"
+                )
         if self.cdrom is not None:
-            cmd = cmd + " -cdrom %s" % (self.cdrom)
+            # Put the CDROM on the second PHB
+            cmd = (cmd
+                    + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
+                    + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.1,addr=0"
+                )
         # typical host ip=10.0.2.2 and typical skiroot 10.0.2.15
         # use skiroot as the source, no sshd in skiroot
         cmd = cmd + " -nic user,model=virtio-net-pci"
