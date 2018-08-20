@@ -119,6 +119,7 @@ class OpTestSystem(object):
           'login: '                                : self.login_callback,
           'mon> '                                  : self.xmon_callback,
           'System shutting down with error status' : self.guard_callback,
+          'Aborting!'                              : self.skiboot_callback,
         }
 
         self.login_expect_table = {
@@ -248,6 +249,16 @@ class OpTestSystem(object):
         xmon_exception = UnexpectedCase(state=self.state, msg=my_msg)
         self.state = OpSystemState.UNKNOWN_BAD
         raise xmon_exception
+
+    def skiboot_callback(self, **kwargs):
+        default_vals = {'my_r': None, 'value': None}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+        skiboot_exception = UnexpectedCase(state=self.state, msg="We hit the skiboot_callback value={}, manually restart the system".format(kwargs['value']))
+        self.state = OpSystemState.UNKNOWN_BAD
+        self.stop = 1
+        raise skiboot_exception
 
     def skiboot_log_on_console(self):
         return True
