@@ -289,17 +289,28 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         c = self.set_up()
         # Not every system has FRU0. But if nothing all the way up to 100, probably a bug.
         fru_id = 0
-        for fru_id in range(0,100):
+        found_one = False
+        nr_sequential_fail = 0
+        for fru_id in range(0,1):
+            if nr_sequential_fail > 25:
+                # If we don't see one for a while, there's probably no more
+                break
             try:
                 self.run_ipmi_cmds(c, [self.ipmi_method + "fru print %d" % fru_id])
             except CommandFailed as cf:
-                if cf.exitcode == 1:
+                print "FRU {} failed: {}".format(fru_id, repr(cf))
+                if cf.exitcode in [1, -1]:
+                    nr_sequential_fail = nr_sequential_fail + 1
                     continue
+                nr_sequential_fail = 0
                 self.fail(str(cf))
-            break
-        self.run_ipmi_cmds(c, [self.ipmi_method + "fru read %d /tmp/file_fru" % fru_id])
-        # TODO: Check for file output
-        l_res = c.run_command("hexdump -C /tmp/file_fru")
+
+            found_one = True
+            self.run_ipmi_cmds(c, [self.ipmi_method + "fru read %d /tmp/file_fru" % fru_id])
+            # TODO: Check for file output
+            l_res = c.run_command("hexdump -C /tmp/file_fru")
+
+        self.assertTrue(found_one, "Didn't find any FRUs")
 
     ##
     # @brief  It will execute and test the management controller(mc) commands functionality
@@ -438,7 +449,14 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     #
     def test_sel_clear(self):
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_CLEAR])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_CLEAR])
+        except CommandFailed as cf:
+            if self.cv_BMC.has_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
+
 
     ##
     # @brief  It will execute and test the ipmi sel get <id> functionality
