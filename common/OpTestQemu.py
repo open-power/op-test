@@ -33,6 +33,10 @@ from common.Exceptions import CommandFailed
 from common import OPexpect
 from OpTestUtil import OpTestUtil
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class ConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
@@ -112,7 +116,7 @@ class QemuConsole():
         except Exception as e:
             self.state = ConsoleState.DISCONNECTED
             pass
-        print "Qemu close -> TERMINATE"
+        log.debug("Qemu close -> TERMINATE")
 
     def connect(self):
         if self.state == ConsoleState.CONNECTED:
@@ -120,7 +124,7 @@ class QemuConsole():
         else:
             self.util.clear_state(self) # clear when coming in DISCONNECTED
 
-        print "#Qemu Console CONNECT"
+        log.debug("#Qemu Console CONNECT")
 
         cmd = ("%s" % (self.qemu_binary)
                + " -machine powernv -m 4G"
@@ -179,7 +183,7 @@ class QemuConsole():
 
         count = 0
         while (not self.sol.isalive()):
-            print '# Reconnecting'
+            log.info('# Reconnecting')
             if (count > 0):
                 time.sleep(20)
             self.connect()
