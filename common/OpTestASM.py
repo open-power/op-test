@@ -167,8 +167,16 @@ class OpTestASM:
     def start_debugvtty_session(self, partitionId='0', sessionId='0', sessionTimeout='600'):
         if not self.login():
             raise OpTestError("Failed to login ASM page")
-        param = {'p':partitionId,'s':sessionId,'t':sessionTimeout,
+        param = {'form':'81', 'p':partitionId,'s':sessionId,'t':sessionTimeout,
                  'Save settings':'Save settings','CSRF_TOKEN':''}
         form = "form=81"
+        self.submit(form, param)
+        self.logout()
+
+    def enable_err_injct_policy(self):
+        if not self.login():
+            raise OpTestError("Failed to login ASM page")
+        param = {'form':'56', 'p':'1', 'submit':'Save settings', 'CSRF_TOKEN':''}
+        form = "form=56"
         self.submit(form, param)
         self.logout()
