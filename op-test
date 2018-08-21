@@ -531,7 +531,10 @@ def run_tests(t):
 res = None
 
 if not OpTestConfiguration.conf.args.noflash:
-    res = run_tests(FlashFirmware().suite())
+    if any(s in OpTestConfiguration.conf.args.bmc_type for s in ("QEMU", "qemu")):
+        optestlog.info("Not adding FlashFirmware suite for QEMU machine")
+    else:
+        res = run_tests(FlashFirmware().suite())
 
 if OpTestConfiguration.conf.args.only_flash:
     if res != None:

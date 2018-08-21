@@ -42,11 +42,12 @@ class QemuConsole():
     A 'connection' to the Qemu Console involves *launching* qemu.
     Closing a connection will *terminate* the qemu process.
     """
-    def __init__(self, qemu_binary=None, skiboot=None,
+    def __init__(self, qemu_binary=None, pnor=None, skiboot=None,
             prompt=None, kernel=None, initramfs=None,
             block_setup_term=None, delaybeforesend=None,
             logfile=sys.stdout, hda=None, cdrom=None):
         self.qemu_binary = qemu_binary
+        self.pnor = pnor
         self.skiboot = skiboot
         self.kernel = kernel
         self.initramfs = initramfs
@@ -124,11 +125,16 @@ class QemuConsole():
         cmd = ("%s" % (self.qemu_binary)
                + " -machine powernv -m 4G"
                + " -nographic -nodefaults"
-               + " -bios %s" % (self.skiboot)
-               + " -kernel %s" % (self.kernel)
            )
-        if self.initramfs is not None:
-            cmd = cmd + " -initrd %s" % (self.initramfs)
+        if self.pnor:
+            cmd = cmd + " -drive file={},format=raw,if=mtd".format(self.pnor)
+        if self.skiboot:
+            cmd = cmd + " -bios %s" % (self.skiboot)
+        if self.kernel:
+            cmd = cmd + " -kernel %s" % (self.kernel)
+            if self.initramfs is not None:
+                cmd = cmd + " -initrd %s" % (self.initramfs)
+
         if self.hda is not None:
             # Put the disk on the first PHB
             cmd = (cmd
@@ -224,7 +230,7 @@ class QemuIPMI():
         pass
 
 class OpTestQemu():
-    def __init__(self, qemu_binary=None, skiboot=None,
+    def __init__(self, qemu_binary=None, pnor=None, skiboot=None,
                  kernel=None, initramfs=None, cdrom=None,
                  logfile=sys.stdout, hda=None):
         if hda is not None:
@@ -236,7 +242,8 @@ class OpTestQemu():
                                             "-fqcow2",
                                             self.qemu_hda_file.name,
                                             "10G"])
-        self.console = QemuConsole(qemu_binary=qemu_binary, skiboot=skiboot,
+        self.console = QemuConsole(qemu_binary=qemu_binary, pnor=pnor,
+                                   skiboot=skiboot,
                                    kernel=kernel, initramfs=initramfs,
                                    logfile=logfile,
                                    hda=self.qemu_hda_file.name, cdrom=cdrom)

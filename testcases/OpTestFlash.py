@@ -281,7 +281,7 @@ class PNORFLASH(OpTestFlashBase):
     def runTest(self):
         if not self.pnor or not os.path.exists(self.pnor):
             self.skipTest("PNOR image %s not doesn't exist" % self.pnor)
-        if any(s in self.bmc_type for s in ("FSP", "QEMU")):
+        if any(s in self.bmc_type for s in ("FSP", "QEMU", "qemu")):
             self.skipTest("OP AMI/OpenBMC PNOR Flash test")
 
         if "AMI" in self.bmc_type and not self.pflash:
@@ -408,6 +408,8 @@ class OpalLidsFLASH(OpTestFlashBase):
         if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs \
             and not self.flash_part_list:
             self.skipTest("No custom skiboot/kernel to flash")
+        if any(s in self.bmc_type for s in ("QEMU", "qemu")):
+            self.skipTest("Skipping OpalLidsFLASH on QEMU machine")
 
         if self.bmc_type in ["AMI", "SMC"] and not self.pflash:
                 self.fail("pflash tool is needed for flashing OPAL lids")

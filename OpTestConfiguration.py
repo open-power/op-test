@@ -285,7 +285,11 @@ class OpTestConfiguration():
         self.logfile = self.logfile_proc.stdin
 
         if self.args.machine_state == None:
-            self.startState = OpSystemState.UNKNOWN
+            if self.args.bmc_type in ['qemu']:
+                # Force UNKNOWN_BAD so that we don't try to setup the console early
+                self.startState = OpSystemState.UNKNOWN_BAD
+            else:
+                self.startState = OpSystemState.UNKNOWN
         else:
             self.startState = stateMap[self.args.machine_state]
         return self.args, self.remaining_args
@@ -397,13 +401,15 @@ class OpTestConfiguration():
         elif self.args.bmc_type in ['qemu']:
             print repr(self.args)
             bmc = OpTestQemu(self.args.qemu_binary,
+                             self.args.host_pnor,
                              self.args.flash_skiboot,
                              self.args.flash_kernel,
                              self.args.flash_initramfs,
                              cdrom=self.args.os_cdrom,
                              logfile=self.logfile,
                              hda=self.args.host_scratch_disk)
-            self.op_system = OpTestQemuSystem(host=host, bmc=bmc)
+            self.op_system = OpTestQemuSystem(host=host, bmc=bmc,
+                    state=self.startState)
             bmc.set_system(self.op_system)
         # Check that the bmc_type exists in our loaded addons then create our objects
         elif self.args.bmc_type in optAddons:
