@@ -796,11 +796,12 @@ class OpTestHost():
             log.error(l_msg)
             raise OpTestError(l_msg)
 
-    def copy_test_file_to_host(self, filename):
-        i_image = os.path.join(self.conf.basedir, "test_binaries", filename)
+    def copy_test_file_to_host(self, filename, sourcedir="test_binaries",
+                               dstdir="/tmp/"):
+        i_image = os.path.join(self.conf.basedir, sourcedir, filename)
         try:
             self.util.copyFilesToDest(i_image, self.user,
-                                             self.ip, "/tmp/", self.passwd)
+                                             self.ip, dstdir, self.passwd)
         except subprocess.CalledProcessError as e:
             l_msg = "Copying %s file to host failed" % filename
             log.error(l_msg)
