@@ -291,19 +291,18 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         fru_id = 0
         found_one = False
         nr_sequential_fail = 0
-        for fru_id in range(0,1):
+        for fru_id in range(0,100):
             if nr_sequential_fail > 25:
                 # If we don't see one for a while, there's probably no more
                 break
             try:
                 self.run_ipmi_cmds(c, [self.ipmi_method + "fru print %d" % fru_id])
             except CommandFailed as cf:
-                print "FRU {} failed: {}".format(fru_id, repr(cf))
+                print "FRU {} failed: {} {}".format(fru_id, cf.exitcode, cf.output)
                 if cf.exitcode in [1, -1]:
                     nr_sequential_fail = nr_sequential_fail + 1
                     continue
                 nr_sequential_fail = 0
-                self.fail(str(cf))
 
             found_one = True
             self.run_ipmi_cmds(c, [self.ipmi_method + "fru read %d /tmp/file_fru" % fru_id])
