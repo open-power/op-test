@@ -32,6 +32,7 @@ class OpalMsglog():
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
+        self.bmc_type = conf.args.bmc_type
 
     def runTest(self):
         self.setup_test()
@@ -40,6 +41,11 @@ class OpalMsglog():
             "XSCOM: read error gcid=.* pcb_addr=0x40031 stat=0x4",
             "XSCOM: Read failed, ret =  -26",
                       ]
+
+        if self.bmc_type in ["qemu"]:
+            filter_out.append('SLW: No image found')
+            filter_out.append('SLW: Sleep not enabled by HB on this platform')
+            filter_out.append('OCC: No HOMER detected, assuming no pstates')
 
         try:
             log_entries = self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")

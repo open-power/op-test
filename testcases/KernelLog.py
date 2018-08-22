@@ -32,6 +32,7 @@ class KernelLog():
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
+        self.bmc_type = conf.args.bmc_type
 
     def runTest(self):
         self.setup_test()
@@ -81,6 +82,10 @@ class KernelLog():
                       # New warning, but aparrently harmless
                       "Cannot allocate SWIOTLB buffer",
         ]
+
+        if self.bmc_type in ['qemu']:
+            # Qemu doesn't (yet) have pstate support, so ignore errors there.
+            filter_out.append('powernv-cpufreq: ibm,pstate-min node not found')
 
         for f in filter_out:
             fre = re.compile(f)
