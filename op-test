@@ -263,7 +263,6 @@ class FullSuite():
         self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(LightPathDiagnostics.suite())
         self.s.addTest(OpalErrorLog.FullTest())
-        self.s.addTest(DPO.DPOHost())
         self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())

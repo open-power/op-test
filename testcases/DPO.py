@@ -84,12 +84,5 @@ class DPOSkiroot(Base):
         self.assertIn(rc, [0, 1, 2], "Failed to power down")
         rc = self.cv_SYSTEM.sys_wait_for_standby_state()
         log.debug(rc)
-        self.cv_SYSTEM.set_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-
-class DPOHost(DPOSkiroot):
-    def setup_test(self):
-        self.host = "Host"
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
-        log.debug("Starting DPO test in Host")
+        # Force the system state to be detected again.
+        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
