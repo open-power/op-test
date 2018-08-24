@@ -11,6 +11,8 @@ The end goal is to have a collection of tests that can be run against any
 OpenPower system to validate it's function. The tests are automation/jenkins
 ready.
 
+For full documentation, visit http://open-power.github.io/op-test-framework/
+
 ### Requirements ###
 
 This framework runs on most Linux based systems.
