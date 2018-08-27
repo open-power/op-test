@@ -81,6 +81,21 @@ class KernelLog():
                       "mtd.*opal_flash_async_op\(op=1\) failed \(rc -6\)",
                       # New warning, but aparrently harmless
                       "Cannot allocate SWIOTLB buffer",
+                      # Ignore a quirk that we hit on (at least some) Tuletas,
+                      "TI XIO2000a quirk detected; secondary bus fast back-to-back transfers disabled",
+                      # SCSI is Fun, and for some reason likes being very severe about discovering disks,
+                      "sd .* \[sd.*\] Assuming drive cache: write through",
+                      # SCSI is fun. Progress as dots
+                      " \.$",
+                      # SCSI is fun, of course this is critically important event
+                      "s[dr] .* Power-on or device reset occurred",
+                      ".?ready$",
+                      # Mellanox!
+                      "mlx4_en.* Port \d+: Using \d+ [TR]X rings",
+                      "mlx4_en.* Port \d+: Initializing port",
+                      "mlx4_core.*Old device ETS support detected",
+                      "mlx4_core.*Consider upgrading device FW.",
+
         ]
 
         if self.bmc_type in ['qemu']:
