@@ -72,16 +72,6 @@ class OpalSysfsTests():
             time.sleep(2)
         self.assertTrue((int(cur_powercap) == int(value)), "OPAL failed to set power cap value")
 
-    def disable_sensor_polling(self):
-        if "SMC" in self.bmc_type :
-            self.cv_IPMI.disable_sensor_polling()
-        return
-
-    def enable_sensor_polling(self):
-        if "SMC" in self.bmc_type :
-            self.cv_IPMI.enable_sensor_polling()
-        return
-
     def test_opal_powercap(self):
         self.setup_test()
         self.get_proc_gen()
@@ -91,15 +81,14 @@ class OpalSysfsTests():
         max_powercap = self.c.run_command("cat %s" % str(POWERCAP_MAX))[-1]
         min_powercap = self.c.run_command("cat %s" % str(POWERCAP_MIN))[-1]
 
-        self.disable_sensor_polling()
         log.debug("Powercap cur:{} max:{} min:{}".format(cur_powercap, max_powercap, min_powercap))
+
         for i in range(3):
             value = random.randint(int(min_powercap), int(max_powercap))
             self.set_power_cap(value)
         # Set back to cur_powercap
         self.set_power_cap(cur_powercap)
 
-        self.enable_sensor_polling()
 
     def test_opal_psr(self):
         self.setup_test()
