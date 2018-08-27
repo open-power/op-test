@@ -1375,9 +1375,3 @@ class OpTestSMCIPMI(OpTestIPMI):
         elif "State Asserted" in res:
             log.info("#TPM is enabled")
             return True
-
-    def disable_sensor_polling(self):
-        self.ipmitool.run("raw 0x30 0x70 0xdf 0")
-
-    def enable_sensor_polling(self):
-        self.ipmitool.run("raw 0x30 0x70 0xdf 1")
