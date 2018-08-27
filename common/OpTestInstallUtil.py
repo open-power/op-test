@@ -124,11 +124,7 @@ class InstallUtil():
         cmd = "echo 'nameserver %s' > /etc/resolv.conf" % self.conf.args.host_dns
         self.cv_SYSTEM.console.run_command(cmd)
 
-    def get_server_ip(self):
-        """
-        Get IP of server where test runs
-        """
-        my_ip = ""
+    def configure_host_ip(self):
         self.wait_for_network()
         # Check if ip is assigned in petitboot
         try:
@@ -136,6 +132,13 @@ class InstallUtil():
         except CommandFailed as cf:
             self.assign_ip_petitboot()
             self.ping_network()
+
+    def get_server_ip(self):
+        """
+        Get IP of server where test runs
+        """
+        my_ip = ""
+        self.configure_host_ip()
         retry = 30
         while retry > 0:
             try:
