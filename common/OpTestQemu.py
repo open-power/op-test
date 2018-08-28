@@ -290,5 +290,5 @@ class OpTestQemu():
     def supports_ipmi_dcmi(self):
         return False
 
-    def has_sel(self):
+    def has_ipmi_sel(self):
         return False

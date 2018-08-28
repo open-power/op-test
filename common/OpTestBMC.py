@@ -247,7 +247,7 @@ class OpTestBMC():
     def supports_ipmi_dcmi(self):
         return True
 
-    def has_sel(self):
+    def has_ipmi_sel(self):
         return True
 
 class OpTestSMC(OpTestBMC):

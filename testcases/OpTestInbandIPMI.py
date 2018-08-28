@@ -369,7 +369,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_sel_info(self):
         log.debug("Inband IPMI[OPEN]: SEL Info test")
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_INFO])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_INFO])
+        except CommandFailed as cf:
+            if self.cv_BMC.has_ipmi_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
     ##
     # @brief  It will execute and test ipmi sel list functionality.
@@ -380,7 +386,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_sel_list(self):
         log.debug("Inband IPMI[OPEN]: SEL List test")
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_LIST])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_LIST])
+        except CommandFailed as cf:
+            if self.cv_BMC.has_ipmi_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
 
     ##
@@ -394,7 +406,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_sel_elist(self):
         log.debug("Inband IPMI[OPEN]: SEL elist test")
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_ELIST])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_ELIST])
+        except CommandFailed as cf:
+            if self.cv_BMC.has_ipmi_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
 
     ##
@@ -427,7 +445,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_sel_list_first_n_entries(self, i_num=1):
         l_cmd = "sel list first %i" % int(i_num)
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
+        except CommandFailed as cf:
+            if self.cv_BMC.has_ipmi_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
     ##
     # @brief  It will execute and test the ipmi sel list last <n entries>
@@ -439,7 +463,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_sel_list_last_n_entries(self, i_num=1):
         l_cmd = "sel list last %i" % int(i_num)
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
+        except CommandFailed as cf:
+            if self.cv_BMC.has_ipmi_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
     ##
     # @brief  It will execute the ipmi sel clear command
@@ -451,7 +481,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_CLEAR])
         except CommandFailed as cf:
-            if self.cv_BMC.has_sel():
+            if self.cv_BMC.has_ipmi_sel():
                 raise cf
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
@@ -477,7 +507,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         except CommandFailed as cf:
             if 'Error loading interface usb' in cf.output:
                 self.skipTest("No USB IPMI interface")
-            raise cf
+            if self.cv_BMC.has_ipmi_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
 
     ##
@@ -643,7 +676,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         log.debug("Inband IPMI[OPEN]: SEL Time set test")
         l_cmd = "sel time set \'%s\'" % i_time
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
+        try:
+            self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
+        except CommandFailed as cf:
+            if self.cv_BMC.has_ipmi_sel():
+                raise cf
+            else:
+                self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
     ##
     # @brief  It will execute and test the ipmi sel list first <3 entries>
