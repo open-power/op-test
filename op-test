@@ -104,6 +104,7 @@ from testcases import SecureBoot
 from testcases import TrustedBoot
 from testcases import IplParams
 from testcases import CpuHotPlug
+from testcases import EnergyScale_BaseLine
 import testcases
 
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
@@ -275,8 +276,11 @@ class OpTestEMHostSuite():
         self.s = unittest.TestSuite()
     def suite(self):
         self.s.addTest(OpTestEM.host_suite())
-        self.s.addTest(OCCSuite().suite())
+        self.s.addTest(EnergyScale_BaseLine.EnergyScale_BaseLine())
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
+        self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(CpuHotPlug.CpuHotPlug())
+        self.s.addTest(OCCSuite().suite())
         self.s.addTest(OpTestSensors.OpTestSensors())
 
         return self.s
@@ -286,7 +290,7 @@ class OpTestEMSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
     def suite(self):
-        self.s.addTest(OpTestEM.host_suite())
+        self.s.addTest(OpTestEMHostSuite().suite())
         self.s.addTest(OpTestEM.skiroot_suite())
         return self.s
 

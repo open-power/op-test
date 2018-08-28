@@ -79,6 +79,15 @@ class OpTestOCCBase(unittest.TestCase):
         log.debug("OPAL-PRD: OCC RESET")
         self.c.run_command(BMC_CONST.OCC_RESET)
 
+    def clear_occ_rr_count(self):
+        # Clear the OCC reset reload count
+        log.debug("OPAL-PRD: occ query reset reload count")
+        self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+        log.debug("OPAL-PRD: occ reset reset/reload count")
+        self.c.run_command(BMC_CONST.OCC_SET_RESET_RELOAD_COUNT)
+        log.debug("OPAL-PRD: occ query reset reload count")
+        self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+
     ##
     # @brief This function is used to get OCC status enable/disable.
     #
@@ -247,6 +256,7 @@ class OpTestOCCFull(OpTestOCCBase):
             self.skipTest("OpenPower OCC Reset test")
         self.assertNotEqual(self.check_occ_status(), BMC_CONST.FW_FAILED,
             "OCC's are not in active state")
+        self.clear_occ_rr_count()
         max_reset_count = 4
         for i in range(1, max_reset_count+1):
             log.debug("*******************OCC Reset count %d*******************" % i)
@@ -305,12 +315,7 @@ class OpTestOCCFull(OpTestOCCBase):
             self.assertNotEqual(rc, BMC_CONST.FW_FAILED,
                 "OCC's are not in active state")
             self.dvfs_test()
-            log.debug("OPAL-PRD: occ query reset reload count")
-            self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
-            log.debug("OPAL-PRD: occ reset reset/reload count")
-            self.c.run_command(BMC_CONST.OCC_SET_RESET_RELOAD_COUNT)
-            log.debug("OPAL-PRD: occ query reset reload count")
-            self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+            self.clear_occ_rr_count()
 
     ##
     # @brief This function is used to test OCC Enable and Disable funtionality in BMC based systems.
