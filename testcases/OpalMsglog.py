@@ -56,6 +56,7 @@ class OpalMsglog():
             # If we've flashed a full PNOR, we may have to init NVRAM, so don't
             # fail on that
             filter_out.append('NVRAM: Partition at offset .* extends beyond end of nvram')
+            filter_out.append('NVRAM: Partition at offset .* has incorrect .* length')
             filter_out.append('NVRAM: Re-initializing')
 
         try:
