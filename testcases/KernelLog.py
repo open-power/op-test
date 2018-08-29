@@ -46,7 +46,13 @@ class KernelLog():
             try:
                 log_entries = self.c.run_command("dmesg -T --level=alert,crit,err,warn")
             except CommandFailed:
-                log_entries = self.c.run_command("dmesg -r|grep '<[4321]>'")
+                try:
+                    log_entries = self.c.run_command("dmesg -r|grep '<[4321]>'")
+                except CommandFailed as cf:
+                    # An exit code of 1 and no output can mean success.
+                    # as it means we're not successfully grepping out anything
+                    if cf.exitcode == 1 and len(cf.output) == 0:
+                        pass
 
         filter_out = ["Unable to open file.* /etc/keys/x509",
                       "OF: reserved mem: not enough space all defined regions.",
