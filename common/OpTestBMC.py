@@ -134,13 +134,13 @@ class OpTestBMC():
     def image_transfer(self,i_imageName, copy_as=None):
 
         img_path = i_imageName
-        ssh_opts = ' -k -o PubkeyAuthentication=no '
+        ssh_opts = ' -o PubkeyAuthentication=no '
         if not self.check_ssh_keys:
             ssh_opts = ssh_opts + ' -o StrictHostKeyChecking=no'
         elif self.known_hosts_file:
             ssh_opts = ssh_opts + ' -o UserKnownHostsFile=' + self.known_hosts_file
 
-        rsync_cmd = 'rsync -P -v -e "ssh' + ssh_opts + '" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
+        rsync_cmd = 'rsync -P -v -e "ssh -k' + ssh_opts + '" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
 
@@ -149,10 +149,33 @@ class OpTestBMC():
         rsync.logfile = OpTestLogger.FileLikeLogger(log)
         rsync.expect('assword: ')
         rsync.sendline(self.cv_bmcPasswd)
-        rsync.expect('total size is', timeout=1800)
-        rsync.expect(pexpect.EOF)
-        rsync.close()
-        return rsync.exitstatus
+        r = rsync.expect(['total size is', 'error while loading shared lib'], timeout=1800)
+        if r == 1:
+            # On AMI BMCs that are missing libacl.so.1 for rsync,
+            # we have to fall back to "scp"...
+            # which is actually SSH+dd because there's no scp
+            # This is notable for Palmetto
+            log.debug("Falling back to SCP")
+            if copy_as is None:
+                copy_as = os.path.basename(img_path)
+            scp_cmd = "bash -c \"sshpass -p {} ssh".format(self.cv_bmcPasswd) + ssh_opts + ' -o LogLevel=quiet'
+            scp_cmd = scp_cmd + " {}@{} dd of=/tmp/{} < {}\"".format(self.cv_bmcUser, self.cv_bmcIP,copy_as,img_path)
+            log.debug(scp_cmd)
+            scp = pexpect.spawn(scp_cmd, timeout=120)
+            scp.expect(pexpect.EOF)
+            scp.wait()
+            scp.close()
+            chmod_cmd = "sshpass -p {} ssh {} {}@{} chmod +x /tmp/{}".format(self.cv_bmcPasswd, ssh_opts, self.cv_bmcUser, self.cv_bmcIP, copy_as)
+            log.debug(chmod_cmd)
+            chmod = pexpect.spawn(chmod_cmd)
+            chmod.expect(pexpect.EOF)
+            chmod.wait()
+            chmod.close()
+            return scp.exitstatus
+        else:
+            rsync.expect(pexpect.EOF)
+            rsync.close()
+            return rsync.exitstatus
 
 
     ##
