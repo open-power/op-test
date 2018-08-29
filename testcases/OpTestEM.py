@@ -505,7 +505,8 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         # printf '%x' $(( 1 << 64 )) becomes 0
         workload = """for cpu in {0..%d};do taskset -c $cpu sha1sum temptext.txt & done; wait""" % (nrcpus - 1)
         if self.test == "skiroot":
-            nrcpus = 60
+            if nrcpus > 60:
+                nrcpus = 60
             workload = """for cpu in `seq 0 1 %d`;do taskset 0x`printf '%%x' $(( 1 << $cpu ))` sha1sum temptext.txt & done; wait""" % (nrcpus - 1)
 
         # TODO: Check the expected idle states (/proc/device-tree/ibm,opal/power-mgt)
