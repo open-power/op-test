@@ -844,10 +844,10 @@ class OpTestHost():
     # @return True or False
     #
     def host_has_capi_fpga_card(self, console=0):
-        l_cmd = "lspci -d \"1014:0477\""
+        l_cmd = "lspci -d \"1014::1200\""
         l_res = self.host_run_command(l_cmd, console=console)
         l_res = " ".join(l_res)
-        if (l_res.__contains__('IBM Device 0477')):
+        if (l_res.__contains__('IBM Device')):
             l_msg = "Host has a CAPI FPGA card"
             log.debug(l_msg)
             return True
