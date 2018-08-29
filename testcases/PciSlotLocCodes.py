@@ -113,6 +113,7 @@ class PciSlotLocCodesOPAL():
         self.log_entries = self.c.run_command_ignore_fail("cat /sys/firmware/opal/msglog |  grep 'PHB#' | grep -i  ' C:'")
         failed_eplist = []
         failed_slotlist = []
+        failed_swuplist = []
         match_list = ["[EP  ]", "[LGCY]", "[PCID]", "[ETOX]" ]
 
         for entry in self.log_entries:
@@ -142,6 +143,15 @@ class PciSlotLocCodesOPAL():
             if ep_present:
                 continue
 
+            if "[SWUP]" in entry:
+                if "LOC_CODE" in entry:
+                    log.debug("Entry %s has LOC_CODE".format(bdfn))
+                    continue
+                if "SLOT" in entry:
+                    log.debug("Entry %s has SLOT".format(bdfn))
+                    continue
+                failed_swuplist.append(bdfn)
+
             # If it is a pcie slot check for SLOT entry
             if "SLOT" in entry:
                 log.debug("Entry %s has the slot label" % bdfn)
@@ -150,11 +160,13 @@ class PciSlotLocCodesOPAL():
 
         log.debug(repr(failed_eplist))
         log.debug(repr(failed_slotlist))
+        log.debug(repr(failed_swuplist))
         if (len(failed_slotlist) == 0) and (len(failed_eplist) == 0):
             return
         failed_eplist = '\n'.join(filter(None, failed_eplist))
         failed_slotlist = '\n'.join(filter(None, failed_slotlist))
-        message = "SLOT Label failures: %s\n LOC_CODE failures:%s\n" % (failed_slotlist, failed_eplist)
+        failed_swuplist = '\n'.join(filter(None, failed_swuplist))
+        message = "SLOT Label failures: %s\n LOC_CODE failures:%s\nSWUP failures:%s\n" % (failed_slotlist, failed_eplist, failed_swuplist)
         self.assertTrue(False, message)
 
 class PciSlotLocCodesDeviceTree():
