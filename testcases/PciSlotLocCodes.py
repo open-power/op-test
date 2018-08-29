@@ -185,8 +185,13 @@ class PciSlotLocCodesDeviceTree():
         for directory in node_dirs:
             matchObj = re.match(".*/pci@\d{1,}$", directory, re.M)
             if matchObj:
-                log.debug("entry %s is a slot" % directory)
-                slot_list.append(directory)
+                r = self.c.run_command("find {} -type d".format(directory))
+                if len(r) > 1:
+                    log.debug("entry {} is a switch".format(directory))
+                    device_list.append(directory)
+                else:
+                    log.debug("entry %s is a slot" % directory)
+                    slot_list.append(directory)
             else:
                 log.debug("entry %s is a device" % directory)
                 device_list.append(directory)
