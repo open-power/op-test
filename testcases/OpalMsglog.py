@@ -33,6 +33,7 @@ class OpalMsglog():
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.bmc_type = conf.args.bmc_type
+        self.conf = conf
 
     def runTest(self):
         self.setup_test()
@@ -46,6 +47,16 @@ class OpalMsglog():
             filter_out.append('SLW: No image found')
             filter_out.append('SLW: Sleep not enabled by HB on this platform')
             filter_out.append('OCC: No HOMER detected, assuming no pstates')
+
+        if self.conf.args.flash_kernel:
+            # If we've flashed a BOOTKERNEL, then there's no way it'll match
+            filter_out.append('STB: BOOTKERNEL verification')
+
+        if self.conf.args.host_pnor:
+            # If we've flashed a full PNOR, we may have to init NVRAM, so don't
+            # fail on that
+            filter_out.append('NVRAM: Partition at offset .* extends beyond end of nvram')
+            filter_out.append('NVRAM: Re-initializing')
 
         try:
             log_entries = self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
