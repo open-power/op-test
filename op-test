@@ -32,11 +32,11 @@ import unittest
 import re
 
 try:
-  import faulthandler
-  import signal
-  faulthandler.register(signal.SIGUSR1)
+    import faulthandler
+    import signal
+    faulthandler.register(signal.SIGUSR1)
 except ImportError:
-  pass
+    pass
 
 import logging
 import OpTestLogger
@@ -524,12 +524,12 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
 xml_msg = ""
 def run_tests(t):
     try:
-      import xmlrunner  # requires unittest-xml-reporting package
-      res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
-      return res
+        import xmlrunner  # requires unittest-xml-reporting package
+        res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
+        return res
     except ImportError, err:
-      res = unittest.TextTestRunner(verbosity=2).run(t)
-      return res
+        res = unittest.TextTestRunner(verbosity=2).run(t)
+        return res
 
 res = None
 
