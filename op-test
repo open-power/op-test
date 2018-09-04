@@ -522,10 +522,11 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
         t.addTest(suites['default'].suite())
 
 xml_msg = ""
-def run_tests(t):
+def run_tests(t, failfast):
     runner = unittest.TextTestRunner
     kwargs = {
         'verbosity': 2,
+        'failfast': failfast,
     }
     try:
         import xmlrunner  # requires unittest-xml-reporting package
@@ -534,6 +535,14 @@ def run_tests(t):
                 'output': OpTestConfiguration.conf.output,
                 'outsuffix': OpTestConfiguration.conf.outsuffix,
             })
+
+        # xmlrunner pre v1.13 doesn't support failfast
+        try:
+            runner(failfast=True)
+        except TypeError:
+            if failfast:
+                optestlog.info("Ignoring failfast: not supported by runner")
+            del kwargs['failfast']
     except ImportError:
         pass
 
@@ -545,7 +554,8 @@ if not OpTestConfiguration.conf.args.noflash:
     if any(s in OpTestConfiguration.conf.args.bmc_type for s in ("QEMU", "qemu")):
         optestlog.info("Not adding FlashFirmware suite for QEMU machine")
     else:
-        res = run_tests(FlashFirmware().suite())
+        res = run_tests(FlashFirmware().suite(),
+                failfast=OpTestConfiguration.conf.args.failfast)
 
 if OpTestConfiguration.conf.args.only_flash:
     if res != None:
@@ -555,7 +565,7 @@ if OpTestConfiguration.conf.args.only_flash:
         exit(0)
 
 if not res or (res and not (res.errors or res.failures)):
-    res = run_tests(t)
+    res = run_tests(t, failfast=OpTestConfiguration.conf.args.failfast)
 else:
     optestlog.error('Skipping main tests as flashing failed')
     exit(-1)

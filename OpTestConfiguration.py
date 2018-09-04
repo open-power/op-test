@@ -59,6 +59,8 @@ def get_parser():
                         help="Run a test suite(s)")
     tgroup.add_argument("--run", action='append',
                         help="Run individual tests")
+    tgroup.add_argument("-f", "--failfast", action='store_true',
+                        help="Stop on first failure")
     tgroup.add_argument("--quiet", action='store_true', default=False,
                         help="Don't splat lots of things to the console")
 
