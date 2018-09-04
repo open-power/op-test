@@ -523,13 +523,21 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
 
 xml_msg = ""
 def run_tests(t):
+    runner = unittest.TextTestRunner
+    kwargs = {
+        'verbosity': 2,
+    }
     try:
         import xmlrunner  # requires unittest-xml-reporting package
-        res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
-        return res
-    except ImportError, err:
-        res = unittest.TextTestRunner(verbosity=2).run(t)
-        return res
+        runner = xmlrunner.XMLTestRunner
+        kwargs.update({
+                'output': OpTestConfiguration.conf.output,
+                'outsuffix': OpTestConfiguration.conf.outsuffix,
+            })
+    except ImportError:
+        pass
+
+    return runner(**kwargs).run(t)
 
 res = None
 
