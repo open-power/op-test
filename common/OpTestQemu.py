@@ -174,27 +174,22 @@ class QemuConsole():
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
           self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
 
+        # Wait a moment for isalive() to read a correct value and then check
+        # if the command has already exited. If it has then QEMU has most
+        # likely encountered an error and there's no point proceeding.
         time.sleep(0.2)
+        if not solChild.isalive():
+            raise CommandFailed(cmd, solChild.read(), solChild.status)
+
         return solChild
 
     def get_console(self):
         if self.state == ConsoleState.DISCONNECTED:
             self.util.clear_state(self)
             self.connect()
-
-        count = 0
-        while (not self.sol.isalive()):
-            log.info('# Reconnecting')
-            if (count > 0):
-                time.sleep(20)
-            self.connect()
-            time.sleep(120) # not sure on timing of this yet or how to validate qemu is up
-            count += 1
-            if count > 120:
-                raise "IPMI: not able to get sol console"
-
-        if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-          self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+        else:
+            if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
+                self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
 
         return self.sol
 
