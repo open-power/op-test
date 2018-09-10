@@ -161,7 +161,8 @@ class QemuConsole():
           solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         except Exception as e:
           self.state = ConsoleState.DISCONNECTED
-          raise CommandFailed('OPexpect.spawn', 'OPexpect.spawn encountered a problem', -1)
+          raise CommandFailed('OPexpect.spawn',
+                  'OPexpect.spawn encountered a problem: ' + str(e), -1)
 
         self.state = ConsoleState.CONNECTED
         solChild.setwinsize(1000,1000)

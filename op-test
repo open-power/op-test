@@ -32,11 +32,11 @@ import unittest
 import re
 
 try:
-  import faulthandler
-  import signal
-  faulthandler.register(signal.SIGUSR1)
+    import faulthandler
+    import signal
+    faulthandler.register(signal.SIGUSR1)
 except ImportError:
-  pass
+    pass
 
 import logging
 import OpTestLogger
@@ -522,14 +522,31 @@ if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.
         t.addTest(suites['default'].suite())
 
 xml_msg = ""
-def run_tests(t):
+def run_tests(t, failfast):
+    runner = unittest.TextTestRunner
+    kwargs = {
+        'verbosity': 2,
+        'failfast': failfast,
+    }
     try:
-      import xmlrunner  # requires unittest-xml-reporting package
-      res = xmlrunner.XMLTestRunner(output=OpTestConfiguration.conf.output, outsuffix=OpTestConfiguration.conf.outsuffix, verbosity=2).run(t)
-      return res
-    except ImportError, err:
-      res = unittest.TextTestRunner(verbosity=2).run(t)
-      return res
+        import xmlrunner  # requires unittest-xml-reporting package
+        runner = xmlrunner.XMLTestRunner
+        kwargs.update({
+                'output': OpTestConfiguration.conf.output,
+                'outsuffix': OpTestConfiguration.conf.outsuffix,
+            })
+
+        # xmlrunner pre v1.13 doesn't support failfast
+        try:
+            runner(failfast=True)
+        except TypeError:
+            if failfast:
+                optestlog.info("Ignoring failfast: not supported by runner")
+            del kwargs['failfast']
+    except ImportError:
+        pass
+
+    return runner(**kwargs).run(t)
 
 res = None
 
@@ -537,7 +554,8 @@ if not OpTestConfiguration.conf.args.noflash:
     if any(s in OpTestConfiguration.conf.args.bmc_type for s in ("QEMU", "qemu")):
         optestlog.info("Not adding FlashFirmware suite for QEMU machine")
     else:
-        res = run_tests(FlashFirmware().suite())
+        res = run_tests(FlashFirmware().suite(),
+                failfast=OpTestConfiguration.conf.args.failfast)
 
 if OpTestConfiguration.conf.args.only_flash:
     if res != None:
@@ -547,7 +565,7 @@ if OpTestConfiguration.conf.args.only_flash:
         exit(0)
 
 if not res or (res and not (res.errors or res.failures)):
-    res = run_tests(t)
+    res = run_tests(t, failfast=OpTestConfiguration.conf.args.failfast)
 else:
     optestlog.error('Skipping main tests as flashing failed')
     exit(-1)
