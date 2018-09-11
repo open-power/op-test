@@ -216,7 +216,7 @@ class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
       ipmitool dcmi get_conf_param   # Get DCMI Configuration Parameters.
       ipmitool dcmi oob_discover     # Ping/Pong Message for DCMI Discovery.
     '''
-def runTest(self):
+    def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
         print "Energy scale Test 3: Get Sensors, Temperature and Power reading's at power off and runtime"
