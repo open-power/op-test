@@ -39,7 +39,6 @@ import sys
 import re
 import commands
 
-#from subprocess import check_output
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil

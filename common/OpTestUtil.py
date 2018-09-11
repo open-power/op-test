@@ -40,9 +40,7 @@ import commands
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-#from OpTestHost import OpTestHost
 from Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
-#from OpTestSSH import ConsoleState
 
 import logging
 import OpTestLogger
