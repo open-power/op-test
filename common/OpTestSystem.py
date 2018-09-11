@@ -765,7 +765,7 @@ class OpTestSystem(object):
         '''
         try:
             rc =  self.cv_IPMI.ipmi_sdr_clear()
-        except OpTestError as e:
+        except OpTestError:
             time.sleep(BMC_CONST.LONG_WAIT_IPL)
             log.debug("Retry clearing SDR")
             try:
