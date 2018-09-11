@@ -701,19 +701,12 @@ class HostManagement():
         return True
 
     def host_image_ids(self):
-        l = self.get_list_of_image_ids()
-        for id in l[:]:
-            i = self.image_data(id)
-            # Here, we assume that if we don't have 'Purpose' it's something special
-            # like the 'active' or (new) 'functional'.
-            # Adriana has promised me that this is safe.
-            log.debug(repr(i))
-            if i['data'].get('Purpose') != 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
-                l.remove(id)
-        log.debug("Host Image IDS: %s" % repr(l))
-        return l
+        return self.image_ids(purpose='xyz.openbmc_project.Software.Version.VersionPurpose.Host')
 
     def bmc_image_ids(self):
+        return self.image_ids(purpose='xyz.openbmc_project.Software.Version.VersionPurpose.BMC')
+
+    def image_ids(self, purpose=None):
         l = self.get_list_of_image_ids()
         for id in l[:]:
             i = self.image_data(id)
@@ -721,9 +714,9 @@ class HostManagement():
             # like the 'active' or (new) 'functional'.
             # Adriana has promised me that this is safe.
             log.debug(repr(i))
-            if i['data'].get('Purpose') != 'xyz.openbmc_project.Software.Version.VersionPurpose.BMC':
+            if i['data'].get('Purpose') != purpose:
                 l.remove(id)
-        log.debug("BMC Image IDS: %s" % repr(l))
+        log.debug("{} Image IDs: {}".format(purpose,repr(l)))
         return l
 
     """
