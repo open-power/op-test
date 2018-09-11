@@ -66,8 +66,6 @@ class OpTestASM:
         opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
         opener.addheaders = [('User-agent', 'LTCTest')]
         urllib2.install_opener(opener)
-        hrdwr = ''
-        frms = {}
         self.setforms()
 
     def setforms(self):
@@ -86,7 +84,7 @@ class OpTestASM:
         while True:
             try:
                 myurl = urllib2.urlopen(self.url+form, timeout=10)
-            except urllib2.URLError, e:
+            except urllib2.URLError:
                 time.sleep(2)
                 continue
             break
@@ -122,7 +120,7 @@ class OpTestASM:
                  'lang':      '0',
                  'CSRF_TOKEN': ''}
         form = "form=2"
-        out = self.submit(form, param)
+        self.submit(form, param)
 
         count = 0
         while count < 2:
