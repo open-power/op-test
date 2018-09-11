@@ -228,7 +228,7 @@ class FWUpdatePage():
                                 BmcPageConstants.BMC_SERVER_ADDR_TEXT_AREA)))
         FWUpdate_protocoltype.clear()
         FWUpdate_protocoltype.send_keys(addr)
-        print("Server Address: " + addr)
+        print(("Server Address: " + addr))
         return BMC_CONST.FW_SUCCESS
 
     ##
@@ -247,7 +247,7 @@ class FWUpdatePage():
                              BmcPageConstants.BMC_IMAGE_PATH_TEXT_AREA)))
         FWUpdate_imagename.clear()
         FWUpdate_imagename.send_keys(image)
-        print("Server Image: " + image)
+        print(("Server Image: " + image))
         return BMC_CONST.FW_SUCCESS
 
     ##

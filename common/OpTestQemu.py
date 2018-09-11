@@ -156,7 +156,7 @@ class QemuConsole():
         cmd = cmd + " -nic user,model=virtio-net-pci"
         cmd = cmd + " -device ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10"
         cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
-        print cmd
+        print(cmd)
         try:
           solChild = OPexpect.OPexpect.spawn(cmd,logfile=self.logfile)
         except Exception as e:

@@ -89,16 +89,16 @@ class NVRAM(OpTestIPMIReprovision):
 
         self.cv_HOST.host_run_command("uname -a")
         self.cv_HOST.host_run_command(BMC_CONST.NVRAM_PRINT_CFG)
-        print "IPMI_Reprovision: Updating the nvram partition with test cfg data"
+        print("IPMI_Reprovision: Updating the nvram partition with test cfg data")
         self.cv_HOST.host_run_command(BMC_CONST.NVRAM_UPDATE_CONFIG_TEST_DATA)
         self.cv_HOST.host_run_command(BMC_CONST.NVRAM_PRINT_CFG)
-        print "IPMI_Reprovision: issuing ipmi pnor reprovision request"
+        print("IPMI_Reprovision: issuing ipmi pnor reprovision request")
         self.cv_SYSTEM.sys_issue_ipmi_pnor_reprovision_request()
-        print "IPMI_Reprovision: wait for reprovision to complete"
+        print("IPMI_Reprovision: wait for reprovision to complete")
         self.cv_SYSTEM.sys_wait_for_ipmi_pnor_reprovision_to_complete()
-        print "IPMI_Reprovision: gathering the opal message logs"
+        print("IPMI_Reprovision: gathering the opal message logs")
         self.cv_HOST.host_gather_opal_msg_log()
-        print "IPMI_Reprovision: Performing a IPMI Power OFF Operation"
+        print("IPMI_Reprovision: Performing a IPMI Power OFF Operation")
 
         # Power cycle
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
@@ -108,7 +108,7 @@ class NVRAM(OpTestIPMIReprovision):
         if l_res.__contains__(BMC_CONST.NVRAM_TEST_DATA):
             l_msg = "NVRAM Partition - IPMI Reprovision not happening, nvram test config data still exists"
             raise OpTestError(l_msg)
-        print "NVRAM Partition - IPMI Reprovision is done, cleared the nvram test config data"
+        print("NVRAM Partition - IPMI Reprovision is done, cleared the nvram test config data")
         self.cv_HOST.host_gather_opal_msg_log()
         return
 
@@ -131,20 +131,20 @@ class GARD(OpTestIPMIReprovision):
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        print "IPMI_Reprovision: Injecting system core checkstop to guard the phyisical cpu"
+        print("IPMI_Reprovision: Injecting system core checkstop to guard the phyisical cpu")
         self.opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
 
-        print "IPMI_Reprovision: Performing a IPMI Power OFF Operation"
+        print("IPMI_Reprovision: Performing a IPMI Power OFF Operation")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
-        print "IPMI_Reprovision: Performing a IPMI Power ON Operation"
+        print("IPMI_Reprovision: Performing a IPMI Power ON Operation")
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        print "IPMI_Reprovision: issuing ipmi pnor reprovision request"
+        print("IPMI_Reprovision: issuing ipmi pnor reprovision request")
         self.cv_SYSTEM.sys_issue_ipmi_pnor_reprovision_request()
-        print "IPMI_Reprovision: wait for reprovision to complete"
+        print("IPMI_Reprovision: wait for reprovision to complete")
         self.cv_SYSTEM.sys_wait_for_ipmi_pnor_reprovision_to_complete()
-        print "IPMI_Reprovision: gathering the opal message logs"
+        print("IPMI_Reprovision: gathering the opal message logs")
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_get_OS_Level()
         g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")

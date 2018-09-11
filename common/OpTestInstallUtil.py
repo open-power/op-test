@@ -140,7 +140,7 @@ class InstallUtil():
         while retry > 0:
             try:
                 my_ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
-                print repr(my_ip)
+                print(repr(my_ip))
                 self.cv_SYSTEM.console.run_command("ping %s -c 1" % my_ip)
                 break
             except CommandFailed as cf:
@@ -166,11 +166,11 @@ class InstallUtil():
         ip, port = self.server.server_address
         if not REPO:
             REPO = "http://%s:%s/repo" % (server_ip, port)
-        print "# Listening on %s:%s" % (ip, port)
+        print("# Listening on %s:%s" % (ip, port))
         server_thread = threading.Thread(target=self.server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
-        print "# Server running in thread:", server_thread.name
+        print("# Server running in thread:", server_thread.name)
         return port
 
     def stop_server(self):
@@ -196,7 +196,7 @@ class InstallUtil():
         if os.path.ismount(repo_path):
             status, output = commands.getstatusoutput("umount %s" % abs_repo_path)
             if status != 0:
-                print "failed to unmount", abs_repo_path
+                print("failed to unmount", abs_repo_path)
                 return ""
         elif os.path.isdir(repo_path):
             shutil.rmtree(repo_path)
@@ -210,7 +210,7 @@ class InstallUtil():
         else:
             cdrom_url = urllib2.urlopen(cdrom)
             if not cdrom_url:
-                print "Unknown cdrom path %s" % cdrom
+                print("Unknown cdrom path %s" % cdrom)
                 return ""
             with open(os.path.join(BASE_PATH, "iso"), 'wb') as f:
                 f.write(cdrom_url.read())
@@ -218,8 +218,8 @@ class InstallUtil():
         cmd = "mount -t iso9660 -o loop %s %s" % (cdrom_path, abs_repo_path)
         status, output = commands.getstatusoutput(cmd)
         if status != 0:
-            print "Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
-                                                        output)
+            print("Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
+                                                        output))
             return ""
         return abs_repo_path
 
@@ -249,7 +249,7 @@ class InstallUtil():
             vmlinux_file = urllib2.urlopen(vmlinux_src)
             initrd_file = urllib2.urlopen(initrd_src)
             if not (vmlinux_file and initrd_file):
-                print "Unknown repo path %s, %s" % (vmlinux_src, initrd_src)
+                print("Unknown repo path %s, %s" % (vmlinux_src, initrd_src))
                 return False
             try:
                 with open(vmlinux_dst, 'wb') as f:
@@ -307,7 +307,7 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
-            print "# Webserver was asked for: ", self.path
+            print("# Webserver was asked for: ", self.path)
             if self.path == "/%s" % VMLINUX:
                 f = open("%s/%s" % (BASE_PATH, VMLINUX), "r")
                 d = f.read()
@@ -346,7 +346,7 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                     ps = d.format("openpower", "example.com",
                                   PROXY, PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
                 else:
-                    print "unknown distro"
+                    print("unknown distro")
                 self.wfile.write(ps)
                 return
             else:
@@ -358,9 +358,9 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         path = path[1:]
         path_elements = path.split('/')
 
-        print "INCOMING"
-        print repr(path)
-        print repr(path_elements)
+        print("INCOMING")
+        print(repr(path))
+        print(repr(path_elements))
 
         if path_elements[0] != "upload":
             return

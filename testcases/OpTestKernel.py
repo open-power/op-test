@@ -81,7 +81,7 @@ class OpTestKernelBase(unittest.TestCase):
                 # if kdump is disabled, system should IPL after kernel crash(oops)
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
             except KernelKdump:
-                print "Kdump kernel started booting, waiting for dump to finish"
+                print("Kdump kernel started booting, waiting for dump to finish")
             except KernelCrashUnknown:
                 self.cv_SYSTEM.goto_state(OpSystemState.OFF)
                 done = True
@@ -89,11 +89,11 @@ class OpTestKernelBase(unittest.TestCase):
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
                 done = True
             if rc == 1:
-                print "Kdump finished collecting vmcore, waiting for IPL to start"
+                print("Kdump finished collecting vmcore, waiting for IPL to start")
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
-        print "System booted fine to host OS..."
+        print("System booted fine to host OS...")
         return BMC_CONST.FW_SUCCESS
 
 class KernelCrash_KdumpEnable(OpTestKernelBase):
@@ -163,7 +163,7 @@ class SkirootKernelCrash(OpTestKernelBase, unittest.TestCase):
             pair = "xmon=off"
             res = "%s %s" % (res, pair)
         bootargs = "\'%s\'" % res
-        print bootargs
+        print(bootargs)
         self.c.run_command("nvram -p ibm,skiboot --update-config bootargs=%s" % bootargs)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)

@@ -70,7 +70,7 @@ class LoginPage():
                  BmcPageConstants.BMC_MAINFRAME))
         except NoSuchElementException:
             l_msg=("Error getting BMC login page. Check if BMC is up and connected to network")
-            print l_msg
+            print(l_msg)
             raise OpTestError(l_msg)
 
         try:
@@ -88,7 +88,7 @@ class LoginPage():
             submitbutton.click()
         except:
             l_msg=("Error passing BMC login page. Check username/password")
-            print l_msg
+            print(l_msg)
             raise OpTestError(l_msg)
 
         return BMC_CONST.FW_SUCCESS

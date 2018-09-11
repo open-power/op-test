@@ -127,10 +127,10 @@ class OpTestASM:
             time.sleep(10)
             self.submit(form,param)
             msg = "Login Failed with user:%s and password:%s" % (self.user_name, self.password)
-            print msg
+            print(msg)
             count += 1
         if count == 2:
-            print msg
+            print(msg)
             return False
         return True
 

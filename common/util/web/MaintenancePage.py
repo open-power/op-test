@@ -78,7 +78,7 @@ class MaintenancePage():
             Maintenance_submenu.click()
         except:
             l_msg = "Failed to get Maintainance Page"
-            print l_msg
+            print(l_msg)
             raise OpTestError(l_msg)
 
         return BMC_CONST.FW_SUCCESS
@@ -115,7 +115,7 @@ class MaintenancePage():
                     Maintenance.click()
         except:
             l_msg = "Failed to select Options for preserving settings"
-            print l_msg
+            print(l_msg)
             raise OpTestError(l_msg)
         return BMC_CONST.FW_SUCCESS
 
@@ -158,6 +158,6 @@ class MaintenancePage():
             Maintenance.click()
         except:
             l_msg = "Failed to savePage"
-            print l_msg
+            print(l_msg)
             raise OpTestError(l_msg)
         return BMC_CONST.FW_SUCCESS

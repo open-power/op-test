@@ -83,7 +83,7 @@ class OpTestWeb():
             BMC_IP='https://'+self.ip
             browser = webdriver.Firefox()
         except:
-            print BMC_CONST.ERROR_SELENIUM_HEADLESS
+            print(BMC_CONST.ERROR_SELENIUM_HEADLESS)
             raise OpTestError(BMC_CONST.ERROR_SELENIUM_HEADLESS)
 
         try:
@@ -132,7 +132,7 @@ class OpTestWeb():
         except:
             browser.close()
             l_msg = "hpm update using webgui failed"
-            print l_msg
+            print(l_msg)
             raise OpTestError(l_msg)
 
         return BMC_CONST.FW_SUCCESS

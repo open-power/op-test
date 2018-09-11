@@ -44,7 +44,7 @@ class MyIPfromHost(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
         my_ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
-        print "# FOUND MY IP: %s" % my_ip
+        print("# FOUND MY IP: %s" % my_ip)
 
 
 class InstallUbuntu(unittest.TestCase):
@@ -174,7 +174,7 @@ class InstallUbuntu(unittest.TestCase):
         rawc.expect('Sent SIGKILL to all processes', timeout=60)
         r = rawc.expect(['Loading additional components','Configure the keyboard'], timeout=300)
         if r == 1:
-            print "# Preseed isn't perfect when it comes to keyboard selection. Urgh"
+            print("# Preseed isn't perfect when it comes to keyboard selection. Urgh")
             rawc.expect('Go Back')
             time.sleep(2)
             rawc.send("\r\n")

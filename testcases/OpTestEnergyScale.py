@@ -60,7 +60,7 @@ class OpTestEnergyScale(unittest.TestCase):
     def run_ipmi_cmd(self, i_cmd):
         l_cmd = i_cmd
         l_res = self.cv_IPMI.ipmitool.run(l_cmd)
-        print l_res
+        print(l_res)
         return l_res
 
     def get_platform_power_limits(self, i_platform):
@@ -112,24 +112,24 @@ class OpTestEnergyScaleStandby(OpTestEnergyScale):
     '''
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        print "Energy Scale Test 1: Get, Set, activate and deactivate platform power limit at power off"
+        print("Energy Scale Test 1: Get, Set, activate and deactivate platform power limit at power off")
         l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
 
         self.cv_IPMI.ipmi_sdr_clear()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_activate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_deactivate_power_limit()
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_low)
         self.cv_IPMI.ipmi_activate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_get_power_limit()
-        print "Get All dcmi readings at power off"
+        print("Get All dcmi readings at power off")
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)
@@ -167,33 +167,33 @@ class OpTestEnergyScaleRuntime(OpTestEnergyScale):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        print "Energy Scale Test 2: Get, Set, activate and deactivate platform power limit at runtime"
+        print("Energy Scale Test 2: Get, Set, activate and deactivate platform power limit at runtime")
         l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
 
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         l_status = self.cv_IPMI.ipmi_get_occ_status()
-        print l_status
+        print(l_status)
         if BMC_CONST.OCC_DEVICE_ENABLED in l_status:
-            print "OCC's are up and active"
+            print("OCC's are up and active")
         else:
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_deactivate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_activate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_low)
         self.cv_IPMI.ipmi_activate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_deactivate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
+        print(self.cv_IPMI.ipmi_get_power_limit())
         self.cv_IPMI.ipmi_activate_power_limit()
-        print self.cv_IPMI.ipmi_get_power_limit()
-        print "Get All dcmi readings at runtime"
+        print(self.cv_IPMI.ipmi_get_power_limit())
+        print("Get All dcmi readings at runtime")
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)
@@ -219,20 +219,20 @@ class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
-        print "Energy scale Test 3: Get Sensors, Temperature and Power reading's at power off and runtime"
-        print "Performing a IPMI Power OFF Operation"
+        print("Energy scale Test 3: Get Sensors, Temperature and Power reading's at power off and runtime")
+        print("Performing a IPMI Power OFF Operation")
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
         rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
         if rc == BMC_CONST.FW_SUCCESS:
-            print "System is in standby/Soft-off state"
+            print("System is in standby/Soft-off state")
         elif rc == BMC_CONST.FW_PARAMETER:
-            print "Host Status sensor is not available"
-            print "Skipping stand-by state check"
+            print("Host Status sensor is not available")
+            print("Skipping stand-by state check")
         else:
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
-        print "Get All dcmi readings at power off"
+        print("Get All dcmi readings at power off")
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)
@@ -246,17 +246,17 @@ class OpTestEnergyScaleDCMIruntime(OpTestEnergyScale):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        print "Performing a IPMI Power ON Operation"
+        print("Performing a IPMI Power ON Operation")
         # Perform a IPMI Power ON Operation
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         l_status = self.cv_IPMI.ipmi_get_occ_status()
-        print l_status
+        print(l_status)
         if BMC_CONST.OCC_DEVICE_ENABLED in l_status:
-            print "OCC's are up and active"
+            print("OCC's are up and active")
         else:
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)
-        print "Get All dcmi readings at runtime"
+        print("Get All dcmi readings at runtime")
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT)

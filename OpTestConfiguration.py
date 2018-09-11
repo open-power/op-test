@@ -250,7 +250,7 @@ class OpTestConfiguration():
         if (not os.path.exists(self.logdir)):
             os.makedirs(self.logdir)
 
-        print "Logs in: {}".format(self.logdir)
+        print("Logs in: {}".format(self.logdir))
 
         OpTestLogger.optest_logger_glob.logdir = self.logdir
 
@@ -401,7 +401,7 @@ class OpTestConfiguration():
             )
             bmc.set_system(self.op_system)
         elif self.args.bmc_type in ['qemu']:
-            print repr(self.args)
+            print(repr(self.args))
             bmc = OpTestQemu(self.args.qemu_binary,
                              self.args.host_pnor,
                              self.args.flash_skiboot,
