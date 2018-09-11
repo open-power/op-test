@@ -387,7 +387,7 @@ class OpTestFSP():
         Initiate a FIPS dump (fsp dump). Returns (name of dump, size of dump).
         '''
         print "FSP: Running the command 'fipsdump -u'"
-        state = self.fspc.run_command("fipsdump -u")
+        self.fspc.run_command("fipsdump -u")
         time.sleep(60)
         dumpname = self.fspc.run_command("fipsdump -l | sed 's/\ .*//'")
         print "fipsdump name : %s" % dumpname
