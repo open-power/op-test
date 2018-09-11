@@ -30,6 +30,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 from common import OpTestInstallUtil
 
+
 class gcov():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -39,7 +40,8 @@ class gcov():
 
     def runTest(self):
         self.setup_test()
-        exports = self.c.run_command("ls -1 --color=never /sys/firmware/opal/exports/")
+        exports = self.c.run_command(
+            "ls -1 --color=never /sys/firmware/opal/exports/")
         if 'gcov' not in exports:
             self.skipTest("Not a GCOV build")
 
@@ -56,9 +58,11 @@ class gcov():
         insanity += "echo 'Content-length: %s';\n" % (l[0])
         insanity += "echo 'Origin: http://%s:%d'; \n" % (my_ip, port)
         boundary = "OhGoodnessWhyDoIHaveToDoThis"
-        insanity += "echo 'Content-Type: multipart/form-data; boundary=%s';\n" % boundary
-        insanity += "echo; echo '--%s'; \n" % boundary
-        insanity += "echo 'Content-Disposition: form-data; name=\"file\"; filename=\"gcov\"'; \n"
+        insanity += "echo 'Content-Type: multipart/form-data; "
+        insanity += "boundary={}';\n".format(boundary)
+        insanity += "echo; echo '--%s'; \n".format(boundary)
+        insanity += "echo 'Content-Disposition: form-data; name=\"file\"; "
+        insanity += "filename=\"gcov\"'; \n"
         insanity += "echo 'Content-Type: application/octet-stream'; echo; \n"
         insanity += "cat /sys/firmware/opal/exports/gcov; \n"
         insanity += "echo; echo '--%s--';\n" % boundary
@@ -69,11 +73,11 @@ class gcov():
             f.write(iutil.get_uploaded_file('gcov'))
 
 
-
 class Skiroot(gcov, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
+
 
 class Host(gcov, unittest.TestCase):
     def setup_test(self):
