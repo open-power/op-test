@@ -238,11 +238,7 @@ class OpTestFSP():
                 print(output)
                 return False
 
-        elif state == 'runtime':
-            return False
-        elif state == 'terminated':
-            return False
-        elif state == 'prestandby':
+        elif state in ['runtime', 'terminated', 'prestandby']:
             return False
         else:
             return False
