@@ -6,3 +6,6 @@ The Tests
 
 .. automodule:: testcases.IplParams
    :members:
+
+.. automodule:: testcases.OpTestEEH
+   :members:

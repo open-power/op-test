@@ -24,10 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestEEH.py
-#   This testcase basically tests all OPAL EEH Error injection tests.
-#   fenced PHB
-#   frozen PE
+'''
+OpTestEEH
+---------
+
+This testcase basically tests all OPAL EEH Error injection tests.
+
+- fenced PHB
+- frozen PE
+'''
 
 import time
 import subprocess
@@ -51,6 +56,9 @@ EEH_HIT = 0
 EEH_MISS = 1
 
 class EEHRecoveryFailed(Exception):
+    '''
+    EEH Recovery failed on thing for reason.
+    '''
     def __init__(self, thing, dev, log=None):
         self.thing = thing
         self.dev = dev
@@ -60,6 +68,9 @@ class EEHRecoveryFailed(Exception):
 
 
 class EEHRemoveFailed(Exception):
+    '''
+    EEH Remove failed on thing for reason.
+    '''
     def __init__(self, thing, dev, log=None):
         self.thing = thing
         self.dev = dev
@@ -68,6 +79,9 @@ class EEHRemoveFailed(Exception):
         return "%s %s remove failed: Log=%s" % (self.thing, self.dev, self.log)
 
 class EEHLocCodeFailed(Exception):
+    '''
+    Failed to log location code along with failure.
+    '''
     def __init__(self, thing, dev, log=None):
         self.thing = thing
         self.dev = dev
@@ -107,36 +121,37 @@ class OpTestEEH(unittest.TestCase):
             pci_domains = [domain for domain in pci_domains if domain not in self.skip_phbs]
         return pci_domains
 
-    ##
-    # @brief  This function is used to prepare opal and kernel logs to
-    #         a reference point, so that we can compare logs for each EEH
-    #         iteration easily
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def prepare_logs(self):
+        '''
+        This function is used to prepare opal and kernel logs to
+        a reference point, so that we can compare logs for each EEH
+        iteration easily.
+
+        Basically, we throw logs in a temp file and diff them afterwards.
+        '''
         cmd = "cat /sys/firmware/opal/msglog|grep ',[0-4]\]' > /tmp/opal_msglog"
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
         self.cv_SYSTEM.console.run_command("dmesg -C")
 
-    ##
-    # @brief  This function is used to gather opal and kernel logs
-    #         for each EEH iteration instead of full logs
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def gather_logs(self):
+        '''
+        This function is used to gather opal and kernel logs
+        for each EEH iteration instead of full logs.
+
+        This should make it easier to debug problems as you'll have
+        the specific log messages that occured for each test.
+        '''
         cmd = "grep ',[0-4]\]' /sys/firmware/opal/msglog | diff - /tmp/opal_msglog"
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
         self.cv_SYSTEM.console.run_command("dmesg")
 
-    ##
-    # @brief  This function is used to actually check the PHB recovery
-    #         after an EEH Fenced PHB Error Injection.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def check_eeh_phb_recovery(self, i_domain):
+        '''
+        This function is used to actually check the PHB recovery
+        after an EEH Fenced PHB Error Injection.
+
+        We scrape the kernel log for the correct strings.
+        '''
         cmd = "dmesg  | grep -i 'EEH: Notify device driver to resume'; echo $?"
         tries = 60
         for i in range(1, tries+1):
@@ -161,25 +176,25 @@ class OpTestEEH(unittest.TestCase):
         else:
             return False
 
-
-    ##
-    # @brief  This function is used to get list of PCI devices
-    #         available at that instant of time.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
     def get_list_of_pci_devices(self):
+        '''
+        This function is used to get list of PCI devices
+        available at that instant of time.
+        '''
         cmd = "ls /sys/bus/pci/devices"
         res = self.cv_SYSTEM.console.run_command(cmd)
         return res
 
-        ##
-    # @brief   Get dictionary of pe vs config addr
-    #          Ex: {'0001:0c:00.2': '2', '0001:0b:00.0': 'fb', '0001:0c:00.0': '2'}
-    #
-    # @returns pe_dic @type dictionary:
-    #
     def get_dic_of_pe_vs_addr(self):
+        '''
+        Get dictionary of pe vs config addr.
+        e.g.
+
+        ::
+
+          {'0001:0c:00.2': '2', '0001:0b:00.0': 'fb', '0001:0c:00.0': '2'}
+
+        '''
         pe_dic = {}
         # Get list of PE's
         console = self.cv_SYSTEM.console
@@ -194,14 +209,12 @@ class OpTestEEH(unittest.TestCase):
             pe_dic[pe] = ((addr[0]).split("x"))[1]
         return pe_dic
 
-
-    ##
-    # @brief   Inject error and check for recovery, finally gather logs
-    #
-    # @returns True-->If PE is recover
-    #          False-->If PE is failed to recover.
-    #
     def run_pe_4(self, addr, e, f, phb, pe, con):
+        '''
+        Inject error and check for recovery, finally gather logs.
+
+        Returns True if PE recovers, False if failed to recover.
+        '''
         self.prepare_logs()
         try:
             self.inject_error(addr, e, f, phb, pe)
@@ -215,49 +228,54 @@ class OpTestEEH(unittest.TestCase):
             log.debug("PE %s EEH hit success" % pe)
             return EEH_HIT
 
-
-
-    ##
-    # @brief   Inject error
-    #           addr: PE address
-    #           e   : 0->32 bit errors
-    #               : 1->64 bit errors
-    #           f   : Function
-    #                   0 : MMIO read
-    #                   4 : CFG read
-    #                   6 : MMIO write
-    #                   10: CFG write
-    #           phb : PHB Index
-    #           pe  : PE BDF address
-    #
-    # @returns command return code @type integer
-    #
     def inject_error(self, addr, e, f, phb, pe):
+        '''
+        Inject error:
+
+        addr
+          PE address
+        e
+          0
+            32 bit errors
+          1
+            64 bit errors
+        f (Function)
+          0
+            MMIO read
+          4
+            CFG read
+          6
+            MMIO write
+          10
+            CFG write
+        phb
+          PHB Index
+        pe
+          PE BDF address
+        '''
         cmd = "echo %s:%s:%s:0:0 > /sys/kernel/debug/powerpc/PCI%s/err_injct && lspci -ns %s" % (addr, e, f, phb, pe)
         res = self.cv_SYSTEM.console.run_command(cmd)
 
-    ##
-    # @brief   Check for EEH Slot Reset count
-    #          cat /proc/powerpc/eeh | tail -n 1
-    #          eeh_slot_resets=10
-    #
-    # @returns output @type string: EEH Slot reset count
-    #
     def check_eeh_slot_resets(self):
+        '''
+        Check for EEH Slot Reset count. i.e. ::
+
+          $ cat /proc/powerpc/eeh | tail -n 1
+          eeh_slot_resets=10
+
+        Returns integer (in above example '10').
+        '''
         cmd = "cat /proc/powerpc/eeh | tail -n 1"
         count = self.cv_SYSTEM.console.run_command(cmd)
         output = (count[0].split("="))[1]
         return output
 
-
-    ##
-    # @brief   return True if PE is available in the system
-    #           else return False. Which will be useful for
-    #           checking the PE after injecting the EEH error
-    #
-    # @returns True/False @type boolean
-    #
     def check_eeh_pe_recovery(self, pe):
+        '''
+        return True if PE is available in the system
+        else return False. Which will be useful for
+        checking the PE after injecting the EEH error
+        '''
         cmd = "dmesg  | grep -i 'EEH: Notify device driver to resume'; echo $?"
         tries = 60
         for i in range(1, tries+1):
@@ -307,12 +325,16 @@ class OpTestEEH(unittest.TestCase):
         else:
             return False
 
-    # EEH verbose is enabled in P9. Until we have a capable of setting console log level in runtime, 
-    # or EEH verbose is disabled in P9, we need to disable the console logging to make tests run.
-    # (But at the cost of one additional IPL execution overhead)
-    # TODO: Remove this once we have a way of disabling console log level in runtime without 
-    #       having an additional IPL.
     def set_con_log_lev_crit(self):
+        '''
+        EEH verbose is enabled in P9. Until we have a capable of setting console log level in runtime,
+        or EEH verbose is disabled in P9, we need to disable the console logging to make tests run.
+        (But at the cost of one additional IPL execution overhead)
+
+        TODO: Remove this once we have a way of disabling console log level in runtime without
+        having an additional IPL.
+
+        '''
         self.cpu = self.cv_HOST.host_get_proc_gen(console=1)
         if self.cpu in ["POWER8", "POWER8E"]:
             return
@@ -349,17 +371,16 @@ class OpTestEEH(unittest.TestCase):
 
 
 class OpTestEEHbasic_fenced_phb(OpTestEEH):
-    ##
-    # @brief  This testcase has below steps
-    #         1. Get the list of pci PHB domains
-    #         2. Get the root PHB domain where the root file system
-    #            is installed(We need to skip this as EEH recovery will
-    #            fail on root PHB).
-    #         3. Start injecting the fenced PHB errors in a for loop
-    #            Only one time basic check whether PHB recovered or not
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
+    '''
+    This testcase has below steps:
+
+    1. Get the list of pci PHB domains
+    2. Get the root PHB domain where the root file system
+       is installed(We need to skip this as EEH recovery will
+       fail on root PHB).
+    3. Start injecting the fenced PHB errors in a for loop
+       Only one time basic check whether PHB recovered or not
+    '''
     def runTest(self):
         pci_domains = self.get_test_pci_domains()
         for domain in pci_domains:
@@ -377,22 +398,21 @@ class OpTestEEHbasic_fenced_phb(OpTestEEH):
 
 
 class OpTestEEHmax_fenced_phb(OpTestEEH):
-    ##
-    # @brief  This testcase has below steps
-    #         1. Get the list of pci PHB domains
-    #         2. Get the root PHB domain where the root file system
-    #            is installed(We need to skip this as EEH recovery will
-    #            fail on root PHB).
-    #         3. Set the MAX EEH Freeze count to 1 so that we can
-    #            test max EEH Recovery capacity within less for loop executions
-    #            By default it is 6,
-    #         4. Start injecting the fenced PHB errors two times across all PHB domains
-    #            except root PHB.( As we set max EEH Freeze count to 1).
-    #            So expectation is first time it should recover and second time
-    #            EEH should properly remove the device and OS should not crash.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
+    '''
+    This testcase has below steps:
+
+    1. Get the list of pci PHB domains
+    2. Get the root PHB domain where the root file system
+       is installed(We need to skip this as EEH recovery will
+       fail on root PHB).
+    3. Set the MAX EEH Freeze count to 1 so that we can
+       test max EEH Recovery capacity within less for loop executions
+       By default it is 6,
+    4. Start injecting the fenced PHB errors two times across all PHB domains
+       except root PHB.( As we set max EEH Freeze count to 1).
+       So expectation is first time it should recover and second time
+       EEH should properly remove the device and OS should not crash.
+    '''
     def runTest(self):
         pci_domains = self.get_test_pci_domains()
         # Set the max EEH freeze count to 1
@@ -421,21 +441,26 @@ class OpTestEEHmax_fenced_phb(OpTestEEH):
 
 
 class OpTestEEHbasic_frozen_pe(OpTestEEH):
-    ##
-    # @brief  This testcase has below steps
-    #         1. Get the list of pci PHB domains
-    #         2. Get the root PHB domain where the root file system
-    #            is installed(We need to skip this as EEH recovery will
-    #            fail on root PHB).
-    #         3. get dictionary of pe vs config addr
-    #            Ex: {'0001:0c:00.2': '2', '0001:0b:00.0': 'fb', '0001:0c:00.0': '2'}
-    #         4.Prepare below command & Start inject frozenPE errors on all PE's
-    #           echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
-    #         5. Gather necssary logs(dmesg & OPAL) and check the device(PE) got
-    #            recovered or not.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
+    '''
+    This testcase has below steps
+
+    1. Get the list of pci PHB domains
+    2. Get the root PHB domain where the root file system
+       is installed(We need to skip this as EEH recovery will
+       fail on root PHB).
+    3. get dictionary of pe vs config addr.
+
+       Ex: ::
+
+         {'0001:0c:00.2': '2', '0001:0b:00.0': 'fb', '0001:0c:00.0': '2'}
+
+    4. Prepare below command & Start inject frozenPE errors on all PE's ::
+
+        echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
+
+    5. Gather necssary logs(dmesg & OPAL) and check the device(PE) got
+       recovered or not.
+    '''
     def runTest(self):
         pci_domains = self.get_test_pci_domains()
         pe_dic = self.get_dic_of_pe_vs_addr()
@@ -493,21 +518,24 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
 
 
 class OpTestEEHmax_frozen_pe(OpTestEEH):
-    ##
-    # @brief  This testcase has below steps
-    #         1. Get the list of pci PHB domains
-    #         2. Get the root PHB domain where the root file system
-    #            is installed(We need to skip this as EEH recovery will
-    #            fail on root PHB).
-    #         3. get dictionary of pe vs config addr
-    #            Ex: {'0001:0c:00.2': '2', '0001:0b:00.0': 'fb', '0001:0c:00.0': '2'}
-    #         4.Prepare below command & Start inject frozenPE errors on all PE's
-    #           echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
-    #         5. Gather necssary logs(dmesg & OPAL) and check the device(PE) got
-    #            recovered or not.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
+    '''
+    This testcase has below steps
+
+    1. Get the list of pci PHB domains
+    2. Get the root PHB domain where the root file system
+       is installed(We need to skip this as EEH recovery will
+       fail on root PHB).
+    3. get dictionary of pe vs config addr. Ex: ::
+
+         {'0001:0c:00.2': '2', '0001:0b:00.0': 'fb', '0001:0c:00.0': '2'}
+
+    4. Prepare below command & Start inject frozenPE errors on all PE's ::
+
+        echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
+
+    5. Gather necssary logs(dmesg & OPAL) and check the device(PE) got
+       recovered or not.
+    '''
     def runTest(self):
         pci_domains = self.get_test_pci_domains()
         # Set the max EEH freeze count to 1
