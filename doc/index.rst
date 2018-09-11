@@ -11,6 +11,7 @@ Welcome to op-test-framework's documentation!
    :caption: Contents:
 
    user-guide
+   tests
 
 Programming Reference
 =====================

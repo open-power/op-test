@@ -24,13 +24,23 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package EPOW.py
-#  This module tests the EPOW feature incase of FSP systems
-#  1. EPOW3Random ---->Simulate random EPOW3 temperature to check whether 
-#                       OPAL notify EPOW notification to Host OS. Once Host
-#                       gets notified Host should do a graceful shutdown.
-#  2. EPOW3LOW ------->Simualate temperatures less than EPOW3 threshold
-#                      and check whether Host OS is alive or not.
+'''
+EPOW (Emergency POWer off)
+--------------------------
+
+This module tests the EPOW feature incase of FSP systems.
+
+1. EPOW3Random.
+
+   Simulate random EPOW3 temperature to check whether
+   OPAL notify EPOW notification to Host OS. Once Host
+   gets notified Host should do a graceful shutdown.
+
+2. EPOW3LOW
+
+   Simualate temperatures less than EPOW3 threshold
+   and check whether Host OS is alive or not.
+'''
 
 import time
 import subprocess
@@ -143,21 +153,24 @@ class EPOWBase(unittest.TestCase):
         return self.limits[param]
 
 class EPOW3Random(EPOWBase):
+    '''
+    This testcase tests the EPOW feature of the FSP. Thus, it is only applicable
+    to FSP based systems and will be skipped on other BMC types.
 
-    ##
-    # @brief This testcase tests the EPOW feature
-    #        1. It will gather EPOW limits 
-    #        2. We will choose some random EPOW temp(test_temp) in b/w those limits
-    #        3. Simulate that temperature(test_temp)
-    #        4. Verify graceful shutdown happened or not
-    #        5. Once system reaches standby, simulate the ambient temp
-    #           to EPOW3_RESET temperature(reset_temp) to bring back the system.
-    #        6. Bring back the system again to runtime.
-    #        If user faces any problem in bringing the system UP please run below
-    #        command "smgr toolReset"
-    # 
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    This test will:
+
+    1. It will gather EPOW limits
+    2. We will choose some random EPOW temp(test_temp) in b/w those limits
+    3. Simulate that temperature(test_temp)
+    4. Verify graceful shutdown happened or not
+    5. Once system reaches standby, simulate the ambient temp
+       to EPOW3_RESET temperature(reset_temp) to bring back the system.
+    6. Bring back the system again to runtime.
+
+    If user faces any problem in bringing the system UP please run below
+    command "smgr toolReset"
+    '''
+
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP specific OPAL EPOW Test.")
@@ -203,19 +216,18 @@ class EPOW3Random(EPOWBase):
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
 class EPOW3LOW(EPOWBase):
+    '''
+    This test case will follow below procedure:
 
-    ##
-    # @brief This test case will follow below procedure.
-    #       1. Based on Nebsenabled will get EPOW limits from FSP using def file present 
-    #          in /opt/fips/components/engd/. Different systems have different EPOW limits.
-    #       2. Test EPOW3_LOW---> Will test temperatures lower than EPOW3 temperature,
-    #           a. From FSP it simulate to lesser ambient temperatures than EPOW3 temperature
-    #           b. In this case system should be alive and it should not cause system shut-down.
-    #        If user faces any problem in bringing the system UP please run below
-    #        command "smgr toolReset" in fsp console
-    # 
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    1. Based on Nebsenabled will get EPOW limits from FSP using def file present
+       in `/opt/fips/components/engd/`. Different systems have different EPOW limits.
+    2. Test EPOW3_LOW---> Will test temperatures lower than EPOW3 temperature,
+       a. From FSP it simulate to lesser ambient temperatures than EPOW3 temperature
+       b. In this case system should be alive and it should not cause system shut-down.
+
+    If user faces any problem in bringing the system UP please run below
+    command "smgr toolReset" in fsp console
+    '''
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP specific OPAL EPOW Test.")
