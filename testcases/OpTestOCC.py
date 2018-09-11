@@ -280,7 +280,7 @@ class OpTestOCCFull(OpTestOCCBase):
             self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
         # After max_reset_count times occ reset, occ's will be disabled
         self.assertEqual(rc, BMC_CONST.FW_FAILED,
-            "OCC's are still in active state after max occ reset count %s" % max_reset_count) 
+            "OCC's are still in active state after max occ reset count %s" % max_reset_count)
         log.debug("OCC\'s are not in active state, rebooting the system")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
