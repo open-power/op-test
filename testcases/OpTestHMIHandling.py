@@ -24,14 +24,19 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpTestHMIHandling
-#  HMI Handling package for OpenPower testing.
-#
-#  This class will test the functionality of following.
-#  1. HMI Non-recoverable errors - Core checkstop and Hypervisor resource error
-#  2. HMI Recoverable errors- proc_recv_done, proc_recv_error_masked and proc_recv_again
-#  3. TFMR error injections
-#  4. chip TOD error injections
+'''
+OpTestHMIHandling
+-----------------
+
+HMI Handling package for OpenPower testing.
+
+This class will test the functionality of following.
+
+1. HMI Non-recoverable errors - Core checkstop and Hypervisor resource error
+2. HMI Recoverable errors- proc_recv_done, proc_recv_error_masked and proc_recv_again
+3. TFMR error injections
+4. chip TOD error injections
+'''
 
 import time
 import subprocess
@@ -220,15 +225,22 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     ##
-    # @brief This function executes HMI test case based on the i_test value, Before test starts
-    #        disabling kdump service to make sure system reboots, after injecting non-recoverable errors.
-    #
-    # @param i_test @type int: this is the type of test case want to execute
-    #                          BMC_CONST.HMI_PROC_RECV_DONE: Processor recovery done
-    #                          BMC_CONST.HMI_PROC_RECV_ERROR_MASKED: proc_recv_error_masked
-    #                          BMC_CONST.HMI_MALFUNCTION_ALERT: malfunction_alert
-    #                          BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR: hypervisor resource error
     def _testHMIHandling(self, i_test):
+        '''
+        This function executes HMI test case based on the i_test value, Before test starts
+        disabling kdump service to make sure system reboots, after injecting non-recoverable errors.
+
+        i_test (type int): this is the type of test case want to execute
+
+        BMC_CONST.HMI_PROC_RECV_DONE
+          Processor recovery done
+        BMC_CONST.HMI_PROC_RECV_ERROR_MASKED
+          proc_recv_error_masked
+        BMC_CONST.HMI_MALFUNCTION_ALERT
+          malfunction_alert
+        BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR
+          hypervisor resource error
+        '''
         l_test = i_test
         self.init_test()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
@@ -280,11 +292,12 @@ class OpTestHMIHandling(unittest.TestCase):
             raise Exception("Please provide valid test case")
         l_con.run_command("dmesg -C")
 
-    ##
-    # @brief This function is used to test HMI: processor recovery done
-    #        and also this function injecting error on all the cpus one by one and 
-    #        verify whether cpu is recovered or not.
     def _test_proc_recv_done(self):
+        '''
+        This function is used to test HMI: processor recovery done
+        and also this function injecting error on all the cpus one by one and
+        verify whether cpu is recovered or not.
+        '''
         if self.proc_gen in ["POWER9"]:
             scom_addr = "20010A40"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
@@ -321,11 +334,12 @@ class OpTestHMIHandling(unittest.TestCase):
                 self.verify_proc_recovery(l_res)
         return
 
-    ##
-    # @brief This function is used to test HMI: proc_recv_error_masked
-    #        Processor went through recovery for an error which is actually masked for reporting
-    #        this function also injecting the error on all the cpu's one-by-one.
     def _test_proc_recv_error_masked(self):
+        '''
+        This function is used to test HMI: proc_recv_error_masked
+        Processor went through recovery for an error which is actually masked for reporting
+        this function also injecting the error on all the cpu's one-by-one.
+        '''
         if self.proc_gen in ["POWER8", "POWER8E"]:
             scom_addr = "10013100"
         else:
@@ -360,11 +374,12 @@ class OpTestHMIHandling(unittest.TestCase):
                 self.verify_proc_recovery(l_res)
         return
 
-    ##
-    # @brief This function is used to test hmi malfunction alert:Core checkstop
-    #        A processor core in the system has to be checkstopped (failed recovery).
-    #        Injecting core checkstop on random core of random chip
     def _test_malfunction_alert(self):
+        '''
+        This function is used to test hmi malfunction alert:Core checkstop
+        A processor core in the system has to be checkstopped (failed recovery).
+        Injecting core checkstop on random core of random chip
+        '''
         if self.proc_gen in ["POWER9"]:
             scom_addr = "20010A40"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
@@ -393,10 +408,11 @@ class OpTestHMIHandling(unittest.TestCase):
         console.sol.sendline(l_cmd)
         self.handle_ipl()
 
-    ##
-    # @brief This function is used to test HMI: Hypervisor resource error
-    #        Injecting Hypervisor resource error on random core of random chip
     def _test_hyp_resource_err(self):
+        '''
+        This function is used to test HMI: Hypervisor resource error
+        Injecting Hypervisor resource error on random core of random chip
+        '''
         if self.proc_gen in ["POWER9"]:
             scom_addr = "20010A40"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
@@ -421,19 +437,21 @@ class OpTestHMIHandling(unittest.TestCase):
         console.sol.sendline(l_cmd)
         self.handle_ipl()
 
-    ##
-    # @brief This function tests timer facility related error injections and check
-    #        the corresponding error got recovered. And this process is repeated
-    #        for all the active cores in all the chips.
-    #
-    # @param i_error @type string: this is the type of error want to inject
-    #                          BMC_CONST.TB_PARITY_ERROR
-    #                          BMC_CONST.TFMR_PARITY_ERROR
-    #                          BMC_CONST.TFMR_HDEC_PARITY_ERROR
-    #                          BMC_CONST.TFMR_DEC_PARITY_ERROR
-    #                          BMC_CONST.TFMR_PURR_PARITY_ERROR
-    #                          BMC_CONST.TFMR_SPURR_PARITY_ERROR
     def _testTFMR_Errors(self, i_error):
+        '''
+        This function tests timer facility related error injections and check
+        the corresponding error got recovered. And this process is repeated
+        for all the active cores in all the chips.
+
+        `i_error` string: this is the type of error want to inject
+
+        - BMC_CONST.TB_PARITY_ERROR
+        - BMC_CONST.TFMR_PARITY_ERROR
+        - BMC_CONST.TFMR_HDEC_PARITY_ERROR
+        - BMC_CONST.TFMR_DEC_PARITY_ERROR
+        - BMC_CONST.TFMR_PURR_PARITY_ERROR
+        - BMC_CONST.TFMR_SPURR_PARITY_ERROR
+        '''
         if self.proc_gen in ["POWER9"]:
             scom_addr = "20010A84"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
@@ -472,16 +490,17 @@ class OpTestHMIHandling(unittest.TestCase):
                 self.verify_timer_facility_recovery(l_res)
         return
 
-    ##
-    # @brief This function tests chip TOD related error injections and check
-    #        the corresponding error got recovered. And this error injection
-    #        happening on a random chip. This tod errors should test on systems
-    #        having more than one processor socket(chip). On single chip system
-    #        TOD error recovery won't work.
-    #
-    # @param i_error @type string: this is the type of error want to inject
-    #                       These errors represented in common/OpTestConstants.py file.
     def _test_tod_errors(self, i_error):
+        '''
+        This function tests chip TOD related error injections and check
+        the corresponding error got recovered. And this error injection
+        happening on a random chip. This tod errors should test on systems
+        having more than one processor socket(chip). On single chip system
+        TOD error recovery won't work.
+
+        @param i_error @type string: this is the type of error want to inject
+                               These errors represented in common/OpTestConstants.py file.
+        '''
         l_error = i_error
         l_pair = random.choice(self.l_dic)
         # Get random chip id

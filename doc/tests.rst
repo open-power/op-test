@@ -15,3 +15,6 @@ The Tests
 
 .. automodule:: testcases.OpTestEnergyScale
    :members:
+
+.. automodule:: testcases.OpTestHMIHandling
+   :members:
