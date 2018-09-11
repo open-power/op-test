@@ -24,11 +24,16 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpTestOCC
-#  OCC Control package for OpenPower testing.
-#
-#  This class will test the functionality of following.
-#  1. OCC Reset\Enable\Disable
+'''
+OpTestOCC
+---------
+
+OCC Control package for OpenPower testing.
+
+This class will test the functionality of following.
+
+1. OCC Reset\Enable\Disable
+'''
 
 import time
 import subprocess
@@ -88,13 +93,13 @@ class OpTestOCCBase(unittest.TestCase):
         log.debug("OPAL-PRD: occ query reset reload count")
         self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
 
-    ##
-    # @brief This function is used to get OCC status enable/disable.
-    #
-    # @return BMC_CONST.FW_SUCCESS - OCC's are active or 
-    #         BMC_CONST.FW_FAILED  - OCC's are not in active state
-    #
     def check_occ_status(self):
+        '''
+        This function is used to get OCC status enable/disable.
+
+        @return BMC_CONST.FW_SUCCESS - OCC's are active or
+                BMC_CONST.FW_FAILED  - OCC's are not in active state
+        '''
         if "OpenBMC" in self.bmc_type:
             for id in self.occ_ids:
                 if not self.rest.is_occ_active(id):
@@ -115,22 +120,17 @@ class OpTestOCCBase(unittest.TestCase):
         cur_freq = self.c.run_command(l_cmd)
         return cur_freq[0].strip()
 
-    ##
-    # @brief sets the cpu frequency with i_freq value
-    #
-    # @param i_freq @type str: this is the frequency of cpu to be set
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def set_cpu_freq(self, i_freq):
+        '''
+        Sets the CPU frequency on all CPUs
+        '''
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_setspeed; do echo %s > $i; done" % i_freq
         self.c.run_command(l_cmd)
 
-    ##
-    # @brief verify the cpu frequency with i_freq value
-    #
-    # @param i_freq @type str: this is the frequency to be verified with cpu frequency
     def verify_cpu_freq(self, i_freq):
+        '''
+        Verify CPU frequency is set to a value by checking sysfs for CPU0.
+        '''
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.c.run_command(l_cmd)
         if not cur_freq[0].strip() == i_freq:
@@ -145,26 +145,26 @@ class OpTestOCCBase(unittest.TestCase):
         self.assertEqual(cur_freq[0].strip(), i_freq,
                          "CPU frequency not changed to %s" % i_freq)
 
-    ##
-    # @brief sets the cpu governer with i_gov governer
-    #
-    # @param i_gov @type str: this is the governer to be set for all cpu's
     def set_cpu_gov(self, i_gov):
+        '''
+        Set the CPU governer on all CPUs.
+        '''
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo %s > $i; done" % i_gov
         self.c.run_command(l_cmd)
 
-    ##
-    # @brief verify the cpu governer with i_gov governer
-    #
-    # @param i_gov @type str: this is the governer to be verified with cpu governer
     def verify_cpu_gov(self, i_gov):
+        '''
+        Verify the CPU frequency governor (on CPU0) by reading from sysfs.
+        '''
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
         cur_gov = self.c.run_command(l_cmd)
         self.assertEqual(cur_gov[0].strip(), i_gov, "CPU governor not changed to %s" % i_gov)
 
 
     def get_list_of_cpu_freq(self):
-        # Get available cpu scaling frequencies
+        '''
+        Get available cpu scaling frequencies
+        '''
         l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
         freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
         log.debug(freq_list)
@@ -244,13 +244,10 @@ class OpTestOCC(OpTestOCCBase):
         self.dvfs_test()
 
 class OpTestOCCFull(OpTestOCCBase):
-
-    ##
-    # @brief This function is used to test OCC Reset funtionality in BMC based systems.
-    #        OCC Reset reload is limited to 3 times per full power cycle.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    '''
+    This function is used to test OCC Reset funtionality in BMC based systems.
+    OCC Reset reload is limited to 3 times per full power cycle.
+    '''
     def test_occ_reset_functionality(self):
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
             self.skipTest("OpenPower OCC Reset test")
@@ -287,14 +284,12 @@ class OpTestOCCFull(OpTestOCCBase):
         log.debug("OCC\'s are not in active state, rebooting the system")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
-    ##
-    # @brief This function is used to test OCC Reset funtionality in BMC based systems.
-    #        OCC Reset reload can be done more than 3 times per full power cycle, by
-    #        resetting OCC resetreload count.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def test_occ_reset_n_times(self):
+        '''
+        This function is used to test OCC Reset funtionality in BMC based systems.
+        OCC Reset reload can be done more than 3 times per full power cycle, by
+        resetting OCC resetreload count.
+        '''
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
             self.skipTest("OpenPower OCC Reset test")
         self.assertNotEqual(self.check_occ_status(), BMC_CONST.FW_FAILED,
@@ -317,13 +312,11 @@ class OpTestOCCFull(OpTestOCCBase):
             self.dvfs_test()
             self.clear_occ_rr_count()
 
-    ##
-    # @brief This function is used to test OCC Enable and Disable funtionality in BMC based systems.
-    #        There is no limit for occ enable and disable, as of now doing 10 times in a loop.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def test_occ_enable_disable_functionality(self):
+        '''
+        This function is used to test OCC Enable and Disable funtionality in BMC based systems.
+        There is no limit for occ enable and disable, as of now doing 10 times in a loop.
+        '''
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
             self.skipTest("OpenPower OCC Reset test")
         self.assertNotEqual(self.check_occ_status(), BMC_CONST.FW_FAILED,

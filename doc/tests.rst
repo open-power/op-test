@@ -18,3 +18,6 @@ The Tests
 
 .. automodule:: testcases.OpTestHMIHandling
    :members:
+
+.. automodule:: testcases.OpTestOCC
+   :members:
