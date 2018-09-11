@@ -16,6 +16,9 @@ The Tests
 .. automodule:: testcases.OpTestEnergyScale
    :members:
 
+.. automodule:: testcases.OpTestHeartbeat
+   :members:
+
 .. automodule:: testcases.OpTestHMIHandling
    :members:
 

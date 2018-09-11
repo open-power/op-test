@@ -24,11 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestHeartbeat
-#  Heartbeat tests for OpenPower testing.
-#
-#  This class will test the functionality of ipmi heartbeat 
-#  1. kopald service should be running by defaulut since host should poll OPAL at time interval requested by OPAL
+'''
+OpTestHeartbeat
+---------------
+Heartbeat tests for OpenPower testing.
+
+This class will test the functionality of ipmi heartbeat
+
+1. kopald service should be running by defaulut since host should poll OPAL at time interval requested by OPAL
+'''
 
 import unittest
 
@@ -36,6 +40,10 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
 class HeartbeatSkiroot(unittest.TestCase):
+    '''
+    Checks that kopald is running. This doesn't *really* test that the
+    ipmi heartbeat is working, and thus this is a big FIXME.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
