@@ -17,20 +17,28 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 #
-# Trustedboot IPL Tests
-# This tests expect a TPM chip to be installed/removed on the system
-# and also a secureboot mode enabled/disabled accordingly.
-# If TPM chip is installed --> provide --trusted-mode in command line
-# If secureboot is enabled --> provide --secure-mode in command line
-#
-# The "TPM Required" policy means:
-# enabled: Node must have at least 1 functional TPM to boot, otherwise system will terminate
-# disabled: Node can boot without a functional TPM
-# ==================
-# If system has a working TPM, the policy is a don't care.  If secure mode is not enabled, the policy is a don't care.
-# if you set policy to "enabled" and remove/inject error on TPM -and- system is in secure mode,  system boot will terminate
-# if you set policy to disable and remove/inject error on the TPM -and- system is in secure mode, system will still boot
-#
+
+'''
+Trustedboot IPL Tests
+---------------------
+
+This tests expect a TPM chip to be installed/removed on the system
+and also a secureboot mode enabled/disabled accordingly.
+
+If TPM chip is installed --> provide --trusted-mode in command line
+If secureboot is enabled --> provide --secure-mode in command line
+
+The "TPM Required" policy means:
+
+enabled:
+  Node must have at least 1 functional TPM to boot, otherwise system will terminate
+disabled:
+  Node can boot without a functional TPM
+
+If system has a working TPM, the policy is a don't care.  If secure mode is not enabled, the policy is a don't care.
+if you set policy to "enabled" and remove/inject error on TPM -and- system is in secure mode,  system boot will terminate
+if you set policy to disable and remove/inject error on the TPM -and- system is in secure mode, system will still boot
+'''
 
 import unittest
 import pexpect
@@ -74,7 +82,7 @@ class TrustedBoot(unittest.TestCase):
         else:
            self.skipTest("OPAL TB test not supported on %s" % self.cpu)
 
-        data = " ".join(c.run_command("cat /sys/firmware/opal/msglog | grep -i stb")) 
+        data = " ".join(c.run_command("cat /sys/firmware/opal/msglog | grep -i stb"))
         if self.trustedmode:
             if not "trusted mode on" in data:
                 self.assertTrue(False, "OPAL: trusted mode is detected as OFF")
@@ -161,7 +169,7 @@ class FunctionalTPM_PolicyOFF(TrustedBoot):
 
 class FunctionalTPM_PolicyON(TrustedBoot):
     '''
-    Functional TPM, TPM Required(set) 
+    Functional TPM, TPM Required(set)
         - Test IPL, Measurements & event logs(Secure Mode Override jumper(s) can be ON or OFF)
     '''
     def setUp(self):
@@ -218,7 +226,7 @@ class NoFunctionalTPM_PolicyON(TrustedBoot):
             self.wait_for_system_shutdown()
             self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.sys_disable_tpm() 
+            self.cv_SYSTEM.sys_disable_tpm()
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.verify_dt_tb()
         self.verify_opal_tb()

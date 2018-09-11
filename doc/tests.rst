@@ -21,3 +21,6 @@ The Tests
 
 .. automodule:: testcases.OpTestOCC
    :members:
+
+.. automodule:: testcases.TrustedBoot
+   :members:
