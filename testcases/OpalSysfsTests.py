@@ -115,7 +115,7 @@ class OpalSysfsTests():
             if self.test == "skiroot":
                 self.c.run_command("echo 1 > /%s/%s/clear" % (OPAL_SENSOR_GROUPS, entry))
                 continue
-            # clearing min/max for hwmon sensors 
+            # clearing min/max for hwmon sensors
             self.c.run_command("sensors")
             self.c.run_command("ppc64_cpu --frequency")
             self.c.run_command("sensors")
