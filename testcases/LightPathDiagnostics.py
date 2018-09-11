@@ -44,140 +44,139 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class LightPathDiagnostics(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.cv_SYSTEM = conf.system()
-        self.cv_FSP = self.cv_SYSTEM.bmc
-        self.cv_HOST = conf.host()
+        self.system = conf.system()
+        self.fsp = self.system.bmc
+        self.host = conf.host()
         self.bmc_type = conf.args.bmc_type
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-
-    def tearDown(self):
-        #self.cv_HOST.host_gather_opal_msg_log()
-        #self.cv_HOST.host_gather_kernel_log()
-        pass
+        self.system.goto_state(OpSystemState.OS)
 
     def lpd_init(self):
         # Check if system has LED support
-        if not self.cv_SYSTEM.has_host_led_support():
+        if not self.system.has_host_led_support():
             self.skipTest("System has no LED support")
 
-        self.assertTrue(self.cv_HOST.host_check_dt_node_exist("ibm,opal/leds"),
-            "ibm,opal/leds DT Node doesn't exist")
+        self.assertTrue(self.host.host_check_dt_node_exist("ibm,opal/leds"),
+                        "ibm,opal/leds DT Node doesn't exist")
 
         # If it has support, check for led's presence
-        res = self.cv_HOST.host_run_command("ls /sys/class/leds/ | wc -l")
+        res = self.host.host_run_command("ls /sys/class/leds/ | wc -l")
         self.assertNotEqual(int(''.join(res).strip()), 0,
-            "No LED's found in sysfs /sys/class/leds/")
+                            "No LED's found in sysfs /sys/class/leds/")
 
-        self.cv_FSP.fsp_get_console()
-        if not self.cv_FSP.mount_exists():
+        self.fsp.fsp_get_console()
+        if not self.fsp.mount_exists():
             raise OpTestError("Please mount NFS and retry the test")
 
     def get_location_codes(self):
-        res = self.cv_HOST.host_run_command("usysident")
+        res = self.host.host_run_command("usysident")
         loc_codes = []
         for loc in res:
             loc_codes.append(loc.split("\t")[0])
         return loc_codes
 
     def get_sysattn_indicator_loc(self):
-        res = self.cv_HOST.host_run_command("usysattn")
+        res = self.host.host_run_command("usysattn")
         loc_codes = []
         for loc in res:
             loc_codes.append(loc.split("\t")[0])
         return loc_codes[0]
 
-class UsysIdentifyTest(LightPathDiagnostics):
 
-    ##
-    # @brief This function tests usysident identification of LED's
-    #
+class UsysIdentifyTest(LightPathDiagnostics):
+    '''
+    This function tests usysident identification of LEDs
+    '''
     def runTest(self):
         self.lpd_init()
         loc_codes = self.get_location_codes()
         log.debug("Executing indicator identify tests")
         # Using -l option(Location code) Identifying a single device
         for loc in loc_codes:
-            log.debug("Turn on identification indicator %s from Host OS" % loc)
-            self.cv_HOST.host_run_command("usysident -l %s -s identify" % (loc))
+            log.debug("Turn on indicator {} from Host".format(loc))
+            self.host.host_run_command(
+                "usysident -l {} -s identify".format(loc))
             tries = 20
             for i in range(1, tries+1):
-                response = self.cv_HOST.host_run_command("usysident -l %s" % (loc))
+                response = self.host.host_run_command(
+                    "usysident -l {}".format(loc))
                 if "on" in ''.join(response):
                     break
                 time.sleep(1)
             self.assertIn("on", response,
-                    "Turn ON of identification indicator %s is failed" % loc)
-            log.debug("Current identification state of %s is ON" % loc)
+                          "Turn ON of indicator {} failed".format(loc))
+            log.debug("Current identification state of {} is ON".format(loc))
 
-        self.cv_HOST.host_run_command("usysident")
+        self.host.host_run_command("usysident")
 
         # Setting to normal state of device(Turn off Device)
         for loc in loc_codes:
-            log.debug("Turn off identification indicator %s from Host OS" % loc)
-            self.cv_HOST.host_run_command("usysident -l %s -s normal" % (loc))
+            log.debug("Turn off {} from Host".format(loc))
+            self.host.host_run_command("usysident -l {} -s normal".format(loc))
             tries = 20
             for i in range(1, tries+1):
-                response = self.cv_HOST.host_run_command("usysident -l %s" % (loc))
+                response = self.host.host_run_command(
+                    "usysident -l {}".format(loc))
                 if "off" in ''.join(response):
                     break
                 time.sleep(1)
             self.assertIn("off", response,
-                    "Turn OFF of identification indicator %s is failed" % loc)
-            log.debug("Current identification state of %s is OFF" % loc)
+                          "Turn OFF {} failed".format(loc))
+            log.debug("Current identification state of {} is OFF".format(loc))
+
 
 class UsysAttnFSPTest(LightPathDiagnostics):
-
-    ##
-    # @brief This function tests system attention indicator LED
-    #
+    '''
+    This function tests system attention indicator LED
+    '''
     def runTest(self):
         self.lpd_init()
         loc_code = self.get_sysattn_indicator_loc()
         log.debug("Executing system attention indicator tests")
-        response = self.cv_FSP.fsp_run_command("ledscommandline -V")
+        response = self.fsp.fsp_run_command("ledscommandline -V")
         log.debug(response)
         # Setting system attention indicator from FSP
         log.debug("Setting system attention indicator from FSP")
-        response = self.cv_FSP.fsp_run_command("ledscommandline -a -s")
+        response = self.fsp.fsp_run_command("ledscommandline -a -s")
         log.debug(response)
-        response = self.cv_FSP.fsp_run_command("ledscommandline -a -q")
+        response = self.fsp.fsp_run_command("ledscommandline -a -q")
         log.debug(response)
         tries = 10
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
-            response = self.cv_HOST.host_run_command(cmd)
+            response = self.host.host_run_command(cmd)
             if "on" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("on", response,
-                "Turn ON of system attention indicator is failed")
+                      "Turn ON of system attention indicator is failed")
         log.debug("Current system attention indicator state is ON")
 
         # Clearing(resetting) system attention indicator from FSP
         log.debug("Clearing system attention indicator from FSP")
-        response = self.cv_FSP.fsp_run_command("ledscommandline -a -r")
+        response = self.fsp.fsp_run_command("ledscommandline -a -r")
         log.debug(response)
-        response = self.cv_FSP.fsp_run_command("ledscommandline -a -q")
+        response = self.fsp.fsp_run_command("ledscommandline -a -q")
         log.debug(response)
         tries = 10
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
-            response = self.cv_HOST.host_run_command(cmd)
+            response = self.host.host_run_command(cmd)
             if "off" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("off", response,
-                "Turn OFF of system attention indicator is failed")
+                      "Turn OFF of system attention indicator is failed")
         log.debug("Current system attention indicator state is OFF")
 
-class UsysAttnHostTest(LightPathDiagnostics):
 
-    ##
-    # @brief This function tests system attention indicator LED
-    #
+class UsysAttnHostTest(LightPathDiagnostics):
+    '''
+    This function tests system attention indicator LED
+    '''
     def runTest(self):
         self.lpd_init()
         loc_code = self.get_sysattn_indicator_loc()
@@ -185,73 +184,78 @@ class UsysAttnHostTest(LightPathDiagnostics):
         # Setting system attention indicator from HOST
         log.debug("Setting system attention indicator from Host")
         cmd = "echo 1 > /sys/class/leds/%s:attention/brightness" % loc_code
-        self.cv_HOST.host_run_command(cmd)
+        self.host.host_run_command(cmd)
         tries = 10
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
-            response = self.cv_HOST.host_run_command(cmd)
+            response = self.host.host_run_command(cmd)
             if "on" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("on", response,
-                "Turn ON of system attention indicator is failed")
+                      "Turn ON of system attention indicator is failed")
         log.debug("Current system attention indicator state is ON")
 
         # Clearing(resetting) system attention indicator
         log.debug("Clearing system attention indicator from Host")
         cmd = "echo 0 > /sys/class/leds/%s:attention/brightness" % loc_code
-        self.cv_HOST.host_run_command(cmd)
+        self.host.host_run_command(cmd)
         tries = 10
         for i in range(1, tries+1):
             cmd = "usysattn -l %s" % loc_code
-            response = self.cv_HOST.host_run_command(cmd)
+            response = self.host.host_run_command(cmd)
             if "off" in ''.join(response):
                 break
             time.sleep(1)
         self.assertIn("off", response,
-                "Turn OFF of system attention indicator is failed")
+                      "Turn OFF of system attention indicator is failed")
         log.debug("Current system attention indicator state is OFF")
 
-class UsysFaultTest(LightPathDiagnostics):
 
-    ##
-    # @brief This function tests usysfault identification of LED's
-    #
+class UsysFaultTest(LightPathDiagnostics):
+    '''
+    This function tests usysfault identification of LED's
+    '''
     def runTest(self):
         self.lpd_init()
         loc_codes = self.get_location_codes()
         log.debug("Executing fault indicator tests for all fault locators")
         for indicator in loc_codes:
-            log.debug("=================Test for %s locator================" % indicator)
+            log.debug("Test for {} locator".format(indicator))
             # Setting a fault indicator from HOST os
-            log.debug("Setting fault indicator %s from Host OS" % indicator)
-            cmd = "echo 1 > /sys/class/leds/%s:fault/brightness" % indicator
-            self.cv_HOST.host_run_command(cmd)
+            log.debug("Setting fault indicator {} from Host".format(indicator))
+            cmd = "echo 1 > /sys/class/leds/{}:fault/brightness".format(
+                indicator)
+            self.host.host_run_command(cmd)
             tries = 10
             for i in range(1, tries+1):
                 cmd = "usysattn -l %s" % indicator
-                response = self.cv_HOST.host_run_command(cmd)
+                response = self.host.host_run_command(cmd)
                 if "on" in ''.join(response):
                     break
                 time.sleep(1)
             self.assertIn("on", response,
-                    "Turn ON of fault indicator %s is failed" % indicator)
-            log.debug("Current fault indicator state of %s is ON" % indicator)
+                          "Turn ON of fault indicator {} is failed".format(
+                              indicator))
+            log.debug("Current fault indicator state of {} is ON".format(
+                indicator))
 
             # Clearing fault indicator from Host OS
             log.debug("Clearing fault indicator %s from Host OS" % indicator)
             cmd = "usysattn -l %s -s normal" % indicator
-            self.cv_HOST.host_run_command(cmd)
+            self.host.host_run_command(cmd)
             tries = 10
             for i in range(1, tries+1):
                 cmd = "usysattn -l %s" % indicator
-                response = self.cv_HOST.host_run_command(cmd)
+                response = self.host.host_run_command(cmd)
                 if "off" in response:
                     break
                 time.sleep(1)
             self.assertIn("off", response,
-                    "Turn OFF of fault indicator %s is failed" % indicator)
+                          "Turn OFF of fault indicator %s is failed".format(
+                              indicator))
             log.debug("Current fault indicator state of %s is OFF" % indicator)
+
 
 def suite():
     s = unittest.TestSuite()
@@ -260,6 +264,7 @@ def suite():
     s.addTest(UsysFaultTest())
     return s
 
+
 def extended_suite():
     s = unittest.TestSuite()
     s.addTest(UsysIdentifyTest())
@@ -267,4 +272,3 @@ def extended_suite():
     s.addTest(UsysAttnHostTest())
     s.addTest(UsysFaultTest())
     return s
-
