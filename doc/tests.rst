@@ -9,3 +9,9 @@ The Tests
 
 .. automodule:: testcases.OpTestEEH
    :members:
+
+.. automodule:: testcases.OpTestEM
+   :members:
+
+.. automodule:: testcases.OpTestEnergyScale
+   :members:

@@ -24,12 +24,17 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestEM
-#  Energy Management package for OpenPower testing.
-#
-#  This class will test the functionality of following drivers
-#  1. powernv cpuidle driver
-#  2. powernv cpufreq driver
+'''
+OpTestEM
+--------
+
+Energy Management package for OpenPower testing.
+
+This class will test the functionality of following drivers:
+
+1. powernv cpuidle driver
+2. powernv cpufreq driver
+'''
 
 import time
 import subprocess
@@ -115,22 +120,20 @@ class OpTestEM():
         except Exception as e:
           raise e
 
-    ##
-    # @brief sets the cpu frequency with i_freq value
-    #
-    # @param i_freq @type str: this is the frequency of cpu to be set
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def set_cpu_freq(self, i_freq):
+        '''
+        Run a command on the host to set CPU frequency on all CPUs.
+        '''
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_setspeed; do echo %s > $i; done" % i_freq
         self.c.run_command(l_cmd)
 
-    ##
-    # @brief verify the cpu frequency with i_freq value
-    #
-    # @param i_freq @type str: this is the frequency to be verified with cpu frequency
     def verify_cpu_freq(self, i_freq, and_measure=True):
+        '''
+        Verify the CPU frequency is set to the value we ask for. If `and_measure` is True,
+        we use `ppc64_cpu --frequency` to verify it rather than just checking sysfs.
+
+        When measuring CPU frequency, we allow a bit of error in measurement.
+        '''
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.c.run_command(l_cmd)
         if not cur_freq[0] == i_freq:
@@ -166,8 +169,10 @@ class OpTestEM():
                                msg="Set and measured CPU frequency differ too greatly")
 
 
-    # This function verifies CPU frequency against a single or list of frequency's provided
     def verify_cpu_freq_almost(self, i_freq):
+        '''
+        This function verifies CPU frequency against a single or list of frequency's provided
+        '''
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.c.run_command(l_cmd)
 
@@ -197,29 +202,26 @@ class OpTestEM():
 
         self.assertTrue(achieved, "CPU failed to achieve any one of the frequency in %s" % freq_list)
 
-
-    ##
-    # @brief sets the cpu governer with i_gov governer
-    #
-    # @param i_gov @type str: this is the governer to be set for all cpu's
     def set_cpu_gov(self, i_gov):
+        '''
+        Sets the CPU governor for all CPUs.
+        '''
         l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo %s > $i; done" % i_gov
         self.c.run_command(l_cmd)
 
-    ##
-    # @brief verify the cpu governer with i_gov governer
-    #
-    # @param i_gov @type str: this is the governer to be verified with cpu governer
     def verify_cpu_gov(self, i_gov):
+        '''
+        Verifies the CPU governor (on CPU0) matches, just by looking at sysfs.
+        '''
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
         cur_gov = self.c.run_command(l_cmd)
         self.assertEqual(cur_gov[0], i_gov, "CPU governor not changed to %s" % i_gov)
 
-    ##
-    # @brief enable cpu idle state i_idle
-    #
-    # @param i_idle @type str: this is the cpu idle state to be enabled
     def enable_idle_state(self, i_idle):
+        '''
+        Enable a CPU idle state on all CPUs. Will use `cpupower` or poke at sysfs directly,
+        depending on if `cpupower` is available.
+        '''
         sysfs_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 0 > $i; done" % i_idle
         if self.test == "host":
             l_cmd = "cpupower idle-set -e %s" % i_idle
@@ -230,14 +232,10 @@ class OpTestEM():
         except CommandFailed:
             self.c.run_command(sysfs_cmd)
 
-    ##
-    # @brief disable cpu idle state i_idle
-    #
-    # @param i_idle @type str: this is the cpu idle state to be disabled
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def disable_idle_state(self, i_idle):
+        '''
+        Disable a CPU idle state on all CPUs using sysfs or `cpupower`.
+        '''
         sysfs_cmd = "for i in /sys/devices/system/cpu/cpu*/cpuidle/state%s/disable; do echo 1 > $i; done" % i_idle
         if self.test == "host":
             l_cmd = "cpupower idle-set -d %s" % i_idle
@@ -248,25 +246,26 @@ class OpTestEM():
         except CommandFailed:
             self.c.run_command(sysfs_cmd)
 
-    ##
-    # @brief verify whether cpu idle state i_idle enabled
-    #
-    # @param i_idle @type str: this is the cpu idle state to be verified for enable
     def verify_enable_idle_state(self, i_idle):
+        '''
+        Verify CPU idle state (on CPU0) is enabled (by reading sysfs).
+        '''
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/disable" % i_idle
         cur_value = self.c.run_command(l_cmd)
         self.assertEqual(cur_value[0], "0", "CPU state%s not enabled" % i_idle)
 
-    ##
-    # @brief verify whether cpu idle state i_idle disabled
-    #
-    # @param i_idle @type str: this is the cpu idle state to be verified for disable
     def verify_disable_idle_state(self, i_idle):
+        '''
+        Verify CPU idle state (on CPU0) is *disabled* (by reading sysfs).
+        '''
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpuidle/state%s/disable" % i_idle
         cur_value = self.c.run_command(l_cmd)
         self.assertEqual(cur_value[0], "1", "CPU state%s not disabled" % i_idle)
 
     def get_pstate_limits(self):
+        '''
+        Get each of the pstate limits: pstate_min, pstate_max, pstate_nom (all from sysfs).
+        '''
         cpu_num = self.get_first_available_cpu()
 
         # Check cpufreq driver enabled
@@ -278,11 +277,13 @@ class OpTestEM():
 
 
 class slw_info(OpTestEM, unittest.TestCase):
+    '''
+    This test just gathers the host CPU SLW info.
+    '''
     def setUp(self):
         self.test = "host"
         super(slw_info, self).setUp()
 
-    # @brief This function just gathers the host CPU SLW info
     def runTest(self):
         self.c = self.set_up()
         self.c.run_command("uname -a")
@@ -300,17 +301,21 @@ class slw_info(OpTestEM, unittest.TestCase):
             pass # we may have no slw entries in msglog
 
 class cpu_freq_states_host(OpTestEM, unittest.TestCase):
+    '''
+    This test will cover following test steps:
+
+    1. Check the cpupower utility is available in host.
+    2. Get available cpu scaling frequencies
+    3. Set the userspace governer for all cpu's
+    4. test the cpufreq driver by set/verify cpu frequency
+
+    '''
     def setUp(self):
         self.test = "host"
         super(cpu_freq_states_host, self).setUp()
 
     NR_FREQUENCIES_SET = 100
     NR_FREQUENCIES_VERIFIED = 10
-    # @brief This function will cover following test steps
-    #        2. Check the cpupower utility is available in host.
-    #        3. Get available cpu scaling frequencies
-    #        4. Set the userspace governer for all cpu's
-    #        5. test the cpufreq driver by set/verify cpu frequency
     def runTest(self):
         self.c = self.set_up()
 
@@ -461,16 +466,18 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         log.debug("Achieved freq: %d, near by WoF freq: %d" % (int(achieved_freq), int(freq)))
 
 class cpu_idle_states_host(OpTestEM, unittest.TestCase):
+    '''
+    This test will cover following test steps:
+
+    1. It will get the OS and kernel versions.
+    2. Check the cpupower utility is available in host.
+    3. Set the userspace governer for all cpu's
+    4. test the cpuidle driver by enable/disable/verify the idle states
+    '''
     def setUp(self):
         self.test = "host"
         super(cpu_idle_states_host, self).setUp()
 
-    ##
-    # @brief This function will cover following test steps
-    #        1. It will get the OS and kernel versions.
-    #        2. Check the cpupower utility is available in host.
-    #        3. Set the userspace governer for all cpu's
-    #        4. test the cpuidle driver by enable/disable/verify the idle states
     def runTest(self):
         self.c = self.set_up()
 

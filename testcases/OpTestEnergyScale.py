@@ -24,8 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestEnergyScale.py
-#  
+'''
+OpTestEnergyScale
+-----------------
+
+While OpTestEM is concerned with runtime energy management such as
+CPU frequency scaling and stop states, OpTestEnergyScale is concerned
+with system level power consumption limits.
+
+'''
 
 import time
 import subprocess
@@ -50,29 +57,20 @@ class OpTestEnergyScale(unittest.TestCase):
         self.util = OpTestUtil()
         self.cv_PLATFORM = conf.platform()
 
-    ##
-    # @brief  It will execute and test the return code of ipmi command.
-    #
-    # @param i_cmd @type string:The ipmitool command, for example: chassis power on
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def run_ipmi_cmd(self, i_cmd):
         l_cmd = i_cmd
         l_res = self.cv_IPMI.ipmitool.run(l_cmd)
         print l_res
         return l_res
 
-    ##
-    # @brief This function will get and return platform power limits for supported machine
-    #
-    # @param i_platform type: str platform name to get the power limits
-    #
-    # @return l_power_limit_low lower platform power limit
-    #         l_power_limit_high higher platform power limit
-    #         or raise OpTestError if it is a new platform
-    #
     def get_platform_power_limits(self, i_platform):
+        '''
+        Get platform power limits. This is a hardcoded list for each
+        platform type. We do not (yet) have a way to determine this
+        dynamically.
+
+        Returns a tuple of low_limit,high_limit.
+        '''
         l_platform = i_platform
         if BMC_CONST.HABANERO in l_platform:
             l_power_limit_high = BMC_CONST.HABANERO_POWER_LIMIT_HIGH
@@ -89,27 +87,29 @@ class OpTestEnergyScale(unittest.TestCase):
         return l_power_limit_low, l_power_limit_high
 
 class OpTestEnergyScaleStandby(OpTestEnergyScale):
-    ##
-    # @brief  This function will test Energy scale features at standby state
-    #         1. Power OFF the system.
-    #         2. Validate below Energy scale features at standby state
-    #            ipmitool dcmi power get_limit                :Get the configured power limits.
-    #            ipmitool dcmi power set_limit limit <value>  :Power Limit Requested in Watts.
-    #            ipmitool dcmi power activate                 :Activate the set power limit.
-    #            ipmitool dcmi power deactivate               :Deactivate the set power limit.
-    #         3. Once platform power limit activated execute below dcmi commands at standby state.
-    #            ipmitool dcmi discover                       :This command is used to discover  
-    #                                                           supported  capabilities in DCMI.
-    #            ipmitool dcmi power reading                  :Get power related readings from the system.
-    #            ipmitool dcmi power get_limit                :Get the configured power limits.
-    #            ipmitool dcmi power sensors                  :Prints the available DCMI sensors.
-    #            ipmitool dcmi get_temp_reading               :Get Temperature Sensor Readings.
-    #         4. Power ON the system.
-    #         5. Check after system booted to runtime, whether occ's are active or not.
-    #         6. Again in runtime execute all dcmi commands to check the functionality.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
+    '''
+    This test will test Energy scale features at standby state:
+
+    1. Power OFF the system.
+    2. Validate below Energy scale features at standby state ::
+
+         ipmitool dcmi power get_limit                # Get the configured power limits.
+         ipmitool dcmi power set_limit limit <value>  # Power Limit Requested in Watts.
+         ipmitool dcmi power activate                 # Activate the set power limit.
+         ipmitool dcmi power deactivate               # Deactivate the set power limit.
+
+    3. Once platform power limit activated execute below dcmi commands at standby state. ::
+
+         ipmitool dcmi discover                       # This command is used to discover supported  capabilities in DCMI.
+         ipmitool dcmi power reading                  # Get power related readings from the system.
+         ipmitool dcmi power get_limit                # Get the configured power limits.
+         ipmitool dcmi power sensors                  # Prints the available DCMI sensors.
+         ipmitool dcmi get_temp_reading               # Get Temperature Sensor Readings.
+
+    4. Power ON the system.
+    5. Check after system booted to runtime, whether occ's are active or not.
+    6. Again in runtime execute all dcmi commands to check the functionality.
+    '''
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         print "Energy Scale Test 1: Get, Set, activate and deactivate platform power limit at power off"
@@ -141,27 +141,29 @@ class OpTestEnergyScaleStandby(OpTestEnergyScale):
 
 
 class OpTestEnergyScaleRuntime(OpTestEnergyScale):
-    ##
-    # @brief  This function will test Energy scale features at runtime
-    #         1. Power OFF the system.
-    #         2. Power On the system to boot to host OS
-    #         2. Validate below Energy scale features at runtime state
-    #            ipmitool dcmi power get_limit                :Get the configured power limits.
-    #            ipmitool dcmi power set_limit limit <value>  :Power Limit Requested in Watts.
-    #            ipmitool dcmi power activate                 :Activate the set power limit.
-    #            ipmitool dcmi power deactivate               :Deactivate the set power limit.
-    #         3. Once platform power limit activated execute below dcmi commands at runtime state.
-    #            ipmitool dcmi discover                       :This command is used to discover  
-    #                                                           supported  capabilities in DCMI.
-    #            ipmitool dcmi power reading                  :Get power related readings from the system.
-    #            ipmitool dcmi power get_limit                :Get the configured power limits.
-    #            ipmitool dcmi power sensors                  :Prints the available DCMI sensors.
-    #            ipmitool dcmi get_temp_reading               :Get Temperature Sensor Readings.
-    #         4. Issue Power OFF/ON to check whether system boots after setting platform power limit at runtime.
-    #         5. Again in runtime execute all dcmi commands to check the functionality.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
+    '''
+    Test Energy scale features at runtime:
+
+    1. Power OFF the system.
+    2. Power On the system to boot to host OS
+    3. Validate below Energy scale features at runtime state ::
+
+        ipmitool dcmi power get_limit                # Get the configured power limits.
+        ipmitool dcmi power set_limit limit <value>  # Power Limit Requested in Watts.
+        ipmitool dcmi power activate                 # Activate the set power limit.
+        ipmitool dcmi power deactivate               # Deactivate the set power limit.
+
+    4. Once platform power limit activated execute below dcmi commands at runtime state. ::
+
+        ipmitool dcmi discover                       # This command is used to discover supported  capabilities in DCMI.
+        ipmitool dcmi power reading                  # Get power related readings from the system.
+        ipmitool dcmi power get_limit                # Get the configured power limits.
+        ipmitool dcmi power sensors                  # Prints the available DCMI sensors.
+        ipmitool dcmi get_temp_reading               # Get Temperature Sensor Readings.
+
+    5. Issue Power OFF/ON to check whether system boots after setting platform power limit at runtime.
+    6. Again in runtime execute all dcmi commands to check the functionality.
+    '''
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -201,22 +203,20 @@ class OpTestEnergyScaleRuntime(OpTestEnergyScale):
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
 
-    ##
-    # @brief  This function will test below dcmi commands at both standby and runtime states
-    #            ipmitool dcmi discover                       :This command is used to discover  
-    #                                                           supported  capabilities in DCMI.
-    #            ipmitool dcmi power reading                  :Get power related readings from the system.
-    #            ipmitool dcmi power get_limit                :Get the configured power limits.
-    #            ipmitool dcmi power sensors                  :Prints the available DCMI sensors.
-    #            ipmitool dcmi get_temp_reading               :Get Temperature Sensor Readings.
-    #            ipmitool dcmi get_mc_id_string               :Get management controller identifier string.
-    #            ipmitool dcmi get_conf_param                 :Get DCMI Configuration Parameters.
-    #            ipmitool dcmi oob_discover                   :Ping/Pong Message for DCMI Discovery.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
 class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
-    def runTest(self):
+    '''
+    Test below dcmi commands at both standby and runtime states ::
+
+      ipmitool dcmi discover         # This command is used to discover supported  capabilities in DCMI.
+      ipmitool dcmi power reading    # Get power related readings from the system.
+      ipmitool dcmi power get_limit  # Get the configured power limits.
+      ipmitool dcmi power sensors    # Prints the available DCMI sensors.
+      ipmitool dcmi get_temp_reading # Get Temperature Sensor Readings.
+      ipmitool dcmi get_mc_id_string # Get management controller identifier string.
+      ipmitool dcmi get_conf_param   # Get DCMI Configuration Parameters.
+      ipmitool dcmi oob_discover     # Ping/Pong Message for DCMI Discovery.
+    '''
+def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
         print "Energy scale Test 3: Get Sensors, Temperature and Power reading's at power off and runtime"
