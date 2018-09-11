@@ -138,16 +138,6 @@ class OpTestHost():
         log.debug(("Applying Cold reset on host."))
         l_rc = self.ssh.run_command(BMC_CONST.HOST_COLD_RESET, timeout=60)
 
-        # TODO: enable once defect SW331585 is fixed
-        '''if BMC_CONST.BMC_PASS_COLD_RESET in l_rc:
-            print l_rc
-            time.sleep(BMC_CONST.BMC_COLD_RESET_DELAY)
-            return BMC_CONST.FW_SUCCESS
-        else:
-            l_msg = "Cold reset Failed"
-            print l_msg
-            raise OpTestError(l_msg)'''
-
         self.util.PingFunc(self.bmcip, BMC_CONST.PING_RETRY_FOR_STABILITY)
 
 
