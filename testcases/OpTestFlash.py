@@ -23,20 +23,25 @@
 # permissions and limitations under the License.
 #
 # IBM_PROLOG_END_TAG
+'''
+OpTestFlash
+-----------
+Firmware flash tests for OpenPower testing.
 
-#  @package OpTestFlash
-#  Firmware flash tests for OpenPower testing.
-#
-#  This class contains the OpenPower Firmware flashing scripts for
-#  all the OPAL PowerNV platforms(AMI, FSP, SMC and OpenBMC).
-#
-#   Host PNOR Firmware Updates
-#   OPAL Lid Updates(Both Skiboot and Skiroot lids flashing)
-#   Out-of-band HPM Update
-#   In-band HPM Update
-# 
-#  Tools needed: ipmitool, pflash and pUpdate
-#
+This class contains the OpenPower Firmware flashing scripts for
+all the OPAL PowerNV platforms(AMI, FSP, SMC and OpenBMC).
+
+- Host PNOR Firmware Updates
+- OPAL Lid Updates(Both Skiboot and Skiroot lids flashing)
+- Out-of-band HPM Update
+- In-band HPM Update
+
+Tools needed (can vary per platform):
+
+- ipmitool
+- pflash
+- pUpdate
+'''
 
 import os
 import re
