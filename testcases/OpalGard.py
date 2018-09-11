@@ -83,10 +83,6 @@ class OpalGard(unittest.TestCase):
         self.cv_HOST.host_check_command("pflash")
         self.cv_HOST.host_copy_fake_gard()
         self.c.run_command("dmesg -D")
-        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
-
-        if self.cpu not in ["POWER8", "POWER8E", "POWER9"]:
-            self.skipTest("Unknown CPU type %s" % self.cpu)
         data = self.cv_HOST.host_pflash_get_partition("GUARD")
         try:
           offset =  hex(int(data["offset"])/16)
