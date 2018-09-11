@@ -9,7 +9,7 @@ from common.OpTestFSP import OpTestFSP
 from common.OpTestOpenBMC import OpTestOpenBMC
 from common.OpTestQemu import OpTestQemu
 from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem, OpTestOpenBMCSystem, OpTestQemuSystem
-from common.OpTestHost import OpTestHost
+import common.OpTestHost
 from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
 from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
@@ -308,7 +308,7 @@ class OpTestConfiguration():
         if self.args.list_suites:
             return
 
-        host = OpTestHost(self.args.host_ip,
+        host = common.OpTestHost.OpTestHost(self.args.host_ip,
                           self.args.host_user,
                           self.args.host_password,
                           self.args.bmc_ip,

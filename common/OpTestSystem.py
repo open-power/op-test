@@ -42,7 +42,7 @@ import OpTestQemu
 from OpTestFSP import OpTestFSP
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from OpTestHost import OpTestHost
+import OpTestHost
 from OpTestUtil import OpTestUtil
 from OpTestSSH import ConsoleState as SSHConnectionState
 from Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition, ConsoleSettings, UnexpectedCase, StoppingSystem
