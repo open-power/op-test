@@ -497,33 +497,18 @@ class HostManagement():
         if r is None:
             return old_wait_for_standby(timeout)
 
-    '''
-    Boot progress
-    curl   -b cjar   -k  -H  'Content-Type: application/json'   -d '{"data": [ ] }'
-    -X GET https://bmc//xyz/openbmc_project/state/host0/attr/BootProgress
-    '''
     def old_wait_for_runtime(self, timeout=10):
-        data = '\'{"data" : []}\''
-        obj = "/org/openbmc/sensors/host/BootProgress"
-        self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
-        timeout = time.time() + 60*timeout
-        while True:
-            output = self.curl.run()
-            result = json.loads(output)
-            log.debug(repr(result))
-            state = result['data']['value']
-            log.debug("System state: %s" % state)
-            if state == 'FW Progress, Starting OS':
-                log.info("System FW booted to runtime: IPL finished")
-                break
-            if time.time() > timeout:
-                l_msg = "IPL timeout"
-                log.error(l_msg)
-                raise OpTestError(l_msg)
-            time.sleep(5)
-        return True
+        return self.old_wait_for_BootProgress(desired_state='FW Progress, Starting OS', timeout=timeout)
 
     def old_wait_for_standby(self, timeout=10):
+        return self.old_wait_for_BootProgress(desired_state='Off', timeout=timeout)
+
+    def old_wait_for_BootProgress(self, desired_state, timeout=10):
+        '''
+        Boot progress, using the old OpenBMC method.
+        curl   -b cjar   -k  -H  'Content-Type: application/json'   -d '{"data": [ ] }'
+        -X GET https://bmc//xyz/openbmc_project/state/host0/attr/BootProgress
+        '''
         data = '\'{"data" : []}\''
         obj = "/org/openbmc/sensors/host/BootProgress"
         self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
@@ -534,11 +519,11 @@ class HostManagement():
             log.debug(repr(result))
             state = result['data']['value']
             log.debug("System state: %s" % state)
-            if state == 'Off':
-                log.info("System reached standby state")
+            if state == desired_state:
+                log.info("System reached state {}".format(desired_state))
                 break
             if time.time() > timeout:
-                l_msg = "Standby timeout"
+                l_msg = "timeout waiting for state {}, instead in {}".format(desired_state,state)
                 log.error(l_msg)
                 raise OpTestError(l_msg)
             time.sleep(5)
