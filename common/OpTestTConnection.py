@@ -32,6 +32,12 @@
 
 import telnetlib
 
+class NoLoginPrompt(Exception):
+    def __init__(self,output):
+        self.output=output
+    def __str__(self):
+        return "No login prompt found, instead got: {}".format(repr(self.output))
+
 class TConnection():
 
     ##
@@ -59,7 +65,8 @@ class TConnection():
         self.tn.read_until('assword: ')
         self.tn.write(self.password + '\n')
         ret=self.tn.read_until(self.prompt)
-        assert self.prompt in ret
+        if not self.prompt in ret:
+            raise NoLoginPrompt(ret)
 
     ##
     # @brief run the given command on telnet connection
