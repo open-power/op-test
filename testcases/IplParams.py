@@ -17,10 +17,16 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 #
-# This test verifies certain fw features are enabled/disabled during 
-# IPL time as per expectation. These features will control run time
-# enablement of certain components.
-#
+
+'''
+IPL Params
+----------
+
+This test verifies certain fw features are enabled/disabled during
+IPL time as per expectation. These features will control run time
+enablement of certain components.
+'''
+
 import unittest
 
 import OpTestConfiguration
