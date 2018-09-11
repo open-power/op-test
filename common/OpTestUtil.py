@@ -344,7 +344,7 @@ class OpTestUtil():
           before = my_term.before.replace("\r\r\n", "\n")
           try:
             whoami = before.splitlines()[-1]
-          except Exception as e:
+          except Exception:
             pass
           my_term.sendline("echo $?")
           time.sleep(1)
