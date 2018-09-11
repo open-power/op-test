@@ -25,9 +25,14 @@
 #
 # IBM_PROLOG_END_TAG
 
-## @package OpTestASM
-#  This class can contains common functions which are useful for 
-#  FSP ASM Web page
+'''
+OpTestASM: Advanced System Management (FSP Web UI)
+--------------------------------------------------
+
+This class can contains common functions which are useful for
+FSP ASM Web page. Some functionality is only accessible through
+the FSP Web UI (such as progress codes), so we scrape it.
+'''
 
 import time
 import subprocess
@@ -64,20 +69,20 @@ class OpTestASM:
         hrdwr = ''
         frms = {}
         self.setforms()
-   
+
     def setforms(self):
-        if "FW860" in self.ver(): 
-            self.hrdwr='p8'    
+        if "FW860" in self.ver():
+            self.hrdwr='p8'
             self.frms={'pwr':'59','dbg':'78','immpwroff':'32'}
-        else: 
-            self.hrdwr='p7'    
+        else:
+            self.hrdwr='p7'
             self.frms={'pwr':'60','dbg':'79','immpwroff':'33'}
 
 
     def getcsrf(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout = 10)  
+                myurl = urllib2.urlopen(self.url+form, timeout = 10)
             except urllib2.URLError, e:
                 time.sleep(2)
                 continue
@@ -91,7 +96,7 @@ class OpTestASM:
     def getpage(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout = 60)  
+                myurl = urllib2.urlopen(self.url+form, timeout = 60)
             except (urllib2.URLError,ssl.SSLError):
                 time.sleep(2)
                 continue
