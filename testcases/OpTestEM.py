@@ -120,6 +120,15 @@ class OpTestEM():
         except Exception as e:
           raise e
 
+    def get_list_of_cpu_freq(self):
+        '''
+        Get available cpu scaling frequencies
+        '''
+        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
+        freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
+        log.debug(freq_list)
+        return freq_list
+
     def set_cpu_freq(self, i_freq):
         '''
         Run a command on the host to set CPU frequency on all CPUs.
@@ -331,9 +340,7 @@ class cpu_freq_states_host(OpTestEM, unittest.TestCase):
         self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpufreq/" % cpu_num)
 
         # Get available cpu scaling frequencies
-        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_available_frequencies" % cpu_num)
-        log.debug(l_res)
-        freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
+        freq_list = self.get_list_of_cpu_freq()
         log.debug(freq_list)
 
         # Set the cpu governer to userspace

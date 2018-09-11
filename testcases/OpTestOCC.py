@@ -50,11 +50,13 @@ from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import testcases.OpTestEM
+
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class OpTestOCCBase(unittest.TestCase):
+class OpTestOCCBase(testcases.OpTestEM.OpTestEM):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -120,56 +122,6 @@ class OpTestOCCBase(unittest.TestCase):
         cur_freq = self.c.run_command(l_cmd)
         return cur_freq[0].strip()
 
-    def set_cpu_freq(self, i_freq):
-        '''
-        Sets the CPU frequency on all CPUs
-        '''
-        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_setspeed; do echo %s > $i; done" % i_freq
-        self.c.run_command(l_cmd)
-
-    def verify_cpu_freq(self, i_freq):
-        '''
-        Verify CPU frequency is set to a value by checking sysfs for CPU0.
-        '''
-        l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
-        cur_freq = self.c.run_command(l_cmd)
-        if not cur_freq[0].strip() == i_freq:
-            # (According to Vaidy) it may take milliseconds to have the
-            # request for a frequency change to come into effect.
-            # So, if we happen to be *really* quick checking the result,
-            # we may have checked before it has taken effect. So, we
-            # sleep for a (short) amount of time and retry.
-            time.sleep(0.2)
-            cur_freq = self.c.run_command(l_cmd)
-
-        self.assertEqual(cur_freq[0].strip(), i_freq,
-                         "CPU frequency not changed to %s" % i_freq)
-
-    def set_cpu_gov(self, i_gov):
-        '''
-        Set the CPU governer on all CPUs.
-        '''
-        l_cmd = "for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo %s > $i; done" % i_gov
-        self.c.run_command(l_cmd)
-
-    def verify_cpu_gov(self, i_gov):
-        '''
-        Verify the CPU frequency governor (on CPU0) by reading from sysfs.
-        '''
-        l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-        cur_gov = self.c.run_command(l_cmd)
-        self.assertEqual(cur_gov[0].strip(), i_gov, "CPU governor not changed to %s" % i_gov)
-
-
-    def get_list_of_cpu_freq(self):
-        '''
-        Get available cpu scaling frequencies
-        '''
-        l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies")
-        freq_list = l_res[0].split(' ')[:-1] # remove empty entry at end
-        log.debug(freq_list)
-        return freq_list
-
     def dvfs_test(self):
         freq_list = self.get_list_of_cpu_freq()
         self.set_cpu_gov("userspace")
@@ -178,7 +130,7 @@ class OpTestOCCBase(unittest.TestCase):
             i_freq = random.choice(freq_list)
             self.set_cpu_freq(i_freq)
             try:
-                self.verify_cpu_freq(i_freq)
+                self.verify_cpu_freq(i_freq, and_measure=False)
             except AssertionError as ae:
                 log.debug(str(ae))
 
@@ -200,7 +152,7 @@ class OpTestOCCBase(unittest.TestCase):
         except:
             log.debug("Failed to collect debug info")
 
-class OpTestOCCBasic(OpTestOCCBase):
+class OpTestOCCBasic(OpTestOCCBase, unittest.TestCase):
 
     # Check basic test of occ disable when system is in standby
     # and occ enable when it is in runtime
@@ -215,7 +167,7 @@ class OpTestOCCBasic(OpTestOCCBase):
             self.assertNotEqual(self.check_occ_status(), BMC_CONST.FW_SUCCESS,
                                 "OCC's are still in active state")
 
-class OpTestOCC(OpTestOCCBase):
+class OpTestOCC(OpTestOCCBase, unittest.TestCase):
 
     def _test_occ_reset(self):
         if any(s in self.bmc_type for s in ("FSP", "QEMU")):
@@ -238,12 +190,12 @@ class OpTestOCC(OpTestOCCBase):
         # verify pstate restored to last requested pstate before occ reset
         # Make the fail less noisy, as it is less priority one
         try:
-            self.verify_cpu_freq(cur_freq)
+            self.verify_cpu_freq(cur_freq, and_measure=False)
         except AssertionError as ae:
             log.debug(str(ae))
         self.dvfs_test()
 
-class OpTestOCCFull(OpTestOCCBase):
+class OpTestOCCFull(OpTestOCCBase, unittest.TestCase):
     '''
     This function is used to test OCC Reset funtionality in BMC based systems.
     OCC Reset reload is limited to 3 times per full power cycle.
@@ -272,7 +224,7 @@ class OpTestOCCFull(OpTestOCCBase):
                     "OCC's are not in active state")
                 # verify pstate restored to last requested pstate before occ reset
                 try:
-                    self.verify_cpu_freq(cur_freq)
+                    self.verify_cpu_freq(cur_freq, and_measure=False)
                 except AssertionError as ae:
                     log.debug(str(ae))
                 self.dvfs_test()
@@ -340,7 +292,7 @@ class OpTestOCCFull(OpTestOCCBase):
                 self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
             self.dvfs_test()
 
-class OCCRESET_FSP(OpTestOCCBase):
+class OCCRESET_FSP(OpTestOCCBase, unittest.TestCase):
 
     def runTest(self):
         if "FSP" not in self.bmc_type:
@@ -364,10 +316,10 @@ class OCCRESET_FSP(OpTestOCCBase):
 
             self.assertTrue(recovered, "OCC's are not in active state or reset notification to host is failed")
             # verify pstate restored to last requested pstate before occ reset
-            self.verify_cpu_freq(cur_freq)
+            self.verify_cpu_freq(cur_freq, and_measure=False)
             self.dvfs_test()
 
-class OCC_RESET(OpTestOCC):
+class OCC_RESET(OpTestOCC, unittest.TestCase):
     def runTest(self):
         self._test_occ_reset()
 
