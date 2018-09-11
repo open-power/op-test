@@ -55,8 +55,8 @@ try:
 except AttributeError:
     pass
 
-class OpTestASM:
 
+class OpTestASM:
     def __init__(self, i_fspIP, i_fspUser, i_fspPasswd):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
@@ -72,61 +72,66 @@ class OpTestASM:
 
     def setforms(self):
         if "FW860" in self.ver():
-            self.hrdwr='p8'
-            self.frms={'pwr':'59','dbg':'78','immpwroff':'32'}
+            self.hrdwr = 'p8'
+            self.frms = {'pwr':       '59',
+                         'dbg':       '78',
+                         'immpwroff': '32'}
         else:
-            self.hrdwr='p7'
-            self.frms={'pwr':'60','dbg':'79','immpwroff':'33'}
-
+            self.hrdwr = 'p7'
+            self.frms = {'pwr':       '60',
+                         'dbg':       '79',
+                         'immpwroff': '33'}
 
     def getcsrf(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout = 10)
+                myurl = urllib2.urlopen(self.url+form, timeout=10)
             except urllib2.URLError, e:
                 time.sleep(2)
                 continue
             break
-        out=myurl.read()
+        out = myurl.read()
         if 'CSRF_TOKEN' in out:
-            return re.findall('CSRF_TOKEN.*value=\'(.*)\'',out)[0]
-        else :
+            return re.findall('CSRF_TOKEN.*value=\'(.*)\'', out)[0]
+        else:
             return '0'
 
     def getpage(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout = 60)
-            except (urllib2.URLError,ssl.SSLError):
+                myurl = urllib2.urlopen(self.url+form, timeout=60)
+            except (urllib2.URLError, ssl.SSLError):
                 time.sleep(2)
                 continue
             break
         return myurl.read()
-        #return myurl
 
-    def submit(self,form, param):
+    def submit(self, form, param):
         param['CSRF_TOKEN'] = self.getcsrf(form)
         data = urllib.urlencode(param)
         req = urllib2.Request(self.url+form, data)
 
         return urllib2.urlopen(req)
-        #resp = urllib2.urlopen(req)
-        #contents = resp.read()
 
     def login(self):
         if not len(self.cj) == 0:
             return True
-        param = {'user':self.user_name,'password':self.password,'login':'Log in','lang':'0','CSRF_TOKEN':''}
+        param = {'user':      self.user_name,
+                 'password':  self.password,
+                 'login':     'Log in',
+                 'lang':      '0',
+                 'CSRF_TOKEN': ''}
         form = "form=2"
-        out=self.submit(form, param)
+        out = self.submit(form, param)
 
         count = 0
         while count < 2:
             if not len(self.cj) == 0:
                 break
             time.sleep(10)
-            self.submit(form,param)
-            msg = "Login Failed with user:%s and password:%s" % (self.user_name, self.password)
+            self.submit(form, param)
+            msg = "Login Failed with user:%s and password:%s".format(
+                self.user_name, self.password)
             print(msg)
             count += 1
         if count == 2:
@@ -134,9 +139,9 @@ class OpTestASM:
             return False
         return True
 
-
     def logout(self):
-        param = {'submit':'Log out', 'CSRF_TOKEN':''}
+        param = {'submit':     'Log out',
+                 'CSRF_TOKEN': ''}
         form = "form=1"
         self.submit(form, param)
 
@@ -147,7 +152,10 @@ class OpTestASM:
     def execommand(self, cmd):
         if not self.login():
             raise OpTestError("Failed to login ASM page")
-        param={'form':'16', 'exe':'Execute', 'CSRF_TOKEN':'', 'cmd':cmd}
+        param = {'form':       '16',
+                 'exe':        'Execute',
+                 'CSRF_TOKEN': '',
+                 'cmd':        cmd}
         form = "form=16&frm=0"
         self.submit(form, param)
 
@@ -160,7 +168,9 @@ class OpTestASM:
     def clearlogs(self):
         if not self.login():
             raise OpTestError("Failed to login ASM page")
-        param={'form':'30', 'clear':"Clear all error/event log entries", 'CSRF_TOKEN':''}
+        param = {'form':  '30',
+                 'clear': "Clear all error/event log entries",
+                 'CSRF_TOKEN': ''}
         form = "form=30"
         self.submit(form, param)
         self.logout()
@@ -169,11 +179,16 @@ class OpTestASM:
         form = "form=%s" % self.frms['pwr']
         return self.getpage(form)
 
-    def start_debugvtty_session(self, partitionId='0', sessionId='0', sessionTimeout='600'):
+    def start_debugvtty_session(self, partitionId='0', sessionId='0',
+                                sessionTimeout='600'):
         if not self.login():
             raise OpTestError("Failed to login ASM page")
-        param = {'form':'81', 'p':partitionId,'s':sessionId,'t':sessionTimeout,
-                 'Save settings':'Save settings','CSRF_TOKEN':''}
+        param = {'form': '81',
+                 'p': partitionId,
+                 's': sessionId,
+                 't': sessionTimeout,
+                 'Save settings': 'Save settings',
+                 'CSRF_TOKEN': ''}
         form = "form=81"
         self.submit(form, param)
         self.logout()
@@ -181,7 +196,10 @@ class OpTestASM:
     def enable_err_injct_policy(self):
         if not self.login():
             raise OpTestError("Failed to login ASM page")
-        param = {'form':'56', 'p':'1', 'submit':'Save settings', 'CSRF_TOKEN':''}
+        param = {'form':  '56',
+                 'p':      '1',
+                 'submit': 'Save settings',
+                 'CSRF_TOKEN': ''}
         form = "form=56"
         self.submit(form, param)
         self.logout()
