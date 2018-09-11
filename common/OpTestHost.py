@@ -69,7 +69,6 @@ class OpTestHost():
         self.passwd = i_hostpasswd
         self.util = OpTestUtil()
         self.bmcip = i_bmcip
-        parent_dir = os.path.dirname(os.path.abspath(__file__))
         self.results_dir = i_results_dir
         self.logfile = logfile
         self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
@@ -247,7 +246,7 @@ class OpTestHost():
         l_file = "/boot/config-%s" % i_kernel
         try:
             l_res = self.host_run_command("test -e %s" % l_file, timeout=60, console=console)
-        except CommandFailed as c:
+        except CommandFailed:
             raise NoKernelConfig(i_kernel, l_file)
 
         log.debug("Config file is available")
