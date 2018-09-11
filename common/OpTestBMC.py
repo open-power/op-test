@@ -107,7 +107,7 @@ class OpTestBMC():
         self.util.ping_fail_check(self.cv_bmcIP)
         # Wait for BMC to ping back.
         self.util.PingFunc(self.cv_bmcIP, BMC_CONST.PING_RETRY_FOR_STABILITY)
-        '''  Ping the system until it reboots  '''
+        # Ping the system until it reboots
         while True:
             try:
                 subprocess.check_call(["ping", self.cv_bmcIP, "-c1"])
