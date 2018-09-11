@@ -43,10 +43,10 @@ import commands
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
-from OpTestSystem import OpTestSystem,OpSystemState
+import OpTestSystem
 from Exceptions import CommandFailed
 from Exceptions import BMCDisconnected
-from common import OPexpect
+import OPexpect
 
 import logging
 import OpTestLogger
@@ -159,7 +159,7 @@ class IPMIConsoleState():
 
 def set_system_to_UNKNOWN_BAD(system):
     s = system.get_state()
-    system.set_state(OpSystemState.UNKNOWN_BAD)
+    system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
     return s
 
 class IPMIConsole():
@@ -243,7 +243,7 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         try:
-          solChild = OPexpect.spawn(cmd,
+          solChild = OPexpect.OPexpect.spawn(cmd,
                                   failure_callback=set_system_to_UNKNOWN_BAD,
                                   failure_callback_data=self.system)
         except Exception as e:

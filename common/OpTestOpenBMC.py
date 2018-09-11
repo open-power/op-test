@@ -31,7 +31,6 @@ from OpTestBMC import OpTestBMC
 from Exceptions import CommandFailed, LoginFailure
 from common.OpTestError import OpTestError
 from OpTestConstants import OpTestConstants as BMC_CONST
-from common import OPexpect
 import OpTestSystem
 
 import logging

@@ -8,7 +8,7 @@ from common.OpTestBMC import OpTestBMC, OpTestSMC
 from common.OpTestFSP import OpTestFSP
 from common.OpTestOpenBMC import OpTestOpenBMC
 from common.OpTestQemu import OpTestQemu
-from common.OpTestSystem import OpTestSystem, OpSystemState, OpTestFSPSystem, OpTestOpenBMCSystem, OpTestQemuSystem
+import common.OpTestSystem
 import common.OpTestHost
 from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
 from common.OpTestOpenBMC import HostManagement
@@ -207,12 +207,12 @@ class OpTestConfiguration():
                                 help="Specify a custom known_hosts file")
 
         self.args , self.remaining_args = parser.parse_known_args(remaining_args)
-        stateMap = { 'UNKNOWN' : OpSystemState.UNKNOWN,
-                     'UNKNOWN_BAD' : OpSystemState.UNKNOWN_BAD,
-                     'OFF' : OpSystemState.OFF,
-                     'PETITBOOT' : OpSystemState.PETITBOOT,
-                     'PETITBOOT_SHELL' : OpSystemState.PETITBOOT_SHELL,
-                     'OS' : OpSystemState.OS
+        stateMap = { 'UNKNOWN'         : common.OpTestSystem.OpSystemState.UNKNOWN,
+                     'UNKNOWN_BAD'     : common.OpTestSystem.OpSystemState.UNKNOWN_BAD,
+                     'OFF'             : common.OpTestSystem.OpSystemState.OFF,
+                     'PETITBOOT'       : common.OpTestSystem.OpSystemState.PETITBOOT,
+                     'PETITBOOT_SHELL' : common.OpTestSystem.OpSystemState.PETITBOOT_SHELL,
+                     'OS'              : common.OpTestSystem.OpSystemState.OS
                  }
 
         # Some quick sanity checking
@@ -289,9 +289,9 @@ class OpTestConfiguration():
         if self.args.machine_state == None:
             if self.args.bmc_type in ['qemu']:
                 # Force UNKNOWN_BAD so that we don't try to setup the console early
-                self.startState = OpSystemState.UNKNOWN_BAD
+                self.startState = common.OpTestSystem.OpSystemState.UNKNOWN_BAD
             else:
-                self.startState = OpSystemState.UNKNOWN
+                self.startState = common.OpTestSystem.OpSystemState.UNKNOWN
         else:
             self.startState = stateMap[self.args.machine_state]
         return self.args, self.remaining_args
@@ -354,7 +354,7 @@ class OpTestConfiguration():
                                 check_ssh_keys=self.args.check_ssh_keys,
                                 known_hosts_file=self.args.known_hosts_file
                 )
-            self.op_system = OpTestSystem(
+            self.op_system = common.OpTestSystem.OpTestSystem(
                 state=self.startState,
                 bmc=bmc,
                 host=host,
@@ -372,7 +372,7 @@ class OpTestConfiguration():
                             self.args.bmc_password,
                             ipmi=ipmi,
             )
-            self.op_system = OpTestFSPSystem(
+            self.op_system = common.OpTestSystem.OpTestFSPSystem(
                 state=self.startState,
                 bmc=bmc,
                 host=host,
@@ -394,7 +394,7 @@ class OpTestConfiguration():
                                 ipmi=ipmi, rest_api=rest_api,
                                 check_ssh_keys=self.args.check_ssh_keys,
                                 known_hosts_file=self.args.known_hosts_file)
-            self.op_system = OpTestOpenBMCSystem(
+            self.op_system = common.OpTestSystem.OpTestOpenBMCSystem(
                 host=host,
                 bmc=bmc,
                 state=self.startState,
@@ -410,7 +410,7 @@ class OpTestConfiguration():
                              cdrom=self.args.os_cdrom,
                              logfile=self.logfile,
                              hda=self.args.host_scratch_disk)
-            self.op_system = OpTestQemuSystem(host=host, bmc=bmc,
+            self.op_system = common.OpTestSystem.OpTestQemuSystem(host=host, bmc=bmc,
                     state=self.startState)
             bmc.set_system(self.op_system)
         # Check that the bmc_type exists in our loaded addons then create our objects
