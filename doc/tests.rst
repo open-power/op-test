@@ -82,6 +82,9 @@ The Tests
 .. automodule:: testcases.OpalGard
    :members:
 
+.. automodule:: testcases.OpalMsglog
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 

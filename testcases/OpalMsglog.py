@@ -18,6 +18,16 @@
 # permissions and limitations under the License.
 #
 
+'''
+OPAL log test
+-------------
+
+Look for boot and runtime warnings and errors from OPAL (skiboot).
+
+We filter out any "known errors", such as how PRD can do invalid SCOMs but
+that it's not an error error.
+'''
+
 import unittest
 import re
 
@@ -25,6 +35,7 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
+
 
 class OpalMsglog():
     def setUp(self):
@@ -55,19 +66,23 @@ class OpalMsglog():
         if self.conf.args.host_pnor:
             # If we've flashed a full PNOR, we may have to init NVRAM, so don't
             # fail on that
-            filter_out.append('NVRAM: Partition at offset .* extends beyond end of nvram')
-            filter_out.append('NVRAM: Partition at offset .* has incorrect .* length')
+            filter_out.append(
+                'NVRAM: Partition at offset .* extends beyond end of nvram')
+            filter_out.append(
+                'NVRAM: Partition at offset .* has incorrect .* length')
             filter_out.append('NVRAM: Re-initializing')
 
         try:
-            log_entries = self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            log_entries = self.c.run_command(
+                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
 
             for f in filter_out:
                 fre = re.compile(f)
                 log_entries = [l for l in log_entries if not fre.search(l)]
 
             msg = '\n'.join(filter(None, log_entries))
-            self.assertTrue( len(log_entries) == 0, "Warnings/Errors in OPAL log:\n%s" % msg)
+            self.assertTrue(len(log_entries) == 0,
+                            "Warnings/Errors in OPAL log:\n%s" % msg)
         except CommandFailed as cf:
             if cf.exitcode is 1 and len(cf.output) is 0:
                 # We have no warnings/errors!
@@ -75,10 +90,12 @@ class OpalMsglog():
             else:
                 raise cf
 
+
 class Skiroot(OpalMsglog, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
+
 
 class Host(OpalMsglog, unittest.TestCase):
     def setup_test(self):
