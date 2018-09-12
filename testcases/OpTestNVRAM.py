@@ -24,12 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 #
-#  @package OpTestNVRAM.py
-#
-#   This testcase will deal with testing nvram partition
-#   access functions like getting the list of partitions
-#   print/update config data in all the supported partitions
-#
+
+'''
+OpTestNVRAM
+-----------
+
+This testcase will deal with testing nvram partition
+access functions like getting the list of partitions
+print/update config data in all the supported partitions
+'''
 
 import time
 import subprocess
@@ -159,14 +162,12 @@ class OpTestNVRAM(unittest.TestCase):
 
 
 class HostNVRAM(OpTestNVRAM):
-    ##
-    # @brief  This function tests nvram partition access, print/update
-    #         the config data and dumping the partition's data. All
-    #         these operations are done on supported partitions in both
-    #         host OS and Petitboot.
-    #
-    # @return BMC_CONST.FW_SUCCESS or BMC_CONST.FW_FAILED
-    #
+    '''
+    This function tests nvram partition access, print/update
+    the config data and dumping the partition's data. All
+    these operations are done on supported partitions in both
+    host OS and Petitboot.
+    '''
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.doNVRAMTest(self.cv_SYSTEM.cv_HOST.get_ssh_connection())

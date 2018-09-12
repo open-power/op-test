@@ -136,6 +136,9 @@ The Tests
 .. automodule:: testcases.OpTestMtdPnorDriver
    :members:
 
+.. automodule:: testcases.OpTestNVRAM
+   :members:
+
 .. automodule:: testcases.OpTestOCC
    :members:
 
