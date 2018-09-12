@@ -18,6 +18,22 @@
 # permissions and limitations under the License.
 #
 
+'''
+OPAL sysfs Tests
+----------------
+
+This pokes a few bits of functionality accessible through sysfs that OPAL
+provides.
+
+It includes:
+
+- System powercaps, i.e. `/sys/firmware/opal/powercap/`
+- Power Shift Ratio, i.e. `/sys/firmware/opal/psr`
+- Sensor Groups, i.e. `/sys/firmware/opal/sensor_groups/`
+- The OPAL symbol map, i.e. `/sys/firmware/opal/symbol_map`
+- Exporting of random bits of memory, i.e. `/sys/firmware/opal/exports/`
+'''
+
 import time
 import random
 import unittest
@@ -36,6 +52,7 @@ OPAL_PSR = "/sys/firmware/opal/psr"
 OPAL_SENSOR_GROUPS = "/sys/firmware/opal/sensor_groups/"
 OPAL_SYMBOL_MAP = "/sys/firmware/opal/symbol_map"
 OPAL_EXPORTS = "/sys/firmware/opal/exports/"
+
 
 class OpalSysfsTests():
     def setUp(self):

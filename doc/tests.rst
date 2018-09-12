@@ -85,6 +85,9 @@ The Tests
 .. automodule:: testcases.OpalMsglog
    :members:
 
+.. automodule:: testcases.OpalSysfsTests
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 
