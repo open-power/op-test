@@ -24,17 +24,22 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpTestSwitchEndianSyscall
-#  Switch endian system call package for OpenPower testing.
-#
-#  This class will test the functionality of following.
-#  1. It will test switch_endian() system call by executing the registers
-#     changes in other endian. By calling switch_endian sys call,
-#     should not effect register and memory space.
-#  2. This functionality is implemented in linux git repository
-#     /linux/tools/testing/selftests/powerpc/switch_endian
-#  3. In this test, will clone latest linux git repository and make required
-#     files. At the end will execute switch_endian_test executable file.
+'''
+OpTestSwitchEndianSyscall
+-------------------------
+
+Switch endian system call package for OpenPower testing.
+
+This class will test the functionality of following.
+
+1. It will test switch_endian() system call by executing the registers
+   changes in other endian. By calling switch_endian sys call,
+   should not effect register and memory space.
+2. This functionality is implemented in linux git repository
+   /linux/tools/testing/selftests/powerpc/switch_endian
+3. In this test, will clone latest linux git repository and make required
+   files. At the end will execute switch_endian_test executable file.
+'''
 
 import time
 import subprocess
@@ -51,19 +56,18 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestSwitchEndianSyscall(unittest.TestCase):
+    '''
+    If git and gcc commands are availble on host, this function will clone linux
+    git repository and check for switch_endian_test directory and make
+    the required files. And finally execute bin file switch_endian_test.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
 
-    ##
-    # @brief  If git and gcc commands are availble on host, this function will clone linux
-    #         git repository and check for switch_endian_test directory and make
-    #         the required files. And finally execute bin file switch_endian_test.
-    #
-    # @return BMC_CONST.FW_SUCCESS-success or BMC_CONST.FW_FAILED-fail
-    #
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
@@ -92,14 +96,12 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
         else:
             raise "Switch endian sys call test failed"
 
-    ##
-    # @brief  It will check for existence of switch_endian directory in the cloned repository
-    #
-    # @param i_dir @type string: linux source directory
-    #
-    # @return 1-success or raise OpTestError
-    #
     def check_dir_exists(self, i_dir):
+        '''
+        It will check for existence of switch_endian directory in the cloned repository
+
+        :param i_dir: linux source directory
+        '''
         l_dir = '%s/tools/testing/selftests/powerpc/switch_endian' % i_dir
         l_cmd = "test -d %s; echo $?" % l_dir
         try:
@@ -107,16 +109,14 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, str(c))
 
-    ##
-    # @brief  It will prepare for executable bin files using make command
-    #         At the end it will check for bin file switch_endian_test and
-    #         will throw an exception in case of missing bin file after make
-    #
-    # @param i_dir @type string: linux source directory
-    #
-    # @return 1-success or raise OpTestError
-    #
     def make_test(self, i_dir):
+        '''
+        It will prepare for executable bin files using make command
+        At the end it will check for bin file switch_endian_test and
+        will throw an exception in case of missing bin file after make
+
+        :param i_dir: linux source directory
+        '''
         l_cmd = "cd %s/tools/testing/selftests/;make;" % i_dir
         try:
             l_res = self.cv_HOST.host_run_command(l_cmd)
@@ -129,16 +129,13 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
         except CommandFailed as c:
             self.assertEqual(c.exitcode, 0, str(c))
 
-
-    ##
-    # @brief This function will run executable file switch_endian_test and
-    #        check for switch_endian() sys call functionality
-    #
-    # @param i_dir @type string: linux source directory
-    #
-    # @return 1-success ; 0-fail
-    #
     def run_once(self, i_dir):
+        '''
+        This function will run executable file switch_endian_test and
+        check for switch_endian() sys call functionality
+
+        :param i_dir: linux source directory
+        '''
         l_cmd = "cd %s/tools/testing/selftests/powerpc/switch_endian/;\
                  ./switch_endian_test" % i_dir
         l_res = self.cv_HOST.host_run_command(l_cmd)

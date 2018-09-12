@@ -166,5 +166,8 @@ The Tests
 .. automodule:: testcases.OpTestSensors
    :members:
 
+.. automodule:: testcases.OpTestSwitchEndianSyscall
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:
