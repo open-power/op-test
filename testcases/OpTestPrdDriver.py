@@ -24,18 +24,25 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpTestPrdDriver
-#  PRD driver package for OpenPower testing.
-#
-#  This class will test the functionality of following.
-#  PRD (Processor Runtime Diagnostic) enables the support for handing certain RAS events by the userspace application.
-#  For testing out this feature, we require the userspace xscom-utils, part of the 'skiboot' tree.
-#  skiboot tree is cloning in /tmp directory.
-#  Using the xscom utility, we need to inject errors through FIR (Fault Isolation Register)
-#  and observe them getting cleared if PRD handles them successfully.
-#  0x01020013 IPOLL mask register
-#  0x02010840 PBA Local Fault isolation register
-#  0x02010843 PBA Local fault isolation mask register
+'''
+OpTestPrdDriver
+---------------
+
+PRD driver package for OpenPower testing.
+
+This class will test the functionality of following:
+
+- PRD (Processor Runtime Diagnostic) enables the support for handing certain
+  RAS events by the userspace application.
+- For testing out this feature, we require the userspace xscom-utils, part of the 'skiboot' tree.
+- skiboot tree is cloning in /tmp directory.
+- Using the xscom utility, we need to inject errors through FIR (Fault Isolation Register)
+  and observe them getting cleared if PRD handles them successfully.
+
+  - 0x01020013 IPOLL mask register
+  - 0x02010840 PBA Local Fault isolation register
+  - 0x02010843 PBA Local fault isolation mask register
+'''
 
 import time
 import subprocess
@@ -63,8 +70,10 @@ class ErrorToInject():
         self.FIR = FIR
         self.FIMR = FIMR
         self.ERROR = ERROR
+
     def __str__(self):
         return self.desc
+
 
 class OpTestPrdDriver(unittest.TestCase):
     def setUp(self):
@@ -76,19 +85,21 @@ class OpTestPrdDriver(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-    ##
-    # @brief This is a common function for all the PRD test cases. This will be executed before
-    #        any test case starts. Basically this provides below requirements.
-    #        1. Validates all required host commands
-    #        2. It will clone skiboot source repository
-    #        3. Compile the necessary tools -xscom-utils(getscom and putscom)
-    #        4. Get the list Of Chips.
-    #           Ex: ['00000000', '00000001', '00000010']
-    #        5. generate a random chip.
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def prd_init(self):
+        '''
+        This is a common function for all the PRD test cases. This will be executed before
+        any test case starts. Basically this provides below requirements.
+
+        1. Validates all required host commands
+        2. Get the list Of Chips (Using getscom binary). e.g. ::
+
+             ['00000000', '00000001', '00000010']
+
+        3. generate a random chip.
+        '''
         # Get OS level
         self.cv_HOST.host_get_OS_Level(console=1)
 
@@ -105,17 +116,18 @@ class OpTestPrdDriver(unittest.TestCase):
         log.debug(l_chips) # ['00000000', '00000001', '00000010']
         self.random_chip = random.choice(l_chips)
 
-    ##
-    # @brief This function injects some core FIR errors and verifies whether opal-prd clears the errors.
-    #        and also this function injects errors on random chip.
-    #
-    # @param FIR @type str: Local Fault Isolation register
-    # @param FIMR @type str: Local Fault Isolation mask register
-    # @param ERROR @type int: Core FIR error, this error will be written to FIR.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def prd_test_core_fir(self, FIR, FIMR, ERROR):
+        '''
+        This function injects some core FIR errors and verifies whether opal-prd clears the errors.
+        and also this function injects errors on random chip.
+
+        :param FIR: Local Fault Isolation register
+        :type FIR: str
+        :param FIMR: Local Fault Isolation mask register
+        :type FIMR: str
+        :param ERROR: Core FIR error, this error will be written to FIR.
+        :type ERROR: str
+        '''
         console = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         chip_id = "0x" + self.random_chip
         log.debug(chip_id)
@@ -175,17 +187,20 @@ class OpTestPrdDriver(unittest.TestCase):
         return BMC_CONST.FW_SUCCESS
 
     ##
-    # @brief This function performs below steps
-    #        1. Initially connecting to host for execution.
-    #        2. check for IPOLL mask register value to see whether opal-prd is running or not
-    #           if it is 0-->opal-prd is running-->continue
-    #           else start opal-prd service again
-    #        3. call test_prd_for_fir() function for each core FIR error and this function
-    #           can be used for any number of errors, like it is a generic function
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def runTest(self):
+        '''
+        This function performs below steps:
+
+        1. Initially connecting to host for execution.
+        2. check for IPOLL mask register value to see whether opal-prd is running or not
+           if it is 0-->opal-prd is running-->continue
+           else start opal-prd service again
+        3. call test_prd_for_fir() function for each core FIR error and this function
+           can be used for any number of errors, like it is a generic function
+        '''
         if "FSP" in self.bmc_type:
             self.skipTest("OpenPower specific")
         # In P9 FSP systems we need to enable this test
