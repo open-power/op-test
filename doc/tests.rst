@@ -160,5 +160,8 @@ The Tests
 .. automodule:: testcases.OpTestRebootTimeout
    :members:
 
+.. automodule:: testcases.OpTestRTCdriver
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:
