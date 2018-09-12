@@ -18,6 +18,14 @@
 # permissions and limitations under the License.
 #
 
+'''
+RunHostTest
+-----------
+
+Runs a bunch of commands from a file on the `op-test` running system
+on the host.
+
+'''
 
 import unittest
 import os

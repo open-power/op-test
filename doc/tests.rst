@@ -181,5 +181,8 @@ The Tests
 .. automodule:: testcases.Petitbooti18n
    :members:
 
+.. automodule:: testcases.RunHostTest
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:
