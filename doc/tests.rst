@@ -31,6 +31,9 @@ The Tests
 .. automodule:: testcases.DPO
    :members:
 
+.. automodule:: testcases.EnergyScale_BaseLine
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 

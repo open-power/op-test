@@ -18,9 +18,14 @@
 # permissions and limitations under the License.
 #
 
-# This test is somewhat re-implementing the EnergyScale_BaseLine plugin for DVT
-# except it's not perfect, and don't bet that it is the same as it's only
-# based on a log of a test run rather than the source code for that test.
+'''
+EnergyScale_BaseLine
+--------------------
+
+This test is somewhat re-implementing the EnergyScale_BaseLine plugin for DVT
+except it's not perfect, and don't bet that it is the same as it's only
+based on a log of a test run rather than the source code for that test.
+'''
 
 import time
 import subprocess
@@ -41,6 +46,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class EnergyScale_BaseLine(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -59,14 +65,14 @@ class EnergyScale_BaseLine(unittest.TestCase):
         reset_output = []
         reset_count = []
         for l in r:
-          matchList = []
-          matchList = re.findall("resetCount:([0-9])", l)
-          if len(matchList) > 0:
-            reset_output.append(matchList)
+            matchList = []
+            matchList = re.findall("resetCount:([0-9])", l)
+            if len(matchList) > 0:
+                reset_output.append(matchList)
         reset_count = [int(l[0]) for l in reset_output]
         # Reset count is [HTMGT, OCC0, OCC1] counts
         # We want to only care about occ0 as it seems that's what happens
-        count = reset_count[1] # occ0 reset count
+        count = reset_count[1]  # occ0 reset count
         return count
 
     def runTest(self):
