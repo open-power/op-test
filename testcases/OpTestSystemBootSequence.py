@@ -24,25 +24,32 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestSystemBootSequence.py
-#  It will test below system boot sequence operations
-#  Mc cold reset boot sequence.
-#   @ Power off state (and auto reboot policy should be off)
-#   1) Make sure BMC is pinging
-#   2) Issue Cold reset to BMC   =>   ipmitool <...> mc reset cold
-#   3) Ensure BMC stops pinging, wait until BMC fully boots
-#   4) Open network sol console =>                  ipmitool <...> sol activate
-#   5) Power on system   =>   ipmitool <...> chassis power on
-#   Make sure boots to Host OS, SOL fine
-#
-#  Mc warm reset boot sequence
-#   @ Power off state (and auto reboot policy should be off)
-#   1) Make sure BMC is pinging
-#   2) Issue warm reset to BMC   =>   ipmitool <...> mc reset warm
-#   3) Ensure BMC stops pinging, wait until BMC fully boots
-#   4) Open network sol console =>                  ipmitool <...> sol activate
-#   5) Power on system   =>   ipmitool <...> chassis power on
-#   Make sure boots to Host OS, SOL fine
+'''
+OpTestSystemBootSequence
+------------------------
+
+It will test below system boot sequence operations
+
+Mc cold reset boot sequence.
+
+0) Power off state (and auto reboot policy should be off)
+1) Make sure BMC is pinging
+2) Issue Cold reset to BMC   =>   ipmitool <...> mc reset cold
+3) Ensure BMC stops pinging, wait until BMC fully boots
+4) Open network sol console =>                  ipmitool <...> sol activate
+5) Power on system   =>   ipmitool <...> chassis power on
+6) Make sure boots to Host OS, SOL fine
+
+Mc warm reset boot sequence
+
+0) Power off state (and auto reboot policy should be off)
+1) Make sure BMC is pinging
+2) Issue warm reset to BMC   =>   ipmitool <...> mc reset warm
+3) Ensure BMC stops pinging, wait until BMC fully boots
+4) Open network sol console =>                  ipmitool <...> sol activate
+5) Power on system   =>   ipmitool <...> chassis power on
+6) Make sure boots to Host OS, SOL fine
+'''
 
 import time
 import subprocess
@@ -73,18 +80,17 @@ class OpTestSystemBootSequence(unittest.TestCase):
         self.cv_IPMI.ipmi_set_power_policy("always-off")
 
 class ColdReset_IPL(OpTestSystemBootSequence):
+    '''
+    This function will test mc cold reset boot sequence,
+    It has below steps
 
-    ##
-    # @brief This function will test mc cold reset boot sequence
-    #        It has below steps
-    #        1. Do a system Power OFF(Host should go down)
-    #        2. Set auto reboot policy to off(chassis policy always-off)
-    #        3. Issue a BMC Cold reset.
-    #        4. After BMC comes up, Issue a Power ON of the system
-    #        5. Check for system status and gather OPAL msg log.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    1. Do a system Power OFF(Host should go down)
+    2. Set auto reboot policy to off(chassis policy always-off)
+    3. Issue a BMC Cold reset.
+    4. After BMC comes up, Issue a Power ON of the system
+    5. Check for system status and gather OPAL msg log.
+    '''
+
     def runTest(self):
         print("Testing MC Cold reset boot sequence")
         print("Performing a IPMI Power OFF Operation")
@@ -101,18 +107,16 @@ class ColdReset_IPL(OpTestSystemBootSequence):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class WarmReset_IPL(OpTestSystemBootSequence):
+    '''
+    This function will test mc warm reset boot sequence,
+    It has below steps
 
-    ##
-    # @brief This function will test mc warm reset boot sequence
-    #        It has below steps
-    #        1. Do a system Power OFF(Host should go down)
-    #        2. Set auto reboot policy to off(chassis policy always-off)
-    #        3. Issue a BMC Warm reset.
-    #        4. After BMC comes up, Issue a Power ON of the system
-    #        5. Check for system status and gather OPAL msg log.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    1. Do a system Power OFF(Host should go down)
+    2. Set auto reboot policy to off(chassis policy always-off)
+    3. Issue a BMC Warm reset.
+    4. After BMC comes up, Issue a Power ON of the system
+    5. Check for system status and gather OPAL msg log.
+    '''
     def runTest(self):
         print("Testing MC Warm reset boot sequence")
         print("Performing a IPMI Power OFF Operation")
@@ -128,19 +132,17 @@ class WarmReset_IPL(OpTestSystemBootSequence):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class PowerPolicyOFF_IPL(OpTestSystemBootSequence):
+    '''
+    This function will test system auto reboot policy always-off.
+    It has below steps
 
-    ##
-    # @brief This function will test system auto reboot policy always-off.
-    #        It has below steps
-    #        1. Do a system Power OFF(Host should go down)
-    #        2. Set auto reboot policy to off(chassis policy always-off)
-    #        3. Issue a BMC Cold reset.
-    #        4. After BMC comes up, expect the system to not boot.
-    #        5. Issue a Power ON of the system
-    #        6. Check for system status and gather OPAL msg log.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    1. Do a system Power OFF(Host should go down)
+    2. Set auto reboot policy to off(chassis policy always-off)
+    3. Issue a BMC Cold reset.
+    4. After BMC comes up, expect the system to not boot.
+    5. Issue a Power ON of the system
+    6. Check for system status and gather OPAL msg log.
+    '''
     def runTest(self):
         print("Testing System Power Policy:always-off")
         print("Performing a IPMI Power OFF Operation")
@@ -167,19 +169,17 @@ class PowerPolicyOFF_IPL(OpTestSystemBootSequence):
         self.assertFalse(fail, l_msg)
 
 class PowerPolicyON_IPL(OpTestSystemBootSequence):
+    '''
+    This function will test system auto reboot policy always-on.
+    It has below steps
 
-    ##
-    # @brief This function will test system auto reboot policy always-on.
-    #        It has below steps
-    #        1. Do a system Power OFF(Host should go down)
-    #        2. Set auto reboot policy to on(chassis policy always-on)
-    #        3. Issue a BMC Cold reset.
-    #        4. After BMC comes up, Here expect the system to boot,
-    #           If not power policy is not working as expected
-    #        5. Check for system status and gather OPAL msg log.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    1. Do a system Power OFF(Host should go down)
+    2. Set auto reboot policy to on(chassis policy always-on)
+    3. Issue a BMC Cold reset.
+    4. After BMC comes up, Here expect the system to boot,
+       If not power policy is not working as expected
+    5. Check for system status and gather OPAL msg log.
+    '''
     def runTest(self):
         print("Testing System Power Policy:Always-ON")
         print("Performing a IPMI Power OFF Operation")
@@ -206,19 +206,17 @@ class PowerPolicyON_IPL(OpTestSystemBootSequence):
         self.assertFalse(fail, l_msg)
 
 class PowerPolicyPrevious_IPL(OpTestSystemBootSequence):
+    '''
+    This function will test system auto reboot policy previous
+    It has below steps
 
-    ##
-    # @brief This function will test system auto reboot policy previous
-    #        It has below steps
-    #        1. Do a system Power OFF(Host should go down)
-    #        2. Set auto reboot policy to previous(chassis policy previous)
-    #        3. Issue a BMC Cold reset.
-    #        4. After BMC comes up, system power status will change based on
-    #           previous power status before issuing cold reset.
-    #        5. Check for system status and gather OPAL msg log.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    1. Do a system Power OFF(Host should go down)
+    2. Set auto reboot policy to previous(chassis policy previous)
+    3. Issue a BMC Cold reset.
+    4. After BMC comes up, system power status will change based on
+       previous power status before issuing cold reset.
+    5. Check for system status and gather OPAL msg log.
+    '''
     def runTest(self):
         print("Testing System Power Policy:previous")
         print("Performing a IPMI Power OFF Operation")
@@ -254,6 +252,7 @@ class PowerPolicyPrevious_IPL(OpTestSystemBootSequence):
             l_msg = "IPLTest: chassis policy previous making the system to change power status"
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             raise l_msg
+
 
 def suite():
     s = unittest.TestSuite()

@@ -169,5 +169,8 @@ The Tests
 .. automodule:: testcases.OpTestSwitchEndianSyscall
    :members:
 
+.. automodule:: testcases.OpTestSystemBootSequence
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:
