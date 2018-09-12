@@ -24,12 +24,21 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestInbandUsbInterface
-#  Test the inband ipmi{USB Interface} fucntionality package for OpenPower platform.
-#
-#  This class will test the functionality of following commands
-#  1. bmc, channel, chassis, dcmi, echo, event, exec, firewall, fru, lan
-#     mc, pef, power, raw, sdr, sel, sensor, session, user
+'''
+OpTestInbandUsbInterface
+------------------------
+
+Test the inband ipmi{USB Interface} fucntionality package for OpenPower
+platform.
+
+This class will test the functionality of following commands
+
+1. bmc, channel, chassis, dcmi, echo, event, exec, firewall, fru, lan
+   mc, pef, power, raw, sdr, sel, sensor, session, user
+
+It is all the same tests as :mod:`testcases.OpTestInbandIPMI` but using the
+USB interface rather than BT.
+'''
 
 import time
 import subprocess
@@ -58,11 +67,10 @@ def full_suite():
 def skiroot_full_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootInbandUSB)
 
-conf = OpTestConfiguration.conf
 
 class BasicInbandUSB(BasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
-        self.bmc_type = conf.args.bmc_type
+        self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
         if "OpenBMC" in self.bmc_type:
@@ -71,34 +79,37 @@ class BasicInbandUSB(BasicInbandIPMI):
 
 class InbandUSB(OpTestInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
-        self.bmc_type = conf.args.bmc_type
+        self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
         if "OpenBMC" in self.bmc_type:
             self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(InbandUSB, self).setUp(ipmi_method=ipmi_method)
 
+
 class SkirootBasicInbandUSB(SkirootBasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
-        self.bmc_type = conf.args.bmc_type
+        self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
         if "OpenBMC" in self.bmc_type:
             self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(SkirootBasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
+
 class SkirootInbandUSB(SkirootFullInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
-        self.bmc_type = conf.args.bmc_type
+        self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
         if "OpenBMC" in self.bmc_type:
             self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(SkirootInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
+
 class ExperimentalInbandUSB(ExperimentalInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
-        self.bmc_type = conf.args.bmc_type
+        self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
             self.skipTest("OP BMC specific")
         if "OpenBMC" in self.bmc_type:
