@@ -187,5 +187,8 @@ The Tests
 .. automodule:: testcases.SbePassThrough
    :members:
 
+.. automodule:: testcases.SecureBoot
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

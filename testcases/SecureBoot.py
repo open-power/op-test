@@ -17,7 +17,11 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 #
-# Secureboot IPL Tests
+
+'''
+Secureboot IPL Tests
+--------------------
+'''
 
 import unittest
 import pexpect
@@ -127,8 +131,8 @@ class SecureBoot(unittest.TestCase):
         elif "ibm,secureboot-v1" in value:
             c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/hash-algo")
 
-class VerifyOPALSecureboot(SecureBoot):
 
+class VerifyOPALSecureboot(SecureBoot):
     def setUp(self):
         conf = OpTestConfiguration.conf
         super(VerifyOPALSecureboot, self).setUp()
@@ -138,13 +142,17 @@ class VerifyOPALSecureboot(SecureBoot):
         self.verify_dt_sb()
         self.verify_opal_sb()
 
+
 class UnSignedPNOR(SecureBoot, PNORFLASH):
     '''
     Secure boot IPL test: Ensure prevention of boot with improperly signed PNOR.
-    SB Mode  | sign mode | Boot result
-    ----------------------------------
-     ON      |  Unsigned |  Fail
-     OFF     |  Unsigned |  Pass
+
+    ======= ========= ===========
+    SB Mode sign mode Boot result
+    ======= ========= ===========
+    ON      Unsigned  Fail
+    OFF     Unsigned  Pass
+    ======= ========= ===========
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -165,13 +173,17 @@ class UnSignedPNOR(SecureBoot, PNORFLASH):
             self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
+
 class SignedPNOR(SecureBoot, PNORFLASH):
     '''
     Secure boot IPL test: Ensure successful boot with properly signed PNOR.
-    SB Mode  | sign mode | Boot result
-    ----------------------------------
-     ON      |  Signed |  Pass
-     OFF     |  Signed |  Pass
+
+    ======= ========= ===========
+    SB Mode sign mode Boot result
+    ======= ========= ===========
+    ON      Signed    Pass
+    OFF     Signed    Pass
+    ======= ========= ===========
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -193,10 +205,13 @@ class SignedToPNOR(SecureBoot, PNORFLASH):
     Secure boot IPL test: Ensure successful boot with properly
     signed to PNOR(To match the keys which are got replaced after
     KeyTransitionPNOR flash test).
-    SB Mode  | sign mode | Boot result
-    ----------------------------------
-     ON      |  Signed |  Pass
-     OFF     |  Signed |  Pass
+
+    ======= ========= ===========
+    SB Mode sign mode Boot result
+    ======= ========= ===========
+    ON      Signed    Pass
+    OFF     Signed    Pass
+    ======= ========= ===========
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -216,12 +231,12 @@ class SignedToPNOR(SecureBoot, PNORFLASH):
 class KeyTransitionPNOR(SecureBoot, PNORFLASH):
     '''
     Secure boot key transition test: Ensure successful key transition in SEEPROM
-    Types of Key Transition PNOR images
-    =============
-    dev to dev
-    dev to prod
-    prod to dev
-    prod to prod
+    Types of Key Transition PNOR images:
+
+    - dev to dev
+    - dev to prod
+    - prod to dev
+    - prod to prod
     '''
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -242,6 +257,7 @@ class KeyTransitionPNOR(SecureBoot, PNORFLASH):
         self.wait_for_shutdown()
         log.debug("set state, going to off")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+
 
 class OPALContainerTest(SecureBoot, OpalLidsFLASH):
     '''
@@ -277,6 +293,7 @@ class OPALContainerTest(SecureBoot, OpalLidsFLASH):
                 self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             else:
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+
 
 def secureboot_suite():
     s = unittest.TestSuite()
