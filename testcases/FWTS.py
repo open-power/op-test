@@ -21,6 +21,17 @@
 # python unittest.TestCase objects, so we get the individual
 # failure/successes into the TestResult output (e.g. junit XML)
 
+'''
+FWTS
+----
+
+Run the Canonical FirmWare Test Suite (FWTS, see
+https://wiki.ubuntu.com/FirmwareTestSuite for details).
+
+Largely, if we can implement a test as part of FWTS, we should do it there
+as it's easy to run and packaged.
+'''
+
 import time
 import subprocess
 import re
@@ -161,6 +172,12 @@ class FWTSTest(unittest.TestCase):
 
 
 class FWTS(unittest.TestSuite):
+    '''
+    Run the FWTS tests, importing the test results into `op-test`.
+
+    This is implemented as a TestSuite rather than a TestCase so we can add
+    multiple TestCase results to the `op-test` test results.
+    '''
     def add_fwts_results(self, major_version, minor_version):
         host = self.cv_HOST
         try:

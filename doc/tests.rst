@@ -43,6 +43,9 @@ The Tests
 .. automodule:: testcases.fspTODCorruption
    :members:
 
+.. automodule:: testcases.FWTS
+   :members:
+
 .. automodule:: testcases.IplParams
    :members:
 
