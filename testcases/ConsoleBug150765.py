@@ -22,11 +22,17 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  Console Bug 150765
-#  Make sure ipmi sol console is connected before running this test
-#  Observe sol console messages while system IPL's for two times
-#  For second IPL, Petitboot Kernel messages will not come on active
-#  SOL console
+'''
+Console Bug 150765
+------------------
+
+A regresion test for a specific bug observed on FSP based systems.
+
+Make sure ipmi sol console is connected before running this test
+Observe sol console messages while system IPL's for two times
+For second IPL, Petitboot Kernel messages will not come on active
+SOL console.
+'''
 
 import time
 import subprocess
@@ -54,15 +60,6 @@ class ConsoleBug150765(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-    ##
-    # @brief This function tests system dump functionality
-    #        1. Boot the system to runtime(Atleast to petitboot)
-    #        2. Trigger system dump from FSP
-    #        3. Wait for dump to finish & IPL to reach runtime
-    #        4. Check for system dump files in host
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific console test")
@@ -74,4 +71,3 @@ class ConsoleBug150765(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_power_on()
         self.cv_FSP.wait_for_runtime()
-

@@ -13,6 +13,9 @@ The Tests
 .. automodule:: testcases.BootTorture
    :members:
 
+.. automodule:: testcases.ConsoleBug150765
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 
