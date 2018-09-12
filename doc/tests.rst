@@ -88,6 +88,9 @@ The Tests
 .. automodule:: testcases.OpalSysfsTests
    :members:
 
+.. automodule:: testcases.OpalUtils
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 

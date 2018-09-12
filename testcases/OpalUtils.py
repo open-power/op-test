@@ -24,10 +24,17 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpalUtils
-#  Test different OPAL Utilities
-#  getscom, putscom, gard, pflash
-#
+'''
+OpalUtils
+---------
+
+Test different OPAL Utilities:
+
+- getscom
+- putscom
+- gard
+- pflash
+'''
 
 import re
 import random
@@ -43,6 +50,7 @@ from common.Exceptions import CommandFailed
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class OpalUtils(unittest.TestCase):
     def setUp(self):
@@ -178,16 +186,17 @@ class OpalUtils(unittest.TestCase):
             raise Exception("pflash programme GUARD operation failed")
 
 
-    ##
-    # @brief This testcase performs below steps
-    #        1. SCOM Read operation
-    #        2. SCOM Write operation
-    #        3. List Gard records operation
-    #        4. Clear Gard records operation
-    #        5. pflash info operation
-    #        6. pflash read part operation
-    #
     def runTest(self):
+        '''
+        This testcase performs below steps:
+
+        1. SCOM Read operation
+        2. SCOM Write operation
+        3. List Gard records operation
+        4. Clear Gard records operation
+        5. pflash info operation
+        6. pflash read part operation
+        '''
         self.l_dic = []
         self.utils_init()
         self.c = self.cv_SYSTEM.console
