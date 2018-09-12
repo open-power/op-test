@@ -308,7 +308,6 @@ class RecoverFailed(Exception):
                                           self.kwargs['after'],
                                           self.kwargs['msg']))
 
-
 class UnknownStateTransition(Exception):
     '''
     We tried to transition to UNKNOWN, something happened.
@@ -328,6 +327,75 @@ class UnknownStateTransition(Exception):
                 ' Review the following for more details\n'
                 'Message=\"{}\"'.format(self.kwargs['state'],
                                         self.kwargs['msg']))
+
+
+class HostLocker(Exception):
+    '''
+    We tried to setup with HostLocker and something happened.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+        return ('Something happened setting up HostLocker. '
+                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
+
+class HTTPCheck(Exception):
+    '''
+    We tried to setup HTTP Server and something happened.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+        return ('Something happened setting up the HTTP Server. '
+                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
+
+class AES(Exception):
+    '''
+    We tried to setup with Automated Environment Sharing (AES) and something happened.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+        return ('Something happened setting up Automated Environment Sharing (AES). '
+                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
+
+class ParameterCheck(Exception):
+    '''
+    We think something is not properly setup.
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'msg': None}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+    def __str__(self):
+        return ('Something does not appear to be configured or setup properly. '
+                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
 
 
 class StoppingSystem(Exception):
