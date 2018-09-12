@@ -22,13 +22,22 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  Different dumps for fsp platforms
-#  fipsdump
-#  system dump
-#      host_dump_boottime --> Trigger dump when kernel boots(either Petitboot or OS kernel)
-#      host_dump_runtime  --> Trigger dump when system is in OS or already booted to OS
-#      nmi_dump           --> Trigger system dump by sending NMI interrupts to processors
-#
+'''
+OpTestDumps
+-----------
+
+Different dumps for fsp platforms:
+
+- fipsdump
+- system dump
+
+  host_dump_boottime
+    Trigger dump when kernel boots(either Petitboot or OS kernel)
+  host_dump_runtime
+    Trigger dump when system is in OS or already booted to OS
+  nmi_dump
+    Trigger system dump by sending NMI interrupts to processors
+'''
 
 import time
 import subprocess
@@ -131,16 +140,14 @@ class OpTestDumps():
 
 
 class SYSTEM_DUMP(OpTestDumps, unittest.TestCase):
+    '''
+    This function tests system dump functionality
 
-    ##
-    # @brief This function tests system dump functionality
-    #        1. Boot the system to runtime(Atleast to petitboot)
-    #        2. Trigger system dump from FSP
-    #        3. Wait for dump to finish & IPL to reach runtime
-    #        4. Check for system dump files in host
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    1. Boot the system to runtime(Atleast to petitboot)
+    2. Trigger system dump from FSP
+    3. Wait for dump to finish & IPL to reach runtime
+    4. Check for system dump files in host
+    '''
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific dump tests")

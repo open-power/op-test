@@ -94,6 +94,9 @@ The Tests
 .. automodule:: testcases.OpTestCAPI
    :members:
 
+.. automodule:: testcases.OpTestDumps
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 
