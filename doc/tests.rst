@@ -175,5 +175,8 @@ The Tests
 .. automodule:: testcases.PciSlotLocCodes
    :members:
 
+.. automodule:: testcases.PetitbootDropbearServer
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

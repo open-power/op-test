@@ -22,13 +22,19 @@
 #
 # IBM_PROLOG_END_TAG
 #
-#   Test Dropbear SSH is not present in skiroot
-#
-# The skiroot (pettiboot environment) firmware contains dropbear for it's ssh
-# client functioanlity. We do not want to enable network accessable system in
-# the environemnt for security reasons.
-#
-# This test ensures that the ssh server is not running at boot
+
+'''
+Petitboot Dropbear Server
+-------------------------
+
+Test Dropbear SSH Serevr is **not** present in skiroot
+
+The skiroot (pettiboot environment) firmware contains dropbear for it's ssh
+client functioanlity. We do not want to enable network accessable system in
+the environemnt for security reasons.
+
+This test ensures that the ssh server is not running at boot
+'''
 
 import time
 import subprocess
