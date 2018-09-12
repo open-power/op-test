@@ -118,6 +118,9 @@ The Tests
 .. automodule:: testcases.OpTestHMIHandling
    :members:
 
+.. automodule:: testcases.OpTestInbandIPMI
+   :members:
+
 .. automodule:: testcases.OpTestOCC
    :members:
 

@@ -24,12 +24,18 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestInbandIPMI
-#  Test the inband ipmi{OPEN Interface} fucntionality package for OpenPower platform.
-#
-#  This class will test the functionality of following commands
-#  1. bmc, channel, chassis, dcmi, echo, event, exec, firewall, fru, lan
-#     mc, pef, power, raw, sdr, sel, sensor, session, user
+'''
+OpTestInbandIPMI
+----------------
+
+Test the inband ipmi{OPEN Interface} fucntionality package for OpenPower
+platform.
+
+This class will test the functionality of following commands
+
+1. bmc, channel, chassis, dcmi, echo, event, exec, firewall, fru, lan
+   mc, pef, power, raw, sdr, sel, sensor, session, user
+'''
 
 import time
 import subprocess
@@ -49,6 +55,7 @@ from common.Exceptions import CommandFailed
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class UnexpectedBootDevice(Exception):
     def __init__(self, expected, actual):
@@ -81,6 +88,11 @@ class OpTestInbandIPMIBase(object):
         return self.c
 
     def run_ipmi_cmds(self, c, cmds):
+        '''
+        Run a list of IPMI commands, skipping the test if we can determine that the
+        command wouldn't be supported on the current system (e.g. system doesn't
+        support the inband USB interface).
+        '''
         try:
             for cmd in cmds:
                 c.run_command(cmd)
@@ -98,17 +110,23 @@ class BasicInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         self.ipmi_method = ipmi_method
         self.test = "host"
         super(BasicInbandIPMI, self).setUp()
-    ##
-    # @brief  It will execute and test the ipmi sensor list functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
+
     def test_sensor_list(self):
+        '''
+        Run a fast and simple test (on IPMI sensors) to test base functionality
+        of the inband IPMI interface.
+
+        This test is designed an a smoke test rather than for completeness.
+        '''
         c = self.set_up()
         log.debug("Inband IPMI[OPEN]: Sensor tests")
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SENSOR_LIST])
 
+
 class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
+    '''
+    A more complete test of inband IPMI functionality.
+    '''
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"
@@ -136,12 +154,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POLICY_LIST,
                                self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POLICY_ALWAYS_OFF])
 
-    ##
-    # @brief  It will execute and test the ipmi chassis identify commands
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_chassis_identifytests(self):
+        '''
+        It will execute and test the ipmi chassis identify commands
+        '''
         log.debug("Inband IPMI[OPEN]: Chassis Identify tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY,
@@ -150,13 +166,15 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                                self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY_FORCE,
                                self.ipmi_method + BMC_CONST.IPMI_CHASSIS_IDENTIFY])
 
-    ##
-    # @brief  It will execute and test the functionality of ipmi chassis bootdev <dev>
-    #         dev: none,pxe,cdrom,disk,bios,safe,diag,floppy and none.
-    #
-    # @return BMC_CONST.FW_SUCCESS on success or raise OpTestError
-    #
     def test_chassis_bootdev(self):
+        '''
+        It will execute and test the functionality of
+        `ipmi chassis bootdev <dev>` where dev is
+        none,pxe,cdrom,disk,bios,safe,diag,floppy, and none.
+
+        See the implementation for how nothing is as simple as it seems
+        and we need weird exceptions.
+        '''
         log.debug("Inband IPMI[OPEN]: Chassis Bootdevice tests")
         c = self.set_up()
         boot_devices = {
@@ -208,12 +226,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         else:
             raise UnexpectedBootDevice(i_dev, l_res)
 
-    ##
-    # @brief  It will execute and test the ipmi sdr list <all/fru/event/mcloc/compact/full/generic>
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sdr_list_by_type(self):
+        '''
+        It will execute and test the
+        ipmi sdr list <all/fru/event/mcloc/compact/full/generic>
+        '''
         log.debug("Inband IPMI[OPEN]: SDR list tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_LIST,
@@ -225,13 +242,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                                self.ipmi_method + BMC_CONST.IPMI_SDR_LIST_FULL,
                                self.ipmi_method + BMC_CONST.IPMI_SDR_LIST_GENERIC])
 
-    ##
-    # @brief  It will execute and test the ipmi sdr elist <all/fru/event/mcloc/compact/full/generic>
-    #         commands
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sdr_elist_by_type(self):
+        '''
+        It will execute and test the commands:
+        ipmi sdr elist <all/fru/event/mcloc/compact/full/generic>
+        '''
         log.debug("Inband IPMI[OPEN]: SDR elist tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST,
@@ -243,12 +258,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                                self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST_FULL,
                                self.ipmi_method + BMC_CONST.IPMI_SDR_ELIST_GENERIC])
 
-    ##
-    # @brief  It will execute and test the ipmi sdr type <Temp/fan/Powersupply> commands
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sdr_type_list(self):
+        '''
+        It will execute and test the ipmi sdr type <Temp/fan/Powersupply>
+        commands
+        '''
         log.debug("Inband IPMI[OPEN]: SDR type list tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_LIST,
@@ -256,35 +270,30 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                                 self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_FAN,
                                 self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_POWER_SUPPLY])
 
-    ##
-    # @brief  It will execute and test the ipmi sdr get <sensor-id> command
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sdr_get_id(self):
+        '''
+        It will execute and test the ipmi sdr get <sensor-id> command
+        '''
         log.debug("Inband IPMI[OPEN]: SDR get tests")
         l_cmd = self.ipmi_method + "sdr get \'Watchdog\'"
         c = self.set_up()
         self.run_ipmi_cmds(c, [l_cmd])
 
-    ##
-    # @brief  It will execute and test the ipmi fru print command.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_fru_print(self):
+        '''
+        It will execute and test the ipmi fru print command.
+        '''
         log.debug("Inband IPMI[OPEN]: FRU Print Test")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_FRU_PRINT])
 
-
-    ##
-    # @brief  It will execute and test the ipmi fru read command.
-    #         then the output file is displayed by hexdump
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_fru_read(self):
+        '''
+        It will execute and test the ipmi fru read command.
+        then the output file is displayed by hexdump
+
+        A FIXME is to check the *content* of the FRU for sanity.
+        '''
         log.debug("Inband IPMI[OPEN]: FRU Read Test")
         c = self.set_up()
         # Not every system has FRU0. But if nothing all the way up to 100, probably a bug.
@@ -311,23 +320,31 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
 
         self.assertTrue(found_one, "Didn't find any FRUs")
 
-    ##
-    # @brief  It will execute and test the management controller(mc) commands functionality
-    #         info-Displays information about the BMC hardware, including device revision,
-    #              firmware revision, IPMI version supported, manufacturer ID,  and  information
-    #               on additional device support
-    #         watchdog get-Show current Watchdog Timer settings and countdown state.
-    #         watchdog off-Turn off a currently running Watchdog countdown timer.
-    #         watchdog reset-Reset the Watchdog Timer to its most recent state and restart the countdown timer.
-    #         selftest- Check on the basic health of the BMC by executing the
-    #                   Get Self Test results command and report the results.
-    #         setenables-Enables  or disables the given option
-    #         getenables-Displays a list of the currently enabled options for the BMC.
-    #         getsysinfo-Retrieves system info from bmc for given argument
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_mc(self):
+        '''
+        It will execute and test the management controller(mc) commands functionality.
+
+        info
+          Displays information about the BMC hardware, including device
+          revision, firmware revision, IPMI version supported,
+          manufacturer ID, and information on additional device support.
+        watchdog get
+          Show current Watchdog Timer settings and countdown state.
+        watchdog off
+          Turn off a currently running Watchdog countdown timer.
+        watchdog reset
+          Reset the Watchdog Timer to its most recent state and restart the
+          countdown timer.
+        selftest
+          Check on the basic health of the BMC by executing the
+          Get Self Test results command and report the results.
+        setenables
+          Enables  or disables the given option
+        getenables
+          Displays a list of the currently enabled options for the BMC.
+        getsysinfo
+          Retrieves system info from bmc for given argument
+        '''
         log.debug("Inband IPMI[OPEN]: MC tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_INFO])
@@ -361,12 +378,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 raise cf
 
-    ##
-    # @brief  It will execute and test the ipmi sel info functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_info(self):
+        '''
+        It will execute and test the ipmi sel info functionality
+        '''
         log.debug("Inband IPMI[OPEN]: SEL Info test")
         c = self.set_up()
         try:
@@ -377,13 +392,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-    ##
-    # @brief  It will execute and test ipmi sel list functionality.
-    #         the entire contents of the System Event Log are displayed.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_list(self):
+        '''
+        It will execute and test ipmi sel list functionality.
+        the entire contents of the System Event Log are displayed.
+        '''
         log.debug("Inband IPMI[OPEN]: SEL List test")
         c = self.set_up()
         try:
@@ -394,16 +407,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-
-    ##
-    # @brief  It will execute and test the ipmi sel elist functionality
-    #         If invoked as elist (extended list) it will also use the
-    #         Sensor Data Record entries to display the sensor ID for
-    #           the sensor that caused each event.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_elist(self):
+        '''
+        It will execute and test the ipmi sel elist functionality
+        If invoked as elist (extended list) it will also use the
+        Sensor Data Record entries to display the sensor ID for
+        the sensor that caused each event.
+        '''
         log.debug("Inband IPMI[OPEN]: SEL elist test")
         c = self.set_up()
         try:
@@ -414,14 +424,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-
-    ##
-    # @brief  It will execute and test the ipmi sel time get functionality
-    #         Displays the SEL clock's current time.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_time_get(self):
+        '''
+        It will execute and test the ipmi sel time get functionality
+        Displays the SEL clock's current time.
+        '''
         log.debug("Inband IPMI[OPEN]: SEL Time get test")
         c = self.set_up()
         l_res = None
@@ -435,14 +442,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             self.skipTest("IPMI: Insufficient resources")
         return l_res
 
-    ##
-    # @brief  It will execute and test the ipmi sel list first <n entries>
-    #
-    # @param i_num @type string:The num of entries of sel to be listed
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_list_first_n_entries(self, i_num=1):
+        '''
+        It will execute and test the ipmi sel list first <n entries>
+
+        :param i_num: The number of SELs to list
+        :type i_num: int
+        '''
         l_cmd = "sel list first %i" % int(i_num)
         c = self.set_up()
         try:
@@ -453,14 +459,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-    ##
-    # @brief  It will execute and test the ipmi sel list last <n entries>
-    #
-    # @param i_num @type string:The num of entries of sel to be listed
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_list_last_n_entries(self, i_num=1):
+        '''
+        It will execute and test the ipmi sel list last <n entries>
+
+        :param i_num: The number of last SEL entries to list.
+        :type i_num: int
+        '''
         l_cmd = "sel list last %i" % int(i_num)
         c = self.set_up()
         try:
@@ -471,12 +476,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-    ##
-    # @brief  It will execute the ipmi sel clear command
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_clear(self):
+        '''
+        It will execute the ipmi sel clear command.
+
+        Not all BMCs support this (notably simulators such as Qemu). In that
+        case, we try anyway and skip the test rather than fail.
+        '''
         c = self.set_up()
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_CLEAR])
@@ -486,13 +492,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-
-    ##
-    # @brief  It will execute and test the ipmi sel get <id> functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_get_functionality(self):
+        '''
+        It will execute and test the ipmi sel get <id> functionality.
+        '''
         c = self.set_up()
         try:
             l_res = c.run_command(self.ipmi_method + "sel list first 3 | awk '{print $1}'")
@@ -512,13 +515,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-
-    ##
-    # @brief  It will execute and test the ipmi sel clear functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_clear_functionality(self):
+        '''
+        It will execute and test the ipmi sel clear functionality.
+        '''
         self.test_sel_clear()
         c = self.set_up()
         l_res = c.run_command("ipmitool sel list")
@@ -531,32 +531,38 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             log.error(l_msg)
             raise OpTestError(l_msg)
 
-    ##
-    # @brief  It will execute and test the ipmi sensor get <id> functionality
-    #
-    # @param i_sensor @type string:sensor id to retrieve the data
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def sensor_byid(self, i_sensor=BMC_CONST.SENSOR_HOST_STATUS):
+        '''
+        It will execute and test the ipmi sensor get <id> functionality
+
+        :param i_sensor: sensor ID to retrieve data from
+        :type i_sensor: str
+        '''
         l_cmd = self.ipmi_method + "sensor get \"%s\"" % i_sensor
         c = self.set_up()
         c.run_command(l_cmd)
 
-    ##
-    # @brief  It will execute and test the dcmi related ipmi commands.
-    #         discover-This command is used to discover supported capabilities in DCMI
-    #         Power reading-Get power related readings from the system.
-    #               get_limit-Get the configured power limits.
-    #         sensors-Prints the available DCMI sensors.
-    #         get_mc_id_string-Get management controller identifier string
-    #         get_temp_reading-Get Temperature Sensor Readings.
-    #         get_conf_param-Get DCMI Configuration Parameters.
-    #         oob_discover-Ping/Pong Message for DCMI Discovery
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_dcmi(self):
+        '''
+        It will execute and test the dcmi related ipmi commands.
+
+        discover
+          This command is used to discover supported capabilities in DCMI
+        Power reading
+          Get power related readings from the system.
+        get_limit
+          Get the configured power limits.
+        sensors
+          Prints the available DCMI sensors.
+        get_mc_id_string
+          Get management controller identifier string
+        get_temp_reading
+          Get Temperature Sensor Readings.
+        get_conf_param
+          Get DCMI Configuration Parameters.
+        oob_discover
+          Ping/Pong Message for DCMI Discovery
+        '''
         log.debug("Inband IPMI[OPEN]: dcmi tests")
         c = self.set_up()
         try:
@@ -573,69 +579,68 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC Implementation doesn't support DCMI commands")
 
-
-
-    ##
-    # @brief  It will execute and test the functionality of ipmi echo command.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_echo(self):
+        '''
+        It will execute and test the functionality of ipmi echo command.
+        '''
         log.debug("Inband IPMI[OPEN]: echo tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_ECHO_DONE])
 
-    ##
-    # @brief  It will execute and test event related commands to test sel functionality.
-    #         Send a pre-defined test event to the System Event Log.  The following
-    #         events are included as a means to test the functionality of  the  System
-    #         Event Log component of the BMC (an entry will be added each time the
-    #         event N command is executed)
-    #         Currently supported values for N are:
-    #         1    Temperature: Upper Critical: Going High
-    #         2    Voltage Threshold: Lower Critical: Going Low
-    #         3    Memory: Correctable ECC
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_event(self):
+        '''
+        It will execute and test event related commands to test sel
+        functionality.
+
+        Send a pre-defined test event to the System Event Log.  The following
+        events are included as a means to test the functionality of  the  System
+        Event Log component of the BMC (an entry will be added each time the
+        event N command is executed)
+
+        Currently supported values for N are:
+
+        1. Temperature: Upper Critical: Going High
+        2. Voltage Threshold: Lower Critical: Going Low
+        3. Memory: Correctable ECC
+        '''
         log.debug("Inband IPMI[OPEN]: event tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_EVENT_1,
                                self.ipmi_method + BMC_CONST.IPMI_EVENT_2,
                                self.ipmi_method + BMC_CONST.IPMI_EVENT_3])
 
-    ##
-    # @brief  It will execute and test ipmi exec command.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_exec(self):
+        '''
+        It will execute and test ipmi exec command.
+
+        FIXME: not yet implemented.
+        '''
         log.debug("Inband IPMI[OPEN]: exec tests")
         pass
         # TODO: need to execute ipmi commands from a file
 
-    ##
-    # @brief  It will execute and test firmware firewall info command.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_firewall(self):
+        '''
+        It will execute and test firmware firewall info command.
+        '''
         log.debug("Inband IPMI[OPEN]: Firewall test")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_FIREWALL_INFO])
 
-    ##
-    # @brief  It will execute and test pef related commands:
-    #         info:This command will query the BMC and print information about the PEF supported features.
-    #         status: This command prints the current PEF status
-    #         policy: This command lists the PEF policy table entries
-    #         list: This  command  lists  the PEF table entries.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
-
     def test_pef(self):
+        '''
+        It will execute and test pef related commands:
+
+        info
+          This command will query the BMC and print information about the PEF
+          supported features.
+        status
+          This command prints the current PEF status
+        policy
+          This command lists the PEF policy table entries
+        list
+          This  command  lists  the PEF table entries.
+        '''
         log.debug("Inband IPMI[OPEN]: Pef tests")
         c = self.set_up()
         try:
@@ -648,12 +653,14 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                 self.skipTest("BMC doesn't implement PEF, this is valid.")
             self.fail(str(cf))
 
-    ##
-    # @brief This will test raw IPMI commands. For example to query the POH counter with a raw command
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_raw(self):
+        '''
+        This will test raw IPMI commands. For example to query the POH counter
+        with a raw command.
+
+        Practically speaking, this tests ipmitool itself more than any firmware
+        or OS functionality (when compared to the non-raw test).
+        '''
         log.debug("Inband IPMI[OPEN]: raw command execution tests")
         c = self.set_up()
         try:
@@ -663,13 +670,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                 self.skipTest("OpenBMC doesn't implement POH yet")
             self.fail(str(cf))
 
-    ##
-    # @brief  It will execute and test the ipmi sel set <time string> functionality
-    #         Sets the SEL clock.  Future SEL entries will use the time set by this command.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_set_time(self):
+        '''
+        It will execute and test the ipmi sel set <time string> functionality
+        Sets the SEL clock.  Future SEL entries will use the time set by this command.
+        '''
         l_res = self.test_sel_time_get()
         if l_res is not None:
           i_time = l_res[-1]
@@ -684,28 +689,25 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
-    ##
-    # @brief  It will execute and test the ipmi sel list first <3 entries>
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_list_first_3_entries(self):
+        '''
+        It will execute and test the ipmi sel list first <3 entries>
+        '''
         self.test_sel_list_first_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
 
-    ##
-    # @brief  It will execute and test the ipmi sel list last <3 entries>
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sel_list_last_3_entries(self):
+        '''
+        It will execute and test the ipmi sel list last <3 entries>
+        '''
         self.test_sel_list_last_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
 
-    ##
-    # @brief  It will execute and test the ipmi sensor get "Host Status" functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sensor_get_host_status(self):
+        '''
+        It will execute and test the ipmi sensor get "Host Status" functionality.
+
+        Not all BMCs support this sensor, so if we think a BMC doesn't, and it
+        fails, we skip the test rather than failing it.
+        '''
         try:
             self.sensor_byid(BMC_CONST.SENSOR_HOST_STATUS)
         except CommandFailed as cf:
@@ -716,12 +718,13 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                     self.skipTest("No USB IPMI interface")
             self.fail(str(cf))
 
-    ##
-    # @brief  It will execute and test the ipmi sensor get "OS Boot" functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_sensor_get_os_boot(self):
+        '''
+        It will execute and test the ipmi sensor get "OS Boot" functionality.
+
+        If the BMC doesn't support the 'OS Boot' sensor, we try anyway and
+        skip the test.
+        '''
         try:
             self.sensor_byid(BMC_CONST.SENSOR_OS_BOOT)
         except CommandFailed as cf:
@@ -731,12 +734,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                 if 'Error loading interface usb' in cf.output:
                     self.skipTest("No USB IPMI interface")
             self.fail(str(cf))
-    ##
-    # @brief  It will execute and test the ipmi sensor get "OCC Active" functionality
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
+
     def test_sensor_get_occ_active(self):
+        '''
+        It will execute and test the ipmi sensor get "OCC Active" functionality
+        '''
         try:
             self.sensor_byid(BMC_CONST.SENSOR_OCC_ACTIVE)
         except CommandFailed as cf:
@@ -747,17 +749,21 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
                     self.skipTest("No USB IPMI interface")
             self.fail(str(cf))
 
+
 class ExperimentalInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"
         super(ExperimentalInbandIPMI, self).setUp()
-    ##
-    # @brief  It will execute and test the ipmi <sdr/sel/mc/channel> info related commands.
-    #
-    # Currently in the Experimental pool as the "ipmitool BLAH info" commands
-    # seem to have random return codes, so failure is common.
+
     def test_Info(self):
+        '''
+        It will execute and test the ipmi <sdr/sel/mc/channel> info related
+        commands.
+
+        Currently in the Experimental pool as the "ipmitool BLAH info" commands
+        seem to have random return codes, so failure is common.
+        '''
         log.debug("Inband IPMI[OPEN]: Info tests")
         c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_INFO)
@@ -765,16 +771,16 @@ class ExperimentalInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_INFO)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_SDR_INFO)
 
-    ##
-    # @brief  It will check basic channel functionalities: info and authentication capabilities.
-    #
-    # @return l_res @type list: output of command or raise OpTestError
-    #
     def test_channel(self):
+        '''
+        It will check basic channel functionalities: info and authentication
+        capabilities.
+        '''
         log.debug("Inband IPMI[OPEN]: Channel tests")
         c = self.set_up()
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_AUTHCAP)
         c.run_command(self.ipmi_method + BMC_CONST.IPMI_CHANNEL_INFO)
+
 
 class SkirootBasicInbandIPMI(BasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
@@ -782,23 +788,29 @@ class SkirootBasicInbandIPMI(BasicInbandIPMI):
         self.test = "skiroot"
         super(BasicInbandIPMI, self).setUp()
 
+
 class SkirootFullInbandIPMI(OpTestInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "skiroot"
         super(OpTestInbandIPMI, self).setUp()
 
+
 def full_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(OpTestInbandIPMI)
+
 
 def basic_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(BasicInbandIPMI)
 
+
 def skiroot_full_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootFullInbandIPMI)
 
+
 def skiroot_basic_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootBasicInbandIPMI)
+
 
 def experimental_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(ExperimentalInbandIPMI)
