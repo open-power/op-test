@@ -193,5 +193,8 @@ The Tests
 .. automodule:: testcases.SystemLogin
    :members:
 
+.. automodule:: testcases.testRestAPI
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

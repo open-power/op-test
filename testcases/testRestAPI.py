@@ -18,6 +18,18 @@
 # permissions and limitations under the License.
 #
 
+'''
+Test OpenBMC REST API
+---------------------
+
+Tests a bunch of functionality only available through OpenBMC REST API
+
+.. note::
+
+   The OpenBMC REST API is not a long term nor stable API. It's just as likely
+   that OpenBMC changes their API as anything.
+'''
+
 import time
 import subprocess
 import commands
