@@ -36,7 +36,7 @@ class CommandFailed(Exception):
         self.exitcode = exitcode
 
     def __str__(self):
-        return "Command '%s' exited with %d.\nOutput:\n%s".format(
+        return "Command '{}' exited with {}.\nOutput:\n{}".format(
             self.command, self.exitcode, self.output)
 
 
