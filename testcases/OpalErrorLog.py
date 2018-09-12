@@ -24,9 +24,14 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpalErrorLog
-#  Currently runs only in FSP platforms
-#
+'''
+OpalErrorLog
+------------
+
+Tests the OPAL error log functionality (as in PELs, not OPAL's log).
+
+Currently runs only in FSP platforms
+'''
 
 import time
 import subprocess
@@ -45,6 +50,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpalErrorLog(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -57,12 +63,14 @@ class OpalErrorLog(unittest.TestCase):
     def opal_elog_init(self):
         rc = 0
         try:
-            self.cv_HOST.host_check_sysfs_path_availability("/sys/firmware/opal/elog/")
+            self.cv_HOST.host_check_sysfs_path_availability(
+                "/sys/firmware/opal/elog/")
         except CommandFailed as cf:
             rc = cf.exitcode
 
         if "FSP" in self.bmc_type:
-            self.assertEqual(rc, 0, "opal elog sysfs path is not available in host")
+            self.assertEqual(rc, 0,
+                             "opal elog sysfs path is not available in host")
         else:
             self.skipTest("elog test not implemented for non-FSP systems")
 
@@ -75,7 +83,7 @@ class OpalErrorLog(unittest.TestCase):
             self.cv_HOST.host_stop_opal_errd_daemon()
             self.cv_HOST.host_start_opal_errd_daemon()
         self.assertTrue(self.cv_HOST.host_get_status_of_opal_errd_daemon(),
-                "opal_errd daemon is failed to start")
+                        "opal_errd daemon is failed to start")
 
 
 class BasicTest(OpalErrorLog):
@@ -84,11 +92,6 @@ class BasicTest(OpalErrorLog):
         self.count = 8
         return self.count
 
-    ##
-    # @brief This function tests OpalErrorLog component
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
         self.opal_elog_init()
         # Clear previous existing logs in Host and FSP before start of the test
@@ -98,7 +101,7 @@ class BasicTest(OpalErrorLog):
         # Start Generating the error logs from FSP.
         log.debug("FSP: Start generating the error logs from FSP.")
         for i in range(count+1):
-            log.debug("=====================================Iteration: %d=====================================" % i)
+            log.debug("Iteration: {}".format(i))
             self.cv_FSP.generate_error_log_from_fsp()
         self.cv_HOST.host_list_all_errorlogs()
         self.cv_HOST.host_list_all_service_action_logs()
@@ -112,18 +115,22 @@ class BasicTest(OpalErrorLog):
                 transfer_complete = True
                 break
             time.sleep(1)
-            log.debug("Waiting for transfer of error logs to Host: (%d\%d)" % (j, tries))
+            log.debug("Waiting for transfer of error logs to Host: (%d\%d)"
+                      % (j, tries))
         if not transfer_complete:
                 self.cv_HOST.host_gather_opal_msg_log()
                 self.cv_HOST.host_gather_kernel_log()
-        self.assertTrue(transfer_complete, "Failed to transfer all error logs to Host in a minute")
+        self.assertTrue(transfer_complete,
+                        "Failed to transfer all error logs to Host in 60s")
         self.cv_FSP.clear_errorlogs_in_fsp()
+
 
 class FullTest(BasicTest):
 
     def count(self):
         self.count = 255
         return self.count
+
 
 class TortureTest(BasicTest):
 

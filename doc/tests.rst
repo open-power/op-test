@@ -76,6 +76,9 @@ The Tests
 .. automodule:: testcases.LightPathDiagnostics
    :members:
 
+.. automodule:: testcases.OpalErrorLog
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 
