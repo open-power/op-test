@@ -163,5 +163,8 @@ The Tests
 .. automodule:: testcases.OpTestRTCdriver
    :members:
 
+.. automodule:: testcases.OpTestSensors
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

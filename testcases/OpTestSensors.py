@@ -24,11 +24,16 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestSensors
-#  Sensors package for OpenPower testing.
-#
-#  This class will test the functionality of following drivers
-#  1. Hardware monitoring sensors(hwmon driver) using sensors utility
+'''
+OpTestSensors
+-------------
+
+Sensors package for OpenPower testing.
+
+This class will test the functionality of following drivers
+
+1. Hardware monitoring sensors(hwmon driver) using sensors utility
+'''
 
 import time
 import subprocess
@@ -45,7 +50,19 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestSensors(unittest.TestCase):
+    '''
+    This test will cover following test steps:
+
+    1. It will check for kernel config option CONFIG_SENSORS_IBMPOWERNV
+    2. It will load ibmpowernv driver only on powernv platform
+    3. It will check for sensors command existence and lm_sensors package
+    4. start the lm_sensors service and detect any sensor chips
+       using sensors-detect.
+    5. At the end it will test sensors command functionality
+       with different options
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -57,19 +74,6 @@ class OpTestSensors(unittest.TestCase):
           self.cv_HOST.host_gather_opal_msg_log()
           self.cv_HOST.host_gather_kernel_log()
 
-    ##
-    # @brief This function will cover following test steps
-    #        1. It will check for kernel config option CONFIG_SENSORS_IBMPOWERNV
-    #        2. It will load ibmpowernv driver only on powernv platform
-    #        3. It will check for sensors command existence and lm_sensors package
-    #        4. start the lm_sensors service and detect any sensor chips
-    #           using sensors-detect.
-    #        5. At the end it will test sensors command functionality
-    #           with different options
-    #
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
