@@ -16,6 +16,9 @@ The Tests
 .. automodule:: testcases.ConsoleBug150765
    :members:
 
+.. automodule:: testcases.Console
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 

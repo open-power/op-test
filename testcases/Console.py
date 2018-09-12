@@ -18,6 +18,16 @@
 # permissions and limitations under the License.
 #
 
+'''
+Console tests
+-------------
+
+A bunch of really simple console tests that have managed to break *every*
+BMC implementation we've ever thrown it at. Since we're highly reliant
+on the BMC providing a reliable host console, if these tests fail at all,
+then we're likely going to get spurious failures elsewhere in the test suite.
+'''
+
 import unittest
 import pexpect
 import time
@@ -31,9 +41,11 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class Console():
     bs = 1024
     count = 8
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_BMC = conf.bmc()
@@ -45,31 +57,61 @@ class Console():
         console = self.cv_BMC.get_host_console()
         bs = self.bs
         count = self.count
-        self.assertTrue( (bs*count)%16 == 0, "Bug in test writer. Must be multiple of 16 bytes: bs %u count %u / 16 = %u" % (bs, count, (bs*count)%16))
+        self.assertTrue((bs * count) % 16 == 0,
+                        "Bug in test writer. Must be multiple of 16 bytes: "
+                        "bs {} count {} / 16 = {}".format(bs, count,
+                                                          (bs * count) % 16))
         try:
-            zeros = console.run_command("dd if=/dev/zero bs=%u count=%u|hexdump -C -v" % (bs, count), timeout=240)
+            zeros = console.run_command(
+                "dd if=/dev/zero bs={} count={}|hexdump -C -v".format(bs,
+                                                                      count),
+                timeout=240)
         except CommandFailed as cf:
             if cf.exitcode == 0:
-              pass
+                pass
             else:
-              raise cf
-        expected = 3+(count*bs)/16
-        self.assertTrue( len(zeros) == expected, "Unexpected length of zeros %u != %u" % (len(zeros), expected))
+                raise cf
+        expected = 3 + (count * bs) / 16
+        self.assertTrue(len(zeros) == expected,
+                        "Unexpected length of zeros {} != {}".format(
+                            len(zeros), expected))
+
 
 class Console8k(Console, unittest.TestCase):
+    '''
+    hexdump 8kb of zeros and check we get all the lines of hexdump output on
+    the console.
+    '''
     bs = 1024
     count = 8
 
+
 class Console16k(Console, unittest.TestCase):
+    '''
+    hexdump 16kb of zeros and check we get all the lines of hexdump output on
+    the console.
+    '''
     bs = 1024
     count = 16
 
+
 class Console32k(Console, unittest.TestCase):
+    '''
+    hexdump 32kb of zeros and check we get all the lines of hexdump output on
+    the console. The idea is that console buffers on BMCs are likely to be less
+    than 32kb, so we'll be able to catch any silent wrapping of it.
+    '''
     bs = 1024
     count = 32
 
+
 class ControlC(unittest.TestCase):
+    '''
+    Start a process that does a bunch of console output, and then try and
+    'control-c' it to stop the process and get a prompt back.
+    '''
     CONTROL = 'c'
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_BMC = conf.bmc()
@@ -85,31 +127,39 @@ class ControlC(unittest.TestCase):
         console = self.cv_BMC.get_host_console()
         # I should really make this API less nasty...
         raw_console = console.get_console()
-        #raw_console.sendline("hexdump -C -v /dev/zero")
         raw_console.sendline("find /")
         time.sleep(2)
         raw_console.sendcontrol(self.CONTROL)
         BMC_DISCONNECT = 'SOL session closed by BMC'
         timeout = 60
         try:
-            rc = raw_console.expect([BMC_DISCONNECT, self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout)
+            rc = raw_console.expect([BMC_DISCONNECT, self.prompt,
+                                     pexpect.TIMEOUT, pexpect.EOF], timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
             self.assertEqual(rc, 1, "Failed to find expected prompt")
         except pexpect.TIMEOUT as e:
             log.debug(e)
             log.debug("# TIMEOUT waiting for command to finish with ctrl-c.")
-            log.debug("# Everything is terrible. Fail the world, power cycle (if lucky)")
+            log.debug("# Everything is terrible. Fail the world, "
+                      "power cycle (if lucky)")
             self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
             self.fail("Could not ctrl-c running command in reasonable time")
         self.cleanup()
 
+
 class ControlZ(ControlC):
-    CONTROL='z'
+    '''
+    Run a console output heavy task, try to control-z it, then kill it and get
+    back to a prompt.
+    '''
+    CONTROL = 'z'
+
     def cleanup(self):
         console = self.cv_BMC.get_host_console()
         console.run_command_ignore_fail("kill %1")
         console.run_command_ignore_fail("fg")
+
 
 def suite():
     s = unittest.TestSuite()
