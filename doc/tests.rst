@@ -52,6 +52,9 @@ The Tests
 .. automodule:: testcases.HelloWorld
    :members:
 
+.. automodule:: testcases.I2C
+   :members:
+
 .. automodule:: testcases.IplParams
    :members:
 
