@@ -73,6 +73,9 @@ The Tests
 .. automodule:: testcases.KernelLog
    :members:
 
+.. automodule:: testcases.LightPathDiagnostics
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 

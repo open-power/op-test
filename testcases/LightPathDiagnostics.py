@@ -24,9 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package LightPathDiagnostics
-#  Currently runs only in FSP platforms
-#
+'''
+LightPathDiagnostics
+--------------------
+
+Currently runs only in FSP platforms.
+'''
 
 import time
 import subprocess
