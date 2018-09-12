@@ -18,6 +18,14 @@
 # permissions and limitations under the License.
 #
 
+'''
+IPMI Torture
+------------
+
+Use several threads in `op-test` to poke IPMI concurrently in a number
+of "safe" ways, and see when the BMC explodes.
+'''
+
 import unittest
 import time
 import threading

@@ -67,6 +67,9 @@ The Tests
 .. automodule:: testcases.IplParams
    :members:
 
+.. automodule:: testcases.IpmiTorture
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 
