@@ -7,6 +7,9 @@ The Tests
 .. automodule:: testcases.BasicIPL
    :members:
 
+.. automodule:: testcases.BMCResetTorture
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 

@@ -24,9 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package BMCResetTorture.py
-#   This testcase does BMC reset torture in different scenarios.
-#
+'''
+BMCResetTorture
+---------------
+
+This testcase does BMC reset torture in different scenarios.
+'''
 
 import time
 import subprocess
@@ -45,10 +48,11 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-'''
-Repeatedly does the BMC Reset at runtime (i.e at both skiroot and host)
-'''
+
 class RuntimeBMCResetTorture(unittest.TestCase):
+    '''
+    Repeatedly does the BMC Reset at runtime (i.e at both skiroot and host)
+    '''
     @classmethod
     def setUpClass(cls):
         conf = OpTestConfiguration.conf
@@ -57,9 +61,9 @@ class RuntimeBMCResetTorture(unittest.TestCase):
 
     def setUp(self):
         if self.test == "host":
-          self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         elif self.test == "skiroot":
-          self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
     def RunBMCReset(self):
         log.debug("Test BMC Cold reset versus Host Firmware Status")
@@ -70,7 +74,8 @@ class RuntimeBMCResetTorture(unittest.TestCase):
             con = self.cv_SYSTEM.console
             if self.test == "host":
                 con.run_command("uname -a")
-                con.run_command_ignore_fail("PATH=/usr/local/sbin:$PATH getscom -l")
+                con.run_command_ignore_fail(
+                    "PATH=/usr/local/sbin:$PATH getscom -l")
                 con.run_command_ignore_fail("sensors")
                 con.run_command_ignore_fail("ipmitool sdr elist")
                 con.run_command("lspci")
@@ -79,7 +84,9 @@ class RuntimeBMCResetTorture(unittest.TestCase):
             elif "host" in self.test:
                 cmd = "dmesg -T --level=emerg,alert,crit,err,warn"
             con.run_command_ignore_fail(cmd)
-            con.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            con.run_command_ignore_fail(
+                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+
 
 class Skiroot(RuntimeBMCResetTorture, unittest.TestCase):
     def setUp(self):
@@ -89,6 +96,7 @@ class Skiroot(RuntimeBMCResetTorture, unittest.TestCase):
     def runTest(self):
         self.RunBMCReset()
 
+
 class Host(RuntimeBMCResetTorture, unittest.TestCase):
     def setUp(self):
         self.test = "host"
@@ -97,10 +105,11 @@ class Host(RuntimeBMCResetTorture, unittest.TestCase):
     def runTest(self):
         self.RunBMCReset()
 
-'''
-Repeatedly does the BMC reset at standby state
-'''
+
 class StandbyBMCResetTorture(RuntimeBMCResetTorture, unittest.TestCase):
+    '''
+    Repeatedly does the BMC reset at standby state
+    '''
     def setUp(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
@@ -110,10 +119,11 @@ class StandbyBMCResetTorture(RuntimeBMCResetTorture, unittest.TestCase):
             log.debug("Issuing BMC Cold reset iteration %s" % i)
             self.cv_SYSTEM.sys_cold_reset_bmc()
 
-'''
-Repeatedly does the BMC Reset vs Host IPL Torture
-'''
+
 class BMCResetvsHostIPLTorture(RuntimeBMCResetTorture, unittest.TestCase):
+    '''
+    Repeatedly does the BMC Reset vs Host IPL Torture
+    '''
     def setUp(self):
         pass
 
@@ -126,5 +136,6 @@ class BMCResetvsHostIPLTorture(RuntimeBMCResetTorture, unittest.TestCase):
             log.debug("Boot iteration %d..." % i)
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
-            self.c.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            self.c.run_command_ignore_fail(
+                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
