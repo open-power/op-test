@@ -42,7 +42,6 @@ USERNAME = ""
 PASSWORD = ""
 REPO = ""
 BOOTPATH = ""
-conf = OpTestConfiguration.conf
 
 uploaded_files = {}
 
@@ -59,11 +58,11 @@ class InstallUtil():
         global BOOTPATH
         global REPO
         global PROXY
-        self.conf = conf
-        self.cv_HOST = conf.host()
-        self.cv_SYSTEM = conf.system()
+        self.conf = OpTestConfiguration.conf
+        self.cv_HOST = self.conf.host()
+        self.cv_SYSTEM = self.conf.system()
         self.server = ""
-        self.repo = conf.args.os_repo
+        self.repo = self.conf.args.os_repo
         REPO = self.repo
         DISK = self.cv_HOST.get_scratch_disk()
         USERNAME = self.cv_HOST.username()

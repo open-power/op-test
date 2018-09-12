@@ -16,11 +16,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
-#
-# DeviceTreeWarnings
-# This test read the device tree from /proc/device-tree using dtc
-# and fails if there are any device tree warnings or errors present.
-#
+
+'''
+gcov
+----
+
+A "Test Case" for extracting GCOV code coverage data from skiboot. The real
+use of this test case and code is to help construct code coverage reports
+for skiboot.
+'''
 
 import unittest
 
@@ -32,6 +36,17 @@ from common import OpTestInstallUtil
 
 
 class gcov():
+    '''
+    Base "test case" for extracting skiboot GCOV code coverage data from the
+    host (use the Skiroot and Host TestCases for running this code).
+
+    This requires a GCOV build of skiboot.
+
+    We (rather convolutedly) do a HTTP POST operation (through shell!) back to
+    the `op-test` process as since we may be running in skiroot, we don't have
+    all the nice usual ways of transferring files around. The good news is that
+    implementing a simple HTTP POST request in shell isn't that hard.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -74,12 +89,18 @@ class gcov():
 
 
 class Skiroot(gcov, unittest.TestCase):
+    '''
+    Extract GCOV code coverage in skiroot environment.
+    '''
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
 
 
 class Host(gcov, unittest.TestCase):
+    '''
+    Extract GCOV code coverage from a host OS.
+    '''
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()

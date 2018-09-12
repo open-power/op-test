@@ -46,6 +46,9 @@ The Tests
 .. automodule:: testcases.FWTS
    :members:
 
+.. automodule:: testcases.gcov
+   :members:
+
 .. automodule:: testcases.IplParams
    :members:
 
