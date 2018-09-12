@@ -157,5 +157,8 @@ The Tests
 .. automodule:: testcases.OpTestPrdDriver
    :members:
 
+.. automodule:: testcases.OpTestRebootTimeout
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

@@ -18,6 +18,13 @@
 # permissions and limitations under the License.
 #
 
+'''
+OpTestRebootTimeout
+-------------------
+
+Test it doesn't take until the heat death of the universe to reboot.
+'''
+
 import unittest
 import re
 import time
@@ -32,6 +39,10 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class RebootTime():
+    '''
+    A test to ensure that after issuing the ``reboot`` command, we receive it in OPAL
+    in suitable time.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -41,8 +52,8 @@ class RebootTime():
     def runTest(self):
         self.setup_test()
 
-        rc = self.c.run_command("uname -a") # run any command to get console setup, if expected to be logged in
-
+        rc = self.c.run_command("uname -a")
+        # run any command to get console setup, if expected to be logged in
         # now console is logged in and you can perform raw pexpect commands that assume log in
         self.c.sol.sendline("reboot")
 
