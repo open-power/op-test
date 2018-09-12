@@ -148,6 +148,9 @@ The Tests
 .. automodule:: testcases.OpTestPCI
    :members:
 
+.. automodule:: testcases.OpTestPNOR
+   :members:
+
 .. automodule:: testcases.OpTestPrdDriver
    :members:
 

@@ -24,11 +24,13 @@
 #
 # IBM_PROLOG_END_TAG
 #
-#  @package OpTestPNOR.py
-#
-#   This testcase will deal with testing access to the host pnor
-#   from petitboot through the pflash program
-#
+'''
+OpTestPNOR
+----------
+
+This testcase will deal with testing access to the host pnor
+from petitboot through the pflash program
+'''
 
 import time
 import subprocess
@@ -48,6 +50,7 @@ from common.Exceptions import CommandFailed
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class OpTestPNOR():
     def setUp(self):
