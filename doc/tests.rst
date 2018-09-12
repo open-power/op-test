@@ -28,6 +28,9 @@ The Tests
 .. automodule:: testcases.DeviceTreeWarnings
    :members:
 
+.. automodule:: testcases.DPO
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 

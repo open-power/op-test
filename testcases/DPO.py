@@ -24,10 +24,14 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package DPO.py
-#       Delayed Power off testcase is to test OS graceful shutdown request
-#       to be notified from OPAL and OS should process the request.
-#       We will use "ipmitool power soft" command to issue DPO.
+'''
+Delayed Power Off (DPO)
+-----------------------
+
+Delayed Power off testcase is to test OS graceful shutdown request
+to be notified from OPAL and OS should process the request.
+We will use "ipmitool power soft" command to issue DPO.
+'''
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
@@ -41,6 +45,7 @@ import common.OpTestQemu as OpTestQemu
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class Base(unittest.TestCase):
     def setUp(self):
@@ -59,28 +64,29 @@ class DPOSkiroot(Base):
         self.host = "Skiroot"
         log.debug("Starting DPO test in Skiroot")
 
-    ##
-    # @brief This will test DPO feature in skiroot and Host
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
+        '''
+        This will test DPO feature in skiroot and Host
+        '''
         self.setup_test()
-        # retry added for IPMI cases, seems more sensitive with initial start of state=4
+        # retry added for IPMI cases, seems more sensitive with initial start
+        # of state=4
         if isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole):
-            raise self.skipTest("Performing \"ipmitool power soft\" will terminate QEMU so skipped")
+            raise self.skipTest("Performing \"ipmitool power soft\" will "
+                                "terminate QEMU so skipped")
         self.cv_SYSTEM.console.run_command("uname -a", retry=5)
         if self.host == "Host":
             self.cv_SYSTEM.load_ipmi_drivers(True)
         self.cv_SYSTEM.console.sol.sendline("ipmitool power soft")
-        rc = self.cv_SYSTEM.console.sol.expect_exact(["reboot: Power down",
-                                      "Chassis Power Control: Soft",
-                                      "Power down",
-                                      "Invalid command",
-                                      "Unspecified error",
-                                      "Could not open device at",
-                                      pexpect.TIMEOUT,
-                                      pexpect.EOF], timeout=120)
+        rc = self.cv_SYSTEM.console.sol.expect_exact([
+            "reboot: Power down",
+            "Chassis Power Control: Soft",
+            "Power down",
+            "Invalid command",
+            "Unspecified error",
+            "Could not open device at",
+            pexpect.TIMEOUT,
+            pexpect.EOF], timeout=120)
         self.assertIn(rc, [0, 1, 2], "Failed to power down")
         rc = self.cv_SYSTEM.sys_wait_for_standby_state()
         log.debug(rc)
