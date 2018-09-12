@@ -24,13 +24,18 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestIPMIReprovision
-#  Reset\Reprovision to default package for OpenPower testing.
-#
-#  This class will test the functionality of following Reset\Reprovision to default tests.
-#  1. NVRAM Partition - IPMI Reprovision.
-#  2. GARD Partition - IPMI Reprovision.
+'''
+OpTestIPMIReprovision
+---------------------
 
+Reset\Reprovision to default package for OpenPower testing.
+
+This class will test the functionality of following Reset\Reprovision to
+default tests.
+
+1. NVRAM Partition - IPMI Reprovision.
+2. GARD Partition - IPMI Reprovision.
+'''
 
 import time
 import subprocess
@@ -53,20 +58,20 @@ class OpTestIPMIReprovision(unittest.TestCase):
         self.platform = conf.platform()
 
 class NVRAM(OpTestIPMIReprovision):
-    ##
-    # @brief This function will cover following test steps
-    #        Testcase: NVRAM Partition-IPMI Reprovision
-    #        1. Update NVRAM config data with test config data
-    #           i.e "nvram --update-config test-name=test-value"
+    '''
+    This function will cover following test steps
 
-    #        2. Issue an IPMI PNOR Reprovision request command, to reset NVRAM partition to default.
-    #        3. Wait for PNOR Reprovision progress to complete(00).
-    #        4. Do a Hard reboot(Power OFF/ON) to avoid nvram cache data.
-    #        5. Once system booted, check for NVRAM parition whether the test config data
-    #           got erased or not.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    Testcase: NVRAM Partition-IPMI Reprovision
+
+    1. Update NVRAM config data with test config data
+       i.e `nvram --update-config test-name=test-value`
+    2. Issue an IPMI PNOR Reprovision request command, to reset NVRAM
+       partition to default.
+    3. Wait for PNOR Reprovision progress to complete(00).
+    4. Do a Hard reboot(Power OFF/ON) to avoid nvram cache data.
+    5. Once system booted, check for NVRAM parition whether the test config
+       data got erased or not.
+    '''
     def runTest(self):
         if not self.platform in ['habanero','firestone','garrison']:
             raise unittest.SkipTest("Platform %s doesn't support IPMI Reprovision" % self.platform)
@@ -113,18 +118,20 @@ class NVRAM(OpTestIPMIReprovision):
         return
 
 class GARD(OpTestIPMIReprovision):
-    ##
-    # @brief This function will cover following test steps
-    #        Testcase: GARD Partition-IPMI Reprovision
-    #        1. Inject core checkstop using existed function from OpTestHMIHandling.py
-    #        2. Do a Hard reboot(IPMI Power OFF/ON)
-    #        2. Issue an IPMI PNOR Reprovision request command, to reset GUARD partition to default.
-    #        3. Wait for IPMI PNOR Reprovision progress to complete(00).
-    #        4. Check for GUARD parition whether the existing gard records erased or not.
-    #        6. Reboot the system back to see system is booting fine or not.
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
+    '''
+    This function will cover following test steps
+
+    Testcase: GARD Partition-IPMI Reprovision
+
+    1. Inject core checkstop using existed function from OpTestHMIHandling.py
+    2. Do a Hard reboot(IPMI Power OFF/ON)
+    3. Issue an IPMI PNOR Reprovision request command, to reset GUARD
+       partition to default.
+    4. Wait for IPMI PNOR Reprovision progress to complete(00).
+    5. Check for GUARD parition whether the existing gard records erased or
+       not.
+    6. Reboot the system back to see system is booting fine or not.
+    '''
     def runTest(self):
         if not self.platform in ['habanero','firestone','garrison']:
             raise unittest.SkipTest("Platform %s doesn't support IPMI Reprovision" % self.platform)

@@ -127,6 +127,9 @@ The Tests
 .. automodule:: testcases.OpTestIPMILockMode
    :members:
 
+.. automodule:: testcases.OpTestIPMIReprovision
+   :members:
+
 .. automodule:: testcases.OpTestOCC
    :members:
 
