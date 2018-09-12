@@ -17,11 +17,21 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+'''
+HelloWorld
+----------
+
+A *really* simple Hello World test, just to check that we can run a test case.
+
+Only useful as a unittest of `op-test` itself.
+'''
+
 import unittest
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+
 
 class HelloWorld(unittest.TestCase):
     def setUp(self):

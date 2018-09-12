@@ -49,6 +49,9 @@ The Tests
 .. automodule:: testcases.gcov
    :members:
 
+.. automodule:: testcases.HelloWorld
+   :members:
+
 .. automodule:: testcases.IplParams
    :members:
 
