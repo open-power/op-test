@@ -23,6 +23,14 @@
 # of skiroot against host.
 #
 
+'''
+DeviceTreeValidation
+--------------------
+
+Check a bunch of device tree properties and structure for validity,
+and compare device tree in host and skiroot environments.
+'''
+
 import unittest
 import re
 import struct
@@ -44,8 +52,10 @@ CPUIDLE_STATE_MAX = 10
 prop_val_pair_skiroot = {}
 prop_val_pair_host = {}
 
+
 class DeviceTreeValidation(unittest.TestCase):
     DO_FULL_TEST = 0
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -55,25 +65,28 @@ class DeviceTreeValidation(unittest.TestCase):
 
     # Checks for monotonocity/strictly increase/decrease of values
     def strictly_increasing(self, L):
-        return all(x<y for x, y in zip(L, L[1:]))
+        return all(x < y for x, y in zip(L, L[1:]))
 
     def strictly_decreasing(self, L):
-        return all(x>y for x, y in zip(L, L[1:]))
+        return all(x > y for x, y in zip(L, L[1:]))
 
     def non_increasing(self, L):
-        return all(x>=y for x, y in zip(L, L[1:]))
+        return all(x >= y for x, y in zip(L, L[1:]))
 
     def non_decreasing(self, L):
-        return all(x<=y for x, y in zip(L, L[1:]))
+        return all(x <= y for x, y in zip(L, L[1:]))
 
     # two's complement of integers
     def twos_comp(self, val, bits):
         """compute the 2's complement of int value val"""
-        if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
-            val = val - (1 << bits)        # compute negative value
-        return val                         # return positive value as is
+        # if sign bit is set e.g., 8bit: 128-255
+        if (val & (1 << (bits - 1))) != 0:
+            # compute negative value
+            val = val - (1 << bits)
+        # return positive value as is
+        return val
 
-    #32 bit BE to LE Conversion
+    # 32 bit BE to LE Conversion
     def swap32(self, i):
         return struct.unpack("<I", struct.pack(">I", i))[0]
 
@@ -94,7 +107,8 @@ class DeviceTreeValidation(unittest.TestCase):
         return list
 
     def dt_prop_read_u32_arr(self, prop):
-        res = self.c.run_command("hexdump -v -e \'1/4 \"%%08x\" \"\\n\"\'  /proc/device-tree/%s" % prop)
+        res = self.c.run_command("hexdump -v -e \'1/4 \"%%08x\" \"\\n\"\'  "
+                                 "/proc/device-tree/%s" % prop)
         list = []
         for line in res:
             val = ("{:08x}".format(self.swap32(int(line, 16))))
@@ -102,7 +116,8 @@ class DeviceTreeValidation(unittest.TestCase):
         return list
 
     def dt_prop_read_u64_arr(self, prop):
-        res = self.c.run_command("hexdump -v -e \'2/4 \"%%08x\" \"\\n\"\'  /proc/device-tree/%s" % prop)
+        res = self.c.run_command("hexdump -v -e \'2/4 \"%%08x\" \"\\n\"\'  "
+                                 "/proc/device-tree/%s" % prop)
         list = []
         for line in res:
             val = ("{:016x}".format(self.swap64(int(line, 16))))
@@ -110,10 +125,14 @@ class DeviceTreeValidation(unittest.TestCase):
         return list
 
     def validate_idle_state_properties(self):
-        idle_state_names = self.dt_prop_read_str_arr("ibm,opal/power-mgt/ibm,cpu-idle-state-names")
-        idle_state_flags = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,cpu-idle-state-flags")
-        idle_state_latencies_ns = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,cpu-idle-state-latencies-ns")
-        idle_state_residency_ns = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,cpu-idle-state-residency-ns")
+        idle_state_names = self.dt_prop_read_str_arr(
+            "ibm,opal/power-mgt/ibm,cpu-idle-state-names")
+        idle_state_flags = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,cpu-idle-state-flags")
+        idle_state_latencies_ns = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,cpu-idle-state-latencies-ns")
+        idle_state_residency_ns = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,cpu-idle-state-residency-ns")
         if self.cv_HOST.host_get_proc_gen() in ["POWER8", "POWER8E"]:
             has_stop_inst = False
             control_prop = "ibm,opal/power-mgt/ibm,cpu-idle-state-pmicr"
@@ -131,62 +150,90 @@ class DeviceTreeValidation(unittest.TestCase):
                Idle state latencies ns: %s\n \
                Idle state residency ns: %s\n \
                Idle state control property: %s\n \
-               Idle state mask property: %s\n " % \
-               (idle_state_names, idle_state_flags, idle_state_latencies_ns, \
-               idle_state_residency_ns, idle_states_control_array, idle_states_mask_array))
+               Idle state mask property: %s\n " %
+                  (idle_state_names, idle_state_flags, idle_state_latencies_ns,
+                   idle_state_residency_ns, idle_states_control_array,
+                   idle_states_mask_array))
 
         # Validate ibm,cpu-idle-state-flags property
-        self.assertGreater(len(idle_state_flags), 0, "No idle states found in DT")
-        self.assertGreater(CPUIDLE_STATE_MAX, len(idle_state_flags), "More idle states found in DT than the expected")
+        self.assertGreater(len(idle_state_flags), 0,
+                           "No idle states found in DT")
+        self.assertGreater(CPUIDLE_STATE_MAX, len(idle_state_flags),
+                           "More idle states found in DT than the expected")
 
         # Validate names, latencies and residency properties
-        self.assertEqual(len(idle_state_flags), len(idle_state_names), "Array size mismatch")
-        self.assertEqual(len(idle_state_flags), len(idle_state_latencies_ns), "Array size mismatch")
-        self.assertEqual(len(idle_state_flags), len(idle_state_residency_ns), "Array size mismatch")
-        self.assertEqual(len(idle_state_flags), len(idle_states_control_array), "Array size mismatch")
-        self.assertEqual(len(idle_state_flags), len(idle_states_mask_array), "Array size mismatch")
+        self.assertEqual(len(idle_state_flags), len(idle_state_names),
+                         "Array size mismatch")
+        self.assertEqual(len(idle_state_flags), len(idle_state_latencies_ns),
+                         "Array size mismatch")
+        self.assertEqual(len(idle_state_flags), len(idle_state_residency_ns),
+                         "Array size mismatch")
+        self.assertEqual(len(idle_state_flags), len(idle_states_control_array),
+                         "Array size mismatch")
+        self.assertEqual(len(idle_state_flags), len(idle_states_mask_array),
+                         "Array size mismatch")
 
         # Validate residency and latency counters are in increasing order
-        self.assertTrue(self.strictly_increasing(idle_state_residency_ns), "Non monotonicity observed for residency values")
-        self.assertTrue(self.strictly_increasing(idle_state_latencies_ns), "Non monotonicity observed for latency values")
+        self.assertTrue(self.strictly_increasing(idle_state_residency_ns),
+                        "Non monotonicity observed for residency values")
+        self.assertTrue(self.strictly_increasing(idle_state_latencies_ns),
+                        "Non monotonicity observed for latency values")
         self.non_decreasing(idle_state_residency_ns)
         self.non_decreasing(idle_state_latencies_ns)
 
     def validate_pstate_properties(self):
-        pstate_ids = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-ids")
-        pstate_min = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-min")
-        pstate_max = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-max")
-        pstate_nominal = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-nominal")
-        pstate_turbo = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-turbo")
-        pstate_frequencies = self.dt_prop_read_u32_arr("ibm,opal/power-mgt/ibm,pstate-frequencies-mhz")
-        nr_pstates = abs(self.twos_comp(int(pstate_max[0], 16), 32) - self.twos_comp(int(pstate_min[0], 16), 32)) + 1
+        pstate_ids = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,pstate-ids")
+        pstate_min = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,pstate-min")
+        pstate_max = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,pstate-max")
+        pstate_nominal = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,pstate-nominal")
+        pstate_turbo = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,pstate-turbo")
+        pstate_frequencies = self.dt_prop_read_u32_arr(
+            "ibm,opal/power-mgt/ibm,pstate-frequencies-mhz")
+        nr_pstates = abs(self.twos_comp(int(pstate_max[0], 16), 32) -
+                         self.twos_comp(int(pstate_min[0], 16), 32)) + 1
 
         log.debug("\n \
-                List of pstate_ids: %s\n \
-                Minimum pstate: %s\n \
-                Maximum pstate: %s\n \
-                Nominal pstate: %s\n \
-                Turbo pstate: %s\n \
-                Pstate frequencies: %s\n \
-                Number of pstates: %s\n" % (pstate_ids, pstate_min, pstate_max, pstate_nominal, \
-                pstate_turbo, pstate_frequencies, nr_pstates))
+                List of pstate_ids: {}\n \
+                Minimum pstate: {}\n \
+                Maximum pstate: {}\n \
+                Nominal pstate: {}\n \
+                Turbo pstate: {}\n \
+                Pstate frequencies: {}\n \
+                Number of pstates: {}\n".format(pstate_ids,
+                                                pstate_min,
+                                                pstate_max,
+                                                pstate_nominal,
+                                                pstate_turbo,
+                                                pstate_frequencies,
+                                                nr_pstates))
 
         if (nr_pstates <= 1 or nr_pstates > 128):
             if self.cv_HOST.host_get_proc_gen() in ["POWER8", "POWER8E"]:
-                self.assertTrue(False, "pstates range %s is not valid" % nr_pstates)
+                self.assertTrue(False, "pstates range {} is not valid".format(
+                    nr_pstates))
             elif "POWER9" in self.cv_HOST.host_get_proc_gen():
-                self.assertTrue(False, "More than 128 pstates found in pstate table" % nr_pstates)
+                self.assertTrue(False, "More than 128 pstates found {}"
+                                "in pstate table".format(nr_pstates))
 
         self.assertEqual(nr_pstates, len(pstate_ids),
-                         "Wrong number of pstates, Expected %s, found %s" % (nr_pstates, len(pstate_ids)))
+                         "Wrong number of pstates, "
+                         "Expected %s, found %s".format(nr_pstates,
+                                                        len(pstate_ids)))
 
         if self.cv_HOST.host_get_proc_gen() in ["POWER8", "POWER8E"]:
             id_list = []
             for id in pstate_ids:
                 id_list.append(self.twos_comp(int(id, 16), 32))
-            self.assertTrue(self.strictly_decreasing(id_list), "Non monotonocity observed for pstate ids")
+            self.assertTrue(self.strictly_decreasing(id_list),
+                            "Non monotonocity observed for pstate ids")
         elif "POWER9" in self.cv_HOST.host_get_proc_gen():
-            self.assertTrue(self.strictly_increasing(pstate_ids), "Non monotonocity observed for pstate ids")
+            self.assertTrue(self.strictly_increasing(pstate_ids),
+                            "Non monotonocity observed for pstate ids")
 
     def check_dt_matches(self):
         if len(prop_val_pair_skiroot) and len(prop_val_pair_host):
@@ -194,28 +241,38 @@ class DeviceTreeValidation(unittest.TestCase):
             for prop in prop_val_pair_skiroot:
                 if prop in prop_val_pair_host:
                     if prop_val_pair_skiroot[prop] in prop_val_pair_host[prop]:
-                        log.debug("Node %s is the same in both host and skiroot" % prop)
+                        log.debug("Node {} is the same in both host and "
+                                  "skiroot".format(prop))
                     else:
-                        failures.append(difflib.unified_diff(prop_val_pair_skiroot[prop], prop_val_pair_host[prop],fromfile="skiroot",tofile="host"))
+                        failures.append(
+                            difflib.unified_diff(prop_val_pair_skiroot[prop],
+                                                 prop_val_pair_host[prop],
+                                                 fromfile="skiroot",
+                                                 tofile="host"))
                 else:
                     failures.append("Node %s is not existed in host OS" % prop)
             if failures:
-                self.assertTrue(False, "DT Property values pair vaildation failed: {}".format(repr(failures)))
+                self.assertTrue(False, "DT Property values pair vaildation "
+                                "failed: {}".format(repr(failures)))
 
     def runTest(self):
-        self.skipTest("Not meant to be run directly. Run skiroot/host variants")
+        self.skipTest("Not meant to be run directly. "
+                      "Run skiroot/host variants")
 
 
 class DeviceTreeValidationSkiroot(DeviceTreeValidation):
     def runTest(self):
-        if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E", "POWER9"]:
-            self.skipTest("Unknown CPU type {}".format(self.cv_HOST.host_get_proc_gen()))
+        if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E",
+                                                    "POWER9"]:
+            self.skipTest("Unknown CPU type {}".format(
+                self.cv_HOST.host_get_proc_gen()))
 
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         system_state = self.cv_SYSTEM.get_state()
         self.c = self.cv_SYSTEM.console
         if isinstance(self.c, OpTestQemu.QemuConsole):
-          raise self.skipTest("OpTestSystem running QEMU so comparing Skiroot to Host is not applicable")
+            raise self.skipTest("OpTestSystem running QEMU so comparing "
+                                "Skiroot to Host is not applicable")
         self.get_proc_gen()
         self.validate_idle_state_properties()
         self.validate_pstate_properties()
@@ -224,14 +281,18 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
         # We can extend for other nodes as well, which are suspicieous.
         props = self.c.run_command("find %s -type d" % self.node)
         for prop in props:
-            prop_val_pair_skiroot[prop] = "".join(self.c.run_command("lsprop %s" % prop)[2:])
+            prop_val_pair_skiroot[prop] = "".join(
+                self.c.run_command("lsprop %s" % prop)[2:])
 
         self.check_dt_matches()
 
+
 class DeviceTreeValidationHost(DeviceTreeValidation):
     def runTest(self):
-        if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E", "POWER9"]:
-            self.skipTest("Unknown CPU type {}".format(self.cv_HOST.host_get_proc_gen()))
+        if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E",
+                                                    "POWER9"]:
+            self.skipTest("Unknown CPU type {}".format(
+                self.cv_HOST.host_get_proc_gen()))
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
@@ -241,6 +302,7 @@ class DeviceTreeValidationHost(DeviceTreeValidation):
 
         props = self.c.run_command("find %s -type d" % self.node)
         for prop in props:
-            prop_val_pair_host[prop] = "".join(self.c.run_command("lsprop %s" % prop)[1:])
+            prop_val_pair_host[prop] = "".join(
+                self.c.run_command("lsprop %s" % prop)[1:])
 
         self.check_dt_matches()

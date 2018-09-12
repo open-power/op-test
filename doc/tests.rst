@@ -22,6 +22,9 @@ The Tests
 .. automodule:: testcases.CpuHotPlug
    :members:
 
+.. automodule:: testcases.DeviceTreeValidation
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 
