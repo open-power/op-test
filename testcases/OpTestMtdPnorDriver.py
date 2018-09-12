@@ -24,13 +24,19 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpTestMtdPnorDriver
-#  Test MTD PNOR Driver package for OpenPower testing.
-#
-#  This class will test the functionality of following
-#   This test has mainly to view open power's PNOR flash contents in an x86 machine
-#   using fcp utility. The corresponding pnor file is taking from /dev/mtd0.
-#
+'''
+OpTestMtdPnorDriver
+-------------------
+
+Test MTD PNOR Driver package for OpenPower testing.
+
+.. warning::
+
+   This has been migrated along with other tests but never used in earnest.
+   It is likely we could accomplish all of this on the host itself.
+   I *severely* doubt this test case currently works as intended.
+'''
+
 import time
 import subprocess
 import re
@@ -48,6 +54,20 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestMtdPnorDriver(unittest.TestCase):
+    '''
+    This function has following test steps
+
+    1. Get host information(OS and Kernel information)
+    2. Load the mtd module based on config value
+    3. Check /dev/mtd0 character device file existence on host
+    4. Copying the contents of the flash in a file /tmp/pnor
+    5. Getting the /tmp/pnor file into local x86 machine using scp utility
+    6. Remove existing /tmp/ffs directory and
+       Clone latest ffs git repository in local x86 working machine
+    7. Compile ffs repository to get fcp utility
+    8. Check existence of fcp utility in ffs repository, after compiling
+    9. Get the PNOR flash contents on an x86 machine using fcp utility
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -64,21 +84,6 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_gather_kernel_log()
 
-    ##
-    # @brief  This function has following test steps
-    #         1. Get host information(OS and Kernel information)
-    #         2. Load the mtd module based on config value
-    #         3. Check /dev/mtd0 character device file existence on host
-    #         4. Copying the contents of the flash in a file /tmp/pnor
-    #         5. Getting the /tmp/pnor file into local x86 machine using scp utility
-    #         6. Remove existing /tmp/ffs directory and
-    #            Clone latest ffs git repository in local x86 working machine
-    #         7. Compile ffs repository to get fcp utility
-    #         8. Check existence of fcp utility in ffs repository, after compiling
-    #         9. Get the PNOR flash contents on an x86 machine using fcp utility
-    #
-    # @return BMC_CONST.FW_SUCCESS-success or raise OpTestError-fail
-    #
     def runTest(self):
         # Get OS level
         l_oslevel = self.cv_HOST.host_get_OS_Level()
