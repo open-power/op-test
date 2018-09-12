@@ -242,7 +242,7 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         try:
-          solChild = OPexpect.OPexpect.spawn(cmd,
+          solChild = OPexpect.spawn(cmd,
                                   failure_callback=set_system_to_UNKNOWN_BAD,
                                   failure_callback_data=self.system)
         except Exception as e:
