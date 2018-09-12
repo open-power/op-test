@@ -22,10 +22,14 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package fspresetReload
-#  FSP initiated reset
-#  Host initiated reset
-#   Once reset is done, verify host-fsp firmware interfaces
+'''
+fspresetReload
+--------------
+
+- FSP initiated reset
+- Host initiated reset
+- Once reset is done, verify host-fsp firmware interfaces
+'''
 
 import time
 import subprocess
@@ -43,6 +47,7 @@ from common.Exceptions import CommandFailed
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class fspresetReload(unittest.TestCase):
     def setUp(self):
@@ -94,7 +99,8 @@ class fspresetReload(unittest.TestCase):
             raise Exception("Unknown fsp rr test type")
 
     def wait_for_fsp_ping(self):
-        self.util.PingFunc(self.cv_FSP.host_name, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.util.PingFunc(self.cv_FSP.host_name,
+                           BMC_CONST.PING_RETRY_POWERCYCLE)
 
     # Wait for psi link active
     def check_psi_link_active(self):
@@ -104,7 +110,6 @@ class fspresetReload(unittest.TestCase):
                 return True
             time.sleep(5)
         return False
-
 
     # check for inband ipmi interface
     def check_for_inbandipmi(self):
@@ -127,7 +132,8 @@ class fspresetReload(unittest.TestCase):
     # check for nvram interface
     def check_for_nvram(self):
         try:
-            self.cv_HOST.host_run_command("nvram --update-config test-cfg-rr=test-value")
+            self.cv_HOST.host_run_command(
+                "nvram --update-config test-cfg-rr=test-value")
         except CommandFailed as cf:
             log.debug(str(cf))
             return False
@@ -162,41 +168,48 @@ class fspresetReload(unittest.TestCase):
 
     # Check all these fsp-host interfaces are working fine after fsp rr
     def check_for_fsp_host_interfaces(self):
-        self.assertTrue(self.check_psi_link_active(), "PSI Link is not active after fsp rr")
-        self.assertTrue(self.check_for_rtc(), "Set/Read HW Clock failed after fsp rr")
-        self.assertTrue(self.check_for_inbandipmi(), "inband ipmi interface failed after fsp rr")
-        self.assertTrue(self.check_for_sensors(), "inband sensors failed after fsp rr")
-        self.assertTrue(self.check_for_nvram(), "nvram interface failed after fsp rr")
+        self.assertTrue(self.check_psi_link_active(),
+                        "PSI Link is not active after fsp rr")
+        self.assertTrue(self.check_for_rtc(),
+                        "Set/Read HW Clock failed after fsp rr")
+        self.assertTrue(self.check_for_inbandipmi(),
+                        "inband ipmi interface failed after fsp rr")
+        self.assertTrue(self.check_for_sensors(),
+                        "inband sensors failed after fsp rr")
+        self.assertTrue(self.check_for_nvram(),
+                        "nvram interface failed after fsp rr")
         try:
             self.check_for_sol_console()
         except:
             pass
 
-
     def look_for_in_opal_log(self, pattern):
         try:
-            output = self.cv_HOST.host_run_command("cat /sys/firmware/opal/msglog | diff - /tmp/opal_msglog")
+            output = self.cv_HOST.host_run_command(
+                "cat /sys/firmware/opal/msglog | diff - /tmp/opal_msglog")
         except CommandFailed as cf:
             if cf.exitcode == 1:
                 output = cf.output
         for line in output:
-            if len(line) and (line.find(pattern) > 0 ):
+            if len(line) and (line.find(pattern) > 0):
                 return True
         return False
 
     def prepare_opal_log(self):
-        self.cv_HOST.host_run_command("cat /sys/firmware/opal/msglog > /tmp/opal_msglog")
+        self.cv_HOST.host_run_command(
+            "cat /sys/firmware/opal/msglog > /tmp/opal_msglog")
 
     def gather_opal_errors(self):
-        cmd = "cat /sys/firmware/opal/msglog | diff - /tmp/opal_msglog | grep ',[0-4]\]'"
+        cmd = "cat /sys/firmware/opal/msglog | diff - /tmp/opal_msglog | "\
+            "grep ',[0-4]\]'"
         try:
             output = self.cv_HOST.host_run_command(cmd)
         except CommandFailed as cf:
             if cf.exitcode == 1:
                 log.debug(cf.output)
 
-class resetReload(fspresetReload):
 
+class resetReload(fspresetReload):
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific fsp resetreload tests")
@@ -204,11 +217,12 @@ class resetReload(fspresetReload):
         if not self.cv_FSP.mount_exists():
             raise OpTestError("Please mount NFS and re-try the test")
         self.set_up()
-        self.cv_HOST.host_check_command("nvram","ipmitool","sensors","hwclock")
+        self.cv_HOST.host_check_command("nvram", "ipmitool",
+                                        "sensors", "hwclock")
         self.cv_FSP.clear_fsp_errors()
         self.cv_SYSTEM.load_ipmi_drivers(True)
         for i in range(0, self.number_of_resets()):
-            log.debug("====================FSP R&R iteration %d=====================" % i)
+            log.debug("FSP R&R iteration {}".format(i))
             self.prepare_opal_log()
             self.trigger_rr()
             # Let fsp goes down
@@ -221,35 +235,43 @@ class resetReload(fspresetReload):
             self.cv_FSP.list_all_errorlogs_in_fsp()
             self.gather_opal_errors()
 
+
 class FIR(resetReload):
     def set_up(self):
         self.test = "fir"
+
 
 class HIR(resetReload):
     def set_up(self):
         self.test = "hir"
 
+
 class SIR(resetReload):
     def set_up(self):
         self.test = "sir"
+
 
 class FIRTorture(FIR):
     def number_of_resets(self):
         return 20
 
+
 class HIRTorture(HIR):
     def number_of_resets(self):
         return 20
 
+
 class SIRTorture(SIR):
     def number_of_resets(self):
         return 20
+
 
 def suite():
     s = unittest.TestSuite()
     s.addTest(FIR())
     s.addTest(HIR())
     return s
+
 
 def torture_suite():
     s = unittest.TestSuite()

@@ -37,6 +37,9 @@ The Tests
 .. automodule:: testcases.EPOW
    :members:
 
+.. automodule:: testcases.fspresetReload
+   :members:
+
 .. automodule:: testcases.IplParams
    :members:
 
