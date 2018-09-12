@@ -172,5 +172,8 @@ The Tests
 .. automodule:: testcases.OpTestSystemBootSequence
    :members:
 
+.. automodule:: testcases.PciSlotLocCodes
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:
