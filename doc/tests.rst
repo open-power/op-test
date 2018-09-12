@@ -79,6 +79,9 @@ The Tests
 .. automodule:: testcases.OpalErrorLog
    :members:
 
+.. automodule:: testcases.OpalGard
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 

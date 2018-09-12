@@ -24,9 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package opal-gard
-#  Test different OPAL GARD Related functionality
-#
+'''
+opal-gard
+---------
+
+Test different OPAL GARD Related functionality
+'''
 
 import re
 import random
