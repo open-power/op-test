@@ -24,10 +24,14 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestPCI.py
-#   This testcase basically will test and gather PCI subsystem Info
-#   Tools used are lspci and lsusb
-#   any pci related tests will be added in this package
+'''
+OpTestPCI
+---------
+
+This testcase basically will test and gather PCI subsystem Info
+Tools used are lspci and lsusb
+any pci related tests will be added in this package
+'''
 
 import time
 import subprocess
@@ -130,8 +134,10 @@ class TestPCI():
         r = diff_process.wait()
         self.assertEqual(r, 0, "Stored and detected PCI devices differ:\n%s%s" % (diff_stdout, diff_stderr))
 
-    # Compare host "lspci -mm -n" output to known good
     def runTest(self):
+        '''
+        Compare host "lspci -mm -n" output to known good
+        '''
         self.setup_test()
         c = self.c
 

@@ -145,6 +145,9 @@ The Tests
 .. automodule:: testcases.OpTestOOBIPMI
    :members:
 
+.. automodule:: testcases.OpTestPCI
+   :members:
+
 .. automodule:: testcases.OpTestPrdDriver
    :members:
 
