@@ -124,6 +124,9 @@ The Tests
 .. automodule:: testcases.OpTestInbandUsbInterface
    :members:
 
+.. automodule:: testcases.OpTestIPMILockMode
+   :members:
+
 .. automodule:: testcases.OpTestOCC
    :members:
 

@@ -24,14 +24,19 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestIPMILockMode.py
-#  It will test in-band ipmi white-listed commands when ipmi is in locked mode
-#
-#  IPMI whitelist
-#  These are the commands that will be available over an unauthenticated
-#  interface when the BMC is in IPMI lockdown mode.
-#  Generally one can access all in-band ipmi commands, But if we issue ipmi
-#  lock command then one can access only specific whitelisted in-band ipmi commands.
+'''
+OpTestIPMILockMode
+------------------
+
+It will test in-band ipmi white-listed commands when ipmi is in locked mode
+
+IPMI whitelist
+These are the commands that will be available over an unauthenticated
+interface when the BMC is in IPMI lockdown mode.
+
+Generally one can access all in-band ipmi commands, But if we issue ipmi
+lock command then one can access only specific whitelisted in-band ipmi commands.
+'''
 
 import time
 import subprocess
@@ -49,6 +54,23 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestIPMILockMode(unittest.TestCase):
+    '''
+    This test case will cover following test steps:
+
+    1. It will get the OS level installed on power platform
+    2. It will check for kernel version installed on the Open Power Machine
+    3. It will check for ipmitool command existence and ipmitool package
+    4. Load the necessary ipmi modules based on config values
+    5. Issue a ipmi lock command through out-of-band authenticated interface
+    6. Now BMC IPMI is in locked mode, at this point only white listed
+       in-band ipmi commands sholud work(No other in-band ipmi command should
+       work)
+    7. Execute and test the functionality of whitelisted in-band ipmi
+       commands in locked mode
+    8. At the end of test issue a ipmi unlock command to revert the
+       availablity of all in-band ipmi commands in unlocked mode.
+    '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -57,20 +79,8 @@ class OpTestIPMILockMode(unittest.TestCase):
         self.util = OpTestUtil()
         self.platform = conf.platform()
 
-    ##
-    # @brief This function will cover following test steps
-    #        1. It will get the OS level installed on power platform
-    #        2. It will check for kernel version installed on the Open Power Machine
-    #        3. It will check for ipmitool command existence and ipmitool package
-    #        4. Load the necessary ipmi modules based on config values
-    #        5. Issue a ipmi lock command through out-of-band authenticated interface
-    #        6. Now BMC IPMI is in locked mode, at this point only white listed
-    #           in-band ipmi commands sholud work(No other in-band ipmi command should work)
-    #        7. Execute and test the functionality of whitelisted in-band ipmi
-    #           commands in locked mode
-    #        8. At the end of test issue a ipmi unlock command to revert the availablity of all
-    #           in-band ipmi commands in unlocked mode.
     def runTest(self):
+        #FIXME: detect and don't hardcode
         if not self.platform in ['habanero','firestone','garrison', 'p9dsu']:
             raise unittest.SkipTest("Platform %s doesn't support IPMI Lockdown mode" % self.platform)
 
@@ -111,10 +121,11 @@ class OpTestIPMILockMode(unittest.TestCase):
             log.debug("Issuing ipmi unlock command through authenticated interface")
             self.cv_IPMI.exit_ipmi_lockdown_mode()
 
-    ##
-    # @brief This function will execute whitelisted in-band ipmi commands
-    #        and test the functionality in locked mode.
     def run_inband_ipmi_whitelisted_cmds(self):
+        '''
+        This function will execute whitelisted in-band ipmi commands
+        and test the functionality in locked mode.
+        '''
         l_con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         l_con.run_command("uname -a")
 
