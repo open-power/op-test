@@ -55,6 +55,15 @@ The Tests
 .. automodule:: testcases.I2C
    :members:
 
+.. automodule:: testcases.InstallHostOS
+   :members:
+
+.. automodule:: testcases.InstallRhel
+   :members:
+
+.. automodule:: testcases.InstallUbuntu
+   :members:
+
 .. automodule:: testcases.IplParams
    :members:
 

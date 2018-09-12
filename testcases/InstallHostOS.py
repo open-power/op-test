@@ -18,6 +18,13 @@
 # permissions and limitations under the License.
 #
 
+'''
+Install HostOS
+--------------
+
+Installs HostOS on the host.
+'''
+
 
 import unittest
 import os

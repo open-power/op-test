@@ -18,6 +18,12 @@
 # permissions and limitations under the License.
 #
 
+'''
+Install RHEL
+------------
+
+Installs RedHat Enterprise Linux (RHEL) on the host.
+'''
 
 import unittest
 import os

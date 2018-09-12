@@ -18,7 +18,15 @@
 # permissions and limitations under the License.
 #
 
-# Let's boot some Installers!
+'''
+Install Ubuntu
+--------------
+
+Installs Ubuntu on the host.
+
+The idea behind this test is to both set up an OS suitable to run `op-test`
+against and check our backwards compatibility with installation media.
+'''
 
 import unittest
 import time
