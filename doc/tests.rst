@@ -109,6 +109,9 @@ The Tests
 .. automodule:: testcases.OpTestExample
    :members:
 
+.. automodule:: testcases.OpTestFastReboot
+   :members:
+
 .. automodule:: testcases.OpTestHeartbeat
    :members:
 

@@ -24,12 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 #
-#  @package OpTestFastReboot.py
-#
-#   Issue fast reboot in petitboot and host OS, on a system having
-#   skiboot 5.4 rc1(which has fast-reset feature). Any further tests
-#   on fast-reset system will be added here
-#
+
+'''
+OpTestFastReboot
+----------------
+
+Issue fast reboot in petitboot and host OS, on a system having
+skiboot 5.4 rc1(which has fast-reset feature). Any further tests
+on fast-reset system will be added here.
+'''
 
 import time
 import pexpect
@@ -49,6 +52,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestFastReboot(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -57,7 +61,7 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
 
     def number_reboots_to_do(self):
-        return 2;
+        return 2
 
     def boot_to_os(self):
         return False
@@ -65,10 +69,11 @@ class OpTestFastReboot(unittest.TestCase):
     def get_fast_reset_count(self, c):
         count = 0
         try:
-            l = c.run_command("grep 'RESET: Initiating fast' /sys/firmware/opal/msglog")
+            l = c.run_command(
+                "grep 'RESET: Initiating fast' /sys/firmware/opal/msglog")
         except CommandFailed as cf:
             if cf.exitcode == 1:
-                count =0
+                count = 0
                 l = []
             else:
                 raise cf
@@ -79,31 +84,35 @@ class OpTestFastReboot(unittest.TestCase):
                     count = int(m.group(1))
         return count
 
-    ##
-    # @brief  This function tests fast reset of power systems.
-    #         It will check booting sequence when reboot command
-    #         getting executed in both petitboot and host OS
     def runTest(self):
+        '''
+        This function tests fast reset of power systems.
+        It will check booting sequence when reboot command
+        getting executed in both petitboot and host OS
+        '''
         if self.boot_to_os():
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
         else:
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         c = self.cv_SYSTEM.console
-        cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        cpu = ''.join(c.run_command(
+            "grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         log.debug(repr(cpu))
         if cpu not in ["POWER9", "POWER8", "POWER8E"]:
             self.skipTest("Fast Reboot not supported on %s" % cpu)
 
         if not self.cv_SYSTEM.has_mtd_pnor_access():
-            self.skipTest("OpTestSystem does not have MTD PNOR access so skipping Fast Reboot")
+            self.skipTest("OpTestSystem does not have MTD PNOR access,"
+                          "so skipping Fast Reboot")
 
         c.run_command("nvram -p ibm,skiboot --update-config fast-reset=1")
         res = c.run_command("nvram --print-config=fast-reset -p ibm,skiboot")
         self.assertNotIn("0", res, "Failed to set the fast-reset mode")
         c.run_command(BMC_CONST.NVRAM_SET_FAST_RESET_MODE)
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
-        self.assertIn("feeling-lucky", res, "Failed to set the fast-reset mode")
+        self.assertIn("feeling-lucky", res,
+                      "Failed to set the fast-reset mode")
         initialResetCount = self.get_fast_reset_count(c)
         log.debug("INITIAL reset count: %d" % initialResetCount)
         for i in range(0, self.number_reboots_to_do()):
@@ -119,35 +128,45 @@ class OpTestFastReboot(unittest.TestCase):
             # FSP based systems) the skiboot log is *not* printed to IPMI
             # console
             if self.cv_SYSTEM.skiboot_log_on_console():
-                rc = self.con.expect([" RESET: Initiating fast reboot", pexpect.TIMEOUT, pexpect.EOF], timeout=100)
-                if rc in [1,2]:
-                  c.close() # close the console obj
+                rc = self.con.expect([" RESET: Initiating fast reboot",
+                                      pexpect.TIMEOUT, pexpect.EOF],
+                                     timeout=100)
+                if rc in [1, 2]:
+                    c.close()  # close the console obj
             if self.boot_to_os():
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
             else:
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             newResetCount = self.get_fast_reset_count(c)
-            self.assertTrue( loopResetCount < newResetCount, "Did not do fast reboot")
-            self.assertTrue( initialResetCount < newResetCount, "Did not do fast reboot")
+            self.assertTrue(loopResetCount < newResetCount,
+                            "Did not do fast reboot")
+            self.assertTrue(initialResetCount < newResetCount,
+                            "Did not do fast reboot")
             log.debug("Completed Fast reboot cycle %d" % i)
 
         c.run_command(BMC_CONST.NVRAM_DISABLE_FAST_RESET_MODE)
         try:
             res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         except CommandFailed as cf:
-            self.assertEqual(cf.exitcode, 255, "getting unset fast-reboot is meant to fail!")
+            self.assertEqual(cf.exitcode, 255,
+                             "getting unset fast-reboot is meant to fail!")
         else:
-            self.assertTrue(False, "We expected to fail at getting cleared fast-reset nvram variable")
+            self.assertTrue(False, "We expected to fail at getting cleared "
+                            "fast-reset nvram variable")
+
 
 class FastRebootHost(OpTestFastReboot):
     def boot_to_os(self):
         return True
 
+
 class FastRebootHostTorture(FastRebootHost):
     def boot_to_os(self):
         return True
+
     def number_reboots_to_do(self):
         return 1000
+
 
 class FastRebootTorture(OpTestFastReboot):
     def number_reboots_to_do(self):
