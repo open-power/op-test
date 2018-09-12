@@ -18,6 +18,16 @@
 # permissions and limitations under the License.
 #
 
+'''
+Kernel Log
+----------
+
+Check the Linux kernel log in skiroot and the OS for warnings and errors,
+filtering for known benign problems (or problems that are just a Linux issue
+rather than a firmware issue).
+
+'''
+
 import unittest
 import re
 
@@ -41,13 +51,16 @@ class KernelLog():
         # Depending on where we're running, we may need to do all sorts of
         # things to get a sane dmesg output. Urgh.
         try:
-            log_entries = self.c.run_command("dmesg --color=never -T --level=alert,crit,err,warn")
+            log_entries = self.c.run_command(
+                "dmesg --color=never -T --level=alert,crit,err,warn")
         except CommandFailed:
             try:
-                log_entries = self.c.run_command("dmesg -T --level=alert,crit,err,warn")
+                log_entries = self.c.run_command(
+                    "dmesg -T --level=alert,crit,err,warn")
             except CommandFailed:
                 try:
-                    log_entries = self.c.run_command("dmesg -r|grep '<[4321]>'")
+                    log_entries = self.c.run_command(
+                        "dmesg -r|grep '<[4321]>'")
                 except CommandFailed as cf:
                     # An exit code of 1 and no output can mean success.
                     # as it means we're not successfully grepping out anything
@@ -101,7 +114,6 @@ class KernelLog():
                       "mlx4_en.* Port \d+: Initializing port",
                       "mlx4_core.*Old device ETS support detected",
                       "mlx4_core.*Consider upgrading device FW.",
-
         ]
 
         if self.bmc_type in ['qemu']:
@@ -113,13 +125,16 @@ class KernelLog():
             log_entries = [l for l in log_entries if not fre.search(l)]
 
         msg = '\n'.join(filter(None, log_entries))
-        self.assertTrue( len(log_entries) == 0, "Warnings/Errors in Kernel log:\n%s" % msg)
+        self.assertTrue(len(log_entries) == 0,
+                        "Warnings/Errors in Kernel log:\n%s" % msg)
+
 
 class Skiroot(KernelLog, unittest.TestCase):
     def setup_test(self):
         self.test = "skiroot"
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
+
 
 class Host(KernelLog, unittest.TestCase):
     def setup_test(self):

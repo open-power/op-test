@@ -70,6 +70,9 @@ The Tests
 .. automodule:: testcases.IpmiTorture
    :members:
 
+.. automodule:: testcases.KernelLog
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 
