@@ -190,5 +190,8 @@ The Tests
 .. automodule:: testcases.SecureBoot
    :members:
 
+.. automodule:: testcases.SystemLogin
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

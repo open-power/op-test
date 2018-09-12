@@ -18,6 +18,13 @@
 # permissions and limitations under the License.
 #
 
+'''
+System Login
+------------
+
+Really simple tests to ensure we can simply log into a booted host.
+'''
+
 import time
 import subprocess
 import commands
