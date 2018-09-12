@@ -18,7 +18,14 @@
 # permissions and limitations under the License.
 #
 
-# Basic IPL and reboot tests
+'''
+Basic IPL and reboot tests
+--------------------------
+
+These can be used as tests themselves to check all IPL and reboot types, or
+can be invoked on the command line to boot the machine a certain way or into
+a specific state.
+'''
 
 import unittest
 
@@ -42,6 +49,12 @@ class BasicIPL(unittest.TestCase):
         self.pci_good_data_file = conf.lspci_file()
 
 class BootToPetitboot(BasicIPL):
+    '''
+    Boot to the Petitboot menu. It does *not* cancel any automatic boot
+    countdown sequence.
+
+    It will force the machine off first, so it *will* do an IPL.
+    '''
     def runTest(self):
         log.debug("IPL: starting BootToPetitboot test")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
@@ -49,6 +62,12 @@ class BootToPetitboot(BasicIPL):
         log.debug("IPL: BootToPetitboot test passed")
 
 class BootToPetitbootShell(BasicIPL):
+    '''
+    Boot to the Petitboot shell (i.e. pressing 'x' when the petitboot menu
+    comes up).
+
+    It will force the machine off first, so it *will* do an IPL.
+    '''
     def runTest(self):
         log.debug("IPL: starting BootToPetitbootShell test")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
@@ -66,6 +85,9 @@ class GotoPetitbootShell(BasicIPL):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
 class SoftPowerOff(BasicIPL):
+    '''
+    Do a soft power off (i.e. polite, asking the OS to shut down).
+    '''
     def runTest(self):
         log.debug("IPL: starting SoftPowerOff test")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
@@ -77,6 +99,10 @@ class SoftPowerOff(BasicIPL):
         log.debug("IPL: SoftPowerOff test completed")
 
 class BMCReset(BasicIPL):
+    '''
+    Reboot the BMC with the host off. This will check that the host is also
+    powered off when the BMC comes back.
+    '''
     def runTest(self):
         log.debug("IPL: starting BMCReset test")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
@@ -98,6 +124,11 @@ class BMCReset(BasicIPL):
         log.debug("IPL: BMCReset test completed")
 
 class BootToOS(BasicIPL):
+    '''
+    Boot the default Operating System on the Host.
+
+    This will force and IPL and then look to get to a login prompt.
+    '''
     def runTest(self):
         log.debug("IPL: starting BootToOS test")
         log.debug("IPL: Currently powered off!")
@@ -107,6 +138,10 @@ class BootToOS(BasicIPL):
         # We booted, SHIP IT!
 
 class OutOfBandWarmReset(BasicIPL):
+    '''
+    Does an IPL to petitboot, and then do a 'warm reset', checking that
+    we can boot back up to Petitboot.
+    '''
     def runTest(self):
         log.debug("IPL: starting OutOfBandWarmReset test")
         # FIXME currently we have to go via OFF to ensure we go to petitboot
@@ -120,6 +155,10 @@ class OutOfBandWarmReset(BasicIPL):
         log.debug("IPL: OutOfBandWarmReset test completed")
 
 class HardPowerCycle(BasicIPL):
+    '''
+    Get to Petitboot, then issue a hard power cycle from the BMC,
+    checking that we can get back to Petitboot.
+    '''
     def runTest(self):
         log.debug("IPL: starting HardPowerCycle test")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
@@ -129,6 +168,10 @@ class HardPowerCycle(BasicIPL):
         log.debug("IPL: HardPowerCycle test completed")
 
 class PowerOff(BasicIPL):
+    '''
+    Get to Petitboot, then ask the BMC for a normal power off sequence,
+    checking that the host did indeed power off.
+    '''
     def runTest(self):
         log.debug("IPL: starting PowerOff test")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)

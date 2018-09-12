@@ -4,6 +4,9 @@ The Tests
 .. automodule:: testcases.AT24driver
    :members:
 
+.. automodule:: testcases.BasicIPL
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 
