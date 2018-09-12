@@ -150,10 +150,11 @@ class OpTestPrdDriver(unittest.TestCase):
             l_cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip_id, FIR)
             l_res = console.run_command(l_cmd)
             if l_res[-1] == BMC_CONST.FAULT_ISOLATION_REGISTER_CONTENT:
-                log.debug("Opal-prd handles core hardware error")
+                log.debug("Opal-prd handled core hardware error")
                 break
             else:
-                l_msg = "Opal-prd not yet cleared hardware error, (%d/%d)" %(i,tries)
+                log.debug("Opal-prd hardware error not cleared, waiting "
+                          "(%d/%d)".format(i,tries))
 
         # Check FIR got cleared by opal-prd
         self.assertEqual(l_res[-1], BMC_CONST.FAULT_ISOLATION_REGISTER_CONTENT,
