@@ -22,8 +22,12 @@
 #
 # IBM_PROLOG_END_TAG
 
-# Corrupt TOD and check host boot and runtime behaviours
-#
+'''
+FSP TOD Corruption
+------------------
+
+Corrupt TOD and check host boot and runtime behaviours
+'''
 
 import time
 import subprocess
@@ -42,6 +46,7 @@ from common.OpTestSSH import ConsoleState as SSHConnectionState
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class fspTODCorruption():
     def setUp(self):
@@ -65,7 +70,7 @@ class fspTODCorruption():
 
     def set_tod(self):
         time = commands.getoutput('date +"%Y%m%d%H%M%S"')
-        log.debug("Setting back the system time using rtim timeofday yyyyMMddhhmmss")
+        log.debug("Setting back the system time using rtim timeofday ")
         cmd = "rtim timeofday %s" % time
         log.debug("Running command on FSP: %s" % cmd)
         self.cv_FSP.fsp_run_command(cmd)
@@ -76,7 +81,8 @@ class fspTODCorruption():
         if "valid" in res:
             log.debug("system time is VALID")
         else:
-            raise Exception("System time is invalid,exiting...,please set time and rerun")
+            raise Exception("System time is invalid,exiting..., "
+                            "please set time and rerun")
 
         log.debug("Running command on FSP: rtim forceClockValue")
         out = self.cv_FSP.fsp_run_command("rtim forceClockValue")
@@ -85,7 +91,8 @@ class fspTODCorruption():
         if "INVALID" in res:
             log.debug("system time is INVALID")
         else:
-            raise Exception("rtim: forceClockValue interface not forcing tod value to invalid")
+            raise Exception("rtim: forceClockValue interface not forcing "
+                            "tod value to invalid")
 
     def check_hwclock(self):
         self.cv_HOST.host_read_hwclock()
@@ -96,11 +103,9 @@ class fspTODCorruption():
 
 
 class TOD_CORRUPTION(fspTODCorruption, unittest.TestCase):
-
-    ##
-    # @brief This function tests Boot and runtime behaviour
-    #        when TOD is corrupted.
-    #
+    '''
+    This function tests Boot and runtime behaviour when TOD is corrupted.
+    '''
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific TOD Corruption tests")
@@ -121,6 +126,7 @@ class TOD_CORRUPTION(fspTODCorruption, unittest.TestCase):
         self.set_tod()
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.check_hwclock()
+
 
 def suite():
     s = unittest.TestSuite()

@@ -40,6 +40,9 @@ The Tests
 .. automodule:: testcases.fspresetReload
    :members:
 
+.. automodule:: testcases.fspTODCorruption
+   :members:
+
 .. automodule:: testcases.IplParams
    :members:
 
