@@ -91,6 +91,9 @@ The Tests
 .. automodule:: testcases.OpalUtils
    :members:
 
+.. automodule:: testcases.OpTestCAPI
+   :members:
+
 .. automodule:: testcases.OpTestEEH
    :members:
 

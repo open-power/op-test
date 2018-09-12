@@ -24,17 +24,23 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestCAPI
-#  CAPI tests for OpenPower testing.
-#
-#  This class will test the functionality of CAPI
-#
-#  Prerequisites:
-#  1. Host must have a CAPI FPGA card
-#  2. CAPI card must have been flashed with memcpy AFU
-#
-#  Extra timebase sync tests prerequisite:
-#  3. PSL must support timebase sync
+'''
+OpTestCAPI
+----------
+
+CAPI tests for OpenPower testing.
+
+This class will test the functionality of CAPI
+
+Prerequisites:
+
+1. Host must have a CAPI FPGA card
+2. CAPI card must have been flashed with memcpy AFU
+
+Extra timebase sync tests prerequisite:
+
+3. PSL must support timebase sync
+'''
 
 import time
 import subprocess
@@ -79,6 +85,7 @@ class OpTestCAPI(unittest.TestCase):
         self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, \
                                                    l_module)
 
+
 class CxlDeviceFileTest(OpTestCAPI, unittest.TestCase):
     '''
     If a given system has a CAPI FPGA card, then this test load the cxl module
@@ -95,6 +102,7 @@ class CxlDeviceFileTest(OpTestCAPI, unittest.TestCase):
             self.cv_HOST.host_run_command(l_cmd)
         except CommandFailed:
             self.assertTrue(False, "cxl device file tests fail")
+
 
 class SysfsABITest(OpTestCAPI, unittest.TestCase):
     '''
@@ -157,6 +165,7 @@ class MemCpyAFUTest(OpTestCAPI, unittest.TestCase):
         except CommandFailed:
             self.assertTrue(False, "memcpy_afu_ctx tests failed")
 
+
 class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
     '''
     If a given system has a CAPI FPGA card, then this test load the cxl module
@@ -194,6 +203,7 @@ class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
             log.debug("memcpy_afu_ctx -t tests pass")
         except CommandFailed:
             self.assertTrue(False, "memcpy_afu_ctx -t tests failed")
+
 
 def capi_test_suite():
     s = unittest.TestSuite()
