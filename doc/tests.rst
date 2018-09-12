@@ -25,6 +25,9 @@ The Tests
 .. automodule:: testcases.DeviceTreeValidation
    :members:
 
+.. automodule:: testcases.DeviceTreeWarnings
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 
