@@ -24,10 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package OpTestKernel.py
-#  This module can contain testcases related to FW & Kernel Interactions.
-#   Ex: 1. Trigger a kernel crash(Both by enabling and disabling the kdump)
-#       2. Check Firmware boot progress
+'''
+OpTestKernel
+------------
+
+This module can contain testcases related to FW & Kernel Interactions.
+
+1. Trigger a kernel crash(Both by enabling and disabling the kdump)
+2. Check Firmware boot progress
+'''
 
 import time
 import subprocess
@@ -55,15 +60,14 @@ class OpTestKernelBase(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         self.util = self.cv_SYSTEM.util
 
-    ##
-    # @brief This function will test the kernel crash followed by system
-    #        reboot. it has below steps
-    #        1. Enable reboot on kernel panic: echo 10  > /proc/sys/kernel/panic
-    #        2. Trigger kernel crash: echo c > /proc/sysrq-trigger
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def kernel_crash(self):
+        '''
+        This function will test the kernel crash followed by system
+        reboot. it has below steps
+
+        1. Enable reboot on kernel panic: ``echo 10  > /proc/sys/kernel/panic``
+        2. Trigger kernel crash: ``echo c > /proc/sysrq-trigger``
+        '''
         console = self.cv_SYSTEM.console
         console.run_command("uname -a")
         console.run_command("cat /etc/os-release")
@@ -97,21 +101,19 @@ class OpTestKernelBase(unittest.TestCase):
         return BMC_CONST.FW_SUCCESS
 
 class KernelCrash_KdumpEnable(OpTestKernelBase):
+    '''
+    This function will test the kernel crash followed by crash kernel dump
+    and subsequent system IPL
 
+    1. Make sure kdump service is started before test
+    2. Trigger kernel crash: ``echo c > /proc/sysrq-trigger``
+    3. Check for crash kernel boot followed full system IPL
+    '''
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         console = self.cv_SYSTEM.console
 
-    ##
-    # @brief This function will test the kernel crash followed by crash kernel dump
-    #        and subsequent system IPL
-    #        1. Make sure kdump service is started before test
-    #        2. Trigger kernel crash: echo c > /proc/sysrq-trigger
-    #        3. Check for crash kernel boot followed full system IPL
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
         self.setup_test()
         self.cv_HOST.host_check_command("kdump")
@@ -119,21 +121,20 @@ class KernelCrash_KdumpEnable(OpTestKernelBase):
         self.cv_HOST.host_enable_kdump_service(os_level)
         self.kernel_crash()
 
-class KernelCrash_KdumpDisable(OpTestKernelBase):
 
+class KernelCrash_KdumpDisable(OpTestKernelBase):
+    '''
+    This function will test the kernel crash followed by system IPL
+
+    1. Make sure kdump service is stopped before test
+    2. Trigger kernel crash: ``echo c > /proc/sysrq-trigger``
+    3. Check for system booting
+    '''
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         console = self.cv_SYSTEM.console
 
-    ##
-    # @brief This function will test the kernel crash followed by system IPL
-    #        1. Make sure kdump service is stopped before test
-    #        2. Trigger kernel crash: echo c > /proc/sysrq-trigger
-    #        3. Check for system booting
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
         self.setup_test()
         self.cv_HOST.host_check_command("kdump")
@@ -142,6 +143,13 @@ class KernelCrash_KdumpDisable(OpTestKernelBase):
         self.kernel_crash()
 
 class SkirootKernelCrash(OpTestKernelBase, unittest.TestCase):
+    '''
+    This tests the Skiroot kernel crash followed by system IPL
+
+    1. Skiroot kernel has by default xmon is on, so made it off
+    2. Trigger kernel crash: ``echo c > /proc/sysrq-trigger``
+    3. Check for system booting
+    '''
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
@@ -168,18 +176,11 @@ class SkirootKernelCrash(OpTestKernelBase, unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
-    ##
-    # @brief This tests the Skiroot kernel crash followed by system IPL
-    #        1. Skiroot kernel has by default xmon is on, so made it off
-    #        2. Trigger kernel crash: echo c > /proc/sysrq-trigger
-    #        3. Check for system booting
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
         self.setup_test()
         self.cv_SYSTEM.sys_set_bootdev_no_override()
         self.kernel_crash()
+
 
 def crash_suite():
     s = unittest.TestSuite()

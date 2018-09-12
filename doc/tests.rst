@@ -130,6 +130,9 @@ The Tests
 .. automodule:: testcases.OpTestIPMIReprovision
    :members:
 
+.. automodule:: testcases.OpTestKernel
+   :members:
+
 .. automodule:: testcases.OpTestOCC
    :members:
 
