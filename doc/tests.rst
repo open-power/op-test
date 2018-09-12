@@ -151,6 +151,9 @@ The Tests
 .. automodule:: testcases.OpTestPNOR
    :members:
 
+.. automodule:: testcases.OpTestPrdDaemon
+   :members:
+
 .. automodule:: testcases.OpTestPrdDriver
    :members:
 

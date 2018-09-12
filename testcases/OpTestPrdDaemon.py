@@ -24,12 +24,19 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package OpTestPrdDaemon
-#  PRD daemon for OpenPower testing.
-#
-#  This class will test the functionality of following.
-#  PRD (Processor Runtime Diagnostic) daemon should always be running in HOST OS.
-#  For testing out this feature, we require to kill the opal-prd daemon and make sure that the daemon spawns back always.
+'''
+OpTestPrdDaemon
+---------------
+
+PRD daemon for OpenPower testing.
+
+This class will test the functionality of following.
+
+- PRD (Processor Runtime Diagnostic) daemon should always be running in
+  HOST OS.
+- For testing out this feature, we require to kill the opal-prd daemon
+  and make sure that the daemon spawns back always.
+'''
 
 import time
 import subprocess
@@ -53,6 +60,15 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestPrdDaemon(unittest.TestCase):
+    '''
+    This function performs below steps
+
+    1. Initially connecting to host console for execution.
+    2. Check for whether opal-prd daemon is running or not
+       if it is, get the PID of the opal-prd daemon
+    3. Kill the opal-prd daemon using its PID
+    4. Again check if opal-prd daemon spawns back
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
@@ -60,17 +76,6 @@ class OpTestPrdDaemon(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.bmc_type = conf.args.bmc_type
 
-
-    ##
-    # @brief This function performs below steps
-    #        1. Initially connecting to host console for execution.
-    #        2. Check for whether opal-prd daemon is running or not
-    #           if it is, get the PID of the opal-prd daemon
-    #        3. Kill the opal-prd daemon using its PID
-    #        4. Again check if opal-prd daemon spawns back
-    #
-    # @return BMC_CONST.FW_SUCCESS or raise OpTestError
-    #
     def runTest(self):
         l_res = None
 
