@@ -24,7 +24,16 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package CPU Hotpug Testcase
+'''
+CPU Hotplug Testcase
+--------------------
+
+This test case is likely to catch bugs either in the kernel or in stop states
+we put cores/threads into when we hot unplug them.
+'''
+
+# FIXME: Add a smaller version of this test to the normal host test suite
+# FIXME: Work out a way to add this to the skiroot test suite.
 
 import unittest
 
@@ -35,7 +44,14 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class CpuHotPlug(unittest.TestCase):
+    '''
+    Use the ``ppc64_cpu`` utility to turn SMT on/off and set to each possible
+    SMT mode, which is effectively a CPU hotplug operation.
+    Then start hotplugging CPU cores by using the ``ppc64_cpu`` utility to
+    turn only a specific number of cores on.
+    '''
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()

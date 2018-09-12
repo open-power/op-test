@@ -19,6 +19,9 @@ The Tests
 .. automodule:: testcases.Console
    :members:
 
+.. automodule:: testcases.CpuHotPlug
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 
