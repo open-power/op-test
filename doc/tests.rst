@@ -184,5 +184,8 @@ The Tests
 .. automodule:: testcases.RunHostTest
    :members:
 
+.. automodule:: testcases.SbePassThrough
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

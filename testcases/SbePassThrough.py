@@ -24,9 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
-# @package SbePassThrough
-#  Test case for SBE passthrough
-#
+'''
+SbePassThrough
+--------------
+
+Test case for SBE passthrough
+'''
 
 
 import unittest
