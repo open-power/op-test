@@ -17,6 +17,14 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+'''
+OpTestExample: An example test case
+-----------------------------------
+
+This test case is meant to show a few best practices for writing a test case
+for `op-test`.
+'''
+
 import unittest
 import logging
 

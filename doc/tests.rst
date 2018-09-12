@@ -106,6 +106,9 @@ The Tests
 .. automodule:: testcases.OpTestEnergyScale
    :members:
 
+.. automodule:: testcases.OpTestExample
+   :members:
+
 .. automodule:: testcases.OpTestHeartbeat
    :members:
 
