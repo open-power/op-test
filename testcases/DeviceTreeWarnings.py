@@ -62,18 +62,22 @@ class DeviceTreeWarnings():
             "dts: Warning \((pci_device_reg|pci_device_bus_num|"
             "simple_bus_reg)\): Failed prerequisite 'reg_format'",
         ]
-        log_entries = self.c.run_command("dtc -I fs /proc/device-tree -O dts -o dts")
+        log_entries = self.c.run_command(
+            "dtc -I fs /proc/device-tree -O dts -o dts")
         for f in filter_out:
             fre = re.compile(f)
             log_entries = [l for l in log_entries if not fre.search(l)]
 
         msg = '\n'.join(filter(None, log_entries))
-        self.assertTrue(len(log_entries) == 0, "Warnings/Errors in Device Tree:\n%s" % msg)
+        self.assertTrue(len(log_entries) == 0,
+                        "Warnings/Errors in Device Tree:\n{}".format(msg))
+
 
 class Skiroot(DeviceTreeWarnings, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
+
 
 class Host(DeviceTreeWarnings, unittest.TestCase):
     def setup_test(self):
