@@ -1,6 +1,9 @@
 The Tests
 =========
 
+.. automodule:: testcases.AT24driver
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 
