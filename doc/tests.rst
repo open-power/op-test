@@ -178,5 +178,8 @@ The Tests
 .. automodule:: testcases.PetitbootDropbearServer
    :members:
 
+.. automodule:: testcases.Petitbooti18n
+   :members:
+
 .. automodule:: testcases.TrustedBoot
    :members:

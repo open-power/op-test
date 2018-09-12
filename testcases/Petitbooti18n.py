@@ -22,6 +22,13 @@
 # checking each example string is present. These representations match the
 # layout and encoding in ui/ncurses/nc-lang.c
 
+'''
+Petitboot Internationalization (i8n)
+------------------------------------
+
+Test that Petitboot can correctly display languages other than English.
+'''
+
 import time
 import pexpect
 import unittest
