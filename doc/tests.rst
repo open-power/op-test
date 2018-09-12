@@ -10,6 +10,9 @@ The Tests
 .. automodule:: testcases.BMCResetTorture
    :members:
 
+.. automodule:: testcases.BootTorture
+   :members:
+
 .. automodule:: testcases.EPOW
    :members:
 

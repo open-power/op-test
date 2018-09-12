@@ -18,7 +18,12 @@
 # permissions and limitations under the License.
 #
 
-# Torture the machine with repeatedly trying to boot
+'''
+Boot Torture
+------------
+
+Torture the machine with repeatedly trying to boot
+'''
 
 import pexpect
 import unittest
@@ -34,8 +39,10 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class BootTorture(unittest.TestCase, TestPCI):
     BOOT_ITERATIONS = 1024
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
@@ -43,7 +50,7 @@ class BootTorture(unittest.TestCase, TestPCI):
 
     def runTest(self):
         self.c = self.cv_SYSTEM.console
-        for i in range(1,self.BOOT_ITERATIONS):
+        for i in range(1, self.BOOT_ITERATIONS):
             log.debug("Boot iteration %d..." % i)
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             try:
@@ -55,14 +62,23 @@ class BootTorture(unittest.TestCase, TestPCI):
             if self.pci_good_data_file:
                 self.check_pci_devices()
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
-            self.c.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            self.c.run_command_ignore_fail(
+                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+
 
 class BootTorture10(BootTorture):
+    '''
+    Just boot 10 times. Just a little bit of peril.
+    '''
     BOOT_ITERATIONS = 10
 
-# Full Soft Reboot Torture
+
 class ReBootTorture(unittest.TestCase, TestPCI):
+    '''
+    Soft Reboot Torture - i.e. running 'reboot' from Petitboot shell.
+    '''
     BOOT_ITERATIONS = 1024
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
@@ -72,15 +88,17 @@ class ReBootTorture(unittest.TestCase, TestPCI):
         console = self.cv_SYSTEM.console
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         # Disable the fast-reset
-        console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
-        for i in range(1,self.BOOT_ITERATIONS):
+        console.run_command(
+            "nvram -p ibm,skiboot --update-config fast-reset=0")
+        for i in range(1, self.BOOT_ITERATIONS):
             log.debug("Re-boot iteration %d..." % i)
             console.run_command_ignore_fail("uname -a")
             console.run_command_ignore_fail("cat /etc/os-release")
             if self.pci_good_data_file:
                 self.check_pci_devices()
             console.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
-            console.run_command_ignore_fail("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            console.run_command_ignore_fail(
+                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
             console.sol.sendline("echo 10  > /proc/sys/kernel/printk")
             console.sol.sendline("reboot")
             self.cv_SYSTEM.set_state(OpSystemState.IPLing)
@@ -90,5 +108,9 @@ class ReBootTorture(unittest.TestCase, TestPCI):
                 self.cv_SYSTEM.goto_state(OpSystemState.OFF)
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
+
 class ReBootTorture10(ReBootTorture):
+    '''
+    Reboot Torture, but only 10x.
+    '''
     BOOT_ITERATIONS = 10
