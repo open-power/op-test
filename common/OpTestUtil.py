@@ -487,6 +487,8 @@ class OpTestUtil():
 
         args_dict = vars(args) # we store credentials to the args
         if len(env['servers']) != 1:
+          # we may not yet have output a message about reservation
+          # but we will get the release message
           self.cleanup()
           raise AES(msg="AES credential problem, check AES definitions "
             "for server record, we either have no server record or more "
@@ -540,10 +542,12 @@ class OpTestUtil():
         if lock_dict['res_id'] is not None:
           # get the database join info for the env
           creds_env = self.aes_get_env(env)
-          self.aes_get_creds(creds_env, args)
+          # we need lock_dict filled in here
+          # in case exception thrown in aes_get_creds
           lock_dict['name'] = env.get('name')
           lock_dict['Group_Name'] = env.get('group').get('name')
           lock_dict['envs'] = environments
+          self.aes_get_creds(creds_env, args)
           return lock_dict
         else: # it was not Available
           # if only one environment, was it us ?
@@ -558,11 +562,13 @@ class OpTestUtil():
                   time_dict = self.aes_add_time(env=env,
                     locktime=self.conf.args.aes_add_locktime)
                 creds_env = self.aes_get_env(env)
-                self.aes_get_creds(creds_env, args)
+                # we need lock_dict filled in here
+                # in case exception thrown in aes_get_creds
                 lock_dict['res_id'] = env.get('res_id')
                 lock_dict['name'] = env.get('name')
                 lock_dict['Group_Name'] = env.get('group').get('name')
                 lock_dict['envs'] = environments
+                self.aes_get_creds(creds_env, args)
                 return lock_dict
       lock_dict['res_id'] = None
       lock_dict['name'] = None
@@ -730,8 +736,8 @@ class OpTestUtil():
     #
     def PingFunc(self, i_ip, i_try=1, totalSleepTime=BMC_CONST.HOST_BRINGUP_TIME):
         if i_ip == None:
-          raise ParameterCheck(msg="PingFunc fails with None as i_ip, "
-            "check your configuration")
+            raise ParameterCheck(msg="PingFunc has i_ip set to 'None', "
+                "check your configuration and setup")
         sleepTime = 0;
         while(i_try != 0):
             p1 = subprocess.Popen(["ping", "-c 2", str(i_ip)],
@@ -762,7 +768,8 @@ class OpTestUtil():
         log.error("'{}' is not pinging and we tried many times, "
                   "check your configuration and setup.".format(i_ip))
         raise ParameterCheck(msg="PingFunc fails to ping '{}', "
-               "check your configuration and setup.".format(i_ip))
+            "check your configuration and setup and manually "
+            "verify and release any reservations".format(i_ip))
 
     def copyFilesToDest(self, hostfile, destid, destName, destPath, passwd):
         arglist = (

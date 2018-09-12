@@ -172,7 +172,7 @@ def get_parser():
     hostlockergroup.add_argument("--hostlocker-server", help="Override URL for HostLocker Server")
     hostlockergroup.add_argument("--hostlocker-base-url", help="Override Base URL for HostLocker")
     hostlockergroup.add_argument("--hostlocker-locktime", help="Time duration (see web for formats) to lock the host, never is the default, it will unlock post test")
-    hostlockergroup.add_argument("--hostlocker-keep-lock", default=False, help="Release the lock once the test finishes, defaults to always release the lock post test")
+    hostlockergroup.add_argument("--hostlocker-keep-lock", default=False, help="Release the lock once the test finishes, defaults to False to always release the lock post test")
     hostlockergroup.add_argument("--hostlocker-proxy", help="socks5 proxy server setup, defaults to use localhost port 1080, you must have the SSH tunnel open during tests")
     hostlockergroup.add_argument("--hostlocker-no-proxy-ips", help="Allows dynamic determination if you are on proxy network then no proxy will be used")
 
@@ -451,12 +451,22 @@ class OpTestConfiguration():
             return
 
         # check to see if bmc_ip even pings to validate configuration parms
-        # testcases.HelloWorld fails with these runtime checks
-#        try:
-#          self.util.PingFunc(self.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
-#        except Exception as e: # cleanup here this early
-#          self.util.cleanup()
-#          raise ParameterCheck(msg="PingFunc fails to ping '{}', check your configuration and setup, see Exception details: {}".format(self.args.bmc_ip, e))
+        try:
+          self.util.PingFunc(self.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+        except Exception as e:
+          # we are trying to catch sooner rather than later
+          # if we have reservations that need cleaned up
+          # otherwise we would have to try/except for cleanup
+          # in lots of places
+          # testcases.HelloWorld in CI fails if we throw this
+          # raise only if we have reservations to cleanup
+          if self.args.hostlocker is not None \
+              or self.args.aes is not None \
+              or self.args.aes_search_args is not None:
+                  self.util.cleanup()
+                  raise ParameterCheck(msg="OpTestSystem PingFunc fails to "
+                      "ping '{}', check your configuration and setup, see "
+                      "Exception details: {}".format(self.args.bmc_ip, e))
 
         host = common.OpTestHost.OpTestHost(self.args.host_ip,
                           self.args.host_user,
