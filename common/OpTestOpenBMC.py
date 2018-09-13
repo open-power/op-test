@@ -1033,8 +1033,8 @@ class OpTestOpenBMC():
         # After a BMC reboot, wait for it to reach ready state
         self.rest_api.wait_for_bmc_runtime()
 
-    def image_transfer(self, i_imageName):
-        self.bmc.image_transfer(i_imageName)
+    def image_transfer(self, i_imageName, copy_as=None):
+        self.bmc.image_transfer(i_imageName, copy_as=copy_as)
 
     def pnor_img_flash_openbmc(self, pnor_name):
         self.bmc.pnor_img_flash_openbmc(pnor_name)
