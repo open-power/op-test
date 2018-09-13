@@ -24,11 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 
-## @package OpTestConstants
-#  BMC package which contains all BMC related constants
-#
-#  This class encapsulates commands and constants which deals with the BMC in OpenPower
-#  systems
+'''
+OpTestConstants
+---------------
+
+BMC package which contains all BMC related constants
+
+This class encapsulates commands and constants which deals with the BMC in
+OpenPower systems
+'''
 
 import pexpect
 class OpTestConstants():
