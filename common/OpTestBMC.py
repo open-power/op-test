@@ -24,11 +24,15 @@
 #
 # IBM_PROLOG_END_TAG
 
-## @package OpTestBMC
-#  BMC package which contains all BMC related interfaces/function
-#
-#  This class encapsulates all function which deals with the BMC in OpenPower
-#  systems
+'''
+OpTestBMC
+---------
+
+BMC package which contains all BMC related interfaces/function.
+
+This class encapsulates all function which deals with the BMC in OpenPower
+systems
+'''
 
 import sys
 import time
@@ -49,6 +53,9 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestBMC():
+    '''
+    The main object for communicating with a BMC and taking actions with it.
+    '''
     def __init__(self, ip=None, username=None, password=None,
                  logfile=sys.stdout, ipmi=None, rest=None,
                  web=None, check_ssh_keys=False, known_hosts_file=None):
@@ -72,28 +79,40 @@ class OpTestBMC():
         return self.cv_bmcIP
 
     def get_ipmi(self):
+        '''
+        Get an object that can be used to do things over IPMI
+        '''
         return self.cv_IPMI
 
     def get_rest_api(self):
+        '''
+        OpenBMC specific REST API.
+        '''
         return self.rest
 
     def get_host_console(self):
         return self.cv_IPMI.get_host_console()
 
     def run_command(self, command, timeout=60, retry=0):
+        '''
+        Run a command on the BMC itself.
+        '''
         return self.ssh.run_command(command, timeout, retry)
 
     ##
-    # @brief This function issues the reboot command on the BMC console.  It then
-    #    pings the BMC until it responds, which presumably means that it is done
-    #    rebooting.  It returns the number of failed pings.  The caller should make
-    #    returned value is greater than 1
+    # @brief 
     #
     # @return BMC_CONST.FW_SUCCESS on success and
     #         raise OpTestError on failure
     #
     def reboot(self):
+        '''
+        This function issues the reboot command on the BMC console.  It then
+        pings the BMC until it responds, which presumably means that it is done
+        rebooting.
 
+        :raises: :class:`common.OpTestError`
+        '''
         retries = 0
         try:
             self.ssh.run_command('reboot')
@@ -126,13 +145,14 @@ class OpTestBMC():
 
         return BMC_CONST.FW_SUCCESS
 
-    ##
-    # @brief This function copies the given image to the BMC /tmp dir
-    #
-    # @return the rsync command return code
-    #
-    def image_transfer(self,i_imageName, copy_as=None):
+    def image_transfer(self, i_imageName, copy_as=None):
+        '''
+        This function copies the given image to the BMC /tmp dir.
 
+        :param i_imageName: Local file to copy across
+        :param copy_as: file name to copy to (in /tmp)
+        :returns: Exit code of scp or rsync process
+        '''
         img_path = i_imageName
         ssh_opts = ' -o PubkeyAuthentication=no '
         if not self.check_ssh_keys:
@@ -178,31 +198,30 @@ class OpTestBMC():
             return rsync.exitstatus
 
 
-    ##
-    # @brief This function flashes the PNOR image using pflash tool,
-    #        And this function will work based on the assumption that pflash
-    #        tool available in i_pflash_dir.(user need to mount pflash tool
-    #        as pflash tool removed from BMC)
-    #
-    # @param i_pflash_dir @type string: directory where pflash tool is present.
-    # @param i_imageName @type string: Name of the image file
-    #                         Ex: firestone.pnor or firestone_update.pnor
-    #        Ex:/tmp/pflash -e -f -p /tmp/firestone_update.pnor
-    #           /tmp/pflash -e -f -p /tmp/firestone.pnor
-    #
-    #       Note: -E removed, it will erase entire pnor chip irrespective of
-    #             type of image( *.pnor or *_update.pnor).
-    #             -e will erase flash area only based on the type of image.
-    #
-    # @return pflash command return code
-    #
     def pnor_img_flash_ami(self, i_pflash_dir, i_imageName):
+        '''
+        This function flashes the PNOR image using pflash tool,
+        And this function will work based on the assumption that pflash
+        tool available in i_pflash_dir. Depending on the BMC type (and even
+        *version* of BMC firmware) we may have had to copy over pflash
+        ourselves.
+
+        :param i_pflash_dir: directory where pflash tool is present.
+        :type i_pflash_dir: str
+        :param i_imageName: Name of the image file.
+                            e.g. `firestone.pnor` or `firestone_update.pnor`
+        :type i_imageName: str
+
+        :returns: pflash command return code
+        '''
         cmd = i_pflash_dir + '/pflash -e -f -p /tmp/%s' % i_imageName
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
-    # on openbmc systems pflash tool available
     def pnor_img_flash_openbmc(self, i_imageName):
+        '''
+        on openbmc systems pflash tool available
+        '''
         cmd = 'pflash -E -f -p /tmp/%s' % i_imageName
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
@@ -237,15 +256,14 @@ class OpTestBMC():
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
-    ##
-    # @brief This function validates presence of pflash tool, which will be
-    #        used for pnor image flash
-    #
-    # @param i_dir @type string: directory where pflash tool should be present.
-    #
-    # @return BMC_CONST.FW_SUCCESS if pflash tool is available or raise OpTestError
-    #
     def validate_pflash_tool(self, i_dir=""):
+        '''
+        This function validates presence of pflash tool, which will be
+        used for pnor image flash
+
+        :param i_dir: directory where pflash tool should be present.
+        :returns: True/False
+        '''
         i_dir = os.path.join(i_dir, "pflash")
         try:
             l_res = self.ssh.run_command("which %s" % i_dir)
