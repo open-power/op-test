@@ -265,11 +265,17 @@ class IPMIConsole():
         if rc == 1:
           self.sol.close()
           time.sleep(60) # give things a minute to clear
-          raise CommandFailed('sol activate', "IPMI: pexpect.TIMEOUT while trying to establish connection, command was '{}'".format(cmd), -1)
+          raise CommandFailed('sol activate',
+            "IPMI: pexpect.TIMEOUT while trying to establish"
+            " connection, command was '{}'"
+            .format(cmd), -1)
         if rc == 2:
           self.sol.close()
           time.sleep(60) # give things a minute to clear
-          raise CommandFailed('sol activate', "IPMI: insufficient resources for session, unable to establish IPMI v2 / RMCP+ session, command was '{}'".format(cmd), -1)
+          raise CommandFailed('sol activate',
+            "IPMI: insufficient resources for session, unable"
+            " to establish IPMI v2 / RMCP+ session, command was '{}'"
+            .format(cmd), -1)
 
     def get_console(self):
         if self.state == IPMIConsoleState.DISCONNECTED:

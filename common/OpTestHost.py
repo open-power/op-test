@@ -68,9 +68,6 @@ class OpTestHost():
     def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
                  scratch_disk="", proxy="", logfile=sys.stdout,
                  check_ssh_keys=False, known_hosts_file=None):
-        # testcases.HelloWorld fails with these runtime checks
-#        if i_bmcip is None:
-#          raise ParameterCheck(msg="OpTestHost __init__ passed i_bmcip as None, this doesn't seem right, check your configuration for bmc_ip")
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd

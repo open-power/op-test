@@ -36,7 +36,7 @@ class CommandFailed(Exception):
         self.exitcode = exitcode
 
     def __str__(self):
-        return "Command '{}' exited with {}.\nOutput:\n{}".format(
+        return "Command '{}' exited with '{}'.\nOutput\n{}".format(
             self.command, self.exitcode, self.output)
 
 
@@ -48,7 +48,8 @@ class SSHSessionDisconnected(Exception):
         self.notice = notice
 
     def __str__(self):
-        return "SSH session/console disconnected due to '%s'" % self.notice
+        return "SSH session/console disconnected due to '{}'".format(
+            self.notice)
 
 
 class LoginFailure(Exception):
@@ -59,7 +60,8 @@ class LoginFailure(Exception):
         self.notice = notice
 
     def __str__(self):
-        return "Login failure due to '%s'" % self.notice
+        return "Login failure due to '{}'".format(
+            self.notice)
 
 
 class BMCDisconnected(Exception):
@@ -70,7 +72,8 @@ class BMCDisconnected(Exception):
         self.notice = notice
 
     def __str__(self):
-        return "BMC console disconnected due to '%s'" % self.notice
+        return "BMC console disconnected due to '{}'".format(
+            self.notice)
 
 
 class NoKernelConfig(Exception):
@@ -83,7 +86,7 @@ class NoKernelConfig(Exception):
         self.path = path
 
     def __str__(self):
-        return "kernel config for %s not found, looked for %s".format(
+        return "kernel config for {} not found, looked for {}".format(
             self.kernel, self.path)
 
 
@@ -95,7 +98,8 @@ class KernelModuleNotLoaded(Exception):
         self.module = module
 
     def __str__(self):
-        return "Kernel module %s not loaded" % (self.module)
+        return "Kernel module '{}' not loaded".format(
+            self.module)
 
 
 class KernelConfigNotSet(Exception):
@@ -107,7 +111,8 @@ class KernelConfigNotSet(Exception):
         self.opt = opt
 
     def __str__(self):
-        return "Kernel config %s not present" % (self.opt)
+        return "Kernel config '{}' not present".format(
+            self.opt)
 
 
 class KernelSoftLockup(Exception):
@@ -122,7 +127,8 @@ class KernelSoftLockup(Exception):
         self.state = state
 
     def __str__(self):
-        return "Soft lockup (machine in state %s): %s" % (self.state, self.log)
+        return "Soft lockup (machine in state '{}'): {}".format(
+            self.state, self.log)
 
 
 class KernelHardLockup(Exception):
@@ -134,7 +140,8 @@ class KernelHardLockup(Exception):
         self.state = state
 
     def __str__(self):
-        return "Hard lockup (machine in state %s): %s" % (self.state, self.log)
+        return "Hard lockup (machine in state '{}'): {}".format(
+            self.state, self.log)
 
 
 class KernelOOPS(Exception):
@@ -149,7 +156,8 @@ class KernelOOPS(Exception):
         self.state = state
 
     def __str__(self):
-        return "Kernel OOPS (machine in state %s): %s" % (self.state, self.log)
+        return "Kernel OOPS (machine in state '{}'): {}".format(
+            self.state, self.log)
 
 
 class KernelKdump(Exception):
@@ -162,7 +170,7 @@ class KernelKdump(Exception):
         self.state = state
 
     def __str__(self):
-        return "Kernel Kdump (machine in state %s): %s".format(
+        return "Kernel Kdump (machine in state '{}'): {}".format(
             self.state, self.log)
 
 
@@ -176,7 +184,7 @@ class KernelCrashUnknown(Exception):
         self.state = state
 
     def __str__(self):
-        return "Kernel crash unknown state (machine in state %s): %s".format(
+        return "Kernel crash unknown state (machine in state '{}'): {}".format(
             self.state, self.log)
 
 
@@ -186,7 +194,8 @@ class KernelBug(Exception):
         self.state = state
 
     def __str__(self):
-        return "Kernel bug in state %s: %s" % (self.state, self.log)
+        return "Kernel bug in state '{}': {}".format(
+            self.state, self.log)
 
 
 class SkibootAssert(Exception):
@@ -198,7 +207,8 @@ class SkibootAssert(Exception):
         self.state = state
 
     def __str__(self):
-        return "Hit skiboot assert in state %s: %s" % (self.state, self.log)
+        return "Hit skiboot assert in state '{}': {}".format(
+            self.state, self.log)
 
 
 class SkibootException(Exception):
@@ -210,7 +220,7 @@ class SkibootException(Exception):
         self.state = state
 
     def __str__(self):
-        return "Hit skiboot unexpected exception in state %s: %s".format(
+        return "Hit skiboot unexpected exception in state '{}': {}".format(
             self.state, self.log)
 
 
@@ -223,7 +233,8 @@ class KernelPanic(Exception):
         self.state = state
 
     def __str__(self):
-        return "Kernel panic in state %s: %s" % (self.state, self.log)
+        return "Kernel panic in state '{}': {}".format(
+            self.state, self.log)
 
 
 class PlatformError(Exception):
@@ -236,7 +247,8 @@ class PlatformError(Exception):
         self.state = state
 
     def __str__(self):
-        return "Platform error at state %s. Log: %s" % (self.state, self.log)
+        return "Platform error at state '{}'. Log: {}".format(
+            self.state, self.log)
 
 
 class HostbootShutdown(Exception):
@@ -308,6 +320,7 @@ class RecoverFailed(Exception):
                                           self.kwargs['after'],
                                           self.kwargs['msg']))
 
+
 class UnknownStateTransition(Exception):
     '''
     We tried to transition to UNKNOWN, something happened.
@@ -344,7 +357,9 @@ class HostLocker(Exception):
 
     def __str__(self):
         return ('Something happened setting up HostLocker. '
-                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
+                ' Review the following for more details\n'
+                'Message=\"{}\"'.format(self.kwargs['msg']))
+
 
 class HTTPCheck(Exception):
     '''
@@ -361,11 +376,14 @@ class HTTPCheck(Exception):
 
     def __str__(self):
         return ('Something happened setting up the HTTP Server. '
-                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
+                ' Review the following for more details\n'
+                'Message=\"{}\"'.format(self.kwargs['msg']))
+
 
 class AES(Exception):
     '''
-    We tried to setup with Automated Environment Sharing (AES) and something happened.
+    We tried to setup with Automated Environment Sharing (AES)
+    and something happened.
     '''
     def __init__(self, **kwargs):
         default_vals = {'msg': None}
@@ -377,8 +395,11 @@ class AES(Exception):
             self.kwargs[key] = kwargs[key]
 
     def __str__(self):
-        return ('Something happened setting up Automated Environment Sharing (AES). '
-                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
+        return ('Something happened setting up Automated '
+                'Environment Sharing (AES). '
+                ' Review the following for more details\n'
+                'Message=\"{}\"'.format(self.kwargs['msg']))
+
 
 class ParameterCheck(Exception):
     '''
@@ -394,8 +415,10 @@ class ParameterCheck(Exception):
             self.kwargs[key] = kwargs[key]
 
     def __str__(self):
-        return ('Something does not appear to be configured or setup properly. '
-                ' Review the following for more details:\nMessage=\"{}\"'.format(self.kwargs['msg']))
+        return ('Something does not appear to be configured'
+                ' or setup properly. '
+                ' Review the following for more details\n'
+                'Message=\"{}\"'.format(self.kwargs['msg']))
 
 
 class StoppingSystem(Exception):
