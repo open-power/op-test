@@ -49,10 +49,13 @@ class TConnection():
     # @param prompt @type string: $ or # type of prompt
     #
     def __init__(self, host_name, user_name, password, prompt):
-        self.host_name = host_name
-        self.user_name = user_name
-        self.password = password
-        self.prompt = prompt
+        # We *explicitly* convert to bytes() (i.e. str() in py2.7)
+        # as otherwise telnetlib will cry about telnet not being
+        # 7bit ascii. (seriously).
+        self.host_name = bytes(host_name)
+        self.user_name = bytes(user_name)
+        self.password = bytes(password)
+        self.prompt = bytes(prompt)
         self.tn = None
 
     ##
