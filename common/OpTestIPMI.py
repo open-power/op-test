@@ -56,6 +56,12 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class IPMITool():
+    '''
+    Run (locally) some command using ipmitool.
+
+    This wrapper class takes care of all the login/method details for
+    the caller.
+    '''
     def __init__(self, method='lanplus', binary='ipmitool',
                  ip=None, username=None, password=None, logfile=sys.stdout):
         self.method = 'lanplus'
@@ -78,6 +84,11 @@ class IPMITool():
         return s
 
     def run(self, cmd, background=False, cmdprefix=None):
+        '''
+        Run a ipmitool cmd.
+
+        :throws: :class:`common.Execptions.CommandFailed`
+        '''
         if cmdprefix:
             cmd = cmdprefix + self.binary + self.arguments() + cmd
         else:
@@ -87,9 +98,7 @@ class IPMITool():
             try:
                 child = subprocess.Popen(cmd, shell=True)
             except:
-                l_msg = "Ipmitool Command Failed: {}".format(cmd)
-                log.error(l_msg)
-                raise OpTestError(l_msg)
+                raise CommandFailed(cmd, "Couldn't spawn process", -1)
             return child
         else:
             # TODO - need python 2.7
@@ -98,9 +107,7 @@ class IPMITool():
                 cmd = subprocess.Popen(cmd,stderr=subprocess.STDOUT,
                                        stdout=subprocess.PIPE,shell=True)
             except:
-                l_msg = "Ipmitool Command Failed: {}".format(cmd)
-                log.error(l_msg)
-                raise OpTestError(l_msg)
+                raise CommandFailed(cmd, "Failed to spawn subprocess", -1)
             output = cmd.communicate()[0]
             return output
 
@@ -368,7 +375,7 @@ class OpTestIPMI():
         if 'Down/Off' in output:
             return BMC_CONST.FW_SUCCESS
         else:
-            l_msg = "Power OFF Failed"
+            l_msg = "Power OFF Failed: {}".format(output)
             log.error(l_msg)
             raise OpTestError(l_msg)
 
