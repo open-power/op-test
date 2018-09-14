@@ -80,28 +80,49 @@ class OpalSysfsTests():
             time.sleep(1)
         self.assertTrue((int(value[-1]) == int(psr_val)), "OPAL failed to set psr value")
 
+    def get_power_cap(self):
+        return int(self.c.run_command("cat %s" % str(POWERCAP_CURRENT))[-1])
+
     def set_power_cap(self, value):
+        valid_powercap_values = [ self.get_power_cap(), value ]
         self.c.run_command("echo %s > %s" % (value, str(POWERCAP_CURRENT)))
         for i in range(21):
-            cur_powercap = self.c.run_command("cat %s" % str(POWERCAP_CURRENT))[-1]
+            cur_powercap = self.get_power_cap()
+            self.assertIn(cur_powercap, valid_powercap_values,
+                          "Retrieved powercap was not either the previous one "
+                          "({}) or the one we're trying to set ({}). Got {}, "
+                          "expected in {}".format(
+                              valid_powercap_values[0],
+                              value,
+                              cur_powercap,
+                              repr(valid_powercap_values)))
             if int(cur_powercap) == int(value):
                 break
             time.sleep(2)
-        self.assertTrue((int(cur_powercap) == int(value)), "OPAL failed to set power cap value")
+        self.assertEqual(int(cur_powercap), int(value),
+                         "OPAL failed to set power cap value. "
+                         "Got {} when trying to set {}.".format(
+                             cur_powercap, value))
 
     def test_opal_powercap(self):
         self.setup_test()
         self.get_proc_gen()
         if self.cpu not in ["POWER9"]:
             return
-        cur_powercap = self.c.run_command("cat %s" % str(POWERCAP_CURRENT))[-1]
-        max_powercap = self.c.run_command("cat %s" % str(POWERCAP_MAX))[-1]
-        min_powercap = self.c.run_command("cat %s" % str(POWERCAP_MIN))[-1]
+        cur_powercap = int(self.c.run_command("cat %s" % str(POWERCAP_CURRENT))[-1])
+        max_powercap = int(self.c.run_command("cat %s" % str(POWERCAP_MAX))[-1])
+        min_powercap = int(self.c.run_command("cat %s" % str(POWERCAP_MIN))[-1])
 
-        log.debug("Powercap cur:{} max:{} min:{}".format(cur_powercap, max_powercap, min_powercap))
+        log.debug("Powercap cur:{} max:{} min:{}".format(
+            cur_powercap, max_powercap, min_powercap))
+
+        self.set_power_cap(max_powercap)
+        self.set_power_cap(min_powercap)
+        self.set_power_cap(cur_powercap)
+        self.set_power_cap(max_powercap)
 
         for i in range(3):
-            value = random.randint(int(min_powercap), int(max_powercap))
+            value = random.randint(min_powercap, max_powercap)
             self.set_power_cap(value)
         # Set back to cur_powercap
         self.set_power_cap(cur_powercap)
