@@ -422,7 +422,7 @@ class OpalLidsFLASH(OpTestFlashBase):
         if "SMC" in self.bmc_type and self.smc_presshipmicmd:
             self.cv_IPMI.ipmitool.run(self.smc_presshipmicmd)
 
-        if self.pflash:
+        if self.pflash and "FSP" not in self.bmc_type:
             self.cv_BMC.image_transfer(self.pflash, "pflash")
 
         if "AMI" in self.bmc_type:
