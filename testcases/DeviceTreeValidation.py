@@ -133,11 +133,11 @@ class DeviceTreeValidation(unittest.TestCase):
             "ibm,opal/power-mgt/ibm,cpu-idle-state-latencies-ns")
         idle_state_residency_ns = self.dt_prop_read_u32_arr(
             "ibm,opal/power-mgt/ibm,cpu-idle-state-residency-ns")
-        if self.cv_HOST.host_get_proc_gen() in ["POWER8", "POWER8E"]:
+        if self.cv_HOST.host_get_proc_gen(console=1) in ["POWER8", "POWER8E"]:
             has_stop_inst = False
             control_prop = "ibm,opal/power-mgt/ibm,cpu-idle-state-pmicr"
             mask_prop = "ibm,opal/power-mgt/ibm,cpu-idle-state-pmicr-mask"
-        elif "POWER9" in self.cv_HOST.host_get_proc_gen():
+        elif "POWER9" in self.cv_HOST.host_get_proc_gen(console=1):
             has_stop_inst = True
             control_prop = "ibm,opal/power-mgt/ibm,cpu-idle-state-psscr"
             mask_prop = "ibm,opal/power-mgt/ibm,cpu-idle-state-psscr-mask"
@@ -213,10 +213,10 @@ class DeviceTreeValidation(unittest.TestCase):
                                                 nr_pstates))
 
         if (nr_pstates <= 1 or nr_pstates > 128):
-            if self.cv_HOST.host_get_proc_gen() in ["POWER8", "POWER8E"]:
+            if self.cv_HOST.host_get_proc_gen(console=1) in ["POWER8", "POWER8E"]:
                 self.assertTrue(False, "pstates range {} is not valid".format(
                     nr_pstates))
-            elif "POWER9" in self.cv_HOST.host_get_proc_gen():
+            elif "POWER9" in self.cv_HOST.host_get_proc_gen(console=1):
                 self.assertTrue(False, "More than 128 pstates found {}"
                                 "in pstate table".format(nr_pstates))
 
@@ -225,13 +225,13 @@ class DeviceTreeValidation(unittest.TestCase):
                          "Expected %s, found %s".format(nr_pstates,
                                                         len(pstate_ids)))
 
-        if self.cv_HOST.host_get_proc_gen() in ["POWER8", "POWER8E"]:
+        if self.cv_HOST.host_get_proc_gen(console=1) in ["POWER8", "POWER8E"]:
             id_list = []
             for id in pstate_ids:
                 id_list.append(self.twos_comp(int(id, 16), 32))
             self.assertTrue(self.strictly_decreasing(id_list),
                             "Non monotonocity observed for pstate ids")
-        elif "POWER9" in self.cv_HOST.host_get_proc_gen():
+        elif "POWER9" in self.cv_HOST.host_get_proc_gen(console=1):
             self.assertTrue(self.strictly_increasing(pstate_ids),
                             "Non monotonocity observed for pstate ids")
 
@@ -262,10 +262,10 @@ class DeviceTreeValidation(unittest.TestCase):
 
 class DeviceTreeValidationSkiroot(DeviceTreeValidation):
     def runTest(self):
-        if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E",
+        if self.cv_HOST.host_get_proc_gen(console=1) not in ["POWER8", "POWER8E",
                                                     "POWER9"]:
             self.skipTest("Unknown CPU type {}".format(
-                self.cv_HOST.host_get_proc_gen()))
+                self.cv_HOST.host_get_proc_gen(console=1)))
 
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         system_state = self.cv_SYSTEM.get_state()
@@ -289,10 +289,10 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
 
 class DeviceTreeValidationHost(DeviceTreeValidation):
     def runTest(self):
-        if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E",
+        if self.cv_HOST.host_get_proc_gen(console=1) not in ["POWER8", "POWER8E",
                                                     "POWER9"]:
             self.skipTest("Unknown CPU type {}".format(
-                self.cv_HOST.host_get_proc_gen()))
+                self.cv_HOST.host_get_proc_gen(console=1)))
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
