@@ -523,7 +523,7 @@ class OpTestConfiguration():
             bmc.set_system(self.op_system)
         elif self.args.bmc_type in ['FSP']:
             ipmi = OpTestIPMI(self.args.bmc_ip,
-                              self.args.bmc_usernameipmi,
+                              None, # FSP does not use UID
                               self.args.bmc_passwordipmi,
                               host=host,
                               logfile=self.logfile)
