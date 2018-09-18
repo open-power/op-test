@@ -18,6 +18,7 @@ from common.Exceptions import HostLocker, AES, ParameterCheck
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import argparse
 import time
+import traceback
 from datetime import datetime
 import subprocess
 import sys
@@ -468,7 +469,8 @@ class OpTestConfiguration():
                       "ping '{}', check your configuration and setup, see "
                       "Exception details: {}".format(self.args.bmc_ip, e))
 
-        host = common.OpTestHost.OpTestHost(self.args.host_ip,
+        try:
+            host = common.OpTestHost.OpTestHost(self.args.host_ip,
                           self.args.host_user,
                           self.args.host_password,
                           self.args.bmc_ip,
@@ -477,20 +479,20 @@ class OpTestConfiguration():
                           proxy=self.args.proxy,
                           check_ssh_keys=self.args.check_ssh_keys,
                           known_hosts_file=self.args.known_hosts_file)
-        if self.args.bmc_type in ['AMI', 'SMC']:
-            web = OpTestWeb(self.args.bmc_ip,
+            if self.args.bmc_type in ['AMI', 'SMC']:
+                web = OpTestWeb(self.args.bmc_ip,
                             self.args.bmc_usernameipmi,
                             self.args.bmc_passwordipmi)
-            bmc = None
-            if self.args.bmc_type in ['AMI']:
-                ipmi = OpTestIPMI(self.args.bmc_ip,
+                bmc = None
+                if self.args.bmc_type in ['AMI']:
+                    ipmi = OpTestIPMI(self.args.bmc_ip,
                                   self.args.bmc_usernameipmi,
                                   self.args.bmc_passwordipmi,
                                   host=host,
                                   logfile=self.logfile,
-                )
+                    )
 
-                bmc = OpTestBMC(ip=self.args.bmc_ip,
+                    bmc = OpTestBMC(ip=self.args.bmc_ip,
                                 username=self.args.bmc_username,
                                 password=self.args.bmc_password,
                                 logfile=self.logfile,
@@ -498,71 +500,71 @@ class OpTestConfiguration():
                                 web=web,
                                 check_ssh_keys=self.args.check_ssh_keys,
                                 known_hosts_file=self.args.known_hosts_file
-                )
-            elif self.args.bmc_type in ['SMC']:
-                ipmi = OpTestSMCIPMI(self.args.bmc_ip,
+                    )
+                elif self.args.bmc_type in ['SMC']:
+                    ipmi = OpTestSMCIPMI(self.args.bmc_ip,
                                   self.args.bmc_usernameipmi,
                                   self.args.bmc_passwordipmi,
                                   logfile=self.logfile,
                                   host=host,
-                )
-                bmc = OpTestSMC(ip=self.args.bmc_ip,
+                    )
+                    bmc = OpTestSMC(ip=self.args.bmc_ip,
                                 username=self.args.bmc_username,
                                 password=self.args.bmc_password,
                                 ipmi=ipmi,
                                 web=web,
                                 check_ssh_keys=self.args.check_ssh_keys,
                                 known_hosts_file=self.args.known_hosts_file
+                    )
+                self.op_system = common.OpTestSystem.OpTestSystem(
+                    state=self.startState,
+                    bmc=bmc,
+                    host=host,
                 )
-            self.op_system = common.OpTestSystem.OpTestSystem(
-                state=self.startState,
-                bmc=bmc,
-                host=host,
-            )
-            ipmi.set_system(self.op_system)
-            bmc.set_system(self.op_system)
-        elif self.args.bmc_type in ['FSP']:
-            ipmi = OpTestIPMI(self.args.bmc_ip,
-                              self.args.bmc_usernameipmi,
+                ipmi.set_system(self.op_system)
+                bmc.set_system(self.op_system)
+            elif self.args.bmc_type in ['FSP']:
+                ipmi = OpTestIPMI(self.args.bmc_ip,
+                              None, # FSP does not use UID
                               self.args.bmc_passwordipmi,
                               host=host,
                               logfile=self.logfile)
-            bmc = OpTestFSP(self.args.bmc_ip,
+                bmc = OpTestFSP(self.args.bmc_ip,
                             self.args.bmc_username,
                             self.args.bmc_password,
                             ipmi=ipmi,
-            )
-            self.op_system = common.OpTestSystem.OpTestFSPSystem(
-                state=self.startState,
-                bmc=bmc,
-                host=host,
-            )
-            ipmi.set_system(self.op_system)
-        elif self.args.bmc_type in ['OpenBMC']:
-            ipmi = OpTestIPMI(self.args.bmc_ip,
+                )
+                self.op_system = common.OpTestSystem.OpTestFSPSystem(
+                    state=self.startState,
+                    bmc=bmc,
+                    host=host,
+                )
+                ipmi.set_system(self.op_system)
+            elif self.args.bmc_type in ['OpenBMC']:
+                ipmi = OpTestIPMI(self.args.bmc_ip,
                               self.args.bmc_usernameipmi,
                               self.args.bmc_passwordipmi,
                               host=host,
                               logfile=self.logfile)
-            rest_api = HostManagement(self.args.bmc_ip,
+                rest_api = HostManagement(self.args.bmc_ip,
                                 self.args.bmc_username,
                                 self.args.bmc_password)
-            bmc = OpTestOpenBMC(self.args.bmc_ip,
+                bmc = OpTestOpenBMC(self.args.bmc_ip,
                                 self.args.bmc_username,
                                 self.args.bmc_password,
                                 logfile=self.logfile,
                                 ipmi=ipmi, rest_api=rest_api,
                                 check_ssh_keys=self.args.check_ssh_keys,
                                 known_hosts_file=self.args.known_hosts_file)
-            self.op_system = common.OpTestSystem.OpTestOpenBMCSystem(
-                host=host,
-                bmc=bmc,
-                state=self.startState,
-            )
-            bmc.set_system(self.op_system)
-        elif self.args.bmc_type in ['qemu']:
-            print(repr(self.args))
-            bmc = OpTestQemu(self.args.qemu_binary,
+                self.op_system = common.OpTestSystem.OpTestOpenBMCSystem(
+                    host=host,
+                    bmc=bmc,
+                    state=self.startState,
+                )
+                bmc.set_system(self.op_system)
+            elif self.args.bmc_type in ['qemu']:
+                print(repr(self.args))
+                bmc = OpTestQemu(self.args.qemu_binary,
                              self.args.host_pnor,
                              self.args.flash_skiboot,
                              self.args.flash_kernel,
@@ -570,20 +572,26 @@ class OpTestConfiguration():
                              cdrom=self.args.os_cdrom,
                              logfile=self.logfile,
                              hda=self.args.host_scratch_disk)
-            self.op_system = common.OpTestSystem.OpTestQemuSystem(host=host, bmc=bmc,
+                self.op_system = common.OpTestSystem.OpTestQemuSystem(host=host, bmc=bmc,
                     state=self.startState)
-            bmc.set_system(self.op_system)
-        # Check that the bmc_type exists in our loaded addons then create our objects
-        elif self.args.bmc_type in optAddons:
-            (bmc, self.op_system) = optAddons[self.args.bmc_type].createSystem(self, host)
-        else:
-            self.util.cleanup()
-            raise Exception("Unsupported BMC Type '{}', check your upper/lower cases for bmc_type and verify "
-                            "any credentials used from HostLocker or "
-                            "AES Version (see aes_get_creds version_mappings)".format(self.args.bmc_type))
+                bmc.set_system(self.op_system)
+            # Check that the bmc_type exists in our loaded addons then create our objects
+            elif self.args.bmc_type in optAddons:
+                (bmc, self.op_system) = optAddons[self.args.bmc_type].createSystem(self, host)
+            else:
+                self.util.cleanup()
+                raise Exception("Unsupported BMC Type '{}', check your "
+                                "upper/lower cases for bmc_type and verify "
+                                "any credentials used from HostLocker or "
+                                "AES Version (see aes_get_creds "
+                                "version_mappings)".format(self.args.bmc_type))
 
-        host.set_system(self.op_system)
-        return
+            host.set_system(self.op_system)
+            return
+        except Exception as e:
+            traceback.print_exc()
+            self.util.cleanup()
+            raise e
 
     def bmc(self):
         return self.op_system.bmc
