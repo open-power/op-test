@@ -96,6 +96,17 @@ class OpTestFastReboot(unittest.TestCase):
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         c = self.cv_SYSTEM.console
+
+        try:
+            fast_reboot_state = ''.join(c.run_command(
+                "cat /proc/device-tree/ibm,opal/fast-reboot"))
+            if fast_reboot_state is not "okay":
+                self.skipTest("Fast reboot not supported: {}".format(
+                    fast_reboot_state))
+        except CommandFailed as cf:
+            if cf.exitcode is not 1:
+                raise cf
+
         cpu = ''.join(c.run_command(
             "grep '^cpu' /proc/cpuinfo|uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         log.debug(repr(cpu))
