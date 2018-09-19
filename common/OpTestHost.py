@@ -82,6 +82,8 @@ class OpTestHost():
         self.proxy = proxy
         self.scratch_disk_size = None
         self.conf = OpTestConfiguration.conf
+        self.check_ssh_keys = check_ssh_keys
+        self.known_hosts_file = known_hosts_file
 
     def hostname(self):
         return self.ip
@@ -115,6 +117,30 @@ class OpTestHost():
 
     def get_ssh_connection(self):
         return self.ssh
+
+    def get_new_ssh_connection(self, name="temp"):
+        #time.sleep(1)
+        outsuffix = time.strftime("%Y%m%d%H%M%S")
+        filename = "%s-%s.log" % (outsuffix, name)
+        logfile = os.path.join(self.results_dir,filename)
+        print "Log file: %s" % logfile
+        logcmd = "tee %s" % (logfile)
+        logcmd = logcmd + "| sed -u -e 's/\\r$//g'|cat -v"
+        print "logcmd: %s" % logcmd
+        logfile_proc = subprocess.Popen(logcmd,
+                                             stdin=subprocess.PIPE,
+                                             stderr=subprocess.PIPE,
+                                             stdout=subprocess.PIPE,
+                                             shell=True)
+        print repr(logfile_proc)
+        logfile = logfile_proc.stdin
+        print "Log file: %s" % logfile
+        OpTestLogger.optest_logger_glob.setUpCustomLoggerDebugFile(name, filename)
+        ssh = OpTestSSH(self.ip, self.user, self.passwd,
+                        logfile=logfile, check_ssh_keys=self.check_ssh_keys,
+                        known_hosts_file=self.known_hosts_file, use_parent_logger=False)
+        ssh.set_system(self.conf.op_system)
+        return ssh
 
     def host_get_OS_Level(self, console=0):
         '''

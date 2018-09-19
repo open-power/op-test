@@ -50,7 +50,7 @@ def set_system_to_UNKNOWN_BAD(system):
 class OpTestSSH():
     def __init__(self, host, username, password, logfile=sys.stdout, port=22,
             prompt=None, check_ssh_keys=False, known_hosts_file=None,
-            block_setup_term=None, delaybeforesend=None):
+            block_setup_term=None, delaybeforesend=None, use_parent_logger=True):
         self.state = ConsoleState.DISCONNECTED
         self.host = host
         self.username = username
@@ -74,6 +74,7 @@ class OpTestSSH():
         self.PS1_set = -1
         self.LOGIN_set = -1
         self.SUDO_set = -1
+        self.use_parent_logger = use_parent_logger
 
     def set_system(self, system):
         self.system = system
@@ -144,7 +145,13 @@ class OpTestSSH():
         elif self.known_hosts_file:
             cmd = (cmd + " -o UserKnownHostsFile=" + self.known_hosts_file)
 
-        log.debug(cmd)
+        # For multi threades SSH sessions use individual logger and file handlers per session.
+        if self.use_parent_logger:
+            self.log = log
+        else:
+            self.log = OpTestLogger.optest_logger_glob.get_custom_logger(__name__)
+
+        self.log.debug(cmd)
 
         try:
           consoleChild = OPexpect.spawn(cmd,
@@ -163,7 +170,7 @@ class OpTestSSH():
           self.console.delaybeforesend = self.delaybeforesend
         # Users expecting "Host IPMI" will reference console.sol so make it available
         self.sol = self.console
-        consoleChild.logfile_read = OpTestLogger.FileLikeLogger(log)
+        consoleChild.logfile_read = OpTestLogger.FileLikeLogger(self.log)
         time.sleep(2) # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
         self.check_set_term()
         return consoleChild
@@ -186,7 +193,7 @@ class OpTestSSH():
 
         count = 0
         while (not self.console.isalive()):
-            log.info('# Reconnecting')
+            self.log.info('# Reconnecting')
             if (count > 0):
                 time.sleep(1)
             self.connect()
