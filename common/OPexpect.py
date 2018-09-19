@@ -36,9 +36,10 @@ throws.
 
 import pexpect
 from Exceptions import *
-import OpTestSystem
+
 
 class spawn(pexpect.spawn):
+
     def __init__(self, command, args=[], maxread=8000,
                  searchwindowsize=None, logfile=None, cwd=None, env=None,
                  ignore_sighup=False, echo=True, preexec_fn=None,
@@ -73,17 +74,17 @@ class spawn(pexpect.spawn):
                        "OPAL exiting with locks held",
                        "LOCK ERROR: Releasing lock we don't hold",
                        "OPAL: Reboot requested due to Platform error."
-        ]
+                       ]
 
-        patterns = list(op_patterns) # we want a *copy*
+        patterns = list(op_patterns)  # we want a *copy*
         if isinstance(pattern, list):
             patterns = patterns + pattern
         else:
             patterns.append(pattern)
 
-        r = super(spawn,self).expect(patterns,
-                                     timeout=timeout,
-                                     searchwindowsize=searchwindowsize)
+        r = super(spawn, self).expect(patterns,
+                                      timeout=timeout,
+                                      searchwindowsize=searchwindowsize)
 
         if r in [pexpect.EOF, pexpect.TIMEOUT]:
             return r
@@ -93,7 +94,7 @@ class spawn(pexpect.spawn):
 
         state = None
 
-        if r in [1,2,3,4,5,6,7,8,9,10,11,12,13]:
+        if r in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]:
             # We set the system state to UNKNOWN_BAD as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
@@ -101,45 +102,51 @@ class spawn(pexpect.spawn):
             # just a *lot* easier with current code structure
             if self.failure_callback:
                 state = self.failure_callback(self.failure_callback_data)
-        if r in [1,2,3,4,5,6,7,8]:
+        if r in [1, 2, 3, 4, 5, 6, 7, 8]:
             log = str(self.after)
             l = 0
 
-            while l != 7:
-                l = super(spawn,self).expect(["INFO: rcu_sched self-detected stall on CPU",
-                                              "Watchdog .* Hard LOCKUP",
-                                              "Sending IPI to other CPUs",
-                                              ":mon>",
-                                              "Rebooting in \d+ seconds",
-                                              "Kernel panic - not syncing: Fatal exception",
-                                              "Kernel panic - not syncing: Hard LOCKUP", pexpect.TIMEOUT],
-                                             timeout=15)
+            while l != 8:
+                l = super(spawn, self).expect(["INFO: rcu_sched self-detected stall on CPU",
+                                               "Watchdog .* Hard LOCKUP",
+                                               "Sending IPI to other CPUs",
+                                               ":mon>",
+                                               "Rebooting in \d+ seconds",
+                                               "Kernel panic - not syncing: Fatal exception",
+                                               "Kernel panic - not syncing: Hard LOCKUP",
+                                               "opal_cec_reboot2", pexpect.TIMEOUT],
+                                              timeout=15)
                 log = log + str(self.before) + str(self.after)
-                if l in [2,3,4]:
-                    # We know we have the end of the error message, so let's stop here.
+                if l in [2, 3, 4, 7]:
+                    # We know we have the end of the error message, so let's
+                    # stop here.
                     break
 
             if r == 1 or r == 8:
                 raise KernelSoftLockup(state, log)
             if r == 2:
                 raise KernelBug(state, log)
-            if r == 3:
-                raise KernelPanic(state, log)
             if r == 4 or r == 6 or r == 7:
                 raise KernelHardLockup(state, log)
-            if r == 5 and l == 2:
+            if r == 3 and l == 2:
                 raise KernelKdump(state, log)
+            if r == 3 and l == 7:
+                raise KernelFADUMP(state, log)
+            if r == 3:
+                raise KernelPanic(state, log)
             if r == 5:
                 raise KernelOOPS(state, log)
-            if l == 7:
+            if l == 8:
                 raise KernelCrashUnknown(state, log)
 
-        if r in [9,10,11,12]:
+        if r in [9, 10, 11, 12]:
             l = 0
             log = self.after
-            l = super(spawn,self).expect("boot_entry.*\r\n", timeout=10)
+            l = super(spawn, self).expect(["boot_entry.*\r\n",
+                                           "Initiated MPIPL", pexpect.TIMEOUT],
+                                          timeout=10)
             log = log + self.before + self.after
-            if r in [9,11,12]:
+            if r in [9, 11, 12]:
                 raise SkibootAssert(state, log)
             if r == 10:
                 raise SkibootException(state, log)
@@ -149,15 +156,16 @@ class spawn(pexpect.spawn):
             # Let's attempt to capture Hostboot output
             log = self.before + self.after
             try:
-                l = super(spawn,self).expect("================================================",
-                                             timeout=120)
+                l = super(spawn, self).expect("================================================",
+                                              timeout=120)
                 log = log + self.before + self.after
-                l = super(spawn,self).expect("System checkstop occurred during runtime on previous boot", timeout=30)
+                l = super(spawn, self).expect(
+                    "System checkstop occurred during runtime on previous boot", timeout=30)
                 log = log + self.before + self.after
-                l = super(spawn,self).expect("================================================",
-                                             timeout=60)
+                l = super(spawn, self).expect("================================================",
+                                              timeout=60)
                 log = log + self.before + self.after
-                l = super(spawn,self).expect("ISTEP", timeout=20)
+                l = super(spawn, self).expect("ISTEP", timeout=20)
                 log = log + self.before + self.after
             except pexpect.TIMEOUT as t:
                 pass

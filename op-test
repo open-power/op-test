@@ -96,7 +96,7 @@ from testcases import OpalErrorLog
 from testcases import LightPathDiagnostics
 from testcases import DPO
 from testcases import EPOW
-from testcases import OpTestKernel
+from testcases import PowerNVDump
 from testcases import fspresetReload
 from testcases import OpTestPrdDaemon
 from testcases import OpalUtils

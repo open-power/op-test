@@ -105,6 +105,8 @@ class OpTestConstants():
     CLEAR_GARD_CMD = '/gard clear all'
     LIST_GARD_CMD = '/gard list'
     OPAL_MSG_LOG = "cat /sys/firmware/opal/msglog"
+    PROC_CMDLINE = "cat /proc/cmdline"
+    OPAL_DUMP_NODE = "/proc/device-tree/ibm,opal/dump/"
     NVRAM_PRINT_CFG = "nvram --print-config"
     NVRAM_UPDATE_CONFIG_TEST_DATA = "nvram --update-config test-name=test-value"
     NVRAM_TEST_DATA = "test-name=test-value"

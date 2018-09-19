@@ -309,6 +309,8 @@ def get_parser():
                             help="pflash to copy to BMC (if needed)")
     imagegroup.add_argument("--pupdate",
                             help="pupdate to flash PNOR for Supermicro systems")
+    imagegroup.add_argument("--pdbg",
+                            help="pdbg binary to be executed on BMC")
 
     stbgroup = parser.add_argument_group('STB', 'Secure and Trusted boot parameters')
     stbgroup.add_argument("--un-signed-pnor", help="Unsigned or improperly signed PNOR")
