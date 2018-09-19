@@ -284,6 +284,14 @@ class OpTestEM():
         pstate_nom = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/cpuinfo_nominal_freq" % cpu_num)[0]
         return pstate_min, pstate_max, pstate_nom
 
+    def get_list_of_governors(self):
+        '''
+        Get list of supported CPU governors
+        '''
+        cmd = "cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_available_governors" % self.get_first_available_cpu()
+        res = self.c.run_command(cmd)
+        return res
+
 
 class slw_info(OpTestEM, unittest.TestCase):
     '''

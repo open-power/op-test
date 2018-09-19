@@ -79,6 +79,12 @@ class OpTestLogger():
         '''
         return logging.getLogger(self.parent_logger+'.{}'.format(myname))
 
+    def get_custom_logger(self, myname):
+        '''
+         Provide a method that allows individual module helper capabilities
+        '''
+        return logging.getLogger("op-test-thread"+'.{}'.format(myname))
+
     def setUpLoggerFile(self, logger_file):
         '''
         Provide a method that allows setting up of a file handler with customized file rotation and formatting.
@@ -113,6 +119,26 @@ class OpTestLogger():
         self.optest_logger.addHandler(self.dh)
         self.optest_logger.debug('DebugHandler settings updated')
         self.optest_logger.info('Debug Log file: {}'.format(os.path.join(self.logdir, self.logger_debug_file)))
+
+    def setUpCustomLoggerDebugFile(self, logger_name, logger_debug_file):
+        '''
+        Provide a method that allows setting up of a debug file handler with customized file rotation and formatting.
+
+        :param logger_name: custom logger name
+
+        :param logger_debug_file: File name to use for logging the debug log records.
+        '''
+        self.optest_custom_logger = logging.getLogger(logger_name)
+        self.optest_custom_logger.addHandler(self.sh)
+        self.logger_debug_file = logger_debug_file
+        if (not os.path.exists(self.logdir)):
+          os.makedirs(self.logdir)
+        self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file), maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
+        self.dh.setLevel(logging.DEBUG)
+        self.dh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
+        self.optest_custom_logger.addHandler(self.dh)
+        self.optest_custom_logger.debug('DebugHandler settings updated for custom logger')
+        self.optest_custom_logger.info('Debug Log file: {}'.format(os.path.join(self.logdir, self.logger_debug_file)))
 
 global optest_logger_glob
 optest_logger_glob = OpTestLogger()
