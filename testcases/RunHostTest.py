@@ -43,21 +43,21 @@ class RunHostTest(unittest.TestCase):
         self.host_cmd_timeout = self.conf.args.host_cmd_timeout
         if not (self.host_cmd or self.host_cmd_file):
             self.fail("Provide either --host-cmd and --host-cmd-file option")
+        if self.host_cmd_file and not os.path.isfile(self.host_cmd_file):
+            self.fail("Provide valid host cmd file path")
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+        con = self.cv_SYSTEM.console
         if self.host_cmd:
             con.run_command(self.host_cmd, timeout=self.host_cmd_timeout)
         if self.host_cmd_file:
-            if not os.path.isfile(self.host_cmd_file):
-                self.fail("Provide valid host cmd file path")
             fd = open(self.host_cmd_file, "r")
             for line in fd.readlines():
                 line = line.strip()
                 if "reboot" in line:
                     self.cv_SYSTEM.goto_state(OpSystemState.OFF)
                     self.cv_SYSTEM.goto_state(OpSystemState.OS)
-                    con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+                    con = self.cv_SYSTEM.console
                     continue
                 con.run_command(line, timeout=self.host_cmd_timeout)
