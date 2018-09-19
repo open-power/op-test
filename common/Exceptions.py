@@ -166,6 +166,15 @@ class KernelKdump(Exception):
         return "Kernel Kdump (machine in state '{}'): {}".format(
             self.state, self.log)
 
+class KernelFADUMP(Exception):
+    '''
+    We observe a kernel crash and follwed by MPIPL boot to dump opalcore/vmcore for debug.
+    '''
+    def __init__(self, state, log):
+        self.log = log
+        self.state = state
+    def __str__(self):
+        return "Kernel FADUMP/MPIPL (machine in state '{}'): {}".format(self.state, self.log)
 
 class KernelCrashUnknown(Exception):
     '''
