@@ -55,6 +55,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
+from common import OpTestInstallUtil
 
 import logging
 import OpTestLogger
@@ -70,6 +71,7 @@ class OpTestFlashBase(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.platform = conf.platform()
         self.util = OpTestUtil()
+        self.OpIU = OpTestInstallUtil.InstallUtil()
         self.bmc_type = conf.args.bmc_type
         self.bmc_ip = conf.args.bmc_ip
         self.bmc_username = conf.args.bmc_username
@@ -594,16 +596,8 @@ class FSPFWImageFLASH(OpTestFlashBase):
         con = self.cv_SYSTEM.console
 
         # Wait until we have a route (i.e. network is up)
-        tries = 12
         log.debug('#Waiting for network (by waiting for a route)')
-        while tries:
-            r = con.run_command("route -n")
-            if len(r) > 2:
-                break
-            tries = tries - 1
-            log.debug('#No route yet, sleeping 5s and retrying')
-            time.sleep(5)
-
+        self.OpIU.configure_host_ip()
         con.run_command("wget %s -O /tmp/firm.img" % self.image)
         con.run_command("update_flash -d")
         con.sol.sendline("update_flash -f /tmp/firm.img")
