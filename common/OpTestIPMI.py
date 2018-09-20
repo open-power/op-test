@@ -638,6 +638,20 @@ class OpTestIPMI():
         else:
             return BMC_CONST.FW_SUCCESS
 
+    def ipmi_sel_elist(self, dump=False):
+        '''
+        This function dumps the sel elist
+        '''
+        output = self.ipmitool.run('sel elist')
+
+        if dump:
+            print "\n----------------------------------------------------------------------"
+            print "SELs"
+            print "----------------------------------------------------------------------"
+            print "{}".format(output)
+            print "----------------------------------------------------------------------"
+
+        return output
 
     def ipmi_power_status(self):
         '''

@@ -20,6 +20,7 @@
 import re
 import sys
 import time
+import datetime
 import pexpect
 import subprocess
 import json
@@ -355,21 +356,89 @@ class HostManagement():
         self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
         return self.curl.run()
 
-    def get_sel_ids(self):
+    def pull_ids(self, sels=None):
+        id_list = []
+        sel_dict = {}
+        for key in sels:
+            m = re.match(r"/xyz/openbmc_project/logging/entry/(\d{1,})$", key)
+            if m:
+                id_list.append(str(sels.get(key).get('Id')))
+                sel_dict[str(sels.get(key).get('Id'))] = key
+        id_list.sort()
+        # sample id_list ['81', '82', '83', '84']
+        return id_list, sel_dict
+
+    def get_sel_ids(self, dump=False):
+        '''
+        Build a sorted id_list from the SELs and also
+        build a list of dictionary items containing the
+        SEL and ESEL information
+
+        :param dump: Set to True if a printed output is desired.
+        :type dump: Boolean
+        '''
         sels = []
+        dict_list = []
         data = self.list_sel()
         data = json.loads(data)
-        for k in data['data']:
-            log.debug(repr(k))
-            m = re.match(r"/xyz/openbmc_project/logging/entry/(\d{1,})$", k)
-            if m:
-                sels.append(m.group(1))
-        log.debug(repr(sels))
-        return sels
+        log.debug("data={}".format(data))
+        id_list, sel_dict = self.pull_ids(sels=data['data'])
+
+        # sample sel_dict.get(j)=/xyz/openbmc_project/logging/entry/78
+        for j in id_list:
+            dict_item = {}
+            dict_item['Id'] = str(data['data'][sel_dict.get(j)].get('Id'))
+            dict_item['Timestamp'] = datetime.datetime.fromtimestamp(int(str(data['data'][sel_dict.get(j)].get('Timestamp')))/1000).strftime("%Y-%m-%d %H:%M:%S")
+            dict_item['Message'] = data['data'][sel_dict.get(j)].get('Message')
+            dict_item['Description'] = data['data'][sel_dict.get(j)].get('Description')
+            dict_item['Severity'] = data['data'][sel_dict.get(j)].get('Severity').split('.')[-1]
+            dict_item['Resolved'] = data['data'][sel_dict.get(j)].get('Resolved')
+            dict_item['EventID'] = data['data'][sel_dict.get(j)].get('EventID')
+            add_data = data['data'][sel_dict.get(j)]['AdditionalData']
+            for i in range(len(add_data)):
+                if ("ESEL" in add_data[i]):
+                    dict_item['esel'] = add_data[i].strip().split('=')[1].replace(" ", "")
+                if ("PROCEDURE" in add_data[i]):
+                    dict_item['Procedure'] = str(add_data[i].split('=')[1])
+            dict_list.append(dict_item)
+
+        if dump:
+            print "\n----------------------------------------------------------------------"
+            print "SELs"
+            print "----------------------------------------------------------------------"
+            if len(id_list) == 0:
+                print "SEL has no entries"
+            for k in dict_list:
+                print "Id          : {}".format(k.get('Id'))
+                print "Message     : {}".format(k.get('Message'))
+                print "Description : {}".format(k.get('Description'))
+                print "Timestamp   : {}".format(k.get('Timestamp'))
+                print "Severity    : {}".format(k.get('Severity'))
+                print "Resolved    : {}".format(k.get('Resolved'))
+                if k.get('EventID') is not None:
+                    print "EventID     : {}".format(k.get('EventID'))
+                if k.get('Procedure') is not None:
+                    print "Procedure   : {}".format(k.get('Procedure'))
+                if k.get('esel') is not None:
+                    print "ESEL        : characters={}\n".format(len(k.get('esel')))
+                    print "Ruler        : 0123456789012345678901234567890123456789012345678901234567890123"
+                    print "-------------------------------------------------------------------------------"
+                    for j in range(0, len(k.get('esel')), 64):
+                        print "{:06d}-{:06d}: {}".format(j, j+63, k.get('esel')[j:j+64])
+                else:
+                    print "ESEL        : None"
+                print "\n"
+            print "----------------------------------------------------------------------"
+        # sample id_list ['81', '82', '83', '84']
+        log.debug("id_list={}".format(id_list))
+        log.debug("dict_list={}".format(dict_list))
+        return id_list, dict_list
 
     def clear_sel_by_id(self):
         log.debug('Clearing SEL entries by id')
-        list = self.get_sel_ids()
+        list, dict_list = self.get_sel_ids()
+        log.debug("list={}".format(list))
+        log.debug("dict_list={}".format(dict_list))
         for id in list:
             data = '\'{"data" : []}\''
             obj = "/xyz/openbmc_project/logging/entry/%s/action/Delete" % id
@@ -379,7 +448,9 @@ class HostManagement():
     def verify_clear_sel(self):
         log.debug('Check if SEL has really zero entries or not')
         list = []
-        list = self.get_sel_ids()
+        list, dict_list = self.get_sel_ids()
+        log.debug("list={}".format(list))
+        log.debug("dict_list={}".format(dict_list))
         if not list:
             return True
         return False
@@ -391,6 +462,7 @@ class HostManagement():
         -d '{"data" : []}' \
         https://bmc/xyz/openbmc_project/logging/action/DeleteAll
         '''
+        log.debug('Clearing ALL SELs DeleteAll')
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/logging/action/DeleteAll"
         try:

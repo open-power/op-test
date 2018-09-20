@@ -216,6 +216,7 @@ class OpTestSystem(object):
         for key in default_vals:
           if key not in kwargs.keys():
             kwargs[key] = default_vals[key]
+        self.sys_sel_elist(dump=True)
         guard_exception = UnexpectedCase(state=self.state, msg="We hit the guard_callback value={}, manually restart the system".format(kwargs['value']))
         self.state = OpSystemState.UNKNOWN_BAD
         self.stop = 1
@@ -243,9 +244,20 @@ class OpTestSystem(object):
         time.sleep(2)
         rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         xmon_special_registers = sys_console.after
+        sys_console.sendline("e")
+        time.sleep(2)
+        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_exception_registers = sys_console.after
+        self.sys_sel_elist(dump=True)
         self.stop = 1
-        my_msg = ('We hit the xmon_callback with \"{}\" backtrace=\n{}\n registers=\n{}\n special_registers=\n{}\n'
-                  .format(xmon_value, xmon_backtrace, xmon_registers, xmon_special_registers))
+        my_msg = ('We hit the xmon_callback with \"{}\" backtrace=\n{}\n'
+                  ' registers=\n{}\n special_registers=\n{}\n'
+                  ' exception_registers=\n{}\n'
+                  .format(xmon_value,
+                  xmon_backtrace,
+                  xmon_registers,
+                  xmon_special_registers,
+                  xmon_exception_registers))
         xmon_exception = UnexpectedCase(state=self.state, msg=my_msg)
         self.state = OpSystemState.UNKNOWN_BAD
         raise xmon_exception
@@ -255,6 +267,7 @@ class OpTestSystem(object):
         for key in default_vals:
           if key not in kwargs.keys():
             kwargs[key] = default_vals[key]
+        self.sys_sel_elist(dump=True)
         skiboot_exception = UnexpectedCase(state=self.state, msg="We hit the skiboot_callback value={}, manually restart the system".format(kwargs['value']))
         self.state = OpSystemState.UNKNOWN_BAD
         self.stop = 1
@@ -910,6 +923,13 @@ class OpTestSystem(object):
             return BMC_CONST.FW_FAILED
         return rc
 
+    def sys_sel_elist(self, dump=False):
+        '''
+        Get the sel elist to dump out
+        '''
+        output = self.cv_IPMI.ipmi_sel_elist(dump=dump)
+
+        return output
 
     def sys_bmc_reboot(self):
         '''
@@ -1243,6 +1263,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
 
     def sys_get_sel_list(self):
         self.rest.list_sel()
+
+    def sys_sel_elist(self, dump=False):
+        self.rest.get_sel_ids(dump=dump)
 
     def sys_sel_check(self):
         self.rest.list_sel()
