@@ -240,7 +240,7 @@ class OpSolMonitorThread3(threading.Thread):
     on other SSH threads. This thread can be terminated by just calling console_terminate
     from parent process.
     '''
-    def __init__(self, log_file):
+    def __init__(self):
         threading.Thread.__init__(self)
         conf = OpTestConfiguration.conf
         self.system = conf.system()
@@ -258,7 +258,7 @@ class OpSolMonitorThread3(threading.Thread):
                 pass
             except pexpect.EOF:
                 self.c.state = IPMIConsoleState.DISCONNECTED
-                self.c = self.system.console
+                self.c = self.system.get_console()
 
             if self.c_terminate:
                 break

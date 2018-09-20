@@ -32,6 +32,7 @@ import os
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+from common.OpTestThread import OpSolMonitorThread3
 
 
 class RunHostTest(unittest.TestCase):
@@ -43,6 +44,8 @@ class RunHostTest(unittest.TestCase):
         self.host_cmd_timeout = self.conf.args.host_cmd_timeout
         if not (self.host_cmd or self.host_cmd_file):
             self.fail("Provide either --host-cmd and --host-cmd-file option")
+        self.console_thread = OpSolMonitorThread3()
+        self.console_thread.start()
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -61,3 +64,6 @@ class RunHostTest(unittest.TestCase):
                     con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
                     continue
                 con.run_command(line, timeout=self.host_cmd_timeout)
+
+    def tearDown(self):
+        self.console_thread.console_terminate()
