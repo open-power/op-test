@@ -158,7 +158,7 @@ class QemuConsole():
         cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
         print(cmd)
         try:
-          solChild = OPexpect.OPexpect.spawn(cmd,logfile=self.logfile)
+          solChild = OPexpect.spawn(cmd,logfile=self.logfile)
         except Exception as e:
           self.state = ConsoleState.DISCONNECTED
           raise CommandFailed('OPexpect.spawn',

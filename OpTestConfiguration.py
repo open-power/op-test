@@ -115,7 +115,6 @@ default_val_smc = {
 
 default_val_qemu = {
     'bmc_type'            : 'qemu',
-    'bmc_ip'              : '10.0.2.2',
      # typical KVM Host IP
      # see OpTestQemu.py
     'host_ip'             : '10.0.2.15',
