@@ -119,6 +119,10 @@ class KernelLog():
         if self.bmc_type in ['qemu']:
             # Qemu doesn't (yet) have pstate support, so ignore errors there.
             filter_out.append('powernv-cpufreq: ibm,pstate-min node not found')
+            filter_out.append('nvram: Failed to find or create lnx,oops-log')
+            filter_out.append('nvram: Failed to initialize oops partition!')
+            # some weird disk setups
+            filter_out.append('vdb.*start.*is beyond EOD')
 
         for f in filter_out:
             fre = re.compile(f)

@@ -58,6 +58,15 @@ class OpalMsglog():
             filter_out.append('SLW: No image found')
             filter_out.append('SLW: Sleep not enabled by HB on this platform')
             filter_out.append('OCC: No HOMER detected, assuming no pstates')
+            # A bunch of qemu configurations won't have a pnor
+            filter_out.append('FFS: Reading the flash has returned all 0xFF.')
+            filter_out.append('Are you reading erased flash?')
+            filter_out.append('Is something else using the flash controller?')
+            filter_out.append('FLASH: No ffs info; using raw device only')
+            filter_out.append('NVRAM: Failed to load')
+            filter_out.append("FLASH: Can't load resource id:")
+            filter_out.append('CAPP: Error loading ucode lid.')
+
 
         if self.conf.args.flash_kernel:
             # If we've flashed a BOOTKERNEL, then there's no way it'll match
