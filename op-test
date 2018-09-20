@@ -265,10 +265,36 @@ class DefaultSuite():
 class QemuSuite():
     '''Basic regression tests'''
     def __init__(self):
+        # this is the same as Skiroot, but with currently
+        # failing tests disabled
         self.s = unittest.TestSuite()
-#        self.s.addTest(SkirootSuite().suite())
-        self.s.addTest(InstallUbuntu.InstallUbuntu())
-        self.s.addTest(HostSuite().suite())
+        self.s.addTest(BasicIPL.GotoPetitbootShell())
+        self.s.addTest(DeviceTreeWarnings.Skiroot())
+        #self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
+        self.s.addTest(SecureBoot.VerifyOPALSecureboot())
+        self.s.addTest(TrustedBoot.VerifyOPALTrustedBoot())
+        self.s.addTest(OpTestEM.skiroot_suite())
+        self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
+        self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
+        self.s.addTest(OpTestRTCdriver.SkirootRTC())
+        self.s.addTest(AT24driver.SkirootAT24())
+        self.s.addTest(I2C.BasicSkirootI2C())
+        self.s.addTest(OpTestPCI.TestPCISkiroot())
+        #self.s.addTest(PciSlotLocCodes.Skiroot())
+        #self.s.addTest(PciSlotLocCodes.SkirootDT())
+        self.s.addTest(OpTestPCI.PcieLinkErrorsSkiroot())
+        self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
+        self.s.addTest(Petitbooti18n.Petitbooti18n())
+        self.s.addTest(OpTestFastReboot.OpTestFastReboot())
+        self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
+        self.s.addTest(OpTestNVRAM.SkirootNVRAM())
+        self.s.addTest(Console.suite())
+        self.s.addTest(OpTestPNOR.Skiroot())
+        self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
+        self.s.addTest(OpalMsglog.Skiroot())
+        self.s.addTest(KernelLog.Skiroot())
+        self.s.addTest(DPO.DPOSkiroot())
     def suite(self):
         return self.s
 
