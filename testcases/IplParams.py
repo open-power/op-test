@@ -53,7 +53,7 @@ class IplParams():
                                          "needs-spec-barrier-for-bound-checks", "speculation-policy-favor-security", "tm-suspend-mode",
                                          "fw-branch-hints-honored"]
         p9_dd2_2_rl0_params["disable"] = ["inst-l1d-flush-ori30,30,0", "fw-bcctrl-serialized", "inst-thread-reconfig-control-trig0-1",
-                                          "fw-ltpter-serialized", "user-mode-branch-speculation"]
+                                          "fw-ltptr-serialized", "user-mode-branch-speculation"]
         # P9 DD2.2 Risk level 1 fw feature table
         p9_dd2_2_rl1_params = {}
         p9_dd2_2_rl1_params["enable"] = ["fw-l1d-thread-split", "fw-bcctrl-serialized",
@@ -62,7 +62,7 @@ class IplParams():
                                          "needs-spec-barrier-for-bound-checks", "speculation-policy-favor-security", "tm-suspend-mode",
                                          "fw-branch-hints-honored", "user-mode-branch-speculation"]
         p9_dd2_2_rl1_params["disable"] = ["fw-count-cache-disabled", "inst-l1d-flush-ori30,30,0", "inst-thread-reconfig-control-trig0-1",
-                                          "fw-ltpter-serialized"]
+                                          "fw-ltptr-serialized"]
 
         # P8 fw-feature table
         p8_params = {}
@@ -71,7 +71,7 @@ class IplParams():
                                "needs-spec-barrier-for-bound-checks", "speculation-policy-favor-security", "tm-suspend-mode",
                                "fw-branch-hints-honored"]
         p8_params["disable"] = ["fw-bcctrl-serialized", "inst-thread-reconfig-control-trig0-1",
-                                "fw-ltpter-serialized", "inst-l1d-flush-trig2", "fw-l1d-thread-split", "user-mode-branch-speculation"]
+                                "fw-ltptr-serialized", "inst-l1d-flush-trig2", "fw-l1d-thread-split", "user-mode-branch-speculation"]
 
         self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         if self.cpu in ["POWER9"]:
