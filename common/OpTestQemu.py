@@ -185,7 +185,7 @@ class QemuConsole():
             self.connect()
         else:
             if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-                self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+                self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
 
         return self.pty
 
