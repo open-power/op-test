@@ -94,7 +94,7 @@ class OpTestHMIHandling(unittest.TestCase):
           self.assertTrue(False, "OpTestHMIHandling failed to recover from previous OpSystemState.UNKNOWN_BAD")
 
     def handle_ipl(self):
-        rc = self.cv_SYSTEM.console.sol.expect(["ISTEP", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+        rc = self.cv_SYSTEM.console.pty.expect(["ISTEP", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
         if rc == 0:
           for i in range(3):
             try:
@@ -405,7 +405,7 @@ class OpTestHMIHandling(unittest.TestCase):
         res = console.run_command("uname -a") # perform any command to make sure console is logged in
 
         # now can send raw pexpect commands which assume log in
-        console.sol.sendline(l_cmd)
+        console.pty.sendline(l_cmd)
         self.handle_ipl()
 
     def _test_hyp_resource_err(self):
@@ -434,7 +434,7 @@ class OpTestHMIHandling(unittest.TestCase):
         res = console.run_command("uname -a") # perform any command to make sure console is logged in
 
         # now can send raw pexpect commands which assume log in
-        console.sol.sendline(l_cmd)
+        console.pty.sendline(l_cmd)
         self.handle_ipl()
 
     def _testTFMR_Errors(self, i_error):

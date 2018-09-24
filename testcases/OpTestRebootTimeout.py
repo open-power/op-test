@@ -55,10 +55,10 @@ class RebootTime():
         rc = self.c.run_command("uname -a")
         # run any command to get console setup, if expected to be logged in
         # now console is logged in and you can perform raw pexpect commands that assume log in
-        self.c.sol.sendline("reboot")
+        self.c.pty.sendline("reboot")
 
         start = time.time()
-        rc = self.c.sol.expect(["OPAL: Reboot request", "reboot: Restarting system", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+        rc = self.c.pty.expect(["OPAL: Reboot request", "reboot: Restarting system", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
         if rc in [0,1]:
           log.debug("Time to OPAL reboot handler: {} seconds".format(time.time() - start))
         else:

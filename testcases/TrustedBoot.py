@@ -66,10 +66,10 @@ class TrustedBoot(unittest.TestCase):
         self.securemode = conf.args.secure_mode
 
     def wait_for_system_shutdown(self):
-        console = self.cv_SYSTEM.console.get_console()
-        console.expect("System shutting down with error status", timeout=100)
-        console.expect("RC_TPM_NOFUNCTIONALTPM_FAIL", timeout=50)
-        console.expect("================================================", timeout=20)
+        raw_pty = self.cv_SYSTEM.console.get_console()
+        raw_pty.expect("System shutting down with error status", timeout=100)
+        raw_pty.expect("RC_TPM_NOFUNCTIONALTPM_FAIL", timeout=50)
+        raw_pty.expect("================================================", timeout=20)
 
     def verify_opal_tb(self):
         c = self.cv_SYSTEM.console

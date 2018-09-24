@@ -182,7 +182,7 @@ class IPMIConsole():
         self.util = OpTestUtil()
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
-        self.sol = None
+        self.pty = None
         self.delaybeforesend = delaybeforesend
         self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
         self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
@@ -222,17 +222,17 @@ class IPMIConsole():
         if self.state == IPMIConsoleState.DISCONNECTED:
             return
         try:
-            self.sol.send("\r")
-            self.sol.send('~.')
-            close_rc = self.sol.expect(['[terminated ipmitool]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-            rc_child = self.sol.close()
+            self.pty.send("\r")
+            self.pty.send('~.')
+            close_rc = self.pty.expect(['[terminated ipmitool]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            rc_child = self.pty.close()
             self.state = IPMIConsoleState.DISCONNECTED
             exitCode = signalstatus = None
-            if self.sol.status != -1: # leaving for future debug
-              if os.WIFEXITED(self.sol.status):
-                exitCode = os.WEXITSTATUS(self.sol.status)
+            if self.pty.status != -1: # leaving for future debug
+              if os.WIFEXITED(self.pty.status):
+                exitCode = os.WEXITSTATUS(self.pty.status)
               else:
-                signalstatus = os.WTERMSIG(self.sol.status)
+                signalstatus = os.WTERMSIG(self.pty.status)
         except pexpect.ExceptionPexpect:
             self.state = IPMIConsoleState.DISCONNECTED
             raise OpTestError("IPMI: failed to close ipmi console")
@@ -253,7 +253,7 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         try:
-          solChild = OPexpect.spawn(cmd,
+          self.pty = OPexpect.spawn(cmd,
                                   failure_callback=set_system_to_UNKNOWN_BAD,
                                   failure_callback_data=self.system)
         except Exception as e:
@@ -262,26 +262,25 @@ class IPMIConsole():
 
         log.debug("#IPMI SOL CONNECT")
         self.state = IPMIConsoleState.CONNECTED
-        solChild.setwinsize(1000,1000)
-        self.sol = solChild
-        solChild.logfile_read = OpTestLogger.FileLikeLogger(log)
+        self.pty.setwinsize(1000,1000)
+        self.pty.logfile_read = OpTestLogger.FileLikeLogger(log)
         if self.delaybeforesend:
-	    self.sol.delaybeforesend = self.delaybeforesend
-        rc = self.sol.expect_exact(['[SOL Session operational.  Use ~? for help]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+	    self.pty.delaybeforesend = self.delaybeforesend
+        rc = self.pty.expect_exact(['[SOL Session operational.  Use ~? for help]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
           if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
-            self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+            self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
           time.sleep(0.2)
-          return solChild
+          return self.pty
         if rc == 1:
-          self.sol.close()
+          self.pty.close()
           time.sleep(60) # give things a minute to clear
           raise CommandFailed('sol activate',
             "IPMI: pexpect.TIMEOUT while trying to establish"
             " connection, command was '{}'"
             .format(cmd), -1)
         if rc == 2:
-          self.sol.close()
+          self.pty.close()
           time.sleep(60) # give things a minute to clear
           raise CommandFailed('sol activate',
             "IPMI: insufficient resources for session, unable"
@@ -293,7 +292,7 @@ class IPMIConsole():
             self.connect()
 
         count = 0
-        while (not self.sol.isalive()):
+        while (not self.pty.isalive()):
             log.warning('# Reconnecting')
             if (count > 0):
                 time.sleep(BMC_CONST.IPMI_SOL_ACTIVATE_TIME)
@@ -302,9 +301,9 @@ class IPMIConsole():
             if count > 120:
                 raise "IPMI: not able to get sol console"
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
-          self.util.setup_term(self.system, self.sol, None, self.system.block_setup_term)
+          self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
 
-        return self.sol
+        return self.pty
 
     def run_command(self, command, timeout=60, retry=0):
         return self.util.run_command(self, command, timeout, retry)
@@ -452,7 +451,6 @@ class OpTestIPMI():
                         state before giving up.
         :type timeout: int
         '''
-        sol = self.console.get_console()
         timeout = time.time() + 60*timeout
         cmd = 'sdr elist |grep \'Host Status\''
         output = self.ipmitool.run(cmd)
@@ -471,11 +469,11 @@ class OpTestIPMI():
 
         try:
             self.ipmitool.run('sol deactivate')
-            self.console.terminate()
+            self.console.close()
         except subprocess.CalledProcessError:
             l_msg = 'SOL already deactivated'
             log.error(l_msg)
-            self.console.terminate()
+            self.console.close()
             raise OpTestError(l_msg)
         return BMC_CONST.FW_SUCCESS
 

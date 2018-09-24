@@ -230,24 +230,24 @@ class OpTestSystem(object):
         xmon_check_r = kwargs['my_r']
         xmon_value = kwargs['value']
         time.sleep(2)
-        sys_console = self.console.get_console()
+        sys_pty = self.console.get_console()
         time.sleep(2)
-        sys_console.sendline("t")
+        sys_pty.sendline("t")
         time.sleep(2)
-        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-        xmon_backtrace = sys_console.after
-        sys_console.sendline("r")
+        rc = sys_pty.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_backtrace = sys_pty.after
+        sys_pty.sendline("r")
         time.sleep(2)
-        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-        xmon_registers = sys_console.after
-        sys_console.sendline("S")
+        rc = sys_pty.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_registers = sys_pty.after
+        sys_pty.sendline("S")
         time.sleep(2)
-        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-        xmon_special_registers = sys_console.after
-        sys_console.sendline("e")
+        rc = sys_pty.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_special_registers = sys_pty.after
+        sys_pty.sendline("e")
         time.sleep(2)
-        rc = sys_console.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-        xmon_exception_registers = sys_console.after
+        rc = sys_pty.expect([".*mon> ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        xmon_exception_registers = sys_pty.after
         self.sys_sel_elist(dump=True)
         self.stop = 1
         my_msg = ('We hit the xmon_callback with \"{}\" backtrace=\n{}\n'
@@ -359,10 +359,10 @@ class OpTestSystem(object):
     def detect_target(self, target_state, reboot):
         self.block_setup_term = 0 # unblock to allow setup_term during get_console
         self.console.enable_setup_term_quiet()
-        sys_console = self.console.get_console()
+        sys_pty = self.console.get_console()
         self.console.disable_setup_term_quiet()
-        sys_console.sendline()
-        r = sys_console.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        sys_pty.sendline()
+        r = sys_pty.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if r in [0,1]:
           if (target_state == OpSystemState.PETITBOOT):
             return OpSystemState.PETITBOOT
@@ -425,17 +425,17 @@ class OpTestSystem(object):
     def check_kernel(self):
         self.block_setup_term = 0 # unblock to allow setup_term during get_console
         self.console.enable_setup_term_quiet()
-        sys_console = self.console.get_console()
+        sys_pty = self.console.get_console()
         self.console.disable_setup_term_quiet()
-        sys_console.sendline()
-        rc = sys_console.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        sys_pty.sendline()
+        rc = sys_pty.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if rc in [0,1,5,6]:
           return OpSystemState.UNKNOWN # we really should not have arrived in here and not much we can do
-        sys_console.sendline("cat /proc/version | cut -d ' ' -f 3 | grep %s; echo $?" % (self.openpower))
+        sys_pty.sendline("cat /proc/version | cut -d ' ' -f 3 | grep %s; echo $?" % (self.openpower))
         time.sleep(0.2)
-        rc = sys_console.expect([self.expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=1)
+        rc = sys_pty.expect([self.expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=1)
         if rc == 0:
-          echo_output = sys_console.before
+          echo_output = sys_pty.before
           try:
             echo_rc = int(echo_output.splitlines()[-1])
           except Exception as e:
@@ -461,38 +461,38 @@ class OpTestSystem(object):
         expect_seq = list(base_seq) # we want a *copy*
         expect_seq = expect_seq + list(sorted(kwargs['expect_dict'].keys()))
         if kwargs['fresh_start']:
-          sys_console = self.console.connect() # new connect gets new pexpect buffer, stale buffer from power off can linger
+          sys_pty = self.console.connect() # new connect gets new pexpect buffer, stale buffer from power off can linger
         else:
-          sys_console = self.console.get_console() # cannot tolerate new connect on transition from 3/4 to 6
+          sys_pty = self.console.get_console() # cannot tolerate new connect on transition from 3/4 to 6
         # we do not perform buffer_kicker here since it can cause changes to things like the petitboot menu and default boot
         if kwargs['refresh']:
-          sys_console.sendcontrol('l')
+          sys_pty.sendcontrol('l')
         previous_before = 'emptyfirst'
         x = 1
         reconnect_count = 0
         timeout_count = 1
         while (x <= kwargs['loop_max']):
-            sys_console = self.console.get_console() # preemptive in case EOF came
-            r = sys_console.expect(expect_seq, kwargs['timeout'])
+            sys_pty = self.console.get_console() # preemptive in case EOF came
+            r = sys_pty.expect(expect_seq, kwargs['timeout'])
             # if we have a stale buffer and we are still timing out
-            if (previous_before == sys_console.before) and ((r + 1) in range(len(base_seq))):
+            if (previous_before == sys_pty.before) and ((r + 1) in range(len(base_seq))):
               timeout_count += 1
               # only attempt reconnect if we've timed out per threshold
               if (timeout_count % kwargs['threshold'] == 0):
                 if kwargs['reconnect']:
                   reconnect_count += 1
                   try:
-                    sys_console = self.console.connect()
+                    sys_pty = self.console.connect()
                   except Exception as e:
                     log.error(e)
                   if kwargs['refresh']:
-                    sys_console.sendcontrol('l')
+                    sys_pty.sendcontrol('l')
                   if kwargs['buffer_kicker']:
-                    sys_console.sendline("\r")
-                    sys_console.expect("\n")
+                    sys_pty.sendline("\r")
+                    sys_pty.expect("\n")
                 previous_before = 'emptyagain'
             else:
-              previous_before = sys_console.before
+              previous_before = sys_pty.before
               timeout_count = 1
 
             working_r = self.check_it(my_r=r, check_base_seq=base_seq, check_expect_seq=expect_seq, check_expect_dict=kwargs['expect_dict'])
@@ -511,10 +511,10 @@ class OpTestSystem(object):
                       sorted(kwargs['expect_dict'].keys()), kwargs['refresh'], kwargs['buffer_kicker'], self.kill_cord))
             if (x >= kwargs['loop_max']):
               if kwargs['last_try']:
-                sys_console = self.console.connect()
-                sys_console.sendcontrol('l')
-                sys_console.sendline("\r")
-                r = sys_console.expect(expect_seq, kwargs['timeout'])
+                sys_pty = self.console.connect()
+                sys_pty.sendcontrol('l')
+                sys_pty.sendline("\r")
+                r = sys_pty.expect(expect_seq, kwargs['timeout'])
                 try:
                   last_try_r = self.check_it(my_r=r, check_base_seq=base_seq, check_expect_seq=expect_seq,
                                                check_expect_dict=kwargs['expect_dict'])
@@ -561,15 +561,15 @@ class OpTestSystem(object):
     def run_REBOOT(self, target_state):
         self.block_setup_term = 0 # allow login/setup
         # if run_REBOOT is used in the future outside of first time need to review previous_state handling
-        sys_console = self.console.get_console()
+        sys_pty = self.console.get_console()
         if (target_state == OpSystemState.PETITBOOT_SHELL) or (target_state == OpSystemState.PETITBOOT):
           self.sys_set_bootdev_setup()
         else:
           self.sys_set_bootdev_no_override()
         self.util.clear_state(self)
         self.block_setup_term = 1 # block during reboot
-        sys_console.sendline('reboot') # connect will have the login/root setup_term done
-        sys_console.expect("\n")
+        sys_pty.sendline('reboot') # connect will have the login/root setup_term done
+        sys_pty.expect("\n")
 
         try:
           if (target_state == OpSystemState.OS):
@@ -1073,80 +1073,80 @@ class OpTestSystem(object):
             return BMC_CONST.FW_FAILED
 
     def petitboot_exit_to_shell(self):
-        sys_console = self.console.get_console()
+        sys_pty = self.console.get_console()
         for i in range(3):
           pp = self.get_petitboot_prompt()
           if pp == 1:
             break;
         if pp != 1:
             log.warning("OpTestSystem detected something, tried to recover, but still we have a problem, retry")
-            raise ConsoleSettings(before=sys_console.before, after=sys_console.after,
+            raise ConsoleSettings(before=sys_pty.before, after=sys_pty.after,
                     msg="System at Petitboot Menu unable to exit to shell after retry")
 
     def get_petitboot_prompt(self):
         my_pp = 0
-        sys_console = self.console.get_console()
-        sys_console.sendline()
-        pes_rc = sys_console.expect([".*#", ".*# $", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        sys_pty = self.console.get_console()
+        sys_pty.sendline()
+        pes_rc = sys_pty.expect([".*#", ".*# $", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if pes_rc in [0,1]:
           if self.PS1_set != 1:
-            self.SUDO_set = self.LOGIN_set = self.PS1_set = self.util.set_PS1(self.console, sys_console, self.util.build_prompt(self.prompt))
+            self.SUDO_set = self.LOGIN_set = self.PS1_set = self.util.set_PS1(self.console, sys_pty, self.util.build_prompt(self.prompt))
           self.block_setup_term = 0 # unblock in case connections are lost during state=4 the get_console/connect can properly setup again
           self.previous_state = OpSystemState.PETITBOOT_SHELL # preserve state
           my_pp = 1
         else:
-          sys_console = self.console.connect() # try new connect, sometimes stale buffers
+          sys_pty = self.console.connect() # try new connect, sometimes stale buffers
         return my_pp
 
     def exit_petitboot_shell(self):
-        sys_console = self.console.get_console()
-        eps_rc = self.try_exit(sys_console)
+        sys_pty = self.console.get_console()
+        eps_rc = self.try_exit(sys_pty)
         if eps_rc == 0: # Petitboot
           return
         else: # we timed out or eof
           self.util.try_recover(self.console, counter=3)
           # if we get back here we're good and at the prompt
-          sys_console.sendline()
-          eps_rc = self.try_exit(sys_console)
+          sys_pty.sendline()
+          eps_rc = self.try_exit(sys_pty)
           if eps_rc == 0: # Petitboot
             return
           else:
-            raise RecoverFailed(before=sys_console.before, after=sys_console.after,
+            raise RecoverFailed(before=sys_pty.before, after=sys_pty.after,
                     msg="Unable to get the Petitboot prompt stage 3, we were trying to exit back to menu")
 
-    def try_exit(self, sys_console):
+    def try_exit(self, sys_pty):
           self.util.clear_state(self)
-          sys_console.sendline()
-          sys_console.sendline("exit")
-          rc_return = sys_console.expect(["Petitboot", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          sys_pty.sendline()
+          sys_pty.sendline("exit")
+          rc_return = sys_pty.expect(["Petitboot", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
           if rc_return == 0:
             return rc_return
           else:
             return -1
 
     def get_my_ip_from_host_perspective(self):
-        rawc = self.console.get_console()
+        raw_pty = self.console.get_console()
         port = 12340
         my_ip = None
         try:
             if self.get_state() == OpSystemState.PETITBOOT_SHELL:
-                rawc.send("nc -l -p %u -v -e /bin/true\n" % port)
+                raw_pty.send("nc -l -p %u -v -e /bin/true\n" % port)
             else:
-                rawc.send("nc -l -p %u -v\n" % port)
+                raw_pty.send("nc -l -p %u -v\n" % port)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             time.sleep(0.5)
             log.debug("# Connecting to %s:%u" % (self.host().hostname(), port))
             sock.connect((self.host().hostname(), port))
             sock.send('Hello World!')
             sock.close()
-            rawc.expect('Connection from ')
-            rawc.expect([':', ' '])
-            my_ip = rawc.before
-            rawc.expect('\n')
+            raw_pty.expect('Connection from ')
+            raw_pty.expect([':', ' '])
+            my_ip = raw_pty.before
+            raw_pty.expect('\n')
             log.debug(repr(my_ip))
             return my_ip
         except Exception as e:  # Looks like older nc does not support -v, lets fallback
-            rawc.sendcontrol('c')  # to avoid incase nc command hangs
+            raw_pty.sendcontrol('c')  # to avoid incase nc command hangs
             my_ip = None
             ip = commands.getoutput("hostname -i")
             ip_lst = commands.getoutput("hostname -I").split(" ")
@@ -1192,7 +1192,7 @@ class OpTestFSPSystem(OpTestSystem):
 
     def wait_for_it(self, **kwargs):
         # Ensure IPMI console is open so not to miss petitboot
-        sys_console = self.console.get_console()
+        sys_pty = self.console.get_console()
         self.cv_BMC.wait_for_runtime()
         return super(OpTestFSPSystem, self).wait_for_it(**kwargs)
 
@@ -1276,7 +1276,7 @@ class OpTestOpenBMCSystem(OpTestSystem):
 
     def wait_for_it(self, **kwargs):
         # Ensure IPMI console is open so not to miss petitboot
-        sys_console = self.console.get_console()
+        sys_pty = self.console.get_console()
         self.rest.wait_for_runtime()
         return super(OpTestOpenBMCSystem, self).wait_for_it(**kwargs)
 

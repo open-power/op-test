@@ -99,8 +99,8 @@ class ReBootTorture(unittest.TestCase, TestPCI):
             console.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             console.run_command_ignore_fail(
                 "grep ',[0-4]\]' /sys/firmware/opal/msglog")
-            console.sol.sendline("echo 10  > /proc/sys/kernel/printk")
-            console.sol.sendline("reboot")
+            console.pty.sendline("echo 10  > /proc/sys/kernel/printk")
+            console.pty.sendline("reboot")
             self.cv_SYSTEM.set_state(OpSystemState.IPLing)
             try:
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)

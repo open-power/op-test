@@ -73,14 +73,14 @@ class OpTestKernelBase(unittest.TestCase):
         console.run_command("cat /etc/os-release")
         console.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
         console.run_command("echo 10  > /proc/sys/kernel/panic")
-        console.sol.sendline("echo c > /proc/sysrq-trigger")
+        console.pty.sendline("echo c > /proc/sysrq-trigger")
         done = False
         rc = -1
         # TODO: We may need to move this kdump expect path to OPexpect wrapper
         # so that in real kernel crashes we can track kdump vmcore collection as well
         while not done:
             try:
-                rc = console.sol.expect(['ISTEP', "kdump: saving vmcore complete"], timeout=300)
+                rc = console.pty.expect(['ISTEP', "kdump: saving vmcore complete"], timeout=300)
             except KernelOOPS:
                 # if kdump is disabled, system should IPL after kernel crash(oops)
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)

@@ -55,13 +55,13 @@ class SecureBoot(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
     def verify_boot_fail(self):
-        console = self.cv_SYSTEM.console.get_console()
+        raw_pty = self.cv_SYSTEM.console.get_console()
         self.cv_SYSTEM.sys_power_on()
         count = 4
         boot = False
         while count != 0:
             try:
-                console.expect("ISTEP", timeout=30)
+                raw_pty.expect("ISTEP", timeout=30)
                 boot = True
             except pexpect.TIMEOUT:
                 count -= 1
@@ -70,19 +70,19 @@ class SecureBoot(unittest.TestCase):
         return True
 
     def wait_for_secureboot_enforce(self):
-        console = self.cv_SYSTEM.console.get_console()
+        raw_pty = self.cv_SYSTEM.console.get_console()
         self.cv_SYSTEM.sys_power_on()
-        console.expect("STB: secure mode enforced, aborting.", timeout=300)
-        console.expect("secondary_wait", timeout=20)
-        console.expect("host_voltage_config", timeout=100)
+        raw_pty.expect("STB: secure mode enforced, aborting.", timeout=300)
+        raw_pty.expect("secondary_wait", timeout=20)
+        raw_pty.expect("host_voltage_config", timeout=100)
 
     def wait_for_sb_kt_start(self):
-        console = self.cv_SYSTEM.console.get_console()
-        console.expect("sbe|Performing Secure Boot key transition", timeout=300)
+        raw_pty = self.cv_SYSTEM.console.get_console()
+        raw_pty.expect("sbe|Performing Secure Boot key transition", timeout=300)
 
     def wait_for_shutdown(self):
-        console = self.cv_SYSTEM.console.get_console()
-        console.expect("shutdown complete", timeout=100)
+        raw_pty = self.cv_SYSTEM.console.get_console()
+        raw_pty.expect("shutdown complete", timeout=100)
 
     def verify_opal_sb(self):
         c = self.cv_SYSTEM.console
