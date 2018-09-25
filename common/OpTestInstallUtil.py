@@ -32,6 +32,8 @@ import time
 from Exceptions import CommandFailed
 import OpTestConfiguration
 
+from common.OpTestSystem import OpSystemState
+
 
 BASE_PATH = ""
 INITRD = ""
@@ -279,6 +281,129 @@ class InstallUtil():
         cmd = 'nvram --print-config'
         output = self.cv_SYSTEM.console.run_command(cmd)
         return
+
+    def get_boot_cfg(self):
+        """
+        Find bootloader cfg file path of host.
+
+        :return: bootloader cfg file path, empty string if no cfg file found.
+        """
+        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+        bootloader_cfg = [
+            '/boot/grub/grub.conf',
+            '/boot/grub2/grub.cfg',
+            '/etc/grub.conf',
+            '/etc/grub2.cfg',
+            '/boot/etc/yaboot.conf',
+            '/etc/default/grub'
+        ]
+        cfg_path = ''
+        for path in bootloader_cfg:
+            cmd = "test -f %s" % path
+            try:
+                con.run_command(cmd)
+                cfg_path = path
+            except CommandFailed:
+                continue
+        return cfg_path
+
+    def check_kernel_cmdline(self, args="", remove_args=""):
+        """
+        Method to check whether args are already exists or not in /proc/cmdline
+
+        :param args: arguments to be checked whether already exists or to add
+        :param remove_args: arguments to be checked whether it doesn't exists
+                            or to remove.
+
+        :return: required arguments to be added/removed of type str
+        """
+        req_args = ""
+        req_remove_args = ""
+        check_cmd = "cat /proc/cmdline"
+        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+        try:
+            check_output = con.run_command(check_cmd, timeout=60)[0].split()
+            for each_arg in args.split():
+                if each_arg not in check_output:
+                    req_args += "%s " % each_arg
+            for each_arg in remove_args.split():
+                if each_arg in check_output:
+                    req_remove_args += "%s " % each_arg
+        except CommandFailed as Err:
+            print("Failed to get kernel commandline using %s: %s" %
+                  (Err.command, Err.output))
+        return req_args.strip(), req_remove_args.strip()
+
+    def update_kernel_cmdline(self, args="", remove_args="", reboot=True):
+        """
+        Update default Kernel cmdline arguments
+
+        :param args: Kernel option to be included
+        :param remove_args: Kernel option to be removed
+        :param reboot: whether to reboot the host or not
+
+        :return: True on success and False on failure
+        """
+        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+        req_args, req_remove_args = self.check_kernel_cmdline(args,
+                                                              remove_args)
+        try:
+            con.run_command("grubby --help", timeout=60)
+            cmd = 'grubby --update-kernel=`grubby --default-kernel` '
+            if req_args:
+                cmd += '--args="%s" ' % req_args
+            if req_remove_args:
+                cmd += '--remove-args="%s"' % req_remove_args
+            try:
+                con.run_command(cmd)
+            except CommandFailed as Err:
+                print("Failed to update kernel commandline using %s: %s" %
+                      (Err.command, Err.output))
+                return False
+        # If grubby is not available fallback by changing grub file
+        except CommandFailed:
+            grub_key = "GRUB_CMDLINE_LINUX_DEFAULT"
+            boot_cfg = self.get_boot_cfg()
+            cmd = ("cat %s | grep %s | awk -F '=' '{print $2}'" %
+                   (boot_cfg, grub_key))
+            try:
+                output = con.run_command(cmd, timeout=60)[0].strip("\"")
+                if req_args:
+                    output += " %s" % req_args
+                if req_remove_args:
+                    for each_arg in req_remove_args.split():
+                        output = output.strip(each_arg).strip()
+            except CommandFailed as Err:
+                print("Failed to get the kernel commandline - %s: %s" %
+                      (Err.command, Err.output))
+                return False
+            if req_args or req_remove_args:
+                try:
+                    cmd = "sed -i 's/%s=.*/%s=\"%s\"/g' %s" % (grub_key, grub_key,
+                                                               output, boot_cfg)
+                    con.run_command(cmd, timeout=60)
+                    con.run_command("update-grub")
+                except CommandFailed as Err:
+                    print("Failed to update kernel commandline - %s: %s" %
+                          (Err.command, Err.output))
+                    return False
+        if reboot and (req_args or req_remove_args):
+            # Reboot the host for the kernel command to reflect
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+            # check for added/removed args in /proc/cmdline
+            req_args, req_remove_args = self.check_kernel_cmdline(args,
+                                                                  remove_args)
+            if req_args:
+                print("Failed to add arg %s in the cmdline %s" %
+                      (args, output))
+                return False
+            if req_remove_args:
+                print("Failed to remove arg %s in the cmdline %s" %
+                      (remove_args, output))
+                return False
+        return True
 
 
 class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
