@@ -119,6 +119,7 @@ from testcases import TrustedBoot
 from testcases import IplParams
 from testcases import CpuHotPlug
 from testcases import EnergyScale_BaseLine
+from testcases import OpTestKernelArg
 import testcases
 
 signal.signal(signal.SIGHUP, optest_handler)
