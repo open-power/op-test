@@ -42,6 +42,7 @@ import OpTestConfiguration
 import unittest
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
+import common.OpTestMambo as OpTestMambo
 
 import json
 
@@ -52,6 +53,11 @@ class FWTSCommandFailed(unittest.TestCase):
     def runTest(self):
         self.assertEqual(self.FAIL, None, str(self.FAIL))
 
+class FWTSCommandSkipped(unittest.TestCase):
+    SKIP = None
+
+    def runTest(self):
+        raise unittest.SkipTest("Mambo running so skipping FWTS tests")
 
 class FWTSVersion(unittest.TestCase):
     MAJOR = None
@@ -231,6 +237,12 @@ class FWTS(unittest.TestSuite):
         try:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
         except Exception as e:
+            if (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
+                m = FWTSCommandSkipped()
+                m.SKIP = e
+                self.real_fwts_suite.addTest(m)
+                self.real_fwts_suite.run(result)
+                return
             # In the event of something going wrong during IPL,
             # We need to catch that here as we're abusing UnitTest
             # TestSuite infra and we don't have the catch-all that

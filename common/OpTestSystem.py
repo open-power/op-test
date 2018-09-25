@@ -39,6 +39,7 @@ import unittest
 
 import OpTestIPMI # circular dependencies, use package
 import OpTestQemu
+import OpTestMambo
 from OpTestFSP import OpTestFSP
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -314,8 +315,10 @@ class OpTestSystem(object):
         # if user overrides from command line and machine not at desired state can lead to exceptions
         self.block_setup_term = 1 # block in case the system is not on/up
         self.target_state = state # used in WaitForIt
-        if isinstance(self.console, OpTestQemu.QemuConsole) and (state == OpSystemState.OS):
-          raise unittest.SkipTest("OpTestSystem running QEMU so skipping OpSystemState.OS test")
+        if (isinstance(self.console, OpTestQemu.QemuConsole) \
+            or isinstance(self.console, OpTestMambo.MamboConsole)) \
+            and (state == OpSystemState.OS):
+          raise unittest.SkipTest("OpTestSystem running QEMU/Mambo so skipping OpSystemState.OS test")
         if (self.state == OpSystemState.UNKNOWN):
           log.debug("OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state))
           self.state = self.run_DETECT(state)
@@ -1336,6 +1339,44 @@ class OpTestQemuSystem(OpTestSystem):
 
     def get_my_ip_from_host_perspective(self):
         return "10.0.2.2"
+
+    def has_host_accessible_eeprom(self):
+        return False
+
+    def has_mtd_pnor_access(self):
+        return False
+
+class OpTestMamboSystem(OpTestSystem):
+    '''
+    Implementation of OpTestSystem for the Mambo Simulator
+
+    Running against a simulator is rather different than running against a machine,
+    but only in some *specific* cases. Many tests will run as-is, but ones that require
+    a bunch of manipulation of the BMC will likely not.
+    '''
+    def __init__(self,
+                 host=None,
+                 bmc=None,
+                 state=OpSystemState.UNKNOWN):
+        # Ensure we grab host console early, in order to not miss
+        # any messages
+        self.console = bmc.get_host_console()
+        super(OpTestMamboSystem, self).__init__(host=host,
+                                               bmc=bmc,
+                                               state=state)
+
+    def sys_wait_for_standby_state(self, i_timeout=120):
+        self.bmc.power_off()
+        return 0
+
+    def sys_sdr_clear(self):
+        return 0
+
+    def sys_power_on(self):
+        self.bmc.power_on()
+
+    def get_my_ip_from_host_perspective(self):
+        return None
 
     def has_host_accessible_eeprom(self):
         return False

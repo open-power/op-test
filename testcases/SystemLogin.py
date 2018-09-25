@@ -37,6 +37,8 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
+import common.OpTestQemu as OpTestQemu
+import common.OpTestMambo as OpTestMambo
 
 import logging
 import OpTestLogger
@@ -78,6 +80,9 @@ class BMCLogin(unittest.TestCase):
         self.cv_BMC = conf.bmc()
 
     def runTest(self):
+        if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)) \
+            or (isinstance(self.cv_BMC, OpTestQemu.OpTestQemu)):
+                raise unittest.SkipTest("QEMU/Mambo so skipping BMCLogin test")
         r = self.cv_BMC.run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)
         try:
