@@ -276,6 +276,14 @@ def get_parser():
                             help="PNOR partition container to flash, Ex: --test-container CAPP capp_unsigned.bin")
     stbgroup.add_argument("--secure-mode", action='store_true', default=False, help="Secureboot mode")
     stbgroup.add_argument("--trusted-mode", action='store_true', default=False, help="Trustedboot mode")
+    kernelcmdgroup = parser.add_argument_group("Kernel cmdline options",
+                                               "add/remove kernel commandline arguments")
+    kernelcmdgroup.add_argument("--add-kernel-args",
+                                help="Kernel commandline option to be added",
+                                default="")
+    kernelcmdgroup.add_argument("--remove-kernel-args",
+                                help="Kernel commandline option to be removed",
+                                default="")
 
     return parser
 
