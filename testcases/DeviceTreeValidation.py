@@ -273,7 +273,7 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
         if isinstance(self.c, OpTestQemu.QemuConsole):
             raise self.skipTest("OpTestSystem running QEMU so comparing "
                                 "Skiroot to Host is not applicable")
-        self.get_proc_gen()
+        self.cv_HOST.host_get_proc_gen(console=1)
         self.validate_idle_state_properties()
         self.validate_pstate_properties()
 
@@ -296,7 +296,7 @@ class DeviceTreeValidationHost(DeviceTreeValidation):
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-        self.get_proc_gen()
+        self.cv_HOST.host_get_proc_gen(console=1)
         self.validate_idle_state_properties()
         self.validate_pstate_properties()
 
