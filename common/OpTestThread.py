@@ -258,7 +258,7 @@ class OpSolMonitorThread3(threading.Thread):
                 pass
             except pexpect.EOF:
                 self.c.state = IPMIConsoleState.DISCONNECTED
-                self.c = self.system.get_console()
+                self.c = self.system.console.get_console()
 
             if self.c_terminate:
                 break
