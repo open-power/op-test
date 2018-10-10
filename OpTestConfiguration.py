@@ -237,6 +237,7 @@ def get_parser():
     hostcmdgroup.add_argument("--host-cmd", help="Command to run", default="")
     hostcmdgroup.add_argument("--host-cmd-file", help="Commands to run from file", default="")
     hostcmdgroup.add_argument("--host-cmd-timeout", help="Timeout for command", type=int, default=1000)
+    hostcmdgroup.add_argument("--host-cmd-resultpath", help="Result path from host", default="")
 
     hostgroup.add_argument("--platform",
                            help="Platform (used for EnergyScale tests)",

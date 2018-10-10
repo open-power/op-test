@@ -42,28 +42,37 @@ class RunHostTest(unittest.TestCase):
         self.host_cmd = self.conf.args.host_cmd
         self.host_cmd_file = self.conf.args.host_cmd_file
         self.host_cmd_timeout = self.conf.args.host_cmd_timeout
+        self.host_cmd_resultpath = self.conf.args.host_cmd_resultpath
         if not (self.host_cmd or self.host_cmd_file):
             self.fail("Provide either --host-cmd and --host-cmd-file option")
+        self.resultpath = os.path.join(self.conf.output, "host-results")
+        if (not os.path.exists(self.resultpath)):
+            os.makedirs(self.resultpath)
         self.console_thread = OpSolMonitorThread3()
         self.console_thread.start()
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-        if self.host_cmd:
-            con.run_command(self.host_cmd, timeout=self.host_cmd_timeout)
-        if self.host_cmd_file:
-            if not os.path.isfile(self.host_cmd_file):
-                self.fail("Provide valid host cmd file path")
-            fd = open(self.host_cmd_file, "r")
-            for line in fd.readlines():
-                line = line.strip()
-                if "reboot" in line:
-                    self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-                    self.cv_SYSTEM.goto_state(OpSystemState.OS)
-                    con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-                    continue
-                con.run_command(line, timeout=self.host_cmd_timeout)
+        try:
+            if self.host_cmd:
+                con.run_command(self.host_cmd, timeout=self.host_cmd_timeout)
+            if self.host_cmd_file:
+                if not os.path.isfile(self.host_cmd_file):
+                    self.fail("Provide valid host cmd file path")
+                fd = open(self.host_cmd_file, "r")
+                for line in fd.readlines():
+                    line = line.strip()
+                    if "reboot" in line:
+                        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+                        continue
+                    con.run_command(line, timeout=self.host_cmd_timeout)
+        finally:
+            if self.host_cmd_resultpath:
+                self.cv_SYSTEM.cv_HOST.copy_files_from_host(self.resultpath,
+                                                            self.host_cmd_resultpath)
 
     def tearDown(self):
         self.console_thread.console_terminate()
