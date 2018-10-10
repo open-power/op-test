@@ -41,6 +41,7 @@ import pexpect
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 import common.OpTestQemu as OpTestQemu
+import common.OpTestMambo as OpTestMambo
 
 import logging
 import OpTestLogger
@@ -71,9 +72,10 @@ class DPOSkiroot(Base):
         self.setup_test()
         # retry added for IPMI cases, seems more sensitive with initial start
         # of state=4
-        if isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole):
-            raise self.skipTest("Performing \"ipmitool power soft\" will "
-                                "terminate QEMU so skipped")
+        if isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole) \
+            or isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole):
+                raise self.skipTest("Performing \"ipmitool power soft\" will "
+                                "terminate QEMU/Mambo so skipped")
         self.cv_SYSTEM.console.run_command("uname -a", retry=5)
         if self.host == "Host":
             self.cv_SYSTEM.load_ipmi_drivers(True)

@@ -35,6 +35,7 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+import common.OpTestMambo as OpTestMambo
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -47,6 +48,8 @@ class Petitbooti18n(unittest.TestCase):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
         log.debug("Test i18n strings appear correctly in Petitboot")
+        if (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
+            raise unittest.SkipTest("Mambo so skipping Language tests")
 
         # Wait a moment for pb-discover to connect
         time.sleep(3)

@@ -8,6 +8,7 @@ from common.OpTestBMC import OpTestBMC, OpTestSMC
 from common.OpTestFSP import OpTestFSP
 from common.OpTestOpenBMC import OpTestOpenBMC
 from common.OpTestQemu import OpTestQemu
+from common.OpTestMambo import OpTestMambo
 import common.OpTestSystem
 import common.OpTestHost
 from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
@@ -41,12 +42,16 @@ import logging
 
 import importlib
 import os
+import stat
 import addons
 
 optAddons = dict() # Store all addons found.  We'll loop through it a couple time below
 # Look at the top level of the addons for any directories and load their Setup modules
 
 qemu_default = "qemu-system-ppc64"
+mambo_default = "/opt/ibm/systemsim-p9/run/p9/power9"
+mambo_initial_run_script = "skiboot.tcl"
+mambo_autorun = "1"
 
 # HostLocker credentials need to be in Notes Web section ('comment' section of JSON)
 # bmc_type:OpenBMC
@@ -122,6 +127,10 @@ default_val_qemu = {
      # see OpTestQemu.py
 }
 
+default_val_mambo = {
+    'bmc_type'            : 'mambo',
+}
+
 default_templates = {
     # lower case insensitive lookup used later
     'openbmc'             : default_val,
@@ -129,6 +138,7 @@ default_templates = {
     'ami'                 : default_val_ami,
     'smc'                 : default_val_smc,
     'qemu'                : default_val_qemu,
+    'mambo'               : default_val_mambo,
 }
 
 
@@ -192,7 +202,7 @@ def get_parser():
     bmcgroup = parser.add_argument_group('BMC',
                                          'Options for Service Processor')
     # The default supported BMC choices in --bmc-type
-    bmcChoices = ['AMI', 'SMC', 'FSP', 'OpenBMC', 'qemu']
+    bmcChoices = ['AMI', 'SMC', 'FSP', 'OpenBMC', 'qemu', 'mambo']
     # Loop through any addons let it append the extra bmcChoices
     for opt in optAddons:
         bmcChoices = optAddons[opt].addBMCType(bmcChoices)
@@ -210,6 +220,12 @@ def get_parser():
     bmcgroup.add_argument("--smc-presshipmicmd")
     bmcgroup.add_argument("--qemu-binary", default=qemu_default,
                           help="[QEMU Only] qemu simulator binary")
+    bmcgroup.add_argument("--mambo-binary", default=mambo_default,
+                          help="[Mambo Only] mambo simulator binary, defaults to /opt/ibm/systemsim-p9/run/p9/power9")
+    bmcgroup.add_argument("--mambo-initial-run-script", default=mambo_initial_run_script,
+                          help="[Mambo Only] mambo simulator initial run script, defaults to skiboot.tcl")
+    bmcgroup.add_argument("--mambo-autorun", default=mambo_autorun,
+                          help="[Mambo Only] mambo autorun, defaults to '1' to autorun")
 
     hostgroup = parser.add_argument_group('Host', 'Installed OS information')
     hostgroup.add_argument("--host-ip", help="Host address")
@@ -333,6 +349,11 @@ class OpTestConfiguration():
         if defaults.get('qemu_binary'):
             qemu_default = defaults['qemu_binary']
 
+        if defaults.get('mambo_binary'):
+            mambo_default = defaults['mambo_binary']
+        if defaults.get('mambo_initial_run_script'):
+            mambo_default = defaults['mambo_initial_run_script']
+
         parser.add_argument("--check-ssh-keys", action='store_true', default=False,
                                 help="Check remote host keys when using SSH (auto-yes on new)")
         parser.add_argument("--known-hosts-file",
@@ -438,7 +459,7 @@ class OpTestConfiguration():
         self.util.check_lockers()
 
         if self.args.machine_state == None:
-            if self.args.bmc_type in ['qemu']:
+            if self.args.bmc_type in ['qemu', 'mambo']:
                 # Force UNKNOWN_BAD so that we don't try to setup the console early
                 self.startState = common.OpTestSystem.OpSystemState.UNKNOWN_BAD
             else:
@@ -583,6 +604,35 @@ class OpTestConfiguration():
                 self.op_system = common.OpTestSystem.OpTestQemuSystem(host=host, bmc=bmc,
                     state=self.startState)
                 bmc.set_system(self.op_system)
+            elif self.args.bmc_type in ['mambo']:
+                if not (os.stat(self.args.mambo_binary).st_mode & stat.S_IXOTH):
+                    raise ParameterCheck(msg="Check that the file exists with"
+                        " X permissions"
+                        " mambo-binary={}"
+                        .format(self.args.mambo_binary))
+                if self.args.flash_skiboot is None \
+                    or not os.access(self.args.flash_skiboot, os.R_OK|os.W_OK):
+                    raise ParameterCheck(msg="Check that the file exists with"
+                        " R/W/X permissions"
+                        " flash-skiboot={}"
+                        .format(self.args.flash_skiboot))
+                if self.args.flash_kernel is None \
+                    or not os.access(self.args.flash_kernel, os.R_OK|os.W_OK):
+                    raise ParameterCheck(msg="Check that the file exists with"
+                        " R/W permissions"
+                        " flash-kernel={}"
+                        .format(self.args.flash_kernel))
+                bmc = OpTestMambo(self.args.mambo_binary,
+                             self.args.mambo_initial_run_script,
+                             self.args.mambo_autorun,
+                             self.args.flash_skiboot,
+                             self.args.flash_kernel,
+                             self.args.flash_initramfs,
+                             logfile=self.logfile)
+                self.op_system = common.OpTestSystem.OpTestMamboSystem(host=host, bmc=bmc,
+                    state=self.startState)
+                bmc.set_system(self.op_system)
+
             # Check that the bmc_type exists in our loaded addons then create our objects
             elif self.args.bmc_type in optAddons:
                 (bmc, self.op_system) = optAddons[self.args.bmc_type].createSystem(self, host)

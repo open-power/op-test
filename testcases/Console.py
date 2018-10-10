@@ -36,6 +36,7 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil
+import common.OpTestMambo as OpTestMambo
 
 import logging
 import OpTestLogger
@@ -55,6 +56,10 @@ class Console():
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.cv_BMC.get_host_console()
+        if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)):
+            adjustment = 4 # Mambo echos command extra time
+        else:
+            adjustment = 3
         bs = self.bs
         count = self.count
         self.assertTrue((bs * count) % 16 == 0,
@@ -71,7 +76,7 @@ class Console():
                 pass
             else:
                 raise cf
-        expected = 3 + (count * bs) / 16
+        expected = adjustment + (count * bs) / 16
         self.assertTrue(len(zeros) == expected,
                         "Unexpected length of zeros {} != {}".format(
                             len(zeros), expected))
@@ -125,7 +130,8 @@ class ControlC(unittest.TestCase):
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.cv_BMC.get_host_console()
-        # I should really make this API less nasty...
+        if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)):
+            raise unittest.SkipTest("Mambo so skipping Control-C tests")
         raw_pty = console.get_console()
         raw_pty.sendline("find /")
         time.sleep(2)

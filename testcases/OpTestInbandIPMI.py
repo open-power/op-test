@@ -51,6 +51,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestIPMI import IPMIConsoleState
 from common.Exceptions import CommandFailed
+import common.OpTestMambo as OpTestMambo
 
 import logging
 import OpTestLogger
@@ -73,7 +74,8 @@ class OpTestInbandIPMIBase(object):
         self.cv_SYSTEM = conf.system()
         self.cv_BMC = conf.bmc()
         self.util = OpTestUtil()
-        pass
+        if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)):
+            raise unittest.SkipTest("Mambo so skipping InbandIPMI tests")
 
     def set_up(self):
         if self.test == "skiroot":
