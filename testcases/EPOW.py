@@ -82,7 +82,13 @@ class EPOWBase(unittest.TestCase):
             x = matchObj.group()
             y = x[1:3]
         var = y[1] + "s" + y[0] + "u"
-        file = '/opt/fips/components/engd/power_management_tul_%s.def' % (var)
+
+        self.proc_gen = self.cv_HOST.host_get_proc_gen(console=1)
+        print self.proc_gen
+        if self.proc_gen in ["POWER8", "POWER8E"]:
+            file = '/opt/fips/components/engd/power_management_tul_%s.def' % (var)
+        elif self.proc_gen in ["POWER9"]:
+            file = '/opt/fips/components/engd/power_management_zz_%s.def' % (var)
 
         # Check for Nebs enable\disable
         cmd = "registry -l svpd/NebsEnabled | sed -n '2p' | awk {'print $1'}"
