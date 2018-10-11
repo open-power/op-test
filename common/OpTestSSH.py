@@ -27,7 +27,6 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 from Exceptions import CommandFailed
 from OpTestUtil import OpTestUtil
-import OpTestSystem
 try:
     from common import OPexpect
 except ImportError:
@@ -44,7 +43,7 @@ class ConsoleState():
 
 def set_system_to_UNKNOWN_BAD(system):
     s = system.get_state()
-    system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
+    system.set_state('8') # UNKNOWN BAD
     return s
 
 

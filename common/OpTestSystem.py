@@ -42,7 +42,6 @@ import OpTestMambo
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
-from OpTestSSH import ConsoleState as SSHConnectionState
 from Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition, ConsoleSettings, UnexpectedCase, StoppingSystem
 from OpTestOpenBMC import FailedCurlInvocation
 
@@ -791,7 +790,7 @@ class OpTestSystem(object):
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
         log.info(msg)
-        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
+        self.cv_HOST.ssh.state = 0
         self.util.clear_state(self)
         return OpSystemState.OFF
 
