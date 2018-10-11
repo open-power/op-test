@@ -485,7 +485,7 @@ class InstallHost():
             if "ubuntu" in target.lower():
                 self.s.addTest(InstallUbuntu.InstallUbuntu())
                 optestlog.info('InstallUbuntu added to default suite')
-            elif "rhel" in target.lower():
+            elif "pegas" in  target.lower() or "rhel" in  target.lower():
                 self.s.addTest(InstallRhel.InstallRhel())
                 optestlog.info('InstallRhel added to default suite')
             elif "hostos" in target.lower():
