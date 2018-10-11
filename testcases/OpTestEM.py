@@ -513,7 +513,20 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
         try:
             self.c.run_command("ls --color=never /sys/devices/system/cpu/cpu%s/cpuidle/" % cpu_num)
         except CommandFailed:
-            self.assertTrue(False, "cpuidle driver is not enabled in kernel")
+            kernel_cmdline = self.c.run_command_ignore_fail(
+                "cat /proc/cmdline")
+            skiboot_err = self.c.run_command_ignore_fail(
+                "egrep -i '[54321]\].*(slw|stop)' /sys/firmware/opal/msglog")
+            kernel_err = self.c.run_command_ignore_fail("dmesg|grep idle")
+            dt_err = self.c.run_command_ignore_fail("lsprop /proc/device-tree/ibm,opal/power-mgt")
+            self.assertTrue(False, "cpuidle driver is not enabled in kernel\n"
+                            "skiboot:{}\n"
+                            "kernel cmdline:{}\nkernel:{}\n"
+                            "DT:{}".format(
+                                '\n'.join(skiboot_err),
+                                '\n'.join(kernel_cmdline),
+                                '\n'.join(kernel_err),
+                                '\n'.join(dt_err)))
 
         nrcpus = self.c.run_command("grep -c 'processor.*: ' /proc/cpuinfo")
         nrcpus = int(nrcpus[0])
