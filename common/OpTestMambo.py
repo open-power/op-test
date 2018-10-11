@@ -25,36 +25,37 @@ Support testing against Mambo simulator
 import sys
 import time
 import pexpect
-import subprocess
 import os
 
 from common.Exceptions import CommandFailed, ParameterCheck
 import OPexpect
 from OpTestUtil import OpTestUtil
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class ConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
+
 
 class MamboConsole():
     '''
     A 'connection' to the Mambo Console involves *launching* Mambo.
     Closing a connection will *terminate* the Mambo process.
     '''
+
     def __init__(self, mambo_binary=None,
-            mambo_initial_run_script=None,
-            mambo_autorun=None,
-            skiboot=None,
-            prompt=None,
-            kernel=None,
-            initramfs=None,
-            block_setup_term=None,
-            delaybeforesend=None,
-            logfile=sys.stdout):
+                 mambo_initial_run_script=None,
+                 mambo_autorun=None,
+                 skiboot=None,
+                 prompt=None,
+                 kernel=None,
+                 initramfs=None,
+                 block_setup_term=None,
+                 delaybeforesend=None,
+                 logfile=sys.stdout):
         self.mambo_binary = mambo_binary
         self.mambo_initial_run_script = mambo_initial_run_script
         self.mambo_autorun = mambo_autorun
@@ -69,9 +70,13 @@ class MamboConsole():
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
         self.pty = None
-        self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
-        self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
-        self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+        # allows caller specific control of when to block setup_term
+        self.block_setup_term = block_setup_term
+        # tells setup_term to not throw exceptions, like when system off
+        self.setup_term_quiet = 0
+        # flags the object to abandon setup_term operations, like when system
+        # off
+        self.setup_term_disable = 0
 
         # state tracking, reset on boot and state changes
         # console tracking done on System object for the system console
@@ -107,11 +112,11 @@ class MamboConsole():
         try:
             rc_child = self.pty.close()
             exitCode = signalstatus = None
-            if self.pty.status != -1: # leaving for debug
-              if os.WIFEXITED(self.pty.status):
-                exitCode = os.WEXITSTATUS(self.pty.status)
-              else:
-                signalstatus = os.WTERMSIG(self.pty.status)
+            if self.pty.status != -1:  # leaving for debug
+                if os.WIFEXITED(self.pty.status):
+                    exitCode = os.WEXITSTATUS(self.pty.status)
+                else:
+                    signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
         except pexpect.ExceptionPexpect as e:
             self.state = ConsoleState.DISCONNECTED
@@ -125,19 +130,19 @@ class MamboConsole():
         if self.state == ConsoleState.CONNECTED:
             return self.pty
         else:
-            self.util.clear_state(self) # clear when coming in DISCONNECTED
+            self.util.clear_state(self)  # clear when coming in DISCONNECTED
 
         log.debug("#Mambo Console CONNECT")
 
-        if not os.access(self.mambo_initial_run_script, os.R_OK|os.W_OK):
+        if not os.access(self.mambo_initial_run_script, os.R_OK | os.W_OK):
             raise ParameterCheck(msg="Check that the file exists with"
-                " R/W permissions mambo-initial-run-script={}"
-                .format(self.mambo_initial_run_script))
+                                 " R/W permissions mambo-initial-run-script={}"
+                                 .format(self.mambo_initial_run_script))
 
         cmd = ("%s" % (self.mambo_binary)
                + " -e"
                + " -f {}".format(self.mambo_initial_run_script)
-           )
+               )
 
         spawn_env = {}
         if self.skiboot:
@@ -145,30 +150,31 @@ class MamboConsole():
         if self.kernel:
             spawn_env['SKIBOOT_ZIMAGE'] = self.kernel
         if self.initramfs:
-            if not os.access(self.initramfs, os.R_OK|os.W_OK):
+            if not os.access(self.initramfs, os.R_OK | os.W_OK):
                 raise ParameterCheck(msg="Check that the file exists with"
-                    " R/W permissions flash-initramfs={}"
-                    .format(self.initramfs))
+                                     " R/W permissions flash-initramfs={}"
+                                     .format(self.initramfs))
             spawn_env['SKIBOOT_INITRD'] = self.initramfs
         if self.mambo_autorun:
             spawn_env['SKIBOOT_AUTORUN'] = str(self.mambo_autorun)
         log.debug("OpTestMambo cmd={} mambo spawn_env={}".format(cmd, spawn_env))
         try:
-          self.pty = OPexpect.spawn(cmd,
-              logfile=self.logfile,
-              env=spawn_env)
+            self.pty = OPexpect.spawn(cmd,
+                                      logfile=self.logfile,
+                                      env=spawn_env)
         except Exception as e:
-          self.state = ConsoleState.DISCONNECTED
-          raise CommandFailed('OPexpect.spawn',
-                  'OPexpect.spawn encountered a problem: ' + str(e), -1)
+            self.state = ConsoleState.DISCONNECTED
+            raise CommandFailed('OPexpect.spawn',
+                                'OPexpect.spawn encountered a problem: ' + str(e), -1)
 
         self.state = ConsoleState.CONNECTED
-        self.pty.setwinsize(1000,1000)
+        self.pty.setwinsize(1000, 1000)
         if self.delaybeforesend:
-          self.pty.delaybeforesend = self.delaybeforesend
+            self.pty.delaybeforesend = self.delaybeforesend
 
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-          self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
+            self.util.setup_term(self.system, self.pty,
+                                 None, self.system.block_setup_term)
 
         time.sleep(0.2)
         if not self.pty.isalive():
@@ -181,7 +187,8 @@ class MamboConsole():
             self.connect()
         else:
             if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-                self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
+                self.util.setup_term(self.system, self.pty,
+                                     None, self.system.block_setup_term)
 
         return self.pty
 
@@ -200,10 +207,12 @@ class MamboConsole():
     def mambo_enter(self):
         return self.util.mambo_enter(self)
 
+
 class MamboIPMI():
     '''
     Mambo has fairly limited IPMI capability.
     '''
+
     def __init__(self, console):
         self.console = console
 
@@ -230,7 +239,9 @@ class MamboIPMI():
     def sys_set_bootdev_no_override(self):
         pass
 
+
 class OpTestMambo():
+
     def __init__(self, mambo_binary=None,
                  mambo_initial_run_script=None,
                  mambo_autorun=None,
@@ -242,12 +253,12 @@ class OpTestMambo():
                  delaybeforesend=None,
                  logfile=sys.stdout):
         self.console = MamboConsole(mambo_binary=mambo_binary,
-            mambo_initial_run_script=mambo_initial_run_script,
-            mambo_autorun=mambo_autorun,
-            skiboot=skiboot,
-            kernel=kernel,
-            initramfs=initramfs,
-            logfile=logfile)
+                                    mambo_initial_run_script=mambo_initial_run_script,
+                                    mambo_autorun=mambo_autorun,
+                                    skiboot=skiboot,
+                                    kernel=kernel,
+                                    initramfs=initramfs,
+                                    logfile=logfile)
         self.ipmi = MamboIPMI(self.console)
         self.system = None
 
@@ -259,7 +270,7 @@ class OpTestMambo():
 
     def run_command(self, command, timeout=10, retry=0):
         # mambo only supports system console object, not this bmc object
-        return None # at least return something and have the testcase handle
+        return None  # at least return something and have the testcase handle
 
     def get_ipmi(self):
         return self.ipmi

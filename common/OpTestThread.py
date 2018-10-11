@@ -27,25 +27,24 @@ to a different log file.
 '''
 
 import random
-import unittest
 import time
 import threading
 import pexpect
 
 import OpTestConfiguration
 from OpTestSystem import OpSystemState
-from OpTestConstants import OpTestConstants as BMC_CONST
 from Exceptions import CommandFailed
 from OpTestIPMI import IPMIConsoleState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class OpSSHThreadLinearVar1(threading.Thread):
     '''
     Runs a list of commands in a loop with equal sleep times in linear order
     '''
+
     def __init__(self, threadID, name, cmd_list, sleep_time, execution_time, ignore_fail=False):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -60,11 +59,12 @@ class OpSSHThreadLinearVar1(threading.Thread):
 
     def run(self):
         log.debug("Starting %s" % self.name)
-        self.inband_child_thread(self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
+        self.inband_child_thread(
+            self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60 * torture_time,
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_list))
         while True:
             for cmd in cmd_list:
@@ -80,10 +80,12 @@ class OpSSHThreadLinearVar1(threading.Thread):
                 break
         log.debug("Thread exiting after run for desired time")
 
+
 class OpSSHThreadLinearVar2(threading.Thread):
     '''
     Runs a dictionary of command(command, sleep time) pairs with each having individual sleep times
     '''
+
     def __init__(self, threadID, name, cmd_dic, execution_time, ignore_fail=False):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -97,11 +99,12 @@ class OpSSHThreadLinearVar2(threading.Thread):
 
     def run(self):
         log.debug("Starting %s" % self.name)
-        self.inband_child_thread(self.name, self.cmd_dic, self.execution_time, self.ignore_fail)
+        self.inband_child_thread(
+            self.name, self.cmd_dic, self.execution_time, self.ignore_fail)
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_dic, torture_time, ignore_fail):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60 * torture_time,
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_dic))
         while True:
             for cmd, tm in cmd_dic.iteritems():
@@ -117,10 +120,12 @@ class OpSSHThreadLinearVar2(threading.Thread):
                 break
         log.debug("Thread exiting after run for desired time")
 
+
 class OpSSHThreadRandom(threading.Thread):
     '''
     Runs a random command from a list of commands in a loop with equal sleep times
     '''
+
     def __init__(self, threadID, name, cmd_list, sleep_time, execution_time, ignore_fail=False):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -135,11 +140,12 @@ class OpSSHThreadRandom(threading.Thread):
 
     def run(self):
         log.debug("Starting %s" % self.name)
-        self.inband_child_thread(self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
+        self.inband_child_thread(
+            self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60 * torture_time,
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_list))
         while True:
             cmd = random.choice(cmd_list)
@@ -161,6 +167,7 @@ class OpSOLMonitorThread1(threading.Thread):
     This thread just monitors the SOL console for any failures when tests are running
     on other SSH threads
     '''
+
     def __init__(self, threadID, name, execution_time):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -177,7 +184,7 @@ class OpSOLMonitorThread1(threading.Thread):
         log.debug("Exiting %s" % self.name)
 
     def sol_monitor_thread(self, threadName, torture_time):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60 * torture_time,
         log.debug("Starting %s for new SOL thread" % threadName)
         while True:
             try:
@@ -191,6 +198,7 @@ class OpSOLMonitorThread1(threading.Thread):
                 break
         log.debug("Thread exiting after run for desired time")
 
+
 class OpSOLMonitorThread2(threading.Thread):
     '''
     This thread monitors SOL console by running set of debug commands i.e
@@ -198,6 +206,7 @@ class OpSOLMonitorThread2(threading.Thread):
     cmd_list = ["grep ',[0-4]\]' /sys/firmware/opal/msglog", "dmesg --color=never -T --level=alert,crit,err,warn",
                 "dmesg -T --level=alert,crit,err,warn"]
     '''
+
     def __init__(self, threadID, name, cmd_list, sleep_time, execution_time, ignore_fail=False):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -213,11 +222,12 @@ class OpSOLMonitorThread2(threading.Thread):
 
     def run(self):
         log.debug("Starting %s" % self.name)
-        self.sol_monitor_thread(self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
+        self.sol_monitor_thread(
+            self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
         log.debug("Exiting %s" % self.name)
 
     def sol_monitor_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60 * torture_time,
         log.debug("Starting %s for new SOL thread %s" % (threadName, cmd_list))
         while True:
             for cmd in cmd_list:
@@ -240,14 +250,14 @@ class OpSolMonitorThread3(threading.Thread):
     on other SSH threads. This thread can be terminated by just calling console_terminate
     from parent process.
     '''
+
     def __init__(self):
         threading.Thread.__init__(self)
         conf = OpTestConfiguration.conf
         self.system = conf.system()
         self.system.goto_state(OpSystemState.OS)
         self.c = self.system.console.get_console()
-        self.c_terminate = False;
-
+        self.c_terminate = False
 
     def run(self):
         log.debug("Starting SOL monitoring thread")

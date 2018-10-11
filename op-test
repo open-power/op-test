@@ -30,16 +30,15 @@ import sys
 import traceback
 import os
 import unittest
-import re
 import signal
 import logging
 import OpTestLogger
-from common.OpTestUtil import OpTestUtil
 # op-test is the parent logger
 optestlog = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 import OpTestConfiguration
 
 OpTestConfiguration.conf = OpTestConfiguration.OpTestConfiguration()
+
 
 def optest_handler(signum, frame):
     # CURRENTLY we do NOT have any artifacts needing cleanup
@@ -48,18 +47,19 @@ def optest_handler(signum, frame):
     # Future design consideration should provide parent/child
     # structure to monitor for signals if needing to close this exposure
     signal_dict = dict((key, value) for value, key in reversed(sorted(signal.__dict__.items()))
-     if value.startswith('SIG') and not value.startswith('SIG_'))
-    if OpTestConfiguration.conf.signal_ready == True:
-      OpTestConfiguration.conf.util.cleanup()
+                       if value.startswith('SIG') and not value.startswith('SIG_'))
+    if OpTestConfiguration.conf.signal_ready is True:
+        OpTestConfiguration.conf.util.cleanup()
     traceback.print_stack()
-    optestlog.error("OpTestSystem exiting from signal '{}' signum={}".format(signal_dict[signum], signum))
+    optestlog.error("OpTestSystem exiting from signal '{}' signum={}".format(
+        signal_dict[signum], signum))
     os._exit(1)
     # do not use sys.exit, sys.exit in python throws an exception
     # to the stack frame executing at the time the signal is received
     # by the python interpreter, if the exception was caught during some other
     # try/except block, control will be given back to that block
 
-from testcases import HelloWorld
+
 from testcases import OpTestExample
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestSensors
@@ -90,7 +90,6 @@ from testcases import OpTestDumps
 from testcases import SystemLogin
 from testcases import OpalMsglog
 from testcases import KernelLog
-from testcases import OpTestFlash
 from testcases import OpalErrorLog
 from testcases import LightPathDiagnostics
 from testcases import DPO
@@ -112,14 +111,12 @@ from testcases import InstallUbuntu
 from testcases import InstallRhel
 from testcases import InstallHostOS
 from testcases import OpTestCAPI
-from testcases import gcov
 from testcases import OpalSysfsTests
 from testcases import SecureBoot
 from testcases import TrustedBoot
 from testcases import IplParams
 from testcases import CpuHotPlug
 from testcases import EnergyScale_BaseLine
-from testcases import OpTestKernelArg
 import testcases
 
 signal.signal(signal.SIGHUP, optest_handler)
@@ -135,31 +132,40 @@ signal.signal(signal.SIGUSR2, optest_handler)
 args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
 OpTestConfiguration.conf.objs()
 
+
 class SystemAccessSuite():
     '''
     Tests all system interfaces
     '''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(SystemLogin.system_access_suite())
+
     def suite(self):
         return self.s
+
 
 class StandbySuite():
     '''Machine at standby. Focused on BMC'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
 #        self.s.addTest(OpTestEnergyScale.standby_suite())
+
     def suite(self):
         return self.s
 
+
 class SkirootSuite():
     '''Tests in Petitboot environment'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPL.GotoPetitbootShell())
         self.s.addTest(DeviceTreeWarnings.Skiroot())
-        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
+        self.s.addTest(
+            unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
         self.s.addTest(SecureBoot.VerifyOPALSecureboot())
         self.s.addTest(TrustedBoot.VerifyOPALTrustedBoot())
         self.s.addTest(OpTestEM.skiroot_suite())
@@ -180,22 +186,27 @@ class SkirootSuite():
         self.s.addTest(Console.suite())
         self.s.addTest(OpTestPNOR.Skiroot())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
-        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(
+            OpalSysfsTests.Skiroot))
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
+
     def suite(self):
         return self.s
 
+
 class HostSuite():
     '''Tests run in booted OS'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(SystemLogin.OOBHostLogin())
         self.s.addTest(DeviceTreeWarnings.Host())
         self.s.addTest(OpTestOCC.basic_suite())
-        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Host))
+        self.s.addTest(
+            unittest.TestLoader().loadTestsFromTestCase(IplParams.Host))
         self.s.addTest(OpTestPrdDriver.OpTestPrdDriver())
         self.s.addTest(PciSlotLocCodes.Host())
         self.s.addTest(PciSlotLocCodes.HostDT())
@@ -216,62 +227,79 @@ class HostSuite():
         self.s.addTest(OpTestPrdDaemon.OpTestPrdDaemon())
         self.s.addTest(SbePassThrough.SbePassThrough())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationHost())
-        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
-        self.s.addTest(KernelLog.Host()) # We run before HMI to clear out HMI errors from kernel log
+        self.s.addTest(
+            unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
+        # We run before HMI to clear out HMI errors from kernel log
+        self.s.addTest(KernelLog.Host())
         self.s.addTest(OpTestHMIHandling.suite())
         self.s.addTest(OpTestPNOR.Host())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
         self.s.addTest(OpTestOCC.OCC_RESET())
+
     def suite(self):
         return self.s
 
+
 class ExperimentalSuite():
     '''Tests that need further development'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestEEH.suite())
         # SwitchEndian is here as we need to resolve issue of running
         # kernel self-tests as part of op-test or not.
         self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
+
     def suite(self):
         return self.s
 
+
 class BasicIPLSuite():
     '''Basic boot/reboot power on/off'''
+
     def suite(self):
         return BasicIPL.suite()
 
+
 class SBSuite():
     '''Secure boot tests'''
+
     def suite(self):
         return SecureBoot.secureboot_suite()
 
+
 class TBSuite():
     '''Trusted boot tests'''
+
     def suite(self):
         return TrustedBoot.trustedboot_suite()
 
+
 class DefaultSuite():
     '''Basic regression tests'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(SkirootSuite().suite())
         if OpTestConfiguration.conf.args.host_scratch_disk:
             self.s.addTest(InstallHost().suite())
         self.s.addTest(HostSuite().suite())
+
     def suite(self):
         return self.s
 
+
 class QemuSuite():
     '''Basic regression tests'''
+
     def __init__(self):
         # this is the same as Skiroot, but with currently
         # failing tests disabled
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPL.GotoPetitbootShell())
         self.s.addTest(DeviceTreeWarnings.Skiroot())
-        #self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
+        # self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
         self.s.addTest(SecureBoot.VerifyOPALSecureboot())
         self.s.addTest(TrustedBoot.VerifyOPALTrustedBoot())
         self.s.addTest(OpTestEM.skiroot_suite())
@@ -281,8 +309,8 @@ class QemuSuite():
         self.s.addTest(AT24driver.SkirootAT24())
         self.s.addTest(I2C.BasicSkirootI2C())
         self.s.addTest(OpTestPCI.TestPCISkiroot())
-        #self.s.addTest(PciSlotLocCodes.Skiroot())
-        #self.s.addTest(PciSlotLocCodes.SkirootDT())
+        # self.s.addTest(PciSlotLocCodes.Skiroot())
+        # self.s.addTest(PciSlotLocCodes.SkirootDT())
         self.s.addTest(OpTestPCI.PcieLinkErrorsSkiroot())
         self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
         self.s.addTest(Petitbooti18n.Petitbooti18n())
@@ -292,15 +320,19 @@ class QemuSuite():
         self.s.addTest(Console.suite())
         self.s.addTest(OpTestPNOR.Skiroot())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
-        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(
+            OpalSysfsTests.Skiroot))
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
+
     def suite(self):
         return self.s
 
+
 class FullSuite():
     '''Every stable test'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPLSuite().suite())
@@ -318,17 +350,22 @@ class FullSuite():
         self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
+
     def suite(self):
         return self.s
 
+
 class OpTestEMHostSuite():
     '''Energy Management'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
+
     def suite(self):
         self.s.addTest(OpTestEM.host_suite())
         self.s.addTest(EnergyScale_BaseLine.EnergyScale_BaseLine())
-        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
+        self.s.addTest(
+            unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
         self.s.addTest(OpTestSensors.OpTestSensors())
         self.s.addTest(CpuHotPlug.CpuHotPlug())
         self.s.addTest(OCCSuite().suite())
@@ -336,55 +373,77 @@ class OpTestEMHostSuite():
 
         return self.s
 
+
 class OpTestEMSuite():
     '''Energy Management'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
+
     def suite(self):
         self.s.addTest(OpTestEMHostSuite().suite())
         self.s.addTest(OpTestEM.skiroot_suite())
         return self.s
 
+
 class BasicPCISuite():
     '''Basic PCI tests'''
+
     def suite(self):
         return OpTestPCI.suite()
 
+
 class OpTestEEHSuite():
     '''PCI EEH error recovery'''
+
     def suite(self):
         return OpTestEEH.suite()
 
+
 class HMISuite():
     '''HMI handling'''
+
     def suite(self):
         return OpTestHMIHandling.suite()
 
+
 class ExperimentalHMISuite():
+
     def suite(self):
         return OpTestHMIHandling.experimental_suite()
 
+
 class UnrecoverableHMISuite():
+
     def suite(self):
         return OpTestHMIHandling.unrecoverable_suite()
 
+
 class OpTestEnergyScaleSuite():
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestEnergyScale.standby_suite())
         self.s.addTest(OpTestEnergyScale.runtime_suite())
+
     def suite(self):
         return self.s
 
+
 class BrokenReprovisionSuite():
+
     def suite(self):
         return OpTestIPMIReprovision.broken_suite()
 
+
 class ExperimentalReprovisionSuite():
+
     def suite(self):
         return OpTestIPMIReprovision.experimental_suite()
 
+
 class InbandIPMISuite():
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestInbandIPMI.basic_suite())
@@ -394,57 +453,74 @@ class InbandIPMISuite():
         self.s.addTest(OpTestInbandIPMI.skiroot_basic_suite())
         self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
         self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
+
     def suite(self):
         return self.s
 
 
 class OutofbandIPMISuite():
     '''Out of band IPMI'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestOOBIPMI.basic_suite())
         self.s.addTest(OpTestOOBIPMI.standby_suite())
         self.s.addTest(OpTestOOBIPMI.runtime_suite())
+
     def suite(self):
         return self.s
 
+
 class RestAPISuite():
     '''REST API(OpenBMC Specific Out of band management)'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(testRestAPI.basic_suite())
         self.s.addTest(testRestAPI.standby_suite())
         self.s.addTest(testRestAPI.runtime_suite())
+
     def suite(self):
         return self.s
 
+
 class OCCSuite():
     '''OCC Test Suite'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestOCC.OCC_RESET())
         self.s.addTest(OpTestOCC.basic_suite())
         self.s.addTest(OpTestOCC.full_suite())
         self.s.addTest(OpTestOCC.OCCRESET_FSP())
+
     def suite(self):
         return self.s
 
+
 class CAPISuite():
     '''CAPI Tests'''
+
     def suite(self):
         return OpTestCAPI.capi_test_suite()
 
+
 class SystemIPLSuite():
     '''System IPL's'''
+
     def suite(self):
         return OpTestSystemBootSequence.suite()
 
+
 class CrashSuite():
     '''Crash Test Suite'''
+
     def suite(self):
         return OpTestKernel.crash_suite()
 
+
 class FspOpalSuite():
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestDumps.suite())
@@ -455,28 +531,37 @@ class FspOpalSuite():
         self.s.addTest(EPOW.suite())
         self.s.addTest(OpTestOCC.OCCRESET_FSP())
         self.s.addTest(fspTODCorruption.suite())
+
     def suite(self):
         return self.s
 
+
 class KnownBugs():
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(Console.Console32k())
         self.s.addTest(Console.ControlC())
+
     def suite(self):
         return self.s
 
+
 class FlashFirmware():
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(testcases.OpTestFlash.FSPFWImageFLASH())
         self.s.addTest(testcases.OpTestFlash.BmcImageFlash())
         self.s.addTest(testcases.OpTestFlash.PNORFLASH())
         self.s.addTest(testcases.OpTestFlash.OpalLidsFLASH())
+
     def suite(self):
         return self.s
 
+
 class InstallHost():
+
     def __init__(self):
         self.s = unittest.TestSuite()
         conf = OpTestConfiguration.conf
@@ -492,7 +577,8 @@ class InstallHost():
                 self.s.addTest(InstallHostOS.InstallHostOS())
                 optestlog.info('InstallHostOS added to default suite')
             else:
-                optestlog.info("Could not parse OS name from '{}'".format(target))
+                optestlog.info(
+                    "Could not parse OS name from '{}'".format(target))
                 conf.util.cleanup()
                 exit(-1)
         else:
@@ -503,8 +589,10 @@ class InstallHost():
     def suite(self):
         return self.s
 
+
 class OpTestExampleSuite():
     '''Tests in OpTestExample'''
+
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestExample.skiroot_full_suite())
@@ -513,38 +601,39 @@ class OpTestExampleSuite():
     def suite(self):
         return self.s
 
+
 suites = {
-    'system-access' : SystemAccessSuite(),
-    'skiroot' : SkirootSuite(),
-    'host'    : HostSuite(),
-    'default' : DefaultSuite(),
-    'qemu' : QemuSuite(),
-    'BasicIPL' : BasicIPLSuite(),
-    'BasicPCI' : BasicPCISuite(),
-    'secure-boot' : SBSuite(),
-    'trusted-boot' : TBSuite(),
-    'em' :       OpTestEMSuite(),
-    'em-host' :  OpTestEMHostSuite(),
-    'known-bugs' : KnownBugs(),
+    'system-access': SystemAccessSuite(),
+    'skiroot': SkirootSuite(),
+    'host': HostSuite(),
+    'default': DefaultSuite(),
+    'qemu': QemuSuite(),
+    'BasicIPL': BasicIPLSuite(),
+    'BasicPCI': BasicPCISuite(),
+    'secure-boot': SBSuite(),
+    'trusted-boot': TBSuite(),
+    'em':       OpTestEMSuite(),
+    'em-host':  OpTestEMHostSuite(),
+    'known-bugs': KnownBugs(),
     'experimental': ExperimentalSuite(),
     'experimental-eeh': OpTestEEHSuite(),
-    'experimental-energyscale' : OpTestEnergyScaleSuite(),
-    'standby' : StandbySuite(),
-    'hmi' : HMISuite(),
-    'experimental-hmi' : ExperimentalHMISuite(),
-    'experimental-unrecoverable-hmi' : UnrecoverableHMISuite(),
-    'experimental-reprovision' : ExperimentalReprovisionSuite(),
-    'broken-reprovision' : BrokenReprovisionSuite(),
-    'full-inbandipmi' : InbandIPMISuite(),
-    'full-outofbandipmi' : OutofbandIPMISuite(),
-    'rest-api' : RestAPISuite(),
-    'full-occ' : OCCSuite(),
-    'capi' : CAPISuite(),
-    'crash-suite' : CrashSuite(),
-    'system-ipl' : SystemIPLSuite(),
-    'fsp-opal-suite' :  FspOpalSuite(),
-    'full' : FullSuite(),
-    'example' : OpTestExampleSuite(),
+    'experimental-energyscale': OpTestEnergyScaleSuite(),
+    'standby': StandbySuite(),
+    'hmi': HMISuite(),
+    'experimental-hmi': ExperimentalHMISuite(),
+    'experimental-unrecoverable-hmi': UnrecoverableHMISuite(),
+    'experimental-reprovision': ExperimentalReprovisionSuite(),
+    'broken-reprovision': BrokenReprovisionSuite(),
+    'full-inbandipmi': InbandIPMISuite(),
+    'full-outofbandipmi': OutofbandIPMISuite(),
+    'rest-api': RestAPISuite(),
+    'full-occ': OCCSuite(),
+    'capi': CAPISuite(),
+    'crash-suite': CrashSuite(),
+    'system-ipl': SystemIPLSuite(),
+    'fsp-opal-suite':  FspOpalSuite(),
+    'full': FullSuite(),
+    'example': OpTestExampleSuite(),
 }
 
 try:
@@ -570,7 +659,8 @@ try:
             t.addTest(suites[suite].suite())
 
     if OpTestConfiguration.conf.args.run:
-        t.addTest(unittest.TestLoader().loadTestsFromNames(OpTestConfiguration.conf.args.run))
+        t.addTest(unittest.TestLoader().loadTestsFromNames(
+            OpTestConfiguration.conf.args.run))
 
     if not OpTestConfiguration.conf.args.run_suite and not OpTestConfiguration.conf.args.run:
         if not OpTestConfiguration.conf.args.only_flash:
@@ -583,6 +673,7 @@ except Exception as e:
     OpTestConfiguration.conf.util.cleanup()
     exit(-1)
 
+
 def run_tests(t, failfast):
     runner = unittest.TextTestRunner
     kwargs = {
@@ -593,9 +684,9 @@ def run_tests(t, failfast):
         import xmlrunner  # requires unittest-xml-reporting package
         runner = xmlrunner.XMLTestRunner
         kwargs.update({
-                'output': OpTestConfiguration.conf.output,
-                'outsuffix': OpTestConfiguration.conf.outsuffix,
-            })
+            'output': OpTestConfiguration.conf.output,
+            'outsuffix': OpTestConfiguration.conf.outsuffix,
+        })
 
         # xmlrunner pre v1.13 doesn't support failfast
         try:
@@ -609,6 +700,7 @@ def run_tests(t, failfast):
 
     return runner(**kwargs).run(t)
 
+
 try:
     res = None
 
@@ -617,11 +709,12 @@ try:
             optestlog.info("Not adding FlashFirmware suite for QEMU machine")
         else:
             res = run_tests(FlashFirmware().suite(),
-                    failfast=OpTestConfiguration.conf.args.failfast)
+                            failfast=OpTestConfiguration.conf.args.failfast)
 
     if OpTestConfiguration.conf.args.only_flash:
-        if res != None:
-            optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
+        if res is not None:
+            optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(
+                len(res.errors), len(res.failures)))
             OpTestConfiguration.conf.util.cleanup()
             exit(len(res.errors + res.failures))
         else:
@@ -635,7 +728,8 @@ try:
         OpTestConfiguration.conf.util.cleanup()
         exit(-1)
 
-    optestlog.info('Exit with Result errors="{}" and failures="{}"'.format(len(res.errors), len(res.failures)))
+    optestlog.info('Exit with Result errors="{}" and failures="{}"'.format(
+        len(res.errors), len(res.failures)))
 
     OpTestConfiguration.conf.util.cleanup()
     exit(len(res.errors + res.failures))

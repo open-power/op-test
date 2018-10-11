@@ -35,20 +35,14 @@ the FSP Web UI (such as progress codes), so we scrape it.
 '''
 
 import time
-import subprocess
-import os
-import pexpect
-import sys
-import commands
-
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-
 import cookielib
 import urllib
 import urllib2
 import re
 import ssl
+
+from OpTestError import OpTestError
+
 # Work around issues with python < 2.7.9
 try:
     ssl._create_default_https_context = ssl._create_unverified_context
@@ -128,8 +122,8 @@ class OpTestASM:
                 break
             time.sleep(10)
             self.submit(form, param)
-            msg = "Login Failed with user:%s and password:%s".format(
-                self.user_name, self.password)
+            msg = "Login Failed with user:%s and password:%s" % (self.user_name,
+                                                                 self.password)
             print(msg)
             count += 1
         if count == 2:

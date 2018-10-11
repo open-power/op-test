@@ -47,7 +47,9 @@ BOOTPATH = ""
 
 uploaded_files = {}
 
+
 class InstallUtil():
+
     def __init__(self, base_path="", initrd="", vmlinux="",
                  ks="", boot_path="", repo=""):
         global BASE_PATH
@@ -115,10 +117,12 @@ class InstallUtil():
         Assign host ip in petitboot
         """
         # Lets reduce timeout in petitboot
-        self.cv_SYSTEM.console.run_command("nvram --update-config petitboot,timeout=10")
+        self.cv_SYSTEM.console.run_command(
+            "nvram --update-config petitboot,timeout=10")
         cmd = "ip addr|grep -B1 -i %s|grep BROADCAST|awk -F':' '{print $2}'" % self.conf.args.host_mac
         iface = self.cv_SYSTEM.console.run_command(cmd)[0].strip()
-        cmd = "ifconfig %s %s netmask %s" % (iface, self.cv_HOST.ip, self.conf.args.host_submask)
+        cmd = "ifconfig %s %s netmask %s" % (
+            iface, self.cv_HOST.ip, self.conf.args.host_submask)
         self.cv_SYSTEM.console.run_command(cmd)
         cmd = "route add default gateway %s" % self.conf.args.host_gateway
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
@@ -198,7 +202,8 @@ class InstallUtil():
         abs_repo_path = os.path.abspath(repo_path)
         # Clear already mount repo
         if os.path.ismount(repo_path):
-            status, output = commands.getstatusoutput("umount %s" % abs_repo_path)
+            status, output = commands.getstatusoutput(
+                "umount %s" % abs_repo_path)
             if status != 0:
                 print("failed to unmount", abs_repo_path)
                 return ""
@@ -407,6 +412,7 @@ class InstallUtil():
 
 
 class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+
     def do_HEAD(self):
         # FIXME: Local repo unable to handle http request while installation
         # Avoid using cdrom if your kickstart file needs repo, if installation
@@ -460,15 +466,15 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                         user = 'ubuntu'
 
                     packages = "openssh-server build-essential lvm2 ethtool "
-                    packages+= "nfs-common ssh ksh lsvpd nfs-kernel-server iprutils procinfo "
-                    packages+= "sg3-utils lsscsi libaio-dev libtime-hires-perl "
-                    packages+= "acpid tgt openjdk-8* zip git automake python "
-                    packages+= "expect gcc g++ gdb "
-                    packages+= "python-dev p7zip python-stevedore python-setuptools "
-                    packages+= "libvirt-dev numactl libosinfo-1.0-0 python-pip "
-                    packages+= "linux-tools-common linux-tools-generic lm-sensors "
-                    packages+= "ipmitool i2c-tools pciutils opal-prd opal-utils "
-                    packages+= "device-tree-compiler fwts"
+                    packages += "nfs-common ssh ksh lsvpd nfs-kernel-server iprutils procinfo "
+                    packages += "sg3-utils lsscsi libaio-dev libtime-hires-perl "
+                    packages += "acpid tgt openjdk-8* zip git automake python "
+                    packages += "expect gcc g++ gdb "
+                    packages += "python-dev p7zip python-stevedore python-setuptools "
+                    packages += "libvirt-dev numactl libosinfo-1.0-0 python-pip "
+                    packages += "linux-tools-common linux-tools-generic lm-sensors "
+                    packages += "ipmitool i2c-tools pciutils opal-prd opal-utils "
+                    packages += "device-tree-compiler fwts"
 
                     ps = d.format("openpower", "example.com",
                                   PROXY, PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
@@ -493,10 +499,10 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             return
 
         form = cgi.FieldStorage(
-            fp = self.rfile,
-            headers = self.headers,
-            environ={ "REQUEST_METHOD": "POST",
-                      "CONTENT_TYPE": self.headers['Content-Type']})
+            fp=self.rfile,
+            headers=self.headers,
+            environ={"REQUEST_METHOD": "POST",
+                     "CONTENT_TYPE": self.headers['Content-Type']})
 
         uploaded_files[form["file"].filename] = form["file"].value
 

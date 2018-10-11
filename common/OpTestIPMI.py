@@ -41,19 +41,17 @@ import os
 import pexpect
 import sys
 import re
-import commands
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from OpTestUtil import OpTestUtil
 import OpTestSystem
 from Exceptions import CommandFailed
-from Exceptions import BMCDisconnected
 import OPexpect
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class IPMITool():
     '''
@@ -62,6 +60,7 @@ class IPMITool():
     This wrapper class takes care of all the login/method details for
     the caller.
     '''
+
     def __init__(self, method='lanplus', binary='ipmitool',
                  ip=None, username=None, password=None, logfile=sys.stdout):
         self.method = 'lanplus'
@@ -104,14 +103,16 @@ class IPMITool():
             # TODO - need python 2.7
             # output = check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             try:
-                cmd = subprocess.Popen(cmd,stderr=subprocess.STDOUT,
-                                       stdout=subprocess.PIPE,shell=True)
+                cmd = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
+                                       stdout=subprocess.PIPE, shell=True)
             except:
                 raise CommandFailed(cmd, "Failed to spawn subprocess", -1)
             output = cmd.communicate()[0]
             return output
 
+
 class pUpdate():
+
     def __init__(self, method='lan', binary='pUpdate',
                  ip=None, username=None, password=None):
         self.method = 'lan'
@@ -153,8 +154,8 @@ class pUpdate():
             # TODO - need python 2.7
             # output = check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             try:
-                cmd = subprocess.Popen(cmd,stderr=subprocess.STDOUT,
-                                       stdout=subprocess.PIPE,shell=True)
+                cmd = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
+                                       stdout=subprocess.PIPE, shell=True)
             except:
                 l_msg = "pUpdate Command Failed: {}".format(cmd)
                 log.error(l_msg)
@@ -163,18 +164,22 @@ class pUpdate():
             log.debug(output)
             return output
 
+
 class IPMIConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
+
 
 def set_system_to_UNKNOWN_BAD(system):
     s = system.get_state()
     system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
     return s
 
+
 class IPMIConsole():
+
     def __init__(self, ipmitool=None, logfile=sys.stdout, prompt=None,
-            block_setup_term=None, delaybeforesend=None):
+                 block_setup_term=None, delaybeforesend=None):
         self.ipmitool = ipmitool
         self.state = IPMIConsoleState.DISCONNECTED
         self.delaybeforesend = delaybeforesend
@@ -184,9 +189,13 @@ class IPMIConsole():
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
         self.pty = None
         self.delaybeforesend = delaybeforesend
-        self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
-        self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
-        self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+        # allows caller specific control of when to block setup_term
+        self.block_setup_term = block_setup_term
+        # tells setup_term to not throw exceptions, like when system off
+        self.setup_term_quiet = 0
+        # flags the object to abandon setup_term operations, like when system
+        # off
+        self.setup_term_disable = 0
 
         # FUTURE - System Console currently tracked in System Object
         # state tracking, reset on boot and state changes
@@ -224,15 +233,16 @@ class IPMIConsole():
         try:
             self.pty.send("\r")
             self.pty.send('~.')
-            close_rc = self.pty.expect(['[terminated ipmitool]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            close_rc = self.pty.expect(
+                ['[terminated ipmitool]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
             rc_child = self.pty.close()
             self.state = IPMIConsoleState.DISCONNECTED
             exitCode = signalstatus = None
-            if self.pty.status != -1: # leaving for future debug
-              if os.WIFEXITED(self.pty.status):
-                exitCode = os.WEXITSTATUS(self.pty.status)
-              else:
-                signalstatus = os.WTERMSIG(self.pty.status)
+            if self.pty.status != -1:  # leaving for future debug
+                if os.WIFEXITED(self.pty.status):
+                    exitCode = os.WEXITSTATUS(self.pty.status)
+                else:
+                    signalstatus = os.WTERMSIG(self.pty.status)
         except pexpect.ExceptionPexpect:
             self.state = IPMIConsoleState.DISCONNECTED
             raise OpTestError("IPMI: failed to close ipmi console")
@@ -242,9 +252,9 @@ class IPMIConsole():
 
     def connect(self):
         if self.state == IPMIConsoleState.CONNECTED:
-          rc_child = self.close()
+            rc_child = self.close()
         else:
-          self.util.clear_state(self)
+            self.util.clear_state(self)
 
         try:
             self.ipmitool.run('sol deactivate')
@@ -253,39 +263,42 @@ class IPMIConsole():
 
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         try:
-          self.pty = OPexpect.spawn(cmd,
-                                  failure_callback=set_system_to_UNKNOWN_BAD,
-                                  failure_callback_data=self.system)
+            self.pty = OPexpect.spawn(cmd,
+                                      failure_callback=set_system_to_UNKNOWN_BAD,
+                                      failure_callback_data=self.system)
         except Exception as e:
-          self.state = IPMIConsoleState.DISCONNECTED
-          raise CommandFailed('OPexpect.spawn', "OPexpect.spawn encountered a problem, command was '{}'".format(cmd), -1)
+            self.state = IPMIConsoleState.DISCONNECTED
+            raise CommandFailed(
+                'OPexpect.spawn', "OPexpect.spawn encountered a problem, command was '{}'".format(cmd), -1)
 
         log.debug("#IPMI SOL CONNECT")
         self.state = IPMIConsoleState.CONNECTED
-        self.pty.setwinsize(1000,1000)
+        self.pty.setwinsize(1000, 1000)
         self.pty.logfile_read = OpTestLogger.FileLikeLogger(log)
         if self.delaybeforesend:
-	    self.pty.delaybeforesend = self.delaybeforesend
-        rc = self.pty.expect_exact(['[SOL Session operational.  Use ~? for help]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            self.pty.delaybeforesend = self.delaybeforesend
+        rc = self.pty.expect_exact(
+            ['[SOL Session operational.  Use ~? for help]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
-          if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
-            self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
-          time.sleep(0.2)
-          return self.pty
+            if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
+                self.util.setup_term(self.system, self.pty,
+                                     None, self.system.block_setup_term)
+            time.sleep(0.2)
+            return self.pty
         if rc == 1:
-          self.pty.close()
-          time.sleep(60) # give things a minute to clear
-          raise CommandFailed('sol activate',
-            "IPMI: pexpect.TIMEOUT while trying to establish"
-            " connection, command was '{}'"
-            .format(cmd), -1)
+            self.pty.close()
+            time.sleep(60)  # give things a minute to clear
+            raise CommandFailed('sol activate',
+                                "IPMI: pexpect.TIMEOUT while trying to establish"
+                                " connection, command was '{}'"
+                                .format(cmd), -1)
         if rc == 2:
-          self.pty.close()
-          time.sleep(60) # give things a minute to clear
-          raise CommandFailed('sol activate',
-            "IPMI: insufficient resources for session, unable"
-            " to establish IPMI v2 / RMCP+ session, command was '{}'"
-            .format(cmd), -1)
+            self.pty.close()
+            time.sleep(60)  # give things a minute to clear
+            raise CommandFailed('sol activate',
+                                "IPMI: insufficient resources for session, unable"
+                                " to establish IPMI v2 / RMCP+ session, command was '{}'"
+                                .format(cmd), -1)
 
     def get_console(self):
         if self.state == IPMIConsoleState.DISCONNECTED:
@@ -300,8 +313,9 @@ class IPMIConsole():
             count += 1
             if count > 120:
                 raise "IPMI: not able to get sol console"
-        if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
-          self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
+        if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
+            self.util.setup_term(self.system, self.pty,
+                                 None, self.system.block_setup_term)
 
         return self.pty
 
@@ -311,9 +325,11 @@ class IPMIConsole():
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.util.run_command_ignore_fail(self, command, timeout, retry)
 
+
 class OpTestIPMI():
+
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, logfile=sys.stdout,
-            host=None, delaybeforesend=None):
+                 host=None, delaybeforesend=None):
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd
@@ -422,7 +438,7 @@ class OpTestIPMI():
         '''
         r = self.ipmitool.run('chassis power reset')
         self.console.close()
-        if not BMC_CONST.CHASSIS_POWER_RESET in r:
+        if BMC_CONST.CHASSIS_POWER_RESET not in r:
             raise Exception("IPMI 'chassis power reset' failed: %s " % r)
 
     def ipmi_power_diag(self):
@@ -430,9 +446,8 @@ class OpTestIPMI():
         This function sends the chassis power diag ipmitool command.
         '''
         r = self.ipmitool.run('chassis power diag')
-        if not "Chassis Power Control: Diag" in r:
+        if "Chassis Power Control: Diag" not in r:
             raise Exception("IPMI 'chassis power diag' failed: %s " % r)
-
 
     ##
     #
@@ -451,10 +466,10 @@ class OpTestIPMI():
                         state before giving up.
         :type timeout: int
         '''
-        timeout = time.time() + 60*timeout
+        timeout = time.time() + 60 * timeout
         cmd = 'sdr elist |grep \'Host Status\''
         output = self.ipmitool.run(cmd)
-        if not "Host Status" in output:
+        if "Host Status" not in output:
             return BMC_CONST.FW_PARAMETER
         while True:
             output = self.ipmitool.run(cmd)
@@ -488,10 +503,10 @@ class OpTestIPMI():
                         state before giving up.
         :type timeout: int
         '''
-        timeout = time.time() + 60*timeout
+        timeout = time.time() + 60 * timeout
         cmd = 'sdr elist |grep \'Host Status\''
         output = self.ipmitool.run(cmd)
-        if not "Host Status" in output:
+        if "Host Status" not in output:
             return BMC_CONST.FW_PARAMETER
 
         while True:
@@ -507,7 +522,8 @@ class OpTestIPMI():
         return BMC_CONST.FW_SUCCESS
 
     def ipmi_ipl_wait_for_login(self, l_con, timeout=10):
-        l_rc = l_con.expect_exact(BMC_CONST.IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT, timeout=120)
+        l_rc = l_con.expect_exact(
+            BMC_CONST.IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT, timeout=120)
         if l_rc == 0:
             log.info("IPMI: sol console activated")
         else:
@@ -516,7 +532,8 @@ class OpTestIPMI():
         time.sleep(BMC_CONST.SHORT_WAIT_IPL)
         l_con.send("\r")
         time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-        l_rc = l_con.expect_exact(BMC_CONST.IPMI_CONSOLE_EXPECT_ENTER_OUTPUT, timeout=120)
+        l_rc = l_con.expect_exact(
+            BMC_CONST.IPMI_CONSOLE_EXPECT_ENTER_OUTPUT, timeout=120)
         if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_LOGIN:
             return BMC_CONST.FW_SUCCESS
         elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_PETITBOOT:
@@ -572,10 +589,10 @@ class OpTestIPMI():
                           state before giving up.
         :type i_timeout: int
         '''
-        l_timeout = time.time() + 60*i_timeout
+        l_timeout = time.time() + 60 * i_timeout
         l_cmd = 'sdr elist |grep \'OS Boot\''
         output = self.ipmitool.run(l_cmd)
-        if not "OS Boot" in output:
+        if "OS Boot" not in output:
             return BMC_CONST.FW_PARAMETER
         while True:
             l_output = self.ipmitool.run(l_cmd)
@@ -601,10 +618,10 @@ class OpTestIPMI():
               i.e. How long to poll the OS Boot sensor for working state before giving up.
         :type i_timeout: int
         '''
-        l_timeout = time.time() + 60*i_timeout
+        l_timeout = time.time() + 60 * i_timeout
         l_cmd = 'sdr elist |grep \'OS Boot\''
         l_output = self.ipmitool.run(l_cmd)
-        if not "OS Boot" in l_output:
+        if "OS Boot" not in l_output:
             return BMC_CONST.FW_PARAMETER
 
         while True:
@@ -664,7 +681,8 @@ class OpTestIPMI():
         elif('off' in l_output):
             return BMC_CONST.CHASSIS_POWER_OFF
         else:
-            raise OpTestError("Can't recognize chassis power status: " + str(l_output))
+            raise OpTestError(
+                "Can't recognize chassis power status: " + str(l_output))
 
     def ipmi_cold_reset(self):
         '''
@@ -676,7 +694,8 @@ class OpTestIPMI():
         if BMC_CONST.BMC_PASS_COLD_RESET in rc:
             self.console.close()
             time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-            self.util.PingFunc(self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+            self.util.PingFunc(
+                self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
             self.ipmi_wait_for_bmc_runtime()
             l_finalstatus = self.ipmi_power_status()
             if (l_initstatus != l_finalstatus):
@@ -686,7 +705,7 @@ class OpTestIPMI():
                 raise OpTestError('Power status changed')
             return BMC_CONST.FW_SUCCESS
         else:
-            loge.error("Cold reset failed, rc={}".format(rc))
+            log.error("Cold reset failed, rc={}".format(rc))
             raise OpTestError(rc)
 
     def ipmi_wait_for_bmc_runtime(self, i_timeout=10):
@@ -700,7 +719,7 @@ class OpTestIPMI():
 
         Here AMI systems returns 00 and SMC Systems return NULL for success
         '''
-        l_timeout = time.time() + 60*i_timeout
+        l_timeout = time.time() + 60 * i_timeout
         l_cmd = ' raw 0x3a 0x0a '
         while True:
             try:
@@ -710,10 +729,10 @@ class OpTestIPMI():
                 continue
             if "0xc0"in l_output:
                 log.info("BMC Still booting...")
-            elif "00" in l_output: # AMI BMC returns 00 as output
+            elif "00" in l_output:  # AMI BMC returns 00 as output
                 log.info("BMC Completed booting...")
                 break
-            else: # SMC BMC returns empty as output
+            else:  # SMC BMC returns empty as output
                 log.info("BMC Completed booting...")
                 break
             if time.time() > l_timeout:
@@ -730,13 +749,14 @@ class OpTestIPMI():
         l_initstatus = self.ipmi_power_status()
         l_cmd = BMC_CONST.BMC_WARM_RESET
         log.info("Applying Warm reset. Wait for "
-                            + str(BMC_CONST.BMC_WARM_RESET_DELAY) + "sec")
+                 + str(BMC_CONST.BMC_WARM_RESET_DELAY) + "sec")
         rc = self.ipmitool.run(l_cmd)
         if BMC_CONST.BMC_PASS_WARM_RESET in rc:
             log.info("Warm reset result: {}".format(rc))
             self.console.close()
             time.sleep(BMC_CONST.BMC_WARM_RESET_DELAY)
-            self.util.PingFunc(self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+            self.util.PingFunc(
+                self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
             l_finalstatus = self.ipmi_power_status()
             if (l_initstatus != l_finalstatus):
                 log.debug('initial status ' + str(l_initstatus))
@@ -754,7 +774,7 @@ class OpTestIPMI():
         Preserves the network setting
         '''
         log.info("Protecting BMC network setting")
-        l_cmd =  BMC_CONST.BMC_PRESRV_LAN
+        l_cmd = BMC_CONST.BMC_PRESRV_LAN
         rc = self.ipmitool.run(l_cmd)
 
         if BMC_CONST.BMC_ERROR_LAN in rc:
@@ -779,10 +799,11 @@ class OpTestIPMI():
         # We need to do a re-try of hpm code update if it fails for the first time
         # As AMI systems are some times failed to flash for the first time.
         count = 0
-        while (count <2):
+        while (count < 2):
             self.ipmi_preserve_network_setting()
             time.sleep(5)
-            rc = self.ipmitool.run(l_cmd, background=False, cmdprefix = "echo y |")
+            rc = self.ipmitool.run(
+                l_cmd, background=False, cmdprefix="echo y |")
             log.info("IPMI code update result: {}".format(rc))
             if(rc.__contains__("Firmware upgrade procedure successful")):
                 return BMC_CONST.FW_SUCCESS
@@ -805,7 +826,8 @@ class OpTestIPMI():
                   l_bmc_side, l_pnor_side
         '''
 
-        l_result = self.ipmitool.run(BMC_CONST.BMC_ACTIVE_SIDE).strip().split('\n')
+        l_result = self.ipmitool.run(
+            BMC_CONST.BMC_ACTIVE_SIDE).strip().split('\n')
 
         for i in range(len(l_result)):
             if('BIOS' in l_result[i]):
@@ -841,7 +863,7 @@ class OpTestIPMI():
         '''
         Get PNOR level
         '''
-        l_rc =  self.ipmitool.run(BMC_CONST.BMC_MCHBLD)
+        l_rc = self.ipmitool.run(BMC_CONST.BMC_MCHBLD)
         return l_rc
 
     def ipmi_get_bmc_golden_side_version(self):
@@ -904,11 +926,13 @@ class OpTestIPMI():
         if i_part == BMC_CONST.PNOR_NVRAM_PART:
             l_rc = self.ipmitool.run(BMC_CONST.IPMI_GET_NVRAM_PARTITION_SIZE)
         elif i_part == BMC_CONST.PNOR_GUARD_PART:
-            l_rc = self.ipmitool.run(BMC_CONST.IPMI_GET_GUARD_PARTITION_SIZE )
+            l_rc = self.ipmitool.run(BMC_CONST.IPMI_GET_GUARD_PARTITION_SIZE)
         elif i_part == BMC_CONST.PNOR_BOOTKERNEL_PART:
-            l_rc = self.ipmitool.run(BMC_CONST.IPMI_GET_BOOTKERNEL_PARTITION_SIZE)
+            l_rc = self.ipmitool.run(
+                BMC_CONST.IPMI_GET_BOOTKERNEL_PARTITION_SIZE)
         else:
-            l_msg = "please provide valid partition eye catcher name ({} is invalid)".format(i_part)
+            l_msg = "please provide valid partition eye catcher name ({} is invalid)".format(
+                i_part)
             log.error(l_msg)
             raise OpTestError(l_msg)
         return l_rc
@@ -1025,7 +1049,8 @@ class OpTestIPMI():
                    0x3  LED Slow Blink rate.
         '''
         log.debug("IPMI: Getting the Chassis Identify LED state")
-        l_res = self.ipmitool.run(BMC_CONST.IPMI_GET_LED_STATE_CHASSIS_IDENTIFY)
+        l_res = self.ipmitool.run(
+            BMC_CONST.IPMI_GET_LED_STATE_CHASSIS_IDENTIFY)
         return l_res
 
     def ipmi_set_led_state(self, i_led, i_state):
@@ -1063,9 +1088,11 @@ class OpTestIPMI():
             log.debug("Set LED state got success")
             return BMC_CONST.FW_SUCCESS
         elif "0x90" in l_res:
-            log.error("Invalid LED number (i_led={},i_state={}) res:{}".format(i_led,i_state,l_les))
+            log.error("Invalid LED number (i_led={},i_state={}) res:{}".format(
+                i_led, i_state, l_res))
         else:
-            l_msg = "IPMI: Set LED state failed (i_led={},i_state={}) res:{}".format(i_led, i_state, l_les)
+            l_msg = "IPMI: Set LED state failed (i_led={},i_state={}) res:{}".format(
+                i_led, i_state, l_res)
             log.error(l_msg)
             raise OpTestError(l_msg)
 
@@ -1110,7 +1137,8 @@ class OpTestIPMI():
           Invalid Operation Mode
         '''
         log.debug("IPMI: Disabling the Fan control task thread state")
-        l_rc = self.ipmitool.run(BMC_CONST.IPMI_DISABLE_FAN_CONTROL_TASK_THREAD)
+        l_rc = self.ipmitool.run(
+            BMC_CONST.IPMI_DISABLE_FAN_CONTROL_TASK_THREAD)
         return l_rc
 
     def ipmi_get_fan_control_task_state_command(self):
@@ -1211,7 +1239,7 @@ class OpTestIPMI():
         for i in range(len(l_status)):
             l_sensor_id = l_status[i].split("|")[1].strip()[:2]
             self.ipmitool.run(BMC_CONST.BMC_OCC_SENSOR +
-                                   l_sensor_id + BMC_CONST.BMC_DISABLE_OCC)
+                              l_sensor_id + BMC_CONST.BMC_DISABLE_OCC)
 
         return BMC_CONST.FW_SUCCESS
 
@@ -1255,12 +1283,13 @@ class OpTestIPMI():
         '''
         log.info('\nSetting PNOR to boot into Primary Side')
 
-        #Set the Boot Count sensor to 2
+        # Set the Boot Count sensor to 2
         l_cmd = BMC_CONST.BMC_BOOT_COUNT_2.replace('xx', i_boot_sensor)
         self.ipmitool.run(l_cmd)
 
-        #Set the BIOS Golden Side sensor to 0
-        l_cmd = BMC_CONST.BMC_BIOS_GOLDEN_SENSOR_TO_PRIMARY.replace('xx', i_bios_sensor)
+        # Set the BIOS Golden Side sensor to 0
+        l_cmd = BMC_CONST.BMC_BIOS_GOLDEN_SENSOR_TO_PRIMARY.replace(
+            'xx', i_bios_sensor)
         self.ipmitool.run(l_cmd)
 
         return BMC_CONST.FW_SUCCESS
@@ -1274,12 +1303,13 @@ class OpTestIPMI():
         '''
         log.info('\nSetting PNOR to boot into Golden Side')
 
-        #Set the Boot Count sensor to 2
+        # Set the Boot Count sensor to 2
         l_cmd = BMC_CONST.BMC_BOOT_COUNT_2.replace('xx', i_boot_sensor)
         self.ipmitool.run(l_cmd)
 
-        #Set the BIOS Golden Side sensor to 1
-        l_cmd = BMC_CONST.BMC_BIOS_GOLDEN_SENSOR_TO_GOLDEN.replace('xx', i_bios_sensor)
+        # Set the BIOS Golden Side sensor to 1
+        l_cmd = BMC_CONST.BMC_BIOS_GOLDEN_SENSOR_TO_GOLDEN.replace(
+            'xx', i_bios_sensor)
         self.ipmitool.run(l_cmd)
 
         return BMC_CONST.FW_SUCCESS
@@ -1307,7 +1337,8 @@ class OpTestIPMI():
         if('Set Boot Device to bios' in l_output):
             return 0
         else:
-            raise OpTestError("Failure setting bootdev to bios: " + str(l_output))
+            raise OpTestError(
+                "Failure setting bootdev to bios: " + str(l_output))
 
     def ipmi_set_boot_to_disk(self):
         '''
@@ -1317,7 +1348,8 @@ class OpTestIPMI():
         if('Set Boot Device to disk' in l_output):
             return 0
         else:
-            raise OpTestError("Failure setting bootdev to disk: " + str(l_output))
+            raise OpTestError(
+                "Failure setting bootdev to disk: " + str(l_output))
 
     def ipmi_set_no_override(self):
         '''
@@ -1327,7 +1359,8 @@ class OpTestIPMI():
         if('Set Boot Device to none' in l_output):
             return 0
         else:
-            raise OpTestError("Failure setting bootdev to none: " + str(l_output))
+            raise OpTestError(
+                "Failure setting bootdev to none: " + str(l_output))
 
     def enter_ipmi_lockdown_mode(self):
         self.ipmitool.run('raw 0x32 0xf3 0x4c 0x4f 0x43 0x4b 0x00')
@@ -1356,7 +1389,7 @@ class OpTestIPMI():
     def ipmi_get_golden_side_sensor_id(self):
         cmd = "sdr elist -v | grep -i 'BIOS Golden'"
         output = self.ipmitool.run(cmd)
-        matchObj = re.search( "BIOS Golden Side \((.*)\)", output)
+        matchObj = re.search("BIOS Golden Side \((.*)\)", output)
         id = None
         if matchObj:
             id = matchObj.group(1)
@@ -1365,7 +1398,7 @@ class OpTestIPMI():
     def ipmi_get_boot_count_sensor_id(self):
         cmd = "sdr elist -v | grep -i 'Boot Count'"
         output = self.ipmitool.run(cmd)
-        matchObj = re.search( "Boot Count \((.*)\)", output)
+        matchObj = re.search("Boot Count \((.*)\)", output)
         id = None
         if matchObj:
             id = matchObj.group(1)

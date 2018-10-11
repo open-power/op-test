@@ -21,13 +21,12 @@
 # This implements all the python logger setup for op-test
 
 import os
-import sys
-from datetime import datetime
 import logging
 from logging.handlers import RotatingFileHandler
 
 
 class FileLikeLogger():
+
     def __init__(self, l):
         self.log = l
 
@@ -39,12 +38,14 @@ class FileLikeLogger():
     def flush(self):
         pass
 
+
 class OpTestLogger():
     '''
     This class is used as the main global logger and handler initialization module.
 
     See testcases/HelloWorld.py as an example for the usage within an op-test module.
     '''
+
     def __init__(self):
         '''
         Provide defaults and setup the minimal StreamHandlers
@@ -68,7 +69,8 @@ class OpTestLogger():
         # save the sh level for later refreshes
         self.sh_level = logging.ERROR
         self.sh.setLevel(self.sh_level)
-        self.sh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
+        self.sh.setFormatter(logging.Formatter(
+            '%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
         self.optest_logger.addHandler(self.sh)
         self.fh = None
         self.dh = None
@@ -77,13 +79,13 @@ class OpTestLogger():
         '''
          Provide a method that allows individual module helper capabilities
         '''
-        return logging.getLogger(self.parent_logger+'.{}'.format(myname))
+        return logging.getLogger(self.parent_logger + '.{}'.format(myname))
 
     def get_custom_logger(self, myname):
         '''
          Provide a method that allows individual module helper capabilities
         '''
-        return logging.getLogger("op-test-thread"+'.{}'.format(myname))
+        return logging.getLogger("op-test-thread" + '.{}'.format(myname))
 
     def setUpLoggerFile(self, logger_file):
         '''
@@ -92,16 +94,20 @@ class OpTestLogger():
         :param logger_file: File name to use for logging the main log records.
         '''
         # need to log that location of logging may be changed
-        self.optest_logger.info('Preparing to set location of Log File to {}'.format(os.path.join(self.logdir, logger_file)))
+        self.optest_logger.info('Preparing to set location of Log File to {}'.format(
+            os.path.join(self.logdir, logger_file)))
         self.logger_file = logger_file
         if (not os.path.exists(self.logdir)):
-          os.makedirs(self.logdir)
-        self.fh = RotatingFileHandler(os.path.join(self.logdir, self.logger_file), maxBytes=self.maxBytes_logger_file, backupCount=self.backupCount_logger_files)
+            os.makedirs(self.logdir)
+        self.fh = RotatingFileHandler(os.path.join(self.logdir, self.logger_file),
+                                      maxBytes=self.maxBytes_logger_file, backupCount=self.backupCount_logger_files)
         self.fh.setLevel(logging.INFO)
-        self.fh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s'))
+        self.fh.setFormatter(logging.Formatter(
+            '%(asctime)s:%(name)s:%(levelname)s:%(message)s'))
         self.optest_logger.addHandler(self.fh)
         self.optest_logger.debug('FileHandler settings updated')
-        self.optest_logger.info('Log file: {}'.format(os.path.join(self.logdir, self.logger_file)))
+        self.optest_logger.info('Log file: {}'.format(
+            os.path.join(self.logdir, self.logger_file)))
 
     def setUpLoggerDebugFile(self, logger_debug_file):
         '''
@@ -109,16 +115,20 @@ class OpTestLogger():
 
         :param logger_debug_file: File name to use for logging the debug log records.
         '''
-        self.optest_logger.info('Preparing to set location of Debug Log File to {}'.format(os.path.join(self.logdir, logger_debug_file)))
+        self.optest_logger.info('Preparing to set location of Debug Log File to {}'.format(
+            os.path.join(self.logdir, logger_debug_file)))
         self.logger_debug_file = logger_debug_file
         if (not os.path.exists(self.logdir)):
-          os.makedirs(self.logdir)
-        self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file), maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
+            os.makedirs(self.logdir)
+        self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file),
+                                      maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
         self.dh.setLevel(logging.DEBUG)
-        self.dh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
+        self.dh.setFormatter(logging.Formatter(
+            '%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
         self.optest_logger.addHandler(self.dh)
         self.optest_logger.debug('DebugHandler settings updated')
-        self.optest_logger.info('Debug Log file: {}'.format(os.path.join(self.logdir, self.logger_debug_file)))
+        self.optest_logger.info('Debug Log file: {}'.format(
+            os.path.join(self.logdir, self.logger_debug_file)))
 
     def setUpCustomLoggerDebugFile(self, logger_name, logger_debug_file):
         '''
@@ -132,13 +142,18 @@ class OpTestLogger():
         self.optest_custom_logger.addHandler(self.sh)
         self.logger_debug_file = logger_debug_file
         if (not os.path.exists(self.logdir)):
-          os.makedirs(self.logdir)
-        self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file), maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
+            os.makedirs(self.logdir)
+        self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file),
+                                      maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
         self.dh.setLevel(logging.DEBUG)
-        self.dh.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
+        self.dh.setFormatter(logging.Formatter(
+            '%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
         self.optest_custom_logger.addHandler(self.dh)
-        self.optest_custom_logger.debug('DebugHandler settings updated for custom logger')
-        self.optest_custom_logger.info('Debug Log file: {}'.format(os.path.join(self.logdir, self.logger_debug_file)))
+        self.optest_custom_logger.debug(
+            'DebugHandler settings updated for custom logger')
+        self.optest_custom_logger.info('Debug Log file: {}'.format(
+            os.path.join(self.logdir, self.logger_debug_file)))
+
 
 global optest_logger_glob
 optest_logger_glob = OpTestLogger()

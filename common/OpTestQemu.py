@@ -22,6 +22,7 @@
 Support testing against Qemu simulator
 """
 
+import os
 import atexit
 import sys
 import time
@@ -33,23 +34,25 @@ from common.Exceptions import CommandFailed
 import OPexpect
 from OpTestUtil import OpTestUtil
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class ConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
+
 
 class QemuConsole():
     """
     A 'connection' to the Qemu Console involves *launching* qemu.
     Closing a connection will *terminate* the qemu process.
     """
+
     def __init__(self, qemu_binary=None, pnor=None, skiboot=None,
-            prompt=None, kernel=None, initramfs=None,
-            block_setup_term=None, delaybeforesend=None,
-            logfile=sys.stdout, hda=None, cdrom=None):
+                 prompt=None, kernel=None, initramfs=None,
+                 block_setup_term=None, delaybeforesend=None,
+                 logfile=sys.stdout, hda=None, cdrom=None):
         self.qemu_binary = qemu_binary
         self.pnor = pnor
         self.skiboot = skiboot
@@ -65,9 +68,13 @@ class QemuConsole():
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
         self.pty = None
-        self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
-        self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
-        self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+        # allows caller specific control of when to block setup_term
+        self.block_setup_term = block_setup_term
+        # tells setup_term to not throw exceptions, like when system off
+        self.setup_term_quiet = 0
+        # flags the object to abandon setup_term operations, like when system
+        # off
+        self.setup_term_disable = 0
 
         # state tracking, reset on boot and state changes
         # console tracking done on System object for the system console
@@ -103,11 +110,11 @@ class QemuConsole():
         try:
             rc_child = self.pty.close()
             exitCode = signalstatus = None
-            if self.pty.status != -1: # leaving for debug
-              if os.WIFEXITED(self.pty.status):
-                exitCode = os.WEXITSTATUS(self.pty.status)
-              else:
-                signalstatus = os.WTERMSIG(self.pty.status)
+            if self.pty.status != -1:  # leaving for debug
+                if os.WIFEXITED(self.pty.status):
+                    exitCode = os.WEXITSTATUS(self.pty.status)
+                else:
+                    signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
         except pexpect.ExceptionPexpect as e:
             self.state = ConsoleState.DISCONNECTED
@@ -121,14 +128,14 @@ class QemuConsole():
         if self.state == ConsoleState.CONNECTED:
             return self.pty
         else:
-            self.util.clear_state(self) # clear when coming in DISCONNECTED
+            self.util.clear_state(self)  # clear when coming in DISCONNECTED
 
         log.debug("#Qemu Console CONNECT")
 
         cmd = ("%s" % (self.qemu_binary)
                + " -machine powernv -m 4G"
                + " -nographic -nodefaults"
-           )
+               )
         if self.pnor:
             cmd = cmd + " -drive file={},format=raw,if=mtd".format(self.pnor)
         if self.skiboot:
@@ -141,15 +148,15 @@ class QemuConsole():
         if self.hda is not None:
             # Put the disk on the first PHB
             cmd = (cmd
-                    + " -drive file={},id=disk01,if=none".format(self.hda)
-                    + " -device virtio-blk-pci,drive=disk01,id=virtio01,bus=pcie.0,addr=0"
-                )
+                   + " -drive file={},id=disk01,if=none".format(self.hda)
+                   + " -device virtio-blk-pci,drive=disk01,id=virtio01,bus=pcie.0,addr=0"
+                   )
         if self.cdrom is not None:
             # Put the CDROM on the second PHB
             cmd = (cmd
-                    + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
-                    + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.1,addr=0"
-                )
+                   + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
+                   + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.1,addr=0"
+                   )
         # typical host ip=10.0.2.2 and typical skiroot 10.0.2.15
         # use skiroot as the source, no sshd in skiroot
         cmd = cmd + " -nic user,model=virtio-net-pci"
@@ -157,19 +164,20 @@ class QemuConsole():
         cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
         print(cmd)
         try:
-          self.pty = OPexpect.spawn(cmd,logfile=self.logfile)
+            self.pty = OPexpect.spawn(cmd, logfile=self.logfile)
         except Exception as e:
-          self.state = ConsoleState.DISCONNECTED
-          raise CommandFailed('OPexpect.spawn',
-                  'OPexpect.spawn encountered a problem: ' + str(e), -1)
+            self.state = ConsoleState.DISCONNECTED
+            raise CommandFailed('OPexpect.spawn',
+                                'OPexpect.spawn encountered a problem: ' + str(e), -1)
 
         self.state = ConsoleState.CONNECTED
-        self.pty.setwinsize(1000,1000)
+        self.pty.setwinsize(1000, 1000)
         if self.delaybeforesend:
-          self.pty.delaybeforesend = self.delaybeforesend
+            self.pty.delaybeforesend = self.delaybeforesend
 
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-          self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
+            self.util.setup_term(self.system, self.pty,
+                                 None, self.system.block_setup_term)
 
         # Wait a moment for isalive() to read a correct value and then check
         # if the command has already exited. If it has then QEMU has most
@@ -185,7 +193,8 @@ class QemuConsole():
             self.connect()
         else:
             if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-                self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
+                self.util.setup_term(self.system, self.pty,
+                                     None, self.system.block_setup_term)
 
         return self.pty
 
@@ -195,6 +204,7 @@ class QemuConsole():
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.util.run_command_ignore_fail(self, command, timeout, retry)
 
+
 class QemuIPMI():
     """
     Qemu has fairly limited IPMI capability, and we probably need to
@@ -202,6 +212,7 @@ class QemuIPMI():
     gets skipped.
 
     """
+
     def __init__(self, console):
         self.console = console
 
@@ -228,7 +239,9 @@ class QemuIPMI():
     def sys_set_bootdev_no_override(self):
         pass
 
+
 class OpTestQemu():
+
     def __init__(self, qemu_binary=None, pnor=None, skiboot=None,
                  kernel=None, initramfs=None, cdrom=None,
                  logfile=sys.stdout, hda=None):
@@ -260,7 +273,7 @@ class OpTestQemu():
 
     def run_command(self, command, timeout=10, retry=0):
         # qemu only supports system console object, not this bmc object
-        return None # at least return something and have the testcase handle
+        return None  # at least return something and have the testcase handle
 
     def get_ipmi(self):
         return self.ipmi

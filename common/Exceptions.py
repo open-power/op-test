@@ -30,6 +30,7 @@ class CommandFailed(Exception):
     '''
     Running a command (BMC or Host) failed with non-zero exit code.
     '''
+
     def __init__(self, command, output, exitcode):
         self.command = command
         self.output = output
@@ -44,6 +45,7 @@ class SSHSessionDisconnected(Exception):
     '''
     SSH session/console was disconnected unexpectedly. e.g. it may have crashed
     '''
+
     def __init__(self, notice):
         self.notice = notice
 
@@ -56,6 +58,7 @@ class LoginFailure(Exception):
     '''
     SSH/IPMI Login failure - username/password may be wrong
     '''
+
     def __init__(self, notice):
         self.notice = notice
 
@@ -68,6 +71,7 @@ class BMCDisconnected(Exception):
     '''
     BMC Cosnole was disconnected unexpectedly. e.g. it may have crashed
     '''
+
     def __init__(self, notice):
         self.notice = notice
 
@@ -81,6 +85,7 @@ class NoKernelConfig(Exception):
     We needed to grep host kernel config for a config option, but could not
     find the needed config file
     '''
+
     def __init__(self, kernel, path):
         self.kernel = kernel
         self.path = path
@@ -94,6 +99,7 @@ class KernelModuleNotLoaded(Exception):
     '''
     Kernel module needed to run test wasn't loaded
     '''
+
     def __init__(self, module):
         self.module = module
 
@@ -107,6 +113,7 @@ class KernelConfigNotSet(Exception):
     A kernel config option needed by the test was not set for the running
     kernel.
     '''
+
     def __init__(self, opt):
         self.opt = opt
 
@@ -122,6 +129,7 @@ class KernelSoftLockup(Exception):
     Some test cases may *intentionally* cause these, so they can catch them
     and act appropriately.
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -135,6 +143,7 @@ class KernelHardLockup(Exception):
     '''
     We detected a hard lockup from the running kernel.
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -151,6 +160,7 @@ class KernelOOPS(Exception):
     Some test cases may *intentionally* cause these, so they can catch them
     and act appropriately.
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -165,6 +175,7 @@ class KernelKdump(Exception):
     We observe a Kdump kernel booting after a kernel crash, to dump vmcore
     for debug.
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -179,6 +190,7 @@ class KernelCrashUnknown(Exception):
     Kernel crashed but it didn't reach the end failure condition
     (i.e a timeout occured)
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -189,6 +201,7 @@ class KernelCrashUnknown(Exception):
 
 
 class KernelBug(Exception):
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -202,6 +215,7 @@ class SkibootAssert(Exception):
     '''
     We detected an assert from OPAL (skiboot) firmware.
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -215,6 +229,7 @@ class SkibootException(Exception):
     '''
     We detected an exception from OPAL (skiboot) firmware.
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -228,6 +243,7 @@ class KernelPanic(Exception):
     '''
     Kernel got panic due to high seveirty conditions
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -242,6 +258,7 @@ class PlatformError(Exception):
     We detected a system reboot due to platform error (i.e checkstop,
     machine check, MCE, etc)
     '''
+
     def __init__(self, state, log):
         self.log = log
         self.state = state
@@ -255,6 +272,7 @@ class HostbootShutdown(Exception):
     '''
     We detected that Hostboot got an IPMI shutdown request.
     '''
+
     def __str__(self):
         return "Detected hostboot got IPMI shutdown request"
 
@@ -263,6 +281,7 @@ class UnexpectedCase(Exception):
     '''
     We detected something we should not have.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'state': None, 'msg': None}
         self.kwargs = {}
@@ -283,6 +302,7 @@ class WaitForIt(Exception):
     '''
     We need special handling per case so give back desired data.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'expect_dict': None, 'reconnect_count': 0}
         self.kwargs = {}
@@ -303,6 +323,7 @@ class RecoverFailed(Exception):
     '''
     We tried to recover and did not succeed.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'before': None, 'after': None, 'msg': None}
         self.kwargs = {}
@@ -325,6 +346,7 @@ class UnknownStateTransition(Exception):
     '''
     We tried to transition to UNKNOWN, something happened.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'state': None, 'msg': None}
         self.kwargs = {}
@@ -346,14 +368,15 @@ class HostLocker(Exception):
     '''
     We tried to setup with HostLocker and something happened.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'msg': None}
         self.kwargs = {}
         for key in default_vals:
-          if key not in kwargs.keys():
-            self.kwargs[key] = default_vals[key]
-          else:
-            self.kwargs[key] = kwargs[key]
+            if key not in kwargs.keys():
+                self.kwargs[key] = default_vals[key]
+            else:
+                self.kwargs[key] = kwargs[key]
 
     def __str__(self):
         return ('Something happened setting up HostLocker. '
@@ -365,14 +388,15 @@ class HTTPCheck(Exception):
     '''
     We tried to setup HTTP Server and something happened.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'msg': None}
         self.kwargs = {}
         for key in default_vals:
-          if key not in kwargs.keys():
-            self.kwargs[key] = default_vals[key]
-          else:
-            self.kwargs[key] = kwargs[key]
+            if key not in kwargs.keys():
+                self.kwargs[key] = default_vals[key]
+            else:
+                self.kwargs[key] = kwargs[key]
 
     def __str__(self):
         return ('Something happened setting up the HTTP Server. '
@@ -385,14 +409,15 @@ class AES(Exception):
     We tried to setup with Automated Environment Sharing (AES)
     and something happened.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'msg': None}
         self.kwargs = {}
         for key in default_vals:
-          if key not in kwargs.keys():
-            self.kwargs[key] = default_vals[key]
-          else:
-            self.kwargs[key] = kwargs[key]
+            if key not in kwargs.keys():
+                self.kwargs[key] = default_vals[key]
+            else:
+                self.kwargs[key] = kwargs[key]
 
     def __str__(self):
         return ('Something happened setting up Automated '
@@ -405,14 +430,15 @@ class ParameterCheck(Exception):
     '''
     We think something is not properly setup.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'msg': None}
         self.kwargs = {}
         for key in default_vals:
-          if key not in kwargs.keys():
-            self.kwargs[key] = default_vals[key]
-          else:
-            self.kwargs[key] = kwargs[key]
+            if key not in kwargs.keys():
+                self.kwargs[key] = default_vals[key]
+            else:
+                self.kwargs[key] = kwargs[key]
 
     def __str__(self):
         return ('Something does not appear to be configured'
@@ -426,6 +452,7 @@ class StoppingSystem(Exception):
     We have either set the system to stop for some condition or reached the
     kill_cord limit and stopping.
     '''
+
     def __str__(self):
         return "System has either set the stop flag for some condition or "\
             "reached the kill_cord limit on trying to continue, check that "\
@@ -436,6 +463,7 @@ class ConsoleSettings(Exception):
     '''
     We need special handling per case so give back desired data.
     '''
+
     def __init__(self, **kwargs):
         default_vals = {'before': None, 'after': None, 'msg': None}
         self.kwargs = {}

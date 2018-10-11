@@ -21,24 +21,22 @@ import re
 import sys
 import time
 import datetime
-import pexpect
 import subprocess
 import json
 
 from OpTestSSH import OpTestSSH
-from OpTestIPMI import OpTestIPMI
 from OpTestUtil import OpTestUtil
 from OpTestBMC import OpTestBMC
-from Exceptions import CommandFailed, LoginFailure
+from Exceptions import LoginFailure
 from common.OpTestError import OpTestError
 from OpTestConstants import OpTestConstants as BMC_CONST
-import OpTestSystem
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class FailedCurlInvocation(Exception):
+
     def __init__(self, command, output):
         self.command = command
         self.output = output
@@ -48,6 +46,7 @@ class FailedCurlInvocation(Exception):
 
 
 class CurlTool():
+
     def __init__(self, binary="curl",
                  ip=None, username=None, password=None):
         self.ip = ip
@@ -63,7 +62,7 @@ class CurlTool():
                   data=None, header=None, upload_file=None, remote_name=None):
         self.object = dbus_object
         self.action = action
-        self.operation = operation # 'r-read, w-write, rw-read/write'
+        self.operation = operation  # 'r-read, w-write, rw-read/write'
         self.command = command
         self.data = data
         self.header = self.custom_header(header)
@@ -169,7 +168,7 @@ class CurlTool():
                 obj = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
                                        stdout=subprocess.PIPE, shell=True)
             except Exception as e:
-                l_msg = "Curl Command '{}' Failed: {}".format(cmd,str(e))
+                l_msg = "Curl Command '{}' Failed: {}".format(cmd, str(e))
                 log.error(l_msg)
                 raise OpTestError(l_msg)
             output = obj.communicate()[0]
@@ -179,7 +178,7 @@ class CurlTool():
                 if self.login_retry > 5:
                     raise LoginFailure("Rest Login retry exceeded")
                 output = ""
-                cmd_bkup =  cmd
+                cmd_bkup = cmd
                 self.login()
                 self.login_retry += 1
                 self.bkup_cmd(cmd_bkup)
@@ -195,7 +194,8 @@ class CurlTool():
 
     def login(self):
         data = '\'{"data": [ "%s", "%s" ] }\'' % (self.username, self.password)
-        self.feed_data(dbus_object="/login", operation='w', command="POST", data=data)
+        self.feed_data(dbus_object="/login", operation='w',
+                       command="POST", data=data)
         try:
             output = self.run()
         except FailedCurlInvocation as fci:
@@ -203,7 +203,9 @@ class CurlTool():
         if '"description": "Invalid username or password"' in output:
             raise LoginFailure("Rest login invalid username or password")
 
+
 class HostManagement():
+
     def __init__(self, ip=None, username=None, password=None):
         self.hostname = ip
         self.username = username
@@ -212,7 +214,8 @@ class HostManagement():
                              username=username,
                              password=password)
         self.util = OpTestUtil()
-        self.util.PingFunc(self.hostname, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+        self.util.PingFunc(
+            self.hostname, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
         self.login()
         self.wait_for_bmc_runtime()
 
@@ -222,7 +225,8 @@ class HostManagement():
         -d '{"data": [ "root", "0penBmc" ] }' https://bmc/login
         '''
         data = '\'{"data": [ "%s", "%s" ] }\'' % (self.username, self.password)
-        self.curl.feed_data(dbus_object="/login", operation='w', command="POST", data=data)
+        self.curl.feed_data(dbus_object="/login",
+                            operation='w', command="POST", data=data)
         try:
             output = self.curl.run()
         except FailedCurlInvocation as fci:
@@ -238,7 +242,8 @@ class HostManagement():
         https://bmc/logout
         '''
         data = '\'{"data" : []}\''
-        self.curl.feed_data(dbus_object="/logout", operation='rw', command="POST", data=data)
+        self.curl.feed_data(dbus_object="/logout",
+                            operation='rw', command="POST", data=data)
         self.curl.run()
 
     def get_inventory(self):
@@ -247,11 +252,13 @@ class HostManagement():
         /xyz/openbmc_project/inventory
         curl -b cjar -k https://bmc/xyz/openbmc_project/inventory/enumerate
         '''
-        self.curl.feed_data(dbus_object="/xyz/openbmc_project/inventory/enumerate", operation="r")
+        self.curl.feed_data(
+            dbus_object="/xyz/openbmc_project/inventory/enumerate", operation="r")
         self.curl.run()
 
     def sensors(self):
-        self.curl.feed_data(dbus_object="/xyz/openbmc_project/sensors/enumerate", operation="r")
+        self.curl.feed_data(
+            dbus_object="/xyz/openbmc_project/sensors/enumerate", operation="r")
         self.curl.run()
 
     def get_power_state(self):
@@ -262,7 +269,8 @@ class HostManagement():
         '''
         data = '\'{"data" : []}\''
         obj = '/xyz/openbmc_project/state/host0/attr/CurrentHostState'
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="GET", data=data)
         self.curl.run()
 
     def get_host_state(self):
@@ -273,7 +281,8 @@ class HostManagement():
         '''
         data = '\'{"data" : []}\''
         obj = '/xyz/openbmc_project/state/host0/attr/CurrentHostState'
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="GET", data=data)
         self.curl.run()
 
     def soft_reboot(self):
@@ -285,7 +294,8 @@ class HostManagement():
         '''
         data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Reboot\"}\''
         obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def hard_reboot(self):
@@ -297,7 +307,8 @@ class HostManagement():
         '''
         data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Reboot\"}\''
         obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def power_soft(self):
@@ -309,7 +320,8 @@ class HostManagement():
         '''
         data = '\'{"data" : \"xyz.openbmc_project.State.Chassis.Transition.Off\"}\''
         obj = "xyz/openbmc_project/state/chassis0/attr/RequestedPowerTransition"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def power_off(self):
@@ -321,14 +333,17 @@ class HostManagement():
         data = '\'{\"data\" : \"xyz.openbmc_project.State.Chassis.Transition.Off\"}\''
         obj = "/xyz/openbmc_project/state/chassis0/attr/RequestedPowerTransition"
         try:
-            self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+            self.curl.feed_data(
+                dbus_object=obj, operation='rw', command="PUT", data=data)
             self.curl.run()
         except FailedCurlInvocation as f:
-            log.debug("# Ignoring failure powering off chassis, trying powering off host")
+            log.debug(
+                "# Ignoring failure powering off chassis, trying powering off host")
             pass
         data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.Off\"}\''
         obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def power_on(self):
@@ -340,7 +355,8 @@ class HostManagement():
         '''
         data = '\'{\"data\" : \"xyz.openbmc_project.State.Host.Transition.On\"}\''
         obj = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def list_sel(self):
@@ -353,7 +369,8 @@ class HostManagement():
         log.debug('List of SEL entries')
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/logging/enumerate"
-        self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='r',
+                            command="GET", data=data)
         return self.curl.run()
 
     def pull_ids(self, sels=None):
@@ -388,16 +405,21 @@ class HostManagement():
         for j in id_list:
             dict_item = {}
             dict_item['Id'] = str(data['data'][sel_dict.get(j)].get('Id'))
-            dict_item['Timestamp'] = datetime.datetime.fromtimestamp(int(str(data['data'][sel_dict.get(j)].get('Timestamp')))/1000).strftime("%Y-%m-%d %H:%M:%S")
+            dict_item['Timestamp'] = datetime.datetime.fromtimestamp(int(str(
+                data['data'][sel_dict.get(j)].get('Timestamp'))) / 1000).strftime("%Y-%m-%d %H:%M:%S")
             dict_item['Message'] = data['data'][sel_dict.get(j)].get('Message')
-            dict_item['Description'] = data['data'][sel_dict.get(j)].get('Description')
-            dict_item['Severity'] = data['data'][sel_dict.get(j)].get('Severity').split('.')[-1]
-            dict_item['Resolved'] = data['data'][sel_dict.get(j)].get('Resolved')
+            dict_item['Description'] = data['data'][
+                sel_dict.get(j)].get('Description')
+            dict_item['Severity'] = data['data'][
+                sel_dict.get(j)].get('Severity').split('.')[-1]
+            dict_item['Resolved'] = data['data'][
+                sel_dict.get(j)].get('Resolved')
             dict_item['EventID'] = data['data'][sel_dict.get(j)].get('EventID')
             add_data = data['data'][sel_dict.get(j)]['AdditionalData']
             for i in range(len(add_data)):
                 if ("ESEL" in add_data[i]):
-                    dict_item['esel'] = add_data[i].strip().split('=')[1].replace(" ", "")
+                    dict_item['esel'] = add_data[i].strip().split('=')[
+                        1].replace(" ", "")
                 if ("PROCEDURE" in add_data[i]):
                     dict_item['Procedure'] = str(add_data[i].split('=')[1])
             dict_list.append(dict_item)
@@ -424,7 +446,7 @@ class HostManagement():
                     print "Ruler        : 0123456789012345678901234567890123456789012345678901234567890123"
                     print "-------------------------------------------------------------------------------"
                     for j in range(0, len(k.get('esel')), 64):
-                        print "{:06d}-{:06d}: {}".format(j, j+63, k.get('esel')[j:j+64])
+                        print "{:06d}-{:06d}: {}".format(j, j + 63, k.get('esel')[j:j + 64])
                 else:
                     print "ESEL        : None"
                 print "\n"
@@ -442,7 +464,8 @@ class HostManagement():
         for id in list:
             data = '\'{"data" : []}\''
             obj = "/xyz/openbmc_project/logging/entry/%s/action/Delete" % id
-            self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+            self.curl.feed_data(
+                dbus_object=obj, operation='rw', command="POST", data=data)
             self.curl.run()
 
     def verify_clear_sel(self):
@@ -466,10 +489,12 @@ class HostManagement():
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/logging/action/DeleteAll"
         try:
-            self.curl.feed_data(dbus_object=obj, operation='r', command="POST", data=data)
+            self.curl.feed_data(dbus_object=obj, operation='r',
+                                command="POST", data=data)
             self.curl.run()
         except FailedCurlInvocation as f:
-            log.debug("# Ignoring failure clearing SELs, not all OpenBMC builds support this yet")
+            log.debug(
+                "# Ignoring failure clearing SELs, not all OpenBMC builds support this yet")
             pass
 
     def get_current_bootdev(self):
@@ -480,7 +505,8 @@ class HostManagement():
         '''
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="GET", data=data)
         output = self.curl.run()
         result = json.loads(output)
         data = result.get('data')
@@ -500,7 +526,8 @@ class HostManagement():
         '''
         data = '\'{"data": \"xyz.openbmc_project.Control.Boot.Mode.Modes.Setup\"}\''
         obj = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def set_bootdev_to_none(self):
@@ -512,7 +539,8 @@ class HostManagement():
         '''
         data = '\'{"data": \"xyz.openbmc_project.Control.Boot.Mode.Modes.Regular\"}\''
         obj = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def get_boot_progress(self):
@@ -524,7 +552,8 @@ class HostManagement():
         '''
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/state/host0/attr/BootProgress"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="GET", data=data)
         self.curl.run()
 
     def wait_for_host_state(self, target_state, host=0, timeout=10):
@@ -540,8 +569,9 @@ class HostManagement():
         '''
         data = '\'{"data" : []}\''
         obj = "/xyz/openbmc_project/state/host%d" % host
-        self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
-        timeout = time.time() + 60*timeout
+        self.curl.feed_data(dbus_object=obj, operation='r',
+                            command="GET", data=data)
+        timeout = time.time() + 60 * timeout
         target_state = "xyz.openbmc_project.State.Host.HostState.%s" % target_state
         while True:
             output = self.curl.run()
@@ -554,7 +584,8 @@ class HostManagement():
             if state == target_state:
                 break
             if time.time() > timeout:
-                raise OpTestError("Timeout waiting for host state to become %s" % target_state)
+                raise OpTestError(
+                    "Timeout waiting for host state to become %s" % target_state)
             time.sleep(5)
         return True
 
@@ -562,12 +593,12 @@ class HostManagement():
         r = self.wait_for_host_state("Off", timeout=timeout)
         if r is None:
             log.debug("Falling back to old BootProgress")
-            return old_wait_for_standby(timeout)
+            return self.old_wait_for_standby(timeout)
 
     def wait_for_runtime(self, timeout=10):
         r = self.wait_for_host_state("Running", timeout=timeout)
         if r is None:
-            return old_wait_for_standby(timeout)
+            return self.old_wait_for_standby(timeout)
 
     def old_wait_for_runtime(self, timeout=10):
         return self.old_wait_for_BootProgress(desired_state='FW Progress, Starting OS', timeout=timeout)
@@ -583,8 +614,9 @@ class HostManagement():
         '''
         data = '\'{"data" : []}\''
         obj = "/org/openbmc/sensors/host/BootProgress"
-        self.curl.feed_data(dbus_object=obj, operation='r', command="GET", data=data)
-        timeout = time.time() + 60*timeout
+        self.curl.feed_data(dbus_object=obj, operation='r',
+                            command="GET", data=data)
+        timeout = time.time() + 60 * timeout
         while True:
             output = self.curl.run()
             result = json.loads(output)
@@ -595,7 +627,8 @@ class HostManagement():
                 log.info("System reached state {}".format(desired_state))
                 break
             if time.time() > timeout:
-                l_msg = "timeout waiting for state {}, instead in {}".format(desired_state,state)
+                l_msg = "timeout waiting for state {}, instead in {}".format(
+                    desired_state, state)
                 log.error(l_msg)
                 raise OpTestError(l_msg)
             time.sleep(5)
@@ -610,12 +643,14 @@ class HostManagement():
         '''
         data = '\'{\"data\" : \"xyz.openbmc_project.State.BMC.Transition.Reboot\"}\''
         obj = "/xyz/openbmc_project/state/bmc0/attr/RequestedBMCTransition"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
         # Wait for BMC to go down.
         self.util.ping_fail_check(self.hostname)
         # Wait for BMC to ping back.
-        self.util.PingFunc(self.hostname, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+        self.util.PingFunc(
+            self.hostname, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
         # Wait for BMC ready state.
         self.wait_for_bmc_runtime()
 
@@ -625,7 +660,7 @@ class HostManagement():
         return self.curl.run()
 
     def wait_for_bmc_runtime(self, timeout=10):
-        timeout = time.time() + 60*timeout
+        timeout = time.time() + 60 * timeout
         output = ""
         while True:
             if '"description": "Login required"' in output:
@@ -688,7 +723,8 @@ class HostManagement():
         """
         header = " \'Content-Type: application/octet-stream\' "
         obj = "/upload/image"
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", header=header, upload_file=image)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="POST", header=header, upload_file=image)
         self.curl.run()
 
     # priority 0 -primary (Boot side of the image)
@@ -704,13 +740,13 @@ class HostManagement():
         https://$BMC_IP/xyz/openbmc_project/software/061c4bdb/attr/Priority
         """
         obj = "/xyz/openbmc_project/software/%s/attr/Priority" % id
-        data =  '\'{\"data\":%s}\'' % level
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        data = '\'{\"data\":%s}\'' % level
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
-
     def image_ready_for_activation(self, id, timeout=10):
-        timeout = time.time() + 60*timeout
+        timeout = time.time() + 60 * timeout
         while True:
             output = self.image_data(id)
             log.debug(repr(output))
@@ -718,7 +754,8 @@ class HostManagement():
                 log.debug("Image upload is successful & Ready for activation")
                 break
             if time.time() > timeout:
-                raise OpTestError("Image is not ready for activation/Timeout happened")
+                raise OpTestError(
+                    "Image is not ready for activation/Timeout happened")
             time.sleep(5)
         return True
 
@@ -730,8 +767,9 @@ class HostManagement():
         https://bmc/xyz/openbmc_project/software/<image id>/attr/RequestedActivation
         """
         obj = "/xyz/openbmc_project/software/%s/attr/RequestedActivation" % id
-        data =  '\'{\"data\":\"xyz.openbmc_project.Software.Activation.RequestedActivations.Active\"}\''
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        data = '\'{\"data\":\"xyz.openbmc_project.Software.Activation.RequestedActivations.Active\"}\''
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def delete_image(self, id):
@@ -742,33 +780,36 @@ class HostManagement():
         https://bmc/xyz/openbmc_project/software/<image id>/attr/RequestedActivation
         """
         try:
-            # First, we try the "new" method, as of at least ibm-v2.0-0-r26.1-0-gfb7714a
+            # First, we try the "new" method, as of at least
+            # ibm-v2.0-0-r26.1-0-gfb7714a
             obj = "/xyz/openbmc_project/software/%s/action/delete" % id
             data = '\'{"data" : []}\''
-            self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+            self.curl.feed_data(
+                dbus_object=obj, operation='rw', command="POST", data=data)
             self.curl.run()
         except FailedCurlInvocation as f:
             # Try falling back to the old method (everything prior? who knows)
             obj = "/xyz/openbmc_project/software/%s" % id
-            self.curl.feed_data(dbus_object=obj, operation='rw', command="DELETE")
+            self.curl.feed_data(
+                dbus_object=obj, operation='rw', command="DELETE")
             self.curl.run()
 
-
-
     def wait_for_image_active_complete(self, id, timeout=10):
-        timeout = time.time() + 60*timeout
+        timeout = time.time() + 60 * timeout
         while True:
             output = self.image_data(id)
             if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Activating':
                 log.info("Image activation is in progress")
             if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Active':
-                log.info("Image activated successfully, Good to go for power on....")
+                log.info(
+                    "Image activated successfully, Good to go for power on....")
                 break
             if output['data']['Activation'] == 'xyz.openbmc_project.Software.Activation.Activations.Failed':
                 log.error("Image activation failed. Good luck.")
                 return False
             if time.time() > timeout:
-                raise OpTestError("Image is failed to activate/Timeout happened")
+                raise OpTestError(
+                    "Image is failed to activate/Timeout happened")
             time.sleep(5)
         return True
 
@@ -788,7 +829,7 @@ class HostManagement():
             log.debug(repr(i))
             if i['data'].get('Purpose') != purpose:
                 l.remove(id)
-        log.debug("{} Image IDs: {}".format(purpose,repr(l)))
+        log.debug("{} Image IDs: {}".format(purpose, repr(l)))
         return l
 
     def list_available_dumps(self):
@@ -799,7 +840,6 @@ class HostManagement():
         obj = "/xyz/openbmc_project/dump/list"
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
         return self.curl.run()
-
 
     def get_dump_ids(self):
         dump_ids = []
@@ -820,7 +860,8 @@ class HostManagement():
         $ curl -O -J -c cjar -b cjar -k -X GET https://$BMC_IP/download/dump/$ID
         """
         obj = "/download/dump/%s" % dump_id
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="GET", remote_name=True)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="GET", remote_name=True)
         self.curl.run()
 
     def delete_dump(self, dump_id):
@@ -831,7 +872,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/dump/entry/%s/action/Delete" % dump_id
         data = '\'{"data" : []}\''
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="POST", data=data)
         self.curl.run()
 
     def delete_all_dumps(self):
@@ -847,7 +889,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/dump/action/CreateDump"
         data = '\'{"data" : []}\''
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="POST", data=data)
         dump_capture = False
         try:
             output = self.curl.run()
@@ -860,7 +903,8 @@ class HostManagement():
             return data['data']
         log.debug(repr(data['data'].get('exception')))
         if data['data']['exception'] == "DBusException('Dump not captured due to a cap.',)":
-            log.info("Dumps are exceeded in the system, trying to delete existing ones")
+            log.info(
+                "Dumps are exceeded in the system, trying to delete existing ones")
             self.delete_all_dumps()
             output = self.curl.run()
             data = json.loads(output)
@@ -870,7 +914,8 @@ class HostManagement():
         for i in range(20):
             ids = self.get_dump_ids()
             if str(dump_id) in ids:
-                log.debug("Dump %s is ready to download/offload" % str(dump_id))
+                log.debug("Dump %s is ready to download/offload" %
+                          str(dump_id))
                 return True
             time.sleep(5)
         else:
@@ -899,7 +944,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/software/attr/FieldModeEnabled"
         data = '\'{"data" : %s}\'' % int(mode)
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         return json.loads(self.curl.run())
 
     def validate_functional_bootside(self, id):
@@ -966,7 +1012,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/control/host0/power_cap/attr/PowerCapEnable"
         data = '\'{"data" : %s}\'' % int(enable)
-        self.curl.feed_data(dbus_object=obj, operation='rw', data=data, command="PUT")
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            data=data, command="PUT")
         self.curl.run()
 
     # Enables the power cap.
@@ -982,9 +1029,9 @@ class HostManagement():
         self.curl.feed_data(dbus_object=obj, operation='rw', command="GET")
         output = self.curl.run()
         try:
-          data = json.loads(output)
+            data = json.loads(output)
         except Exception as e:
-          return
+            return
         PowerCapEnable = data['data']['PowerCapEnable']
         PowerCap = data['data']['PowerCap']
         return PowerCapEnable, PowerCap
@@ -996,7 +1043,8 @@ class HostManagement():
         """
         obj = "/org/open_power/control/gard/action/Reset"
         data = '\'{"data" : []}\''
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="POST", data=data)
         self.curl.run()
 
     def factory_reset_software(self):
@@ -1006,7 +1054,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/software/action/Reset"
         data = '\'{"data" : []}\''
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="POST", data=data)
         self.curl.run()
 
     def factory_reset_network(self):
@@ -1016,7 +1065,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/network/action/Reset"
         data = '\'{"data" : []}\''
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="POST", data=data)
         self.curl.run()
 
     def update_root_password(self, password):
@@ -1026,7 +1076,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/user/root/action/SetPassword"
         data = '\'{"data" : ["%s"]}\'' % str(password)
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="POST", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="POST", data=data)
         self.curl.run()
 
     def is_tpm_enabled(self):
@@ -1039,8 +1090,8 @@ class HostManagement():
         output = self.curl.run()
         data = json.loads(output)
         if data['data']['TPMEnable'] == 1:
-          log.debug("# TPMEnable is set")
-          return True
+            log.debug("# TPMEnable is set")
+            return True
         log.debug("# TPMEnable is cleared")
         return False
 
@@ -1052,7 +1103,8 @@ class HostManagement():
         """
         obj = "/xyz/openbmc_project/control/host0/TPMEnable/attr/TPMEnable"
         data = '\'{"data" : %s}\'' % int(bit)
-        self.curl.feed_data(dbus_object=obj, operation='rw', command="PUT", data=data)
+        self.curl.feed_data(dbus_object=obj, operation='rw',
+                            command="PUT", data=data)
         self.curl.run()
 
     def enable_tpm(self):
@@ -1063,9 +1115,10 @@ class HostManagement():
 
 
 class OpTestOpenBMC():
+
     def __init__(self, ip=None, username=None, password=None, ipmi=None,
-            rest_api=None, logfile=sys.stdout,
-            check_ssh_keys=False, known_hosts_file=None):
+                 rest_api=None, logfile=sys.stdout,
+                 check_ssh_keys=False, known_hosts_file=None):
         self.hostname = ip
         self.username = username
         self.password = password
@@ -1074,13 +1127,13 @@ class OpTestOpenBMC():
         self.has_vpnor = None
         self.logfile = logfile
         self.console = OpTestSSH(ip, username, password, port=2200,
-                logfile=self.logfile, check_ssh_keys=check_ssh_keys,
-                known_hosts_file=known_hosts_file)
+                                 logfile=self.logfile, check_ssh_keys=check_ssh_keys,
+                                 known_hosts_file=known_hosts_file)
         self.bmc = OpTestBMC(ip=self.hostname,
-                            username=self.username,
-                            password=self.password,
-                            check_ssh_keys=check_ssh_keys,
-                            known_hosts_file=known_hosts_file)
+                             username=self.username,
+                             password=self.password,
+                             check_ssh_keys=check_ssh_keys,
+                             known_hosts_file=known_hosts_file)
 
     def set_system(self, system):
         self.console.set_system(system)
@@ -1115,27 +1168,36 @@ class OpTestOpenBMC():
         if not self.has_new_pnor_code_update():
             self.bmc.skiboot_img_flash_openbmc(lid_name)
         else:
-            # don't ask. There appears to be a bug where we need to be 4k aligned.
-            self.bmc.run_command("dd if=/dev/zero of=/dev/stdout bs=1M count=1 | tr '\\000' '\\377' > /tmp/ones")
-            self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
-            self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/PAYLOAD bs=1M count=1")
+            # don't ask. There appears to be a bug where we need to be 4k
+            # aligned.
+            self.bmc.run_command(
+                "dd if=/dev/zero of=/dev/stdout bs=1M count=1 | tr '\\000' '\\377' > /tmp/ones")
+            self.bmc.run_command(
+                "cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
+            self.bmc.run_command(
+                "dd if=/tmp/padded of=/usr/local/share/pnor/PAYLOAD bs=1M count=1")
             #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/PAYLOAD" % lid_name, timeout=60)
 
     def skiroot_img_flash_openbmc(self, lid_name):
         if not self.has_new_pnor_code_update():
             self.bmc.skiroot_img_flash_openbmc(lid_name)
         else:
-            # don't ask. There appears to be a bug where we need to be 4k aligned.
-            self.bmc.run_command("dd if=/dev/zero of=/dev/stdout bs=16M count=1 | tr '\\000' '\\377' > /tmp/ones")
-            self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
-            self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
+            # don't ask. There appears to be a bug where we need to be 4k
+            # aligned.
+            self.bmc.run_command(
+                "dd if=/dev/zero of=/dev/stdout bs=16M count=1 | tr '\\000' '\\377' > /tmp/ones")
+            self.bmc.run_command(
+                "cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
+            self.bmc.run_command(
+                "dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
             #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/BOOTKERNEL" % lid_name, timeout=60)
 
     def flash_part_openbmc(self, lid_name, part_name):
         if not self.has_new_pnor_code_update():
             self.bmc.flash_part_openbmc(lid_name, part_name)
         else:
-            self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/%s" % (lid_name, part_name), timeout=60)
+            self.bmc.run_command(
+                "mv /tmp/%s /usr/local/share/pnor/%s" % (lid_name, part_name), timeout=60)
 
     def clear_field_mode(self):
         self.bmc.run_command("fw_setenv fieldmode")
