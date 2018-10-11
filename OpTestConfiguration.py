@@ -143,6 +143,7 @@ default_templates = {
     'mambo'               : default_val_mambo,
 }
 
+OPTESTCONFIG = "~/.op-test-framework.conf"
 
 def get_parser():
     parser = argparse.ArgumentParser(
@@ -166,6 +167,16 @@ def get_parser():
                         help="Stop on first failure")
     tgroup.add_argument("--quiet", action='store_true', default=False,
                         help="Don't splat lots of things to the console")
+    # multiple hosts credentials and configurations are to be given from
+    # OPTESTCONFIG with config items [host1], [host2] etc.,
+    tgroup.add_argument("--multi-hosts", default=0,
+                        help="no of hosts to be used in tests")
+    # --multi-hosts-name overrides --multi-hosts
+    # host config item names can be given by comma separated string
+    tgroup.add_argument("--multi-hosts-name", default='',
+                        help="host tag mentioned in OPTESTCONFIG eg: 'host1,host2'")
+    tgroup.add_argument("--multi-host-config", default='',
+                        help="config file that holds the multiple host machine details")
 
     parser.add_argument("--machine-state", help="Current machine state",
                         choices=['UNKNOWN', 'UNKNOWN_BAD', 'OFF', 'PETITBOOT',
@@ -321,7 +332,7 @@ def get_parser():
 
     return parser
 
-class OpTestConfiguration():
+class OpTestConfiguration(object):
     def __init__(self):
         self.util = OpTestUtil(self) # initialize OpTestUtil with this object the OpTestConfiguration
         self.args = []
@@ -360,22 +371,22 @@ class OpTestConfiguration():
         conf_parser.add_argument("-c", "--config-file", help="Configuration File",
                                  metavar="FILE")
 
-        args , remaining_args = conf_parser.parse_known_args(argv)
+        self.conf_args , self.conf_remaining_args = conf_parser.parse_known_args(argv)
         defaults = {}
         config = ConfigParser.SafeConfigParser()
-        config.read([os.path.expanduser("~/.op-test-framework.conf")])
-        if args.config_file:
-            if os.access(args.config_file, os.R_OK):
-                config.read([args.config_file])
+        config.read([os.path.expanduser(OPTESTCONFIG)])
+        if self.conf_args.config_file:
+            if os.access(self.conf_args.config_file, os.R_OK):
+                config.read([self.conf_args.config_file])
             else:
-                raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), args.config_file)
+                raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), self.conf_args.config_file)
         try:
             defaults = dict(config.items('op-test'))
         except ConfigParser.NoSectionError:
             pass
 
-        parser = get_parser()
-        parser.set_defaults(**defaults)
+        self.parser = get_parser()
+        self.parser.set_defaults(**defaults)
 
         if defaults.get('qemu_binary'):
             qemu_default = defaults['qemu_binary']
@@ -385,12 +396,12 @@ class OpTestConfiguration():
         if defaults.get('mambo_initial_run_script'):
             mambo_default = defaults['mambo_initial_run_script']
 
-        parser.add_argument("--check-ssh-keys", action='store_true', default=False,
-                                help="Check remote host keys when using SSH (auto-yes on new)")
-        parser.add_argument("--known-hosts-file",
-                                help="Specify a custom known_hosts file")
+        self.parser.add_argument("--check-ssh-keys", action='store_true', default=False,
+                                 help="Check remote host keys when using SSH (auto-yes on new)")
+        self.parser.add_argument("--known-hosts-file",
+                                 help="Specify a custom known_hosts file")
 
-        self.args , self.remaining_args = parser.parse_known_args(remaining_args)
+        self.args , self.remaining_args = self.parser.parse_known_args(self.conf_remaining_args)
 
         args_dict = vars(self.args)
 
@@ -414,7 +425,7 @@ class OpTestConfiguration():
 
         # Some quick sanity checking
         if self.args.known_hosts_file and not self.args.check_ssh_keys:
-            parser.error("--known-hosts-file requires --check-ssh-keys")
+            self.parser.error("--known-hosts-file requires --check-ssh-keys")
 
         # Setup some defaults for the output options
         # Order of precedence
@@ -752,5 +763,62 @@ class OpTestConfiguration():
 
     def platform(self):
         return self.args.platform
+
+    def get_all_hosts(self):
+        """
+        Method to handle multihost objects
+
+        :return: list of host objects
+        """
+        # multiple hosts can be given from OPTESTCONFIG but
+        # how many hosts to be used can be controlled using --multi-host
+        # argument
+        hosts = []
+        if self.args.multi_hosts_name:
+            hosts = self.args.multi_hosts_name.split(',')
+        elif self.args.multi_hosts:
+            hosts = ["host%s" % each for each in range(1, int(self.args.multi_hosts) + 1)]
+        # include primary host used for test
+        host_list = [self]
+        try:
+            for host in hosts:
+                host_list.append(MultiHost(host))
+        except ConfigParser.NoSectionError:
+            pass
+        return host_list
+
+
+class MultiHost(OpTestConfiguration):
+    """
+    Class implements multihost support for op-test, creates host object
+    with each host specific args
+    """
+    def __init__(self, host):
+        """
+        Method initializes each host specific args from config file
+
+        :param host: host config item name to parse
+        """
+        super(MultiHost, self).__init__()
+        self.args, self.remaining_args = self.parse_args(sys.argv)
+        self.host = str(host)
+        # get host specific parameters from config file
+        config = ConfigParser.SafeConfigParser()
+        config_file = OPTESTCONFIG
+        if self.args.multi_host_config:
+            config_file = self.args.multi_host_config
+        elif self.conf_args.config_file:
+            config_file = self.conf_args.config_file
+        config.read([os.path.expanduser(config_file)])
+        if os.access(config_file, os.R_OK):
+            config.read([config_file])
+        else:
+            raise OSError(errno.ENOENT, os.strerror(errno.ENOENT),
+                          config_file)
+        self.params = dict(config.items(self.host))
+        # override the host parameters with respect to specific host
+        self.parser.set_defaults(**self.params)
+        self.args  = self.parser.parse_args()
+        self.objs()
 
 global conf
