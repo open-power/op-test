@@ -61,6 +61,7 @@ def optest_handler(signum, frame):
 
 from testcases import HelloWorld
 from testcases import OpTestExample
+from testcases import OpTestHostboot
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestSensors
 from testcases import OpTestPrdDriver
@@ -503,6 +504,16 @@ class InstallHost():
     def suite(self):
         return self.s
 
+class OpTestHostbootSuite():
+    '''Tests in OpTestHostboot'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestHostboot.skiroot_full_suite())
+        self.s.addTest(OpTestHostboot.host_full_suite())
+
+    def suite(self):
+        return self.s
+
 class OpTestExampleSuite():
     '''Tests in OpTestExample'''
     def __init__(self):
@@ -544,6 +555,7 @@ suites = {
     'system-ipl' : SystemIPLSuite(),
     'fsp-opal-suite' :  FspOpalSuite(),
     'full' : FullSuite(),
+    'hostboot' : OpTestHostbootSuite(),
     'example' : OpTestExampleSuite(),
 }
 

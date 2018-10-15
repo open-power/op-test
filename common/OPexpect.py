@@ -72,8 +72,7 @@ class spawn(pexpect.spawn):
                        "\[[0-9. ]+,[0-9]\] Unexpected exception",
                        "OPAL exiting with locks held",
                        "LOCK ERROR: Releasing lock we don't hold",
-                       "OPAL: Reboot requested due to Platform error.",
-                       "Error reported by .* PLID"
+                       "OPAL: Reboot requested due to Platform error."
         ]
 
         patterns = list(op_patterns) # we want a *copy*
@@ -94,7 +93,7 @@ class spawn(pexpect.spawn):
 
         state = None
 
-        if r in [1,2,3,4,5,6,7,8,9,10,11,12,13,14]:
+        if r in [1,2,3,4,5,6,7,8,9,10,11,12,13]:
             # We set the system state to UNKNOWN_BAD as we want to have a path
             # to recover and run the next test, which is going to be to IPL
             # the box again.
@@ -146,25 +145,6 @@ class spawn(pexpect.spawn):
                 raise SkibootException(state, log)
 
         if r in [13]:
-            # Reboot due to Platform error
-            # Let's attempt to capture Hostboot output
-            log = self.before + self.after
-            try:
-                l = super(spawn,self).expect("================================================",
-                                             timeout=120)
-                log = log + self.before + self.after
-                l = super(spawn,self).expect("Error reported by", timeout=10)
-                log = log + self.before + self.after
-                l = super(spawn,self).expect("================================================",
-                                             timeout=60)
-                log = log + self.before + self.after
-                l = super(spawn,self).expect("ISTEP", timeout=20)
-                log = log + self.before + self.after
-            except pexpect.TIMEOUT as t:
-                pass
-            raise PlatformError(state, log)
-
-        if r in [14]:
             # Reboot due to HW core checkstop
             # Let's attempt to capture Hostboot output
             log = self.before + self.after
