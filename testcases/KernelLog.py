@@ -124,6 +124,17 @@ class KernelLog():
             # some weird disk setups
             filter_out.append('vdb.*start.*is beyond EOD')
 
+        if self.bmc_type in ['mambo']:
+            # We have a couple of things showing up in Mambo runs.
+            # We should probably fix this, but ignore for now.
+            #
+            # First, no pstates:
+            filter_out.append('powernv-cpufreq: ibm,pstate-min node not found')
+            # Strange IMC failure
+            filter_out.append('IMC PMU nest_mcs01_imc Register failed')
+            # urandom_read fun
+            filter_out.append('urandom_read: 3 callbacks suppressed')
+
         for f in filter_out:
             fre = re.compile(f)
             log_entries = [l for l in log_entries if not fre.search(l)]

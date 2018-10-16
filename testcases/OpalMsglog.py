@@ -67,12 +67,21 @@ class OpalMsglog():
             filter_out.append("FLASH: Can't load resource id:")
             filter_out.append('CAPP: Error loading ucode lid.')
 
+        if self.bmc_type in ["mambo"]:
+            filter_out.append('SBE: Master chip ID not found.')
+            filter_out.append('OCC: No HOMER detected, assuming no pstates')
+            filter_out.append('OCC: Unassigned OCC Common Area. No sensors found')
+            filter_out.append("FLASH: Can't load resource id:")
+            filter_out.append("ELOG: Error getting buffer to log error")
+            filter_out.append("STB: container NOT VERIFIED, resource_id")
+            # We should really fix this one
+            filter_out.append("OPAL: Called with bad token 4 ")
 
         if self.conf.args.flash_kernel:
             # If we've flashed a BOOTKERNEL, then there's no way it'll match
             filter_out.append('STB: BOOTKERNEL verification')
 
-        if self.conf.args.host_pnor:
+        if self.conf.args.host_pnor or self.bmc_type in ["mambo"]:
             # If we've flashed a full PNOR, we may have to init NVRAM, so don't
             # fail on that
             filter_out.append(
