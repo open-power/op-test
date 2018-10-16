@@ -280,6 +280,23 @@ class OpTestUtil():
           log.debug("Closing util_bmc_server")
           self.conf.util_bmc_server.close()
 
+        if self.conf.dump:
+          self.conf.dump = False # possible for multiple passes here
+          self.dump_versions()
+
+    def dump_versions(self):
+        log.info("\n----------------------------------------------------------\n"
+                 "OpTestSystem Firmware Versions Tested\n"
+                 "(if flashed things like skiboot.lid, may not be accurate)\n"
+                 "----------------------------------------------------------\n"
+                 "{}\n"
+                 "----------------------------------------------------------\n"
+                 "----------------------------------------------------------\n"
+            .format(
+            (None if self.conf.firmware_versions is None \
+            else ('\n'.join(f for f in self.conf.firmware_versions)))
+            ))
+
     def build_proxy(self, proxy, no_proxy_ips):
         if no_proxy_ips is None:
           return proxy
@@ -922,6 +939,23 @@ class OpTestUtil():
           echo_rc = 1
         return try_list, echo_rc
 
+    def get_versions(self, term_obj, pty, expect_prompt):
+        check_list = ["No such file or directory"]
+        if term_obj.system.conf.firmware_versions is None:
+            pty.sendline("date")
+            rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            pty.sendline("lsprop /sys/firmware/devicetree/base/ibm,firmware-versions")
+            time.sleep(1)
+            rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            if rc == 0:
+                term_obj.system.conf.firmware_versions = \
+                    pty.before.replace("\r\r\n","\n").splitlines()
+                matching = [xs for xs in check_list if any(xs in xa for xa in term_obj.system.conf.firmware_versions)]
+                if len(matching):
+                    term_obj.system.conf.firmware_versions = ["Firmware Versions Unavailable"]
+            else:
+                log.debug("OpTestSystem unable to dump firmware versions tested")
+
     def set_PS1(self, term_obj, pty, prompt):
         # prompt comes in as the string desired, needs to be pre-built
         # on success caller is returned 1, otherwise exception thrown
@@ -950,6 +984,7 @@ class OpTestUtil():
         rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
           log.debug("Shell prompt changed")
+          self.get_versions(term_obj, pty, expect_prompt)
           return 1 # caller needs to save state
         else: # we don't seem to have anything so try to get something
           term_obj.close()
@@ -978,6 +1013,7 @@ class OpTestUtil():
             rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
             if rc == 0:
               log.debug("Shell prompt changed")
+              self.get_versions(term_obj, pty, expect_prompt)
               return 1 # caller needs to save state
             else:
               if term_obj.setup_term_quiet == 0:

@@ -316,6 +316,7 @@ class OpTestConfiguration():
         self.signal_ready = False # indicator for properly initialized
         self.atexit_ready = False # indicator for properly initialized
         self.aes_print_helpers = True # Need state for locker_wait
+        self.dump = True # Need state for cleanup
         self.lock_dict = { 'res_id'     : None,
                            'name'       : None,
                            'Group_Name' : None,
@@ -325,6 +326,7 @@ class OpTestConfiguration():
         self.util_server = None # Hostlocker or AES
         self.util_bmc_server = None # OpenBMC REST Server
         atexit.register(self.__del__) # allows cleanup handler to run (OpExit)
+        self.firmware_versions = None
 
         for dir in (os.walk(os.path.join(self.basedir, 'addons')).next()[1]):
             optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")

@@ -85,7 +85,8 @@ class OpTestSystem(object):
     #
 
     def __init__(self,
-                 bmc=None, host=None,
+                 bmc=None,
+                 host=None,
                  prompt=None,
                  conf=None,
                  state=OpSystemState.UNKNOWN):
