@@ -26,6 +26,8 @@
 
 import sys
 import os
+import datetime
+import time
 import pwd
 import string
 import subprocess
@@ -39,6 +41,12 @@ import pty
 import pexpect
 import commands
 import requests
+from requests.adapters import HTTPAdapter
+#from requests.packages.urllib3.util import Retry
+from httplib import HTTPConnection
+#HTTPConnection.debuglevel = 1 # this will print some additional info to stdout
+import urllib3 # setUpChildLogger enables integrated logging with op-test
+import json
 
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -52,18 +60,6 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 sudo_responses = ["not in the sudoers",
                   "incorrect password"]
 
-def response_json(response):
-    # address differences in requests, Stable Debian 0.12
-    if type(response.json) is list:
-      return response.json
-    new_response_json = None
-    try:
-      new_response_json = response.json()
-    except Exception as e:
-      raise HTTPCheck(msg="Unexpected problem getting JSON, Exception={}".format(e))
-
-    return new_response_json
-
 class OpTestUtil():
 
     def __init__(self, conf=None):
@@ -72,15 +68,22 @@ class OpTestUtil():
     def setup(self, config='HostLocker'):
         # we need this called AFTER the proper configuration values have been seeded
         if config == 'AES':
-          self.conf.util_server = Server(self.conf.args.aes_server,
-                                         self.conf.args.aes_base_url,
-                                         self.build_proxy(self.conf.args.aes_proxy,
-                                         self.conf.args.aes_no_proxy_ips))
+          self.conf.util_server = Server(url=self.conf.args.aes_server,
+                                         base_url=self.conf.args.aes_base_url,
+                                         minutes=None,
+                                         proxy=self.build_proxy(self.conf.args.aes_proxy,
+                                             self.conf.args.aes_no_proxy_ips))
+        elif config == 'REST':
+          rest_server = "https://{}/".format(self.conf.args.bmc_ip)
+          self.conf.util_bmc_server = Server(url=rest_server,
+                                         username=self.conf.args.bmc_username,
+                                         password=self.conf.args.bmc_password)
         else:
-          self.conf.util_server = Server(self.conf.args.hostlocker_server,
-                                         self.conf.args.hostlocker_base_url,
-                                         self.build_proxy(self.conf.args.hostlocker_proxy,
-                                         self.conf.args.hostlocker_no_proxy_ips))
+          self.conf.util_server = Server(url=self.conf.args.hostlocker_server,
+                                         base_url=self.conf.args.hostlocker_base_url,
+                                         minutes=None,
+                                         proxy=self.build_proxy(self.conf.args.hostlocker_proxy,
+                                             self.conf.args.hostlocker_no_proxy_ips))
 
     def check_lockers(self):
       if self.conf.args.hostlocker is not None:
@@ -181,7 +184,7 @@ class OpTestUtil():
           environments = self.conf.lock_dict.get('envs')
           if self.conf.lock_dict.get('res_id') is None:
             self.conf.util.aes_print_environments(environments)
-            raise AES(msg="OpTestSystem AES unable to lock environment "
+            raise AES(message="OpTestSystem AES unable to lock environment "
               "requested, try --aes q with options for --aes-search-args "
               "to view availability")
           else:
@@ -196,7 +199,7 @@ class OpTestUtil():
         environments = self.conf.lock_dict.get('envs')
         if self.conf.lock_dict.get('res_id') is None:
           self.conf.util.aes_print_environments(environments)
-          raise AES(msg="OpTestSystem AES NO available environments matching "
+          raise AES(message="OpTestSystem AES NO available environments matching "
                         "criteria (see output earlier), "
                         "try running op-test with --aes q "
                         "--aes-search-args Environment_State=A "
@@ -260,7 +263,15 @@ class OpTestUtil():
                   self.conf.lock_dict.get('Group_Name')))
 
         if self.conf.util_server is not None:
+          # AES and Hostlocker skip logout
+          log.debug("Closing util_server")
           self.conf.util_server.close()
+
+        if self.conf.util_bmc_server is not None:
+          log.debug("Logging out of util_bmc_server")
+          self.conf.util_bmc_server.logout()
+          log.debug("Closing util_bmc_server")
+          self.conf.util_bmc_server.close()
 
     def build_proxy(self, proxy, no_proxy_ips):
         if no_proxy_ips is None:
@@ -271,21 +282,13 @@ class OpTestUtil():
           try:
             output = subprocess.check_output(cmd.split())
           except (subprocess.CalledProcessError, OSError) as e:
-            raise HostLocker(msg="Could not run 'ip' to check for no proxy?")
+            raise HostLocker(message="Could not run 'ip' to check for no proxy?")
 
           if len(output):
             proxy = None
             break
 
         return proxy
-
-    def check_response(self, response, msg):
-        if response.status_code == 404:
-          raise HostLocker(msg=msg)
-
-        if response.status_code != 200:
-          raise HostLocker(msg="OpTestSystem UNKNOWN error '{}'"
-            .format(response.status_code))
 
     def get_env_name(self, x):
       return x['name']
@@ -323,15 +326,16 @@ class OpTestUtil():
         if res_id is None:
           return None # nothing to do
         res_payload = { 'res_id': res_id }
+        uri = "/release-reservation.php"
         try:
-          r = self.conf.util_server.get('/release-reservation.php', res_payload)
-          if r.status_code != 200:
-            raise AES(msg="OpTestSystem AES attempted to release "
+          r = self.conf.util_server.get(uri=uri, params=res_payload)
+          if r.status_code != requests.codes.ok:
+            raise AES(message="OpTestSystem AES attempted to release "
               "reservation '{}' but it was NOT found in AES, "
               "please update and retry".format(res_id))
-          aes_response_json = response_json(r)
+          aes_response_json = r.json()
         except Exception as e:
-          raise AES(msg="OpTestSystem AES attempted to releasing "
+          raise AES(message="OpTestSystem AES attempted to releasing "
             "reservation '{}' but encountered an Exception='{}', "
             "please manually verify and release".format(res_id, e))
 
@@ -375,36 +379,39 @@ class OpTestUtil():
               self.conf.args.aes_search_args += ("Environment_Name={}"
                   .format(self.conf.args.aes[i]).splitlines())
 
+        uri = "/get-environments.php"
         payload = { 'query_params[]': self.conf.args.aes_search_args}
-        r = self.conf.util_server.get('/get-environments.php', payload)
+        r = self.conf.util_server.get(uri=uri, params=payload)
 
-        if r.status_code != 200:
-          raise AES(msg="OpTestSystem AES UNABLE to find the environment '{}' "
+        if r.status_code != requests.codes.ok:
+          raise AES(message="OpTestSystem AES UNABLE to find the environment '{}' "
             "in AES, please update and retry".format(self.conf.args.aes))
 
         # we need this here to set the aes_user for subsequent calls
         if self.conf.args.aes_user is None:
           self.conf.args.aes_user = pwd.getpwuid(os.getuid()).pw_name
 
-        aes_response_json = response_json(r)
+        aes_response_json = r.json()
 
         get_dict['status'] = aes_response_json.get('status')
         if aes_response_json.get('status') == 0:
           get_dict['result'] = aes_response_json.get('result')
         else:
           get_dict['message'] = aes_response_json.get('message')
-          raise AES(msg="Something unexpected happened, "
+          raise AES(message="Something unexpected happened, "
             "see details: {}".format(get_dict))
 
         return get_dict.get('result'), self.conf.args.aes_search_args
 
     def aes_get_env(self, env):
+        uri = "/get-environment-info.php"
         env_payload = { 'env_id': env['env_id'] }
-        r = self.conf.util_server.get('/get-environment-info.php', env_payload)
-        if r.status_code != 200:
-          raise AES(msg="OpTestSystem AES UNABLE to find the environment '{}' "
+        r = self.conf.util_server.get(uri=uri, params=env_payload)
+        if r.status_code != requests.codes.ok:
+          raise AES(message="OpTestSystem AES UNABLE to find the environment '{}' "
             "in AES, please update and retry".format(env['env_id']))
-        aes_response_json = response_json(r)
+
+        aes_response_json = r.json()
 
         if aes_response_json.get('status') == 0:
           return aes_response_json['result'][0]
@@ -424,21 +431,23 @@ class OpTestUtil():
           # if default, add some time
           # allows user to specify command line override
           locktime = 24
+        uri = "/add-res-time.php"
         res_payload = { 'res_id': env.get('res_id'),
                         'hours': float(locktime),
                       }
-        r = self.conf.util_server.get('/add-res-time.php', res_payload)
-        if r.status_code != 200:
-          raise AES(msg="OpTestSystem AES UNABLE to find the reservation "
+        r = self.conf.util_server.get(uri=uri, params=res_payload)
+        if r.status_code != requests.codes.ok:
+          raise AES(message="OpTestSystem AES UNABLE to find the reservation "
             "res_id '{}' in AES, please update and retry".format(env['res_id']))
-        aes_response_json = response_json(r)
+
+        aes_response_json = r.json()
 
         time_dict['status'] = aes_response_json.get('status')
         if aes_response_json.get('status') == 0:
           time_dict['result'] = aes_response_json.get('result')
         else:
           time_dict['message'] = aes_response_json.get('message')
-          raise AES(msg="OpTestSystem AES UNABLE to add time to existing "
+          raise AES(message="OpTestSystem AES UNABLE to add time to existing "
             "reservation, the reservation may be about to expire or "
             "conflict exists, see details: {}".format(time_dict))
         return time_dict
@@ -490,7 +499,7 @@ class OpTestUtil():
           # we may not yet have output a message about reservation
           # but we will get the release message
           self.cleanup()
-          raise AES(msg="AES credential problem, check AES definitions "
+          raise AES(message="AES credential problem, check AES definitions "
             "for server record, we either have no server record or more "
             "than one, check FSPs and BMCs")
 
@@ -512,14 +521,14 @@ class OpTestUtil():
                         'rel_on_expire' : self.conf.args.aes_rel_on_expire,
                       }
         if env.get('state') == 'A':
+          uri = "/enqueue-reservation.php"
           res_payload['query_params[]'] = 'Environment_EnvId={}'.format(env.get('env_id'))
-
-          r = self.conf.util_server.get('/enqueue-reservation.php', res_payload)
-          if r.status_code != 200:
-            raise AES(msg="Problem with AES trying to enqueue a reservation "
+          r = self.conf.util_server.get(uri=uri, params=res_payload)
+          if r.status_code != requests.codes.ok:
+            raise AES(message="Problem with AES trying to enqueue a reservation "
               "for environment '{}', please retry".format(env.get('env_id')))
 
-          aes_response_json = response_json(r)
+          aes_response_json = r.json()
 
           if aes_response_json['status'] == 0:
             new_res_id = aes_response_json['result']
@@ -582,120 +591,137 @@ class OpTestUtil():
         args_dict = vars(args)
 
         if self.conf.util_server is None:
-          self.setup()
+            self.setup()
 
+        uri = "host/{}/".format(self.conf.args.hostlocker)
         try:
-          r = self.conf.util_server.get('host/%s/' % self.conf.args.hostlocker)
+            r = self.conf.util_server.get(uri=uri)
         except Exception as e:
-          raise HostLocker(msg="OpTestSystem HostLocker unable to query "
-            "HostLocker, see Exception={}".format(e))
+            log.debug("hostlocker_lock unable to query Exception={}".format(e))
+            raise HostLocker(message="OpTestSystem HostLocker unable to query "
+              "HostLocker, check that your VPN/SSH tunnel is properly"
+              " configured and open, proxy configured as '{}' Exception={}"
+              .format(self.conf.args.hostlocker_proxy, e))
 
-        if r.status_code != 200:
-          raise HostLocker(msg="OpTestSystem did NOT find the host '{}' "
-            "in HostLocker, please update and retry"
-            .format(self.conf.args.hostlocker))
+        if r.status_code != requests.codes.ok:
+            raise HostLocker(message="OpTestSystem did NOT find the host '{}' "
+              "in HostLocker, please update and retry"
+              .format(self.conf.args.hostlocker))
 
         if self.conf.args.hostlocker_user is None:
-          self.conf.args.hostlocker_user = pwd.getpwuid(os.getuid()).pw_name
+            self.conf.args.hostlocker_user = pwd.getpwuid(os.getuid()).pw_name
 
-        host = response_json(r)[0]
-
+        host = r.json()[0]
         hostlocker_comment = []
         hostlocker_comment = host['comment'].splitlines()
 
         for key in args_dict.keys():
-          for i in range(len(hostlocker_comment)):
-            if key + ':'  in hostlocker_comment[i]:
-              args_dict[key] = re.sub(key + ':', "", hostlocker_comment[i]).strip()
-              break
+            for i in range(len(hostlocker_comment)):
+                if key + ':'  in hostlocker_comment[i]:
+                    args_dict[key] = re.sub(key + ':', "", hostlocker_comment[i]).strip()
+                    break
 
+        uri = "lock/"
+        payload = {'host'        : self.conf.args.hostlocker,
+                   'user'        : self.conf.args.hostlocker_user,
+                   'expiry_time' : self.conf.args.hostlocker_locktime}
         try:
-          r = self.conf.util_server.post('lock/',
-            dict(host=self.conf.args.hostlocker,
-            user=self.conf.args.hostlocker_user,
-            expiry_time=self.conf.args.hostlocker_locktime))
+            r = self.conf.util_server.post(uri=uri, data=payload)
         except Exception as e:
-          raise HostLocker(msg="OpTestSystem HostLocker unable to "
-            "acquire lock from HostLocker, see Exception={}".format(e))
+            raise HostLocker(message="OpTestSystem HostLocker unable to "
+                    "acquire lock from HostLocker, see Exception={}".format(e))
 
-        if r.status_code == 423:
-          rc, lockers = self.hostlocker_locked()
-          raise HostLocker(msg="OpTestSystem HostLocker Host '{}' is locked "
-            "by '{}', please unlock and retry"
-            .format(self.conf.args.hostlocker, lockers))
-        elif r.status_code == 409:
-          raise HostLocker(msg="OpTestSystem HostLocker Host '{}' is "
-            "unusable, please pick another host and retry"
-            .format(self.conf.args.hostlocker))
-        elif r.status_code == 400:
-          raise HostLocker(msg=r.text)
+        if r.status_code == requests.codes.locked: # 423
+            rc, lockers = self.hostlocker_locked()
+            raise HostLocker(message="OpTestSystem HostLocker Host '{}' is locked "
+                "by '{}', please unlock and retry"
+                .format(self.conf.args.hostlocker, lockers))
+        elif r.status_code == requests.codes.conflict: # 409
+            raise HostLocker(message="OpTestSystem HostLocker Host '{}' is "
+                "unusable, please pick another host and retry"
+                .format(self.conf.args.hostlocker))
+        elif r.status_code == requests.codes.bad_request: # 400
+            raise HostLocker(message=r.text)
+        elif r.status_code == requests.codes.not_found: # 404
+            msg = ("OpTestSystem HostLocker unknown hostlocker_user '{}', "
+                   "you need to have logged in to HostLocker via the web"
+                   " at least once prior, please log in to HostLocker via the web"
+                   " and then retry or check configuration."
+                   .format(self.conf.args.hostlocker_user))
+            raise HostLocker(message=msg)
 
-
-        msg = ("OpTestSystem HostLocker unknown hostlocker_user '{}', "
-               "you need to have logged in to HostLocker via the web"
-               " at least once prior, please log in to HostLocker via the web"
-               " and then retry or check configuration."
-               .format(self.conf.args.hostlocker_user))
-        self.check_response(r, msg)
         log.info("OpTestSystem HostLocker reserved host '{}' "
-          "hostlocker-user '{}'".format(self.conf.args.hostlocker,
-          self.conf.args.hostlocker_user))
+            "hostlocker-user '{}'".format(self.conf.args.hostlocker,
+            self.conf.args.hostlocker_user))
 
     def hostlocker_locked(self):
         # if called during signal handler cleanup
         # we may not have user yet
         if self.conf.args.hostlocker_user is None:
-          return 1, []
+            return 1, []
         if self.conf.util_server is None:
-          self.setup()
+            self.setup()
+        uri = "host/{}/".format(self.conf.args.hostlocker)
         try:
-          r = self.conf.util_server.get('host/%s/' % self.conf.args.hostlocker)
-          self.check_response(r, "OpTestSystem HostLocker unknown host '{}'"
-            .format(self.conf.args.hostlocker))
+            r = self.conf.util_server.get(uri=uri)
+        except HTTPCheck as check:
+            log.debug("HTTPCheck Exception={} check.message={}".format(check, check.message))
+            raise HostLocker(message="OpTestSystem HostLocker unknown host '{}'"
+                .format(self.conf.args.hostlocker))
         except Exception as e:
-          log.debug("hostlocker_locked did NOT get any host details for '{}', "
-            "please manually verify and release,  Exception={}"
-            .format(self.conf.args.hostlocker, e))
-          return 1, [] # if unable to confirm, flag it
+            log.debug("hostlocker_locked did NOT get any host details for '{}', "
+              "please manually verify and release,  Exception={}"
+              .format(self.conf.args.hostlocker, e))
+            return 1, [] # if unable to confirm, flag it
 
-        host = response_json(r)[0]
+        uri = "lock/"
+        payload = {"host" : self.conf.args.hostlocker}
         try:
-          locks = self.conf.util_server.get_json('lock/',
-            params=dict(host=self.conf.args.hostlocker))
+            r = self.conf.util_server.get(uri=uri,
+                params=payload)
+            locks = r.json()
         except Exception as e:
-          log.debug("hostlocker_locked did NOT get any lock details for "
-            "host '{}', please manually verify and release, Exception={}"
-            .format(self.conf.args.hostlocker, e))
-          return 1, [] # if unable to confirm, flag it
+            log.debug("hostlocker_locked did NOT get any lock details for "
+              "host '{}', please manually verify and release, Exception={}"
+              .format(self.conf.args.hostlocker, e))
+            return 1, [] # if unable to confirm, flag it
         lockers = []
-        for l in locks:
-          lockers.append(str(l['locker']))
-          if l['locker'] == self.conf.args.hostlocker_user:
-            # lockers list is incomplete but only if we don't
-            # find hostlocker_user do we care
-            return 1, lockers
-        return 0, lockers
+        log.debug("locks JSON: {}".format(locks))
+        try:
+            for l in locks:
+                lockers.append(str(l.get('locker')))
+                if l.get('locker') == self.conf.args.hostlocker_user:
+                    # lockers list is incomplete but only if we don't
+                    # find hostlocker_user do we care
+                    return 1, lockers
+            return 0, lockers
+        except Exception as e:
+            log.debug("LOCKERS lockers={} Exception={}".format(lockers, e))
 
     def hostlocker_unlock(self):
         if self.conf.util_server is None:
-          self.setup()
+            self.setup()
+        uri = "lock/"
+        payload = {"host" : self.conf.args.hostlocker,
+                   "user" : self.conf.args.hostlocker_user}
         try:
-          r = self.conf.util_server.get('lock/',
-            dict(host=self.conf.args.hostlocker,
-            user=self.conf.args.hostlocker_user))
-          msg = ("OpTestSystem HostLocker unknown hostlocker-user '{}', "
-                 "you need to have logged in to HostLocker via the web"
-                 " at least once prior.".format(self.conf.args.hostlocker_user))
-          self.check_response(r, msg)
+            r = self.conf.util_server.get(uri=uri,
+                params=payload)
+        except HTTPCheck as check:
+            log.debug("HTTPCheck Exception={} check.message={}".format(check, check.message))
+            msg = ("OpTestSystem HostLocker unknown hostlocker-user '{}', "
+                   "you need to have logged in to HostLocker via the web"
+                   " at least once prior.".format(self.conf.args.hostlocker_user))
+            raise HostLocker(message=msg)
         except Exception as e:
-          log.info("OpTestSystem HostLocker hostlocker_unlock tried to "
-            "unlock host '{}' hostlocker-user '{}' but encountered a problem, "
-            "manually verify and release, see Exception={}"
-            .format(self.conf.args.hostlocker,
-            self.conf.args.hostlocker_user, e))
-          return
+            log.info("OpTestSystem HostLocker hostlocker_unlock tried to "
+                "unlock host '{}' hostlocker-user '{}' but encountered a problem, "
+                "manually verify and release, see Exception={}"
+                .format(self.conf.args.hostlocker,
+                self.conf.args.hostlocker_user, e))
+            return
 
-        locks = response_json(r)
+        locks = r.json()
         if len(locks) == 0:
             # Host is not locked, so just return
             log.debug("hostlocker_unlock tried to delete a lock but it was "
@@ -706,22 +732,27 @@ class OpTestUtil():
             # this may never happen, but it came up in debug
             # with hardcoded changes to check error paths
             log.warning("hostlocker_unlock tried to delete lock for "
-              "host '{}' but we found multiple locks and we should "
-              "have only received hostlocker-user '{}' we queried "
-              "for, please manually verify and release"
-              .format(self.conf.args.hostlocker,
-              self.conf.args.hostlocker_user))
+                "host '{}' but we found multiple locks and we should "
+                "have only received hostlocker-user '{}' we queried "
+                "for, please manually verify and release"
+                .format(self.conf.args.hostlocker,
+                self.conf.args.hostlocker_user))
             return
 
-        if locks[0]['locker'] != self.conf.args.hostlocker_user:
-          log.debug("hostlocker_unlock found that the locker did not "
-            "match the hostlocker_user '{}'".format(self.conf.args.hostlocker_user))
+        if locks[0].get('locker') != self.conf.args.hostlocker_user:
+            log.debug("hostlocker_unlock found that the locker did not "
+                "match the hostlocker_user '{}'".format(self.conf.args.hostlocker_user))
+        uri = "lock/{}".format(locks[0].get('id'))
         try:
-          r = self.conf.util_server.delete('lock/%s' % locks[0]['id'])
-          self.check_response(r, "hostlocker_unlock tried to delete a lock "
-            "but it was NOT there")
+            r = self.conf.util_server.delete(uri=uri)
+        except HTTPCheck as check:
+            log.debug("HTTPCheck hostlocker_unlock tried to delete a lock"
+                      " but encountered an HTTP problem, "
+                      "Exception={} check.message={}".format(check, check.message))
+            raise HostLocker(message="hostlocker_unlock tried to delete a lock "
+                "but it was NOT there")
         except Exception as e:
-          log.debug("hostlocker_unlock tried to delete a lock but it was "
+            log.debug("hostlocker_unlock tried to delete a lock but it was "
                     "NOT there, see Exception={}".format(e))
 
     ##
@@ -736,7 +767,7 @@ class OpTestUtil():
     #
     def PingFunc(self, i_ip, i_try=1, totalSleepTime=BMC_CONST.HOST_BRINGUP_TIME):
         if i_ip == None:
-            raise ParameterCheck(msg="PingFunc has i_ip set to 'None', "
+            raise ParameterCheck(message="PingFunc has i_ip set to 'None', "
                 "check your configuration and setup")
         sleepTime = 0;
         while(i_try != 0):
@@ -767,7 +798,7 @@ class OpTestUtil():
 
         log.error("'{}' is not pinging and we tried many times, "
                   "check your configuration and setup.".format(i_ip))
-        raise ParameterCheck(msg="PingFunc fails to ping '{}', "
+        raise ParameterCheck(message="PingFunc fails to ping '{}', "
             "check your configuration and setup and manually "
             "verify and release any reservations".format(i_ip))
 
@@ -1317,7 +1348,7 @@ class OpTestUtil():
         term_obj.get_console().sendcontrol('c')
         rc = term_obj.get_console().expect(["systemsim %", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc != 0:
-            raise UnexpectedCase(state="Mambo", msg="We tried to send control-C"
+            raise UnexpectedCase(state="Mambo", message="We tried to send control-C"
                 " to Mambo and we failed, probably just retry")
 
     def mambo_exit(self, term_obj):
@@ -1334,50 +1365,190 @@ class OpTestUtil():
         return output_list
 
 class Server(object):
+    '''
+    Generic Server Requests Session Object to abstract retry and error
+    handling logic.  There are two common uses of the requests
+    session object:
+    1 - Single Request with no retry.  Create the Server instance with
+    minutes set to None.  This will flag the calls to cycle once and
+    return non-OK requests back to the caller for handling.
+    Special case is the login needed, that case will be caught and
+    login attempted and original request retried.
+    2 - Request calls which need to be tolerant of communication
+    glitches and possible server disconnections.  Caller must create
+    the Server instance with minutes set to a value.  If the caller
+    wants to modify the minutes it must be done on a call by call
+    basis (create the Server instance with a default minutes value
+    and if longer time needed make the change on the specific call).
 
-    def __init__(self, url, base_url, proxy):
+    Login is done for the caller, so no need to call login, just
+    make the GET/PUT/POST/DELETE call.
+    '''
+    def __init__(self, url=None,
+                 base_url=None,
+                 proxy=None,
+                 username=None,
+                 password=None,
+                 verify=False,
+                 minutes=3,
+                 timeout=30):
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        OpTestLogger.optest_logger_glob.setUpChildLogger("urllib3")
+        self.username = username
+        self.password = password
         self.session = requests.Session()
-        if proxy:
-            self.proxies = {'http' : proxy}
-        else:
-            self.proxies = {}
+        if self.username is not None and self.password is not None:
+            self.session.auth = (self.username, self.password)
+        self.session.verify = verify
+        self.timeout = timeout
+        self.minutes = minutes
+        self.session.mount('https://', HTTPAdapter(max_retries=5))
+        # value.max_retries for future debug if needed
+#        for key, value in self.session.adapters.items():
+#            log.debug("max_retries={}".format(value.max_retries))
 
-        self.base_url = url + base_url
+        if proxy:
+            self.session.proxies = {"http" : proxy}
+        else:
+            self.session.proxies = {}
+
+        self.base_url = url + (base_url if base_url else "")
 
     def _url(self, suffix):
         return '/'.join([self.base_url, suffix])
 
-    def get(self, url, params={}):
+    def login(self, username=None, password=None):
+        if username is None:
+            username = self.username
+        if password is None:
+            password = self.password
+        uri = "/login"
+        payload = {"data": [username, password]}
+        # make direct call to requests post, by-pass loop_it
         try:
-          r = self.session.get(self._url(url), params=params, proxies=self.proxies, timeout=60)
+            r = self.session.post(self._url(uri), json=payload)
+            if r.status_code != requests.codes.ok:
+                log.debug("Requests post problem with logging "
+                    "in, r.status_code={} r.text={} r.headers={} "
+                    "r.request.headers={}"
+                    .format(r.status_code, r.text,
+                     r.headers, r.request.headers))
+                raise HTTPCheck(message="Requests post problem logging in,"
+                    " check that your credentials are properly setup,"
+                    " r.status_code={} r.text={} r.headers={} "
+                    " r.request.headers={} username={} password={}"
+                    .format(r.status_code, r.text, r.headers,
+                     r.request.headers, username, password))
         except Exception as e:
-          raise HTTPCheck(msg="Requests get problem, check that your VPN/SSH tunnel is properly"
-                           " configured and open, proxy configured as '{}' Exception={}".format(self.proxies.get('http'), e))
-
+            log.debug("Requests post problem, check that your "
+                "credentials are properly setup URL={} username={} "
+                "password={}, Exception={}"
+                .format(self._url(uri), username, password, e))
+            raise HTTPCheck(message="Requests post problem, check that your "
+                "credentials are properly setup URL={} username={} "
+                "password={}, Exception={}"
+                .format(self._url(uri), username, password, e))
         return r
 
-    def post(self, url, params):
+    def logout(self, uri=None):
+        uri = "/logout"
+        payload = {"data" : []}
         try:
-          r = self.session.post(self._url(url), params, proxies=self.proxies)
+            # make direct call to requests post, by-pass loop_it
+            r = self.session.post(self._url(uri), json=payload)
+            if r.status_code != requests.codes.ok:
+                log.debug("Requests post problem with logging "
+                    "out, r.status_code={} r.text={} r.headers={} "
+                    "r.request.headers={}"
+                    .format(r.status_code, r.text,
+                     r.headers, r.request.headers))
         except Exception as e:
-          raise HostLocker(msg="Requests post problem, Exception={}".format(e))
-
+            log.debug("Requests post problem logging out"
+                       " URL={} Exception={}".format(self._url(uri), e))
         return r
 
-    def delete(self, url):
-        try:
-          r = self.session.delete(self._url(url), proxies=self.proxies)
-        except Exception as e:
-          raise HostLocker(msg="Requests delete problem, Exception={}".format(e))
-
+    def get(self, **kwargs):
+        kwargs['cmd'] = 'get'
+        r = self.loop_it(**kwargs)
         return r
 
-    def get_json(self, url, accept_empty=False, params={}):
-        response = self.get(url, params)
-        if response.status_code != 200:
-            raise HTTPCheck(msg="Requests get_json problem, unexpected error '{}'".format(response.status_code))
+    def put(self, **kwargs):
+        kwargs['cmd'] = 'put'
+        r = self.loop_it(**kwargs)
+        return r
 
-        return response_json(response)
+    def post(self, **kwargs):
+        kwargs['cmd'] = 'post'
+        r = self.loop_it(**kwargs)
+        return r
+
+    def delete(self, **kwargs):
+        kwargs['cmd'] = 'delete'
+        r = self.loop_it(**kwargs)
+        return r
+
+    def loop_it(self, **kwargs):
+        default_vals = {'cmd' : None, 'uri' : None, 'data' : None,
+                        'json' : None, 'params' : None, 'minutes' : None,
+                        'files' : None, 'stream' : False,
+                        'verify' : False, 'headers' : None}
+        for key in default_vals:
+            if key not in kwargs.keys():
+                kwargs[key] = default_vals[key]
+
+        command_dict = { 'get'    : self.session.get,
+                         'put'    : self.session.put,
+                         'post'   : self.session.post,
+                         'delete' : self.session.delete,
+                       }
+        if kwargs['minutes'] is not None:
+            loop_time = time.time() + 60*kwargs['minutes']
+        else:
+            loop_time = time.time() + 60*5 # enough time to cycle
+        while True:
+            if time.time() > loop_time:
+                raise HTTPCheck(message="HTTP \"{}\" problem, we timed out "
+                   "trying URL={} PARAMS={} DATA={} JSON={} Files={}, we "
+                   "waited {} minutes, check the debug log for more details"
+                     .format(kwargs['cmd'], self._url(kwargs['uri']),
+                     kwargs['params'], kwargs['data'], kwargs['json'],
+                     kwargs['files'], kwargs['minutes']))
+            try:
+                r = command_dict[kwargs['cmd']](self._url(kwargs['uri']),
+                        params=kwargs['params'],
+                        data=kwargs['data'],
+                        json=kwargs['json'],
+                        files=kwargs['files'],
+                        stream=kwargs['stream'],
+                        verify=kwargs['verify'],
+                        headers=kwargs['headers'],
+                        timeout=self.timeout)
+            except Exception as e:
+                # caller did not want any retry so give them the exception
+                log.debug("loop_it Exception={}".format(e))
+                if kwargs['minutes'] is None:
+                    raise e
+                time.sleep(5)
+                continue
+            if r.status_code == requests.codes.unauthorized: # 401
+                try:
+                    log.debug("loop_it unauthorized, trying to login")
+                    self.login()
+                    continue
+                except Exception as e:
+                    log.debug("Unauthorized login failed, Exception={}".format(e))
+                    if kwargs['minutes'] is None:
+                        # caller did not want retry so give them the exception
+                        raise e
+                    time.sleep(5)
+                    continue
+            if r.status_code == requests.codes.ok:
+                return r
+            else:
+                if kwargs['minutes'] is None:
+                    # caller did not want any retry so give them what we have
+                    return r
+            time.sleep(5)
 
     def close(self):
         self.session.close()

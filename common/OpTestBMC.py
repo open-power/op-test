@@ -125,7 +125,7 @@ class OpTestBMC():
         # Wait for BMC to go down.
         self.util.ping_fail_check(self.cv_bmcIP)
         # Wait for BMC to ping back.
-        self.util.PingFunc(self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+        self.util.PingFunc(self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_POWERCYCLE)
         # Ping the system until it reboots
         while True:
             try:

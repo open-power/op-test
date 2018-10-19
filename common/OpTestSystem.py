@@ -46,7 +46,8 @@ from OpTestError import OpTestError
 import OpTestHost
 from OpTestUtil import OpTestUtil
 from OpTestSSH import ConsoleState as SSHConnectionState
-from Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition, ConsoleSettings, UnexpectedCase, StoppingSystem
+from Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition
+from Exceptions import ConsoleSettings, UnexpectedCase, StoppingSystem, HTTPCheck
 from OpTestSSH import OpTestSSH
 
 import logging
@@ -218,7 +219,7 @@ class OpTestSystem(object):
           if key not in kwargs.keys():
             kwargs[key] = default_vals[key]
         self.sys_sel_elist(dump=True)
-        guard_exception = UnexpectedCase(state=self.state, msg="We hit the guard_callback value={}, manually restart the system".format(kwargs['value']))
+        guard_exception = UnexpectedCase(state=self.state, message="We hit the guard_callback value={}, manually restart the system".format(kwargs['value']))
         self.state = OpSystemState.UNKNOWN_BAD
         self.stop = 1
         raise guard_exception
@@ -259,7 +260,7 @@ class OpTestSystem(object):
                   xmon_registers,
                   xmon_special_registers,
                   xmon_exception_registers))
-        xmon_exception = UnexpectedCase(state=self.state, msg=my_msg)
+        xmon_exception = UnexpectedCase(state=self.state, message=my_msg)
         self.state = OpSystemState.UNKNOWN_BAD
         raise xmon_exception
 
@@ -269,7 +270,7 @@ class OpTestSystem(object):
           if key not in kwargs.keys():
             kwargs[key] = default_vals[key]
         self.sys_sel_elist(dump=True)
-        skiboot_exception = UnexpectedCase(state=self.state, msg="We hit the skiboot_callback value={}, manually restart the system".format(kwargs['value']))
+        skiboot_exception = UnexpectedCase(state=self.state, message="We hit the skiboot_callback value={}, manually restart the system".format(kwargs['value']))
         self.state = OpSystemState.UNKNOWN_BAD
         self.stop = 1
         raise skiboot_exception
@@ -343,7 +344,7 @@ class OpTestSystem(object):
             if never_unknown and self.state == OpSystemState.UNKNOWN:
                  self.stop = 1
                  raise UnknownStateTransition(state=self.state,
-                         msg=("OpTestSystem something set the system to UNKNOWN,"
+                         message=("OpTestSystem something set the system to UNKNOWN,"
                            " check the logs for details, we will be stopping the system"))
 
     def run_DETECT(self, target_state):
@@ -596,7 +597,7 @@ class OpTestSystem(object):
             return OpSystemState.OFF
         if state == OpSystemState.UNKNOWN:
             raise UnknownStateTransition(state=self.state,
-                    msg="OpTestSystem in run_OFF and something caused the system to go to UNKNOWN")
+                    message="OpTestSystem in run_OFF and something caused the system to go to UNKNOWN")
 
         # We clear any possible errors at this stage
         self.sys_sdr_clear()
@@ -634,7 +635,7 @@ class OpTestSystem(object):
             log.error(e)
             self.sys_sel_check()
             raise e
-        except WaitForIt as e:
+        except (WaitForIt, HTTPCheck) as e:
             if self.ipl_watermark < self.kill_cord:
               self.ipl_watermark += 1
               log.warning("OpTestSystem UNABLE TO REACH PETITBOOT or we missed it - \"{}\", increasing ipl_watermark for loop_max to {},"
@@ -647,7 +648,7 @@ class OpTestSystem(object):
             self.stop = 1 # Exceptions like in OPexpect Assert fail
             my_msg = ("OpTestSystem in run_IPLing and the Exception=\n\"{}\"\n caused the system to"
                        " go to UNKNOWN_BAD and the system will be stopping.".format(e))
-            my_exception = UnknownStateTransition(state=self.state, msg=my_msg)
+            my_exception = UnknownStateTransition(state=self.state, message=my_msg)
             self.state = OpSystemState.UNKNOWN_BAD
             raise my_exception
 
@@ -673,7 +674,7 @@ class OpTestSystem(object):
         if state == OpSystemState.OS:
             return OpSystemState.BOOTING
 
-        raise UnknownStateTransition(state=self.state, msg="OpTestSystem in run_PETITBOOT and something caused the system to go to UNKNOWN")
+        raise UnknownStateTransition(state=self.state, message="OpTestSystem in run_PETITBOOT and something caused the system to go to UNKNOWN")
 
     def run_PETITBOOT_SHELL(self, state):
         self.block_setup_term = 1
@@ -709,7 +710,7 @@ class OpTestSystem(object):
         except Exception as e:
             my_msg = ("OpTestSystem in run_IPLing and Exception=\"{}\" caused the system to"
                        " go to UNKNOWN_BAD and the system will be stopping.".format(e))
-            my_exception = UnknownStateTransition(state=self.state, msg=my_msg)
+            my_exception = UnknownStateTransition(state=self.state, message=my_msg)
             self.stop = 1 # hits like in OPexpect Assert fail
             self.state = OpSystemState.UNKNOWN_BAD
             raise my_exception

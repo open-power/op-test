@@ -120,6 +120,15 @@ class OpTestLogger():
         self.optest_logger.debug('DebugHandler settings updated')
         self.optest_logger.info('Debug Log file: {}'.format(os.path.join(self.logdir, self.logger_debug_file)))
 
+    def setUpChildLogger(self, logger_name=None, logger_debug_file=None):
+        # setup library to send to optest_logger
+        if logger_debug_file is None:
+            logger_debug_file = os.path.join(self.logdir, self.logger_debug_file)
+        if logger_name is not None:
+            temp_logger = logging.getLogger(logger_name)
+            temp_logger.setLevel(logging.DEBUG)
+            temp_logger.addHandler(self.dh) # send to the already existing debug file handler
+
     def setUpCustomLoggerDebugFile(self, logger_name, logger_debug_file):
         '''
         Provide a method that allows setting up of a debug file handler with customized file rotation and formatting.

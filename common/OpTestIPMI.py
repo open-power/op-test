@@ -97,8 +97,8 @@ class IPMITool():
         if background:
             try:
                 child = subprocess.Popen(cmd, shell=True)
-            except:
-                raise CommandFailed(cmd, "Couldn't spawn process", -1)
+            except Exception as e:
+                raise CommandFailed("Unable to spawn process {}".format(cmd), e, -1)
             return child
         else:
             # TODO - need python 2.7
@@ -504,30 +504,6 @@ class OpTestIPMI():
                 raise OpTestError(l_msg)
             time.sleep(5)
             output = self.ipmitool.run(cmd)
-        return BMC_CONST.FW_SUCCESS
-
-    def ipmi_ipl_wait_for_login(self, l_con, timeout=10):
-        l_rc = l_con.expect_exact(BMC_CONST.IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT, timeout=120)
-        if l_rc == 0:
-            log.info("IPMI: sol console activated")
-        else:
-            l_msg = "Error: not able to get IPMI console"
-            raise OpTestError(l_msg)
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-        l_con.send("\r")
-        time.sleep(BMC_CONST.SHORT_WAIT_IPL)
-        l_rc = l_con.expect_exact(BMC_CONST.IPMI_CONSOLE_EXPECT_ENTER_OUTPUT, timeout=120)
-        if l_rc == BMC_CONST.IPMI_CONSOLE_EXPECT_LOGIN:
-            return BMC_CONST.FW_SUCCESS
-        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_PETITBOOT:
-            return BMC_CONST.FW_SUCCESS
-        elif l_rc in BMC_CONST.IPMI_CONSOLE_EXPECT_RANDOM_STATE:
-            l_msg = "Error: system is in random state"
-            raise OpTestError(l_msg)
-        else:
-            l_con.expect(pexpect.TIMEOUT, timeout=30)
-            log.error(l_con.before)
-            raise OpTestError("Timeout waiting for IPL")
         return BMC_CONST.FW_SUCCESS
 
     def ipmi_wait_for_standby_state(self, i_timeout=120):
