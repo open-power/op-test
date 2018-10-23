@@ -797,7 +797,7 @@ class OpTestHost():
         l_cmd = "lspci -d \"1014::1200\""
         l_res = self.host_run_command(l_cmd, console=console)
         l_res = " ".join(l_res)
-        if (l_res.__contains__('IBM Device')):
+        if (l_res.__contains__('IBM Device') and not l_res.__contains__('062b')):
             l_msg = "Host has a CAPI FPGA card"
             log.debug(l_msg)
             return True
