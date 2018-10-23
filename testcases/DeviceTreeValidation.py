@@ -362,12 +362,13 @@ class DeviceTreeValidation(unittest.TestCase):
 
 class DeviceTreeValidationSkiroot(DeviceTreeValidation):
     def runTest(self):
+        # goto PS before running any commands
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         if self.cv_HOST.host_get_proc_gen(console=1) not in ["POWER8", "POWER8E",
                                                     "POWER9"]:
             self.skipTest("Unknown CPU type {}".format(
                 self.cv_HOST.host_get_proc_gen(console=1)))
 
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         system_state = self.cv_SYSTEM.get_state()
         self.c = self.cv_SYSTEM.console
         if isinstance(self.c, OpTestQemu.QemuConsole):
@@ -388,12 +389,13 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
 
 class DeviceTreeValidationHost(DeviceTreeValidation):
     def runTest(self):
+        # goto OS before running any commands
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.cv_HOST.host_get_proc_gen(console=1) not in ["POWER8", "POWER8E",
                                                     "POWER9"]:
             self.skipTest("Unknown CPU type {}".format(
                 self.cv_HOST.host_get_proc_gen(console=1)))
 
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         self.cv_HOST.host_get_proc_gen(console=1)
         self.validate_idle_state_properties()
