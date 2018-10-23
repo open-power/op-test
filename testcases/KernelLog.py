@@ -36,6 +36,10 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 class KernelLog():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -123,6 +127,8 @@ class KernelLog():
             filter_out.append('nvram: Failed to initialize oops partition!')
             # some weird disk setups
             filter_out.append('vdb.*start.*is beyond EOD')
+            # urandom_read fun
+            filter_out.append('urandom_read: \d+ callbacks suppressed')
 
         if self.bmc_type in ['mambo']:
             # We have a couple of things showing up in Mambo runs.
@@ -133,7 +139,7 @@ class KernelLog():
             # Strange IMC failure
             filter_out.append('IMC PMU nest_mcs01_imc Register failed')
             # urandom_read fun
-            filter_out.append('urandom_read: 3 callbacks suppressed')
+            filter_out.append('urandom_read: \d+ callbacks suppressed')
 
         for f in filter_out:
             fre = re.compile(f)

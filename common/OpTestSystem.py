@@ -292,6 +292,9 @@ class OpTestSystem(object):
     def has_mtd_pnor_access(self):
         return True
 
+    def disable_stty_echo(self):
+        return False
+
     def host(self):
         return self.cv_HOST
 
@@ -1383,3 +1386,9 @@ class OpTestMamboSystem(OpTestSystem):
 
     def has_mtd_pnor_access(self):
         return False
+
+    def disable_stty_echo(self):
+        # we do this here since we need it early in OpTestUtil
+        # importing gets circular in OpTestUtil
+        # we use OpTestUtil term_obj to get at the system attributes
+        return True
