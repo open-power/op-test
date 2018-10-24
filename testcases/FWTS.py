@@ -43,9 +43,13 @@ import unittest
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 import common.OpTestMambo as OpTestMambo
+import common.OpTestQemu as OpTestQemu
 
 import json
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class FWTSCommandFailed(unittest.TestCase):
     FAIL = None
@@ -57,7 +61,7 @@ class FWTSCommandSkipped(unittest.TestCase):
     SKIP = None
 
     def runTest(self):
-        raise unittest.SkipTest("Mambo running so skipping FWTS tests")
+        raise unittest.SkipTest("QEMU/Mambo running so skipping FWTS tests")
 
 class FWTSVersion(unittest.TestCase):
     MAJOR = None
@@ -237,7 +241,8 @@ class FWTS(unittest.TestSuite):
         try:
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
         except Exception as e:
-            if (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
+            if (isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole)) \
+                or (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
                 m = FWTSCommandSkipped()
                 m.SKIP = e
                 self.real_fwts_suite.addTest(m)
