@@ -13,6 +13,17 @@ ready.
 
 For full documentation, visit http://open-power.github.io/op-test-framework/
 
+### Quick Start ###
+
+OVERVIEW - Clone op-test-framework on some linux box, like your laptop.
+
+git clone https://github.com/open-power/op-test-framework
+
+Prepare the OpenPower system with needed software packages and build the
+needed tools (see below Target System Requirements).
+
+Run something (see below Running the tests).
+
 ### Requirements ###
 
 This framework runs on most Linux based systems.
@@ -43,6 +54,14 @@ You **MUST** have `fwts` installed. To do this:
     sudo add-apt-repository ppa:firmware-testing-team/ppa-fwts-stable
     sudo apt-get update
     sudo apt-get install fwts
+
+FWTS for RHEL-like systems will need to clone FWTS and build.
+
+After cloning FWTS see the README for pre-reqs and how-to,
+be sure to 'make install' after building to get the proper
+paths setup.
+
+git clone git://kernel.ubuntu.com/hwe/fwts.git
 
 It must also have (package names for Debian/Ubuntu systems):
 
