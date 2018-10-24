@@ -655,13 +655,15 @@ class HostManagement():
         "file" : file-like-object
         '''
         with open(image, 'rb') as fileload:
-            image_header = {"Content-Type" : "application/octet-stream"}
             uri = "/upload/image"
-            image_files = {"file": fileload}
+            octet_hdr = { 'Content-Type': 'application/octet-stream' }
             r = self.conf.util_bmc_server.post(uri=uri,
-                files=image_files,
-                headers=image_header,
-                minutes=minutes)
+                                               headers=octet_hdr,
+                                               data=fileload)
+            if r.status_code != 200:
+                print r.headers
+                print r.text
+                print r
 
     def get_image_priority(self, id, minutes=BMC_CONST.HTTP_RETRY):
         '''
