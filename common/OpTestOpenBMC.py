@@ -711,7 +711,7 @@ class HostManagement():
         payload =  {"data" : "xyz.openbmc_project.Software.Activation.RequestedActivations.Active"}
         r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
 
-    def delete_image(self, id, minutes):
+    def delete_image(self, id, minutes=BMC_CONST.HTTP_RETRY):
         '''
         Delete An Image
         POST
