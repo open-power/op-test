@@ -130,7 +130,7 @@ class MamboConsole():
         log.debug("#Mambo Console CONNECT")
 
         if not os.access(self.mambo_initial_run_script, os.R_OK|os.W_OK):
-            raise ParameterCheck(msg="Check that the file exists with"
+            raise ParameterCheck(message="Check that the file exists with"
                 " R/W permissions mambo-initial-run-script={}"
                 .format(self.mambo_initial_run_script))
 
@@ -146,7 +146,7 @@ class MamboConsole():
             spawn_env['SKIBOOT_ZIMAGE'] = self.kernel
         if self.initramfs:
             if not os.access(self.initramfs, os.R_OK|os.W_OK):
-                raise ParameterCheck(msg="Check that the file exists with"
+                raise ParameterCheck(message="Check that the file exists with"
                     " R/W permissions flash-initramfs={}"
                     .format(self.initramfs))
             spawn_env['SKIBOOT_INITRD'] = self.initramfs

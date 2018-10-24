@@ -23,6 +23,11 @@ op-test Exceptions
 
 These exceptions are used throughout op-test to help testing error
 conditions as well as failing tests when unexpected errors occur.
+
+When subclassing Exceptions be aware to use 'message' as the
+embedded variable so that e.message can be retrieved and
+searched for filtering if desired in future use cases.
+
 '''
 
 
@@ -264,7 +269,7 @@ class UnexpectedCase(Exception):
     We detected something we should not have.
     '''
     def __init__(self, **kwargs):
-        default_vals = {'state': None, 'msg': None}
+        default_vals = {'state': None, 'message': None}
         self.kwargs = {}
         for key in default_vals:
             if key not in kwargs.keys():
@@ -272,11 +277,13 @@ class UnexpectedCase(Exception):
             else:
                 self.kwargs[key] = kwargs[key]
 
+        self.message = kwargs['message']
+
     def __str__(self):
         return ('Something unexpected happened in State=\"{}\"'
                 ' Review the following for more details\n'
                 'Message=\"{}\"'.format(
-                    self.kwargs['state'], self.kwargs['msg']))
+                    self.kwargs['state'], self.kwargs['message']))
 
 
 class WaitForIt(Exception):
@@ -326,7 +333,7 @@ class UnknownStateTransition(Exception):
     We tried to transition to UNKNOWN, something happened.
     '''
     def __init__(self, **kwargs):
-        default_vals = {'state': None, 'msg': None}
+        default_vals = {'state': None, 'message': None}
         self.kwargs = {}
         for key in default_vals:
             if key not in kwargs.keys():
@@ -334,12 +341,14 @@ class UnknownStateTransition(Exception):
             else:
                 self.kwargs[key] = kwargs[key]
 
+        self.message = kwargs['message']
+
     def __str__(self):
         return ('Something happened system state=\"{}\" and we '
                 'transitioned to UNKNOWN state. '
                 ' Review the following for more details\n'
                 'Message=\"{}\"'.format(self.kwargs['state'],
-                                        self.kwargs['msg']))
+                                        self.kwargs['message']))
 
 
 class HostLocker(Exception):
@@ -347,26 +356,28 @@ class HostLocker(Exception):
     We tried to setup with HostLocker and something happened.
     '''
     def __init__(self, **kwargs):
-        default_vals = {'msg': None}
+        default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
           if key not in kwargs.keys():
             self.kwargs[key] = default_vals[key]
           else:
             self.kwargs[key] = kwargs[key]
+
+        self.message = kwargs['message']
 
     def __str__(self):
         return ('Something happened setting up HostLocker. '
                 ' Review the following for more details\n'
-                'Message=\"{}\"'.format(self.kwargs['msg']))
+                'Message=\"{}\"'.format(self.kwargs['message']))
 
 
 class HTTPCheck(Exception):
     '''
-    We tried to setup HTTP Server and something happened.
+    HTTP Server related and something happened.
     '''
     def __init__(self, **kwargs):
-        default_vals = {'msg': None}
+        default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
           if key not in kwargs.keys():
@@ -374,10 +385,12 @@ class HTTPCheck(Exception):
           else:
             self.kwargs[key] = kwargs[key]
 
+        self.message = kwargs['message']
+
     def __str__(self):
-        return ('Something happened setting up the HTTP Server. '
+        return ('Something happened with the HTTP Server. '
                 ' Review the following for more details\n'
-                'Message=\"{}\"'.format(self.kwargs['msg']))
+                'Message=\"{}\"'.format(self.kwargs['message']))
 
 
 class AES(Exception):
@@ -386,7 +399,7 @@ class AES(Exception):
     and something happened.
     '''
     def __init__(self, **kwargs):
-        default_vals = {'msg': None}
+        default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
           if key not in kwargs.keys():
@@ -394,11 +407,13 @@ class AES(Exception):
           else:
             self.kwargs[key] = kwargs[key]
 
+        self.message = kwargs['message']
+
     def __str__(self):
         return ('Something happened setting up Automated '
                 'Environment Sharing (AES). '
                 ' Review the following for more details\n'
-                'Message=\"{}\"'.format(self.kwargs['msg']))
+                'Message=\"{}\"'.format(self.kwargs['message']))
 
 
 class ParameterCheck(Exception):
@@ -406,7 +421,7 @@ class ParameterCheck(Exception):
     We think something is not properly setup.
     '''
     def __init__(self, **kwargs):
-        default_vals = {'msg': None}
+        default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
           if key not in kwargs.keys():
@@ -414,11 +429,13 @@ class ParameterCheck(Exception):
           else:
             self.kwargs[key] = kwargs[key]
 
+        self.message = kwargs['message']
+
     def __str__(self):
         return ('Something does not appear to be configured'
                 ' or setup properly. '
                 ' Review the following for more details\n'
-                'Message=\"{}\"'.format(self.kwargs['msg']))
+                'Message=\"{}\"'.format(self.kwargs['message']))
 
 
 class StoppingSystem(Exception):

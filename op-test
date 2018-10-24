@@ -342,7 +342,7 @@ class FullSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(BasicIPLSuite().suite())
         self.s.addTest(DefaultSuite().suite())
-        self.s.addTest(testRestAPI.basic_suite())
+        self.s.addTest(testRestAPI.runtime_suite())
         self.s.addTest(OpalGard.OpalGard())
         self.s.addTest(OpalUtils.OpalUtils())
         self.s.addTest(OpTestRTCdriver.HostRTC())
@@ -449,9 +449,8 @@ class RestAPISuite():
     '''REST API(OpenBMC Specific Out of band management)'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(testRestAPI.basic_suite())
-        self.s.addTest(testRestAPI.standby_suite())
         self.s.addTest(testRestAPI.runtime_suite())
+        self.s.addTest(testRestAPI.host_off_suite())
     def suite(self):
         return self.s
 

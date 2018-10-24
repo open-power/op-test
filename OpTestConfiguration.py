@@ -316,7 +316,8 @@ class OpTestConfiguration():
                            'Group_Name' : None,
                            'envs'       : [],
                          }
-        self.util_server = None
+        self.util_server = None # Hostlocker or AES
+        self.util_bmc_server = None # OpenBMC REST Server
         for dir in (os.walk(os.path.join(self.basedir, 'addons')).next()[1]):
             optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
 
@@ -494,7 +495,7 @@ class OpTestConfiguration():
               or self.args.aes is not None \
               or self.args.aes_search_args is not None:
                   self.util.cleanup()
-                  raise ParameterCheck(msg="OpTestSystem PingFunc fails to "
+                  raise ParameterCheck(message="OpTestSystem PingFunc fails to "
                       "ping '{}', check your configuration and setup, see "
                       "Exception details: {}".format(self.args.bmc_ip, e))
 
@@ -575,7 +576,8 @@ class OpTestConfiguration():
                               self.args.bmc_passwordipmi,
                               host=host,
                               logfile=self.logfile)
-                rest_api = HostManagement(self.args.bmc_ip,
+                rest_api = HostManagement(self,
+                                self.args.bmc_ip,
                                 self.args.bmc_username,
                                 self.args.bmc_password)
                 bmc = OpTestOpenBMC(self.args.bmc_ip,
@@ -606,19 +608,19 @@ class OpTestConfiguration():
                 bmc.set_system(self.op_system)
             elif self.args.bmc_type in ['mambo']:
                 if not (os.stat(self.args.mambo_binary).st_mode & stat.S_IXOTH):
-                    raise ParameterCheck(msg="Check that the file exists with"
+                    raise ParameterCheck(message="Check that the file exists with"
                         " X permissions"
                         " mambo-binary={}"
                         .format(self.args.mambo_binary))
                 if self.args.flash_skiboot is None \
                     or not os.access(self.args.flash_skiboot, os.R_OK|os.W_OK):
-                    raise ParameterCheck(msg="Check that the file exists with"
+                    raise ParameterCheck(message="Check that the file exists with"
                         " R/W/X permissions"
                         " flash-skiboot={}"
                         .format(self.args.flash_skiboot))
                 if self.args.flash_kernel is None \
                     or not os.access(self.args.flash_kernel, os.R_OK|os.W_OK):
-                    raise ParameterCheck(msg="Check that the file exists with"
+                    raise ParameterCheck(message="Check that the file exists with"
                         " R/W permissions"
                         " flash-kernel={}"
                         .format(self.args.flash_kernel))

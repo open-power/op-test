@@ -160,7 +160,7 @@ class OpTestSSH():
                 failure_callback_data=self.system)
         except Exception as e:
           self.state = ConsoleState.DISCONNECTED
-          raise CommandFailed('OPexepct.spawn encountered a problem', -1)
+          raise CommandFailed("OPexepct.spawn encountered a problem", e, -1)
 
         self.state = ConsoleState.CONNECTED
         # set for bash, otherwise it takes the 24x80 default
