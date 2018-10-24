@@ -99,7 +99,6 @@ import re
 import OpTestConfiguration
 from collections import OrderedDict
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
 import logging
@@ -108,13 +107,13 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class PciSlotLocCodesOPAL():
     def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_SYSTEM = conf.system()
-
+        self.conf = OpTestConfiguration.conf
+        self.cv_HOST = self.conf.host()
+        self.cv_SYSTEM = self.conf.system()
 
     def runTest(self):
+        if self.conf.args.bmc_type in ['qemu', 'mambo']:
+            raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
         self.setup_test()
         self.log_entries = self.c.run_command_ignore_fail("cat /sys/firmware/opal/msglog |  grep 'PHB#' | grep -i  ' C:'")
         failed_eplist = []
@@ -134,12 +133,12 @@ class PciSlotLocCodesOPAL():
                 bdfn = entry
 
             ep_present = False
-            # Check for a end point PCI device, it should have LOC_CODE label
+            # Check for end point PCI device, should have LOC_CODE label
             for string in match_list:
                 if string in entry:
                     ep_present = True
                     if "LOC_CODE" in entry:
-                        log.debug("Location code found for entry %s" % bdfn)
+                        log.debug("Location code found for entry {}".format(bdfn))
                     else:
                         failed_eplist.append(bdfn)
                     break
@@ -151,41 +150,50 @@ class PciSlotLocCodesOPAL():
 
             if "[SWUP]" in entry:
                 if "LOC_CODE" in entry:
-                    log.debug("Entry %s has LOC_CODE".format(bdfn))
+                    log.debug("Entry {} has LOC_CODE".format(bdfn))
                     continue
                 if "SLOT" in entry:
-                    log.debug("Entry %s has SLOT".format(bdfn))
+                    log.debug("Entry {} has SLOT".format(bdfn))
                     continue
                 failed_swuplist.append(bdfn)
 
-            # If it is a pcie slot check for SLOT entry
+            # If pcie slot check for SLOT entry
             if "SLOT" in entry:
-                log.debug("Entry %s has the slot label" % bdfn)
+                log.debug("Entry {} has the slot label".format(bdfn))
             else:
                 failed_slotlist.append(bdfn)
 
-        log.debug(repr(failed_eplist))
-        log.debug(repr(failed_slotlist))
-        log.debug(repr(failed_swuplist))
+        log.debug("failed_eplist={}".format(failed_eplist))
+        log.debug("failed_slotlist={}".format(failed_slotlist))
+        log.debug("failed_swuplist={}".format(failed_swuplist))
         if (len(failed_slotlist) == 0) and (len(failed_eplist) == 0):
             return
         failed_eplist = '\n'.join(filter(None, failed_eplist))
         failed_slotlist = '\n'.join(filter(None, failed_slotlist))
         failed_swuplist = '\n'.join(filter(None, failed_swuplist))
-        message = "SLOT Label failures: %s\n LOC_CODE failures:%s\nSWUP failures:%s\n" % (failed_slotlist, failed_eplist, failed_swuplist)
+        message = "\nSLOT Label Failures:\n{}\n" \
+                  "LOC_CODE Failures:\n{}\n" \
+                  "SWUP Failures:\n{}\n" \
+                  .format((None if len(failed_slotlist) == 0 \
+                      else failed_slotlist),
+                  (None if len(failed_eplist) == 0 \
+                      else failed_eplist),
+                  (None if len(failed_swuplist) == 0 \
+                      else failed_swuplist))
         self.assertTrue(False, message)
 
 class PciSlotLocCodesDeviceTree():
     def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_SYSTEM = conf.system()
+        self.conf = OpTestConfiguration.conf
+        self.cv_HOST = self.conf.host()
+        self.cv_SYSTEM = self.conf.system()
 
     def runTest(self):
+        if self.conf.args.bmc_type in ['qemu', 'mambo']:
+            raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
         self.setup_test()
         node_dirs = self.c.run_command("find /proc/device-tree/ -type d | grep -i pciex | grep -i pci@")
-        log.debug(node_dirs)
+        log.debug("node_dirs={}".format(node_dirs))
         slot_list = []
         device_list = []
         for directory in node_dirs:
@@ -196,17 +204,17 @@ class PciSlotLocCodesDeviceTree():
                     log.debug("entry {} is a switch".format(directory))
                     device_list.append(directory)
                 else:
-                    log.debug("entry %s is a slot" % directory)
+                    log.debug("entry {} is a slot".format(directory))
                     slot_list.append(directory)
             else:
-                log.debug("entry %s is a device" % directory)
+                log.debug("entry {} is a device".format(directory))
                 device_list.append(directory)
 
         failed_slot_list = []
         empty_slot_label_list = []
         for slot in slot_list:
             try:
-                res = self.c.run_command("cat %s/ibm,slot-label" % slot)
+                res = self.c.run_command("cat {}/ibm,slot-label".format(slot))
                 present = True
             except CommandFailed as cf:
                 present = False
@@ -215,13 +223,13 @@ class PciSlotLocCodesDeviceTree():
             if present:
                 if res[0] == "":
                     empty_slot_label_list.append(slot)
-        log.warning(failed_slot_list)
+        log.warning("failed_slot_list={}".format(failed_slot_list))
 
         failed_loc_code_list = []
         empty_loc_code_list = []
         for device in device_list:
             try:
-                res = self.c.run_command("cat %s/ibm,loc-code" % device)
+                res = self.c.run_command("cat {}/ibm,loc-code".format(device))
                 present = True
             except CommandFailed as cf:
                 present = False
@@ -231,21 +239,26 @@ class PciSlotLocCodesDeviceTree():
                 if res[0] == "":
                     empty_loc_code_list.append(device)
 
-        log.warning(failed_loc_code_list)
+        log.warning("failed_loc_code_list={}".format(failed_loc_code_list))
 
         if len(empty_slot_label_list) != 0:
             empty_slot_label_list = '\n'.join(filter(None, empty_slot_label_list))
-            log.error("List of slot labels with empty string : %s" % empty_slot_label_list)
+            log.error("List of slot labels with empty string : {}".format(empty_slot_label_list))
 
         if len(empty_loc_code_list) != 0:
             empty_loc_code_list = '\n'.join(filter(None, empty_loc_code_list))
-            log.error("List of devices with empty location code : %s " % empty_loc_code_list)
+            log.error("List of devices with empty location code : {} ".format(empty_loc_code_list))
 
         if (len(failed_slot_list) == 0) and (len(failed_loc_code_list) == 0):
             return
         failed_slot_list = '\n'.join(filter(None, failed_slot_list))
         failed_loc_code_list = '\n'.join(filter(None, failed_loc_code_list))
-        message = "SLOT Label failures: %s\n LOC_CODE failures:%s\n" % (failed_slot_list, failed_loc_code_list)
+        message = "\nSLOT Label Failures:\n{}\n" \
+                  "LOC_CODE Failures:\n{}\n" \
+                  .format((None if len(failed_slot_list) == 0 \
+                      else failed_slot_list),
+                  (None if len(failed_loc_code_list) == 0 \
+                      else failed_loc_code_list))
         self.assertTrue(False, message)
 
 class Skiroot(PciSlotLocCodesOPAL, unittest.TestCase):
