@@ -56,10 +56,7 @@ class Console():
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.cv_BMC.get_host_console()
-        if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)):
-            adjustment = 4 # Mambo echos command extra time
-        else:
-            adjustment = 3
+        adjustment = 3 # mambo echo now disabled in initial setup
         bs = self.bs
         count = self.count
         self.assertTrue((bs * count) % 16 == 0,

@@ -880,6 +880,11 @@ class OpTestUtil():
         pty.sendline("which stty && stty cols 300;which stty && stty rows 30")
         time.sleep(0.2)
         rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        # mambo echos twice so turn off
+        if term_obj.system.disable_stty_echo():
+            pty.sendline("which stty && stty -echo")
+            time.sleep(0.2)
+            rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         pty.sendline("export LANG=C")
         rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         time.sleep(0.2)
