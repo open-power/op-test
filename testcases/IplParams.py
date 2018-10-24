@@ -33,6 +33,9 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import common.OpTestMambo as OpTestMambo
+import common.OpTestQemu as OpTestQemu
+
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -157,8 +160,14 @@ class Skiroot(IplParams, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
+        if (isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole)) \
+                or (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
+            raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
 
 class Host(IplParams, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_HOST.get_ssh_connection()
+        if (isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole)) \
+                or (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
+            raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
