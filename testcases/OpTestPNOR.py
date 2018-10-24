@@ -128,17 +128,32 @@ class OpTestPNOR():
         try:
             self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
         except CommandFailed as cf:
-            log.debug(repr(cf))
-            if not ('R' in payloadInfo['flags'] and cf.exitcode in [8]):
-                raise cf
+            log.debug("pflashWrite Flags={} cf={} cf.output={} cf.exitcode={}"
+                .format(payloadInfo.get('flags'), cf, cf.output, cf.exitcode))
+            if payloadInfo.get('flags'):
+                # we have an iterable, so check it
+                if not ('R' in payloadInfo.get('flags') and cf.exitcode in [8]):
+                    raise cf
+            else:
+                # we have no flags
+                if cf.exitcode in [8]:
+                    raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
         # Try using the pflash -P option as well
         try:
             self.pflashWritePartition("/tmp/payload", "PAYLOAD")
         except CommandFailed as cf:
-            if not ('R' in payloadInfo['flags'] and cf.exitcode in [8]):
-                raise cf
+            log.debug("pflashWritePartition Flags={} cf={} cf.output={} cf.exitcode={}"
+                .format(payloadInfo.get('flags'), cf, cf.output, cf.exitcode))
+            if payloadInfo.get('flags'):
+                # we have an iterable, so check it
+                if not ('R' in payloadInfo.get('flags') and cf.exitcode in [8]):
+                    raise cf
+            else:
+                # we have no flags
+                if cf.exitcode in [8]:
+                    raise cf
         # Check the same
         self.comparePartitionFile("/tmp/payload", "PAYLOAD")
 
