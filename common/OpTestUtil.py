@@ -183,7 +183,9 @@ class OpTestUtil():
                                   self.conf.lock_dict)
           environments = self.conf.lock_dict.get('envs')
           if self.conf.lock_dict.get('res_id') is None:
-            self.conf.util.aes_print_environments(environments)
+            if self.conf.aes_print_helpers is True:
+              self.conf.util.aes_print_environments(environments)
+            # MESSAGE 'unable to lock' must be kept in same line to be filtered
             raise AES(message="OpTestSystem AES unable to lock environment "
               "requested, try --aes q with options for --aes-search-args "
               "to view availability")
@@ -198,9 +200,11 @@ class OpTestUtil():
                                 self.conf.lock_dict)
         environments = self.conf.lock_dict.get('envs')
         if self.conf.lock_dict.get('res_id') is None:
-          self.conf.util.aes_print_environments(environments)
+          if self.conf.aes_print_helpers is True:
+            self.conf.util.aes_print_environments(environments)
+          # MESSAGE 'unable to lock' must be kept in same line to be filtered
           raise AES(message="OpTestSystem AES NO available environments matching "
-                        "criteria (see output earlier), "
+                        "criteria (see output earlier), unable to lock,"
                         "try running op-test with --aes q "
                         "--aes-search-args Environment_State=A "
                         "to query system availability, if trying to use "
@@ -230,10 +234,13 @@ class OpTestUtil():
               # actually released, no two phase commits here :0
               # other cases exist where we confirm no locks held, but
               # the info message may say released, due to exceptions thrown
-              log.info("OpTestSystem HostLocker released "
-                "host '{}' hostlocker-user '{}'"
+              insert_message = ", host is locked by '{}'".format(lockers)
+              if len(lockers) == 0:
+                insert_message = ""
+              log.info("OpTestSystem HostLocker cleanup for host '{}' "
+                "hostlocker-user '{}' confirms you do not hold the lock{}"
                 .format(self.conf.args.hostlocker,
-                self.conf.args.hostlocker_user))
+                self.conf.args.hostlocker_user, insert_message))
             else: # we only care if user held the lock
               log.warning("OpTestSystem HostLocker attempted to cleanup "
                 "and release the host '{}' and we were unable to verify, "
@@ -590,6 +597,10 @@ class OpTestUtil():
     def hostlocker_lock(self, args):
         args_dict = vars(args)
 
+        # we need hostlocker_user first thing in case exceptions
+        if self.conf.args.hostlocker_user is None:
+            self.conf.args.hostlocker_user = pwd.getpwuid(os.getuid()).pw_name
+
         if self.conf.util_server is None:
             self.setup()
 
@@ -607,9 +618,6 @@ class OpTestUtil():
             raise HostLocker(message="OpTestSystem did NOT find the host '{}' "
               "in HostLocker, please update and retry"
               .format(self.conf.args.hostlocker))
-
-        if self.conf.args.hostlocker_user is None:
-            self.conf.args.hostlocker_user = pwd.getpwuid(os.getuid()).pw_name
 
         host = r.json()[0]
         hostlocker_comment = []
@@ -633,8 +641,9 @@ class OpTestUtil():
 
         if r.status_code == requests.codes.locked: # 423
             rc, lockers = self.hostlocker_locked()
-            raise HostLocker(message="OpTestSystem HostLocker Host '{}' is locked "
-                "by '{}', please unlock and retry"
+            # MESSAGE 'unable to lock' string must be kept in same line to be filtered
+            raise HostLocker(message="OpTestSystem HostLocker unable to lock"
+                " Host '{}' is locked by '{}', please unlock and retry"
                 .format(self.conf.args.hostlocker, lockers))
         elif r.status_code == requests.codes.conflict: # 409
             raise HostLocker(message="OpTestSystem HostLocker Host '{}' is "
@@ -709,9 +718,10 @@ class OpTestUtil():
                 params=payload)
         except HTTPCheck as check:
             log.debug("HTTPCheck Exception={} check.message={}".format(check, check.message))
-            msg = ("OpTestSystem HostLocker unknown hostlocker-user '{}', "
-                   "you need to have logged in to HostLocker via the web"
-                   " at least once prior.".format(self.conf.args.hostlocker_user))
+            msg = ("OpTestSystem HostLocker unexpected case hostlocker-user '{}', "
+                   "you would need to have logged in to HostLocker via the web"
+                   " at least once prior, manually verify and release, see Exception={}"
+                   .format(self.conf.args.hostlocker_user, check))
             raise HostLocker(message=msg)
         except Exception as e:
             log.info("OpTestSystem HostLocker hostlocker_unlock tried to "
