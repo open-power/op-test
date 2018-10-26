@@ -15,8 +15,9 @@ from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
 from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 from common.OpTestUtil import OpTestUtil
-from common.Exceptions import HostLocker, AES, ParameterCheck
+from common.Exceptions import HostLocker, AES, ParameterCheck, OpExit
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+import atexit
 import argparse
 import time
 import traceback
@@ -78,6 +79,7 @@ default_val = {
     'aes_server'              : 'http://fwreport02.austin.ibm.com',
     'aes_base_url'            : '/pse_ct_dashboard/aes/rest',
     'aes_user'                : None,
+    'locker_wait'             : None,
     'aes_add_locktime'        : 0,
     'aes_rel_on_expire'       : True,
     'aes_keep_lock'           : False,
@@ -195,6 +197,7 @@ def get_parser():
     aesgroup.add_argument("--aes-base-url", help="Override Base URL for AES")
     aesgroup.add_argument("--aes-rel-on-expire", default=True, help="AES setting related to aes-add-locktime when making the initial reservation, defaults to True, does not affect already existing reservations")
     aesgroup.add_argument("--aes-keep-lock", default=False, help="Release the AES reservation once the test finishes, defaults to False to always release the reservation post test")
+    aesgroup.add_argument("--locker-wait", type=int, default=0, help="Time in minutes to try for the lock, default does not retry")
     aesgroup.add_argument("--aes-add-locktime", default=0, help="Time in hours (float value) of how long to reserve the environment, reservation defaults to never expire but will release the environment post test, if a reservation already exists for UID then extra time will be attempted to be added, this does NOT work on NEVER expiring reservations, be sure to add --aes-keep-lock or else the reservation will be given up after the test, use --aes L option to manage directly and --aes U option to manage directly without running a test")
     aesgroup.add_argument("--aes-proxy", help="socks5 proxy server setup, defaults to use localhost port 1080, you must have the SSH tunnel open during tests")
     aesgroup.add_argument("--aes-no-proxy-ips", help="Allows dynamic determination if you are on proxy network then no proxy will be used")
@@ -311,17 +314,28 @@ class OpTestConfiguration():
         self.remaining_args = []
         self.basedir = os.path.dirname(sys.argv[0])
         self.signal_ready = False # indicator for properly initialized
+        self.atexit_ready = False # indicator for properly initialized
+        self.aes_print_helpers = True # Need state for locker_wait
         self.lock_dict = { 'res_id'     : None,
                            'name'       : None,
                            'Group_Name' : None,
                            'envs'       : [],
                          }
+
         self.util_server = None # Hostlocker or AES
         self.util_bmc_server = None # OpenBMC REST Server
+        atexit.register(self.__del__) # allows cleanup handler to run (OpExit)
+
         for dir in (os.walk(os.path.join(self.basedir, 'addons')).next()[1]):
             optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
 
         return
+
+    def __del__(self):
+        if self.atexit_ready:
+            # calling cleanup before args initialized pointless
+            # attribute errors thrown in cleanup, e.g. ./op-test -h
+            self.util.cleanup()
 
     def parse_args(self, argv=None):
         conf_parser = argparse.ArgumentParser(add_help=False)
@@ -456,8 +470,49 @@ class OpTestConfiguration():
         # we have enough setup to allow
         # signal handler cleanup to run
         self.signal_ready = True
+        # atexit viable for cleanup to run
+        self.atexit_ready = True
         # setup AES and Hostlocker configs after the logging is setup
-        self.util.check_lockers()
+        locker_timeout = time.time() + 60*self.args.locker_wait
+        locker_code = errno.ETIME # 62
+        locker_message = ("OpTestSystem waited {} minutes but was unable"
+                      " to lock environment/host requested,"
+                      " either pick another environment/host or increase "
+                      "--locker-wait, try --aes q with options for "
+                      "--aes-search-args to view availability, or as"
+                      " appropriate for your hostlocker"
+                      .format(self.args.locker_wait))
+        locker_exit_exception = OpExit(message=locker_message,
+                                       code=locker_code)
+        while True:
+            try:
+                rollup_flag = False
+                self.util.check_lockers()
+                break
+            except Exception as e:
+                OpTestLogger.optest_logger_glob.optest_logger.debug(
+                    "locker_wait Exception={}".format(e))
+                if "unable to lock" in e.message:
+                    self.aes_print_helpers = False
+                    # SystemExit exception needs message to print
+                    rollup_message = locker_exit_exception.message
+                    rollup_exception = locker_exit_exception
+                else:
+                    rollup_message = e.message
+                    rollup_exception = e
+                    rollup_flag = True # bubble exception out
+                if time.time() > locker_timeout or rollup_flag:
+                    # if not "unable to lock" we bubble up underlying exception
+                    OpTestLogger.optest_logger_glob.optest_logger.warning(
+                        "{}".format(rollup_message))
+                    raise rollup_exception
+                else:
+                    OpTestLogger.optest_logger_glob.optest_logger.info(
+                        "OpTestSystem waiting for requested environment/host"
+                        " total time to wait is {} minutes, we will check"
+                        " every minute"
+                        .format(self.args.locker_wait))
+                    time.sleep(60)
 
         if self.args.machine_state == None:
             if self.args.bmc_type in ['qemu', 'mambo']:

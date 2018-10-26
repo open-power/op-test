@@ -392,6 +392,26 @@ class HTTPCheck(Exception):
                 ' Review the following for more details\n'
                 'Message=\"{}\"'.format(self.kwargs['message']))
 
+class OpExit(SystemExit):
+    '''
+    We are exiting and want to set an exit code.
+    SystemExit will bubble up and out.
+    Callers must use atexit to register cleanup
+    atexit.register(self.__del__)
+    def __del__(self):
+        self.util.cleanup()
+    '''
+    def __init__(self, **kwargs):
+        default_vals = {'message': None, 'code': 0}
+        self.kwargs = {}
+        for key in default_vals:
+          if key not in kwargs.keys():
+            self.kwargs[key] = default_vals[key]
+          else:
+            self.kwargs[key] = kwargs[key]
+
+        self.code = self.kwargs['code']
+        self.message =  self.kwargs['message']
 
 class AES(Exception):
     '''
