@@ -47,7 +47,6 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestIPMI import IPMIConsoleState
 from common.Exceptions import CommandFailed
@@ -73,7 +72,6 @@ class OpTestInbandIPMIBase(object):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.cv_BMC = conf.bmc()
-        self.util = OpTestUtil()
         if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)):
             raise unittest.SkipTest("Mambo so skipping InbandIPMI tests")
 

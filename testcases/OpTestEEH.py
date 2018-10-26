@@ -44,7 +44,6 @@ import os
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
@@ -97,7 +96,6 @@ class OpTestEEH(unittest.TestCase):
         cls.cv_HOST = conf.host()
         cls.cv_IPMI = conf.ipmi()
         cls.cv_SYSTEM = conf.system()
-        cls.util = OpTestUtil()
         # By default test will run on all PHBs/PE's, if one want to skip certain ones mention in this format.
         cls.skip_phbs = [] # ['PCI0001', 'PCI0002', 'PCI0003', 'PCI0004', 'PCI0005', 'PCI0030', 'PCI0031', 'PCI0032']
         cls.skip_pes = [] # ['0002:00:00.0']

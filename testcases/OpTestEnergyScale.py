@@ -43,7 +43,6 @@ import sys
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
@@ -54,7 +53,7 @@ class OpTestEnergyScale(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
+        self.util = conf.util
         self.cv_PLATFORM = conf.platform()
 
     def run_ipmi_cmd(self, i_cmd):

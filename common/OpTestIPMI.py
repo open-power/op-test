@@ -179,6 +179,7 @@ class IPMIConsole():
         self.state = IPMIConsoleState.DISCONNECTED
         self.delaybeforesend = delaybeforesend
         self.system = None
+        # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
@@ -329,6 +330,7 @@ class OpTestIPMI():
                                password=i_bmcPwd)
         self.console = IPMIConsole(ipmitool=self.ipmitool,
                                    delaybeforesend=delaybeforesend)
+        # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
         self.host = host
 

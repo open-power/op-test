@@ -46,7 +46,6 @@ import unittest
 
 import OpTestConfiguration
 from testcases.I2C import I2C
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded
 from common.Exceptions import KernelConfigNotSet
@@ -63,7 +62,6 @@ class AT24driver(I2C, unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
         self.test = "host"
 
     def at24_init(self):

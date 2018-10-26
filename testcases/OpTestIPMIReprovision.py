@@ -45,7 +45,6 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
 class OpTestIPMIReprovision(unittest.TestCase):
@@ -54,7 +53,6 @@ class OpTestIPMIReprovision(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
         self.platform = conf.platform()
 
 class NVRAM(OpTestIPMIReprovision):

@@ -30,7 +30,6 @@ a specific state.
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 
@@ -46,7 +45,6 @@ class BasicIPL(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.cv_BMC = conf.bmc()
-        self.util = OpTestUtil()
         self.pci_good_data_file = conf.lspci_file()
 
 

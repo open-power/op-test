@@ -57,18 +57,6 @@ class SSHSessionDisconnected(Exception):
             self.notice)
 
 
-class LoginFailure(Exception):
-    '''
-    SSH/IPMI Login failure - username/password may be wrong
-    '''
-    def __init__(self, notice):
-        self.notice = notice
-
-    def __str__(self):
-        return "Login failure due to '{}'".format(
-            self.notice)
-
-
 class BMCDisconnected(Exception):
     '''
     BMC Cosnole was disconnected unexpectedly. e.g. it may have crashed

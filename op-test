@@ -34,7 +34,6 @@ import re
 import signal
 import logging
 import OpTestLogger
-from common.OpTestUtil import OpTestUtil
 # op-test is the parent logger
 optestlog = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 import OpTestConfiguration

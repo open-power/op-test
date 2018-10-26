@@ -45,7 +45,6 @@ import os.path
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
@@ -69,7 +68,6 @@ class OpTestNVRAM(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
 
     def nvram_update_part_config(self, i_part, key='test-cfg', value='test-value'):
         part = i_part

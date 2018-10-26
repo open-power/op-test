@@ -55,7 +55,6 @@ class Base(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
         self.bmc_type = conf.args.bmc_type
-        self.util = self.cv_SYSTEM.util
 
 
 class DPOSkiroot(Base):

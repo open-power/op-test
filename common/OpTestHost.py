@@ -48,7 +48,6 @@ import commands
 import OpTestConfiguration
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from OpTestUtil import OpTestUtil
 from OpTestSSH import OpTestSSH
 import OpTestQemu
 from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
@@ -67,11 +66,12 @@ class OpTestHost():
     '''
     def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
                  scratch_disk="", proxy="", logfile=sys.stdout,
-                 check_ssh_keys=False, known_hosts_file=None):
+                 check_ssh_keys=False, known_hosts_file=None, conf=None):
+        self.conf = conf
+        self.util = conf.util
         self.ip = i_hostip
         self.user = i_hostuser
         self.passwd = i_hostpasswd
-        self.util = OpTestUtil()
         self.bmcip = i_bmcip
         self.results_dir = i_results_dir
         self.logfile = logfile
@@ -81,7 +81,6 @@ class OpTestHost():
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None
-        self.conf = OpTestConfiguration.conf
         self.check_ssh_keys = check_ssh_keys
         self.known_hosts_file = known_hosts_file
 

@@ -29,7 +29,6 @@ Only useful as a unittest of `op-test` itself.
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
 

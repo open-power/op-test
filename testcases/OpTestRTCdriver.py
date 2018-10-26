@@ -42,7 +42,6 @@ import re
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
@@ -58,7 +57,6 @@ class FullRTC(unittest.TestCase):
         cls.cv_HOST = conf.host()
         cls.cv_IPMI = conf.ipmi()
         cls.cv_SYSTEM = conf.system()
-        cls.util = OpTestUtil()
         cls.test = None
 
     def setUp(self):

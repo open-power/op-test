@@ -563,7 +563,8 @@ class OpTestConfiguration():
                           scratch_disk=self.args.host_scratch_disk,
                           proxy=self.args.proxy,
                           check_ssh_keys=self.args.check_ssh_keys,
-                          known_hosts_file=self.args.known_hosts_file)
+                          known_hosts_file=self.args.known_hosts_file,
+                          conf=self)
             if self.args.bmc_type in ['AMI', 'SMC']:
                 web = OpTestWeb(self.args.bmc_ip,
                             self.args.bmc_usernameipmi,
@@ -605,6 +606,7 @@ class OpTestConfiguration():
                     state=self.startState,
                     bmc=bmc,
                     host=host,
+                    conf=self,
                 )
                 ipmi.set_system(self.op_system)
                 bmc.set_system(self.op_system)
@@ -623,6 +625,7 @@ class OpTestConfiguration():
                     state=self.startState,
                     bmc=bmc,
                     host=host,
+                    conf=self,
                 )
                 ipmi.set_system(self.op_system)
             elif self.args.bmc_type in ['OpenBMC']:
@@ -631,35 +634,40 @@ class OpTestConfiguration():
                               self.args.bmc_passwordipmi,
                               host=host,
                               logfile=self.logfile)
-                rest_api = HostManagement(self,
-                                self.args.bmc_ip,
-                                self.args.bmc_username,
-                                self.args.bmc_password)
-                bmc = OpTestOpenBMC(self.args.bmc_ip,
-                                self.args.bmc_username,
-                                self.args.bmc_password,
+                rest_api = HostManagement(conf=self,
+                                ip=self.args.bmc_ip,
+                                username=self.args.bmc_username,
+                                password=self.args.bmc_password)
+                bmc = OpTestOpenBMC(ip=self.args.bmc_ip,
+                                username=self.args.bmc_username,
+                                password=self.args.bmc_password,
+                                ipmi=ipmi,
+                                rest_api=rest_api,
                                 logfile=self.logfile,
-                                ipmi=ipmi, rest_api=rest_api,
                                 check_ssh_keys=self.args.check_ssh_keys,
                                 known_hosts_file=self.args.known_hosts_file)
                 self.op_system = common.OpTestSystem.OpTestOpenBMCSystem(
                     host=host,
                     bmc=bmc,
                     state=self.startState,
+                    conf=self,
                 )
                 bmc.set_system(self.op_system)
             elif self.args.bmc_type in ['qemu']:
                 print(repr(self.args))
-                bmc = OpTestQemu(self.args.qemu_binary,
-                             self.args.host_pnor,
-                             self.args.flash_skiboot,
-                             self.args.flash_kernel,
-                             self.args.flash_initramfs,
+                bmc = OpTestQemu(qemu_binary=self.args.qemu_binary,
+                             pnor=self.args.host_pnor,
+                             skiboot=self.args.flash_skiboot,
+                             kernel=self.args.flash_kernel,
+                             initramfs=self.args.flash_initramfs,
                              cdrom=self.args.os_cdrom,
                              logfile=self.logfile,
                              hda=self.args.host_scratch_disk)
-                self.op_system = common.OpTestSystem.OpTestQemuSystem(host=host, bmc=bmc,
-                    state=self.startState)
+                self.op_system = common.OpTestSystem.OpTestQemuSystem(host=host,
+                    bmc=bmc,
+                    state=self.startState,
+                    conf=self,
+                )
                 bmc.set_system(self.op_system)
             elif self.args.bmc_type in ['mambo']:
                 if not (os.stat(self.args.mambo_binary).st_mode & stat.S_IXOTH):
@@ -679,15 +687,18 @@ class OpTestConfiguration():
                         " R/W permissions"
                         " flash-kernel={}"
                         .format(self.args.flash_kernel))
-                bmc = OpTestMambo(self.args.mambo_binary,
-                             self.args.mambo_initial_run_script,
-                             self.args.mambo_autorun,
-                             self.args.flash_skiboot,
-                             self.args.flash_kernel,
-                             self.args.flash_initramfs,
+                bmc = OpTestMambo(mambo_binary=self.args.mambo_binary,
+                             mambo_initial_run_script=self.args.mambo_initial_run_script,
+                             mambo_autorun=self.args.mambo_autorun,
+                             skiboot=self.args.flash_skiboot,
+                             kernel=self.args.flash_kernel,
+                             initramfs=self.args.flash_initramfs,
                              logfile=self.logfile)
-                self.op_system = common.OpTestSystem.OpTestMamboSystem(host=host, bmc=bmc,
-                    state=self.startState)
+                self.op_system = common.OpTestSystem.OpTestMamboSystem(host=host,
+                    bmc=bmc,
+                    state=self.startState,
+                    conf=self,
+                )
                 bmc.set_system(self.op_system)
 
             # Check that the bmc_type exists in our loaded addons then create our objects
