@@ -613,6 +613,28 @@ class OpenBMCPalmettoSkirootSuite():
     def suite(self):
         return self.s
 
+class OpTestPerCommitSuite():
+    '''Simple Suite to run for CI on per-commit basis'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestExample.skiroot_full_suite())
+        self.s.addTest(OpTestExample.host_full_suite())
+        self.s.addTest(SystemLogin.system_access_suite())
+
+    def suite(self):
+        return self.s
+
+class OpTestPullRequestSuite():
+    '''Simple Suite to run for CI on pull-request basis'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestExample.skiroot_full_suite())
+        self.s.addTest(OpTestExample.host_full_suite())
+        self.s.addTest(SystemLogin.system_access_suite())
+
+    def suite(self):
+        return self.s
+
 suites = {
     'system-access' : SystemAccessSuite(),
     'skiroot' : SkirootSuite(),
@@ -648,6 +670,8 @@ suites = {
     'hostboot' : OpTestHostbootSuite(),
     'example' : OpTestExampleSuite(),
     'palmetto-ci' : OpenBMCPalmettoSkirootSuite(),
+    'per-commit' : OpTestPerCommitSuite(),
+    'pull-request' : OpTestPullRequestSuite(),
 }
 
 try:
