@@ -532,7 +532,10 @@ class InstallHost():
                 conf.util.cleanup()
                 exit(-1)
         else:
-            optestlog.info("Missing parameters for InstallHost suite")
+            optestlog.info("Missing parameters for InstallHost suite, if this"
+                " is unexpected, check AES/Hostlocker for Attached Disk."
+                " This was triggered with host_scratch_disk={} target={}"
+                .format(conf.args.host_scratch_disk, target))
             conf.util.cleanup()
             exit(-1)
 
