@@ -562,6 +562,48 @@ class OpTestExampleSuite():
     def suite(self):
         return self.s
 
+class OpenBMCPalmettoSkirootSuite():
+    '''Tests that pass for an OpenBMC Palmetto, restricted to Petitboot environment'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(BasicIPL.GotoPetitbootShell())
+        # fails due to many DT warnings.
+        #self.s.addTest(DeviceTreeWarnings.Skiroot())
+        # fails
+        #self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(IplParams.Skiroot))
+        # fails CAPP verification
+        #self.s.addTest(SecureBoot.VerifyOPALSecureboot())
+        self.s.addTest(TrustedBoot.VerifyOPALTrustedBoot())
+        self.s.addTest(OpTestEM.skiroot_suite())
+        # No FRUs for Palmetto, other tests do work though.
+        #self.s.addTest(OpTestInbandIPMI.skiroot_full_suite())
+        #self.s.addTest(OpTestInbandUsbInterface.skiroot_full_suite())
+        self.s.addTest(OpTestRTCdriver.SkirootRTC())
+        # We're having some strange I2c issues, so disable these
+        #self.s.addTest(AT24driver.SkirootAT24())
+        #self.s.addTest(I2C.BasicSkirootI2C())
+        self.s.addTest(OpTestPCI.TestPCISkiroot())
+        self.s.addTest(PciSlotLocCodes.Skiroot())
+        self.s.addTest(PciSlotLocCodes.SkirootDT())
+        self.s.addTest(OpTestPCI.PcieLinkErrorsSkiroot())
+        self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
+        self.s.addTest(Petitbooti18n.Petitbooti18n())
+        self.s.addTest(OpTestFastReboot.OpTestFastReboot())
+        self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
+        self.s.addTest(OpTestNVRAM.SkirootNVRAM())
+        self.s.addTest(Console.suite())
+        # We seem to be hitting a failure :/
+        #self.s.addTest(OpTestPNOR.Skiroot())
+        self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
+        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
+        # duplicate sensors and partition verification fails
+        #self.s.addTest(OpalMsglog.Skiroot())
+        self.s.addTest(KernelLog.Skiroot())
+        self.s.addTest(DPO.DPOSkiroot())
+#        self.s.addTest(OpTestEnergyScale.runtime_suite())
+    def suite(self):
+        return self.s
+
 suites = {
     'system-access' : SystemAccessSuite(),
     'skiroot' : SkirootSuite(),
@@ -596,6 +638,7 @@ suites = {
     'full' : FullSuite(),
     'hostboot' : OpTestHostbootSuite(),
     'example' : OpTestExampleSuite(),
+    'palmetto-ci' : OpenBMCPalmettoSkirootSuite(),
 }
 
 try:
