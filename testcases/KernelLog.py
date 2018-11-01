@@ -73,7 +73,6 @@ class KernelLog():
 
         filter_out = ["Unable to open file.* /etc/keys/x509",
                       "OF: reserved mem: not enough space all defined regions.",
-                      "Could not find start_pfn for node 25.",
                       "nvidia: loading out-of-tree module taints kernel",
                       "nvidia: module license 'NVIDIA' taints kernel.",
                       "Disabling lock debugging due to kernel taint",
@@ -89,8 +88,9 @@ class KernelLog():
                       "mpt3sas.*invalid short VPD tag 00 at offset 1",
                       "synth uevent.*failed to send uevent",
                       "vio: uevent: failed to send synthetic uevent",
-                      "pstore: decompression failed: -5",
+                      "pstore: decompression failed",
                       "NCQ Send/Recv Log not supported",
+                      "output lines suppressed due to ratelimiting",
                       # Nouveau not supporting our GPUs is expected, not OPAL bug.
                       "nouveau .* unknown chipset",
                       "nouveau: probe of .* failed with error -12",
