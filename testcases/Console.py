@@ -35,7 +35,6 @@ import time
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
-from common.OpTestUtil import OpTestUtil
 import common.OpTestMambo as OpTestMambo
 
 import logging
@@ -51,7 +50,7 @@ class Console():
         conf = OpTestConfiguration.conf
         self.cv_BMC = conf.bmc()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
+        self.util = conf.util
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -118,7 +117,7 @@ class ControlC(unittest.TestCase):
         conf = OpTestConfiguration.conf
         self.cv_BMC = conf.bmc()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
+        self.util = conf.util
         self.prompt = self.util.build_prompt()
 
     def cleanup(self):

@@ -65,6 +65,7 @@ class MamboConsole():
         self.logfile = logfile
         self.delaybeforesend = delaybeforesend
         self.system = None
+        # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"

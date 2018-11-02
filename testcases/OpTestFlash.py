@@ -50,7 +50,6 @@ import unittest
 import tarfile
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
@@ -70,7 +69,7 @@ class OpTestFlashBase(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.platform = conf.platform()
-        self.util = OpTestUtil()
+        self.util = conf.util
         self.OpIU = OpTestInstallUtil.InstallUtil()
         self.bmc_type = conf.args.bmc_type
         self.bmc_ip = conf.args.bmc_ip

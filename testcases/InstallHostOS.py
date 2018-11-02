@@ -30,7 +30,6 @@ import unittest
 import os
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common import OpTestInstallUtil
 
@@ -42,7 +41,6 @@ class InstallHostOS(unittest.TestCase):
         self.cv_IPMI = self.conf.ipmi()
         self.cv_SYSTEM = self.conf.system()
         self.cv_BMC = self.conf.bmc()
-        self.util = OpTestUtil()
         self.bmc_type = self.conf.args.bmc_type
         if not (self.conf.args.os_repo or self.conf.args.os_cdrom):
             self.fail("Provide installation media for installation, --os-repo is missing")

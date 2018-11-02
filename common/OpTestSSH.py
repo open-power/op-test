@@ -61,6 +61,7 @@ class OpTestSSH():
         self.known_hosts_file=known_hosts_file
         self.delaybeforesend = delaybeforesend
         self.system = None
+        # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"

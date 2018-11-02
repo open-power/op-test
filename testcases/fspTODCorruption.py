@@ -55,7 +55,6 @@ class fspTODCorruption():
         self.cv_SYSTEM = conf.system()
         self.cv_FSP = self.cv_SYSTEM.bmc
         self.cv_HOST = conf.host()
-        self.util = self.cv_SYSTEM.util
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 

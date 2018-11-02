@@ -87,13 +87,15 @@ class OpTestSystem(object):
     def __init__(self,
                  bmc=None, host=None,
                  prompt=None,
+                 conf=None,
                  state=OpSystemState.UNKNOWN):
+        self.conf = conf
+        self.util = conf.util
         self.bmc = self.cv_BMC = bmc
         self.cv_HOST = host
         self.cv_IPMI = bmc.get_ipmi()
         self.rest = self.bmc.get_rest_api()
         self.console = self.bmc.get_host_console()
-        self.util = OpTestUtil()
         self.prompt = prompt # build_prompt located in OpTestUtil
         # system console state tracking, reset on boot and state changes, set when valid
         self.PS1_set = -1
@@ -1188,10 +1190,12 @@ class OpTestFSPSystem(OpTestSystem):
     def __init__(self,
                  host=None,
                  bmc=None,
+                 conf=None,
                  state=OpSystemState.UNKNOWN):
         bmc.fsp_get_console()
         super(OpTestFSPSystem, self).__init__(host=host,
                                               bmc=bmc,
+                                              conf=conf,
                                               state=state)
 
     def sys_wait_for_standby_state(self, i_timeout=120):
@@ -1227,12 +1231,14 @@ class OpTestOpenBMCSystem(OpTestSystem):
     def __init__(self,
                  host=None,
                  bmc=None,
+                 conf=None,
                  state=OpSystemState.UNKNOWN):
         # Ensure we grab host console early, in order to not miss
         # any messages
         self.console = bmc.get_host_console()
         super(OpTestOpenBMCSystem, self).__init__(host=host,
                                                   bmc=bmc,
+                                                  conf=conf,
                                                   state=state)
     # REST Based management
     def sys_inventory(self):
@@ -1261,12 +1267,7 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.power_off()
 
     def sys_sdr_clear(self):
-        try:
-            # Try clearing all with DeleteAllAPI
-            self.rest.clear_sel()
-        except FailedCurlInvocation as f:
-            # Which may not be implemented, so we try by ID instead
-            self.rest.clear_sel_by_id()
+        self.rest.clear_sel()
 
     def sys_get_sel_list(self):
         self.rest.list_sel()
@@ -1321,6 +1322,7 @@ class OpTestQemuSystem(OpTestSystem):
     def __init__(self,
                  host=None,
                  bmc=None,
+                 conf=None,
                  state=OpSystemState.UNKNOWN):
         # Ensure we grab host console early, in order to not miss
         # any messages
@@ -1329,6 +1331,7 @@ class OpTestQemuSystem(OpTestSystem):
             host.scratch_disk = "/dev/sda"
         super(OpTestQemuSystem, self).__init__(host=host,
                                                bmc=bmc,
+                                               conf=conf,
                                                state=state)
 
     def sys_wait_for_standby_state(self, i_timeout=120):
@@ -1361,12 +1364,14 @@ class OpTestMamboSystem(OpTestSystem):
     def __init__(self,
                  host=None,
                  bmc=None,
+                 conf=None,
                  state=OpSystemState.UNKNOWN):
         # Ensure we grab host console early, in order to not miss
         # any messages
         self.console = bmc.get_host_console()
         super(OpTestMamboSystem, self).__init__(host=host,
                                                bmc=bmc,
+                                               conf=conf,
                                                state=state)
 
     def sys_wait_for_standby_state(self, i_timeout=120):

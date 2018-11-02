@@ -34,7 +34,6 @@ import pexpect
 import os
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common import OpTestInstallUtil
 
@@ -46,7 +45,6 @@ class MyIPfromHost(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.cv_BMC = conf.bmc()
-        self.util = OpTestUtil()
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -63,7 +61,6 @@ class InstallUbuntu(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.cv_BMC = conf.bmc()
-        self.util = OpTestUtil()
         self.bmc_type = conf.args.bmc_type
         if not (self.conf.args.os_repo or self.conf.args.os_cdrom):
             self.fail("Provide installation media for installation with --os-repo or --os-cdrom")

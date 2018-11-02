@@ -70,6 +70,7 @@ class OpTestBMC():
         self.known_hosts_file = known_hosts_file
         self.ssh = OpTestSSH(ip, username, password, logfile, prompt=None,
                 block_setup_term=0, check_ssh_keys=check_ssh_keys, known_hosts_file=known_hosts_file)
+        # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
 
     def set_system(self, system):

@@ -43,7 +43,6 @@ import os.path
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
@@ -58,7 +57,6 @@ class OpTestPNOR():
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
 
     def pflashErase(self, offset, length):
         self.c.run_command("pflash -e -f -a %d -s %d" % (offset,length))

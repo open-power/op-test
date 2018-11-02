@@ -45,7 +45,6 @@ import decimal
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestIPMI import IPMIConsoleState
@@ -62,7 +61,6 @@ class OpTestEM():
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.util = OpTestUtil()
         self.ppc64cpu_freq_re = re.compile(r"([a-z]+):\s+([\d.]+)")
         self.c = None # use this for tearDown
 

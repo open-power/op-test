@@ -48,7 +48,6 @@ import pexpect
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestSSH import ConsoleState as SSHConnectionState
 from common.OpTestIPMI import IPMIConsoleState
@@ -68,7 +67,7 @@ class OpTestHMIHandling(unittest.TestCase):
         cls.cv_FSP = conf.bmc()
         cls.cv_SYSTEM = conf.system()
         cls.bmc_type = conf.args.bmc_type
-        cls.util = OpTestUtil()
+        cls.util = conf.util
 
     def setUp(self):
         if self.cv_SYSTEM.get_state() == OpSystemState.UNKNOWN_BAD:
