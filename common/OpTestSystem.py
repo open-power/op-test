@@ -940,19 +940,6 @@ class OpTestSystem(object):
 
         return output
 
-    def sys_bmc_reboot(self):
-        '''
-        Reboot the BMC
-
-        This may use ``ipmitool mc reset cold`` or it may do an inline ``reboot``
-        '''
-        try:
-            rc = self.cv_BMC.reboot()
-        except OpTestError as e:
-            return BMC_CONST.FW_FAILED
-
-        return BMC_CONST.FW_SUCCESS
-
     ##
     # @brief Validates the partition and waits for partition to connect
     #        important to perform before all inband communications
