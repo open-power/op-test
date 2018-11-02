@@ -394,6 +394,14 @@ class OpTestUtil():
           raise AES(message="OpTestSystem AES UNABLE to find the environment '{}' "
             "in AES, please update and retry".format(self.conf.args.aes))
 
+        # SQL issues can cause various problems which come back as ok=200
+        filter_list = ["have an error"]
+        matching = [xs for xs in filter_list if xs in r.text]
+        if len(matching):
+          raise AES(message="OpTestSystem AES encountered an error,"
+            " check the syntax of your query and retry, Exception={}"
+            .format(r.text))
+
         # we need this here to set the aes_user for subsequent calls
         if self.conf.args.aes_user is None:
           self.conf.args.aes_user = pwd.getpwuid(os.getuid()).pw_name
@@ -534,6 +542,14 @@ class OpTestUtil():
           if r.status_code != requests.codes.ok:
             raise AES(message="Problem with AES trying to enqueue a reservation "
               "for environment '{}', please retry".format(env.get('env_id')))
+
+          # SQL issues can cause various problems which come back as ok=200
+          filter_list = ["have an error"]
+          matching = [xs for xs in filter_list if xs in r.text]
+          if len(matching):
+            raise AES(message="OpTestSystem AES encountered an error,"
+              " check the syntax of your query and retry, Exception={}"
+              .format(r.text))
 
           aes_response_json = r.json()
 
@@ -1558,10 +1574,14 @@ class Server(object):
                     time.sleep(5)
                     continue
             if r.status_code == requests.codes.ok:
+                log.debug("OpTestSystem HTTP r={} r.status_code={} r.text={}"
+                    .format(r, r.status_code, r.text))
                 return r
             else:
                 if kwargs['minutes'] is None:
                     # caller did not want any retry so give them what we have
+                    log.debug("OpTestSystem HTTP (no retry) r={} r.status_code={} r.text={}"
+                        .format(r, r.status_code, r.text))
                     return r
             time.sleep(5)
 
