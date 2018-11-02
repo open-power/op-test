@@ -177,6 +177,7 @@ class OutOfBandWarmReset(BasicIPL):
         self.cv_SYSTEM.sys_warm_reset()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         log.debug("IPL: OutOfBandWarmReset test completed")
 
 
@@ -217,6 +218,7 @@ def suite():
     suite.addTest(BMCReset())
     suite.addTest(BootToOS())
     suite.addTest(OutOfBandWarmReset())
+    suite.addTest(BMCResetThenRebootHost())
     suite.addTest(HardPowerCycle())
     suite.addTest(PowerOff())
     return suite
