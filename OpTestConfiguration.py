@@ -156,6 +156,8 @@ def get_parser():
                                        'Tests to run')
     tgroup.add_argument("--list-suites", action='store_true',
                         help="List available suites to run")
+    tgroup.add_argument("--list-tests", action='store_true',
+                        help="List each test that would have been run")
     tgroup.add_argument("--run-suite", action='append',
                         help="Run a test suite(s)")
     tgroup.add_argument("--run", action='append',
@@ -533,7 +535,7 @@ class OpTestConfiguration():
         return outsuffix
 
     def objs(self):
-        if self.args.list_suites:
+        if self.args.list_suites or self.args.list_tests:
             return
 
         # check to see if bmc_ip even pings to validate configuration parms

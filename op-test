@@ -665,6 +665,22 @@ try:
         if not OpTestConfiguration.conf.args.only_flash:
             t.addTest(suites['default'].suite())
 
+    if OpTestConfiguration.conf.args.list_tests:
+        print '{0:40}'.format('Test')
+        print '{0:40}'.format('----------')
+        def print_suite(s):
+            for test in s:
+                if isinstance(test, unittest.TestSuite):
+                    print_suite(test)
+                else:
+                    test_id = test.id()
+                    print '{0:40}'.format(test_id)
+
+        print_suite(t)
+        OpTestConfiguration.conf.util.cleanup()
+        exit(0)
+
+
     xml_msg = ""
 except Exception as e:
     traceback.print_exc()
