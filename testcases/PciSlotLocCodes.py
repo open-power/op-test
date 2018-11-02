@@ -21,83 +21,21 @@
 PCI Slot/Location Codes
 -----------------------
 
-Test PCI Slot location codes both in OPAL message log and in Device Tree.
+This test will use the device tree to determine if the pciex is
+a root/switch fabric with one or more switch devices.
 
-1. PciSlotLocCodesOPAL - This tests whether OPAL properly set both slot label and location codes.
-
-Good PCI slot table: ::
-
-  [   10.359828138,7] PCI Summary:
-  [   10.359835972,5] PHB#0000:00:00.0 [ROOT] 1014 04c1 R:00 C:060400 B:01..01 SLOT=UIO Slot1
-  [   10.363504748,5] PHB#0000:01:00.0 [EP  ] 15b3 1019 R:00 C:020700 (       network) LOC_CODE=UIO Slot1
-  [   10.368471297,5] PHB#0000:01:00.1 [EP  ] 15b3 1019 R:00 C:020700 (       network) LOC_CODE=UIO Slot1
-  [   10.372721504,5] PHB#0001:00:00.0 [ROOT] 1014 04c1 R:00 C:060400 B:01..09 SLOT=PLX
-  [   10.376981242,5] PHB#0001:01:00.0 [SWUP] 10b5 8725 R:ca C:060400 B:02..09 SLOT=PLX up
-  [   10.380540103,5] PHB#0001:02:01.0 [SWDN] 10b5 8725 R:ca C:060400 B:03..03 SLOT=UIO Slot2
-  [   10.384791723,5] PHB#0001:03:00.0 [EP  ] 1000 00c9 R:01 C:010700 (           sas) LOC_CODE=UIO Slot2
-  [   10.389761894,5] PHB#0001:02:08.0 [SWDN] 10b5 8725 R:ca C:060400 B:04..08 SLOT=PLX switch
-  [   10.394022995,5] PHB#0001:02:09.0 [SWDN] 10b5 8725 R:ca C:060400 B:09..09 SLOT=Onboard LAN
-  [   10.398281380,5] PHB#0001:09:00.0 [EP  ] 8086 1589 R:02 C:020000 (      ethernet) LOC_CODE=Onboard LAN
-  [   10.402542938,5] PHB#0001:09:00.1 [EP  ] 8086 1589 R:02 C:020000 (      ethernet) LOC_CODE=Onboard LAN
-  [   10.407510738,5] PHB#0001:09:00.2 [EP  ] 8086 1589 R:02 C:020000 (      ethernet) LOC_CODE=Onboard LAN
-  [   10.412478618,5] PHB#0001:09:00.3 [EP  ] 8086 1589 R:02 C:020000 (      ethernet) LOC_CODE=Onboard LAN
-  [   10.417445128,5] PHB#0001:01:00.1 [EP  ] 10b5 87d0 R:ca C:088000 (system-peripheral) LOC_CODE=PLX
-  [   10.421708888,5] PHB#0001:01:00.2 [EP  ] 10b5 87d0 R:ca C:088000 (system-peripheral) LOC_CODE=PLX
-  [   10.425970709,5] PHB#0001:01:00.3 [EP  ] 10b5 87d0 R:ca C:088000 (system-peripheral) LOC_CODE=PLX
-  [   10.430936444,5] PHB#0001:01:00.4 [EP  ] 10b5 87d0 R:ca C:088000 (system-peripheral) LOC_CODE=PLX
-
-a. For a PCI slot there should be a slot label
-   e.g. SLOT=UIO Slot1, SLOT=PLX switch, SLOT=Onboard LAN etc.
-b. For a PCI device there should be a location code to be set.
-   e.g LOC_CODE=UIO Slot1, LOC_CODE=Onboard LAN, LOC_CODE=PLX
-
-This test lists, list of failure slots which doesn't have slot label and also list of devices
-which doesn't have location code.
-
-Improper PCI slot table: ::
-
-  [   56.456989963,5] PHB#0000:00:00.0 [ROOT] 1014 04c1 R:00 C:060400 B:01..01 ^M
-  [   57.016141753,5] PHB#0000:01:00.0 [EP  ] 15b3 1019 R:00 C:020700 (       network) ^M
-  [   57.260082412,5] PHB#0000:01:00.1 [EP  ] 15b3 1019 R:00 C:020700 (       network) ^M
-  [   57.479170283,5] PHB#0001:00:00.0 [ROOT] 1014 04c1 R:00 C:060400 B:01..09 ^M
-  [   58.067505884,5] PHB#0001:01:00.0 [SWUP] 10b5 8725 R:ca C:060400 B:02..09 ^M
-  [   58.309033124,5] PHB#0001:02:01.0 [SWDN] 10b5 8725 R:ca C:060400 B:03..03 SLOT=S000103 ^M
-  [   59.016127095,5] PHB#0001:03:00.0 [EP  ] 1000 00c9 R:01 C:010700 (           sas) LOC_CODE=S000103^M
-  [   59.139096517,5] PHB#0001:02:08.0 [SWDN] 10b5 8725 R:ca C:060400 B:04..08 ^M
-
-2. PciSlotLocCodesDeviceTree
-
-   This test looks into the device tree under pciex DT node for list of slots and pci devices(End points)
-   And lists the failure of slots which doesn't have ibm,slot-label and also lists failure of
-  pci devices which doesn't have the ibm,loc-code property.
-
-Example failure output: ::
-
-  SLOT Label failures:/proc/device-tree/pciex@600c3c0500000/pci@0
-                      /proc/device-tree/pciex@600c3c0400000/pci@0
-                      /proc/device-tree/pciex@600c3c0400000/pci@0/pci@0
-                      /proc/device-tree/pciex@600c3c0300000/pci@0
-                      /proc/device-tree/pciex@600c3c0200000/pci@0
-                      /proc/device-tree/pciex@600c3c0100000/pci@0
- 
-  LOC_CODE failures:/proc/device-tree/pciex@600c3c0500000/pci@0/usb-xhci@0
-                    /proc/device-tree/pciex@600c3c0400000/pci@0/pci@0/vga@0
-                    /proc/device-tree/pciex@600c3c0300000/pci@0/sas@0
-                    /proc/device-tree/pciex@600c3c0200000/pci@0/sas@0
-                    /proc/device-tree/pciex@600c3c0100000/pci@0/system-peripheral@0,2
-                    /proc/device-tree/pciex@600c3c0100000/pci@0/system-peripheral@0,3
-                    /proc/device-tree/pciex@600c3c0100000/pci@0/system-peripheral@0,1
-                    /proc/device-tree/pciex@600c3c0100000/pci@0/system-peripheral@0,4
-                    /proc/device-tree/pciex@600c3c0000000/pci@0/network@0
-                    /proc/device-tree/pciex@600c3c0000000/pci@0/network@0,1
+Slot labels and loc codes are retrieved and if missing or empty
+the test will identify for investigation.  Not all test results
+reporting missing or empty slot labels or loc codes are problems,
+it is the system owner to make that determination.
 
 '''
 
 import unittest
 import re
+import os
 
 import OpTestConfiguration
-from collections import OrderedDict
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
@@ -105,178 +43,200 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class PciSlotLocCodesOPAL():
-    def setUp(self):
-        self.conf = OpTestConfiguration.conf
-        self.cv_HOST = self.conf.host()
-        self.cv_SYSTEM = self.conf.system()
-
-    def runTest(self):
-        if self.conf.args.bmc_type in ['qemu', 'mambo']:
+class PciDT(unittest.TestCase):
+    '''
+    PciDT Class
+    --run testcases.PciSlotLocCodes
+    '''
+    @classmethod
+    def setUpClass(cls):
+        cls.conf = OpTestConfiguration.conf
+        if cls.conf.args.bmc_type in ['qemu', 'mambo']:
             raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
-        self.setup_test()
-        self.log_entries = self.c.run_command_ignore_fail("cat /sys/firmware/opal/msglog |  grep 'PHB#' | grep -i  ' C:'")
-        failed_eplist = []
-        failed_slotlist = []
-        failed_swuplist = []
-        match_list = ["[EP  ]", "[LGCY]", "[PCID]", "[ETOX]" ]
-
-        for entry in self.log_entries:
-            if entry == '':
-                continue
-
-            matchObj = re.match(r"(.*) PHB#(.*) \[(.*)", entry)
-            if matchObj:
-                bdfn = matchObj.group(2)
+        cls.cv_SYSTEM = cls.conf.system()
+        try:
+            if cls.desired == OpSystemState.OS:
+                cls.c = cls.cv_SYSTEM.cv_HOST.get_ssh_connection()
+                cls.cv_SYSTEM.goto_state(OpSystemState.OS)
             else:
-                log.debug(entry)
-                bdfn = entry
+                cls.c = cls.cv_SYSTEM.console
+                cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        except Exception as e:
+            log.debug("Unable to find cls.desired, probably a test code problem")
+            cls.c = cls.cv_SYSTEM.console
+            cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
-            ep_present = False
-            # Check for end point PCI device, should have LOC_CODE label
-            for string in match_list:
-                if string in entry:
-                    ep_present = True
-                    if "LOC_CODE" in entry:
-                        log.debug("Location code found for entry {}".format(bdfn))
-                    else:
-                        failed_eplist.append(bdfn)
-                    break
-            else:
-                ep_present = False
+    def dump_lspci(self, lspci_dict):
+        for key, value in lspci_dict.iteritems():
+            log.debug("Dumping lspci value={} key={} ".format(value, key))
 
-            if ep_present:
-                continue
+    def build_lspci(self, lspci_dict={}):
+        bus_dirs = self.c.run_command("find /sys/bus/pci/devices -type l")
+        # first build a dict with device info
+        # of_base=0000:00:00.0
+        # pciex_spec=/pciex@600c3c0000000/pci@0
+        # of_key=/proc/device-tree/pciex@600c3c0000000/pci@0
+        for directory in sorted(bus_dirs):
+            try:
+                of_base = os.path.basename(directory)
+                of_node_path = directory + "/of_node"
+                cmd = "ls -l %s | awk '{print $11}'" % of_node_path
+                # goal is to pull off the pciex to build key for dict lookup
+                # ../../../firmware/devicetree/base/pciex@600c3c0000000/pci@0
+                # /proc/device-tree/pciex@600c3c0000000/pci@0
+                of_output = self.c.run_command(cmd)
+                pciex_spec = re.sub("^(.*base)", "", of_output[0])
+                of_key = "/proc/device-tree" + pciex_spec
+                lspci_dict[of_key] = of_base
+            except Exception as e:
+                log.debug("of_base skipping directory={} Exception={}"
+                    .format(directory, e))
+        return lspci_dict
 
-            if "[SWUP]" in entry:
-                if "LOC_CODE" in entry:
-                    log.debug("Entry {} has LOC_CODE".format(bdfn))
-                    continue
-                if "SLOT" in entry:
-                    log.debug("Entry {} has SLOT".format(bdfn))
-                    continue
-                failed_swuplist.append(bdfn)
+    def build_lspci_names(self, lspci_dict):
+        self.dump_lspci(lspci_dict) # just logging
+        lspci_names = self.c.run_command("lspci -nn")
+        lspci_names_dict = {}
+        # 0006:00:00.0 Bridge [0680]: IBM Device [1014:04ea] (rev 01)
+        for key, value in lspci_dict.iteritems():
+            for i in range(len(lspci_names)):
+                if value in lspci_names[i]:
+                    lspci_names_dict[key] = lspci_names[i]
+        return lspci_names_dict
 
-            # If pcie slot check for SLOT entry
-            if "SLOT" in entry:
-                log.debug("Entry {} has the slot label".format(bdfn))
-            else:
-                failed_slotlist.append(bdfn)
-
-        log.debug("failed_eplist={}".format(failed_eplist))
-        log.debug("failed_slotlist={}".format(failed_slotlist))
-        log.debug("failed_swuplist={}".format(failed_swuplist))
-        if (len(failed_slotlist) == 0) and (len(failed_eplist) == 0):
-            return
-        failed_eplist = '\n'.join(filter(None, failed_eplist))
-        failed_slotlist = '\n'.join(filter(None, failed_slotlist))
-        failed_swuplist = '\n'.join(filter(None, failed_swuplist))
-        message = "\nSLOT Label Failures:\n{}\n" \
-                  "LOC_CODE Failures:\n{}\n" \
-                  "SWUP Failures:\n{}\n" \
-                  .format((None if len(failed_slotlist) == 0 \
-                      else failed_slotlist),
-                  (None if len(failed_eplist) == 0 \
-                      else failed_eplist),
-                  (None if len(failed_swuplist) == 0 \
-                      else failed_swuplist))
-        self.assertTrue(False, message)
-
-class PciSlotLocCodesDeviceTree():
-    def setUp(self):
-        self.conf = OpTestConfiguration.conf
-        self.cv_HOST = self.conf.host()
-        self.cv_SYSTEM = self.conf.system()
-
-    def runTest(self):
-        if self.conf.args.bmc_type in ['qemu', 'mambo']:
-            raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
-        self.setup_test()
-        node_dirs = self.c.run_command("find /proc/device-tree/ -type d | grep -i pciex | grep -i pci@")
-        log.debug("node_dirs={}".format(node_dirs))
-        slot_list = []
-        device_list = []
-        for directory in node_dirs:
+    def build_slot_loc_tables(self):
+        '''
+        Builds a dictionary to track slots and loc codes and their
+        values.
+        '''
+        node_dirs = self.c.run_command("find /proc/device-tree/ -type d "
+                       "| grep -i pciex | grep -i pci@")
+        output_dict = {}
+        self.slot_failures = 0
+        self.loccode_failures = 0
+        for directory in sorted(node_dirs):
             matchObj = re.match(".*/pci@\d{1,}$", directory, re.M)
-            if matchObj:
+            tracking_dict = {}
+            try:
                 r = self.c.run_command("find {} -type d".format(directory))
-                if len(r) > 1:
-                    log.debug("entry {} is a switch".format(directory))
-                    device_list.append(directory)
-                else:
-                    log.debug("entry {} is a slot".format(directory))
-                    slot_list.append(directory)
+                # empty=1, missing=2
+                if len(r) == 1 and matchObj:
+                    tracking_dict['slot-label-status'] = 0
+                    tracking_dict['loc-code-status'] = 0
+                    try:
+                        res = self.c.run_command("cat {}/ibm,slot-label"
+                            .format(directory))
+                        if res[0] == "":
+                            tracking_dict['slot-label-status'] = 1
+                            value = ""
+                            self.slot_failures += 1
+                        else:
+                            value = res[0].rstrip('\x00')
+                        tracking_dict['slot-label'] = value
+                    except CommandFailed as cf:
+                        tracking_dict['slot-label-status'] = 2
+                        tracking_dict['slot-label'] = None
+                        self.slot_failures += 1
+                    try:
+                        res = self.c.run_command("cat {}/ibm,loc-code"
+                            .format(directory))
+                        if res[0] == "":
+                            tracking_dict['loc-code-status'] = 1
+                            value = ""
+                            self.loccode_failures += 1
+                        else:
+                            value = res[0].rstrip('\x00')
+                        tracking_dict['loc-code'] = value
+                    except CommandFailed as cf:
+                        tracking_dict['loc-code-status'] = 2
+                        tracking_dict['loc-code'] = None
+                        self.loccode_failures += 1
+                    output_dict[directory] = tracking_dict
+            except CommandFailed as cf:
+                log.debug("Unable to query for pciex info, Exception={}"
+                    .format(cf))
+        return output_dict
+
+    def doit(self):
+        '''
+        Performs the building of an lspci like lookup that will
+        be used to output helpful information when failures occur
+        as well as logging both good and not so good results
+        to the debug log for analysis.
+        '''
+        # build a dictionary of devices, helpfulness in display
+        lspci_dict = self.build_lspci()
+        # map the devices to names, helpfulness in display
+        lspci_mappings = self.build_lspci_names(lspci_dict)
+        # build the slot and loc code tables
+        output_dict = self.build_slot_loc_tables()
+        # package up failures to report
+        output_list = []
+        count = 1
+        for key in output_dict:
+            if output_dict[key].get('slot-label-status') != 0 \
+                or output_dict[key].get('loc-code-status') != 0:
+                    output_list.append("<----------------------"
+                        "Investigate #{}---------------------->"
+                        .format(count))
+                    count += 1
+                    output_list.append("PCI Path={}".format(key))
+                    output_list.append("{}".format(lspci_mappings[key]))
+                    output_list.append("ibm,slot-label={}"
+                        .format(output_dict[key].get('slot-label')))
+                    output_list.append("ibm,loc-code={}"
+                        .format(output_dict[key].get('loc-code')))
+                    log.debug("Investigate - PCI Root Path={}".format(key))
+                    log.debug("Investigate - {}"
+                        .format(lspci_mappings[key]))
+                    log.debug("Investigate - lspci={}"
+                        .format(lspci_dict.get(key)))
+                    log.debug("Investigate - ibm,slot-label={}"
+                        .format(output_dict[key].get('slot-label')))
+                    log.debug("Investigate - ibm,loc-code={}"
+                        .format(output_dict[key].get('loc-code')))
             else:
-                log.debug("entry {} is a device".format(directory))
-                device_list.append(directory)
+                # this path just for logging
+                log.debug("PCI Root Path={}".format(key))
+                log.debug("{}"
+                    .format(lspci_mappings[key]))
+                log.debug("lspci={}"
+                    .format(lspci_dict.get(key)))
+                log.debug("ibm,slot-label={}"
+                    .format(output_dict[key].get('slot-label')))
+                log.debug("ibm,loc-code={}"
+                    .format(output_dict[key].get('loc-code')))
 
-        failed_slot_list = []
-        empty_slot_label_list = []
-        for slot in slot_list:
-            try:
-                res = self.c.run_command("cat {}/ibm,slot-label".format(slot))
-                present = True
-            except CommandFailed as cf:
-                present = False
-                failed_slot_list.append(slot)
-            # Check for empty slot label
-            if present:
-                if res[0] == "":
-                    empty_slot_label_list.append(slot)
-        log.warning("failed_slot_list={}".format(failed_slot_list))
+        if self.slot_failures != 0 or self.loccode_failures != 0:
+            failed_list = '\n'.join(filter(None, output_list))
+            self.assertTrue(False, "PCI Root: Slot Label "
+                "or Loc Code Failures:\nBased on Platform "
+                "Slot Labels may not be present\n{}"
+                .format(failed_list))
 
-        failed_loc_code_list = []
-        empty_loc_code_list = []
-        for device in device_list:
-            try:
-                res = self.c.run_command("cat {}/ibm,loc-code".format(device))
-                present = True
-            except CommandFailed as cf:
-                present = False
-                failed_loc_code_list.append(device)
-            # Check for empty location code
-            if present:
-                if res[0] == "":
-                    empty_loc_code_list.append(device)
+class SkirootDT(PciDT):
+    '''
+    SkirootDT Class performs PCI DT checks in skiroot
+    --run testcases.PciSlotLocCodes.SkirootDT
+    '''
+    @classmethod
+    def setUpClass(cls):
+        cls.desired = OpSystemState.PETITBOOT_SHELL
+        super(SkirootDT, cls).setUpClass()
 
-        log.warning("failed_loc_code_list={}".format(failed_loc_code_list))
+    def runTest(self):
+        self.doit()
 
-        if len(empty_slot_label_list) != 0:
-            empty_slot_label_list = '\n'.join(filter(None, empty_slot_label_list))
-            log.error("List of slot labels with empty string : {}".format(empty_slot_label_list))
+class HostDT(PciDT):
+    '''
+    HostDT Class performs PCI DT checks in the Host OS
+    --run testcases.PciSlotLocCodes.HostDT
+    '''
+    @classmethod
+    def setUpClass(cls):
+        cls.desired = OpSystemState.OS
+        super(HostDT, cls).setUpClass()
 
-        if len(empty_loc_code_list) != 0:
-            empty_loc_code_list = '\n'.join(filter(None, empty_loc_code_list))
-            log.error("List of devices with empty location code : {} ".format(empty_loc_code_list))
+    def runTest(self):
+        self.doit()
 
-        if (len(failed_slot_list) == 0) and (len(failed_loc_code_list) == 0):
-            return
-        failed_slot_list = '\n'.join(filter(None, failed_slot_list))
-        failed_loc_code_list = '\n'.join(filter(None, failed_loc_code_list))
-        message = "\nSLOT Label Failures:\n{}\n" \
-                  "LOC_CODE Failures:\n{}\n" \
-                  .format((None if len(failed_slot_list) == 0 \
-                      else failed_slot_list),
-                  (None if len(failed_loc_code_list) == 0 \
-                      else failed_loc_code_list))
-        self.assertTrue(False, message)
-
-class Skiroot(PciSlotLocCodesOPAL, unittest.TestCase):
-    def setup_test(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.console
-
-class Host(PciSlotLocCodesOPAL, unittest.TestCase):
-    def setup_test(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-
-class SkirootDT(PciSlotLocCodesDeviceTree, unittest.TestCase):
-    def setup_test(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.console
-
-class HostDT(PciSlotLocCodesDeviceTree, unittest.TestCase):
-    def setup_test(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
