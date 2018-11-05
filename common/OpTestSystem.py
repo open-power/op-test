@@ -274,6 +274,11 @@ class OpTestSystem(object):
         for key in default_vals:
             if key not in kwargs.keys():
                 kwargs[key] = default_vals[key]
+        try:
+            sys_pty = self.console.get_console()
+            sys_pty.sendline('cat /run/initramfs/rdsosreport.txt')
+        except Exception as err:
+            log.warning("Could not get dracut failure messages:\n %s", err)
         self.state = OpSystemState.UNKNOWN_BAD
         self.stop = 1
         msg = ("We hit the dracut_callback value={}, "
