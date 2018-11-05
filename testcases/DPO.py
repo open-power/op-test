@@ -83,14 +83,15 @@ class DPOSkiroot(Base):
             "reboot: Power down",
             "Chassis Power Control: Soft",
             "Power down",
+            "OPAL: Shutdown request type 0x0",
             "Invalid command",
             "Unspecified error",
             "Could not open device at",
             pexpect.TIMEOUT,
             pexpect.EOF], timeout=120)
-        self.assertIn(rc, [0, 1, 2], "Failed to power down")
+        self.assertIn(rc, [0, 1, 2, 3], "Failed to power down")
         rc = self.cv_SYSTEM.sys_wait_for_standby_state()
         log.debug(rc)
-        rc = self.cv_SYSTEM.console.pty.expect_exact(".+")
+        self.cv_SYSTEM.console.pty.expect_exact(['.*',pexpect.TIMEOUT],timeout=3)
         # Force the system state to be detected again.
-        self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
+        self.cv_SYSTEM.set_state(OpSystemState.OFF)
