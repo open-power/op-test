@@ -127,6 +127,25 @@ class BMCReset(BasicIPL):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         log.debug("IPL: BMCReset test completed")
 
+class BMCResetThenRebootHost(BasicIPL):
+    """
+    Reboot the BMC with the host on and once the BMC is back, reboot
+    the host.
+    """
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        self.cv_BMC.reboot()
+        console = self.cv_SYSTEM.console
+        console.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
+        console.run_command_ignore_fail(
+            "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+        console.pty.sendline("reboot")
+        self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+        try:
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        except pexpect.EOF:
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
 class BootToOS(BasicIPL):
     '''
@@ -158,6 +177,7 @@ class OutOfBandWarmReset(BasicIPL):
         self.cv_SYSTEM.sys_warm_reset()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         log.debug("IPL: OutOfBandWarmReset test completed")
 
 
@@ -198,6 +218,7 @@ def suite():
     suite.addTest(BMCReset())
     suite.addTest(BootToOS())
     suite.addTest(OutOfBandWarmReset())
+    suite.addTest(BMCResetThenRebootHost())
     suite.addTest(HardPowerCycle())
     suite.addTest(PowerOff())
     return suite
