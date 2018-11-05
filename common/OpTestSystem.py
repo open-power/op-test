@@ -1139,6 +1139,7 @@ class OpTestSystem(object):
             raw_pty.expect([':', ' '])
             my_ip = raw_pty.before
             raw_pty.expect('\n')
+            raw_pty.expect('#')
             log.debug(repr(my_ip))
             return my_ip
         except Exception as e:  # Looks like older nc does not support -v, lets fallback
