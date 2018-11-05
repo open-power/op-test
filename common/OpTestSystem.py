@@ -123,6 +123,7 @@ class OpTestSystem(object):
           'x=exit'                                 : None,
           'login: '                                : self.login_callback,
           'mon> '                                  : self.xmon_callback,
+          'dracut:/#'                              : self.dracut_callback,
           'System shutting down with error status' : self.guard_callback,
           'Aborting!'                              : self.skiboot_callback,
         }
@@ -131,6 +132,7 @@ class OpTestSystem(object):
           'login: '                           : None,
           '/ #'                               : self.petitboot_callback,
           'mon> '                             : self.xmon_callback,
+          'dracut:/#'                         : self.dracut_callback,
         }
 
         # tunables for customizations, put them here all together
@@ -266,6 +268,18 @@ class OpTestSystem(object):
         xmon_exception = UnexpectedCase(state=self.state, message=my_msg)
         self.state = OpSystemState.UNKNOWN_BAD
         raise xmon_exception
+
+    def dracut_callback(self, **kwargs):
+        default_vals = {'my_r': None, 'value': None}
+        for key in default_vals:
+            if key not in kwargs.keys():
+                kwargs[key] = default_vals[key]
+        self.state = OpSystemState.UNKNOWN_BAD
+        self.stop = 1
+        msg = ("We hit the dracut_callback value={}, "
+               "manually restart the system\n".format(kwargs['value']))
+        dracut_exception = UnexpectedCase(state=self.state, message=msg)
+        raise dracut_exception
 
     def skiboot_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
