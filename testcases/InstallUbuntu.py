@@ -86,6 +86,8 @@ class InstallUbuntu(unittest.TestCase):
             raw_pty.sendcontrol('l')
 
     def runTest(self):
+        if self.conf.args.no_os_reinstall:
+            self.skipTest("--no-os-reinstall set, not trying to run install OS test")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         # Set the install paths
@@ -140,6 +142,9 @@ class InstallUbuntu(unittest.TestCase):
             kernel_args = kernel_args + 'netcfg/get_ipaddress=%s ' % self.cv_HOST.ip
             kernel_args = kernel_args + 'netcfg/get_netmask=%s ' % self.conf.args.host_submask
             kernel_args = kernel_args + 'netcfg/get_gateway=%s ' % self.conf.args.host_gateway
+
+        if not self.conf.args.proxy in [None, ""]:
+            kernel_args = kernel_args + 'mirror/http/proxy={} '.format(self.conf.args.proxy)
 
         self.c = self.cv_SYSTEM.console
         if "qemu" in self.bmc_type:
@@ -197,13 +202,18 @@ class InstallUbuntu(unittest.TestCase):
         raw_pty.expect('Installing the base system', timeout=300)
         r = None
         while r != 0:
+            # FIXME: looping forever isn't ideal
+            # But we do want to ensure forward progress
+            # and not just timeout on a slow network
             r = raw_pty.expect(['Finishing the installation',
-                             'Select and install software',
-                             'Preparing', 'Configuring',
-                             'Cleaning up'
-                             'Retrieving', 'Installing',
-                             'boot loader',
-                             'Running'], timeout=1000)
+                                'Select and install software',
+                                'Preparing', 'Configuring',
+                                'Cleaning up'
+                                'Retrieving', 'Installing',
+                                'boot loader',
+                                'Running',
+                                pexpect.TIMEOUT], timeout=1000)
+
         raw_pty.expect('Requesting system reboot', timeout=300)
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
