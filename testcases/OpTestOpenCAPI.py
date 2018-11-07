@@ -26,7 +26,7 @@
 
 '''
 OpTestOpenCAPI
-----------
+--------------
 
 OpenCAPI tests for OpenPower testing.
 

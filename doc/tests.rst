@@ -142,6 +142,9 @@ The Tests
 .. automodule:: testcases.OpTestOCC
    :members:
 
+.. automodule:: testcases.OpTestOpenCAPI
+   :members:
+
 .. automodule:: testcases.OpTestOOBIPMI
    :members:
 
