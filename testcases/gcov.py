@@ -26,6 +26,7 @@ use of this test case and code is to help construct code coverage reports
 for skiboot.
 '''
 
+import os
 import unittest
 
 import OpTestConfiguration
@@ -34,6 +35,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 from common import OpTestInstallUtil
 
+NR_GCOV_DUMPS = 0
 
 class gcov():
     '''
@@ -52,6 +54,7 @@ class gcov():
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
+        self.gcov_dir = conf.logdir
 
     def runTest(self):
         self.setup_test()
@@ -67,24 +70,27 @@ class gcov():
             self.fail("unable to get the ip from host")
         port = iutil.start_server(my_ip)
 
-        url = 'http://%s:%s/upload' % (my_ip, port)
+        url = 'http://{}:{}/upload'.format(my_ip, port)
         insanity = "(echo 'POST /upload/gcov HTTP/1.1'; \n"
-        insanity += "echo 'Host: %s:%d';\n" % (my_ip, port)
-        insanity += "echo 'Content-length: %s';\n" % (l[0])
-        insanity += "echo 'Origin: http://%s:%d'; \n" % (my_ip, port)
+        insanity += "echo 'Host: {}:{}';\n".format(my_ip, port)
+        insanity += "echo 'Content-length: {}';\n".format(l[0])
+        insanity += "echo 'Origin: http://{}:{}'; \n".format(my_ip, port)
         boundary = "OhGoodnessWhyDoIHaveToDoThis"
         insanity += "echo 'Content-Type: multipart/form-data; "
         insanity += "boundary={}';\n".format(boundary)
-        insanity += "echo; echo '--%s'; \n".format(boundary)
+        insanity += "echo; echo '--{}'; \n".format(boundary)
         insanity += "echo 'Content-Disposition: form-data; name=\"file\"; "
         insanity += "filename=\"gcov\"'; \n"
         insanity += "echo 'Content-Type: application/octet-stream'; echo; \n"
         insanity += "cat /sys/firmware/opal/exports/gcov; \n"
-        insanity += "echo; echo '--%s--';\n" % boundary
-        insanity += ") | nc %s %d" % (my_ip, port)
+        insanity += "echo; echo '--{}--';\n".format(boundary)
+        insanity += ") | nc {} {}".format(my_ip, port)
         self.c.run_command(insanity)
 
-        with open('gcov-saved', 'wb') as f:
+        global NR_GCOV_DUMPS
+        NR_GCOV_DUMPS = NR_GCOV_DUMPS + 1
+        filename = os.path.join(self.gcov_dir,'gcov-saved-{}'.format(NR_GCOV_DUMPS))
+        with open(filename, 'wb') as f:
             f.write(iutil.get_uploaded_file('gcov'))
 
 
