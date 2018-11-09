@@ -716,6 +716,7 @@ def run_tests(t, failfast):
 
 try:
     res = None
+    optestlog.debug("op-test argv={}".format(sys.argv))
 
     if not OpTestConfiguration.conf.args.noflash:
         if any(s in OpTestConfiguration.conf.args.bmc_type for s in ("QEMU", "qemu")):
