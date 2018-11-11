@@ -316,9 +316,16 @@ class HostManagement():
         PUT
         https://bmcip/xyz/openbmc_project/control/host0/boot/attr/bootmode
         "data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Setup"
+
+        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled
+        "data": 0
         '''
         uri = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
         payload = {"data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Setup"}
+        r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
+
+        uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled"
+        payload = {"data": 0}
         r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
 
     def set_bootdev_to_none(self, minutes=BMC_CONST.HTTP_RETRY):
@@ -327,9 +334,16 @@ class HostManagement():
         PUT
         https://bmcip/xyz/openbmc_project/control/host0/boot/attr/bootmode
         "data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Regular"
+
+        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled
+        "data": 0
         '''
         uri = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
         payload = {"data" : "xyz.openbmc_project.Control.Boot.Mode.Modes.Regular"}
+        r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
+
+        uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled"
+        payload = {"data": 0}
         r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
 
     def get_boot_progress(self, minutes=BMC_CONST.HTTP_RETRY):
