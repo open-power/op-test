@@ -34,7 +34,7 @@ import pexpect
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 import common.OpTestMambo as OpTestMambo
 import logging
 import OpTestLogger

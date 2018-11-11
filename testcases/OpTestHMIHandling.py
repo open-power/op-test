@@ -48,10 +48,11 @@ import pexpect
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.OpTestSSH import ConsoleState as SSHConnectionState
 from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
+import common.OpTestUtil as Util
 from common.Exceptions import CommandFailed, UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem
 
 import logging
@@ -62,13 +63,17 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 class OpTestHMIHandling(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        conf = OpTestConfiguration.conf
-        cls.cv_HOST = conf.host()
-        cls.cv_IPMI = conf.ipmi()
-        cls.cv_FSP = conf.bmc()
-        cls.cv_SYSTEM = conf.system()
-        cls.bmc_type = conf.args.bmc_type
-        cls.util = conf.util
+        cls.conf = OpTestConfiguration.conf
+        cls.cv_HOST = cls.conf.host()
+        cls.cv_FSP = cls.conf.bmc()
+        cls.cv_SYSTEM = cls.conf.system()
+        cls.bmc_type = cls.conf.args.bmc_type
+        cls.util = cls.conf.util
+        cls.opcheck = Util.OpCheck(cls=cls, helper=False)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.opcheck.check_up(stage="stop") # performs standard checks POST Class
 
     def setUp(self):
         if self.cv_SYSTEM.get_state() == OpSystemState.UNKNOWN_BAD:

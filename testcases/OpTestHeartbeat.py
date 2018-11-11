@@ -37,7 +37,7 @@ This class will test the functionality of ipmi heartbeat
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 
 
 class HeartbeatSkiroot(unittest.TestCase):

@@ -34,7 +34,7 @@ import time
 from .Exceptions import CommandFailed, UnexpectedCase
 import OpTestConfiguration
 
-from common.OpTestSystem import OpSystemState
+from .OpTestConstants import OpConstants as OpSystemState
 
 import logging
 import OpTestLogger

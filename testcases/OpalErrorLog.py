@@ -43,7 +43,7 @@ from common.OpTestError import OpTestError
 
 import unittest
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.Exceptions import CommandFailed
 
 import logging

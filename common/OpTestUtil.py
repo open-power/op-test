@@ -48,10 +48,13 @@ from http.client import HTTPConnection
 # HTTPConnection.debuglevel = 1 # this will print some additional info to stdout
 import urllib3  # setUpChildLogger enables integrated logging with op-test
 import json
+import difflib
+import errno
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestConstants import OpConstants as OpSystemState
 from .OpTestError import OpTestError
-from .Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
+from .Exceptions import CommandFailed, RecoverFailed, ConsoleSettings, OpExit
 from .Exceptions import HostLocker, AES, ParameterCheck, HTTPCheck, UnexpectedCase
 
 import logging
@@ -61,6 +64,541 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 sudo_responses = ["not in the sudoers",
                   "incorrect password"]
 
+def build_esel(id_list=None, dict_list=None):
+    '''
+    Purpose is to build the OpenBMC esel list used by OpTestSystem
+    and OpTestOpenBMC.
+    '''
+    if id_list is None or dict_list is None:
+        raise ParameterCheck(message="Check your call to build_esel,"
+                 " id_list and dict_list need valid values")
+    esel_list = []
+    esel = True # do we have esels
+    esel_list.append("\n----------------------------------------------------------------------")
+    esel_list.append("SELs")
+    esel_list.append("----------------------------------------------------------------------")
+    if len(id_list) == 0:
+        esel = False # set to no esels
+        esel_list.append("SEL has no entries")
+    for k in dict_list:
+        esel_list.append("Id          : {}".format(k.get('Id')))
+        esel_list.append("Message     : {}".format(k.get('Message')))
+        esel_list.append("Description : {}".format(k.get('Description')))
+        esel_list.append("Timestamp   : {}".format(k.get('Timestamp')))
+        esel_list.append("Severity    : {}".format(k.get('Severity')))
+        esel_list.append("Resolved    : {}".format(k.get('Resolved')))
+        if k.get('EventID') is not None:
+            esel_list.append("EventID     : {}".format(k.get('EventID')))
+        if k.get('Procedure') is not None:
+            esel_list.append("Procedure   : {}".format(k.get('Procedure')))
+        if k.get('esel') is not None:
+            esel_list.append("ESEL        : characters={}\n".format(len(k.get('esel'))))
+            esel_list.append("Ruler        : 0123456789012345678901234567890123456789012345678901234567890123")
+            esel_list.append("-------------------------------------------------------------------------------")
+            for j in range(0, len(k.get('esel')), 64):
+                esel_list.append("{:06d}-{:06d}: {}".format(j, j+63, k.get('esel')[j:j+64]))
+        else:
+            esel_list.append("ESEL        : None")
+        esel_list.append("\n")
+    esel_list.append("----------------------------------------------------------------------")
+    return esel, esel_list
+
+def search_debug_logfiles(conf=None,
+                          token=None,
+                          outfile=None,
+                          dump=False,
+                          strip_debug=False):
+    '''
+    Purpose of this function is to search for a token in the debug log files
+    to provide markers/timestamps and any items found during check_up
+
+    If desired the found token list can be dumped to a file.
+
+    This function can also be used for custom purposes as desired,
+    i.e. instrument testcases with tokens and then query the logs
+    for traces, etc.
+
+    '''
+    if token is None or conf is None:
+        raise ParameterCheck(message="Check your call to search_debug_logfiles"
+                 ", token and conf need valid values")
+    opcheck_list = []
+    marker_time = (time.asctime(time.localtime())).replace(" ", "_")
+    # snapshot of debug log being processed
+    tmpfile = "{}/optest_tmpfile".format(conf.logdir)
+    if outfile is None:
+        outfile = "{}/opcheck_list.{}".format(conf.logdir, marker_time)
+    for opfile in os.listdir(OpTestLogger.optest_logger_glob.logdir):
+        match_glob = '{oplog_glob}.*' \
+            .format(oplog_glob = OpTestLogger.optest_logger_glob.logger_debug_file)
+        if re.match(match_glob, opfile):
+            os.system("cp {} {}"
+                .format(os.path.join(OpTestLogger.optest_logger_glob.logdir, opfile),
+                tmpfile))
+            with open(tmpfile, 'r') as f:
+                for line in f:
+                    if token in line:
+                        if strip_debug:
+                            newline = re.sub("^(.*DEBUG:)", "", line)
+                            opcheck_list.append(newline)
+                        else:
+                            opcheck_list.append(line)
+    if dump:
+        if len(opcheck_list) == 0:
+            opcheck_list.append("OpCheck has not identified any issues to investigate")
+        else:
+            opcheck_list.insert(0, "OpCheck has logged here a snapshot of "
+                "dmesg and msglog at the start of the test and then at "
+                "the end of the test.\nUse this log for understanding if"
+                " the output was as expected.\nUse in combination"
+                " with the debug logs to help determine where a problem"
+                " or artifact was introduced for more analysis.\n\n"
+                "OpCheck dmesg output is in raw form in this log, dmesg"
+                " filtering is done which may have resulted in NO "
+                "issues to flag.\n\n")
+        with open(outfile, 'a') as f:
+            for line in opcheck_list:
+                f.write("{}".format(line))
+
+    os.system("rm {}".format(tmpfile))
+    return opcheck_list
+
+def print_dump(conf=None, list_obj=None):
+    '''
+    Purpose is to allow caller to write to stdout
+    or the op-test logfile
+    '''
+    if conf is None:
+        file_obj = sys.stdout
+    else:
+        file_obj = conf.logfile
+    for line in list_obj:
+        file_obj.write("{}\n".format(line))
+    file_obj.flush()
+
+def dump_list(list_obj=None, outfile=None):
+    '''
+    Purpose of this function is to dump a list object to the
+    file system to be used by other methods, etc.
+    '''
+    if list_obj is None or outfile is None:
+        raise ParameterCheck(message="Check your call to dump_list, list_obj"
+                                     " and outfile need valid values")
+    with open(outfile, 'w') as f:
+        for line in list_obj:
+            f.write("{}\n".format(line))
+
+def filter_dmesg(log_entries=None, conf=None, dump=False, outfile=None):
+    '''
+    Purpose of this function is to compose a list of commonly seen
+    messages which are not necessarily an issue when looking for
+    firmware issues.
+
+    This function is also used in testcases/KernelLog.py
+    '''
+    if log_entries is None or conf is None:
+        raise ParameterCheck(message="Check your call to filter_dmesg,"
+                                     " need to provide a conf object")
+    filter_out = ["Unable to open file.* /etc/keys/x509",
+                  "OF: reserved mem: not enough space all defined regions.",
+                  "nvidia: loading out-of-tree module taints kernel",
+                  "nvidia: module license 'NVIDIA' taints kernel.",
+                  "Disabling lock debugging due to kernel taint",
+                  "NVRM: loading NVIDIA UNIX ppc64le Kernel Module",
+                  "This architecture does not have kernel memory protection.",
+                  "aacraid.* Comm Interface type3 enabled",
+                  "mpt3sas_cm.* MSI-X vectors supported",
+                  "i40e.*PCI-Express bandwidth available for this device may be insu",
+                  "i40e.*Please move the device to a different PCI-e link with more",
+                  "systemd.*Dependency failed for pNFS block layout mapping daemon.",
+                  "NFSD.* Using .* as the NFSv4 state recovery directory",
+                  "ipmi_si.* Unable to find any System Interface",
+                  "mpt3sas.*invalid short VPD tag 00 at offset 1",
+                  "synth uevent.*failed to send uevent",
+                  "vio: uevent: failed to send synthetic uevent",
+                  "pstore: decompression failed: -5",
+                  "NCQ Send/Recv Log not supported",
+                  "output lines suppressed due to ratelimiting",
+                  # Nouveau not supporting our GPUs is expected, not OPAL bug.
+                  "nouveau .* unknown chipset",
+                  "nouveau: probe of .* failed with error -12",
+                  # The below xive message should go away when
+                  # https://github.com/open-power/skiboot/issues/171 is resolved
+                  "xive: Interrupt.*type mismatch, Linux says Level, FW says Edge",
+                  # This is why we can't have nice things.
+                  "systemd-journald.*File.*corrupted or uncleanly shut down, renaming and replacing.",
+                  # Not having memory on all NUMA nodes isn't
+                  # *necessarily* fatal or a problem
+                  "Could not find start_pfn for node",
+                  # PNOR tests open a r/w window on a RO partition, currently fails like this
+                  "mtd.*opal_flash_async_op\(op=1\) failed \(rc -6\)",
+                  # New warning, but aparrently harmless
+                  "Cannot allocate SWIOTLB buffer",
+                  # Ignore a quirk that we hit on (at least some) Tuletas,
+                  "TI XIO2000a quirk detected; secondary bus fast back-to-back transfers disabled",
+                  # SCSI is Fun, and for some reason likes being
+                  # very severe about discovering disks,
+                  "sd .* \[sd.*\] Assuming drive cache: write through",
+                  # SCSI is fun. Progress as dots
+                  " \.$",
+                  # SCSI is fun, of course this is critically important event
+                  "s[dr] .* Power-on or device reset occurred",
+                  ".?ready$",
+                  # Mellanox!
+                  "mlx4_en.* Port \d+: Using \d+ [TR]X rings",
+                  "mlx4_en.* Port \d+: Initializing port",
+                  "mlx4_core.*Old device ETS support detected",
+                  "mlx4_core.*Consider upgrading device FW.",
+                  ]
+
+    if conf.args.bmc_type in ['qemu']:
+        # Qemu doesn't (yet) have pstate support, so ignore errors there.
+        filter_out.append('powernv-cpufreq: ibm,pstate-min node not found')
+        filter_out.append('nvram: Failed to find or create lnx,oops-log')
+        filter_out.append('nvram: Failed to initialize oops partition!')
+        # some weird disk setups
+        filter_out.append('vdb.*start.*is beyond EOD')
+        # urandom_read fun
+        filter_out.append('urandom_read: \d+ callbacks suppressed')
+
+    if conf.args.bmc_type in ['mambo']:
+        # We have a couple of things showing up in Mambo runs.
+        # We should probably fix this, but ignore for now.
+        #
+        # First, no pstates:
+        filter_out.append('powernv-cpufreq: ibm,pstate-min node not found')
+        # Strange IMC failure
+        filter_out.append('IMC PMU nest_mcs01_imc Register failed')
+        # urandom_read fun
+        filter_out.append('urandom_read: \d+ callbacks suppressed')
+
+    for f in filter_out:
+        fre = re.compile(f)
+        log_entries = [l for l in log_entries if not fre.search(l)]
+
+    if len(log_entries) == 0:
+        log.debug("***OpCheck*** filtered out all the dmesg entries, so"
+            " you can ignore the dmesg items here unless you determine"
+            " otherwise.")
+
+    for i in log_entries:
+        log.debug("OpCheck Filtered dmesg={}".format(i))
+
+    if dump:
+        if outfile is None:
+            raise ParameterCheck(message="filter_dmesg needs outfile if dumping")
+        dump_list(list_obj=log_entries, outfile=outfile)
+
+    if len(log_entries) != 0:
+        return True, log_entries # we still have issues, explicit return of mutated list
+    return False, log_entries # all good, so no issues, explicit return of mutated list
+
+def dump_me(**kwargs):
+    '''
+    Purpose of this function is to provide a common use case for running
+    a command, dumping the contents to the file system and giving back
+    a tracking object to be used as the caller desires, i.e. diff'ing
+
+    Recommendation is to use at the Instance level to pull attributes.
+    '''
+    default_vals = {'self': None,
+                    'term_obj': None,
+                    'conf': None,
+                    'dict_stage': None,
+                    'stage': None,
+                    'fn_label': None,
+                    'command': None,
+                   }
+    for key in default_vals:
+        if key not in kwargs.keys():
+            kwargs[key] = default_vals[key]
+    for key in kwargs.keys():
+        if kwargs[key] is None:
+            raise ParameterCheck(message="Check your call to dump_me,"
+                            " make sure all are valid parameters")
+    # run a command, dump the list, diff later
+    try:
+        run_output = kwargs['term_obj'].run_command(kwargs['command'])
+        dump_list(list_obj=run_output, outfile="{}/{}.{}.{}.{}"
+            .format(kwargs['conf'].logdir,
+            kwargs['self'].__module__,
+            kwargs['self'].__class__.__name__,
+            kwargs['stage'],
+            kwargs['fn_label']))
+        kwargs['dict_stage'][kwargs['fn_label']] = ("{}/{}.{}.{}.{}"
+            .format(kwargs['conf'].logdir,
+            kwargs['self'].__module__,
+            kwargs['self'].__class__.__name__,
+            kwargs['stage'],
+            kwargs['fn_label']))
+        return kwargs['dict_stage'] # object updated, just making it explicit
+    except Exception as e:
+        raise CommandFailed(kwargs['command'],
+            "dump_me run_command Exception={}".format(e),
+            -1)
+
+def log_check(term_obj=None, conf=None, outfile=None):
+    '''
+    Purpose of this function is to check the dmesg and opal msglog
+    for any emergency/alert/critical/error/warnings.
+
+    Output will be dumped to outfile given by caller.
+    The output_dict returned will be used later for diff'ing.
+    '''
+    output_dict = {}
+    if conf is None or outfile is None:
+        raise ParameterCheck(message="Check your call to log_check,"
+                                     " need a conf object and/or outfile")
+
+    esel, esel_entries = conf.system().sys_sel_elist()
+    for i in esel_entries:
+        log.debug("OpCheck esel={}".format(i))
+
+    # writes to the op-test logfile and stdout
+    print_dump(conf=conf, list_obj=esel_entries)
+
+    dmesg_entries = []
+    opal_entries = []
+    if term_obj is not None:
+        res = term_obj.run_command("uname -a")
+        for i in res:
+            log.debug("OpCheck uname={}".format(i))
+        try:
+            dmesg_entries = term_obj.run_command("dmesg -r|grep '<[4321]>'")
+            for i in dmesg_entries:
+                log.debug("OpCheck dmesg={}".format(i))
+        except CommandFailed as cf:
+            # grep found nothing, but still success
+            if cf.exitcode == 1 and len(cf.output) == 0:
+                pass
+        try:
+            opal_entries = term_obj.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            for i in opal_entries:
+                log.debug("OpCheck msglog={}".format(i))
+        except CommandFailed as cf:
+            # grep found nothing, but still success
+            if cf.exitcode == 1 and len(cf.output) == 0:
+                pass
+
+    dmesg_outfile = "{}.dmesg".format(outfile)
+    dmesg_filtered_outfile = "{}.dmesg.filtered".format(outfile)
+    msglog_outfile = "{}.msglog".format(outfile)
+    esel_outfile = "{}.esel".format(outfile)
+    output_dict['dmesg'] = dmesg_outfile
+    output_dict['dmesg_filtered'] = dmesg_filtered_outfile
+    output_dict['msglog'] = msglog_outfile
+    output_dict['esel'] = esel_outfile
+    dump_list(opal_entries, msglog_outfile)
+    dump_list(dmesg_entries, dmesg_outfile)
+    dump_list(esel_entries, esel_outfile)
+    dmesg_status, updated_list = filter_dmesg(log_entries=dmesg_entries,
+                                              conf=conf,
+                                              dump=True,
+                                              outfile=dmesg_filtered_outfile)
+    if dmesg_status or len(opal_entries) or esel:
+        return True, output_dict
+    return False, output_dict
+
+def clean_house(term_obj=None):
+    '''
+    DO WE REALLY WANT TO TOUCH ANYTHING ?
+    Purpose of this function is to do any cleaning deemed necessary
+    pre and post test.
+    '''
+    if term_obj is None:
+        return None
+    marker_time = (time.asctime(time.localtime())).replace(" ", "_")
+    log.debug("OpCheck clean_house time={}".format(marker_time))
+#    res = term_obj.run_command("dmesg -C") -c for skiroot ?
+    return None
+
+def diff_files(diff_dict=None, logdir=None):
+    '''
+    Function will perform diffs of a corresponding set of dictionary file names.
+    check_up builds a dictionary of files to compare with stage names to
+    correspond to the callers desired comparision stages,
+    example below is using start/stop
+
+    temp_dict={
+    '1': {'dmesg_filtered': '<logdir>/*.start.dmesg.filtered',
+    'dmesg': '<logdir>/*.start.dmesg', 'msglog': '<logdir>/*.start.msglog'},
+    '2': {'dmesg_filtered': '<logdir>/*.stop.dmesg.filtered',
+    'dmesg': '<logdir>/*.stop.dmesg', 'msglog': '<logdir>/*.stop.msglog'}}
+
+    dict_one={'dmesg_filtered': '<logdir>/*.start.dmesg.filtered',
+    'dmesg': '<logdir>/*.start.dmesg', 'msglog': '<logdir>/*.start.msglog'}
+    dict_two={'dmesg_filtered': '<logdir>/*.stop.dmesg.filtered',
+    'dmesg': '<logdir>/*.stop.dmesg', 'msglog': '<logdir>/*.stop.msglog'}
+    '''
+    status = False
+    diff_msg = ("Check your call to diff_files, requires a 2 member"
+                " dictionary which contains a dictionary of files to diff")
+    if diff_dict is None:
+        raise ParameterCheck(message=diff_msg)
+    if len(diff_dict) != 2:
+        raise ParameterCheck(message=diff_msg)
+    temp_dict = {}
+    label_dict = {}
+    count = 1
+    for k,v in diff_dict.iteritems():
+        temp_dict[str(count)] = v
+        label_dict[str(count)] = k
+        count += 1
+
+    dict_one = temp_dict.get('1')
+    dict_two = temp_dict.get('2')
+
+    for k, v in dict_one.iteritems():
+        fn1 = v
+        fn2 = dict_two.get(k)
+        with open(fn1) as f1, open(fn2) as f2:
+            diffs = difflib.unified_diff(f1.readlines(),
+                        f2.readlines(),
+                        fromfile=label_dict['1'],
+                        tofile=label_dict['2'],
+                        lineterm="")
+            diffs_list = list(diffs) # make a list in case its one
+            marker_time = (time.asctime(time.localtime())).replace(" ", "_")
+            diff_fn = ("{}/diffs-{}-{}-{}"
+                          .format(logdir,
+                          os.path.basename(fn1),
+                          os.path.basename(fn2),
+                          marker_time))
+            if logdir is not None:
+                dump_list(diffs_list, diff_fn)
+#            for i in range(len(diffs_list)):
+            for i in diffs_list:
+                log.debug("diffs_list={}".format(i))
+            if len(diffs_list):
+                status = True
+    return status
+
+class OpCheck():
+    '''
+    OpCheck Class is a helper class which does a standard
+    setUpClass which can be used by most testcases that
+    follow a similar module structure, i.e. PciSlotLocCodes.py
+
+    Enabled within this class is a check_up method which can
+    perform PRE and POST test analysis.  The debug log should
+    be used to help determine if any artifacts remain POST
+    testcase run.  There is a conf attribute where this
+    capability can be turned off/on system wide.
+
+    Caution on scope of this object and variables/methods.
+    Usage in testcase tearDownClass can be volatile
+    Be careful what you use and the timing of when this object
+    gets cleaned up.
+
+    Purpose of this object is to be a helper for common reuse.
+
+    Use at the class level recommended.
+
+    Requirements: Caller must have a term_obj so that the
+    proper run_command can query a running system (the system
+    cannot be powered off at the time these checks are performed).
+
+    '''
+    def __init__(self, cls=None, helper=True, clean=False, run_override=False):
+        '''
+        OpCheck Class init does initial class standard setup
+
+        If the standard setup is not desired, set helper=False
+        '''
+        if cls is None:
+            raise ParameterCheck(message="OpCheck class requires cls"
+                                         " to be passed in")
+        if not hasattr(cls, 'conf'):
+            raise ParameterCheck(message="OpCheck class requires cls"
+                                         " conf to be passed in")
+        self.cls = cls
+        self.helper = helper
+        self.clean = clean
+        self.diff_dict = {}
+        self.log_check_status = False
+        # helper allows caller to leverage standard setup
+        if self.helper:
+            self.cls.cv_SYSTEM = self.cls.conf.system()
+            try:
+                if self.cls.desired == OpSystemState.OS:
+                    self.cls.c = self.cls.cv_SYSTEM.cv_HOST.get_ssh_connection()
+                    self.cls.cv_SYSTEM.goto_state(OpSystemState.OS)
+                else:
+                    self.cls.c = self.cls.cv_SYSTEM.console
+                    self.cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            except Exception as e:
+                log.debug("Unable to find cls.desired, probably a "
+                          "test code problem, or another Exception={}".format(e))
+                self.cls.c = self.cls.cv_SYSTEM.console
+                self.cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+            self.term_obj = self.cls.c
+        else:
+            self.term_obj = None
+        self.check_up(stage="start", run_override=run_override)
+
+    def check_up(self, stage=None, run_override=False):
+        '''
+        Purpose of this method is to drive the overall objective of the check_up.
+        1 - Provide a timestamp in the logs to help isolate if/when any artifacts
+        are introduced into the testing infrastructure by other tests.
+        2 - Provide a signature of the module/class/method that may be
+        contributing to any side effects needing further investigation.
+        3 - Provide instrumentation in the debug log that a standalone test
+        fixture can perform probes on the logs to surface any patterns as
+        separate and distinct test failures.
+        Future - run_override, provide a flag to make this run in special
+        circumstances yet to be identified
+
+        '''
+        if not self.cls.conf.args.check_up and run_override is False:
+            return
+
+        if stage is None:
+            raise ParameterCheck(message="OpCheck check_up needs a stage"
+                                      " identified to store proper data")
+        else:
+            self.stage_file = ("{}/opcheck.{}.{}.{}"
+                .format(self.cls.conf.logdir,
+                self.cls.__module__,
+                self.cls.__name__,
+                stage))
+            self.diff_dict[stage] = self.stage_file
+
+        marker_time = (time.asctime(time.localtime())).replace(" ", "_")
+        log.debug("OpCheck Module={} Name={} time={}"
+            .format(self.cls.__module__,
+            self.cls.__name__,
+            marker_time))
+        self.log_check_status, self.dict = log_check(self.term_obj,
+            conf=self.cls.conf,
+            outfile=self.stage_file)
+        if len(self.diff_dict) <= 2:
+            self.diff_dict[stage] = self.dict
+        else:
+            raise ParameterCheck(message="OpCheck check_up only supports"
+                                     " having 2 sets of files to diff")
+
+        if len(self.diff_dict) == 2:
+            status = diff_files(self.diff_dict, self.cls.conf.logdir)
+            if status:
+                self.cls.conf.check_up_issues = True # flag to set OpExit code
+            self.diff_dict = {} # clear for future use, we compared the two sets
+
+        if self.log_check_status: # running log_check earlier flagged things
+            # log warning and timestamps will leave trace of when/what happened
+            # in case more investigation is deemed necessary
+            log.warning("OpCheck found something ^^^above^^^ (stage={}) that"
+                " may need investigation Module={} Classname={}"
+                " check_up time={}, look at {}/opcheck_list* for more details"
+                " (log_check ran and flagged something)."
+                .format(stage,
+                self.cls.__module__,
+                self.cls.__name__,
+                marker_time,
+                self.cls.conf.logdir))
+
+        if self.clean:
+            clean_house(term_obj=self.term_obj)
 
 class OpTestUtil():
 
@@ -227,6 +765,12 @@ class OpTestUtil():
                                  self.conf.lock_dict.get('res_id')))
 
     def cleanup(self):
+        '''
+        Methods here need to be able to be run more than once
+        in case handler or other conditions cause multiple passes,
+        code here also needs to be aware that early termination may
+        cause expected state not to be fully instantiated.
+        '''
         if self.conf.args.hostlocker is not None:
             if self.conf.args.hostlocker_keep_lock is False:
                 try:
@@ -292,10 +836,31 @@ class OpTestUtil():
             log.debug("Closing util_bmc_server")
             self.conf.util_bmc_server.close()
 
+        if self.conf.args.check_up and self.conf.needs_checked: # if system wide flag says run
+            self.conf.needs_checked = False # only run this once
+            opcheck_list = search_debug_logfiles(conf=self.conf,
+                outfile=None,
+                token="OpCheck",
+                dump=True,
+                strip_debug=True)
+
         if self.conf.dump:
-            self.conf.dump = False  # possible for multiple passes here
+            self.conf.dump = False # possible for multiple passes here
             self.dump_versions()
             self.dump_nvram_opts()
+
+        # orderly shutdown, flushing and closing
+        logging.shutdown() # No more logging
+
+        if self.conf.args.check_up:
+            if self.conf.check_up_issues:
+                # this will set exit code and may override test failures
+                check_up_code = errno.EUCLEAN # 117
+                check_up_message = ("OpTestSystem found some issues that need"
+                    "investigation, check {}/opcheck_*".format(self.conf.logdir))
+                check_up_exception = OpExit(message=check_up_message,
+                                         code=check_up_code)
+                raise check_up_exception
 
         # leave closing the qemu scratch disk until last
         # no known reasons at this point, document in future
@@ -883,16 +1448,9 @@ class OpTestUtil():
             log.debug("hostlocker_unlock tried to delete a lock but it was "
                       "NOT there, see Exception={}".format(e))
 
-    ##
-    # @brief Pings 2 packages to system under test
-    #
-    # @param i_ip @type string: ip address of system under test
-    # @param i_try @type int: number of times the system is
-    #        pinged before returning Failed
-    #
-    # @return   BMC_CONST.PING_SUCCESS when PASSED or
-    #           raise OpTestError when FAILED
-    #
+    '''
+    PingFunc - pings 2 packets to system under test
+    '''
     def PingFunc(self, i_ip, i_try=1, totalSleepTime=BMC_CONST.HOST_BRINGUP_TIME):
         if i_ip == None:
             raise ParameterCheck(message="PingFunc has i_ip set to 'None', "

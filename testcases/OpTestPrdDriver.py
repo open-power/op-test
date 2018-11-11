@@ -57,7 +57,7 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestError import OpTestError
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.Exceptions import CommandFailed
 
 import logging
@@ -82,7 +82,6 @@ class OpTestPrdDriver(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
-        self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 

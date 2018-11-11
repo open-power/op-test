@@ -38,7 +38,7 @@ we put cores/threads into when we hot unplug them.
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 
 import logging
 import OpTestLogger

@@ -30,7 +30,7 @@ import unittest
 import os
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common import OpTestInstallUtil
 
 

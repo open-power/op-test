@@ -38,38 +38,23 @@ import errno
 import unittest
 
 from . import OpTestIPMI  # circular dependencies, use package
+from . import OpTestSSH  # circular dependencies, use package
 from . import OpTestQemu
 from . import OpTestMambo
 from .OpTestFSP import OpTestFSP
 from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestConstants import OpConstants as OpSystemState
 from .OpTestError import OpTestError
 from . import OpTestHost
 from .OpTestUtil import OpTestUtil
-from .OpTestSSH import ConsoleState as SSHConnectionState
+from .OpTestUtil import build_esel
+from .OpTestUtil import print_dump
 from .Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition
 from .Exceptions import ConsoleSettings, UnexpectedCase, StoppingSystem, HTTPCheck
-from .OpTestSSH import OpTestSSH
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
-
-
-class OpSystemState():
-    '''
-    This class is used as an enum as to what state op-test *thinks* the host is in.
-    These states are used to drive a state machine in OpTestSystem.
-    '''
-    UNKNOWN = 0
-    OFF = 1
-    IPLing = 2
-    PETITBOOT = 3
-    PETITBOOT_SHELL = 4
-    BOOTING = 5
-    OS = 6
-    POWERING_OFF = 7
-    UNKNOWN_BAD = 8  # special case, use set_state to place system in hold for later goto
-
 
 class OpTestSystem(object):
 
@@ -823,7 +808,7 @@ class OpTestSystem(object):
             l_msg = "System failed to reach standby/Soft-off state"
             raise OpTestError(l_msg)
         log.info(msg)
-        self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
+        self.cv_HOST.ssh.state = OpTestSSH.ConsoleState.DISCONNECTED
         self.util.clear_system_state(self)
         self.util.clear_state(self)
         return OpSystemState.OFF
@@ -1018,8 +1003,16 @@ class OpTestSystem(object):
         Get the sel elist to dump out
         '''
         output = self.cv_IPMI.ipmi_sel_elist(dump=dump)
+        check_list = ["SEL has no entries",
+                     ]
+        matching = [xs for xs in check_list if any(xs in xa for xa in output)]
+        if len(matching):
+            esel = False
+        else:
+            esel = True
 
-        return output
+        # esel tells the caller if there is actually entries
+        return esel, output
 
     ##
     # @brief Validates the partition and waits for partition to connect
@@ -1409,7 +1402,18 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.list_sel()
 
     def sys_sel_elist(self, dump=False):
-        self.rest.get_sel_ids(dump=dump)
+        # we do not set dump=True for get_sel_ids
+        # we want to control the dump from here
+        id_list, dict_list = self.rest.get_sel_ids()
+        esel, output = build_esel(id_list=id_list,
+                                  dict_list=dict_list,
+                                 )
+        # print_dump with conf parm will go to op-test logfile
+        # (which also goes to stdout)
+        if dump:
+            print_dump(list_obj=output, conf=self.conf)
+        # esel tells the caller if there is actually entries
+        return esel, output
 
     def sys_sel_check(self):
         self.rest.list_sel()

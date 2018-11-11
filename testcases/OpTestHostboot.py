@@ -32,7 +32,7 @@ import string
 
 import OpTestConfiguration
 import OpTestLogger
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

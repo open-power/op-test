@@ -50,7 +50,6 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
 from testcases.OpTestInbandIPMI import BasicInbandIPMI, OpTestInbandIPMI, ExperimentalInbandIPMI
 from testcases.OpTestInbandIPMI import SkirootBasicInbandIPMI, SkirootFullInbandIPMI
 

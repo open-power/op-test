@@ -39,7 +39,7 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestError import OpTestError
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.Exceptions import CommandFailed
 
 import logging
@@ -54,7 +54,6 @@ class EnergyScale_BaseLine(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
         self.cv_BMC = conf.bmc()
-        self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 

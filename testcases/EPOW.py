@@ -55,7 +55,7 @@ from common.OpTestError import OpTestError
 
 import unittest
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 
 import logging
 import OpTestLogger
@@ -69,7 +69,6 @@ class EPOWBase(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
         self.cv_FSP = conf.bmc()
-        self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.util = self.cv_SYSTEM.util
         self.cv_SYSTEM.goto_state(OpSystemState.OS)

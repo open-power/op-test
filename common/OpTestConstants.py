@@ -28,14 +28,26 @@
 OpTestConstants
 ---------------
 
-BMC package which contains all BMC related constants
+Package which contains OpTest related constants for OpenPower systems
 
-This class encapsulates commands and constants which deals with the BMC in
-OpenPower systems
 '''
 
 import pexpect
 
+class OpConstants():
+    '''
+    This class is used as an enum as to what state op-test *thinks* the host is in.
+    These states are used to drive a state machine in OpTestSystem.
+    '''
+    UNKNOWN = 0
+    OFF = 1
+    IPLing = 2
+    PETITBOOT = 3
+    PETITBOOT_SHELL = 4
+    BOOTING = 5
+    OS = 6
+    POWERING_OFF = 7
+    UNKNOWN_BAD = 8 # special case, use set_state to place system in hold for later goto
 
 class OpTestConstants():
 

@@ -31,7 +31,8 @@ import unittest
 import pexpect
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
+import common.OpTestUtil as Util
 from common.OpTestError import OpTestError
 
 import logging
@@ -40,13 +41,26 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
 class BasicIPL(unittest.TestCase):
+    '''
+    BasicIPL class which leverages the OpCheck class
+    to perform various checks pre and post class (if the
+    system wide check_up is being run).
+
+    '''
+    @classmethod
+    def setUpClass(cls):
+        cls.conf = OpTestConfiguration.conf
+        cls.opcheck = Util.OpCheck(cls=cls, helper=False)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.opcheck.check_up(stage="stop")
+
     def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_SYSTEM = conf.system()
-        self.cv_BMC = conf.bmc()
-        self.pci_good_data_file = conf.lspci_file()
+        self.cv_HOST = self.conf.host()
+        self.cv_SYSTEM = self.conf.system()
+        self.cv_BMC = self.conf.bmc()
+        self.pci_good_data_file = self.conf.lspci_file()
 
 
 class BootToPetitboot(BasicIPL):

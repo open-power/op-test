@@ -50,7 +50,7 @@ import unittest
 import tarfile
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
@@ -69,7 +69,6 @@ class OpTestFlashBase(unittest.TestCase):
         self.cv_REST = self.cv_BMC.get_rest_api()
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
-        self.platform = conf.platform()
         self.util = conf.util
         self.OpIU = OpTestInstallUtil.InstallUtil()
         self.bmc_type = conf.args.bmc_type

@@ -29,8 +29,6 @@ Only useful as a unittest of `op-test` itself.
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
-
 
 class HelloWorld(unittest.TestCase):
     def setUp(self):

@@ -40,7 +40,7 @@ from common.OpTestError import OpTestError
 
 import unittest
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.OpTestSSH import ConsoleState as SSHConnectionState
 
 import logging

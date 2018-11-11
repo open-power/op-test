@@ -29,29 +29,39 @@ rather than a firmware issue).
 '''
 
 import unittest
-import re
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.OpTestConstants import OpConstants as OpSystemState
+from common.OpTestUtil import filter_dmesg
+import common.OpTestUtil as Util
 from common.Exceptions import CommandFailed
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+class KernelLog(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.conf = OpTestConfiguration.conf
+        cls.opcheck = Util.OpCheck(cls=cls) # OpCheck helper for standard setup
 
-class KernelLog():
-    def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_HOST = conf.host()
-        self.cv_IPMI = conf.ipmi()
-        self.cv_SYSTEM = conf.system()
-        self.bmc_type = conf.args.bmc_type
+    @classmethod
+    def tearDownClass(cls):
+        cls.opcheck.check_up(stage="stop") # performs standard checks POST Class
 
-    def runTest(self):
-        self.setup_test()
+class HostKlog(KernelLog, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.desired = OpSystemState.OS
+        super(HostKlog, cls).setUpClass()
 
+    def test_klog_check(self):
+        '''
+        Shared klog_check for Host and Skiroot
+        -- run testcases.KernelLog.HostKlog.test_klog_check
+        -- run testcases.KernelLog.SkirootKlog.test_klog_check
+        '''
         log_entries = []
         # Depending on where we're running, we may need to do all sorts of
         # things to get a sane dmesg output. Urgh.
@@ -72,94 +82,25 @@ class KernelLog():
                     if cf.exitcode == 1 and len(cf.output) == 0:
                         pass
 
-        filter_out = ["Unable to open file.* /etc/keys/x509",
-                      "OF: reserved mem: not enough space all defined regions.",
-                      "nvidia: loading out-of-tree module taints kernel",
-                      "nvidia: module license 'NVIDIA' taints kernel.",
-                      "Disabling lock debugging due to kernel taint",
-                      "NVRM: loading NVIDIA UNIX ppc64le Kernel Module",
-                      "This architecture does not have kernel memory protection.",
-                      "aacraid.* Comm Interface type3 enabled",
-                      "mpt3sas_cm.* MSI-X vectors supported",
-                      "i40e.*PCI-Express bandwidth available for this device may be insu",
-                      "i40e.*Please move the device to a different PCI-e link with more",
-                      "systemd.*Dependency failed for pNFS block layout mapping daemon.",
-                      "NFSD.* Using .* as the NFSv4 state recovery directory",
-                      "ipmi_si.* Unable to find any System Interface",
-                      "mpt3sas.*invalid short VPD tag 00 at offset 1",
-                      "synth uevent.*failed to send uevent",
-                      "vio: uevent: failed to send synthetic uevent",
-                      "pstore: decompression failed",
-                      "NCQ Send/Recv Log not supported",
-                      "output lines suppressed due to ratelimiting",
-                      # Nouveau not supporting our GPUs is expected, not OPAL bug.
-                      "nouveau .* unknown chipset",
-                      "nouveau: probe of .* failed with error -12",
-                      # The below xive message should go away when https://github.com/open-power/skiboot/issues/171 is resolved
-                      "xive: Interrupt.*type mismatch, Linux says Level, FW says Edge",
-                      # This is why we can't have nice things.
-                      "systemd-journald.*File.*corrupted or uncleanly shut down, renaming and replacing.",
-                      # Not having memory on all NUMA nodes isn't *necessarily* fatal or a problem
-                      "Could not find start_pfn for node",
-                      # PNOR tests open a r/w window on a RO partition, currently fails like this
-                      "mtd.*opal_flash_async_op\(op=1\) failed \(rc -6\)",
-                      # New warning, but aparrently harmless
-                      "Cannot allocate SWIOTLB buffer",
-                      # Ignore a quirk that we hit on (at least some) Tuletas,
-                      "TI XIO2000a quirk detected; secondary bus fast back-to-back transfers disabled",
-                      # SCSI is Fun, and for some reason likes being very severe about discovering disks,
-                      "sd .* \[sd.*\] Assuming drive cache: write through",
-                      # SCSI is fun. Progress as dots
-                      " \.$",
-                      # SCSI is fun, of course this is critically important event
-                      "s[dr] .* Power-on or device reset occurred",
-                      ".?ready$",
-                      # Mellanox!
-                      "mlx4_en.* Port \d+: Using \d+ [TR]X rings",
-                      "mlx4_en.* Port \d+: Initializing port",
-                      "mlx4_core.*Old device ETS support detected",
-                      "mlx4_core.*Consider upgrading device FW.",
-                      ]
+        status, updated_list = filter_dmesg(log_entries, self.conf)
 
-        if self.bmc_type in ['qemu']:
-            # Qemu doesn't (yet) have pstate support, so ignore errors there.
-            filter_out.append('powernv-cpufreq: ibm,pstate-min node not found')
-            filter_out.append('nvram: Failed to find or create lnx,oops-log')
-            filter_out.append('nvram: Failed to initialize oops partition!')
-            # some weird disk setups
-            filter_out.append('vdb.*start.*is beyond EOD')
-            # urandom_read fun
-            filter_out.append('urandom_read: \d+ callbacks suppressed')
-
-        if self.bmc_type in ['mambo']:
-            # We have a couple of things showing up in Mambo runs.
-            # We should probably fix this, but ignore for now.
-            #
-            # First, no pstates:
-            filter_out.append('powernv-cpufreq: ibm,pstate-min node not found')
-            # Strange IMC failure
-            filter_out.append('IMC PMU nest_mcs01_imc Register failed')
-            # urandom_read fun
-            filter_out.append('urandom_read: \d+ callbacks suppressed')
-
-        for f in filter_out:
-            fre = re.compile(f)
-            log_entries = [l for l in log_entries if not fre.search(l)]
-
-        msg = '\n'.join([_f for _f in log_entries if _f])
-        self.assertTrue(len(log_entries) == 0,
+        msg = '\n'.join(filter(None, updated_list))
+        self.assertTrue(len(updated_list) == 0,
                         "Warnings/Errors in Kernel log:\n%s" % msg)
 
+class SkirootKlog(HostKlog):
+    @classmethod
+    def setUpClass(cls):
+        cls.desired = OpSystemState.PETITBOOT_SHELL
+        super(HostKlog, cls).setUpClass()
 
-class Skiroot(KernelLog, unittest.TestCase):
-    def setup_test(self):
-        self.test = "skiroot"
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        self.c = self.cv_SYSTEM.console
+def host_klog_suite():
+    s = unittest.TestSuite()
+    s.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(HostKlog))
+    return s
 
+def skiroot_klog_suite():
+    s = unittest.TestSuite()
+    s.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(SkirootKlog))
+    return s
 
-class Host(KernelLog, unittest.TestCase):
-    def setup_test(self):
-        self.test = "host"
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        self.c = self.cv_HOST.get_ssh_connection()

@@ -48,7 +48,7 @@ import subprocess
 import OpTestConfiguration
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
-from .OpTestSSH import OpTestSSH
+from . import OpTestSSH # circular dependencies, use package
 from . import OpTestQemu
 from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
 
@@ -75,7 +75,7 @@ class OpTestHost():
         self.bmcip = i_bmcip
         self.results_dir = i_results_dir
         self.logfile = logfile
-        self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
+        self.ssh = OpTestSSH.OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
                              logfile=self.logfile, check_ssh_keys=check_ssh_keys,
                              known_hosts_file=known_hosts_file)
         self.scratch_disk = scratch_disk

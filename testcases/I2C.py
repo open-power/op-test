@@ -40,7 +40,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded
 from common.Exceptions import KernelConfigNotSet
 

@@ -47,7 +47,7 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestError import OpTestError
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.Exceptions import CommandFailed
 
 import testcases.OpTestEM
@@ -64,7 +64,6 @@ class OpTestOCCBase(testcases.OpTestEM.OpTestEM):
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
         self.cv_FSP = conf.bmc()
-        self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.rest = conf.system().rest
         self.cv_SYSTEM.goto_state(OpSystemState.OS)

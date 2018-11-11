@@ -46,7 +46,6 @@ import unittest
 
 import OpTestConfiguration
 from testcases.I2C import I2C
-from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded
 from common.Exceptions import KernelConfigNotSet
 import difflib

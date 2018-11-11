@@ -40,7 +40,7 @@ import os
 
 import OpTestConfiguration
 import unittest
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.Exceptions import CommandFailed
 import common.OpTestMambo as OpTestMambo
 import common.OpTestQemu as OpTestQemu

@@ -43,9 +43,9 @@ import sys
 import re
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestConstants import OpConstants as OpSystemState
 from .OpTestError import OpTestError
 from .OpTestUtil import OpTestUtil
-from . import OpTestSystem
 from .Exceptions import CommandFailed
 from .Exceptions import BMCDisconnected
 from . import OPexpect
@@ -94,7 +94,7 @@ class IPMITool():
             cmd = cmdprefix + self.binary + self.arguments() + cmd
         else:
             cmd = self.binary + self.arguments() + cmd
-        log.debug(cmd)
+        log.debug("ipmitool cmd={}".format(cmd))
         if background:
             try:
                 child = subprocess.Popen(
@@ -179,7 +179,7 @@ class IPMIConsoleState():
 
 def set_system_to_UNKNOWN_BAD(system):
     s = system.get_state()
-    system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
+    system.set_state(OpSystemState.UNKNOWN_BAD)
     return s
 
 
@@ -653,16 +653,19 @@ class OpTestIPMI():
         output = self.ipmitool.run('sel elist')
 
         if dump:
-            print(
-                "\n----------------------------------------------------------------------")
-            print("SELs")
-            print(
-                "----------------------------------------------------------------------")
-            print(("{}".format(output)))
-            print(
-                "----------------------------------------------------------------------")
+            output_list = []
+            output_list.append("\n----------------------------------------------------------------------")
+            output_list.append("SELs")
+            output_list.append("----------------------------------------------------------------------")
+            for line in output.splitlines():
+                output_list.append("{}".format(line))
+            output_list.append("----------------------------------------------------------------------")
 
-        return output
+            for line in output_list:
+                self.logfile.write("{}\n".format(line))
+            self.logfile.flush()
+
+        return output.splitlines()
 
     def ipmi_power_status(self):
         '''

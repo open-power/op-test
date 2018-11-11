@@ -31,10 +31,9 @@ import unittest
 import os
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.OpTestSOL import OpSOLMonitorThread
 from common.OpTestSOL import OpSOLMonitorThreadVM
-
 
 class RunHostTest(unittest.TestCase):
     def setUp(self):

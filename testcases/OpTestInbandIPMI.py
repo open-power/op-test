@@ -47,7 +47,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.OpTestIPMI import IPMIConsoleState
 from common.Exceptions import CommandFailed
 import common.OpTestMambo as OpTestMambo

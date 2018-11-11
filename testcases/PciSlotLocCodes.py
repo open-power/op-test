@@ -36,7 +36,8 @@ import re
 import os
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
+import common.OpTestUtil as Util
 from common.Exceptions import CommandFailed
 
 import logging
@@ -54,18 +55,11 @@ class PciDT(unittest.TestCase):
         cls.conf = OpTestConfiguration.conf
         if cls.conf.args.bmc_type in ['qemu', 'mambo']:
             raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
-        cls.cv_SYSTEM = cls.conf.system()
-        try:
-            if cls.desired == OpSystemState.OS:
-                cls.c = cls.cv_SYSTEM.cv_HOST.get_ssh_connection()
-                cls.cv_SYSTEM.goto_state(OpSystemState.OS)
-            else:
-                cls.c = cls.cv_SYSTEM.console
-                cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        except Exception as e:
-            log.debug("Unable to find cls.desired, probably a test code problem")
-            cls.c = cls.cv_SYSTEM.console
-            cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        cls.opcheck = Util.OpCheck(cls=cls) # OpCheck helper for standard setup
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.opcheck.check_up(stage="stop") # performs standard checks POST Class
 
     def dump_lspci(self, lspci_dict):
         for key, value in list(lspci_dict.items()):

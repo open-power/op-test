@@ -40,7 +40,7 @@ import OpTestConfiguration
 from common.Exceptions import CommandFailed
 from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.OpTestConstants import OpConstants as OpSystemState
 import common.OpTestQemu as OpTestQemu
 import logging
 import OpTestLogger

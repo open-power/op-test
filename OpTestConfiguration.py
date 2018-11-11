@@ -408,6 +408,10 @@ def get_parser():
         "--lpar-prof", help="Lpar profile provided in HMC", default=None)
     hmcgroup.add_argument(
         "--lpar-vios", help="Lpar VIOS to boot before other LPARS", default=None)
+    tunables = parser.add_argument_group('Tunables',
+                                         'Advanced Customizable attributes')
+    tunables.add_argument("--check-up", action='store_true', default=False,
+                         help="Switch for getting more debug on possible health checks, this may alter your exit code")
 
     return parser
 
@@ -423,6 +427,8 @@ class OpTestConfiguration():
         self.basedir = os.path.dirname(sys.argv[0])
         self.signal_ready = False  # indicator for properly initialized
         self.atexit_ready = False  # indicator for properly initialized
+        self.needs_checked = True # state to run search_debug once, if args check_up=True
+        self.check_up_issues = None # flag to investigate, if args check_up=True
         self.aes_print_helpers = True  # Need state for locker_wait
         self.dump = True  # Need state for cleanup
         self.lock_dict = {'res_id': None,

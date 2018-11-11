@@ -48,8 +48,7 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestError import OpTestError
-from common.OpTestSystem import OpTestSystem
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 
 import logging
 import OpTestLogger
@@ -62,8 +61,6 @@ class OpTestOOBIPMIBase(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
-        self.platform = conf.platform()
-        pass
 
     def run_ipmi_cmd(self, i_cmd):
         '''

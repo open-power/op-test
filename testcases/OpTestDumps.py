@@ -49,7 +49,7 @@ from common.OpTestError import OpTestError
 
 import unittest
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 
 import logging
 import OpTestLogger
@@ -64,7 +64,6 @@ class OpTestDumps():
         self.cv_FSP = self.cv_SYSTEM.bmc
         self.cv_HOST = conf.host()
         self.util = self.cv_SYSTEM.util
-        self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 

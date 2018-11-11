@@ -20,6 +20,7 @@
 from . import OpTestSystem
 from .OpTestUtil import OpTestUtil
 from .Exceptions import CommandFailed, SSHSessionDisconnected
+from .OpTestConstants import OpConstants as OpSystemState
 import re
 import sys
 import os
@@ -46,7 +47,7 @@ class ConsoleState():
 
 def set_system_to_UNKNOWN_BAD(system):
     s = system.get_state()
-    system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
+    system.set_state(OpSystemState.UNKNOWN_BAD)
     return s
 
 

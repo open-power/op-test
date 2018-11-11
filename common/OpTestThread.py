@@ -35,6 +35,7 @@ import pexpect
 import OpTestConfiguration
 from .OpTestSystem import OpSystemState
 from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestConstants import OpConstants as OpSystemState
 from .Exceptions import CommandFailed
 from .OpTestIPMI import IPMIConsoleState
 

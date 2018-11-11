@@ -43,7 +43,7 @@ import difflib
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 
 import logging
 import OpTestLogger

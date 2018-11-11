@@ -102,6 +102,7 @@ from testcases import OpTestSensors
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestHostboot
 from testcases import OpTestExample
+from testcases import OpTestModel
 import OpTestConfiguration
 import sys
 import time
@@ -137,7 +138,6 @@ def optest_handler(signum, frame):
     # to the stack frame executing at the time the signal is received
     # by the python interpreter, if the exception was caught during some other
     # try/except block, control will be given back to that block
-
 
 signal.signal(signal.SIGHUP, optest_handler)
 signal.signal(signal.SIGINT, optest_handler)
@@ -187,6 +187,7 @@ class SkirootSuite():
 #        self.s.addTest(DeviceTreeWarnings.Skiroot())
         self.s.addTest(unittest.TestLoader(
         ).loadTestsFromTestCase(IplParams.Skiroot))
+#        self.s.addTest(OpTestModel.skiroot_model_suite())
         # disabling temporarily
 #        self.s.addTest(SecureBoot.VerifyOPALSecureboot())
         self.s.addTest(TrustedBoot.VerifyOPALTrustedBoot())
@@ -213,7 +214,7 @@ class SkirootSuite():
         # disabling OpalMsglog temporarily
 #        self.s.addTest(OpalMsglog.Skiroot())
         # disabling KernelLog temporarily
-#        self.s.addTest(KernelLog.Skiroot())
+#        self.s.addTest(KernelLog.skiroot_klog_suite())
         self.s.addTest(gcov.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
@@ -253,7 +254,7 @@ class MamboSuite():
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(
             OpalSysfsTests.Skiroot))
         self.s.addTest(OpalMsglog.Skiroot())
-        self.s.addTest(KernelLog.Skiroot())
+#        self.s.addTest(KernelLog.skiroot_klog_suite())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
         self.s.addTest(PetitbootMMU.PetitbootMMU())
@@ -270,6 +271,7 @@ class HostSuite():
         self.s.addTest(SystemLogin.OOBHostLogin())
         # disabling temporarily
 #        self.s.addTest(DeviceTreeWarnings.Host())
+#        self.s.addTest(OpTestModel.host_model_suite())
         self.s.addTest(OpTestOCC.basic_suite())
         self.s.addTest(unittest.TestLoader(
         ).loadTestsFromTestCase(IplParams.Host))
@@ -294,13 +296,12 @@ class HostSuite():
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationHost())
         # disabling temporarily
 #        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
-        # disabling temporarily
-#        self.s.addTest(KernelLog.Host()) # We run before HMI to clear out HMI errors from kernel log
         self.s.addTest(OpTestHMIHandling.suite())
         self.s.addTest(OpTestPNOR.Host())
         # disabling temporarily
 #        self.s.addTest(OpalMsglog.Host())
-#        self.s.addTest(KernelLog.Host())
+        # disabling temporarily
+#        self.s.addTest(KernelLog.host_klog_suite()) # We run before HMI to clear out HMI errors from kernel log
         self.s.addTest(OpTestOCC.OCC_RESET())
         self.s.addTest(gcov.Host())
 
@@ -389,7 +390,7 @@ class QemuSuite():
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(
             OpalSysfsTests.Skiroot))
         self.s.addTest(OpalMsglog.Skiroot())
-        self.s.addTest(KernelLog.Skiroot())
+#        self.s.addTest(KernelLog.skiroot_klog_suite())
         self.s.addTest(DPO.DPOSkiroot())
         self.s.addTest(PetitbootMMU.PetitbootMMU())
 
@@ -416,8 +417,7 @@ class FullSuite():
         self.s.addTest(OpalErrorLog.FullTest())
         self.s.addTest(OpTestSwitchEndianSyscall.OpTestSwitchEndianSyscall())
         self.s.addTest(OpalMsglog.Host())
-        self.s.addTest(KernelLog.Host())
-
+        self.s.addTest(KernelLog.host_klog_suite())
     def suite(self):
         return self.s
 
@@ -711,6 +711,15 @@ class OpTestExampleSuite():
     def suite(self):
         return self.s
 
+class OpTestModelSuite():
+    '''Tests in OpTestModel'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestModel.skiroot_model_suite())
+        self.s.addTest(OpTestModel.host_model_suite())
+
+    def suite(self):
+        return self.s
 
 class OpenBMCPalmettoSkirootSuite():
     '''Tests that pass for an OpenBMC Palmetto, restricted to Petitboot environment'''
@@ -748,7 +757,7 @@ class OpenBMCPalmettoSkirootSuite():
             OpalSysfsTests.Skiroot))
         # duplicate sensors and partition verification fails
         # self.s.addTest(OpalMsglog.Skiroot())
-        self.s.addTest(KernelLog.Skiroot())
+        self.s.addTest(KernelLog.skiroot_klog_suite())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
 
@@ -822,6 +831,7 @@ suites = {
     'palmetto-ci': OpenBMCPalmettoSkirootSuite(),
     'per-commit': OpTestPerCommitSuite(),
     'pull-request': OpTestPullRequestSuite(),
+    'model' : OpTestModelSuite(),
 }
 
 try:

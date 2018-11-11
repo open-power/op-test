@@ -39,7 +39,7 @@ from common.OpTestError import OpTestError
 import unittest
 import pexpect
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
+from common.OpTestConstants import OpConstants as OpSystemState
 import common.OpTestQemu as OpTestQemu
 import common.OpTestMambo as OpTestMambo
 

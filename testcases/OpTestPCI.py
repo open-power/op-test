@@ -47,7 +47,6 @@ the applicable options per method.
 '''
 
 import unittest
-import logging
 import pexpect
 import time
 import re
@@ -55,11 +54,15 @@ import difflib
 from distutils.version import LooseVersion
 
 import OpTestConfiguration
-import OpTestLogger
-from common.OpTestSystem import OpSystemState
+from distutils.version import LooseVersion
+from common.OpTestConstants import OpTestConstants as BMC_CONST
+from common.OpTestConstants import OpConstants as OpSystemState
 from common.Exceptions import CommandFailed, UnexpectedCase
 
+import logging
+import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 skiroot_done = 0
 host_done = 0
 skiroot_lspci = None
