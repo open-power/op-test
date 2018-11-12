@@ -267,6 +267,10 @@ def get_parser():
     osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
     osgroup.add_argument("--os-cdrom", help="OS CD/DVD install image", default=None)
     osgroup.add_argument("--os-repo", help="OS repo", default="")
+    osgroup.add_argument("--no-os-reinstall",
+                         help="If set, don't run OS Install test",
+                         action='store_true', default=False)
+
     gitgroup = parser.add_argument_group('git repo', 'Git repository details for upstream kernel install/boot')
     gitgroup.add_argument("--git-repo", help="Kernel git repository", default=None)
     gitgroup.add_argument("--git-repoconfigpath", help="Kernel config file to be used", default=None)
@@ -274,7 +278,7 @@ def get_parser():
     gitgroup.add_argument("--git-branch", help="git branch to be used", default="master")
     gitgroup.add_argument("--git-home", help="home path for git repository", default="/home/ci")
     gitgroup.add_argument("--git-patch", help="patch to be applied on top of the git repository", default=None)
-
+    
     imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
     imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
     imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
@@ -484,6 +488,9 @@ class OpTestConfiguration():
         self.signal_ready = True
         # atexit viable for cleanup to run
         self.atexit_ready = True
+        # now that we have loggers, dump conf file to help debug later
+        OpTestLogger.optest_logger_glob.optest_logger.debug(
+            "conf file defaults={}".format(defaults))
         # setup AES and Hostlocker configs after the logging is setup
         locker_timeout = time.time() + 60*self.args.locker_wait
         locker_code = errno.ETIME # 62

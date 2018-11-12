@@ -124,15 +124,26 @@ class PciDT(unittest.TestCase):
                     tracking_dict['slot-label-status'] = 0
                     tracking_dict['loc-code-status'] = 0
                     try:
-                        res = self.c.run_command("cat {}/ibm,slot-label"
-                            .format(directory))
-                        if res[0] == "":
-                            tracking_dict['slot-label-status'] = 1
-                            value = ""
-                            self.slot_failures += 1
+                        check_list = ["npu"]
+                        pciObj = re.search("/(pciex@[0-9a-fA-F]+)/", directory)
+                        compat_node = "/proc/device-tree/{}/compatible".format(pciObj.group(1))
+                        compat_output = self.c.run_command("cat {}".format(compat_node))
+                        matching = [xs for xs in check_list if any(xs in xa for xa in compat_output)]
+                        if len(matching) == 0:
+                            log.debug("Non-NPU compat_output={} for {}"
+                                .format(compat_output, compat_node))
+                            res = self.c.run_command("cat {}/ibm,slot-label"
+                                .format(directory))
+                            if res[0] == "":
+                                tracking_dict['slot-label-status'] = 1
+                                value = ""
+                                self.slot_failures += 1
+                            else:
+                                value = res[0].rstrip('\x00')
+                            tracking_dict['slot-label'] = value
                         else:
-                            value = res[0].rstrip('\x00')
-                        tracking_dict['slot-label'] = value
+                            log.debug("NPU compat_output={} for {}"
+                                .format(compat_output, compat_node))
                     except CommandFailed as cf:
                         tracking_dict['slot-label-status'] = 2
                         tracking_dict['slot-label'] = None
