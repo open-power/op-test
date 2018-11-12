@@ -182,6 +182,7 @@ class SkirootSuite():
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
+        self.s.addTest(gcov.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
     def suite(self):
@@ -256,6 +257,7 @@ class HostSuite():
         self.s.addTest(OpalMsglog.Host())
         self.s.addTest(KernelLog.Host())
         self.s.addTest(OpTestOCC.OCC_RESET())
+        self.s.addTest(gcov.Host())
     def suite(self):
         return self.s
 
