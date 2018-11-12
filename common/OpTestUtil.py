@@ -940,7 +940,9 @@ class OpTestUtil():
         return try_list, echo_rc
 
     def get_versions(self, term_obj, pty, expect_prompt):
-        check_list = ["No such file or directory"]
+        check_list = ["No such file or directory",
+                      "command not found",
+                     ]
         if term_obj.system.conf.firmware_versions is None:
             pty.sendline("date")
             rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
