@@ -30,9 +30,11 @@ This framework runs on most Linux based systems.
 
 You need python 2.7 or greater and also needs below modules to be installed
 
-        pexpect, importlib, ptyprocess, requests, pysocks
+    pip install pexpect importlib ptyprocess requests pysocks
 
-You will also need below packages need to be installed
+    Optionally:  pip install unittest-xml-reporting unittest2 xmlrunner
+
+You will also need below packages to be installed
 
         sshpass and (recent) ipmitool - 1.8.15 or above should be adequate.
 
