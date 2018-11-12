@@ -267,6 +267,9 @@ def get_parser():
     osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
     osgroup.add_argument("--os-cdrom", help="OS CD/DVD install image", default=None)
     osgroup.add_argument("--os-repo", help="OS repo", default="")
+    osgroup.add_argument("--no-os-reinstall",
+                         help="If set, don't run OS Install test",
+                         action='store_true', default=False)
     imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
     imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
     imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
