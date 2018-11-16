@@ -860,7 +860,6 @@ class OpTestHost():
         '''
         l_msg = "https://github.com/OpenCAPI/libocxl.git"
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self.host_run_command("git config --global http.sslverify false", console=console)
         self.host_run_command("rm -rf %s" % i_dir, console=console)
         self.host_run_command("mkdir %s" % i_dir, console=console)
         try:
