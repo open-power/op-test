@@ -394,7 +394,8 @@ class OpTestSystem(object):
         self.console.enable_setup_term_quiet()
         sys_pty = self.console.get_console()
         self.console.disable_setup_term_quiet()
-        sys_pty.sendline()
+        sys_pty.sendcontrol('c')
+
         r = sys_pty.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if r in [0,1]:
           if (target_state == OpSystemState.PETITBOOT):
@@ -692,6 +693,7 @@ class OpTestSystem(object):
         self.block_setup_term = 1
         if state == OpSystemState.PETITBOOT:
             # verify that we are at the petitboot menu
+            self.petitboot_exit_to_shell()
             self.exit_petitboot_shell()
             return OpSystemState.PETITBOOT
         if state == OpSystemState.PETITBOOT_SHELL:
@@ -711,7 +713,7 @@ class OpTestSystem(object):
         self.block_setup_term = 1
         if state == OpSystemState.PETITBOOT_SHELL:
             # verify that we are at the petitboot shell
-            self.petitboot_exit_to_shell()
+            self.get_petitboot_prompt()
             return OpSystemState.PETITBOOT_SHELL
 
         if state == OpSystemState.PETITBOOT:
@@ -1098,6 +1100,7 @@ class OpTestSystem(object):
     def petitboot_exit_to_shell(self):
         sys_pty = self.console.get_console()
         log.debug("USING PES Expect Buffer ID={}".format(hex(id(sys_pty))))
+        sys_pty.sendcontrol('c')
         for i in range(3):
           pp = self.get_petitboot_prompt()
           if pp == 1:
