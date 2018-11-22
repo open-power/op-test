@@ -1206,7 +1206,10 @@ class OpTestUtil():
           track_obj = system
           term_obj = system.console
           system_obj = system
-        pty.sendline()
+
+        if system_obj.state == 3: # OpSystemState.PETITBOOT
+            return
+
         rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
           track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
