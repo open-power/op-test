@@ -74,51 +74,50 @@ class InstallUpstreamKernel(unittest.TestCase):
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.console_thread.start()
-        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         try:
-            onlinecpus = int(con.run_command("lscpu --online -e|wc -l")[-1])
-        except Exception:
-            onlinecpus = 20
-        log.debug("Downloading linux kernel")
-        # Compile and install given kernel
-        linux_path = os.path.join(self.home, "linux")
-        con.run_command("[ -d %s ] || mkdir -p %s" % (self.home, self.home))
-        con.run_command("if [ -d %s ];then rm -rf %s;fi" % (linux_path, linux_path))
-        con.run_command("cd %s && git clone --depth 1  %s -b %s linux" % (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
-        con.run_command("cd %s" % linux_path)
-        if self.patch:
-            patch_file = self.patch.split("/")[-1]
-            if is_url(self.patch):
-                con.run_command("wget %s -O %s" % (self.patch, patch_file))
-            else:
-                self.cv_HOST.copy_test_file_to_host(self.patch, dstdir=linux_path)
-            log.debug("Applying given patch")
-            con.run_command("git am %s" % os.path.join(linux_path, patch_file))
-        log.debug("Downloading linux kernel config")
-        if self.config_path:
-            if is_url(self.config_path):
-                con.run_command("wget %s -O .config" % self.config_path)
-            else:
-                self.cv_HOST.copy_test_file_to_host(self.config_path, dstdir=os.path.join(linux_path, ".config"))
-        con.run_command("make %s" % self.config)
-        log.debug("Compile and install linux kernel")
-        con.run_command("make -j %d -s && make modules && make modules_install && make install" % onlinecpus, timeout=self.host_cmd_timeout)
-        # FIXME: Handle distributions which do not support grub
-        con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
-        con.run_command('grubby --set-default /boot/vmlinuz-`cat include/config/kernel.release 2> /dev/null`')
-        log.debug("Rebooting after kernel install...")
-        self.console_thread.console_terminate()
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-        res = con.run_command("uname -r")
-        log.info("Installed upstream kernel version: %s", res[-1])
-        if self.conf.args.host_cmd:
-            con.run_command(self.conf.args.host_cmd, timeout=self.host_cmd_timeout)
-        self.cv_HOST.host_gather_opal_msg_log()
-        self.cv_HOST.host_gather_kernel_log()
-
-
-def tearDown(self):
-    if self.console_thread.isAlive():
-        self.console_thread.console_terminate()
+            con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            try:
+                onlinecpus = int(con.run_command("lscpu --online -e|wc -l")[-1])
+            except Exception:
+                onlinecpus = 20
+            log.debug("Downloading linux kernel")
+            # Compile and install given kernel
+            linux_path = os.path.join(self.home, "linux")
+            con.run_command("[ -d %s ] || mkdir -p %s" % (self.home, self.home))
+            con.run_command("if [ -d %s ];then rm -rf %s;fi" % (linux_path, linux_path))
+            con.run_command("cd %s && git clone --depth 1  %s -b %s linux" % (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
+            con.run_command("cd %s" % linux_path)
+            if self.patch:
+                patch_file = self.patch.split("/")[-1]
+                if is_url(self.patch):
+                    con.run_command("wget %s -O %s" % (self.patch, patch_file))
+                else:
+                    self.cv_HOST.copy_test_file_to_host(self.patch, dstdir=linux_path)
+                log.debug("Applying given patch")
+                con.run_command("git am %s" % os.path.join(linux_path, patch_file))
+            log.debug("Downloading linux kernel config")
+            if self.config_path:
+                if is_url(self.config_path):
+                    con.run_command("wget %s -O .config" % self.config_path)
+                else:
+                    self.cv_HOST.copy_test_file_to_host(self.config_path, dstdir=os.path.join(linux_path, ".config"))
+            con.run_command("make %s" % self.config)
+            log.debug("Compile and install linux kernel")
+            con.run_command("make -j %d -s && make modules && make modules_install && make install" % onlinecpus, timeout=self.host_cmd_timeout)
+            # FIXME: Handle distributions which do not support grub
+            con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
+            con.run_command('grubby --set-default /boot/vmlinuz-`cat include/config/kernel.release 2> /dev/null`')
+            log.debug("Rebooting after kernel install...")
+            self.console_thread.console_terminate()
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            res = con.run_command("uname -r")
+            log.info("Installed upstream kernel version: %s", res[-1])
+            if self.conf.args.host_cmd:
+                con.run_command(self.conf.args.host_cmd, timeout=self.host_cmd_timeout)
+            self.cv_HOST.host_gather_opal_msg_log()
+            self.cv_HOST.host_gather_kernel_log()
+        finally:
+            if self.console_thread.isAlive():
+                self.console_thread.console_terminate()
