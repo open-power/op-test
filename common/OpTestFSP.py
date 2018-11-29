@@ -479,5 +479,8 @@ class OpTestFSP():
     def has_occ_active_sensor(self):
         return False
 
+    def has_ipmi_sel(self):
+        return False
+
     def supports_ipmi_dcmi(self):
-        return True
+        return False
