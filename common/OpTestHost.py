@@ -805,6 +805,22 @@ class OpTestHost():
             log.warning(l_msg)
             return False
 
+    def host_has_opencapi_fpga_card(self, console=0):
+        '''
+        Check that host has an OpenCAPI FPGA card
+        '''
+        l_cmd = "lspci -d \"1014::1200\""
+        l_res = self.host_run_command(l_cmd, console=console)
+        l_res = " ".join(l_res)
+        if (l_res.__contains__('IBM Device 062b')):
+            l_msg = "Host has an OpenCAPI FPGA card"
+            log.debug(l_msg)
+            return True
+        else:
+            l_msg = "Host has no OpenCAPI FPGA card; skipping test"
+            log.warning(l_msg)
+            return False
+
     def host_clone_cxl_tests(self, i_dir, console=0):
         '''
         Clone latest cxl-tests git repository in i_dir directory.
@@ -833,6 +849,29 @@ class OpTestHost():
         self.host_run_command(l_cmd, console=console)
         l_cmd = "test -x %s/memcpy_afu_ctx; echo $?" % i_dir
         self.host_run_command(l_cmd, console=console)
+
+    def host_clone_libocxl(self, i_dir, console=0):
+        '''
+        Clone latest libocxl git repository in i_dir directory.
+
+        i_dir
+          directory where libocxl will be cloned
+        '''
+        l_msg = "https://github.com/OpenCAPI/libocxl.git"
+        l_cmd = "git clone %s %s" % (l_msg, i_dir)
+        self.host_run_command("rm -rf %s" % i_dir, console=console)
+        self.host_run_command("mkdir %s" % i_dir, console=console)
+        try:
+            l_res = self.host_run_command(l_cmd, console=console)
+            return True
+        except:
+            l_msg = "Cloning libocxl git repository is failed"
+            return False
+
+    def host_build_libocxl(self, i_dir, console=0):
+        l_cmd = "cd %s; make" % i_dir
+        self.host_run_command(l_cmd, console=console)
+        l_cmd = "test -x %s/afuobj/ocxl_memcpy; echo $?" % i_dir
 
     def host_check_binary(self, i_dir, i_file, console=0):
         l_cmd = "test -x %s/%s;" % (i_dir, i_file)

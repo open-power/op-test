@@ -112,6 +112,7 @@ from testcases import InstallUbuntu
 from testcases import InstallRhel
 from testcases import InstallHostOS
 from testcases import OpTestCAPI
+from testcases import OpTestOpenCAPI
 from testcases import gcov
 from testcases import OpalSysfsTests
 from testcases import SecureBoot
@@ -480,6 +481,11 @@ class CAPISuite():
     def suite(self):
         return OpTestCAPI.capi_test_suite()
 
+class OpenCAPISuite():
+    '''OpenCAPI Tests'''
+    def suite(self):
+        return OpTestOpenCAPI.opencapi_test_suite()
+
 class SystemIPLSuite():
     '''System IPL's'''
     def suite(self):
@@ -641,6 +647,7 @@ suites = {
     'rest-api' : RestAPISuite(),
     'full-occ' : OCCSuite(),
     'capi' : CAPISuite(),
+    'opencapi' : OpenCAPISuite(),
     'crash-suite' : CrashSuite(),
     'system-ipl' : SystemIPLSuite(),
     'fsp-opal-suite' :  FspOpalSuite(),
