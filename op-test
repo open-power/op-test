@@ -767,7 +767,19 @@ try:
     optestlog.info('Exit with Result errors="{}" and failures="{}"'.format(len(res.errors), len(res.failures)))
 
     OpTestConfiguration.conf.util.cleanup()
-    exit(len(res.errors + res.failures))
+    if len(res.errors) == 0:
+        optestlog.debug("Exit Results with No Errors")
+    if len(res.failures) == 0:
+        optestlog.debug("Exit Results with No Failures")
+    for i, elem in enumerate(res.errors):
+        optestlog.debug("Exit Results Error #{}={}".format(i+1, elem))
+    for i, elem in enumerate(res.failures):
+        optestlog.debug("Exit Results Failure #{}={}".format(i+1, elem))
+    if res:
+        exit_code = len(res.errors + res.failures)
+    else:
+        exit_code = -1 # somethings wrong
+    sys.exit(exit_code)
 except Exception as e:
     traceback.print_exc()
     optestlog.error("Exit unexpectedly with Exception={}".format(e))
