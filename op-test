@@ -736,7 +736,6 @@ def run_tests(t, failfast):
     return runner(**kwargs).run(t)
 
 
-exit_code = 0
 try:
     res = None
     optestlog.debug("op-test argv={}".format(sys.argv))
@@ -751,42 +750,39 @@ try:
         if res is not None:
             optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
             OpTestConfiguration.conf.util.cleanup()
-            exit(len(res.errors + res.failures))
+            sys.exit(len(res.errors + res.failures))
         else:
             OpTestConfiguration.conf.util.cleanup()
-            sys.exit(exit_code)
+            sys.exit(0)
 
     if not res or (res and not (res.errors or res.failures)):
         res = run_tests(t, failfast=OpTestConfiguration.conf.args.failfast)
     else:
         optestlog.error('Skipping main tests as flashing failed')
         OpTestConfiguration.conf.util.cleanup()
-        exit_code = -1
-        sys.exit(exit_code)
+        sys.exit(-1)
 
     optestlog.info('Exit with Result errors="{}" and failures="{}"'.format(len(res.errors), len(res.failures)))
 
     OpTestConfiguration.conf.util.cleanup()
-    exit(len(res.errors + res.failures))
+    sys.exit(len(res.errors + res.failures))
 except Exception as e:
     traceback.print_exc()
     optestlog.error("Exit unexpectedly with Exception={}".format(e))
     OpTestConfiguration.conf.util.cleanup()
-    exit_code = -1
-    sys.exit(exit_code)
+    sys.exit(-1)
 finally:
     # Create a softlink to `latest` test results
     output = OpTestConfiguration.conf.logdir
-    if not os.path.exists(output):
+    if os.path.exists(output):
+        basedir = os.path.abspath(os.path.join(output, os.pardir))
+        latest = os.path.join(basedir, "latest")
+        if os.path.exists(latest):
+            if os.path.islink(latest):
+                os.unlink(latest)
+        try:
+            os.symlink(output, latest)
+        except OSError:
+            optestlog.error('Unable to create test result latest softlink')
+    else:
         optestlog.error("Test result folder not found")
-        sys.exit(exit_code)
-    basedir = os.path.abspath(os.path.join(output, os.pardir))
-    latest = os.path.join(basedir, "latest")
-    if os.path.exists(latest):
-        if os.path.islink(latest):
-            os.unlink(latest)
-    try:
-        os.symlink(output, latest)
-    except OSError:
-        optestlog.error('Unable to create test result latest softlink')
-    sys.exit(exit_code)
