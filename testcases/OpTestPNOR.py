@@ -161,16 +161,28 @@ class OpTestPNOR():
         self.pflashRead("/tmp/toc", tocInfo['offset'], tocInfo['length'])
         # Write all zeros to the toc (Because why not :D)
         self.c.run_command("dd if=/dev/zero of=/tmp/zeros bs=1 count=%s" % (tocInfo['length']))
-        self.pflashWrite("/tmp/zeros", tocInfo['offset'], tocInfo['length'])
+        try:
+            self.pflashWrite("/tmp/zeros", tocInfo['offset'], tocInfo['length'])
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 8,
+                             "pflash did not exit with correct exit code for "
+                             "a Read Only TOC. Expeceted 8, got {}.".format(
+                                 cf.exitcode))
         # Read and compare
         self.pflashRead("/tmp/tmp", tocInfo['offset'], tocInfo['length'])
         try:
             self.c.run_command("diff /tmp/tmp /tmp/zeros")
         except CommandFailed as cf:
-            # This is not an error -> expected for vPNOR
+            # This is not an error -> expected for vPNOR (prior to RO-TOC)
             log.debug("Failed to zero TOC")
         # Better write the toc back now
-        self.pflashWrite("/tmp/toc", tocInfo['offset'], tocInfo['length'])
+        try:
+            self.pflashWrite("/tmp/toc", tocInfo['offset'], tocInfo['length'])
+        except CommandFailed as cf:
+            self.assertEqual(cf.exitcode, 8,
+                             "pflash did not exit with correct exit code for "
+                             "a Read Only TOC. Expeceted 8, got {}.".format(
+                                 cf.exitcode))
 
     def runTest(self):
         self.setup_test()
