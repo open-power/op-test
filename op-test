@@ -749,7 +749,7 @@ try:
 
     if OpTestConfiguration.conf.args.only_flash:
         if res is not None:
-            optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
+            optestlog.info('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
             OpTestConfiguration.conf.util.cleanup()
             exit(len(res.errors + res.failures))
         else:
