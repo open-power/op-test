@@ -32,7 +32,7 @@ import os
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestThread import OpSolMonitorThread3
+from common.OpTestThread import OpSOLMonitorThread
 
 
 class RunHostTest(unittest.TestCase):
@@ -48,7 +48,7 @@ class RunHostTest(unittest.TestCase):
         self.resultpath = os.path.join(self.conf.output, "host-results")
         if (not os.path.exists(self.resultpath)):
             os.makedirs(self.resultpath)
-        self.console_thread = OpSolMonitorThread3()
+        self.console_thread = OpSOLMonitorThread(1, "console")
         self.console_thread.start()
 
     def runTest(self):
