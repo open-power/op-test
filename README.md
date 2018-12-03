@@ -32,7 +32,8 @@ You need python 2.7 or greater and also needs below modules to be installed
 
     pip install pexpect importlib ptyprocess requests pysocks
 
-    Optionally:  pip install unittest-xml-reporting unittest2 xmlrunner
+    Optionally:  pip install unittest-xml-reporting unittest2
+    For XML output: sudo apt-get install python-xmlrunner
 
 You will also need below packages to be installed
 
