@@ -29,7 +29,7 @@ except ImportError:
 import OpTestConfiguration
 import OpTestLogger
 from common.OpTestSystem import OpSystemState
-from common.OpTestThread import OpSolMonitorThread3
+from common.OpTestSOL import OpSOLMonitorThread
 from common.OpTestInstallUtil import InstallUtil
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -59,7 +59,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             log.debug("Set given disk as default bootable disk")
             OpIU.set_bootable_disk(self.disk)
-        self.console_thread = OpSolMonitorThread3()
+        self.console_thread = OpSOLMonitorThread(1, "console")
 
     def runTest(self):
         def is_url(path):

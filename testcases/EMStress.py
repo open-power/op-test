@@ -30,7 +30,8 @@ import threading
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestThread import OpSSHThreadLinearVar1, OpSSHThreadLinearVar2, OpSOLMonitorThread1
+from common.OpTestThread import OpSSHThreadLinearVar1, OpSSHThreadLinearVar2
+from common.OpTestSOL import OpSOLMonitorThread
 from testcases.OpTestEM import OpTestEM
 
 import logging
@@ -145,7 +146,7 @@ class RuntimeEMStress(unittest.TestCase, OpTestEM):
         # Monitor for errors
         num = 6
         torture_time = self.torture_time
-        thread = OpSOLMonitorThread1(num, "Thread-%s" % num, torture_time)
+        thread = OpSOLMonitorThread(num, "Thread-%s" % num, execution_time=torture_time)
         thread.start()
         self.thread_list.append(thread)
 
