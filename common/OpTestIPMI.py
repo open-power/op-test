@@ -241,7 +241,7 @@ class IPMIConsole():
             self.state = IPMIConsoleState.DISCONNECTED
             pass
 
-    def connect(self):
+    def connect(self, logger=None):
         if self.state == IPMIConsoleState.CONNECTED:
           rc_child = self.close()
         else:
@@ -264,7 +264,12 @@ class IPMIConsole():
         log.debug("#IPMI SOL CONNECT")
         self.state = IPMIConsoleState.CONNECTED
         self.pty.setwinsize(1000,1000)
-        self.pty.logfile_read = OpTestLogger.FileLikeLogger(log)
+
+        if logger:
+            self.pty.logfile_read = OpTestLogger.FileLikeLogger(logger)
+        else:
+            self.pty.logfile_read = OpTestLogger.FileLikeLogger(log)
+
         if self.delaybeforesend:
 	    self.pty.delaybeforesend = self.delaybeforesend
         rc = self.pty.expect_exact(['[SOL Session operational.  Use ~? for help]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
@@ -288,9 +293,9 @@ class IPMIConsole():
             " to establish IPMI v2 / RMCP+ session, command was '{}'"
             .format(cmd), -1)
 
-    def get_console(self):
+    def get_console(self, logger=None):
         if self.state == IPMIConsoleState.DISCONNECTED:
-            self.connect()
+            self.connect(logger)
 
         count = 0
         while (not self.pty.isalive()):

@@ -31,6 +31,7 @@ import unittest
 import time
 import threading
 import pexpect
+import os
 
 import OpTestConfiguration
 from OpTestSystem import OpSystemState
@@ -38,6 +39,7 @@ from Exceptions import CommandFailed
 from OpTestIPMI import IPMIConsoleState
 
 import logging
+from logging.handlers import RotatingFileHandler
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -55,9 +57,10 @@ class OpSOLMonitorThread(threading.Thread):
         conf = OpTestConfiguration.conf
         self.system = conf.system()
         self.system.goto_state(OpSystemState.OS)
-        self.c = self.system.console.get_console()
+        logfile = os.path.join(conf.output, "console.log")
+        self.sol_logger(logfile)
+        self.c = self.system.console.get_console(logger=self.logger)
         self.c_terminate = False;
-
 
     def run(self):
         log.debug("Starting %s" % self.name)
@@ -100,3 +103,11 @@ class OpSOLMonitorThread(threading.Thread):
     def console_terminate(self):
         self.c_terminate = True
 
+    def sol_logger(self, logfile):
+        '''
+	Non fomated console log.
+        '''
+        self.logger = logging.getLogger("sol-thread")
+        self.logger.setLevel(logging.DEBUG)
+        file_handler = RotatingFileHandler(logfile, maxBytes=2000000, backupCount=10)
+        self.logger.addHandler(file_handler)
