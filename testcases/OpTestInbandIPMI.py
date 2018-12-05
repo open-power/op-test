@@ -307,7 +307,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             try:
                 self.run_ipmi_cmds(c, [self.ipmi_method + "fru print %d" % fru_id])
             except CommandFailed as cf:
-                print("FRU {} failed: {} {}".format(fru_id, cf.exitcode, cf.output))
+                log.debug("FRU {} failed: {} {}".format(fru_id, cf.exitcode, cf.output))
                 if cf.exitcode in [1, -1]:
                     nr_sequential_fail = nr_sequential_fail + 1
                     continue
