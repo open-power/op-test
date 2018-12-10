@@ -751,7 +751,8 @@ try:
         if res is not None:
             optestlog.error('Exit with Result errors="{}" and failures="{}" from only_flash'.format(len(res.errors), len(res.failures)))
             OpTestConfiguration.conf.util.cleanup()
-            exit(len(res.errors + res.failures))
+            exit_code = len(res.errors + res.failures)
+            sys.exit(exit_code)
         else:
             OpTestConfiguration.conf.util.cleanup()
             sys.exit(exit_code)

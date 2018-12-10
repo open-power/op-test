@@ -103,17 +103,23 @@ class OpTestFlashBase(unittest.TestCase):
                                   dst_file_path, self.bmc_password)
 
     def get_version_tar(self, file_path):
-        tar = tarfile.open(file_path)
-        for member in tar.getmembers():
-            fd = tar.extractfile(member)
-            content = fd.read()
-            if "version=" in content:
-                content = content.split("\n")
-                content = [x for x in content if "version=" in x]
-                version = content[0].split("=")[-1]
-                break
-        tar.close()
-        log.info(version)
+        try:
+            tar = tarfile.open(file_path)
+            for member in tar.getmembers():
+                fd = tar.extractfile(member)
+                content = fd.read()
+                if "version=" in content:
+                    content = content.split("\n")
+                    content = [x for x in content if "version=" in x]
+                    version = content[0].split("=")[-1]
+                    break
+            tar.close()
+            log.info(version)
+        except Exception as e:
+            log.debug("Unexpected failure Exception={}".format(e))
+            self.assertTrue(False,
+                "Unexpected failure in get_version_tar, "
+                "check if you have the proper file, Exception={}".format(e))
         return version
 
     def get_image_version(self, path):
