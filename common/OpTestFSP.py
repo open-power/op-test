@@ -76,7 +76,9 @@ class OpTestFSP():
         return self.rest
 
     def get_host_console(self):
-        return self.cv_IPMI.get_host_console()
+        if self.cv_IPMI:
+            return self.cv_IPMI.get_host_console()
+        return None
 
     def fsp_get_console(self):
         '''

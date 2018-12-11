@@ -33,6 +33,7 @@ import os
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestSOL import OpSOLMonitorThread
+from common.OpTestSOL import OpSOLMonitorThreadVM
 
 
 class RunHostTest(unittest.TestCase):
@@ -48,11 +49,18 @@ class RunHostTest(unittest.TestCase):
         self.resultpath = os.path.join(self.conf.output, "host-results")
         if (not os.path.exists(self.resultpath)):
             os.makedirs(self.resultpath)
-        self.console_thread = OpSOLMonitorThread(1, "console")
+        if self.conf.args.bmc_type == 'FSP_PHYP':
+            self.cv_HMC = self.cv_SYSTEM.hmc
+            self.console_thread = OpSOLMonitorThreadVM()
+        else:
+            self.console_thread = OpSOLMonitorThread(1, "console")
         self.console_thread.start()
 
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        if self.conf.args.bmc_type == 'FSP_PHYP':
+            self.cv_HMC.poweron_lpar(runtime=True)
+        else:
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         try:
             if self.host_cmd:
@@ -64,9 +72,14 @@ class RunHostTest(unittest.TestCase):
                 for line in fd.readlines():
                     line = line.strip()
                     if "reboot" in line:
-                        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-                        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-                        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+                        if self.conf.args.bmc_type == 'FSP_PHYP':
+                            self.cv_HMC.poweroff_lpar()
+                            self.cv_HMC.poweron_lpar(runtime=True)
+                            con = self.cv_SYSTEM.cv_HOST.get_new_ssh_connection()
+                        else:
+                            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                            con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
                         continue
                     con.run_command(line, timeout=self.host_cmd_timeout)
         finally:
