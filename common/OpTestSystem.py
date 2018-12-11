@@ -87,12 +87,14 @@ class OpTestSystem(object):
     def __init__(self,
                  bmc=None,
                  host=None,
+                 hmc=None,
                  prompt=None,
                  conf=None,
                  state=OpSystemState.UNKNOWN):
         self.conf = conf
         self.util = conf.util
         self.bmc = self.cv_BMC = bmc
+        self.hmc = self.cv_HMC = hmc
         self.cv_HOST = host
         self.cv_IPMI = bmc.get_ipmi()
         self.rest = self.bmc.get_rest_api()
@@ -1251,11 +1253,13 @@ class OpTestFSPSystem(OpTestSystem):
     def __init__(self,
                  host=None,
                  bmc=None,
+                 hmc=None,
                  conf=None,
                  state=OpSystemState.UNKNOWN):
         bmc.fsp_get_console()
         super(OpTestFSPSystem, self).__init__(host=host,
                                               bmc=bmc,
+                                              hmc=hmc,
                                               conf=conf,
                                               state=state)
 
