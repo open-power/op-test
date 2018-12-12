@@ -1531,10 +1531,10 @@ class Server(object):
                     "r.request.headers={}"
                     .format(r.status_code, r.text,
                      r.headers, r.request.headers))
+            return r
         except Exception as e:
             log.debug("Requests post problem logging out"
                        " URL={} Exception={}".format(self._url(uri), e))
-        return r
 
     def get(self, **kwargs):
         kwargs['cmd'] = 'get'
