@@ -129,6 +129,7 @@ class QemuConsole():
         cmd = ("%s" % (self.qemu_binary)
                + " -machine powernv -m 4G"
                + " -nographic -nodefaults"
+               + " -device ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10"
            )
         if self.pnor:
             cmd = cmd + " -drive file={},format=raw,if=mtd".format(self.pnor)
