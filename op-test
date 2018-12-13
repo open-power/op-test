@@ -751,6 +751,7 @@ def run_tests(t, failfast):
         kwargs.update({
                 'output': OpTestConfiguration.conf.output,
                 'outsuffix': OpTestConfiguration.conf.outsuffix,
+                'stream': OpTestConfiguration.conf.logfile,
             })
 
         # xmlrunner pre v1.13 doesn't support failfast

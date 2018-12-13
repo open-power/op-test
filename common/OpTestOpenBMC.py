@@ -940,6 +940,7 @@ class OpTestOpenBMC():
         self.bmc = OpTestBMC(ip=self.hostname,
                             username=self.username,
                             password=self.password,
+                            logfile=self.logfile,
                             check_ssh_keys=check_ssh_keys,
                             known_hosts_file=known_hosts_file)
 
