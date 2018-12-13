@@ -28,6 +28,7 @@ a specific state.
 '''
 
 import unittest
+import pexpect
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
