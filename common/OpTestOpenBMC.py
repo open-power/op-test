@@ -26,6 +26,7 @@ import subprocess
 import json
 import requests
 import cgi
+import os
 
 from OpTestSSH import OpTestSSH
 from OpTestBMC import OpTestBMC
@@ -662,7 +663,7 @@ class HostManagement():
         uri = "/download/dump/{}".format(dump_id)
         r = self.conf.util_bmc_server.get(uri=uri, stream=True, minutes=minutes)
         value, params = cgi.parse_header(r.headers.get('Content-Disposition'))
-        with open(params.get('filename'), 'wb') as f:
+        with open(os.path.join(self.conf.logdir, params.get('filename')), 'wb') as f:
             f.write(r.content)
 
     def delete_dump(self, dump_id, minutes=BMC_CONST.HTTP_RETRY):
