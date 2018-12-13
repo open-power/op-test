@@ -581,6 +581,7 @@ class OpTestConfiguration():
                           self.output,
                           scratch_disk=self.args.host_scratch_disk,
                           proxy=self.args.proxy,
+                          logfile=self.logfile,
                           check_ssh_keys=self.args.check_ssh_keys,
                           known_hosts_file=self.args.known_hosts_file,
                           conf=self)

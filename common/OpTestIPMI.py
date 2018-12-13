@@ -175,6 +175,7 @@ def set_system_to_UNKNOWN_BAD(system):
 class IPMIConsole():
     def __init__(self, ipmitool=None, logfile=sys.stdout, prompt=None,
             block_setup_term=None, delaybeforesend=None):
+        self.logfile = logfile
         self.ipmitool = ipmitool
         self.state = IPMIConsoleState.DISCONNECTED
         self.delaybeforesend = delaybeforesend
@@ -255,6 +256,7 @@ class IPMIConsole():
         cmd = self.ipmitool.binary_name() + self.ipmitool.arguments() + ' sol activate'
         try:
           self.pty = OPexpect.spawn(cmd,
+                                  logfile=self.logfile,
                                   failure_callback=set_system_to_UNKNOWN_BAD,
                                   failure_callback_data=self.system)
         except Exception as e:
@@ -334,6 +336,7 @@ class OpTestIPMI():
                                username=i_bmcUser,
                                password=i_bmcPwd)
         self.console = IPMIConsole(ipmitool=self.ipmitool,
+                                   logfile=self.logfile,
                                    delaybeforesend=delaybeforesend)
         # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
