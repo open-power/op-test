@@ -677,7 +677,13 @@ try:
 
     if OpTestConfiguration.conf.args.run_suite:
         for suite in OpTestConfiguration.conf.args.run_suite:
-            t.addTest(suites[suite].suite())
+            try:
+                t.addTest(suites[suite].suite())
+            except Exception as e:
+                optestlog.error("We encountered a problem adding suite={},"
+                    " see if its a valid suite name and retry"
+                    .format(suite))
+                raise e
 
     if OpTestConfiguration.conf.args.run:
         t.addTest(unittest.TestLoader().loadTestsFromNames(OpTestConfiguration.conf.args.run))
