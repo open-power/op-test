@@ -66,6 +66,8 @@ class OpalMsglog():
             filter_out.append('NVRAM: Failed to load')
             filter_out.append("FLASH: Can't load resource id:")
             filter_out.append('CAPP: Error loading ucode lid.')
+            # Palmetto qemu model hits this:
+            filter_out.append('STB: container NOT VERIFIED, resource_id=. secureboot not yet initialized')
 
         if self.bmc_type in ["mambo"]:
             filter_out.append('SBE: Master chip ID not found.')
