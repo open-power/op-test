@@ -473,7 +473,7 @@ class OpTestConfiguration():
 
         OpTestLogger.optest_logger_glob.setUpLoggerFile(datetime.utcnow().strftime("%Y%m%d%H%M%S%f")+'.main.log')
         OpTestLogger.optest_logger_glob.setUpLoggerDebugFile(datetime.utcnow().strftime("%Y%m%d%H%M%S%f")+'.debug.log')
-        OpTestLogger.optest_logger_glob.optest_logger.info('TestCase Log files: {}/*{}*'.format(self.output, self.outsuffix))
+        OpTestLogger.optest_logger_glob.optest_logger.info('TestCase Log files: {}/*'.format(self.output))
         OpTestLogger.optest_logger_glob.optest_logger.info('StreamHandler setup {}'.format('quiet' if self.args.quiet else 'normal'))
 
         self.logfile_proc = subprocess.Popen(logcmd,
