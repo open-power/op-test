@@ -76,7 +76,7 @@ default_val = {
     'hostlocker_proxy'        : 'socks5h://localhost:1080',
     'hostlocker_no_proxy_ips' : ['10.61.0.0/17', '10.61.128.0/17'],
     'aes'                     : None,
-    'aes_server'              : 'http://fwreport02.austin.ibm.com',
+    'aes_server'              : 'http://fwreport02.rchland.ibm.com',
     'aes_base_url'            : '/pse_ct_dashboard/aes/rest',
     'aes_user'                : None,
     'locker_wait'             : None,
