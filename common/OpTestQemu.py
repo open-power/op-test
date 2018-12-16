@@ -238,10 +238,16 @@ class OpTestQemu():
             atexit.register(self.__del__)
         else:
             self.qemu_hda_file = hda
-        create_hda = subprocess.check_call(["qemu-img", "create",
-                                            "-fqcow2",
-                                            self.qemu_hda_file.name,
-                                            "10G"])
+        try:
+            create_hda = subprocess.check_call(["qemu-img", "create",
+                                                "-fqcow2",
+                                                self.qemu_hda_file.name,
+                                                "10G"])
+        except Exception as e:
+            log.error("OpTestQemu encountered a problem with qemu-img,"
+                      " check that you have qemu-utils installed first"
+                      " and then retry.")
+            raise e
         self.console = QemuConsole(qemu_binary=qemu_binary, pnor=pnor,
                                    skiboot=skiboot,
                                    kernel=kernel, initramfs=initramfs,
