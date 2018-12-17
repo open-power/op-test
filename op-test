@@ -619,6 +619,17 @@ class OpenBMCPalmettoSkirootSuite():
     def suite(self):
         return self.s
 
+class OpBuildPRSuite():
+    '''Run on each opened Pull Request on op-build project'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(SystemAccessSuite().suite())
+        self.s.addTest(OpTestHostbootSuite().suite())
+        self.s.addTest(SkirootSuite().suite())
+        pass
+    def suite(self):
+        return self.s
+
 suites = {
     'system-access' : SystemAccessSuite(),
     'skiroot' : SkirootSuite(),
@@ -655,6 +666,7 @@ suites = {
     'hostboot' : OpTestHostbootSuite(),
     'example' : OpTestExampleSuite(),
     'palmetto-ci' : OpenBMCPalmettoSkirootSuite(),
+    'op-build-pull-request' : OpBuildPRSuite(),
 }
 
 try:
