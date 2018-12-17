@@ -35,6 +35,8 @@ You need python 2.7 or greater and also needs below modules to be installed
     Optionally:  pip install unittest-xml-reporting unittest2
     For XML output: sudo apt-get install python-xmlrunner
 
+    For qemu: sudo apt-get install qemu-utils
+
 You will also need below packages to be installed
 
         sshpass and (recent) ipmitool - 1.8.15 or above should be adequate.
