@@ -178,8 +178,12 @@ class BmcImageFlash(OpTestFlashBase):
         super(BmcImageFlash, self).setUp()
 
     def runTest(self):
-        if not self.bmc_image or not os.path.exists(self.bmc_image):
-            self.skipTest("BMC image %s not doesn't exist" % self.bmc_image)
+        if not self.bmc_image:
+            self.skipTest("BMC image not provided, so skipping test")
+        else:
+            if not os.path.exists(self.bmc_image):
+                log.error("BMC image {} does not exist".format(self.bmc_image))
+                self.fail("BMC image {} does not exist".format(self.bmc_image))
 
         if "SMC" in self.bmc_type and not self.pupdate:
                 self.fail("pupdate tool is needed for flashing BMC on SMC platforms")
@@ -291,8 +295,13 @@ class PNORFLASH(OpTestFlashBase):
         super(PNORFLASH, self).setUp()
 
     def runTest(self):
-        if not self.pnor or not os.path.exists(self.pnor):
-            self.skipTest("PNOR image %s not doesn't exist" % self.pnor)
+        if not self.pnor:
+            self.skipTest("PNOR image not provided, so skipping test")
+        else:
+            if not os.path.exists(self.pnor):
+                log.error("PNOR image {} does not exist".format(self.pnor))
+                self.fail("PNOR image {} does not exist".format(self.pnor))
+
         if any(s in self.bmc_type for s in ("FSP", "QEMU", "qemu")):
             self.skipTest("OP AMI/OpenBMC PNOR Flash test")
 
