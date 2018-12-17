@@ -100,7 +100,7 @@ class OpTestFastReboot(unittest.TestCase):
         try:
             fast_reboot_state = ''.join(c.run_command(
                 "cat /proc/device-tree/ibm,opal/fast-reboot"))
-            if fast_reboot_state is not "okay":
+            if fast_reboot_state[:4] != "okay":
                 self.skipTest("Fast reboot not supported: {}".format(
                     fast_reboot_state))
         except CommandFailed as cf:
