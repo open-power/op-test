@@ -181,7 +181,8 @@ class InstallUbuntu(unittest.TestCase):
             raw_pty.sendline("kexec -e")
 
         # Do things
-        raw_pty.expect('Sent SIGKILL to all processes', timeout=60)
+        raw_pty.expect(['Sent SIGKILL to all processes','Starting new kernel'],
+                       timeout=60)
         r = raw_pty.expect(['Loading additional components','Configure the keyboard'], timeout=300)
         if r == 1:
             print("# Preseed isn't perfect when it comes to keyboard selection. Urgh")
