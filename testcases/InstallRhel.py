@@ -109,7 +109,8 @@ class InstallRhel(unittest.TestCase):
         else:
             pass
         # Do things
-        raw_pty.expect('Sent SIGKILL to all processes', timeout=60)
+        raw_pty.expect(['Sent SIGKILL to all processes','Starting new kernel'],
+                       timeout=60)
         r = None
         while r != 0:
             r = raw_pty.expect(['Running post-installation scripts',
