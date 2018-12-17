@@ -285,6 +285,20 @@ class OpTestUtil():
           self.conf.dump = False # possible for multiple passes here
           self.dump_versions()
 
+        # leave closing the qemu scratch disk until last
+        # no known reasons at this point, document in future
+        try:
+            log.debug("self.conf.args.qemu_scratch_disk={}"
+                      .format(self.conf.args.qemu_scratch_disk))
+            if self.conf.args.qemu_scratch_disk is not None:
+                self.conf.args.qemu_scratch_disk.close()
+                log.debug("Successfully closed qemu_scratch_disk")
+                self.conf.args.qemu_scratch_disk = None # in case we pass here again
+        except Exception as e:
+            log.debug("self.conf.args.qemu_scratch_disk={} "
+                      "closing Exception={}"
+                      .format(self.conf.args.qemu_scratch_disk, e))
+
     def dump_versions(self):
         log.info("Log Location: {}/*debug*".format(self.conf.output))
         log.info("\n----------------------------------------------------------\n"

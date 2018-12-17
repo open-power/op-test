@@ -233,34 +233,65 @@ class QemuIPMI():
         pass
 
 class OpTestQemu():
-    def __init__(self, qemu_binary=None, pnor=None, skiboot=None,
+    def __init__(self, conf=None, qemu_binary=None, pnor=None, skiboot=None,
                  kernel=None, initramfs=None, cdrom=None,
-                 logfile=sys.stdout, hda=None):
-        if hda is not None:
-            self.qemu_hda_file = tempfile.NamedTemporaryFile(delete=True)
-            atexit.register(self.__del__)
+                 logfile=sys.stdout):
+        # need the conf object to properly bind opened object
+        # we need to be able to cleanup/close the temp file in signal handler
+        self.conf = conf
+        if self.conf.args.qemu_scratch_disk and self.conf.args.qemu_scratch_disk.strip():
+            try:
+                # starts as name string
+                log.debug("OpTestQemu opening file={}"
+                    .format(self.conf.args.qemu_scratch_disk))
+                self.conf.args.qemu_scratch_disk = \
+                    open(self.conf.args.qemu_scratch_disk, 'wb')
+                # now is a file-like object
+            except Exception as e:
+                log.error("OpTestQemu encountered a problem "
+                          "opening file={} Exception={}"
+                    .format(self.conf.args.qemu_scratch_disk, e))
         else:
-            self.qemu_hda_file = hda
-        try:
-            create_hda = subprocess.check_call(["qemu-img", "create",
-                                                "-fqcow2",
-                                                self.qemu_hda_file.name,
-                                                "10G"])
-        except Exception as e:
-            log.error("OpTestQemu encountered a problem with qemu-img,"
-                      " check that you have qemu-utils installed first"
-                      " and then retry.")
-            raise e
-        self.console = QemuConsole(qemu_binary=qemu_binary, pnor=pnor,
+            # update with new object to close in cleanup
+            self.conf.args.qemu_scratch_disk = \
+                tempfile.NamedTemporaryFile(delete=True)
+            # now a file-like object
+            try:
+                create_hda = subprocess.check_call(["qemu-img", "create",
+                                                    "-fqcow2",
+                                                    self.conf.args.qemu_scratch_disk.name,
+                                                    "10G"])
+            except Exception as e:
+                log.error("OpTestQemu encountered a problem with qemu-img,"
+                          " check that you have qemu-utils installed first"
+                          " and then retry.")
+                raise e
+
+        atexit.register(self.__del__)
+        self.console = QemuConsole(qemu_binary=qemu_binary,
+                                   pnor=pnor,
                                    skiboot=skiboot,
-                                   kernel=kernel, initramfs=initramfs,
+                                   kernel=kernel,
+                                   initramfs=initramfs,
                                    logfile=logfile,
-                                   hda=self.qemu_hda_file.name, cdrom=cdrom)
+                                   hda=self.conf.args.qemu_scratch_disk.name,
+                                   cdrom=cdrom)
         self.ipmi = QemuIPMI(self.console)
         self.system = None
 
     def __del__(self):
-        self.qemu_hda_file.close()
+        log.debug("OpTestQemu cleaning up qemu_scratch_disk={}"
+            .format(self.conf.args.qemu_scratch_disk))
+        if self.conf.args.qemu_scratch_disk:
+            try:
+                self.conf.args.qemu_scratch_disk.close()
+                self.conf.args.qemu_scratch_disk = None
+                # if this was a temp file it will be deleted upon close
+                # optest_handler closes if signal encountered
+                log.debug("OpTestQemu closed qemu_scratch_disk")
+            except Exception as e:
+                log.error("OpTestQemu cleanup, ignoring Exception={}"
+                    .format(e))
 
     def set_system(self, system):
         self.console.system = system

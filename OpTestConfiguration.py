@@ -239,6 +239,7 @@ def get_parser():
     hostgroup.add_argument("--host-password", help="SSH password for Host")
     hostgroup.add_argument("--host-lspci", help="Known 'lspci -n -m' for host")
     hostgroup.add_argument("--host-scratch-disk", help="A block device we can erase", default="")
+    hostgroup.add_argument("--qemu-scratch-disk", help="A block device for qemu", default=None)
     hostgroup.add_argument("--host-prompt", default="#",
                            help="Prompt for Host SSH session")
 
@@ -687,14 +688,14 @@ class OpTestConfiguration():
                 bmc.set_system(self.op_system)
             elif self.args.bmc_type in ['qemu']:
                 print(repr(self.args))
-                bmc = OpTestQemu(qemu_binary=self.args.qemu_binary,
+                bmc = OpTestQemu(conf=self,
+                             qemu_binary=self.args.qemu_binary,
                              pnor=self.args.host_pnor,
                              skiboot=self.args.flash_skiboot,
                              kernel=self.args.flash_kernel,
                              initramfs=self.args.flash_initramfs,
                              cdrom=self.args.os_cdrom,
-                             logfile=self.logfile,
-                             hda=self.args.host_scratch_disk)
+                             logfile=self.logfile)
                 self.op_system = common.OpTestSystem.OpTestQemuSystem(host=host,
                     bmc=bmc,
                     state=self.startState,
