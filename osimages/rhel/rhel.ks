@@ -14,7 +14,7 @@ ignoredisk --only-use={}
 autopart --type=lvm --fstype=ext4
 services --enabled=NetworkManager,sshd
 reboot
-%packages
+%packages --ignoremissing
 @core
 kexec-tools
 telnet
