@@ -112,7 +112,8 @@ class IplParams():
         params = self.get_params_table()
         log.debug("List of features which are expected to be in enabled state\n{}".format(params))
         if not params:
-            self.assertTrue(False, "fw-feature set table not found")
+            # skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)
+            raise unittest.SkipTest("fw-feature set table not found, check if the processor is supported")
 
         fail_params = {}
         fail_params["enable"] = []
@@ -136,7 +137,8 @@ class IplParams():
         params = self.get_params_table()
         log.debug("List of features which are expected to be in disabled state\n{}".format(params))
         if not params:
-            self.assertTrue(False, "fw-feature set table not found")
+            # skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)
+            raise unittest.SkipTest("fw-feature set table not found, check if the processor is supported")
 
         fail_params = {}
         fail_params["disable"] = []
