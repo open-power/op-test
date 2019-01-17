@@ -32,7 +32,7 @@ import os
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestThread import OpSOLMonitorThread
+from common.OpTestSOL import OpSOLMonitorThread
 
 
 class RunHostTest(unittest.TestCase):
