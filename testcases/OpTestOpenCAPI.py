@@ -93,7 +93,7 @@ class OcxlDeviceFileTest(OpTestOpenCAPI, unittest.TestCase):
     def runTest(self):
         self.set_up()
         # Check device files /dev/ocxl/IBM,MEMCPY3.* existence
-        l_cmd = "ls -l /dev/ocxl/IBM,MEMCPY3.*; echo $?"
+        l_cmd = "ls -l /dev/ocxl/IBM,MEMCPY3.*"
         try:
             self.cv_HOST.host_run_command(l_cmd)
         except CommandFailed:
@@ -120,7 +120,7 @@ class MemCpy3AFUTest(OpTestOpenCAPI, unittest.TestCase):
 
         # Run memcpy3 afu tests
         l_exec = "afuobj/ocxl_memcpy -p100 -l100 >/tmp/ocxl_memcpy.log"
-        cmd = "cd %s; ./%s; echo $?" % (l_dir, l_exec)
+        cmd = "cd %s; ./%s" % (l_dir, l_exec)
         log.debug(cmd)
         try:
             self.cv_HOST.host_run_command(cmd)
