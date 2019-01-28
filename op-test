@@ -121,6 +121,16 @@ from testcases import IplParams
 from testcases import CpuHotPlug
 from testcases import EnergyScale_BaseLine
 from testcases import OpTestKernelArg
+from testcases import BMCResetTorture
+from testcases import BootTorture
+from testcases import ConsoleBug150765
+from testcases import EMStress
+from testcases import InstallUpstreamKernel
+from testcases import IpmiTorture
+from testcases import OpTestMamboSim
+from testcases import OpTestMtdPnorDriver
+from testcases import OpTestRebootTimeout
+from testcases import RunHostTest
 import testcases
 
 signal.signal(signal.SIGHUP, optest_handler)
