@@ -59,7 +59,7 @@ class OpSOLMonitorThread(threading.Thread):
         self.system.goto_state(OpSystemState.OS)
         logfile = os.path.join(conf.output, "console.log")
         self.sol_logger(logfile)
-        self.c = self.system.console.get_console(logger=self.logger)
+        self.c = self.system.console.get_console()
         self.c_terminate = False;
 
     def run(self):
