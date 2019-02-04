@@ -218,8 +218,7 @@ class TestPciSkirootReboot(TestPCI, unittest.TestCase):
             for line in self.pci_data_hardboot:
                 file.write(line)
         file.close()
-        # reboot from petitboot kernel
-        c.pty.sendline("reboot")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         l_res = c.run_command("lspci -mm -n")
         self.pci_data_softreboot = '\n'.join(l_res) + '\n'
