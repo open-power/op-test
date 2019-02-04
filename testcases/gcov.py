@@ -35,6 +35,10 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 from common import OpTestInstallUtil
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 NR_GCOV_DUMPS = 0
 
 class gcov():
@@ -58,8 +62,12 @@ class gcov():
 
     def runTest(self):
         self.setup_test()
-        exports = self.c.run_command(
-            "ls -1 --color=never /sys/firmware/opal/exports/")
+	try:
+            exports = self.c.run_command(
+                "ls -1 --color=never /sys/firmware/opal/exports/")
+	except CommandFailed as cf:
+	    log.debug("exports cf.output={}".format(cf.output))
+	    exports = "EMPTY"
         if 'gcov' not in exports:
             self.skipTest("Not a GCOV build")
 
