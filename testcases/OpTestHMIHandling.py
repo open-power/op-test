@@ -76,6 +76,20 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.clearGardEntries()
         self.cv_HOST.host_enable_all_cores(console=1)
+        self.cpu = ''.join(self.cv_HOST.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        if self.cpu in ["POWER9"]:
+            self.revision = ''.join(self.cv_HOST.host_run_command("grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
+            if not self.revision in ["2.2"]:
+                log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
+                           .format(self.cpu, self.revision))
+                raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
+                                         .format(self.cpu, self.revision))
+        else:
+            log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
+                        .format(self.cpu, self.revision))
+            raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
+                                     .format(self.cpu, self.revision))
+        log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(self.cpu, self.revision))
 
     def clear_stop(self):
         self.cv_SYSTEM.stop = 0
@@ -212,14 +226,21 @@ class OpTestHMIHandling(unittest.TestCase):
                 "Failed to clear GARD entries")
             log.debug(self.cv_FSP.fspc.run_command("gard --gc cpu"))
         else:
-            g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list all", console=1)
-            if "No GARD entries to display" not in g:
-                self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear all", console=1)
-                cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list", console=1)
-                self.assertIn("No GARD entries to display", cleared_gard,
-                              "Failed to clear GARD entries")
-            else: # all good so skip power cycle
-                return
+            #g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list all", console=1)
+            #if "No GARD entries to display" not in g:
+            # it seems we can hit ECC errors which require a response, so for now always clear
+            # Need to investigate having a opal-gard list all with a flag to force clearing ??
+            # PATH=/usr/local/sbin:$PATH opal-gard list all
+            # ECC: uncorrectable error: ffffffffffffffff ff
+            # The data at the GUARD partition does not appear to be valid gard data
+            # Clear the entire GUARD partition? [y/N]
+
+            self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear all", console=1)
+            cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list", console=1)
+            self.assertIn("No GARD entries to display", cleared_gard,
+                          "Failed to clear GARD entries")
+            #else: # all good so skip power cycle
+                #return
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
