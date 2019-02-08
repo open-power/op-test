@@ -100,9 +100,12 @@ class OpTestFastReboot(unittest.TestCase):
         try:
             fast_reboot_state = ''.join(c.run_command(
                 "cat /proc/device-tree/ibm,opal/fast-reboot"))
+            # skipTest throws exception when passing null at end
+            # exception from skipTest produces malformed XML
             if fast_reboot_state[:4] != "okay":
-                self.skipTest("Fast reboot not supported: {}".format(
-                    fast_reboot_state))
+                    self.skipTest("Fast reboot currently NOT supported, "
+                        "/proc/device-tree/ibm,opal/fast-reboot: {}"
+                                  .format(fast_reboot_state[:-1]))
         except CommandFailed as cf:
             if cf.exitcode is not 1:
                 raise cf
