@@ -35,7 +35,6 @@ import time
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
-import common.OpTestMambo as OpTestMambo
 
 import logging
 import OpTestLogger
@@ -47,12 +46,15 @@ class Console():
     count = 8
 
     def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_BMC = conf.bmc()
-        self.cv_SYSTEM = conf.system()
-        self.util = conf.util
+        self.conf = OpTestConfiguration.conf
+        self.cv_BMC = self.conf.bmc()
+        self.cv_SYSTEM = self.conf.system()
+        self.util = self.conf.util
 
     def runTest(self):
+        # ipmi SOL is not consistently reliable
+        if self.conf.args.bmc_type not in ['OpenBMC']:
+            raise unittest.SkipTest("Skipping Console tests for SOL connections")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.cv_BMC.get_host_console()
         adjustment = 3 # mambo echo now disabled in initial setup
@@ -114,20 +116,21 @@ class ControlC(unittest.TestCase):
     CONTROL = 'c'
 
     def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_BMC = conf.bmc()
-        self.cv_SYSTEM = conf.system()
-        self.util = conf.util
+        self.conf = OpTestConfiguration.conf
+        self.cv_BMC = self.conf.bmc()
+        self.cv_SYSTEM = self.conf.system()
+        self.util = self.conf.util
         self.prompt = self.util.build_prompt()
 
     def cleanup(self):
         pass
 
     def runTest(self):
+        # ipmi SOL is not consistently reliable
+        if self.conf.args.bmc_type not in ['OpenBMC']:
+            raise unittest.SkipTest("Skipping Console Controlx tests for SOL connections")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.cv_BMC.get_host_console()
-        if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)):
-            raise unittest.SkipTest("Mambo so skipping Control-C tests")
         raw_pty = console.get_console()
         raw_pty.sendline("find /")
         time.sleep(2)
