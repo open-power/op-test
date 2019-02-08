@@ -244,6 +244,7 @@ class DeviceTreeValidation(unittest.TestCase):
                        "/proc/device-tree/ibm,opal/sensor-groups" : None,
                        "/proc/device-tree/ibm,opal/sensors"       : None,
                        "/proc/device-tree/ibm,opal/power-mgt"     : None,
+                       "/proc/device-tree/ibm,opal/fw-features"   : None,
                       }
         if len(prop_val_pair_skiroot) and len(prop_val_pair_host):
             unified_failed_props = missing_prop_in_skiroot = \
@@ -273,6 +274,11 @@ class DeviceTreeValidation(unittest.TestCase):
                 if prop in prop_val_pair_host:
                     check1_len = len(prop_val_pair_skiroot[prop])
                     check2_len = len(prop_val_pair_host[prop])
+                    # we need the debug to figure out why things fail
+                    for elem in prop_val_pair_skiroot[prop]:
+                            log.debug("skiroot elem={}".format(elem))
+                    for elem in prop_val_pair_host[prop]:
+                            log.debug("host elem={}".format(elem))
                     check1_skiroot = all(elem in prop_val_pair_host[prop] \
                         for elem in prop_val_pair_skiroot[prop])
                     check2_skiroot = all(elem in prop_val_pair_skiroot[prop] \
@@ -290,6 +296,13 @@ class DeviceTreeValidation(unittest.TestCase):
                         log.debug("DT Node \"{}\" is the same in both"
                                   " skiroot and host".format(prop))
                         continue
+                    log.debug("Skiroot DT Node \"{}\" appears "
+                        "to differ from the Host, ^^^ compare the debug output ^^^"
+                          .format(prop))
+                    log.debug("skiroot_len={} host_len={}"
+                               .format(check1_len, check2_len))
+                    log.debug("skiroot_cross_check_to_host={} host_cross_check_to_skiroot={}"
+                               .format(check1_skiroot, check2_skiroot))
                     if ignore_dict.get(str(prop)) != None:
                         skipped_props += 1
                         continue
@@ -382,7 +395,10 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
         # We can extend for other nodes as well, which are suspicieous.
         props = self.c.run_command("find %s -type d" % self.node)
         for prop in props:
-            prop_val_pair_skiroot[prop] = self.c.run_command("lsprop %s" % prop)
+            # Not all distros consistently output lsprop (-R) so make it consistent
+            # Otherwise we get mismatches which get flagged as failures
+            # https://github.com/ibm-power-utilities/powerpc-utils
+            prop_val_pair_skiroot[prop] = self.c.run_command("lsprop -R %s" % prop)
 
         self.check_dt_matches()
 
@@ -403,6 +419,9 @@ class DeviceTreeValidationHost(DeviceTreeValidation):
 
         props = self.c.run_command("find %s -type d" % self.node)
         for prop in props:
-            prop_val_pair_host[prop] = self.c.run_command("lsprop %s" % prop)
+            # Not all distros consistently output lsprop (-R) so make it consistent
+            # Otherwise we get mismatches which get flagged as failures
+            # https://github.com/ibm-power-utilities/powerpc-utils
+            prop_val_pair_host[prop] = self.c.run_command("lsprop -R %s" % prop)
 
         self.check_dt_matches()
