@@ -264,7 +264,8 @@ class HostSuite():
 #        self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Host))
         #disabling temporarily
 #        self.s.addTest(KernelLog.Host()) # We run before HMI to clear out HMI errors from kernel log
-        self.s.addTest(OpTestHMIHandling.suite())
+        # Skip HMIHandling for now, opal-gard clear all forces interactive
+#        self.s.addTest(OpTestHMIHandling.suite())
         self.s.addTest(OpTestPNOR.Host())
         # disabling temporarily
 #        self.s.addTest(OpalMsglog.Host())
