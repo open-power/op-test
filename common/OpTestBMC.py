@@ -146,6 +146,23 @@ class OpTestBMC():
 
         return BMC_CONST.FW_SUCCESS
 
+    def reboot_nowait(self):
+        '''
+        This function issues the reboot command on the BMC console. But it
+        will not wait for BMC to come back.
+        '''
+        try:
+            self.ssh.run_command('reboot')
+        except SSHSessionDisconnected as e:
+            pass
+        except CommandFailed as e:
+            pass
+        self.ssh.close()
+        log.info('Sent reboot command...')
+        # Wait for BMC to go down.
+        self.util.ping_fail_check(self.cv_bmcIP)
+        log.info('BMC rebooting')
+
     def image_transfer(self, i_imageName, copy_as=None):
         '''
         This function copies the given image to the BMC /tmp dir.
