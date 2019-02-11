@@ -53,8 +53,7 @@ class DeviceTreeWarnings():
         filter_out = [
             # As of skiboot 6.0.1 on POWER9 we produce the following warnings:
             'dts: Warning \(reg_format\): "reg" property in '
-            '(/ibm,opal/flash@0|/xscom@603fc00000000/mcbist.*) has '
-            'invalid length',
+            '(/ibm,opal/flash@0) has invalid length',
 
             'dts: Warning \(unit_address_vs_reg\): Node /imc-counters/nx '
             'has a reg or ranges property, but no unit name',
