@@ -76,6 +76,15 @@ class TestPCI():
             pass
         if timeout_entries:
             total_entries = total_entries + timeout_entries
+        platform = self.c.run_command("cat /proc/device-tree/compatible")
+        def filterP9DSUtimeout(s):
+            p = re.compile('PHB#00(00|30|33|34)\[(0|8):(0|4|3)\]: LINK: Timeout waiting for link up')
+            return not p.search(s)
+
+        if re.search(r'p9dsu', platform[0]):
+            # No presence detect on some p9dsu slots :/
+            total_entries = filter(filterP9DSUtimeout, total_entries)
+
         msg = '\n'.join(filter(None, total_entries))
         self.assertTrue( len(total_entries) == 0, "pcie link down/timeout Errors in OPAL log:\n%s" % msg)
 
