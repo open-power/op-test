@@ -37,6 +37,8 @@ import struct
 import difflib
 
 import OpTestConfiguration
+from common.Exceptions import CommandFailed
+from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import common.OpTestQemu as OpTestQemu
@@ -61,6 +63,7 @@ class DeviceTreeValidation(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
+        self.bmc_type = conf.args.bmc_type
         self.node = "/proc/device-tree/ibm,opal/"
 
     # Checks for monotonocity/strictly increase/decrease of values
@@ -235,6 +238,28 @@ class DeviceTreeValidation(unittest.TestCase):
             self.assertTrue(self.strictly_increasing(pstate_ids),
                             "Non monotonocity observed for pstate ids")
 
+    def validate_firmware_version(self):
+        fw_node = "/proc/device-tree/ibm,firmware-versions/"
+        # Validate firmware version properties
+        if self.bmc_type not in ['OpenBMC', 'SMC', 'AMI']:
+            self.skipTest("ibm,firmware-versions DT node not available on this system")
+
+        if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E"]:
+            try:
+                self.c.run_command("ls --color=never %s/version" % fw_node)
+                version = self.dt_prop_read_str_arr("ibm,firmware-versions/version")
+                if not version:
+                    raise OpTestError("DT: Firmware version property is empty")
+            except CommandFailed:
+                raise OpTestError("DT: Firmware version property is missing")
+
+        props = self.c.run_command("find %s -type f" % fw_node)
+        for prop in props:
+            val = self.c.run_command("lsprop %s" % prop)
+            if not val:
+                raise OpTestError("DT: Firmware component (%s) is empty" % prop)
+
+
     def check_dt_matches(self):
         # allows the ability to filter for debug
         # skip the parent(s) in the hierarchy
@@ -390,6 +415,7 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
         self.cv_HOST.host_get_proc_gen(console=1)
         self.validate_idle_state_properties()
         self.validate_pstate_properties()
+        self.validate_firmware_version()
 
         # Validate ibm,opal node DT content at skiroot against host
         # We can extend for other nodes as well, which are suspicieous.
@@ -416,6 +442,7 @@ class DeviceTreeValidationHost(DeviceTreeValidation):
         self.cv_HOST.host_get_proc_gen(console=1)
         self.validate_idle_state_properties()
         self.validate_pstate_properties()
+        self.validate_firmware_version()
 
         props = self.c.run_command("find %s -type d" % self.node)
         for prop in props:
