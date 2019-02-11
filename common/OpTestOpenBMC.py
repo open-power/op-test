@@ -986,6 +986,10 @@ class OpTestOpenBMC():
         # After a BMC reboot, wait for it to reach ready state
         self.rest_api.wait_for_bmc_runtime()
 
+    def reboot_nowait(self):
+        # Reboot BMC but do not wait for it to come back
+        self.bmc.reboot_nowait()
+
     def image_transfer(self, i_imageName, copy_as=None):
         self.bmc.image_transfer(i_imageName, copy_as=copy_as)
 
