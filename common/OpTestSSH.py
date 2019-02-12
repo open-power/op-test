@@ -123,7 +123,7 @@ class OpTestSSH():
             self.state = ConsoleState.DISCONNECTED
             pass
 
-    def connect(self):
+    def connect(self, logger=None):
         if self.state == ConsoleState.CONNECTED:
             rc_child = self.close()
             self.state = ConsoleState.DISCONNECTED
@@ -147,7 +147,9 @@ class OpTestSSH():
             cmd = (cmd + " -o UserKnownHostsFile=" + self.known_hosts_file)
 
         # For multi threades SSH sessions use individual logger and file handlers per session.
-        if self.use_parent_logger:
+        if logger:
+            self.log = logger
+        elif self.use_parent_logger:
             self.log = log
         else:
             self.log = OpTestLogger.optest_logger_glob.get_custom_logger(__name__)
@@ -168,7 +170,7 @@ class OpTestSSH():
         self.pty.setwinsize(1000,1000)
         if self.delaybeforesend:
           self.pty.delaybeforesend = self.delaybeforesend
-        self.pty.logfile_read = OpTestLogger.FileLikeLogger(log)
+        self.pty.logfile_read = OpTestLogger.FileLikeLogger(self.log)
         time.sleep(2) # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
         self.check_set_term()
         return self.pty
@@ -185,9 +187,9 @@ class OpTestSSH():
           if self.SUDO_set != 1 or self.LOGIN_set != 1 or self.PS1_set !=1:
             self.util.setup_term(self.system, self.pty, self, setup_term_flag)
 
-    def get_console(self):
+    def get_console(self, logger=None):
         if self.state == ConsoleState.DISCONNECTED:
-          self.connect()
+          self.connect(logger)
 
         count = 0
         while (not self.pty.isalive()):
