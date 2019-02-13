@@ -29,11 +29,14 @@ import SimpleHTTPServer
 import cgi
 import commands
 import time
-from Exceptions import CommandFailed
+from Exceptions import CommandFailed, UnexpectedCase
 import OpTestConfiguration
 
 from common.OpTestSystem import OpSystemState
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 BASE_PATH = ""
 INITRD = ""
@@ -83,11 +86,13 @@ class InstallUtil():
                 self.cv_SYSTEM.console.run_command("ifconfig -a")
                 return True
             except CommandFailed as cf:
+                log.debug("wait_for_network CommandFailed={}".format(cf))
                 if cf.exitcode is 1:
                     time.sleep(5)
                     retry = retry - 1
                     pass
                 else:
+                    log.debug("wait_for_network ELSE raise cf={}".format(cf))
                     raise cf
 
     def ping_network(self):
@@ -95,19 +100,25 @@ class InstallUtil():
         while retry > 0:
             try:
                 ip = self.conf.args.host_gateway
+                log.debug("ping_network ip={}".format(ip))
                 if ip in [None, ""]:
                     ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
+                    log.debug("ping_network tried to get new ip={}".format(ip))
                 cmd = "ping %s -c 1" % ip
                 self.cv_SYSTEM.console.run_command(cmd)
                 return True
             except CommandFailed as cf:
+                log.debug("ping_network Exception={}".format(cf))
                 if retry == 1:
+                    log.debug("ping_network raise cf={}".format(cf))
                     raise cf
                 if cf.exitcode is 1:
                     time.sleep(5)
                     retry = retry - 1
+                    log.debug("ping_network Exception path, retry={}".format(retry))
                     pass
                 else:
+                    log.debug("ping_network Exception path ELSE, raise cf={}".format(cf))
                     raise cf
 
     def assign_ip_petitboot(self):
@@ -116,13 +127,34 @@ class InstallUtil():
         """
         # Lets reduce timeout in petitboot
         self.cv_SYSTEM.console.run_command("nvram --update-config petitboot,timeout=10")
-        cmd = "ip addr|grep -B1 -i %s|grep BROADCAST|awk -F':' '{print $2}'" % self.conf.args.host_mac
-        iface = self.cv_SYSTEM.console.run_command(cmd)[0].strip()
-        cmd = "ifconfig %s %s netmask %s" % (iface, self.cv_HOST.ip, self.conf.args.host_submask)
+        # this will not work without these
+        if not self.conf.args.host_mac \
+          or not self.conf.args.host_submask \
+          or not self.conf.args.host_gateway \
+          or not self.conf.args.host_dns:
+            my_msg = ("We need host_mac/host_submask/host_gateway/host_dns provided"
+                     " on command line args or via configuration files.")
+            noconfig_exception = UnexpectedCase(state="assign_ip_petitboot config", message=my_msg)
+            raise noconfig_exception
+        cmd = ("ip addr|grep -B1 -i %s |grep BROADCAST|awk -F ':' '{print $2}'" % (self.conf.args.host_mac))
+        log.debug("ip addr cmd={}".format(cmd, type(cmd)))
+        iface = self.cv_SYSTEM.console.run_command(cmd)
+        log.debug("iface={} type={} len={}".format(iface, type(iface), len(iface)))
+        if len(iface) >=1:
+            iface = self.cv_SYSTEM.console.run_command(cmd)[0].strip()
+        else:
+            my_msg = ("We did NOT get interface back from query, UNABLE to proceed with trying to "
+                     "setup the IP, check that Petitboot or Host OS is configured properly.")
+            noface_exception = UnexpectedCase(state="assign_ip_petitboot interface", message=my_msg)
+            raise noiface_exception
+        cmd = ("ifconfig %s %s netmask %s" % (iface, self.cv_HOST.ip, self.conf.args.host_submask))
+        log.debug("ifconfig cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command(cmd)
-        cmd = "route add default gateway %s" % self.conf.args.host_gateway
+        cmd = ("route add default gateway %s" % self.conf.args.host_gateway)
+        log.debug("route cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
-        cmd = "echo 'nameserver %s' > /etc/resolv.conf" % self.conf.args.host_dns
+        cmd = ("echo 'nameserver %s' > /etc/resolv.conf" % self.conf.args.host_dns)
+        log.debug("nameserver cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command(cmd)
 
     def configure_host_ip(self):
@@ -131,28 +163,46 @@ class InstallUtil():
         try:
             self.ping_network()
         except CommandFailed as cf:
-            self.assign_ip_petitboot()
-            self.ping_network()
+            log.debug("configure_host_ip CommandFailed={}".format(cf))
+            try:
+                self.assign_ip_petitboot()
+                self.ping_network()
+            except Exception as e:
+                log.debug("configure_host_ip Exception={}".format(e))
+                my_msg = "We failed to setup Petitboot or Host IP, check that the IP's are configured and any other configuration parms"
+                noconfig_exception = UnexpectedCase(state="configure_host_ip", message=my_msg)
+                raise noconfig_exception
 
     def get_server_ip(self):
         """
         Get IP of server where test runs
         """
         my_ip = ""
-        self.configure_host_ip()
+        try:
+            self.configure_host_ip()
+        except Exception as e:
+            my_msg = "Exception trying configure_host_ip, e={}".format(e)
+            configure_exception = UnexpectedCase(state="get_server_ip", message=my_msg)
+            raise configure_exception
         retry = 30
         while retry > 0:
             try:
                 my_ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
-                print(repr(my_ip))
+                log.debug("get_server_ip my_ip={}".format(my_ip))
+                if not my_ip:
+                    my_msg = "We were not able to get IP from Petitboot or Host, check that the IP is configured"
+                    noip_exception = UnexpectedCase(state="get_server_ip", message=my_msg)
+                    raise noip_exception
                 self.cv_SYSTEM.console.run_command("ping %s -c 1" % my_ip)
                 break
             except CommandFailed as cf:
+                log.debug("get_server_ip CommandFailed cf={}".format(cf))
                 if cf.exitcode is 1:
                     time.sleep(1)
                     retry = retry - 1
                     pass
                 else:
+                    log.debug("get_server_ip Exception={}".format(cf))
                     raise cf
 
         return my_ip

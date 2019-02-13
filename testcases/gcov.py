@@ -73,9 +73,14 @@ class gcov():
 
         l = self.c.run_command("wc -c /sys/firmware/opal/exports/gcov")
         iutil = OpTestInstallUtil.InstallUtil()
-        my_ip = iutil.get_server_ip()
+        try:
+            my_ip = iutil.get_server_ip()
+            log.debug("my_ip={}".format(my_ip))
+        except Exception as e:
+            log.debug("get_server_ip Exception={}".format(e))
+            self.fail("Unable to get the IP from Petitboot or Host, check that the IP's are configured")
         if not my_ip:
-            self.fail("unable to get the ip from host")
+            self.fail("We failed to get the IP from Petitboot or Host, check that the IP's are configured")
         port = iutil.start_server(my_ip)
 
         url = 'http://{}:{}/upload'.format(my_ip, port)

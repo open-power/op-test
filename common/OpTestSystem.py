@@ -1160,7 +1160,10 @@ class OpTestSystem(object):
                 raw_pty.send("nc -l -p %u -v\n" % port)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             time.sleep(0.5)
+            log.debug("If UNABLE to ping, check DNS or multihome, hostname={} port={}"
+                .format(self.host().hostname(), port))
             log.debug("# Connecting to %s:%u" % (self.host().hostname(), port))
+            sock.settimeout(10)
             sock.connect((self.host().hostname(), port))
             sock.send('Hello World!')
             sock.close()
@@ -1169,23 +1172,34 @@ class OpTestSystem(object):
             my_ip = raw_pty.before
             raw_pty.expect('\n')
             raw_pty.expect('#')
-            log.debug(repr(my_ip))
+            log.debug("Connection from: my_ip={}".format(my_ip))
+            if my_ip is not None:
+                # need to investigate multihomed boxes more
+                just_ip = socket.gethostbyname(my_ip)
+                log.debug("just_ip={}".format(just_ip))
             return my_ip
         except Exception as e:  # Looks like older nc does not support -v, lets fallback
+            log.debug("Processing in Exception path, e={}".format(e))
             raw_pty.sendcontrol('c')  # to avoid incase nc command hangs
             my_ip = None
             ip = commands.getoutput("hostname -i")
+            log.debug("ip={}".format(ip))
             ip_lst = commands.getoutput("hostname -I").split(" ")
+            log.debug("ip_lst={}".format(ip_lst))
             # Let's validate the IP
             for item in ip_lst:
+                log.debug("comparing item={} to ip={}".format(item, ip))
                 if item == ip:
                     my_ip = ip
                     break
             if not my_ip:
                 if len(ip_lst) == 1:
                     my_ip = ip_lst[0]
+                    log.debug("ip_list==1, so using my_ip={}".format(my_ip))
                 else:
-                    log.error("hostname -i does not provide valid IP, correct and proceed with installation")
+                    log.error("We were trying to get \"hostname -i\" which does not provide a valid IP, "
+                        "you may need to set the static/DHCP IP in Petitboot or Host OS, then retry.")
+
         return my_ip
 
     def sys_enable_tpm(self):
