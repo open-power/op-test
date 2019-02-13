@@ -298,9 +298,9 @@ class HostManagement():
         '''
         Current Boot Device Info
         GET
-        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/bootmode
+        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/BootMode
         '''
-        uri = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
+        uri = "/xyz/openbmc_project/control/host0/boot/attr/BootMode"
         r = self.conf.util_bmc_server.get(uri=uri, minutes=minutes)
         json_data = r.json().get('data')
         bootmode = ""
@@ -314,17 +314,17 @@ class HostManagement():
         '''
         Set boot device to setup
         PUT
-        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/bootmode
+        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/BootMode
         "data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Setup"
 
-        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled
+        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/Enabled
         "data": 0
         '''
-        uri = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
+        uri = "/xyz/openbmc_project/control/host0/boot/attr/BootMode"
         payload = {"data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Setup"}
         r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
 
-        uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled"
+        uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/Enabled"
         payload = {"data": 0}
         r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
 
@@ -332,17 +332,17 @@ class HostManagement():
         '''
         Set boot device to regular/default
         PUT
-        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/bootmode
+        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/BootMode
         "data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Regular"
 
-        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled
+        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/Enabled
         "data": 0
         '''
-        uri = "/xyz/openbmc_project/control/host0/boot/attr/bootmode"
+        uri = "/xyz/openbmc_project/control/host0/boot/attr/BootMode"
         payload = {"data" : "xyz.openbmc_project.Control.Boot.Mode.Modes.Regular"}
         r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
 
-        uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/enabled"
+        uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/Enabled"
         payload = {"data": 0}
         r = self.conf.util_bmc_server.put(uri=uri, json=payload, minutes=minutes)
 
