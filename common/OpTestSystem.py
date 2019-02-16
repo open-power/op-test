@@ -1120,21 +1120,30 @@ class OpTestSystem(object):
         if eps_rc == 0: # Petitboot
           return
         else: # we timed out or eof
-          self.util.try_recover(self.console, counter=3)
-          # if we get back here we're good and at the prompt
-          sys_pty.sendline()
-          eps_rc = self.try_exit(sys_pty)
-          if eps_rc == 0: # Petitboot
-            return
-          else:
-            raise RecoverFailed(before=sys_pty.before, after=sys_pty.after,
-                    msg="Unable to get the Petitboot prompt stage 3, we were trying to exit back to menu")
+          try:
+              self.util.try_recover(self.console, counter=3)
+              # if we get back here we're good and at the prompt
+              # but we lost our sys_pty, so get a new one
+              sys_pty = self.console.get_console()
+              sys_pty.sendline()
+              eps_rc = self.try_exit(sys_pty)
+              if eps_rc == 0: # Petitboot
+                return
+              else:
+                raise RecoverFailed(before=sys_pty.before, after=sys_pty.after,
+                        msg="Unable to get the Petitboot prompt stage 3, we were trying to exit back to menu")
+          except Exception as e:
+              # who knows but keep on
+              log.debug("EPS Exception={}".format(e))
 
     def try_exit(self, sys_pty):
           self.util.clear_state(self)
           sys_pty.sendline()
           sys_pty.sendline("exit")
           rc_return = sys_pty.expect(["Petitboot", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          log.debug("rc_return={}".format(rc_return))
+          log.debug("sys_pty.before={}".format(sys_pty.before))
+          log.debug("sys_pty.after={}".format(sys_pty.after))
           if rc_return == 0:
             return rc_return
           else:

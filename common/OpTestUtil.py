@@ -907,6 +907,9 @@ class OpTestUtil():
           pty.sendcontrol('c')
           time.sleep(1)
           try_rc = pty.expect([".*#", "Petitboot", "login: ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          log.debug("try_rc={}".format(try_rc))
+          log.debug("pty.before={}".format(pty.before))
+          log.debug("pty.after={}".format(pty.after))
           if try_rc in [0,1,2]:
             log.warning("OpTestSystem recovered from temporary issue, continuing")
             return
