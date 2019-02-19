@@ -76,6 +76,20 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.clearGardEntries()
         self.cv_HOST.host_enable_all_cores(console=1)
+        self.cpu = ''.join(self.cv_HOST.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'", console=1))
+        if self.cpu in ["POWER9"]:
+            self.revision = ''.join(self.cv_HOST.host_run_command("grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
+            if not self.revision in ["2.2", "2.3"]:
+                log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
+                           .format(self.cpu, self.revision))
+                raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
+                                         .format(self.cpu, self.revision))
+        else:
+            log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
+                        .format(self.cpu, self.revision))
+            raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
+                                     .format(self.cpu, self.revision))
+        log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(self.cpu, self.revision))
 
     def clear_stop(self):
         self.cv_SYSTEM.stop = 0
@@ -93,8 +107,10 @@ class OpTestHMIHandling(unittest.TestCase):
           self.assertTrue(False, "OpTestHMIHandling failed to recover from previous OpSystemState.UNKNOWN_BAD")
 
     def handle_ipl(self):
-        rc = self.cv_SYSTEM.console.pty.expect(["ISTEP", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
-        if rc == 0:
+        rc = self.cv_SYSTEM.console.pty.expect(["ISTEP", "istep", pexpect.TIMEOUT, pexpect.EOF], timeout=180)
+        log.debug("before={}".format(self.cv_SYSTEM.console.pty.before))
+        log.debug("after={}".format(self.cv_SYSTEM.console.pty.after))
+        if rc in [0,1]:
           for i in range(3):
             try:
               self.cv_SYSTEM.set_state(OpSystemState.IPLing)
@@ -108,7 +124,7 @@ class OpTestHMIHandling(unittest.TestCase):
             self.assertTrue(False, "OpTestHMIHandling failed to normally recover after Error Injection")
         else:
           self.clear_stop() # set the machine to recover for whatever comes next
-          self.assertTrue(False, "OpTestHMIHandling failed to get ISTEP after Error Injection")
+          self.assertTrue(False, "OpTestHMIHandling failed to get ISTEP/istep after Error Injection")
 
     def verify_proc_recovery(self, l_res):
         if any("Processor Recovery done" in line for line in l_res) and \
@@ -204,6 +220,7 @@ class OpTestHMIHandling(unittest.TestCase):
 
     def clearGardEntries(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        expect_prompt = self.cv_SYSTEM.util.build_prompt()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         if "FSP" in self.bmc_type:
             # maybe add gard --dg to first check if None to skip power cycle ?
@@ -212,18 +229,88 @@ class OpTestHMIHandling(unittest.TestCase):
                 "Failed to clear GARD entries")
             log.debug(self.cv_FSP.fspc.run_command("gard --gc cpu"))
         else:
-            g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list all", console=1)
-            if "No GARD entries to display" not in g:
-                self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard clear all", console=1)
-                cleared_gard = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list", console=1)
-                self.assertIn("No GARD entries to display", cleared_gard,
-                              "Failed to clear GARD entries")
-            else: # all good so skip power cycle
-                return
+            my_term = self.cv_SYSTEM.console
+            my_pty = my_term.get_console()
+            my_term.run_command("date") # just need to run to get console setup
+            cmd_list_all = "PATH=/usr/local/sbin:$PATH opal-gard list all"
+            my_pty.sendline(cmd_list_all)
+            rc = my_pty.expect([expect_prompt, "Clear the entire GUARD", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+            log.debug("rc={}".format(rc))
+            log.debug("list before={}".format(my_pty.before))
+            log.debug("list after={}".format(my_pty.after))
+            if rc == 0:
+                output = []
+                output += my_pty.before.replace("\r\r\n","\n").splitlines()
+                try:
+                    del output[:1] # remove command from the list
+                except Exception as e:
+                    pass # nothing there
+                log.debug("LIST output={}".format(output))
+                if "No GARD entries to display" in output:
+                    log.debug("No GARD, so keep on")
+                    return # all good so keep on
+                else:
+                    log.debug("GOT GARD to clear")
+                    cmd_clear_all = "PATH=/usr/local/sbin:$PATH opal-gard clear all"
+                    my_pty.sendline(cmd_clear_all)
+                    rc = my_pty.expect([expect_prompt, "Clear the entire GUARD", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+                    log.debug("GARD Clear rc={}".format(rc))
+                    log.debug("GARD Clear before={}".format(my_pty.before))
+                    log.debug("GARD Clear after={}".format(my_pty.after))
+                    if rc == 0:
+                        output = []
+                        output += my_pty.before.replace("\r\r\n","\n").splitlines()
+                        try:
+                            del output[:1] # remove command from the list
+                        except Exception as e:
+                            pass # nothing there
+                        log.debug("GARD Clear output={}".format(output))
+                    if rc == 1:
+                        my_pty.sendline("y")
+                        rc = my_pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+                        log.debug("GARD Clear Y rc={}".format(rc))
+                        log.debug("GARD Clear Y before={}".format(my_pty.before))
+                        log.debug("GARD Clear Y after={}".format(my_pty.after))
+                        if rc != 0:
+                            self.assertTrue(False, "We failed to clear the GARD, review the debug log.")
+                        else:
+                            log.debug("GARD CLEAR Y completed.")
+            if rc in [1]:
+                my_pty.sendline("y")
+                rc = my_pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+                log.debug("LIST rc={}".format(rc))
+                log.debug("LIST before={}".format(my_pty.before))
+                log.debug("LIST after={}".format(my_pty.after))
+                if rc != 0:
+                    self.assertTrue(False, "We tried to clear the GARD, but did not get the prompt back")
+                else:
+                    log.debug("GARD LIST Clear Y completed.")
+            elif rc in [2,3]: # we timed out, so we got something other than what we expected
+                self.assertTrue(False, "We timed out or EOF from trying to clear the GARD, review the debug log.")
+
+            cmd_list_all = "PATH=/usr/local/sbin:$PATH opal-gard list all"
+            my_pty.sendline(cmd_list_all)
+            rc = my_pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+            log.debug("FINAL GARD LIST rc={}".format(rc))
+            log.debug("FINAL before={}".format(my_pty.before))
+            log.debug("FINAL after={}".format(my_pty.after))
+            if rc == 0:
+                output = []
+                output += my_pty.before.replace("\r\r\n","\n").splitlines()
+                try:
+                   del output[:1] # remove command from the list
+                except Exception as e:
+                   pass # nothing there
+                log.debug("FINAL output={}".format(output))
+                if "No GARD entries to display" not in output:
+                    self.assertTrue(False, "We failed to get the prompt back from trying to clear the GARD entries")
+                else: # we had something to clear and confirmed we cleared, but now we reboot
+                    log.debug("ALL confirmed clear GARD")
+
+        log.debug("We must have had GARD cleared, so we are going to Power OFF, then boot to OS")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-    ##
     def _testHMIHandling(self, i_test):
         '''
         This function executes HMI test case based on the i_test value, Before test starts
