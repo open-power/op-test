@@ -140,7 +140,7 @@ class MamboConsole():
                + " -f {}".format(self.mambo_initial_run_script)
            )
 
-        spawn_env = {}
+        spawn_env = os.environ
         if self.skiboot:
             spawn_env['SKIBOOT'] = self.skiboot
         if self.kernel:
