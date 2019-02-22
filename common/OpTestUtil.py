@@ -905,6 +905,7 @@ class OpTestUtil():
         for i in range(counter):
           log.warning("OpTestSystem detected something, working on recovery")
           pty = term_obj.connect()
+          log.debug("USING TR Expect Buffer ID={}".format(hex(id(pty))))
           pty.sendcontrol('c')
           time.sleep(1)
           try_rc = pty.expect([".*#", "Petitboot", "login: ", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
@@ -922,6 +923,7 @@ class OpTestUtil():
 
     def try_sendcontrol(self, term_obj, command, counter=3):
         pty = term_obj.get_console()
+        log.debug("USING TSC Expect Buffer ID={}".format(hex(id(pty))))
         res = pty.before
         log.warning("OpTestSystem detected something, working on recovery")
         pty.sendcontrol('c')

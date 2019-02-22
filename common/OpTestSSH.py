@@ -108,6 +108,7 @@ class OpTestSSH():
             self.pty.send("\r")
             self.pty.send('~.')
             close_rc = self.pty.expect([pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            log.debug("CLOSE Expect Buffer ID={}".format(hex(id(self.pty))))
             rc_child = self.pty.close()
             exitCode = signalstatus = None
             if self.pty.status != -1: # leaving here for debug
@@ -173,6 +174,7 @@ class OpTestSSH():
         self.pty.logfile_read = OpTestLogger.FileLikeLogger(self.log)
         time.sleep(2) # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
         self.check_set_term()
+        log.debug("CONNECT starts Expect Buffer ID={}".format(hex(id(self.pty))))
         return self.pty
 
     def check_set_term(self):

@@ -532,11 +532,12 @@ class OpTestSystem(object):
               x += 1
               log.debug("\n *** WaitForIt CURRENT STATE \"{:02}\" TARGET STATE \"{:02}\"\n"
                       " *** WaitForIt working on transition\n"
+                      " *** Expect Buffer ID={}\n"
                       " *** Current loop iteration \"{:02}\"             - Reconnect attempts \"{:02}\" - loop_max \"{:02}\"\n"
                       " *** WaitForIt timeout interval \"{:02}\" seconds - Stale buffer check every \"{:02}\" times\n"
                       " *** WaitForIt variables \"{}\"\n"
                       " *** WaitForIt Refresh=\"{}\" Buffer Kicker=\"{}\" - Kill Cord=\"{:02}\"\n".format(self.state, self.target_state,
-                      x, reconnect_count, kwargs['loop_max'], kwargs['timeout'], kwargs['threshold'],
+                      hex(id(sys_pty)), x, reconnect_count, kwargs['loop_max'], kwargs['timeout'], kwargs['threshold'],
                       sorted(kwargs['expect_dict'].keys()), kwargs['refresh'], kwargs['buffer_kicker'], self.kill_cord))
             if (x >= kwargs['loop_max']):
               if kwargs['last_try']:
@@ -1090,6 +1091,7 @@ class OpTestSystem(object):
 
     def petitboot_exit_to_shell(self):
         sys_pty = self.console.get_console()
+        log.debug("USING PES Expect Buffer ID={}".format(hex(id(sys_pty))))
         for i in range(3):
           pp = self.get_petitboot_prompt()
           if pp == 1:
@@ -1102,6 +1104,7 @@ class OpTestSystem(object):
     def get_petitboot_prompt(self):
         my_pp = 0
         sys_pty = self.console.get_console()
+        log.debug("USING GPP Expect Buffer ID={}".format(hex(id(sys_pty))))
         sys_pty.sendline()
         pes_rc = sys_pty.expect([".*#", ".*# $", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if pes_rc in [0,1]:
@@ -1116,6 +1119,7 @@ class OpTestSystem(object):
 
     def exit_petitboot_shell(self):
         sys_pty = self.console.get_console()
+        log.debug("USING EPS 1 Expect Buffer ID={}".format(hex(id(sys_pty))))
         eps_rc = self.try_exit(sys_pty)
         if eps_rc == 0: # Petitboot
           return
@@ -1125,6 +1129,7 @@ class OpTestSystem(object):
               # if we get back here we're good and at the prompt
               # but we lost our sys_pty, so get a new one
               sys_pty = self.console.get_console()
+              log.debug("USING EPS 2 Expect Buffer ID={}".format(hex(id(sys_pty))))
               sys_pty.sendline()
               eps_rc = self.try_exit(sys_pty)
               if eps_rc == 0: # Petitboot
@@ -1138,6 +1143,7 @@ class OpTestSystem(object):
 
     def try_exit(self, sys_pty):
           self.util.clear_state(self)
+          log.debug("USING TE Expect Buffer ID={}".format(hex(id(sys_pty))))
           sys_pty.sendline()
           sys_pty.sendline("exit")
           rc_return = sys_pty.expect(["Petitboot", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
