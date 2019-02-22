@@ -28,10 +28,12 @@ import time
 import pexpect
 import subprocess
 import tempfile
+import os
 
 from common.Exceptions import CommandFailed
 import OPexpect
 from OpTestUtil import OpTestUtil
+import OpTestConfiguration
 
 import logging
 import OpTestLogger
@@ -153,8 +155,9 @@ class QemuConsole():
                 )
         # typical host ip=10.0.2.2 and typical skiroot 10.0.2.15
         # use skiroot as the source, no sshd in skiroot
+        fru_path = os.path.join(OpTestConfiguration.conf.basedir, "test_binaries", "qemu_fru")
         cmd = cmd + " -nic user,model=virtio-net-pci"
-        cmd = cmd + " -device ipmi-bmc-sim,id=bmc0 -device isa-ipmi-bt,bmc=bmc0,irq=10"
+        cmd = cmd + " -device ipmi-bmc-sim,id=bmc0,frudatafile=" + fru_path + " -device isa-ipmi-bt,bmc=bmc0,irq=10"
         cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
         print(cmd)
         try:
