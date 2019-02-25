@@ -285,6 +285,7 @@ class OpTestUtil():
           self.dump_versions()
 
     def dump_versions(self):
+        log.info("Log Location: {}/*debug*".format(self.conf.output))
         log.info("\n----------------------------------------------------------\n"
                  "OpTestSystem Firmware Versions Tested\n"
                  "(if flashed things like skiboot.lid, may not be accurate)\n"
