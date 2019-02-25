@@ -833,21 +833,16 @@ class OpTestHost():
         self.host_run_command("git config --global http.sslverify false", console=console)
         self.host_run_command("rm -rf %s" % i_dir, console=console)
         self.host_run_command("mkdir %s" % i_dir, console=console)
-        try:
-            l_res = self.host_run_command(l_cmd, console=console)
-            return True
-        except:
-            l_msg = "Cloning cxl-tests git repository is failed"
-            return False
+        l_res = self.host_run_command(l_cmd, console=console)
 
     def host_build_cxl_tests(self, i_dir, console=0):
-        l_cmd = "cd %s; make" % i_dir
+        l_cmd = "make -C %s" % i_dir
         self.host_run_command(l_cmd, console=console)
         l_cmd = "test -x %s/libcxl/libcxl.so" % i_dir
         self.host_run_command(l_cmd, console=console)
-        l_cmd = "test -x %s/libcxl_tests; echo $?" % i_dir
+        l_cmd = "test -x %s/libcxl_tests" % i_dir
         self.host_run_command(l_cmd, console=console)
-        l_cmd = "test -x %s/memcpy_afu_ctx; echo $?" % i_dir
+        l_cmd = "test -x %s/memcpy_afu_ctx" % i_dir
         self.host_run_command(l_cmd, console=console)
 
     def host_clone_libocxl(self, i_dir, console=0):
@@ -861,17 +856,13 @@ class OpTestHost():
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
         self.host_run_command("rm -rf %s" % i_dir, console=console)
         self.host_run_command("mkdir %s" % i_dir, console=console)
-        try:
-            l_res = self.host_run_command(l_cmd, console=console)
-            return True
-        except:
-            l_msg = "Cloning libocxl git repository is failed"
-            return False
+        l_res = self.host_run_command(l_cmd, console=console)
 
     def host_build_libocxl(self, i_dir, console=0):
-        l_cmd = "cd %s; make" % i_dir
+        l_cmd = "make -C %s" % i_dir
         self.host_run_command(l_cmd, console=console)
-        l_cmd = "test -x %s/afuobj/ocxl_memcpy; echo $?" % i_dir
+        l_cmd = "test -x %s/afuobj/ocxl_memcpy" % i_dir
+        self.host_run_command(l_cmd, console=console)
 
     def host_check_binary(self, i_dir, i_file, console=0):
         l_cmd = "test -x %s/%s;" % (i_dir, i_file)

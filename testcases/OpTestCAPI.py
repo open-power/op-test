@@ -97,7 +97,7 @@ class CxlDeviceFileTest(OpTestCAPI, unittest.TestCase):
     def runTest(self):
         self.set_up()
         # Check device files /dev/cxl/afu0.0{m,s} existence
-        l_cmd = "ls -l /dev/cxl/afu0.0{m,s}; echo $?"
+        l_cmd = "ls -l /dev/cxl/afu0.0{m,s}"
         try:
             self.cv_HOST.host_run_command(l_cmd)
         except CommandFailed:
@@ -156,7 +156,7 @@ class MemCpyAFUTest(OpTestCAPI, unittest.TestCase):
 
         # Run memcpy afu tests
         l_exec = "memcpy_afu_ctx -p100 -l100 >/tmp/memcpy_afu_ctx.log"
-        cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s; echo $?" % (l_dir, l_exec)
+        cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s" % (l_dir, l_exec)
         log.debug(cmd)
         try:
             self.cv_HOST.host_run_command(cmd)
@@ -196,7 +196,7 @@ class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
 
         # Run timebase sync tests
         l_exec = "memcpy_afu_ctx -t -p1 -l1 >/tmp/memcpy_afu_ctx-t.log"
-        cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s; echo $?" % (l_dir, l_exec)
+        cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s" % (l_dir, l_exec)
         log.debug(cmd)
         try:
             self.cv_HOST.host_run_command(cmd)
