@@ -93,7 +93,16 @@ class SbePassThrough(unittest.TestCase):
         self.c.run_command("dmesg -D")
 
         # Make sure opal-prd daemon runs before test starts
-        self.c.run_command("service opal-prd start")
+        try:
+            start_res = self.c.run_command("service opal-prd start")
+            log.debug("start_res={}".format(start_res))
+            pid_res = self.c.run_command("pidof opal-prd")
+            log.debug("pid_res={}".format(pid_res))
+        except Exception as e:
+            log.debug("Unable to start opal-prd.service or keep opal-prd running,"
+                " unable to run test, Exception={}".format(e))
+            self.assertTrue(False, "Unable to start opal-prd.service or keep "
+                "opal-prd running, unable to run test, raise a bug {}".format(e))
         self.setup_init()
         for i in range(0, 2):
             for chip in self.chips:
