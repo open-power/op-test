@@ -77,23 +77,31 @@ class OpTestOCCBase(testcases.OpTestEM.OpTestEM):
         self.assertEqual(int(res[-1]), 0, "occ reset command failed from fsp")
 
     def do_occ_reset(self):
-        log.debug("OPAL-PRD: OCC Enable")
-        self.c.run_command(BMC_CONST.OCC_ENABLE)
-        log.debug("OPAL-PRD: OCC DISABLE")
-        self.c.run_command(BMC_CONST.OCC_DISABLE)
-        log.debug("OPAL-PRD: OCC Enable")
-        self.c.run_command(BMC_CONST.OCC_ENABLE)
-        log.debug("OPAL-PRD: OCC RESET")
-        self.c.run_command(BMC_CONST.OCC_RESET)
+        try:
+            log.debug("OPAL-PRD: OCC Enable")
+            self.c.run_command(BMC_CONST.OCC_ENABLE)
+            log.debug("OPAL-PRD: OCC DISABLE")
+            self.c.run_command(BMC_CONST.OCC_DISABLE)
+            log.debug("OPAL-PRD: OCC Enable")
+            self.c.run_command(BMC_CONST.OCC_ENABLE)
+            log.debug("OPAL-PRD: OCC RESET")
+            self.c.run_command(BMC_CONST.OCC_RESET)
+        except Exception as e:
+            log.debug("Unexpected problem, Exception={}".format(e))
+            self.assertTrue(False, "Unexpected problem, Exception={}".format(e))
 
     def clear_occ_rr_count(self):
         # Clear the OCC reset reload count
-        log.debug("OPAL-PRD: occ query reset reload count")
-        self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
-        log.debug("OPAL-PRD: occ reset reset/reload count")
-        self.c.run_command(BMC_CONST.OCC_SET_RESET_RELOAD_COUNT)
-        log.debug("OPAL-PRD: occ query reset reload count")
-        self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+        try:
+            log.debug("OPAL-PRD: occ query reset reload count")
+            self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+            log.debug("OPAL-PRD: occ reset reset/reload count")
+            self.c.run_command(BMC_CONST.OCC_SET_RESET_RELOAD_COUNT)
+            log.debug("OPAL-PRD: occ query reset reload count")
+            self.c.run_command(BMC_CONST.OCC_QUERY_RESET_COUNTS)
+        except Exception as e:
+            log.debug("Unexpected problem, Exception={}".format(e))
+            self.assertTrue(False, "Unexpected problem, Exception={}".format(e))
 
     def check_occ_status(self):
         '''
@@ -274,12 +282,17 @@ class OpTestOCCFull(OpTestOCCBase, unittest.TestCase):
         self.assertNotEqual(self.check_occ_status(), BMC_CONST.FW_FAILED,
             "OCC's are not in active state")
         for count in range(1,7):
-            log.debug("OPAL-PRD: OCC Enable")
-            self.c.run_command(BMC_CONST.OCC_ENABLE)
-            log.debug("OPAL-PRD: OCC Disable")
-            self.c.run_command(BMC_CONST.OCC_DISABLE)
-            log.debug("OPAL-PRD: OCC Enable")
-            self.c.run_command(BMC_CONST.OCC_ENABLE)
+            try:
+                log.debug("OPAL-PRD: OCC Enable")
+                self.c.run_command(BMC_CONST.OCC_ENABLE)
+                log.debug("OPAL-PRD: OCC Disable")
+                self.c.run_command(BMC_CONST.OCC_DISABLE)
+                log.debug("OPAL-PRD: OCC Enable")
+                self.c.run_command(BMC_CONST.OCC_ENABLE)
+            except Exception as e:
+                log.debug("Unexpected problem, Exception={}".format(e))
+                self.assertTrue(False, "Unexpected problem, Exception={}".format(e))
+
             tries = 12
             for i in range(1, tries):
                 log.debug("Waiting for OCC Enable\Disable (%d\%d)"%(i,tries))
