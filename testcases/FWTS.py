@@ -192,7 +192,7 @@ class FWTS(unittest.TestSuite):
         host = self.cv_HOST
         try:
             fwtsjson = host.host_run_command(
-                'fwts -q -r stdout --log-type=json')
+                "PATH=/usr/local/bin:$PATH fwts -q -r stdout --log-type=json")
         except CommandFailed as cf:
             # FWTS will have exit code of 1 if any test fails,
             # we want to ignore that and parse the output.
@@ -262,7 +262,8 @@ class FWTS(unittest.TestSuite):
 
         fwts_version = None
         try:
-            fwts_version = host.host_run_command('fwts --version')
+            fwts_version = host.host_run_command("PATH=/usr/local/bin:$PATH fwts --version")
+            log.debug("fwts_version={}".format(fwts_version))
         except CommandFailed as cf:
             command_failed = FWTSCommandFailed()
             command_failed.FAIL = cf
