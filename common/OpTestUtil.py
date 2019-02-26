@@ -1161,8 +1161,15 @@ class OpTestUtil():
         if term_obj.setup_term_disable == 1:
           return -1, -1
         pty.sendline()
-        expect_prompt = prompt + "$"
-        my_user = host.username()
+
+        try:
+            # If we logged in as root or we're in the Petitboot shell we may
+            # already be root.
+            self.check_root(pty, prompt)
+            return 1, 1
+        except:
+            pass
+
         my_pwd = host.password()
         pty.sendline("which sudo && sudo -s")
         rc = pty.expect([r"[Pp]assword for", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
