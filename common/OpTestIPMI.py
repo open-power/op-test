@@ -227,6 +227,7 @@ class IPMIConsole():
             self.pty.send("\r")
             self.pty.send('~.')
             close_rc = self.pty.expect(['[terminated ipmitool]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            log.debug("CLOSE Expect Buffer ID={}".format(hex(id(self.pty))))
             rc_child = self.pty.close()
             self.state = IPMIConsoleState.DISCONNECTED
             exitCode = signalstatus = None
@@ -275,10 +276,12 @@ class IPMIConsole():
         if self.delaybeforesend:
 	    self.pty.delaybeforesend = self.delaybeforesend
         rc = self.pty.expect_exact(['[SOL Session operational.  Use ~? for help]', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        log.debug("rc={}".format(rc))
         if rc == 0:
           if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set !=1:
             self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
           time.sleep(0.2)
+          log.debug("CONNECT starts Expect Buffer ID={}".format(hex(id(self.pty))))
           return self.pty
         if rc == 1:
           self.pty.close()
