@@ -454,8 +454,22 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
         except CommandFailed as cf:
+            # odd failure I've seen a few times
+            # we had opened up a different problem where ipmitool gave back bad rc
+            # https://github.com/open-power/boston-openpower/issues/1396
+            #Traceback (most recent call last):
+            #  File "/home/debmc/test/testcases/OpTestInbandIPMI.py", line 458, in test_sel_list_first_n_entries
+            #    raise cf
+            #CommandFailed: Command 'ipmitool sel list first 1' exited with '1'.
+            #Output
+            #['ipmitool sel list first 1', 'SEL has no entries']
+            log.debug("sel_list_first_n_entries i_num={} cf={}"
+                .format(i_num, cf))
             if self.cv_BMC.has_ipmi_sel():
-                raise cf
+                if "SEL has no entries" in cf.output:
+                    pass
+                else:
+                    raise cf
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
@@ -471,8 +485,24 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         try:
             self.run_ipmi_cmds(c, [self.ipmi_method + l_cmd])
         except CommandFailed as cf:
+            # odd failure I've seen a few times
+            # we had opened up a different problem where ipmitool gave back bad rc
+            # https://github.com/open-power/boston-openpower/issues/1396
+            # Traceback (most recent call last):
+            #  File "/home/debmc/test/testcases/OpTestInbandIPMI.py", line 705, in test_sel_list_last_3_entries
+            #    self.test_sel_list_last_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
+            #  File "/home/debmc/test/testcases/OpTestInbandIPMI.py", line 475, in test_sel_list_last_n_entries
+            #    raise cf
+            #CommandFailed: Command 'ipmitool sel list last 3' exited with '1'.
+            #Output
+            #['ipmitool sel list last 3', 'SEL has no entries']
+            log.debug("sel_list_last_n_entries i_num={} cf={}"
+                .format(i_num, cf))
             if self.cv_BMC.has_ipmi_sel():
-                raise cf
+                if "SEL has no entries" in cf.output:
+                    pass
+                else:
+                    raise cf
             else:
                 self.skipTest("BMC doesn't support SEL (e.g. qemu)")
 
