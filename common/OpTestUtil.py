@@ -1490,7 +1490,7 @@ class Server(object):
         self.base_url = url + (base_url if base_url else "")
 
     def _url(self, suffix):
-        return '/'.join([self.base_url, suffix])
+        return '/'.join([self.base_url.rstrip("/"), suffix.lstrip("/")])
 
     def login(self, username=None, password=None):
         if username is None:
