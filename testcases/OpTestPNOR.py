@@ -189,8 +189,9 @@ class OpTestPNOR():
         if not self.cv_SYSTEM.has_mtd_pnor_access():
             self.skipTest("Host doesn't have MTD PNOR access")
 
-        self.c.run_command("uname -a")
-        self.c.run_command("cat /etc/os-release")
+        # retry in case this comes after a hung console recovery
+        self.c.run_command("uname -a", retry=5)
+        self.c.run_command("cat /etc/os-release", retry=5)
 
         # Read Erase Write NVRAM
         self.runTestReadEraseWriteNVRAM()
