@@ -106,6 +106,26 @@ class OpTestHMIHandling(unittest.TestCase):
         else:
           self.assertTrue(False, "OpTestHMIHandling failed to recover from previous OpSystemState.UNKNOWN_BAD")
 
+    def handle_panic(self):
+        rc = self.cv_SYSTEM.console.pty.expect_no_fail(["Kernel panic - not syncing: Unrecoverable HMI exception", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+        if rc == 0:
+            rc = self.cv_SYSTEM.console.pty.expect_no_fail(["ISTEP", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+            if rc == 0:
+                self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            else:
+                self.assertTrue(False, "OpTestHMIHandling: System failing to reboot after topology recovery failure")
+        else:
+          self.assertTrue(False, "OpTestHMIHandling: No panic after topology recovery failure")
+
+    def handle_OpalTI(self):
+        rc = self.cv_SYSTEM.console.pty.expect_no_fail(["ISTEP", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
+        if rc == 0:
+            self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        else:
+            self.assertTrue(False, "System failed to reboot after OPAL TI")
+
     def handle_ipl(self):
         rc = self.cv_SYSTEM.console.pty.expect(["ISTEP", "istep", pexpect.TIMEOUT, pexpect.EOF], timeout=180)
         log.debug("before={}".format(self.cv_SYSTEM.console.pty.before))
@@ -217,6 +237,54 @@ class OpTestHMIHandling(unittest.TestCase):
             val = hex(eval("0x%s | (((%s & 0x1f) + 0x20) << 24)" % (addr, int(core, 16))))
             log.debug(val)
         return val
+
+    def is_node_present(self, node):
+        ''' Check if specified device tree is present or not.'''
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        l_cmd = "ls %s" % node
+        try:
+            self.cv_HOST.host_run_command(l_cmd, console=1)
+        except CommandFailed as cf:
+            '''Node is not present '''
+            return 0
+
+        return 1
+
+    def get_OpalSwXstop(self):
+        self.proc_gen = self.cv_HOST.host_get_proc_gen(console=1)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        try:
+            o = self.cv_HOST.host_run_command("nvram -p ibm,skiboot --print-config=opal-sw-xstop", console=1)
+            '''
+            On a fresh system this isn't set. The command will exit with
+            exitcode = 255.
+            On power8 we treat this as enabled
+            On power9 we treat this as disable.
+            '''
+        except CommandFailed as cf:
+            if cf.exitcode == 255:
+                if self.proc_gen in ["POWER8", "POWER8E"]:
+                    return "enable"
+                elif self.proc_gen in ["POWER9"]:
+                    return "disable"
+            else:
+                self.assertTrue(False, "get_OpalSwXstop() failed to query nvram.")
+        return o
+
+    def set_OpalSwXstop(self, val):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        o = self.get_OpalSwXstop()
+        if val in o:
+            return
+
+        l_cmd = "nvram -p ibm,skiboot --update-config opal-sw-xstop=%s" % val
+        self.cv_HOST.host_run_command(l_cmd, console=1)
+        o = self.get_OpalSwXstop()
+        if val in o:
+            pass
+        else:
+            l_msg = "Failed to set opal-sw-xstop config to %s" % val
+            self.assertTrue(False, l_msg)
 
     def clearGardEntries(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -374,6 +442,8 @@ class OpTestHMIHandling(unittest.TestCase):
             self._testTFMR_Errors(BMC_CONST.TFMR_DEC_PARITY_ERROR)
             self._testTFMR_Errors(BMC_CONST.TFMR_PURR_PARITY_ERROR)
             self._testTFMR_Errors(BMC_CONST.TFMR_SPURR_PARITY_ERROR)
+        elif l_test == BMC_CONST.HMI_TOD_TOPOLOGY_FAILOVER:
+            self._test_tod_topology_failover()
         else:
             raise Exception("Please provide valid test case")
         l_con.run_command("dmesg -C")
@@ -493,6 +563,43 @@ class OpTestHMIHandling(unittest.TestCase):
         # now can send raw pexpect commands which assume log in
         console.pty.sendline(l_cmd)
         self.handle_ipl()
+
+    def _test_tod_topology_failover(self):
+        '''
+        This function is used to test error path for hmi TOD topology failover.
+        On HMI recovery failure TOD/TB goes in invalid state and stops running.
+        In this case kernel should either
+        a) panic followed by clean reboot. (For opal-sw-xstop=disable)
+            OR
+        b) cause OPAL TI by triggering sw checkstop to OCC. (For
+           opal-sw-xstop=enable)
+
+        In both cases we should not see any hangs at Linux OS level.
+        To simulate error condition inject TOD topology failover on all the
+        chips until we see HMI failure.
+        '''
+        scom_addr = "0x40000"
+        l_error = "0x4000000000000000"
+        l_test_mode = "TI"
+
+        g = self.get_OpalSwXstop()
+        if "disable" in g:
+            l_test_mode="panic"
+
+        console = self.cv_SYSTEM.console
+        l_cmd = ""
+        for l_pair in self.l_dic:
+            l_chip = l_pair[0]
+            l_cmd_str = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s; " % (l_chip, scom_addr, l_error)
+            l_cmd = l_cmd + l_cmd_str
+
+        console.pty.sendline(l_cmd)
+        if l_test_mode == "panic":
+            self.handle_panic()
+        else:
+            self.handle_OpalTI()
+
+        return
 
     def _test_hyp_resource_err(self):
         '''
@@ -650,6 +757,20 @@ class MalfunctionAlert(OpTestHMIHandling):
         self._testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
         self.clearGardEntries()
 
+class TodTopologyFailoverPanic(OpTestHMIHandling):
+    def runTest(self):
+        self.set_OpalSwXstop("disable")
+        self._testHMIHandling(BMC_CONST.HMI_TOD_TOPOLOGY_FAILOVER)
+
+class TodTopologyFailoverOpalTI(OpTestHMIHandling):
+    def runTest(self):
+        rc = self.is_node_present("/proc/device-tree/ibm,sw-checkstop-fir")
+        if rc == 1:
+            self.set_OpalSwXstop("enable")
+            self._testHMIHandling(BMC_CONST.HMI_TOD_TOPOLOGY_FAILOVER)
+        else:
+            self.skipTest("OPAL TI not supported on this system.")
+
 class HypervisorResourceError(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
@@ -663,6 +784,8 @@ def unrecoverable_suite():
     s = unittest.TestSuite()
     s.addTest(MalfunctionAlert())
     s.addTest(HypervisorResourceError())
+    s.addTest(TodTopologyFailoverPanic())
+    s.addTest(TodTopologyFailoverOpalTI())
     s.addTest(ClearGard())
     return s
 

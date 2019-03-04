@@ -164,3 +164,15 @@ class spawn(pexpect.spawn):
             raise PlatformError(state, log)
 
         return r - len(op_patterns)
+
+    '''
+    Provide function that do not raise any exception. This is usefull for the
+    tests that do not consider panic or opal TI as test failure. This allows
+    such testcases to take control and look for specific pattern in system
+    crash scenario.
+    '''
+    def expect_no_fail(self, pattern, timeout=-1, searchwindowsize=-1, async=False):
+        r = super(spawn,self).expect(pattern,
+                                     timeout=timeout,
+                                     searchwindowsize=searchwindowsize)
+        return r
