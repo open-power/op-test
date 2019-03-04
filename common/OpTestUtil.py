@@ -74,7 +74,7 @@ class OpTestUtil():
                                          proxy=self.build_proxy(self.conf.args.aes_proxy,
                                              self.conf.args.aes_no_proxy_ips))
         elif config == 'REST':
-          rest_server = "https://{}/".format(self.conf.args.bmc_ip)
+          rest_server = "https://{}".format(self.conf.args.bmc_ip)
           self.conf.util_bmc_server = Server(url=rest_server,
                                          username=self.conf.args.bmc_username,
                                          password=self.conf.args.bmc_password)
@@ -358,27 +358,30 @@ class OpTestUtil():
             raise AES(message="OpTestSystem AES attempted to release "
               "reservation '{}' but it was NOT found in AES, "
               "please update and retry".format(res_id))
-          aes_response_json = r.json()
         except Exception as e:
           raise AES(message="OpTestSystem AES attempted to releasing "
             "reservation '{}' but encountered an Exception='{}', "
             "please manually verify and release".format(res_id, e))
 
-        release_dict['status'] = aes_response_json.get('status')
-        if aes_response_json.get('status') == 0:
-          release_dict['result'] = aes_response_json.get('result')
-          if aes_response_json.get('result').get('res_id') != res_id:
-            log.warning("OpTestSystem AES UNABLE to confirm the release "
-              "of the serveration '{}' in AES, please manually "
-              "verify and release if needed, see details: {}"
-              .format(res_id, release_dict))
-          return res_id
-        else:
-          release_dict['message'] = aes_response_json.get('message')
-          log.warning("OpTestSystem AES UNABLE to successfully "
-            "release the reservation '{}' in AES, please manually verify "
-            "and release, see details: {}".format(res_id, release_dict))
-          return None
+        try:
+            json_data = r.json()
+            release_dict['status'] = json_data.get('status')
+	    release_dict['result'] = json_data.get('result')
+            if json_data.get('result').get('res_id') != res_id:
+                log.warning("OpTestSystem AES UNABLE to confirm the release "
+                    "of the reservation '{}' in AES, please manually "
+                    "verify and release if needed, see details: {}"
+                    .format(res_id, release_dict))
+        except Exception as e:
+            # this seems to be the typical path from AES, not sure what's up
+            log.debug("NO JSON object from aes_release_reservation, r.text={}".format(r.text))
+            release_dict['message'] = r.text
+            log.debug("OpTestSystem AES UNABLE to confirm the release "
+                "of the reservation '{}' in AES, please manually "
+                "verify and release if needed, see details: {}"
+                .format(res_id, release_dict))
+
+        return res_id
 
     def aes_get_environments(self, args):
         # this method initializes the Server request session
@@ -638,7 +641,7 @@ class OpTestUtil():
         if self.conf.util_server is None:
             self.setup()
 
-        uri = "host/{}/".format(self.conf.args.hostlocker)
+        uri = "/host/{}/".format(self.conf.args.hostlocker)
         try:
             r = self.conf.util_server.get(uri=uri)
         except Exception as e:
@@ -663,7 +666,7 @@ class OpTestUtil():
                     args_dict[key] = re.sub(key + ':', "", hostlocker_comment[i]).strip()
                     break
 
-        uri = "lock/"
+        uri = "/lock/"
         payload = {'host'        : self.conf.args.hostlocker,
                    'user'        : self.conf.args.hostlocker_user,
                    'expiry_time' : self.conf.args.hostlocker_locktime}
@@ -704,7 +707,7 @@ class OpTestUtil():
             return 1, []
         if self.conf.util_server is None:
             self.setup()
-        uri = "host/{}/".format(self.conf.args.hostlocker)
+        uri = "/host/{}/".format(self.conf.args.hostlocker)
         try:
             r = self.conf.util_server.get(uri=uri)
         except HTTPCheck as check:
@@ -717,7 +720,7 @@ class OpTestUtil():
               .format(self.conf.args.hostlocker, e))
             return 1, [] # if unable to confirm, flag it
 
-        uri = "lock/"
+        uri = "/lock/"
         payload = {"host" : self.conf.args.hostlocker}
         try:
             r = self.conf.util_server.get(uri=uri,
@@ -744,7 +747,7 @@ class OpTestUtil():
     def hostlocker_unlock(self):
         if self.conf.util_server is None:
             self.setup()
-        uri = "lock/"
+        uri = "/lock/"
         payload = {"host" : self.conf.args.hostlocker,
                    "user" : self.conf.args.hostlocker_user}
         try:
@@ -786,7 +789,7 @@ class OpTestUtil():
         if locks[0].get('locker') != self.conf.args.hostlocker_user:
             log.debug("hostlocker_unlock found that the locker did not "
                 "match the hostlocker_user '{}'".format(self.conf.args.hostlocker_user))
-        uri = "lock/{}".format(locks[0].get('id'))
+        uri = "/lock/{}".format(locks[0].get('id'))
         try:
             r = self.conf.util_server.delete(uri=uri)
         except HTTPCheck as check:
@@ -1475,6 +1478,8 @@ class Server(object):
         if self.username is not None and self.password is not None:
             self.session.auth = (self.username, self.password)
         self.session.verify = verify
+        self.jsonHeader = {'Content-Type' : 'application/json'}
+        self.xAuthHeader = {}
         self.timeout = timeout
         self.minutes = minutes
         self.session.mount('https://', HTTPAdapter(max_retries=5))
@@ -1490,7 +1495,7 @@ class Server(object):
         self.base_url = url + (base_url if base_url else "")
 
     def _url(self, suffix):
-        return '/'.join([self.base_url, suffix])
+        return ''.join([self.base_url, suffix])
 
     def login(self, username=None, password=None):
         if username is None:
@@ -1501,7 +1506,9 @@ class Server(object):
         payload = {"data": [username, password]}
         # make direct call to requests post, by-pass loop_it
         try:
-            r = self.session.post(self._url(uri), json=payload)
+            r = self.session.post(self._url(uri),
+                                  headers=self.jsonHeader,
+                                  json=payload)
             if r.status_code != requests.codes.ok:
                 log.debug("Requests post problem with logging "
                     "in, r.status_code={} r.text={} r.headers={} "
@@ -1509,6 +1516,29 @@ class Server(object):
                     .format(r.status_code, r.text,
                      r.headers, r.request.headers))
                 raise HTTPCheck(message="Requests post problem logging in,"
+                    " check that your credentials are properly setup,"
+                    " r.status_code={} r.text={} r.headers={} "
+                    " r.request.headers={} username={} password={}"
+                    .format(r.status_code, r.text, r.headers,
+                     r.request.headers, username, password))
+            cookie = r.headers['Set-Cookie']
+            match = re.search('SESSION=(\w+);', cookie)
+            if match:
+                self.xAuthHeader['X-Auth-Token'] = match.group(1)
+                self.jsonHeader.update(self.xAuthHeader)
+            json_data = json.loads(r.text)
+            log.debug("r.status_code={} json_data['status']={}"
+                " r.text={} r.headers={} r.request.headers={}"
+                .format(r.status_code, json_data['status'],
+                 r.text, r.headers, r.request.headers))
+            if (json_data['status'] != "ok"):
+                log.debug("Requests COOKIE post problem logging in,"
+                    " check that your credentials are properly setup,"
+                    " r.status_code={} r.text={} r.headers={} "
+                    " r.request.headers={} username={} password={}"
+                    .format(r.status_code, r.text, r.headers,
+                     r.request.headers, username, password))
+                raise HTTPCheck(message="Requests COOKIE post problem logging in,"
                     " check that your credentials are properly setup,"
                     " r.status_code={} r.text={} r.headers={} "
                     " r.request.headers={} username={} password={}"
