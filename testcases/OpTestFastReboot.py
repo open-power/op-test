@@ -59,6 +59,7 @@ class OpTestFastReboot(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
+        self.bmc_type = conf.args.bmc_type
 
     def number_reboots_to_do(self):
         return 2
@@ -90,6 +91,10 @@ class OpTestFastReboot(unittest.TestCase):
         It will check booting sequence when reboot command
         getting executed in both petitboot and host OS
         '''
+
+        if "qemu" in self.bmc_type:
+            self.skipTest("Qemu platform doesn't have fast-reboot support")
+
         if self.boot_to_os():
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
         else:
