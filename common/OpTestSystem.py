@@ -1405,7 +1405,7 @@ class OpTestQemuSystem(OpTestSystem):
         return False
 
     def has_mtd_pnor_access(self):
-        return False
+        return True
 
 class OpTestMamboSystem(OpTestSystem):
     '''

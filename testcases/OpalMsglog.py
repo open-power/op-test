@@ -68,6 +68,9 @@ class OpalMsglog():
             filter_out.append('CAPP: Error loading ucode lid.')
             # Palmetto qemu model hits this:
             filter_out.append('STB: container NOT VERIFIED, resource_id=. secureboot not yet initialized')
+            # We can take a long time emulating flash, so ignore long time in r/w flash and NVRAM
+            filter_out.append('Spent .* msecs in OPAL call 11[01]')
+            filter_out.append('Spent .* msecs in OPAL call 8')
 
         if self.bmc_type in ["mambo"]:
             filter_out.append('SBE: Master chip ID not found.')
