@@ -37,6 +37,9 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common import OpTestInstallUtil
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class MyIPfromHost(unittest.TestCase):
     def setUp(self):
@@ -172,18 +175,34 @@ class InstallUbuntu(unittest.TestCase):
                                                                        initrd,
                                                                        initrd)
             self.c.run_command(cmd)
-            self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, vmlinux))
-            self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, initrd))
-            self.c.run_command("kexec -i %s -c \"%s\" %s -l" % (initrd,
-                                                                kernel_args,
-                                                                vmlinux))
+            try:
+                log.debug("Install OPEN marker for wget vmlinux")
+                self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, vmlinux), timeout=300)
+                log.debug("Install CLOSE marker for wget vmlinux")
+                log.debug("Install OPEN marker for wget initrd")
+                self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, initrd), timeout=300)
+                log.debug("Install CLOSE marker for wget initrd")
+                log.debug("Install OPEN marker for kexec")
+                self.c.run_command("kexec -i %s -c \"%s\" %s -l" % (initrd,
+                                                                    kernel_args,
+                                                                    vmlinux), timeout=300)
+                log.debug("Install CLOSE marker for kexec")
+            except Exception as e:
+                log.debug("wget or kexec Exception={}".format(e))
             raw_pty = self.c.get_console()
             raw_pty.sendline("kexec -e")
 
         # Do things
         raw_pty.expect(['Sent SIGKILL to all processes','Starting new kernel'],
                        timeout=60)
-        r = raw_pty.expect(['Loading additional components','Configure the keyboard'], timeout=300)
+        log.debug("Install OPEN marker for Loading Configure")
+        log.debug("There sometimes are timing issues with Host OS networking coming live concurrently, just retry")
+        log.debug("Symptoms seen are failure to download preseed.cfg from op-test box, etc.")
+        r = raw_pty.expect(['Loading additional components','Configure the keyboard', pexpect.TIMEOUT, pexpect.EOF], timeout=300)
+        log.debug("Install CLOSE marker for Loading Configure")
+        log.debug("r={}".format(r))
+        log.debug("raw_pty.before={}".format(raw_pty.before))
+        log.debug("raw_pty.after={}".format(raw_pty.after))
         if r == 1:
             print("# Preseed isn't perfect when it comes to keyboard selection. Urgh")
             raw_pty.expect('Go Back')
@@ -199,8 +218,12 @@ class InstallUbuntu(unittest.TestCase):
         while r == 0:
             r = raw_pty.expect(['udeb', 'Setting up the clock', 'Detecting hardware'], timeout=300)
 
+        log.debug("Install OPEN marker for Partitions formatting")
         raw_pty.expect('Partitions formatting', timeout=600)
+        log.debug("Install CLOSE marker for Partitions formatting")
+        log.debug("Install OPEN marker for Installing the base system")
         raw_pty.expect('Installing the base system', timeout=300)
+        log.debug("Install CLOSE marker for Installing the base system")
         r = None
         while r != 0:
             # FIXME: looping forever isn't ideal
@@ -215,7 +238,9 @@ class InstallUbuntu(unittest.TestCase):
                                 'Running',
                                 pexpect.TIMEOUT], timeout=1000)
 
+        log.debug("Install OPEN marker for Requesting system reboot")
         raw_pty.expect('Requesting system reboot', timeout=300)
+        log.debug("Install CLOSE marker for Requesting system reboot")
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         OpIU.stop_server()
@@ -223,7 +248,8 @@ class InstallUbuntu(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         con = self.cv_SYSTEM.console
-        con.run_command("uname -a")
-        con.run_command("cat /etc/os-release")
+        # sometimes coming back up we need a few attempts
+        con.run_command("uname -a", retry=5)
+        con.run_command("cat /etc/os-release", retry=5)
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_gather_kernel_log()

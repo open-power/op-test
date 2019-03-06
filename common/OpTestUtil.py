@@ -1127,30 +1127,36 @@ class OpTestUtil():
         expect_prompt = prompt + "$"
         pty.sendline("date") # buffer kicker needed
         pty.sendline("which whoami && whoami")
-        time.sleep(1)
+        time.sleep(2)
         rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        log.debug("check_root rc={}".format(rc))
+        log.debug("check_root before={}".format(pty.before))
+        log.debug("check_root after={}".format(pty.after))
         if rc == 0:
           before = pty.before.replace("\r\r\n", "\n")
           try:
             whoami = before.splitlines()[-1]
+            log.debug("check_root whoami={}".format(whoami))
           except Exception:
             pass
           pty.sendline("echo $?")
           time.sleep(1)
           rc = pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+          log.debug("check_root 2 rc={}".format(rc))
+          log.debug("check_root 2 before={}".format(pty.before))
+          log.debug("check_root 2 after={}".format(pty.after))
           before = pty.before.replace("\r\r\n", "\n")
           if rc == 0:
             try:
               echo_rc = int(before.splitlines()[-1])
+              log.debug("check_root echo_rc={}".format(echo_rc))
             except Exception as e:
               echo_rc = -1
             if echo_rc == 0:
               if whoami in "root":
                 log.debug("OpTestSystem now running as root")
               else:
-                raise ConsoleSettings(before=pty.before, after=pty.after,
-                        msg="Unable to confirm root access setting up terminal, check that you provided"
-                        " root credentials or a properly enabled sudo user, retry")
+                log.warning("OpTestSystem should be running as root, unable to confirm root, whoami={}".format(whoami))
             else:
                 log.debug("OpTestSystem should be running as root, unable to verify")
 
@@ -1337,10 +1343,14 @@ class OpTestUtil():
             output = self.try_command(term_obj, command, timeout)
             return output
           except CommandFailed as cf:
+            log.debug("CommandFailed cf={}".format(cf))
             if counter == retry:
               raise cf
             else:
               counter += 1
+              log.debug("run_command retry sleeping 2 seconds, before retry")
+              time.sleep(2)
+              log.debug("Retry command={}".format(command))
               log.info("\n \nOpTestSystem detected a command issue, we will retry the command,"
                     " this will be retry \"{:02}\" of a total of \"{:02}\"\n \n".format(counter, retry))
 

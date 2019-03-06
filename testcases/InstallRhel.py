@@ -27,11 +27,15 @@ Installs RedHat Enterprise Linux (RHEL) on the host.
 
 import unittest
 import os
+import pexpect
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common import OpTestInstallUtil
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class InstallRhel(unittest.TestCase):
     def setUp(self):
@@ -99,11 +103,20 @@ class InstallRhel(unittest.TestCase):
                                                                        initrd,
                                                                        initrd)
             self.c.run_command(cmd)
-            self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, vmlinux))
-            self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, initrd))
-            self.c.run_command("kexec -i %s -c \"%s\" %s -l" % (initrd,
-                                                                kernel_args,
-                                                                vmlinux))
+            try:
+                log.debug("Install OPEN marker for wget vmlinux")
+                self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, vmlinux), timeout=300)
+                log.debug("Install CLOSE marker for wget vmlinux")
+                log.debug("Install OPEN marker for wget initrd")
+                self.c.run_command("wget http://%s:%s/%s" % (my_ip, port, initrd), timeout=300)
+                log.debug("Install CLOSE marker for wget initrd")
+                log.debug("Install OPEN marker for kexec")
+                self.c.run_command("kexec -i %s -c \"%s\" %s -l" % (initrd,
+                                                                    kernel_args,
+                                                                    vmlinux), timeout=300)
+                log.debug("Install CLOSE marker for kexec")
+            except Exception as e:
+                log.debug("wget or kexec Exception={}".format(e))
             raw_pty = self.c.get_console()
             raw_pty.sendline("kexec -e")
         else:
@@ -119,7 +132,12 @@ class InstallRhel(unittest.TestCase):
                              'Starting package installation process',
                              'Performing post-installation setup tasks',
                              'Configuring installed system'], timeout=3000)
-        raw_pty.expect(' Restarting system', timeout=300)
+        log.debug("Install OPEN marker for Restarting system")
+        rc = raw_pty.expect([' Restarting system', pexpect.TIMEOUT, pexpect.EOF], timeout=300)
+        log.debug("Install CLOSE marker for Restarting system")
+        log.debug("rc={}".format(rc))
+        log.debug("raw_pty.before={}".format(raw_pty.before))
+        log.debug("raw_pty.after={}".format(raw_pty.after))
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         OpIU.stop_server()
@@ -127,7 +145,7 @@ class InstallRhel(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         con = self.cv_SYSTEM.console
-        con.run_command("uname -a")
-        con.run_command("cat /etc/os-release")
+        con.run_command("uname -a", retry=5)
+        con.run_command("cat /etc/os-release", retry=5)
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_gather_kernel_log()
