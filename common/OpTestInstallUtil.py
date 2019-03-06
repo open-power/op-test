@@ -522,7 +522,7 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                     packages+= "libvirt-dev numactl libosinfo-1.0-0 python-pip "
                     packages+= "linux-tools-common linux-tools-generic lm-sensors "
                     packages+= "ipmitool i2c-tools pciutils opal-prd opal-utils "
-                    packages+= "device-tree-compiler fwts"
+                    packages+= "device-tree-compiler fwts stress"
 
                     ps = d.format("openpower", "example.com",
                                   PROXY, PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
