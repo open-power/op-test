@@ -79,7 +79,7 @@ class IplParams():
         self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         if self.cpu in ["POWER9"]:
             self.revision = ''.join(self.c.run_command("grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'"))
-            if not self.revision in ["2.2"]:
+            if not self.revision in ["2.2", "2.3"]:
                 return {}
             rl = 0
             try:
@@ -113,7 +113,7 @@ class IplParams():
         log.debug("List of features which are expected to be in enabled state\n{}".format(params))
         if not params:
             # skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)
-            raise unittest.SkipTest("fw-feature set table not found, check if the processor is supported")
+            raise unittest.SkipTest("Skipping test, fw-feature set table not found or processor not supported")
 
         fail_params = {}
         fail_params["enable"] = []
