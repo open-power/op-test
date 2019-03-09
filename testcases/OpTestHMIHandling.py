@@ -444,6 +444,8 @@ class OpTestHMIHandling(unittest.TestCase):
             self._testTFMR_Errors(BMC_CONST.TFMR_SPURR_PARITY_ERROR)
         elif l_test == BMC_CONST.HMI_TOD_TOPOLOGY_FAILOVER:
             self._test_tod_topology_failover()
+        elif l_test == BMC_CONST.OPAL_TI:
+            self._test_opal_ti()
         else:
             raise Exception("Please provide valid test case")
         l_con.run_command("dmesg -C")
@@ -597,6 +599,32 @@ class OpTestHMIHandling(unittest.TestCase):
         if l_test_mode == "panic":
             self.handle_panic()
         else:
+            self.handle_OpalTI()
+
+        return
+
+    def ppc_bit(self, bit):
+        l_val = 0x8000000000000000 >> bit
+        return l_val
+
+    def _test_opal_ti(self):
+        '''
+        This function is used to test OPAL TI functionality.
+        '''
+        lsprop_output = self.cv_HOST.host_run_command("lsprop /proc/device-tree/ibm,sw-checkstop-fir | tail -n 1")
+        saddr, bit = str(lsprop_output[0]).split()
+        scom_addr = "0x%s" % saddr
+        bit = int(bit, 16)
+
+        l_error = "0x%016x" % self.ppc_bit(bit)
+
+        log.debug("lsprop = %s = %d" % (scom_addr, bit))
+        console = self.cv_SYSTEM.console
+
+        for l_pair in self.l_dic:
+            l_chip = l_pair[0]
+            l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, scom_addr, l_error)
+            console.pty.sendline(l_cmd)
             self.handle_OpalTI()
 
         return
@@ -771,6 +799,14 @@ class TodTopologyFailoverOpalTI(OpTestHMIHandling):
         else:
             self.skipTest("OPAL TI not supported on this system.")
 
+class OpalTI(OpTestHMIHandling):
+    def runTest(self):
+        rc = self.is_node_present("/proc/device-tree/ibm,sw-checkstop-fir")
+        if rc == 1:
+            self._testHMIHandling(BMC_CONST.OPAL_TI)
+        else:
+            self.skipTest("OPAL TI not supported on this system.")
+
 class HypervisorResourceError(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
@@ -785,6 +821,7 @@ def unrecoverable_suite():
     s.addTest(MalfunctionAlert())
     s.addTest(HypervisorResourceError())
     s.addTest(TodTopologyFailoverPanic())
+    s.addTest(OpalTI())
     s.addTest(TodTopologyFailoverOpalTI())
     s.addTest(ClearGard())
     return s
