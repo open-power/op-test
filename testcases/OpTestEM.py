@@ -439,6 +439,19 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
         if turbo == ultra_turbo:
             self.skipTest("No WoF frequencies available to test")
 
+	# In P9 check for stop5
+        proc_gen = self.cv_HOST.host_get_proc_gen()
+        if proc_gen in ["POWER9"]:
+	    try:
+	        self.c.run_command("grep stop5 /sys/devices/system/cpu/cpu%s/cpuidle/state*/name" % cpu_num)
+	    except CommandFailed:
+		self.skipTest("Stop5 not available. WOF is not supported")
+
+	# Enable all idle states
+        idle_states = self.get_idle_states()
+        for i in idle_states:
+            self.enable_idle_state(i)
+
         # Get available cpu boost frequencies
         try:
             l_res = self.c.run_command("cat /sys/devices/system/cpu/cpu%s/cpufreq/scaling_boost_frequencies" % cpu_num)
