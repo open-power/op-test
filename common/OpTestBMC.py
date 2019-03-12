@@ -168,10 +168,12 @@ class OpTestBMC():
         log.debug(rsync_cmd)
         rsync = pexpect.spawn(rsync_cmd)
         rsync.logfile = OpTestLogger.FileLikeLogger(log)
-        rsync.expect('assword: ')
-        rsync.sendline(self.cv_bmcPasswd)
-        r = rsync.expect(['total size is', 'error while loading shared lib'], timeout=1800)
-        if r == 1:
+        r = rsync.expect(['assword: ', 'total size is', 'error while loading shared lib', pexpect.EOF], timeout=1800)
+        if r == 0:
+            rsync.sendline(self.cv_bmcPasswd)
+            r = rsync.expect(['assword: ', 'total size is', 'error while loading shared lib', pexpect.EOF], timeout=1800)
+
+        if r == 2:
             # On AMI BMCs that are missing libacl.so.1 for rsync,
             # we have to fall back to "scp"...
             # which is actually SSH+dd because there's no scp
