@@ -669,7 +669,7 @@ class OpTestIPMI():
                 raise OpTestError('Power status changed')
             return BMC_CONST.FW_SUCCESS
         else:
-            loge.error("Cold reset failed, rc={}".format(rc))
+            log.error("Cold reset failed, rc={}".format(rc))
             raise OpTestError(rc)
 
     def ipmi_wait_for_bmc_runtime(self, i_timeout=10):
