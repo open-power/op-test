@@ -262,7 +262,7 @@ def get_parser():
 
     hostgroup.add_argument("--platform",
                            help="Platform (used for EnergyScale tests)",
-                           choices=['unknown','habanero','firestone','garrison','firenze','p9dsu'])
+                           choices=['unknown','habanero','firestone','garrison','firenze','p9dsu','witherspoon'])
 
     osgroup = parser.add_argument_group('OS Images', 'OS Images to boot/install')
     osgroup.add_argument("--os-cdrom", help="OS CD/DVD install image", default=None)
