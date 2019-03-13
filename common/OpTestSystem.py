@@ -34,7 +34,7 @@ import time
 import subprocess
 import pexpect
 import socket
-import commands
+import errno
 import unittest
 
 import OpTestIPMI # circular dependencies, use package
@@ -1157,6 +1157,14 @@ class OpTestSystem(object):
 
     def get_my_ip_from_host_perspective(self):
         raw_pty = self.console.get_console()
+        # run any command to get the prompt setup
+        hostname_output = self.console.run_command("hostname -i")
+        log.debug("hostname_output={}".format(hostname_output))
+        if len(hostname_output) >= 1:
+            my_ip = hostname_output[0]
+        else:
+            my_ip = None
+        log.debug("hostname_output to my_ip={}".format(my_ip))
         port = 12340
         my_ip = None
         try:
@@ -1166,32 +1174,55 @@ class OpTestSystem(object):
                 raw_pty.send("nc -l -p %u -v\n" % port)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             time.sleep(0.5)
+            log.debug("If UNABLE to ping, check DNS or multihome, hostname={} port={}"
+                .format(self.host().hostname(), port))
             log.debug("# Connecting to %s:%u" % (self.host().hostname(), port))
-            sock.connect((self.host().hostname(), port))
-            sock.send('Hello World!')
-            sock.close()
-            raw_pty.expect('Connection from ')
-            raw_pty.expect([':', ' '])
+            sock.settimeout(30)
+            try:
+                sock.connect((self.host().hostname(), port))
+            except socket.error as e:
+                log.debug("socket.error Exception={}".format(e))
+                if e.errno == errno.ECONNRESET or e.errno == errno.EPIPE:
+                    log.debug("socket.error Exception expected={}".format(e))
+                    pass
+                else:
+                    log.debug("socket.error raise  Exception={}".format(e))
+                    raise e
+            try:
+                sock.send('Hello World!')
+                log.debug("sock send Hello World")
+                sock.close()
+                log.debug("sock close")
+            except socket.error as e:
+                log.debug("socket.error send close Exception={}".format(e))
+                if e.errno == errno.ECONNRESET or e.errno == errno.EPIPE:
+                    log.debug("socket.error Exception send close expected={}".format(e))
+                    pass
+                else:
+                    log.debug("socket.error raise send close Exception={}".format(e))
+                    raise e
+            rc = raw_pty.expect(['Connection from ', pexpect.TIMEOUT, pexpect.EOF])
+            log.debug("Connection from rc={}".format(rc))
+            rc = raw_pty.expect([':', ' ', pexpect.TIMEOUT, pexpect.EOF])
+            log.debug("Colon rc={}".format(rc))
             my_ip = raw_pty.before
+            log.debug("raw_pty before={} raw_pty after={}".format(raw_pty.before, raw_pty.after))
             raw_pty.expect('\n')
             raw_pty.expect('#')
-            log.debug(repr(my_ip))
+            log.debug("Connection from: my_ip={}, this is the op-test box".format(my_ip))
+            if my_ip is not None:
+                # need to investigate multihomed boxes more
+                just_ip = socket.gethostbyname(my_ip)
+                log.debug("just_ip={}".format(just_ip))
             return my_ip
         except Exception as e:  # Looks like older nc does not support -v, lets fallback
+            log.debug("Processing in Exception path, e={}".format(e))
             raw_pty.sendcontrol('c')  # to avoid incase nc command hangs
-            my_ip = None
-            ip = commands.getoutput("hostname -i")
-            ip_lst = commands.getoutput("hostname -I").split(" ")
-            # Let's validate the IP
-            for item in ip_lst:
-                if item == ip:
-                    my_ip = ip
-                    break
-            if not my_ip:
-                if len(ip_lst) == 1:
-                    my_ip = ip_lst[0]
-                else:
-                    log.error("hostname -i does not provide valid IP, correct and proceed with installation")
+            time.sleep(2) # give it time to recover
+            log.debug("Exception path sleeping 2 seconds to recover")
+            # Petitboot does not support hostname -I
+            log.warning("Using my_ip={} from Exception path handling, this may not work".format(my_ip))
+
         return my_ip
 
     def sys_enable_tpm(self):
