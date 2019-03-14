@@ -694,8 +694,8 @@ class OpTestConfiguration():
                     raise ParameterCheck(message="Check that the file exists with X permissions mambo-binary={}"
                         .format(self.args.mambo_binary))
                 if self.args.flash_skiboot is None \
-                    or not os.access(self.args.flash_skiboot, os.R_OK|os.W_OK):
-                    raise ParameterCheck(message="Check that the file exists with R/W permissions flash-skiboot={}"
+                    or not os.access(self.args.flash_skiboot, os.R_OK):
+                    raise ParameterCheck(message="Check that the file exists with R permissions flash-skiboot={}"
                         .format(self.args.flash_skiboot))
                 if self.args.flash_kernel is None \
                     or not os.access(self.args.flash_kernel, os.R_OK|os.W_OK):
