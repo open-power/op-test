@@ -42,6 +42,9 @@ class OpTestConstants():
     FIRESTONE = "firestone"
     PALMETTO = "palmetto"
     GARRISON = 'garrison'
+    P9DSU = "p9dsu"
+    WITHERSPOON = "witherspoon"
+
 
     # Platform power limits in watts for different platforms taken from MRW xml file
     HABANERO_POWER_LIMIT_LOW = "1000"
@@ -50,6 +53,11 @@ class OpTestConstants():
     FIRESTONE_POWER_LIMIT_HIGH = "1820"
     GARRISON_POWER_LIMIT_LOW = "1240"
     GARRISON_POWER_LIMIT_HIGH = "2880"
+    P9DSU_POWER_LIMIT_LOW = "1550"
+    P9DSU_POWER_LIMIT_HIGH = "1650"
+    WITHERSPOON_POWER_LIMIT_LOW = "1550"
+    WITHERSPOON_POWER_LIMIT_HIGH = "3050"
+
 
     PRIMARY_SIDE = "0x0080"
     GOLDEN_SIDE = "0x0180"
