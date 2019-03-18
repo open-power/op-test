@@ -15,6 +15,7 @@ from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
 from common.OpTestOpenBMC import HostManagement
 from common.OpTestWeb import OpTestWeb
 from common.OpTestUtil import OpTestUtil
+from common.OpTestCronus import OpTestCronus
 from common.Exceptions import HostLocker, AES, ParameterCheck, OpExit
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import atexit
@@ -318,12 +319,23 @@ def get_parser():
     kernelcmdgroup.add_argument("--remove-kernel-args",
                                 help="Kernel commandline option to be removed",
                                 default="")
+    cronusgroup = parser.add_argument_group("Cronus", "Cronus Config options")
+    cronusgroup.add_argument("--cronus-release", default="auto", help="Cronus Release")
+    cronusgroup.add_argument("--cronus-product", default="p9", help="Cronus Product")
+    cronusgroup.add_argument("--cronus-system-type", default="witherspoon", help="Cronus System Type")
+    cronusgroup.add_argument("--cronus-code-level", default="dev", help="Cronus Code Level")
+#    cronusgroup.add_argument("--cronus-hdct", default="/opt/openpower/p9/crondump/HDCT_P9", help="Cronus Hardware Dump Content Table file")
+    cronusgroup.add_argument("--cronus-hdct", default="HDCT.txt", help="Cronus Hardware Dump Content Table file")
+    cronusgroup.add_argument("--cronus-dump-directory", default=None, help="Cronus dump file directory")
+    cronusgroup.add_argument("--cronus-dump-suffix", default="optest", help="Cronus dump file suffix")
+    cronusgroup.add_argument("--cronus-smart-path", action='store_true', default=False, help="Cronus path added after /usr/bin")
 
     return parser
 
 class OpTestConfiguration():
     def __init__(self):
         self.util = OpTestUtil(self) # initialize OpTestUtil with this object the OpTestConfiguration
+        self.cronus = OpTestCronus(self) # initialize OpTestCronus with this object the OpTestConfiguration
         self.args = []
         self.remaining_args = []
         self.basedir = os.path.dirname(sys.argv[0])

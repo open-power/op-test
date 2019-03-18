@@ -102,6 +102,7 @@ from testcases import OpalUtils
 from testcases import fspTODCorruption
 from testcases import Console
 from testcases import testRestAPI
+from testcases import testCronus
 from testcases import OpTestPNOR
 from testcases import OpalGard
 from testcases import SbePassThrough
@@ -475,6 +476,15 @@ class RestAPISuite():
     def suite(self):
         return self.s
 
+class CronusSuite():
+    '''Cronus'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(testCronus.runtime_suite())
+        self.s.addTest(testCronus.host_off_suite())
+    def suite(self):
+        return self.s
+
 class OCCSuite():
     '''OCC Test Suite'''
     def __init__(self):
@@ -677,6 +687,7 @@ suites = {
     'full-inbandipmi' : InbandIPMISuite(),
     'full-outofbandipmi' : OutofbandIPMISuite(),
     'rest-api' : RestAPISuite(),
+    'cronus' : CronusSuite(),
     'full-occ' : OCCSuite(),
     'capi' : CAPISuite(),
     'opencapi' : OpenCAPISuite(),

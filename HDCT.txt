@@ -1,0 +1,113 @@
+*************************************************************************************************************************************************************************
+* p9 Hardware Dump Content Table
+*
+* FORMAT_VERSION=2.0
+*
+* PRODUCT=p9
+*
+*************************************************************************************************************************************************************************
+*
+* Defined dump types:
+* HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL | HWPERF0
+*
+* HWPROC  System checkstop (non MPIPL) --> does not grab memory
+* CS      Clock stop on xstop, used for debug in the lab
+* OTHER   Crondump
+*
+* CC      Dump from Cache Contained AVP
+* CCRN    Dump from Cache Contained AVP in Run-N mode
+*
+* SAPH    Dump for saphire (non MPIPL, grab mem contents on the way down) -- different memory memory contents than HB
+* HB      Dump for HB (non MPIPL, grab memory contents on the way down, may only have 1 core)
+*
+* SW      Phyp initated dump (MPIPL) -- architected state, memory, nest trace
+* USER    User iniated dump from panl/ASM to caputre SW state --  MPIPL
+* SH      Dump for HW checkstop, but perserved memory --> SW + Quads: trace arrays, rings, fastarray
+*
+* HWCPLCL Local Core checkstop --> Cumulus only feature -- don't forget -cfail!
+*
+* HWPERF0 Unintrusive dump for performance sampling -- fabric trace only
+*
+*************************************************************************************************************************************************************************
+
+
+*************************************************************************************************************************************************************************
+* P9 CFAM Registers
+*************************************************************************************************************************************************************************
+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 1000 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 1001 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 1002 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 1006 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 1007 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 100A -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 100B -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 100C -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 100D -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 0C01 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 0C02 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 0C06 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 0C07 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 0C08 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 0C09 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 0C10 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2801 -kall -nall -pall ec 10+     # CBS control/status
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2802 -kall -nall -pall ec 10+     # CBS trace
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2803 -kall -nall -pall ec 10+     # CBS event log
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2804 -kall -nall -pall ec 10+     # CBS environment status
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2805 -kall -nall -pall ec 10+     # CBS last trace
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2806 -kall -nall -pall ec 10+     # CBS last event log
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2808 -kall -nall -pall ec 10+     # SBE control/status
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2809 -kall -nall -pall ec 10+     # SBE message
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 280B -kall -nall -pall ec 10+     # CBS exteded status
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2810 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2811 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2812 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2813 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2814 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2815 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2816 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2817 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 2819 -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 281A -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 281B -kall -nall -pall ec 10+
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getcfam pu 281D -kall -nall -pall ec 10+
+
+
+*************************************************************************************************************************************************************************
+* Stop P9 Trace Arrays
+*************************************************************************************************************************************************************************
+
+*   Everything else: Stop all traces
+HWPROC |                  OTHER | SAPH | HB |      SH                                putscom pu.perv 107D0 4000000000000000 -kall -nall -pall -call ec 10+
+
+
+*************************************************************************************************************************************************************************
+* P9 SCOM Registers
+*************************************************************************************************************************************************************************
+
+* P9 ECID
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getscom pu f000f -kall -nall -pall ec 10+        # CORE MODE
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getscom pu 00018000 -kall -nall -pall ec 10+     # ECID word 1
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getscom pu 00018001 -kall -nall -pall ec 10+     # ECID word 2
+HWPROC | CS | CC | CCRN | OTHER | SAPH | HB | SW | SH | USER | HWCPLCL               getscom pu 00018002 -kall -nall -pall ec 10+     # ECID word 3
+
+
+
+*************************************************************************************************************************************************************************
+* P9 Trace Arrays
+*************************************************************************************************************************************************************************
+
+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB6    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB7    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB8    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB9    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB10   -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB11   -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB0    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB1    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB2    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB3    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB4    -i0 -kall -nall -pall ec 10+
+HWPROC |                  OTHER | SAPH | HB | SW | SH | USER                         getblock pu         tracearray PB5    -i0 -kall -nall -pall ec 10+

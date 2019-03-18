@@ -318,6 +318,9 @@ class OpTestSystem(object):
     def disable_stty_echo(self):
         return False
 
+    def cronus_capable(self):
+        return False
+
     def host(self):
         return self.cv_HOST
 
@@ -361,6 +364,7 @@ class OpTestSystem(object):
             self.state = self.stateHandlers[self.state](state)
             # transition from states invalidate the previous PS1 setting, so clear it
             if self.previous_state != self.state:
+              self.util.clear_system_state(self)
               self.util.clear_state(self)
               self.previous_state = self.state
             log.debug("OpTestSystem TRANSITIONED TO: %s" % (self.state))
@@ -596,6 +600,7 @@ class OpTestSystem(object):
           self.sys_set_bootdev_setup()
         else:
           self.sys_set_bootdev_no_override()
+        self.util.clear_system_state(self)
         self.util.clear_state(self)
         self.block_setup_term = 1 # block during reboot
         sys_pty.sendline('reboot') # connect will have the login/root setup_term done
@@ -765,6 +770,7 @@ class OpTestSystem(object):
             raise OpTestError(l_msg)
         log.info(msg)
         self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
+        self.util.clear_system_state(self)
         self.util.clear_state(self)
         return OpSystemState.OFF
 
@@ -1364,6 +1370,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
 
     def sys_is_tpm_enabled(self):
         return self.rest.is_tpm_enabled()
+
+    def cronus_capable(self):
+        return True
 
 class OpTestQemuSystem(OpTestSystem):
     '''

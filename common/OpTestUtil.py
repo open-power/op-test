@@ -41,6 +41,7 @@ import pty
 import pexpect
 import commands
 import requests
+import traceback
 from requests.adapters import HTTPAdapter
 #from requests.packages.urllib3.util import Retry
 from httplib import HTTPConnection
@@ -899,9 +900,17 @@ class OpTestUtil():
         return built_prompt
 
     def clear_state(self, track_obj):
-          track_obj.PS1_set = 0
-          track_obj.SUDO_set = 0
-          track_obj.LOGIN_set = 0
+        track_obj.PS1_set = 0
+        track_obj.SUDO_set = 0
+        track_obj.LOGIN_set = 0
+
+    def clear_system_state(self, system_obj):
+        # clears attributes of the system object
+        # called when OpTestSystem transitions states
+        # unique from when track_obj's need clearing
+        if system_obj.cronus_capable():
+            system_obj.conf.cronus.env_ready = False
+            system_obj.conf.cronus.cronus_ready = False
 
     def try_recover(self, term_obj, counter=3):
         # callers beware that the connect can affect previous states and objects
@@ -1458,6 +1467,100 @@ class OpTestUtil():
         except Exception as e:
           pass # nothing there
         return output_list
+
+    def cronus_subcommand(self, command=None, minutes=2):
+        # OpTestCronus class calls this, so be cautious on recursive calls
+        assert 0 < minutes <= 120, (
+            "cronus_subcommand minutes='{}' is out of the desired range of 1-120"
+            .format(minutes))
+        completed = False
+        try:
+            p1 = subprocess.Popen(["bash", "-c", command],
+                                      stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
+            # set the polling appropriate
+            if minutes > 5:
+                sleep_period = 60
+                custom_range = minutes
+            else:
+                sleep_period = 1
+                custom_range = minutes*60
+            log.debug("cronus_subcommand sleep_period seconds='{}' number of periods to wait (custom_range)='{}'\n"
+                      " Waiting for minutes='{}' which is seconds='{}')"
+                      .format(sleep_period, custom_range, minutes, minutes*60))
+            for t in range(custom_range):
+                log.debug("polling t={}".format(t))
+                time.sleep(sleep_period)
+                if p1.poll() is not None:
+                    log.debug("polling completed=True")
+                    completed = True
+                    break
+            if not completed:
+                log.warning("cronus_subcommand did NOT complete in '{}' minutes, rc={}".format(minutes, p1.returncode))
+                p1.kill()
+                log.warning("cronus_subcommand killed command='{}'".format(command))
+                raise UnexpectedCase(message="Cronus issue rc={}".format(p1.returncode))
+            else:
+                log.debug("cronus_subcommand rc={}".format(p1.returncode))
+                stdout_value, stderr_value = p1.communicate()
+                log.debug("command='{}' p1.returncode={}"
+                    .format(command, p1.returncode))
+                if p1.returncode:
+                    log.warning("RC={} cronus_subcommand='{}', debug log contains stdout/stderr"
+                        .format(p1.returncode, command))
+                log.debug("cronus_subcommand command='{}' stdout='{}' stderr='{}'"
+                    .format(command, stdout_value, stderr_value))
+                if stderr_value:
+                    # some calls get stderr which is noise
+                    log.debug("Unknown if this is a problem, Command '{}' stderr='{}'".format(command, stderr_value))
+                return stdout_value
+        except subprocess.CalledProcessError as e:
+            tb = traceback.format_exc()
+            log.debug("cronus_subcommand issue CalledProcessError={}, Traceback={}".format(e, tb))
+            raise UnexpectedCase(message="Cronus issue rc={} output={}".format(e.returncode, e.output))
+        except Exception as e:
+            tb = traceback.format_exc()
+            log.debug("cronus_subcommand issue Exception={}, Traceback={}".format(e, tb))
+            raise UnexpectedCase(message="cronus_subcommand issue Exception={}, Traceback={}".format(e, tb))
+
+    def cronus_run_command(self, command=None, minutes=2):
+        # callers should assure its not too early in system life to call
+        # we need a system object, OpTestConfiguration.py env_ready cronus_ready
+        assert 0 < minutes <= 120, (
+            "cronus_run_command minutes='{}' is out of the desired range of 1-120"
+            .format(minutes))
+        log.debug("env_ready={} cronus_ready={}"
+            .format(self.conf.cronus.env_ready, self.conf.cronus.cronus_ready))
+        if not self.conf.cronus.env_ready or not self.conf.cronus.cronus_ready:
+            log.debug("Cronus not ready, calling setup")
+            self.conf.cronus.setup()
+            if not self.conf.cronus.env_ready or not self.conf.cronus.cronus_ready:
+                log.warning("We tried to setup Cronus, either Cronus is not installed"
+                    " on your op-test box or target system is NOT supported yet"
+                    " (only OpenBMC so far), "
+                    "or some other system problem, checking further")
+                if self.conf.cronus.cv_SYSTEM is not None:
+                    cronus_state = self.conf.cronus.cv_SYSTEM.get_state()
+                    log.warning("cronus_state={} capable={}"
+                        .format(cronus_state, self.conf.cronus.capable))
+                    raise UnexpectedCase(state=cronus_state,
+                        message="We tried to setup Cronus and something is "
+                                "not working, check the debug log")
+                else:
+                    log.warning("We do not have a system object yet, it "
+                        "may be too early to call cronus_run_command")
+                    raise UnexpectedCase(message="We do not have a system "
+                        "object yet, it may be too early to call cronus_run_command")
+
+        if not command:
+            log.warning("cronus_run_command requires a command to run")
+            raise ParameterCheck(message="cronus_run_command requires a command to run")
+        self.conf.cronus.dump_env()
+        log.debug("cronus_run_command='{}' target='{}'"
+            .format(command, self.conf.cronus.current_target))
+        stdout_value = self.cronus_subcommand(command=command, minutes=minutes)
+        return stdout_value
 
 class Server(object):
     '''
