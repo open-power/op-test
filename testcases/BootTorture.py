@@ -19,38 +19,80 @@
 #
 
 '''
-Boot Torture
-------------
+BootTorture:
+-------------------------------
 
 Torture the machine with repeatedly trying to boot
+
+Sample naming conventions below, see each test method for
+the applicable options per method.
+
+--run testcases.BootTorture.BootTorture
+      ^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^
+          module name        subclass
+
+--run testcases.BootTorture.BootTorture10
+      ^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^
+          module name        subclass
+
 '''
 
 import pexpect
 import unittest
-import subprocess
+import difflib
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
-from testcases.OpTestPCI import TestPCI
-
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+class BootTorture(unittest.TestCase):
+    '''
+    BootTorture x1024
 
-class BootTorture(unittest.TestCase, TestPCI):
-    BOOT_ITERATIONS = 1024
+        --run testcases.BootTorture.BootTorture
 
-    def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_SYSTEM = conf.system()
-        self.pci_good_data_file = conf.lspci_file()
+    '''
+
+    @classmethod
+    def setUpClass(cls, boot_iterations=1024):
+        cls.boot_iterations = boot_iterations
+        cls.conf = OpTestConfiguration.conf
+        cls.cv_SYSTEM = cls.conf.system()
+        cls.file_lspci = cls.get_lspci_file()
+
+    @classmethod
+    def get_lspci_file(cls):
+        if cls.conf.lspci_file():
+            with open(cls.conf.lspci_file(), 'r') as f:
+                file_content = f.read().splitlines()
+            log.debug("file_content={}".format(file_content))
+            return file_content
+
+    def _diff_my_devices(self,
+                        listA=None,
+                        listA_name=None,
+                        listB=None,
+                        listB_name=None):
+        '''
+        Performs unified diff of two lists
+        '''
+        unified_output = difflib.unified_diff(
+            filter(None, listA),
+            filter(None, listB),
+            fromfile=listA_name,
+            tofile=listB_name,
+            lineterm="")
+        unified_list = list(unified_output)
+        log.debug("unified_list={}".format(unified_list))
+        return unified_list
 
     def runTest(self):
         self.c = self.cv_SYSTEM.console
-        for i in range(1, self.BOOT_ITERATIONS):
+        for i in range(1, self.boot_iterations):
             log.debug("Boot iteration %d..." % i)
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             try:
@@ -59,48 +101,69 @@ class BootTorture(unittest.TestCase, TestPCI):
                 continue
             self.c.run_command_ignore_fail("head /sys/firmware/opal/msglog")
             self.c.run_command_ignore_fail("tail /sys/firmware/opal/msglog")
-            if self.pci_good_data_file:
-                self.check_pci_devices()
+            if self.file_lspci:
+                active_lspci = self.c.run_command("lspci -mm -n")
+                compare_results = self._diff_my_devices(listA=self.file_lspci,
+                                      listA_name=self.conf.lspci_file(),
+                                      listB=active_lspci,
+                                      listB_name="Live System")
+                log.debug("compare_results={}".format(compare_results))
+                if len(compare_results):
+                    self.assertEqual(len(compare_results), 0,
+                        "Stored ({}) and Active PCI devices differ:\n{}"
+                        .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
+
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail(
                 "grep ',[0-4]\]' /sys/firmware/opal/msglog")
 
 
-class BootTorture10(BootTorture):
+class BootTorture10(BootTorture, unittest.TestCase):
     '''
     Just boot 10 times. Just a little bit of peril.
+
+        --run testcases.BootTorture.BootTorture10
     '''
-    BOOT_ITERATIONS = 10
+    @classmethod
+    def setUpClass(cls):
+        super(BootTorture10, cls).setUpClass(boot_iterations=10)
 
-
-class ReBootTorture(unittest.TestCase, TestPCI):
+class ReBootTorture(BootTorture, unittest.TestCase):
     '''
     Soft Reboot Torture - i.e. running 'reboot' from Petitboot shell.
-    '''
-    BOOT_ITERATIONS = 1024
 
-    def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_SYSTEM = conf.system()
-        self.pci_good_data_file = conf.lspci_file()
+        --run testcases.BootTorture.ReBootTorture
+    '''
+    @classmethod
+    def setUpClass(cls):
+        super(ReBootTorture, cls).setUpClass(boot_iterations=1024)
 
     def runTest(self):
-        console = self.cv_SYSTEM.console
+        self.c = self.cv_SYSTEM.console
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         # Disable the fast-reset
-        console.run_command(
+        self.c.run_command(
             "nvram -p ibm,skiboot --update-config fast-reset=0")
-        for i in range(1, self.BOOT_ITERATIONS):
+        for i in range(1, self.boot_iterations):
             log.debug("Re-boot iteration %d..." % i)
-            console.run_command_ignore_fail("uname -a")
-            console.run_command_ignore_fail("cat /etc/os-release")
-            if self.pci_good_data_file:
-                self.check_pci_devices()
-            console.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
-            console.run_command_ignore_fail(
+            self.c.run_command_ignore_fail("uname -a")
+            self.c.run_command_ignore_fail("cat /etc/os-release")
+            if self.file_lspci:
+                active_lspci = self.c.run_command("lspci -mm -n")
+                compare_results = self._diff_my_devices(listA=self.file_lspci,
+                                      listA_name=self.conf.lspci_file(),
+                                      listB=active_lspci,
+                                      listB_name="Live System")
+                log.debug("compare_results={}".format(compare_results))
+                if len(compare_results):
+                    self.assertEqual(len(compare_results), 0,
+                        "Stored ({}) and Active PCI devices differ:\n{}"
+                        .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
+            self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
+            self.c.run_command_ignore_fail(
                 "grep ',[0-4]\]' /sys/firmware/opal/msglog")
-            console.pty.sendline("echo 10  > /proc/sys/kernel/printk")
-            console.pty.sendline("reboot")
+            self.c.pty.sendline("echo 10  > /proc/sys/kernel/printk")
+            self.c.pty.sendline("reboot")
             self.cv_SYSTEM.set_state(OpSystemState.IPLing)
             try:
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -109,8 +172,12 @@ class ReBootTorture(unittest.TestCase, TestPCI):
                 self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
 
-class ReBootTorture10(ReBootTorture):
+class ReBootTorture10(BootTorture, unittest.TestCase):
     '''
     Reboot Torture, but only 10x.
+
+        --run testcases.BootTorture.ReBootTorture10
     '''
-    BOOT_ITERATIONS = 10
+    @classmethod
+    def setUpClass(cls):
+        super(ReBootTorture10, cls).setUpClass(boot_iterations=10)
