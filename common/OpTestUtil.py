@@ -1164,10 +1164,12 @@ class OpTestUtil():
             if echo_rc == 0:
               if whoami in "root":
                 log.debug("OpTestSystem now running as root")
+                return True
               else:
-                log.warning("OpTestSystem should be running as root, unable to confirm root, whoami={}".format(whoami))
+                log.warning("OpTestSystem running as \'{}\' not root".format(whoami))
             else:
                 log.debug("OpTestSystem should be running as root, unable to verify")
+          return False
 
     def get_sudo(self, host, term_obj, pty, prompt):
         # prompt comes in as the string desired, needs to be pre-built
@@ -1177,13 +1179,10 @@ class OpTestUtil():
           return -1, -1
         pty.sendline()
 
-        try:
+        if self.check_root(pty, prompt) is True:
             # If we logged in as root or we're in the Petitboot shell we may
             # already be root.
-            self.check_root(pty, prompt)
             return 1, 1
-        except:
-            pass
 
         my_pwd = host.password()
         pty.sendline("which sudo && sudo -s")
