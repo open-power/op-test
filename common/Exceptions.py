@@ -421,9 +421,6 @@ class OpExit(SystemExit):
     We are exiting and want to set an exit code.
     SystemExit will bubble up and out.
     Callers must use atexit to register cleanup
-    atexit.register(self.__del__)
-    def __del__(self):
-        self.util.cleanup()
     '''
 
     def __init__(self, **kwargs):
