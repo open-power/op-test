@@ -465,7 +465,7 @@ class OpTestSystem(object):
         rc = sys_pty.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if rc in [0,1,5,6]:
           return OpSystemState.UNKNOWN # we really should not have arrived in here and not much we can do
-        sys_pty.sendline("cat /proc/version | cut -d ' ' -f 3 | grep %s; echo $?" % (self.openpower))
+        sys_pty.sendline("cat /proc/version | grep {}; echo $?".format(self.openpower))
         time.sleep(0.2)
         rc = sys_pty.expect([self.expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=1)
         if rc == 0:
