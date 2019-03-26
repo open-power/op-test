@@ -166,6 +166,37 @@ class MemCpyAFUTest(OpTestCAPI, unittest.TestCase):
             self.assertTrue(False, "memcpy_afu_ctx tests failed")
 
 
+class MemCpyAFUReallocTest(OpTestCAPI, unittest.TestCase):
+    '''
+    If a given system has a CAPI FPGA card, then this test load the cxl module
+    if required and test the memcpy AFU with memcpy_afu_ctx -r
+    '''
+    def setUp(self):
+        super(MemCpyAFUReallocTest, self).setUp()
+
+    def runTest(self):
+        self.set_up()
+
+        # Check that cxl-tests binary and library are available
+        # If not, clone and build cxl-tests (along with libcxl)
+        l_dir = "/tmp/cxl-tests"
+        if (self.cv_HOST.host_check_binary(l_dir, "memcpy_afu_ctx") != True or
+            self.cv_HOST.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
+            self.cv_HOST.host_clone_cxl_tests(l_dir)
+            self.cv_HOST.host_build_cxl_tests(l_dir)
+
+        # Run memcpy afu tests
+        l_exec = "memcpy_afu_ctx -p0 -r -l3000 >/tmp/memcpy_afu_ctx-r.log"
+        cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s" % (l_dir, l_exec)
+        log.debug(cmd)
+        try:
+            self.cv_HOST.host_run_command(cmd)
+            l_msg = "memcpy_afu_ctx -r tests pass"
+            log.debug(l_msg)
+        except CommandFailed:
+            self.assertTrue(False, "memcpy_afu_ctx -r tests failed")
+
+
 class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
     '''
     If a given system has a CAPI FPGA card, then this test load the cxl module
@@ -210,5 +241,6 @@ def capi_test_suite():
     s.addTest(CxlDeviceFileTest())
     s.addTest(SysfsABITest())
     s.addTest(MemCpyAFUTest())
+    s.addTest(MemCpyAFUReallocTest())
     s.addTest(TimeBaseSyncTest())
     return s
