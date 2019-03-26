@@ -84,12 +84,8 @@ class OpTestHMIHandling(unittest.TestCase):
                            .format(self.cpu, self.revision))
                 raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
                                          .format(self.cpu, self.revision))
-        else:
-            log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
-                        .format(self.cpu, self.revision))
-            raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
-                                     .format(self.cpu, self.revision))
-        log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(self.cpu, self.revision))
+
+            log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(self.cpu, self.revision))
 
     def clear_stop(self):
         self.cv_SYSTEM.stop = 0
