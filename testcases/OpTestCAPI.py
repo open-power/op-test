@@ -155,7 +155,7 @@ class MemCpyAFUTest(OpTestCAPI, unittest.TestCase):
             self.cv_HOST.host_build_cxl_tests(l_dir)
 
         # Run memcpy afu tests
-        l_exec = "memcpy_afu_ctx -p100 -l100 >/tmp/memcpy_afu_ctx.log"
+        l_exec = "memcpy_afu_ctx -p0 -l10000 >/tmp/memcpy_afu_ctx.log"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s" % (l_dir, l_exec)
         log.debug(cmd)
         try:
