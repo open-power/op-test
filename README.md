@@ -46,8 +46,12 @@ the BMC and the host of the machine(s) you're testing.
 
 ### Preparation ###
 
-The target system will need to have an OS that can boot. That OS will
-need to have several things installed on it.
+The target system will need to have a Host OS that can boot.
+The Host OS will need to have several things installed on it.
+
+This is a one time setup for the Host OS.  If you reinstall the
+Host OS then these steps will need to be completed again to
+prepare the Host OS for tests.
 
 ### Target System Requirements ###
 
@@ -77,13 +81,20 @@ On RHEL-like systems, package names are:
 
     lm_sensors ipmitool i2c-tools pciutils kernel-tools dtc
 
-From skiboot, you will need the xscom-utils and gard installed:
+On the Host OS, you will need to clone the skiboot source and then
+build the following latest utilities.
 
+    On the Host OS clone the skiboot source:
     git clone https://github.com/open-power/skiboot
+
+    Then:
     cd skiboot/external/xscom-utils
     make
     sudo make install
     cd ../gard
+    make
+    sudo make install
+    cd ../pflash
     make
     sudo make install
 
