@@ -54,6 +54,7 @@ class MamboConsole():
             initramfs=None,
             block_setup_term=None,
             delaybeforesend=None,
+            timeout_factor=1,
             logfile=sys.stdout):
         self.mambo_binary = mambo_binary
         self.mambo_initial_run_script = mambo_initial_run_script
@@ -73,6 +74,7 @@ class MamboConsole():
         self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
         self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
         self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+        self.timeout_factor = timeout_factor # functional simulators are notoriously slow, so multiply all default timeouts by this factor
 
         # state tracking, reset on boot and state changes
         # console tracking done on System object for the system console
@@ -187,13 +189,13 @@ class MamboConsole():
         return self.pty
 
     def run_command(self, command, timeout=60, retry=0):
-        return self.util.run_command(self, command, timeout, retry)
+        return self.util.run_command(self, command, timeout*self.timeout_factor, retry)
 
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
-        return self.util.run_command_ignore_fail(self, command, timeout, retry)
+        return self.util.run_command_ignore_fail(self, command, timeout*self.timeout_factor, retry)
 
     def mambo_run_command(self, command, timeout=60, retry=0):
-        return self.util.mambo_run_command(self, command, timeout, retry)
+        return self.util.mambo_run_command(self, command, timeout*self.timeout_factor, retry)
 
     def mambo_exit(self):
         return self.util.mambo_exit(self)
@@ -241,6 +243,7 @@ class OpTestMambo():
                  prompt=None,
                  block_setup_term=None,
                  delaybeforesend=None,
+                 timeout_factor=None,
                  logfile=sys.stdout):
         self.console = MamboConsole(mambo_binary=mambo_binary,
             mambo_initial_run_script=mambo_initial_run_script,
@@ -248,6 +251,7 @@ class OpTestMambo():
             skiboot=skiboot,
             kernel=kernel,
             initramfs=initramfs,
+            timeout_factor=timeout_factor,
             logfile=logfile)
         self.ipmi = MamboIPMI(self.console)
         self.system = None
