@@ -79,7 +79,7 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cpu = ''.join(self.cv_HOST.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'", console=1))
         if self.cpu in ["POWER9"]:
             self.revision = ''.join(self.cv_HOST.host_run_command("grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
-            if not self.revision in ["2.2", "2.3"]:
+            if not self.revision in ["2.0", "2.1", "2.2", "2.3"]:
                 log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
                            .format(self.cpu, self.revision))
                 raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
