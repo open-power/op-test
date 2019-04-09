@@ -54,6 +54,7 @@ qemu_default = "qemu-system-ppc64"
 mambo_default = "/opt/ibm/systemsim-p9/run/p9/power9"
 mambo_initial_run_script = "skiboot.tcl"
 mambo_autorun = "1"
+mambo_timeout_factor = 2
 
 # HostLocker credentials need to be in Notes Web section ('comment' section of JSON)
 # bmc_type:OpenBMC
@@ -232,6 +233,8 @@ def get_parser():
                           help="[Mambo Only] mambo simulator initial run script, defaults to skiboot.tcl")
     bmcgroup.add_argument("--mambo-autorun", default=mambo_autorun,
                           help="[Mambo Only] mambo autorun, defaults to '1' to autorun")
+    bmcgroup.add_argument("--mambo-timeout-factor", default=mambo_timeout_factor,
+                          help="[Mambo Only] factor to multiply all timeouts by, defaults to 2")
 
     hostgroup = parser.add_argument_group('Host', 'Installed OS information')
     hostgroup.add_argument("--host-ip", help="Host address")
@@ -727,6 +730,7 @@ class OpTestConfiguration():
                              skiboot=self.args.flash_skiboot,
                              kernel=self.args.flash_kernel,
                              initramfs=self.args.flash_initramfs,
+                             timeout_factor=self.args.mambo_timeout_factor,
                              logfile=self.logfile)
                 self.op_system = common.OpTestSystem.OpTestMamboSystem(host=host,
                     bmc=bmc,
