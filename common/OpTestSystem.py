@@ -394,7 +394,7 @@ class OpTestSystem(object):
         self.console.enable_setup_term_quiet()
         sys_pty = self.console.get_console()
         self.console.disable_setup_term_quiet()
-        sys_pty.sendcontrol('c')
+        sys_pty.sendcontrol('l')
 
         r = sys_pty.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if r in [0,1]:
@@ -1100,8 +1100,8 @@ class OpTestSystem(object):
     def petitboot_exit_to_shell(self):
         sys_pty = self.console.get_console()
         log.debug("USING PES Expect Buffer ID={}".format(hex(id(sys_pty))))
-        sys_pty.sendcontrol('c')
         for i in range(3):
+          sys_pty.send('x')
           pp = self.get_petitboot_prompt()
           if pp == 1:
             break;
@@ -1122,8 +1122,6 @@ class OpTestSystem(object):
           self.block_setup_term = 0 # unblock in case connections are lost during state=4 the get_console/connect can properly setup again
           self.previous_state = OpSystemState.PETITBOOT_SHELL # preserve state
           my_pp = 1
-        else:
-          sys_pty = self.console.connect() # try new connect, sometimes stale buffers
         return my_pp
 
     def exit_petitboot_shell(self):

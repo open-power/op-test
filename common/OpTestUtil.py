@@ -1248,8 +1248,10 @@ class OpTestUtil():
           raise ConsoleSettings(before=pty.before, after=pty.after,
                   msg="Getting login and sudo not successful, probably connection or credential issue, retry")
         # now just timeout
-        pty.sendline()
-        rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        pty.sendcontrol('l')
+        # Ctrl-L may cause a esc[J (erase) character to appear in the buffer.
+        # Include this in the patterns that expect $ (end of line)
+        rc = pty.expect(['login: (\x1b\[J)*$', ".*#(\x1b\[J)*$", ".*# (\x1b\[J)*$", ".*\$(\x1b\[J)*", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
           track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
           track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))

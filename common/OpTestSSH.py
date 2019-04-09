@@ -192,6 +192,9 @@ class OpTestSSH():
     def get_console(self, logger=None):
         if self.state == ConsoleState.DISCONNECTED:
           self.connect(logger)
+          if self.pty.isalive():
+              # connect() will have already setup term
+              return self.pty
 
         count = 0
         while (not self.pty.isalive()):
