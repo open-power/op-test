@@ -141,6 +141,13 @@ class ControlC(unittest.TestCase):
                 raise BMCDisconnected(BMC_DISCONNECT)
             self.assertEqual(rc, 1, "Failed to find expected prompt")
         except pexpect.TIMEOUT as e:
+            raw_pty.sendcontrol('z')
+            rc = raw_pty.expect([self.prompt, pexpect.TIMEOUT], 10)
+            if rc == 0:
+                console.run_command_ignore_fail("kill %1")
+                console.run_command_ignore_fail("fg")
+                self.fail("Had to ctrl-z rather than ctrl-c")
+                pass
             log.debug(e)
             log.debug("# TIMEOUT waiting for command to finish with ctrl-c.")
             log.debug("# Everything is terrible. Fail the world, "
