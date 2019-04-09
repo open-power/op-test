@@ -48,6 +48,8 @@ class InstallUpstreamKernel(unittest.TestCase):
         self.config_path = self.conf.args.git_repoconfigpath
         self.disk = self.conf.args.host_scratch_disk
         self.patch = self.conf.args.git_patch
+        self.use_kexec = self.conf.args.use_kexec
+        self.append_kernel_cmdline = self.conf.args.append_kernel_cmdline
         if self.config_path:
             self.config = "olddefconfig"
         if not self.repo:
@@ -104,13 +106,31 @@ class InstallUpstreamKernel(unittest.TestCase):
             con.run_command("make %s" % self.config)
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules && make modules_install && make install" % onlinecpus, timeout=self.host_cmd_timeout)
-            # FIXME: Handle distributions which do not support grub
-            con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
-            con.run_command('grubby --set-default /boot/vmlinuz-`cat include/config/kernel.release 2> /dev/null`')
-            log.debug("Rebooting after kernel install...")
-            self.console_thread.console_terminate()
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            if not self.use_kexec:
+                # FIXME: Handle distributions which do not support grub
+                con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
+                con.run_command('grubby --set-default /boot/vmlinuz-`cat include/config/kernel.release 2> /dev/null`')
+                log.debug("Rebooting after kernel install...")
+                self.console_thread.console_terminate()
+                con.close()
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            else:
+                self.console_thread.console_terminate()
+                cmdline = con.run_command("cat /proc/cmdline")[-1]
+                if self.append_kernel_cmdline:
+                    cmdline += " %s" % self.append_kernel_cmdline
+                kern_rel_str = con.run_command("cat %s/include/config/kernel.release" % linux_path)[-1]
+                initrd_file = con.run_command("ls -l /boot/initr*-%s*" % kern_rel_str)[-1].split(" ")[-1]
+                kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinuz-%s -l" % (initrd_file, cmdline, kern_rel_str)
+                # Let's makesure we set the default boot index to current kernel
+                # to avoid leaving host in unstable state incase boot failure
+                con.run_command('grubby --set-default /boot/vmlinuz-`uname -r 2> /dev/null`')
+                con.run_command(kexec_cmdline)
+                con.close()
+                raw_pty = self.cv_SYSTEM.console.get_console()
+                raw_pty.sendline("kexec -e")
+                raw_pty.expect("login:", timeout=600)
             con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
             res = con.run_command("uname -r")
             log.info("Installed upstream kernel version: %s", res[-1])

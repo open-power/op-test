@@ -279,7 +279,10 @@ def get_parser():
     gitgroup.add_argument("--git-branch", help="git branch to be used", default="master")
     gitgroup.add_argument("--git-home", help="home path for git repository", default="/home/ci")
     gitgroup.add_argument("--git-patch", help="patch to be applied on top of the git repository", default=None)
-    
+    gitgroup.add_argument("--use-kexec", help="Use kexec to boot to new kernel", action='store_true', default=False)
+    gitgroup.add_argument("--append-kernel-cmdline", help="Append kernel commandline while booting with kexec", default=None)
+
+
     imagegroup = parser.add_argument_group('Images', 'Firmware LIDs/images to flash')
     imagegroup.add_argument("--bmc-image", help="BMC image to flash(*.tar in OpenBMC, *.bin in SMC)")
     imagegroup.add_argument("--host-pnor", help="PNOR image to flash")
