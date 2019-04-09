@@ -31,6 +31,7 @@ import os
 from OpTestSSH import OpTestSSH
 from OpTestBMC import OpTestBMC
 from Exceptions import HTTPCheck
+from Exceptions import CommandFailed
 from OpTestConstants import OpTestConstants as BMC_CONST
 import OpTestSystem
 
@@ -952,6 +953,23 @@ class OpTestOpenBMC():
     def has_new_pnor_code_update(self, minutes=BMC_CONST.HTTP_RETRY):
         if self.has_vpnor is not None:
             return self.has_vpnor
+
+        has_local_share_pnor = True
+        try:
+            self.bmc.run_command("ls -1 /usr/local/share/pnor")
+        except CommandFailed:
+            has_local_share_pnor = False
+
+        has_pflash = self.bmc.validate_pflash_tool()
+
+        # As of April 2019, now there's APIs for machies using the non-vpnor
+        # layout. So our previosu logic of assuming that we should use pflash
+        # only if the API is not there is now invalid.
+        # So we have to guess, as there's no real good documented way to work
+        # out what to do.
+        if not has_local_share_pnor and has_pflash:
+            return False
+
         list = self.rest_api.get_list_of_image_ids(minutes=minutes)
         for id in list:
             i = self.rest_api.image_data(id)
