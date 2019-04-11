@@ -510,7 +510,7 @@ class OpTestConfiguration():
         # now that we have loggers, dump conf file to help debug later
         OpTestLogger.optest_logger_glob.optest_logger.debug(
             "conf file defaults={}".format(defaults))
-        cmd = "git describe"
+        cmd = "git describe --always"
         git_output = subprocess.check_output(cmd.split())
         # log for triage of how dated the repo is
         OpTestLogger.optest_logger_glob.optest_logger.debug(
