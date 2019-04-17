@@ -130,8 +130,39 @@ class MemCpy3AFUTest(OpTestOpenCAPI, unittest.TestCase):
             self.assertTrue(False, "ocxl_memcpy tests failed")
 
 
+class MemCpy3AFUReallocTest(OpTestOpenCAPI, unittest.TestCase):
+    '''
+    If the system has a OpenCAPI FPGA card, then load the ocxl module
+    if required and test the memcpy3 AFU with ocxl_memcpy -r
+    '''
+    def setUp(self):
+        super(MemCpy3AFUReallocTest, self).setUp()
+
+    def runTest(self):
+        self.set_up()
+
+        # Check that the afutests binary are available
+        # If not, clone and build libocxl and afutests
+        l_dir = "/tmp/libocxl"
+        if (self.cv_HOST.host_check_binary(l_dir, "afuobj/ocxl_memcpy") != True):
+            self.cv_HOST.host_clone_libocxl(l_dir)
+            self.cv_HOST.host_build_libocxl(l_dir)
+
+        # Run memcpy3 afu tests
+        l_exec = "afuobj/ocxl_memcpy -p0 -r -l3000 >/tmp/ocxl_memcpy-r.log"
+        cmd = "cd %s; ./%s" % (l_dir, l_exec)
+        log.debug(cmd)
+        try:
+            self.cv_HOST.host_run_command(cmd)
+            l_msg = "ocxl_memcpy -r tests pass"
+            log.debug(l_msg)
+        except CommandFailed:
+            self.assertTrue(False, "ocxl_memcpy -r tests failed")
+
+
 def opencapi_test_suite():
     s = unittest.TestSuite()
     s.addTest(OcxlDeviceFileTest())
     s.addTest(MemCpy3AFUTest())
+    s.addTest(MemCpy3AFUReallocTest())
     return s
