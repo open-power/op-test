@@ -119,7 +119,7 @@ class MemCpy3AFUTest(OpTestOpenCAPI, unittest.TestCase):
             self.cv_HOST.host_build_libocxl(l_dir)
 
         # Run memcpy3 afu tests
-        l_exec = "afuobj/ocxl_memcpy -p100 -l100 >/tmp/ocxl_memcpy.log"
+        l_exec = "afuobj/ocxl_memcpy -p0 -l10000 >/tmp/ocxl_memcpy.log"
         cmd = "cd %s; ./%s" % (l_dir, l_exec)
         log.debug(cmd)
         try:
