@@ -49,39 +49,139 @@ class IplParams():
         self.cv_SYSTEM = conf.system()
 
     def get_params_table(self):
+        # P9 Nimbus DD2.3
+        # this is HDAT Risk Level=4, which hostboot translates for OpenPOWER
+        # if NOT /proc/device-tree/ipl-params/sys-params/elevated-risk-level, use table 0
+        # hostboot src/usr/hdat/hdatiplparms.H
+        p9_dd2_3_rl0_params = {}
+        p9_dd2_3_rl0_params["enable"] = [
+                                         "tm-suspend-mode",
+                                         "inst-spec-barrier-ori31,31,0",
+                                         "inst-l1d-flush-trig2",
+                                         "fw-l1d-thread-split",
+                                         "fw-count-cache-flush-bcctr2,0,0",
+                                         "speculation-policy-favor-security",
+                                         "needs-l1d-flush-msr-hv-1-to-0",
+                                         "needs-l1d-flush-msr-pr-0-to-1",
+                                         "needs-spec-barrier-for-bound-checks",
+                                         "needs-count-cache-flush-on-context-switch",
+                                         ]
+        p9_dd2_3_rl0_params["disable"] = [
+                                          "fw-bcctrl-serialized",
+                                          "inst-l1d-flush-ori30,30,0",
+                                          "fw-branch-hints-honored",
+                                          "inst-thread-reconfig-control-trig0-1",
+                                          "fw-count-cache-disabled",
+                                          "fw-ltptr-serialized",
+                                          "user-mode-branch-speculation",
+                                          "needs-pmu-restricted",
+                                         ]
+        # P9 Nimbus DD2.3
+        # this is HDAT Risk Level=5, which hostboot translates for OpenPOWER
+        # if /proc/device-tree/ipl-params/sys-params/elevated-risk-level, use table 1
+        # hostboot src/usr/hdat/hdatiplparms.H
+        p9_dd2_3_rl1_params = {}
+        p9_dd2_3_rl1_params["enable"] = [
+                                         "tm-suspend-mode",
+                                        ]
+        p9_dd2_3_rl1_params["disable"] = [
+                                          "inst-spec-barrier-ori31,31,0",
+                                          "inst-l1d-flush-trig2",
+                                          "fw-l1d-thread-split",
+                                          "fw-count-cache-flush-bcctr2,0,0",
+                                          "speculation-policy-favor-security",
+                                          "needs-l1d-flush-msr-hv-1-to-0",
+                                          "needs-l1d-flush-msr-pr-0-to-1",
+                                          "needs-spec-barrier-for-bound-checks",
+                                          "needs-count-cache-flush-on-context-switch",
+                                          "fw-bcctrl-serialized",
+                                          "inst-l1d-flush-ori30,30,0",
+                                          "fw-branch-hints-honored",
+                                          "inst-thread-reconfig-control-trig0-1",
+                                          "fw-count-cache-disabled",
+                                          "fw-ltptr-serialized",
+                                          "user-mode-branch-speculation",
+                                          "needs-pmu-restricted",
+                                         ]
         # P9 DD2.2 Risk level 0 fw feature table(System boots always with default risk level 0)
         p9_dd2_2_rl0_params = {}
-        p9_dd2_2_rl0_params["enable"] = ["fw-count-cache-disabled", "fw-l1d-thread-split",
-                                         "inst-l1d-flush-trig2", "inst-spec-barrier-ori31,31,0",
-                                         "needs-l1d-flush-msr-hv-1-to-0", "needs-l1d-flush-msr-pr-0-to-1",
-                                         "needs-spec-barrier-for-bound-checks", "speculation-policy-favor-security", "tm-suspend-mode",
-                                         "fw-branch-hints-honored"]
-        p9_dd2_2_rl0_params["disable"] = ["inst-l1d-flush-ori30,30,0", "fw-bcctrl-serialized", "inst-thread-reconfig-control-trig0-1",
-                                          "fw-ltptr-serialized", "user-mode-branch-speculation"]
+        p9_dd2_2_rl0_params["enable"] = [
+                                         "fw-count-cache-disabled",
+                                         "fw-l1d-thread-split",
+                                         "inst-l1d-flush-trig2",
+                                         "inst-spec-barrier-ori31,31,0",
+                                         "needs-l1d-flush-msr-hv-1-to-0",
+                                         "needs-l1d-flush-msr-pr-0-to-1",
+                                         "needs-spec-barrier-for-bound-checks",
+                                         "speculation-policy-favor-security",
+                                         "tm-suspend-mode",
+                                         "fw-branch-hints-honored",
+                                         ]
+        p9_dd2_2_rl0_params["disable"] = [
+                                          "inst-l1d-flush-ori30,30,0",
+                                          "fw-bcctrl-serialized",
+                                          "inst-thread-reconfig-control-trig0-1",
+                                          "fw-ltptr-serialized",
+                                          "user-mode-branch-speculation",
+                                         ]
         # P9 DD2.2 Risk level 1 fw feature table
         p9_dd2_2_rl1_params = {}
-        p9_dd2_2_rl1_params["enable"] = ["fw-l1d-thread-split", "fw-bcctrl-serialized",
-                                         "inst-l1d-flush-trig2", "inst-spec-barrier-ori31,31,0",
-                                         "needs-l1d-flush-msr-hv-1-to-0", "needs-l1d-flush-msr-pr-0-to-1",
-                                         "needs-spec-barrier-for-bound-checks", "speculation-policy-favor-security", "tm-suspend-mode",
-                                         "fw-branch-hints-honored", "user-mode-branch-speculation"]
-        p9_dd2_2_rl1_params["disable"] = ["fw-count-cache-disabled", "inst-l1d-flush-ori30,30,0", "inst-thread-reconfig-control-trig0-1",
+        p9_dd2_2_rl1_params["enable"] = [
+                                         "fw-l1d-thread-split",
+                                         "fw-bcctrl-serialized",
+                                         "inst-l1d-flush-trig2",
+                                         "inst-spec-barrier-ori31,31,0",
+                                         "needs-l1d-flush-msr-hv-1-to-0",
+                                         "needs-l1d-flush-msr-pr-0-to-1",
+                                         "needs-spec-barrier-for-bound-checks",
+                                         "speculation-policy-favor-security",
+                                         "tm-suspend-mode",
+                                         "fw-branch-hints-honored",
+                                         "user-mode-branch-speculation"
+                                         ]
+        p9_dd2_2_rl1_params["disable"] = [
+                                          "fw-count-cache-disabled",
+                                          "inst-l1d-flush-ori30,30,0",
+                                          "inst-thread-reconfig-control-trig0-1",
                                           "fw-ltptr-serialized"]
+
+        table_0 = {
+            '2.2'    : p9_dd2_2_rl0_params,
+            '2.3'    : p9_dd2_3_rl0_params,
+        }
+        table_1 = {
+            '2.2'    : p9_dd2_2_rl1_params,
+            '2.3'    : p9_dd2_3_rl1_params,
+        }
 
         # P8 fw-feature table
         p8_params = {}
-        p8_params["enable"] = ["inst-l1d-flush-ori30,30,0", "fw-count-cache-disabled", "inst-spec-barrier-ori31,31,0",
-                               "needs-l1d-flush-msr-hv-1-to-0", "needs-l1d-flush-msr-pr-0-to-1",
-                               "needs-spec-barrier-for-bound-checks", "speculation-policy-favor-security", "tm-suspend-mode",
-                               "fw-branch-hints-honored"]
-        p8_params["disable"] = ["fw-bcctrl-serialized", "inst-thread-reconfig-control-trig0-1",
-                                "fw-ltptr-serialized", "inst-l1d-flush-trig2", "fw-l1d-thread-split", "user-mode-branch-speculation"]
+        p8_params["enable"] = [
+                               "inst-l1d-flush-ori30,30,0",
+                               "fw-count-cache-disabled",
+                               "inst-spec-barrier-ori31,31,0",
+                               "needs-l1d-flush-msr-hv-1-to-0",
+                               "needs-l1d-flush-msr-pr-0-to-1",
+                               "needs-spec-barrier-for-bound-checks",
+                               "speculation-policy-favor-security",
+                               "tm-suspend-mode",
+                               "fw-branch-hints-honored"
+                               ]
+        p8_params["disable"] = [
+                               "fw-bcctrl-serialized",
+                               "inst-thread-reconfig-control-trig0-1",
+                               "fw-ltptr-serialized",
+                               "inst-l1d-flush-trig2",
+                               "fw-l1d-thread-split",
+                               "user-mode-branch-speculation"
+                               ]
 
         self.cpu = ''.join(self.c.run_command(
             "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         if self.cpu in ["POWER9"]:
             self.revision = ''.join(self.c.run_command(
                 "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'"))
+            log.debug("self.cpu={} self.revision={}".format(self.cpu, self.revision))
             if not self.revision in ["2.2", "2.3"]:
                 return {}
             rl = 0
@@ -90,11 +190,13 @@ class IplParams():
                     "ls --color=never /proc/device-tree/ipl-params/sys-params/elevated-risk-level")
                 rl = 1
             except CommandFailed:
+                log.debug("NO /proc/device-tree/ipl-params/sys-params/elevated-risk-level found, proceeding with default risk level comparisons")
                 rl = 0
+
             if rl == 0:
-                return p9_dd2_2_rl0_params
+                return table_0[self.revision]
             elif rl == 1:
-                return p9_dd2_2_rl1_params
+                return table_1[self.revision]
             else:
                 return {}
         elif self.cpu in ["POWER8", "POWER8E"]:
@@ -120,8 +222,9 @@ class IplParams():
             "List of features which are expected to be in enabled state\n{}".format(params))
         if not params:
             # skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)
+            log.warning("Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported")
             raise unittest.SkipTest(
-                "Skipping test, fw-feature set table not found or processor not supported")
+                "Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported")
 
         fail_params = {}
         fail_params["enable"] = []
@@ -148,8 +251,9 @@ class IplParams():
             "List of features which are expected to be in disabled state\n{}".format(params))
         if not params:
             # skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)
+            log.warning("Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported")
             raise unittest.SkipTest(
-                "fw-feature set table not found, check if the processor is supported")
+                "Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported")
 
         fail_params = {}
         fail_params["disable"] = []
