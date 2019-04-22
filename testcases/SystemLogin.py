@@ -87,6 +87,14 @@ class BMCLogin(unittest.TestCase):
         if (isinstance(self.cv_BMC, OpTestMambo.OpTestMambo)) \
                 or (isinstance(self.cv_BMC, OpTestQemu.OpTestQemu)):
             raise unittest.SkipTest("QEMU/Mambo so skipping BMCLogin test")
+
+        filter_list = [
+            'Out of memory: Kill process',
+            'Killed process',
+        ]
+
+        found_issues = []
+
         r = self.cv_BMC.run_command("echo 'Hello World'")
         self.assertIn("Hello World", r)
         try:
@@ -95,6 +103,19 @@ class BMCLogin(unittest.TestCase):
             self.assertEqual(r.exitcode, 1)
         for i in range(2):
             self.cv_BMC.run_command("dmesg")
+        try:
+            r = self.cv_BMC.run_command("dmesg")
+            for f in filter_list:
+                fre = re.compile(f)
+                found_issues = [l for l in r if fre.search(l)]
+            log.debug("BMC found_issues={}".format(found_issues))
+            msg = '\n'.join(filter(None, found_issues))
+            if len(found_issues) != 0:
+                r = self.cv_BMC.run_command("dmesg -c")
+                log.debug("REPORT_BUG so we cleared dmesg to allow other tests to succeed")
+            self.assertTrue( len(found_issues) == 0, "REPORT_BUG BMC dmesg, debug log has full details:\n{}".format(msg))
+        except CommandFailed as r:
+            log.debug("BMC dmesg grep for issues failed")
 
 
 class SSHHostLogin(unittest.TestCase):
