@@ -1409,7 +1409,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.list_sel()
 
     def sys_sel_elist(self, dump=False):
-        self.rest.get_sel_ids(dump=dump)
+        id_list, dict_list = self.rest.get_sel_ids(dump=dump)
+        output = self.rest.convert_esels_to_list(id_list=id_list, dict_list=dict_list)
+        return output
 
     def sys_sel_check(self):
         self.rest.list_sel()

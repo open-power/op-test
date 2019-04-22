@@ -608,6 +608,13 @@ class OpTestConfiguration():
         except Exception as e:
             OpTestLogger.optest_logger_glob.optest_logger.debug(
                 "Unable to get git describe")
+
+        # MTU Check here post handler and logging setup
+        try:
+          self.util.PingMTUCheck(self.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+        except Exception as e:
+            OpTestLogger.optest_logger_glob.optest_logger.warning("Check that the BMC is healthy, maybe the Broadcom bug, Exception={}".format(e))
+
         # setup AES and Hostlocker configs after the logging is setup
         locker_timeout = time.time() + 60*self.args.locker_wait
         locker_code = errno.ETIME  # 62
