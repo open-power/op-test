@@ -30,7 +30,12 @@ opal-gard
 
 Test different OPAL GARD Related functionality
 '''
+from __future__ import division
 
+from builtins import hex
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import re
 import random
 
@@ -88,7 +93,7 @@ class OpalGard(unittest.TestCase):
         self.c.run_command("dmesg -D")
         data = self.cv_HOST.host_pflash_get_partition("GUARD")
         try:
-          offset =  hex(int(data["offset"])/16)
+          offset =  hex(old_div(int(data["offset"]),16))
         except Exception as e:
           self.assertTrue(False, "OpenPOWER BMC unable to find valid offset for partition=GUARD")
         for i in range(0, 11):

@@ -30,7 +30,16 @@ Host package which contains all functions related to HOST communication
 This class encapsulates all function which deals with the Host
 in OpenPower systems
 '''
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import hex
+from builtins import str
+from builtins import object
+from past.utils import old_div
 import sys
 import os
 import string
@@ -43,14 +52,14 @@ import socket
 import select
 import pty
 import pexpect
-import commands
+import subprocess
 
 import OpTestConfiguration
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from OpTestSSH import OpTestSSH
-import OpTestQemu
-from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .OpTestSSH import OpTestSSH
+from . import OpTestQemu
+from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
 
 import logging
 import OpTestLogger
@@ -60,7 +69,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class OpTestHost():
+class OpTestHost(object):
     '''
     An object to manipulate and run things on the host.
     '''
@@ -122,18 +131,18 @@ class OpTestHost():
         outsuffix = time.strftime("%Y%m%d%H%M%S")
         filename = "%s-%s.log" % (outsuffix, name)
         logfile = os.path.join(self.results_dir,filename)
-        print "Log file: %s" % logfile
+        print("Log file: %s" % logfile)
         logcmd = "tee %s" % (logfile)
         logcmd = logcmd + "| sed -u -e 's/\\r$//g'|cat -v"
-        print "logcmd: %s" % logcmd
+        print("logcmd: %s" % logcmd)
         logfile_proc = subprocess.Popen(logcmd,
                                              stdin=subprocess.PIPE,
                                              stderr=subprocess.PIPE,
                                              stdout=subprocess.PIPE,
                                              shell=True)
-        print repr(logfile_proc)
+        print(repr(logfile_proc))
         logfile = logfile_proc.stdin
-        print "Log file: %s" % logfile
+        print("Log file: %s" % logfile)
         OpTestLogger.optest_logger_glob.setUpCustomLoggerDebugFile(name, filename)
         ssh = OpTestSSH(self.ip, self.user, self.passwd,
                         logfile=logfile, check_ssh_keys=self.check_ssh_keys,
@@ -230,7 +239,7 @@ class OpTestHost():
         '''
         default_vals = {'console': 0}
         for key in default_vals:
-          if key not in kwargs.keys():
+          if key not in list(kwargs.keys()):
             kwargs[key] = default_vals[key]
         l_cmd = 'which ' + ' '.join(i_cmd)
         log.debug(l_cmd)
@@ -697,7 +706,7 @@ class OpTestHost():
 
         for i in core_ids:
             core_ids[i] = list(set(core_ids[i]))
-        core_ids = sorted(core_ids.iteritems())
+        core_ids = sorted(core_ids.items())
         log.debug(core_ids)
         return core_ids
 
@@ -731,7 +740,7 @@ class OpTestHost():
 
     def host_get_core_count(self, console=0):
         res = self.host_run_command("lscpu --all -e| wc -l", console=console)
-        return int(res[0])/(self.host_get_smt(console=console))
+        return old_div(int(res[0]),(self.host_get_smt(console=console)))
 
     def host_gather_debug_logs(self, console=0):
         self.host_run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog", console=console)

@@ -11,7 +11,7 @@ git:
 addons:
   apt:
     packages:
-      - python-pip
+      - python3-pip
       - latexmk
       - libalgorithm-diff-perl
       - texlive
@@ -24,13 +24,13 @@ addons:
 
 language: python
 python:
-  - "2.7"
+  - "3.6"
 install:
- - "pip install -r requirements.txt"
- - "pip install -r doc/requirements.txt"
+ - "pip3 install -r requirements.txt"
+ - "pip3 install -r doc/requirements.txt"
 script:
-  - python op-test --help
-  - python op-test --bmc-type AMI --run testcases.HelloWorld
+  - python3 op-test --help
+  - python3 op-test --bmc-type AMI --run testcases.HelloWorld
   - (cd doc/; make latexpdf html)
   - ./ci/build-qemu-powernv.sh
   - wget https://openpower.xyz/job/openpower/job/openpower-op-build/label=slave,target=palmetto/lastSuccessfulBuild/artifact/images/palmetto.pnor

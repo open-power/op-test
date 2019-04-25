@@ -27,7 +27,10 @@ BMC implementation we've ever thrown it at. Since we're highly reliant
 on the BMC providing a reliable host console, if these tests fail at all,
 then we're likely going to get spurious failures elsewhere in the test suite.
 '''
+from __future__ import division
 
+from builtins import object
+from past.utils import old_div
 import unittest
 import pexpect
 import time
@@ -42,7 +45,7 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
-class Console():
+class Console(object):
     bs = 1024
     count = 8
 
@@ -72,7 +75,7 @@ class Console():
                 pass
             else:
                 raise cf
-        expected = adjustment + (count * bs) / 16
+        expected = adjustment + old_div((count * bs), 16)
         self.assertTrue(len(zeros) == expected,
                         "Unexpected length of zeros {} != {}".format(
                             len(zeros), expected))

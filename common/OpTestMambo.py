@@ -21,7 +21,10 @@
 '''
 Support testing against Mambo simulator
 '''
+from __future__ import absolute_import
 
+from builtins import str
+from builtins import object
 import sys
 import time
 import pexpect
@@ -29,18 +32,18 @@ import subprocess
 import os
 
 from common.Exceptions import CommandFailed, ParameterCheck
-import OPexpect
-from OpTestUtil import OpTestUtil
+from . import OPexpect
+from .OpTestUtil import OpTestUtil
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class ConsoleState():
+class ConsoleState(object):
     DISCONNECTED = 0
     CONNECTED = 1
 
-class MamboConsole():
+class MamboConsole(object):
     '''
     A 'connection' to the Mambo Console involves *launching* Mambo.
     Closing a connection will *terminate* the Mambo process.
@@ -203,7 +206,7 @@ class MamboConsole():
     def mambo_enter(self):
         return self.util.mambo_enter(self)
 
-class MamboIPMI():
+class MamboIPMI(object):
     '''
     Mambo has fairly limited IPMI capability.
     '''
@@ -233,7 +236,7 @@ class MamboIPMI():
     def sys_set_bootdev_no_override(self):
         pass
 
-class OpTestMambo():
+class OpTestMambo(object):
     def __init__(self, mambo_binary=None,
                  mambo_initial_run_script=None,
                  mambo_autorun=None,

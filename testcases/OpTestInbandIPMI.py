@@ -37,10 +37,13 @@ This class will test the functionality of following commands
    mc, pef, power, raw, sdr, sel, sensor, session, user
 '''
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from builtins import object
 import time
-import subprocess
 import re
-import commands
 import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
@@ -187,7 +190,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             "diag" : "Force Boot from Diagnostic Partition",
             "floppy" : "Force Boot from Floppy/primary removable media",
         }
-        for bootdev,ipmiresponse in boot_devices.iteritems():
+        for bootdev,ipmiresponse in boot_devices.items():
             try:
                 try:
                     r = c.run_command(self.ipmi_method + 'chassis bootdev %s' % (bootdev))

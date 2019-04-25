@@ -17,6 +17,10 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+from __future__ import absolute_import
+from builtins import str
+from builtins import hex
+from builtins import object
 import re
 import sys
 import os
@@ -27,18 +31,18 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-from Exceptions import CommandFailed, SSHSessionDisconnected
-from OpTestUtil import OpTestUtil
-import OpTestSystem
+from .Exceptions import CommandFailed, SSHSessionDisconnected
+from .OpTestUtil import OpTestUtil
+from . import OpTestSystem
 try:
     from common import OPexpect
 except ImportError:
-    import OPexpect
+    from . import OPexpect
 
 sudo_responses = ["not in the sudoers",
                   "incorrect password"]
 
-class ConsoleState():
+class ConsoleState(object):
     DISCONNECTED = 0
     CONNECTED = 1
 
@@ -47,7 +51,7 @@ def set_system_to_UNKNOWN_BAD(system):
     system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
     return s
 
-class OpTestSSH():
+class OpTestSSH(object):
     def __init__(self, host, username, password, logfile=sys.stdout, port=22,
             prompt=None, check_ssh_keys=False, known_hosts_file=None,
             block_setup_term=None, delaybeforesend=None, use_parent_logger=True):

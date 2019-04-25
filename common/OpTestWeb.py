@@ -24,14 +24,17 @@
 #
 # IBM_PROLOG_END_TAG
 
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import object
 import time
 import subprocess
 import os
 import pexpect
 import unittest
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
 
 ## @package OpTestWeb
 #  Contains all BMC related Web tools
@@ -39,7 +42,7 @@ from OpTestError import OpTestError
 #  This class encapsulates all function which deals with the BMC Using Web GUI
 #  in OpenPower systems
 #
-class OpTestWeb():
+class OpTestWeb(object):
 
     ##
     # @brief Initialize OpTestWeb Object

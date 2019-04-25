@@ -25,6 +25,7 @@ This adds a new multithreaded library with having different
 variants of thread based SSH/SOL session runs, each thread logs
 to a different log file.
 '''
+from __future__ import absolute_import
 
 import random
 import unittest
@@ -34,9 +35,9 @@ import pexpect
 import os
 
 import OpTestConfiguration
-from OpTestSystem import OpSystemState
-from Exceptions import CommandFailed
-from OpTestIPMI import IPMIConsoleState
+from .OpTestSystem import OpSystemState
+from .Exceptions import CommandFailed
+from .OpTestIPMI import IPMIConsoleState
 
 import logging
 from logging.handlers import RotatingFileHandler

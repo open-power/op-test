@@ -24,9 +24,13 @@
 #
 # IBM_PROLOG_END_TAG
 
-from Page import Page
-from seleniumimports import *
-from BmcPageConstants import BmcPageConstants
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import range
+from builtins import object
+from .Page import Page
+from .seleniumimports import *
+from .BmcPageConstants import BmcPageConstants
 from selenium.webdriver.support.ui import Select
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -43,7 +47,7 @@ import time
 # @brief: This class manages interaction with FW Update
 # menus and webpages
 #
-class FWUpdatePage():
+class FWUpdatePage(object):
 
     ##
     #  @brief Constructor - Takes a pointer to BMC WebDriver

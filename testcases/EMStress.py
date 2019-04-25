@@ -23,6 +23,10 @@ EM Stress tests
 ---------------
 '''
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
 import unittest
 import time
 import threading
@@ -122,7 +126,7 @@ class RuntimeEMStress(unittest.TestCase, OpTestEM):
         # CPU Hotplug torture
         torture_time = self.torture_time
         num_avail_cores = self.host.host_get_core_count()
-        smt_range = ["on", "off"] + range(1, self.host.host_get_smt()+1)
+        smt_range = ["on", "off"] + list(range(1, self.host.host_get_smt()+1))
         log.debug("Possible smt values: %s" % smt_range)
         cmd_list = []
         for smt in smt_range:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
-class OpTestKeys():
+from builtins import object
+class OpTestKeys(object):
 
     UP      = '\x1b[A'
     DOWN    = '\x1b[B'

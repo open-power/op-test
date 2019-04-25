@@ -31,9 +31,12 @@ BMCResetTorture
 This testcase does BMC reset torture in different scenarios.
 '''
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 

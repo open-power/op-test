@@ -24,6 +24,14 @@
 #
 # IBM_PROLOG_END_TAG
 
+from __future__ import print_function
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import hex
+from builtins import str
+from builtins import range
+from builtins import object
 import sys
 import os
 import datetime
@@ -39,20 +47,20 @@ import select
 import time
 import pty
 import pexpect
-import commands
+import subprocess
 import requests
 import traceback
 from requests.adapters import HTTPAdapter
 #from requests.packages.urllib3.util import Retry
-from httplib import HTTPConnection
+from http.client import HTTPConnection
 #HTTPConnection.debuglevel = 1 # this will print some additional info to stdout
 import urllib3 # setUpChildLogger enables integrated logging with op-test
 import json
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
-from Exceptions import HostLocker, AES, ParameterCheck, HTTPCheck, UnexpectedCase
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
+from .Exceptions import HostLocker, AES, ParameterCheck, HTTPCheck, UnexpectedCase
 
 import logging
 import OpTestLogger
@@ -61,7 +69,7 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 sudo_responses = ["not in the sudoers",
                   "incorrect password"]
 
-class OpTestUtil():
+class OpTestUtil(object):
 
     def __init__(self, conf=None):
         self.conf = conf
@@ -337,7 +345,7 @@ class OpTestUtil():
       if environments is None:
         return
       sorted_env_list = sorted(environments, key=self.get_env_name)
-      print "--------------------------------------------------------------------------------"
+      print("--------------------------------------------------------------------------------")
       for env in sorted_env_list:
         print ("--aes-search-args Environment_Name='{}' Environment_EnvId={} "
           "Group_Name='{}' Group_GroupId={} Environment_State={} <res_id={} "
@@ -345,14 +353,14 @@ class OpTestUtil():
           .format(env['name'], env['env_id'], env['group']['name'],
           env['group']['group_id'], env['state'], env['res_id'],
           env['res_email'], env['res_length'], ))
-      print "--------------------------------------------------------------------------------"
+      print("--------------------------------------------------------------------------------")
       print ("\nHELPERS   --aes-search-args Server_VersionName=witherspoon|boston|habanero|zz|tuleta"
              "|palmetto|brazos|fleetwood|p8dtu|p9dsu|zaius|stratton|firestone|garrison|romulus|alpine")
-      print "          --aes-search-args Server_HardwarePlatform=POWER8|POWER9|openpower"
-      print "          --aes-search-args Group_Name=op-test"
-      print "          --aes-search-args Environment_State=A|R|M|X|H|E"
-      print "A=Available R=Reserved M=Maintenance X=Offline H=HealthCheck E=Exclusive"
-      print "AES Environments found = {}".format(len(sorted_env_list))
+      print("          --aes-search-args Server_HardwarePlatform=POWER8|POWER9|openpower")
+      print("          --aes-search-args Group_Name=op-test")
+      print("          --aes-search-args Environment_State=A|R|M|X|H|E")
+      print("A=Available R=Reserved M=Maintenance X=Offline H=HealthCheck E=Exclusive")
+      print("AES Environments found = {}".format(len(sorted_env_list)))
 
 
     def aes_release_reservation(self, res_id=None, env=None):
@@ -554,7 +562,7 @@ class OpTestUtil():
             "for server record, we either have no server record or more "
             "than one, check FSPs and BMCs")
 
-        for key, value in aes_mappings.items():
+        for key, value in list(aes_mappings.items()):
           if env['servers'][0].get(key) is not None and env['servers'][0].get(key) != '':
             if key == 'version_name':
               args_dict[aes_mappings[key]] = version_mappings.get(env['servers'][0][key].lower())
@@ -675,7 +683,7 @@ class OpTestUtil():
         hostlocker_comment = []
         hostlocker_comment = host['comment'].splitlines()
 
-        for key in args_dict.keys():
+        for key in list(args_dict.keys()):
             for i in range(len(hostlocker_comment)):
                 if key + ':'  in hostlocker_comment[i]:
                     args_dict[key] = re.sub(key + ':', "", hostlocker_comment[i]).strip()
@@ -894,7 +902,7 @@ class OpTestUtil():
         cmd = "ping -c 1 " + i_ip + " 1> /dev/null; echo $?"
         count = 0
         while count < 500:
-            output = commands.getstatusoutput(cmd)
+            output = subprocess.getstatusoutput(cmd)
             if output[1] != '0':
                 log.debug("IP %s Comes down" % i_ip)
                 break
@@ -1736,7 +1744,7 @@ class Server(object):
                         'files' : None, 'stream' : False,
                         'verify' : False, 'headers' : None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
 
         command_dict = { 'get'    : self.session.get,

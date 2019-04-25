@@ -33,10 +33,12 @@ When developing test cases, use OPexpect over pexpect. If you *intend* for
 certain error conditions to occur, you can catch the exceptions that OPexpect
 throws.
 """
+from __future__ import absolute_import
 
+from builtins import str
 import pexpect
-from Exceptions import *
-import OpTestSystem
+from .Exceptions import *
+from . import OpTestSystem
 
 class spawn(pexpect.spawn):
     def __init__(self, command, args=[], maxread=8000,

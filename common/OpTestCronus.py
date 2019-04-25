@@ -24,6 +24,8 @@
 #
 # IBM_PROLOG_END_TAG
 
+from __future__ import absolute_import
+from builtins import object
 import os
 import datetime
 import time
@@ -31,8 +33,8 @@ import subprocess
 import traceback
 import socket
 
-from Exceptions import ParameterCheck, UnexpectedCase
-from OpTestSystem import OpSystemState
+from .Exceptions import ParameterCheck, UnexpectedCase
+from .OpTestSystem import OpSystemState
 
 import logging
 import OpTestLogger
@@ -58,7 +60,7 @@ match_list = ["CRONUS_HOME",
               "SBE_TOOLS_PATH",
              ]
 
-class OpTestCronus():
+class OpTestCronus(object):
     '''
     OpTestCronus Class for Cronus Setup and Environment Persistance
 

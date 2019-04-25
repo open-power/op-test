@@ -34,9 +34,10 @@ This testcase basically tests all OPAL EEH Error injection tests.
 - frozen PE
 '''
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
 import time
-import subprocess
-import commands
 import re
 import sys
 import os
@@ -477,7 +478,7 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
         # Ex: echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
         # echo 2:0:4:0:0 > /sys/kernel/debug/powerpc/PCI0001/err_injct && lspci -ns 0001:0c:00.0; echo $?
         # Inject error on every PE
-        for pe, addr in pe_dic.iteritems():
+        for pe, addr in pe_dic.items():
             count = 0
             recover = True
             for e in ERROR:
@@ -555,7 +556,7 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
         # Ex: echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
         # echo 2:0:4:0:0 > /sys/kernel/debug/powerpc/PCI0001/err_injct && lspci -ns 0001:0c:00.0; echo $?
         # Inject error on every PE
-        for pe, addr in pe_dic.iteritems():
+        for pe, addr in pe_dic.items():
             count = 0
             recover = True
             for e in ERROR:

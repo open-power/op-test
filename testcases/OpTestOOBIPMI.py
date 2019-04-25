@@ -36,12 +36,14 @@ This class will test the functionality of following ipmi commands
    mc, pef, power, raw, sdr, sel, sensor, session, user
 '''
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import time
-import subprocess
 import re
 import os
 import sys
-import commands
+import subprocess
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
@@ -395,7 +397,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
             "diag" : "Force Boot from Diagnostic Partition",
             "floppy" : "Force Boot from Floppy/primary removable media",
         }
-        for bootdev,ipmiresponse in boot_devices.iteritems():
+        for bootdev,ipmiresponse in boot_devices.items():
             cmd = "chassis bootdev %s" % bootdev
             self.run_ipmi_cmd(cmd)
             self.verify_bootdev(bootdev)
@@ -514,7 +516,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     #
     def test_fru_read(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_FRU_READ)
-        l_res = commands.getstatusoutput("hexdump -C file_fru")
+        l_res = subprocess.getstatusoutput("hexdump -C file_fru")
         if int(l_res[0]) == 0:
             log.debug(l_res[1])
         else:

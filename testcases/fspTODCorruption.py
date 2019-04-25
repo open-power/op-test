@@ -29,10 +29,12 @@ FSP TOD Corruption
 Corrupt TOD and check host boot and runtime behaviours
 '''
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import time
-import subprocess
 import re
-import commands
+import subprocess
 
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
@@ -48,7 +50,7 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
-class fspTODCorruption():
+class fspTODCorruption(object):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -68,7 +70,7 @@ class fspTODCorruption():
         return res
 
     def set_tod(self):
-        time = commands.getoutput('date +"%Y%m%d%H%M%S"')
+        time = subprocess.getoutput('date +"%Y%m%d%H%M%S"')
         log.debug("Setting back the system time using rtim timeofday ")
         cmd = "rtim timeofday %s" % time
         log.debug("Running command on FSP: %s" % cmd)

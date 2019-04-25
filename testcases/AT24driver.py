@@ -37,6 +37,7 @@ This driver has following functionalities:
   driver is capable of reading and programming the data to these devices.
 '''
 
+from builtins import str
 import time
 import subprocess
 import re
@@ -79,7 +80,7 @@ class AT24driver(I2C, unittest.TestCase):
                 "CONFIG_EEPROM_AT24": "at24"}
 
         try:
-            for (c, m) in mods.items():
+            for (c, m) in list(mods.items()):
                 self.cv_HOST.host_load_module_based_on_config(l_kernel, c, m)
         except KernelConfigNotSet as ns:
             self.assertTrue(False, str(ns))

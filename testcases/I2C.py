@@ -30,6 +30,8 @@ This class will test functionality of following drivers:
 I2C Driver(Inter-Integrated Circuit) driver
 '''
 
+from builtins import str
+from builtins import object
 import time
 import subprocess
 import re
@@ -55,7 +57,7 @@ class I2CDetectUnsupported(Exception):
     pass
 
 
-class I2C():
+class I2C(object):
     '''
     Base class for I2C tests
     '''
@@ -88,7 +90,7 @@ class I2C():
                 "CONFIG_EEPROM_AT24": "at24"}
 
         try:
-            for (c, m) in mods.items():
+            for (c, m) in list(mods.items()):
                 self.cv_HOST.host_load_module_based_on_config(l_kernel, c, m)
         except KernelConfigNotSet as ns:
             self.assertTrue(False, str(ns))

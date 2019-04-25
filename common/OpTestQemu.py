@@ -21,7 +21,11 @@
 """
 Support testing against Qemu simulator
 """
+from __future__ import print_function
+from __future__ import absolute_import
 
+from builtins import str
+from builtins import object
 import atexit
 import sys
 import time
@@ -31,19 +35,19 @@ import tempfile
 import os
 
 from common.Exceptions import CommandFailed
-import OPexpect
-from OpTestUtil import OpTestUtil
+from . import OPexpect
+from .OpTestUtil import OpTestUtil
 import OpTestConfiguration
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class ConsoleState():
+class ConsoleState(object):
     DISCONNECTED = 0
     CONNECTED = 1
 
-class QemuConsole():
+class QemuConsole(object):
     """
     A 'connection' to the Qemu Console involves *launching* qemu.
     Closing a connection will *terminate* the qemu process.
@@ -199,7 +203,7 @@ class QemuConsole():
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.util.run_command_ignore_fail(self, command, timeout, retry)
 
-class QemuIPMI():
+class QemuIPMI(object):
     """
     Qemu has fairly limited IPMI capability, and we probably need to
     extend the capability checks so that more of the IPMI test suite
@@ -232,7 +236,7 @@ class QemuIPMI():
     def sys_set_bootdev_no_override(self):
         pass
 
-class OpTestQemu():
+class OpTestQemu(object):
     def __init__(self, conf=None, qemu_binary=None, pnor=None, skiboot=None,
                  kernel=None, initramfs=None, cdrom=None,
                  logfile=sys.stdout):

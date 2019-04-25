@@ -41,10 +41,14 @@ This module tests the EPOW feature incase of FSP systems.
    Simualate temperatures less than EPOW3 threshold
    and check whether Host OS is alive or not.
 '''
+from __future__ import print_function
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import hex
+from builtins import range
 import time
-import subprocess
-import commands
 import re
 import sys
 import pexpect
@@ -84,7 +88,7 @@ class EPOWBase(unittest.TestCase):
         var = y[1] + "s" + y[0] + "u"
 
         self.proc_gen = self.cv_HOST.host_get_proc_gen(console=1)
-        print self.proc_gen
+        print(self.proc_gen)
         if self.proc_gen in ["POWER8", "POWER8E"]:
             file = '/opt/fips/components/engd/power_management_tul_%s.def' % (var)
         elif self.proc_gen in ["POWER9"]:
@@ -138,7 +142,7 @@ class EPOWBase(unittest.TestCase):
                 res = pty.before
                 log.debug(pty.after)
                 log.debug("System got graceful shutdown")
-        except pexpect.TIMEOUT, e:
+        except pexpect.TIMEOUT as e:
             log.debug("System is in active state")
             log.debug(pty.before)
 

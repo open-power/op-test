@@ -46,6 +46,8 @@ the applicable options per method.
 
 '''
 
+from builtins import map
+from builtins import object
 import unittest
 import logging
 import pexpect
@@ -233,8 +235,8 @@ class OpClassPCI(unittest.TestCase):
         Performs unified diff of two lists
         '''
         unified_output = difflib.unified_diff(
-            filter(None, listA),
-            filter(None, listB),
+            [_f for _f in listA if _f],
+            [_f for _f in listB if _f],
             fromfile=listA_name,
             tofile=listB_name,
             lineterm="")
@@ -363,7 +365,7 @@ class OpClassPCI(unittest.TestCase):
                 total_entries = [l for l in total_entries if not fre.search(l)]
             log.debug("P9DSU FILTERED OUT total_entries={}".format(total_entries))
 
-        msg = '\n'.join(filter(None, total_entries))
+        msg = '\n'.join([_f for _f in total_entries if _f])
         log.debug("total_entries={}".format(total_entries))
         self.assertTrue( len(total_entries) == 0, "pcie link down/timeout Errors in OPAL log:\n{}".format(msg))
 
@@ -513,7 +515,7 @@ class OpClassPCI(unittest.TestCase):
                 if obj:
                     pair[device] = obj.group(1)
         failure_list = {}
-        for device, phy_slot in pair.iteritems():
+        for device, phy_slot in pair.items():
             if root_pe in device:
                 continue
             index = "{}_{}".format(device, phy_slot)
@@ -569,7 +571,7 @@ class OpClassPCI(unittest.TestCase):
                 line = line.strip().split(' ')
                 device_ids.append(line[0])
 
-        class Device:
+        class Device(object):
             def __init__(self, device_info):
                 self.domain = ""
                 self.primary = ""
@@ -817,7 +819,7 @@ def skiroot_softboot_suite():
     --run testcases.OpTestPCI.skiroot_softboot_suite
     '''
     tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices']
-    return unittest.TestSuite(map(PCISkirootSoftboot, tests))
+    return unittest.TestSuite(list(map(PCISkirootSoftboot, tests)))
 
 def skiroot_hardboot_suite():
     '''
@@ -826,7 +828,7 @@ def skiroot_hardboot_suite():
     --run testcases.OpTestPCI.skiroot_hardboot_suite
     '''
     tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices']
-    return unittest.TestSuite(map(PCISkirootHardboot, tests))
+    return unittest.TestSuite(list(map(PCISkirootHardboot, tests)))
 
 def skiroot_suite():
     '''
@@ -837,7 +839,7 @@ def skiroot_suite():
     This suite does not care on soft vs hard boot
     '''
     tests = ['pcie_link_errors', 'compare_live_devices']
-    return unittest.TestSuite(map(PCISkiroot, tests))
+    return unittest.TestSuite(list(map(PCISkiroot, tests)))
 
 def skiroot_full_suite():
     '''
@@ -847,7 +849,7 @@ def skiroot_full_suite():
     This suite does not care on soft vs hard boot
     '''
     tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'driver_bind']
-    return unittest.TestSuite(map(PCISkiroot, tests))
+    return unittest.TestSuite(list(map(PCISkiroot, tests)))
 
 def host_softboot_suite():
     '''
@@ -856,7 +858,7 @@ def host_softboot_suite():
     --run testcases.OpTestPCI.host_softboot_suite
     '''
     tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices', 'driver_bind', 'hot_plug_host']
-    return unittest.TestSuite(map(PCIHostSoftboot, tests))
+    return unittest.TestSuite(list(map(PCIHostSoftboot, tests)))
 
 def host_hardboot_suite():
     '''
@@ -865,7 +867,7 @@ def host_hardboot_suite():
     --run testcases.OpTestPCI.host_hardboot_suite
     '''
     tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices', 'driver_bind', 'hot_plug_host']
-    return unittest.TestSuite(map(PCIHostHardboot, tests))
+    return unittest.TestSuite(list(map(PCIHostHardboot, tests)))
 
 def host_suite():
     '''
@@ -876,7 +878,7 @@ def host_suite():
     This suite does not care on soft vs hard boot
     '''
     tests = ['pcie_link_errors', 'compare_live_devices']
-    return unittest.TestSuite(map(PCIHost, tests))
+    return unittest.TestSuite(list(map(PCIHost, tests)))
 
 def host_full_suite():
     '''
@@ -886,4 +888,4 @@ def host_full_suite():
     This suite does not care on soft vs hard boot
     '''
     tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'driver_bind', 'hot_plug_host']
-    return unittest.TestSuite(map(PCIHost, tests))
+    return unittest.TestSuite(list(map(PCIHost, tests)))

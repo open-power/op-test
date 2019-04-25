@@ -35,24 +35,30 @@ the FSP itself. There is (currently) no differentiation between
 commands that require the NFS mount and ones that don't, we
 assume (and check for) the NFS mount.
 '''
+from __future__ import print_function
+from __future__ import absolute_import
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import object
 import time
 import subprocess
 import os
 import pexpect
 import sys
-import commands
+import subprocess
 
-from OpTestTConnection import TConnection
-from OpTestASM import OpTestASM
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
+from .OpTestTConnection import TConnection
+from .OpTestASM import OpTestASM
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
 
 Possible_Hyp_value = {'01': 'PowerVM', '03': 'PowerKVM'}
 Possible_Sys_State = {'terminated':0, 'standby':1, 'prestandby':2, 'ipling':3, 'runtime':4}
 
 
-class OpTestFSP():
+class OpTestFSP(object):
     '''
     Contains most of the common methods to interface with FSP.
     '''

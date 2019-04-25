@@ -24,9 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
-from Page import Page
-from seleniumimports import *
-from BmcPageConstants import BmcPageConstants
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import object
+from .Page import Page
+from .seleniumimports import *
+from .BmcPageConstants import BmcPageConstants
 from selenium.webdriver.support.ui import Select
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
@@ -41,7 +44,7 @@ import time
 #  Maintenance_Page
 #  @brief: This class provides interface to Maintenance menu and other page interactions
 #
-class MaintenancePage():
+class MaintenancePage(object):
     OptionDict = {
         'IPMI':'_chkPrsrvStatus3',
         'NETWORK':'_chkPrsrvStatus4'

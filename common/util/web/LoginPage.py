@@ -24,13 +24,16 @@
 #
 # IBM_PROLOG_END_TAG
 
-from Page import Page
+from __future__ import print_function
+from __future__ import absolute_import
+from builtins import object
+from .Page import Page
 from engine.FWObject import FWObject
-from BmcPageConstants import BmcPageConstants
+from .BmcPageConstants import BmcPageConstants
 from connection.common.FWConnection import FWConnection
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-from seleniumimports import *
+from .seleniumimports import *
 
 ##
 # @file: LoginPage.py
@@ -41,7 +44,7 @@ from seleniumimports import *
 # LoginPage # @brief: This class manages interaction with BMC Login
 #                      webpage (no telnet and ssh)
 #
-class LoginPage():
+class LoginPage(object):
     ##
     #  @brief Constructor for Login_Page class
     #  @param Page - Handle to the BMC Web-browswer

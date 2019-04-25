@@ -34,28 +34,36 @@ IPMI package which contains all BMC related IPMI commands
 This class encapsulates all function which deals with the BMC over IPMI
 in OpenPower systems
 '''
+from __future__ import print_function
+from __future__ import absolute_import
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import hex
+from builtins import str
+from builtins import range
+from builtins import object
 import time
 import subprocess
 import os
 import pexpect
 import sys
 import re
-import commands
+import subprocess
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from OpTestUtil import OpTestUtil
-import OpTestSystem
-from Exceptions import CommandFailed
-from Exceptions import BMCDisconnected
-import OPexpect
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .OpTestUtil import OpTestUtil
+from . import OpTestSystem
+from .Exceptions import CommandFailed
+from .Exceptions import BMCDisconnected
+from . import OPexpect
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class IPMITool():
+class IPMITool(object):
     '''
     Run (locally) some command using ipmitool.
 
@@ -111,7 +119,7 @@ class IPMITool():
             output = cmd.communicate()[0]
             return output
 
-class pUpdate():
+class pUpdate(object):
     def __init__(self, method='lan', binary='pUpdate',
                  ip=None, username=None, password=None):
         self.method = 'lan'
@@ -163,7 +171,7 @@ class pUpdate():
             log.debug(output)
             return output
 
-class IPMIConsoleState():
+class IPMIConsoleState(object):
     DISCONNECTED = 0
     CONNECTED = 1
 
@@ -172,7 +180,7 @@ def set_system_to_UNKNOWN_BAD(system):
     system.set_state(OpTestSystem.OpSystemState.UNKNOWN_BAD)
     return s
 
-class IPMIConsole():
+class IPMIConsole(object):
     def __init__(self, ipmitool=None, logfile=sys.stdout, prompt=None,
             block_setup_term=None, delaybeforesend=None):
         self.logfile = logfile
@@ -322,7 +330,7 @@ class IPMIConsole():
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.util.run_command_ignore_fail(self, command, timeout, retry)
 
-class OpTestIPMI():
+class OpTestIPMI(object):
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, logfile=sys.stdout,
             host=None, delaybeforesend=None):
         self.cv_bmcIP = i_bmcIP
@@ -632,11 +640,11 @@ class OpTestIPMI():
         output = self.ipmitool.run('sel elist')
 
         if dump:
-            print "\n----------------------------------------------------------------------"
-            print "SELs"
-            print "----------------------------------------------------------------------"
-            print "{}".format(output)
-            print "----------------------------------------------------------------------"
+            print("\n----------------------------------------------------------------------")
+            print("SELs")
+            print("----------------------------------------------------------------------")
+            print("{}".format(output))
+            print("----------------------------------------------------------------------")
 
         return output
 

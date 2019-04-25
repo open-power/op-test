@@ -29,6 +29,7 @@ DeviceTreeWarnings
 Check for any warnings from tools such as ``dtc`` in our device tree.
 '''
 
+from builtins import object
 import unittest
 import re
 
@@ -38,7 +39,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
 
-class DeviceTreeWarnings():
+class DeviceTreeWarnings(object):
     '''
     Look at the warnings from ``dtc``, filtering out any known issues.
     '''
@@ -67,7 +68,7 @@ class DeviceTreeWarnings():
             fre = re.compile(f)
             log_entries = [l for l in log_entries if not fre.search(l)]
 
-        msg = '\n'.join(filter(None, log_entries))
+        msg = '\n'.join([_f for _f in log_entries if _f])
         self.assertTrue(len(log_entries) == 0,
                         "Warnings/Errors in Device Tree:\n{}".format(msg))
 

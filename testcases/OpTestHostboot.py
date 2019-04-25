@@ -24,6 +24,7 @@ OpTestHostboot: Hostboot checks
 Perform various hostboot validations and checks
 '''
 
+from builtins import map
 import unittest
 import logging
 import pexpect
@@ -160,7 +161,7 @@ def skiroot_suite():
        Tests run in order
     '''
     tests = ['PetitbootChecks']
-    return unittest.TestSuite(map(SkirootBasicCheck, tests))
+    return unittest.TestSuite(list(map(SkirootBasicCheck, tests)))
 
 def skiroot_full_suite():
     '''Function used to prepare a test suite (see op-test)
@@ -168,7 +169,7 @@ def skiroot_full_suite():
        Tests run in order
     '''
     tests = ['PetitbootChecks']
-    return unittest.TestSuite(map(SkirootBasicCheck, tests))
+    return unittest.TestSuite(list(map(SkirootBasicCheck, tests)))
 
 def host_suite():
     '''Function used to prepare a test suite (see op-test)
@@ -176,7 +177,7 @@ def host_suite():
        Tests run in order
     '''
     tests = ['HostChecks']
-    return unittest.TestSuite(map(HostBasicCheck, tests))
+    return unittest.TestSuite(list(map(HostBasicCheck, tests)))
 
 def host_full_suite():
     '''Function used to prepare a test suite (see op-test)
@@ -184,4 +185,4 @@ def host_full_suite():
        Tests run in order
     '''
     tests = ['HostChecks']
-    return unittest.TestSuite(map(HostBasicCheck, tests))
+    return unittest.TestSuite(list(map(HostBasicCheck, tests)))

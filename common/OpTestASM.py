@@ -33,20 +33,25 @@ This class can contains common functions which are useful for
 FSP ASM Web page. Some functionality is only accessible through
 the FSP Web UI (such as progress codes), so we scrape it.
 '''
+from __future__ import print_function
+from __future__ import absolute_import
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import time
 import subprocess
 import os
 import pexpect
 import sys
-import commands
+import subprocess
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
 
-import cookielib
-import urllib
-import urllib2
+import http.cookiejar
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import re
 import ssl
 # Work around issues with python < 2.7.9
@@ -56,16 +61,16 @@ except AttributeError:
     pass
 
 
-class OpTestASM:
+class OpTestASM(object):
     def __init__(self, i_fspIP, i_fspUser, i_fspPasswd):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
         self.password = i_fspPasswd
         self.url = "https://%s/cgi-bin/cgi?" % self.host_name
-        self.cj = cookielib.CookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
+        self.cj = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cj))
         opener.addheaders = [('User-agent', 'LTCTest')]
-        urllib2.install_opener(opener)
+        urllib.request.install_opener(opener)
         self.setforms()
 
     def setforms(self):
@@ -83,8 +88,8 @@ class OpTestASM:
     def getcsrf(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout=10)
-            except urllib2.URLError:
+                myurl = urllib.request.urlopen(self.url+form, timeout=10)
+            except urllib.error.URLError:
                 time.sleep(2)
                 continue
             break
@@ -97,8 +102,8 @@ class OpTestASM:
     def getpage(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout=60)
-            except (urllib2.URLError, ssl.SSLError):
+                myurl = urllib.request.urlopen(self.url+form, timeout=60)
+            except (urllib.error.URLError, ssl.SSLError):
                 time.sleep(2)
                 continue
             break
@@ -106,10 +111,10 @@ class OpTestASM:
 
     def submit(self, form, param):
         param['CSRF_TOKEN'] = self.getcsrf(form)
-        data = urllib.urlencode(param)
-        req = urllib2.Request(self.url+form, data)
+        data = urllib.parse.urlencode(param)
+        req = urllib.request.Request(self.url+form, data)
 
-        return urllib2.urlopen(req)
+        return urllib.request.urlopen(req)
 
     def login(self):
         if not len(self.cj) == 0:

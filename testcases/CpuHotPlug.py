@@ -35,6 +35,8 @@ we put cores/threads into when we hot unplug them.
 # FIXME: Add a smaller version of this test to the normal host test suite
 # FIXME: Work out a way to add this to the skiroot test suite.
 
+from builtins import str
+from builtins import range
 import unittest
 
 import OpTestConfiguration
@@ -64,7 +66,7 @@ class CpuHotPlug(unittest.TestCase):
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         self.num_avail_cores = self.cv_HOST.host_get_core_count()
-        smt_range = ["on", "off"] + range(1, self.cv_HOST.host_get_smt()+1)
+        smt_range = ["on", "off"] + list(range(1, self.cv_HOST.host_get_smt()+1))
         log.debug("Possible smt values: %s" % smt_range)
         for smt in smt_range:
             self.c.run_command("ppc64_cpu --smt=%s" % str(smt))

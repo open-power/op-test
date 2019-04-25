@@ -1,8 +1,12 @@
+from __future__ import print_function
 
 # This implements all the configuration needs for running a test
 # It includes command line argument parsing and keeping a set
 # of OpTestSystem and similar objects around for tests to use.
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import common
 from common.OpTestBMC import OpTestBMC, OpTestSMC
 from common.OpTestFSP import OpTestFSP
@@ -25,7 +29,7 @@ import traceback
 from datetime import datetime
 import subprocess
 import sys
-import ConfigParser
+import configparser
 import errno
 import OpTestLogger
 import logging
@@ -339,7 +343,7 @@ def get_parser():
 
     return parser
 
-class OpTestConfiguration():
+class OpTestConfiguration(object):
     def __init__(self):
         self.util = OpTestUtil(self) # initialize OpTestUtil with this object the OpTestConfiguration
         self.cronus = OpTestCronus(self) # initialize OpTestCronus with this object the OpTestConfiguration
@@ -381,7 +385,7 @@ class OpTestConfiguration():
 
         args , remaining_args = conf_parser.parse_known_args(argv)
         defaults = {}
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.SafeConfigParser()
         config.read([os.path.expanduser("~/.op-test-framework.conf")])
         if args.config_file:
             if os.access(args.config_file, os.R_OK):
@@ -390,7 +394,7 @@ class OpTestConfiguration():
                 raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), args.config_file)
         try:
             defaults = dict(config.items('op-test'))
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             pass
 
         parser = get_parser()

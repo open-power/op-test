@@ -31,6 +31,8 @@ Check a bunch of device tree properties and structure for validity,
 and compare device tree in host and skiroot environments.
 '''
 
+from builtins import zip
+from builtins import str
 import unittest
 import re
 import struct
@@ -332,8 +334,8 @@ class DeviceTreeValidation(unittest.TestCase):
                         skipped_props += 1
                         continue
                     unified_output = difflib.unified_diff(
-                        filter(None, prop_val_pair_skiroot[prop]),
-                        filter(None, prop_val_pair_host[prop]),
+                        [_f for _f in prop_val_pair_skiroot[prop] if _f],
+                        [_f for _f in prop_val_pair_host[prop] if _f],
                         fromfile="skiroot",
                         tofile="host",
                         lineterm="")

@@ -35,7 +35,11 @@ This class will test the functionality of following drivers:
 1. powernv cpuidle driver
 2. powernv cpufreq driver
 '''
+from __future__ import division
 
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import time
 import subprocess
 import re
@@ -55,7 +59,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class OpTestEM():
+class OpTestEM(object):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -164,11 +168,11 @@ class OpTestEM():
                 freq[m.group(1)] = int(decimal.Decimal(m.group(2)) * 1000000)
         # Frequencies are in KHz
         log.debug(repr(freq))
-        delta = int(i_freq) / (100)
+        delta = old_div(int(i_freq), (100))
         log.debug("# Set %d, Measured %d, Allowed Delta %d" % (int(i_freq),freq["avg"],delta))
-        self.assertAlmostEqual(freq["min"], freq["max"], delta=(freq["avg"]/100),
+        self.assertAlmostEqual(freq["min"], freq["max"], delta=(old_div(freq["avg"],100)),
                                msg="ppc64_cpu measured CPU Frequency differs between min/max when frequency set explicitly")
-        self.assertAlmostEqual(freq["avg"], freq["max"], delta=(freq["avg"]/100),
+        self.assertAlmostEqual(freq["avg"], freq["max"], delta=(old_div(freq["avg"],100)),
                                msg="ppc64_cpu measured CPU Frequency differs between avg/max when frequency set explicitly")
 
 
@@ -198,7 +202,7 @@ class OpTestEM():
             freq_list = i_freq
 
         for freq in freq_list:
-            delta = int(freq) / (100)
+            delta = old_div(int(freq), (100))
             try:
                 self.assertAlmostEqual(int(cur_freq[0]), int(freq), delta=delta,
                                        msg="CPU frequency not changed to %s" % i_freq)
@@ -478,7 +482,7 @@ class cpu_boost_freqs_host(OpTestEM, DeviceTreeValidation, unittest.TestCase):
 
         achieved = False
         for freq in freq_list:
-            delta = int(freq) / (100)
+            delta = old_div(int(freq), (100))
             try:
                 self.assertAlmostEqual(int(freq), achieved_freq, delta=delta,
                                        msg="Set and measured CPU frequency differ too greatly")
@@ -604,7 +608,7 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
                     success += 0.5
                 total += 1
             log.debug("CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total))
-            self.assertGreater(success/total, 0.95, "CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total))
+            self.assertGreater(old_div(success,total), 0.95, "CPUs entered idle state %s for %d/%d of the times" % (idle_state_names[i], success, total))
             self.disable_idle_state(i)
 
         # Remove added temptext.txt file. Idle states are re-enabled during tearDown

@@ -25,6 +25,9 @@ This test case is meant to show a few best practices for writing a test case
 for `op-test`.
 '''
 
+from builtins import map
+from builtins import str
+from builtins import range
 import unittest
 import logging
 
@@ -121,7 +124,7 @@ class OpTestExample(unittest.TestCase):
 
       try:
         for xkey, xcommand in sorted(op_dictionary.items()):
-          xresults[xkey] = list(filter(None, self.my_console.run_command(xcommand)))
+          xresults[xkey] = list([_f for _f in self.my_console.run_command(xcommand) if _f])
 
         for xkey, xvalue in sorted(xresults.items()):
           log.debug('\nCommand Run: "{}"\n{}'.format(op_dictionary[xkey], '\n'.join(xresults[xkey])), extra=xresults)
@@ -130,7 +133,7 @@ class OpTestExample(unittest.TestCase):
         self.fail(str(op_pxssh))
       except CommandFailed as xe:
         my_x = {x:xe.output[x] for x in range(len(xe.output))}
-        log.debug('\n******************************\nCommand Failed: \n{}\n******************************'.format('\n'.join(my_x[y] for y,z in my_x.items())), extra=my_x)
+        log.debug('\n******************************\nCommand Failed: \n{}\n******************************'.format('\n'.join(my_x[y] for y,z in list(my_x.items()))), extra=my_x)
         log.debug('\nExitcode {}'.format(xe))
       except Exception as func_e:
         self.fail('OPDemoFunc Exception handler {}'.format(func_e))
@@ -167,7 +170,7 @@ def skiroot_suite():
        Tests run in order
     '''
     tests = ['PetitbootVersions']
-    return unittest.TestSuite(map(SkirootBasicCheck, tests))
+    return unittest.TestSuite(list(map(SkirootBasicCheck, tests)))
 
 def skiroot_full_suite():
     '''Function used to prepare a test suite (see op-test)
@@ -175,7 +178,7 @@ def skiroot_full_suite():
        Tests run in order
     '''
     tests = ['PetitbootVersions', 'OPMisc', 'OPComboTest']
-    return unittest.TestSuite(map(SkirootBasicCheck, tests))
+    return unittest.TestSuite(list(map(SkirootBasicCheck, tests)))
 
 def host_suite():
     '''Function used to prepare a test suite (see op-test)
@@ -183,7 +186,7 @@ def host_suite():
        Tests run in order
     '''
     tests = ['HostVersions']
-    return unittest.TestSuite(map(HostBasicCheck, tests))
+    return unittest.TestSuite(list(map(HostBasicCheck, tests)))
 
 def host_full_suite():
     '''Function used to prepare a test suite (see op-test)
@@ -191,4 +194,4 @@ def host_full_suite():
        Tests run in order
     '''
     tests = ['HostVersions', 'PetitbootVersions', 'OPComboTest']
-    return unittest.TestSuite(map(HostBasicCheck, tests))
+    return unittest.TestSuite(list(map(HostBasicCheck, tests)))

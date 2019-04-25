@@ -28,6 +28,7 @@ We filter out any "known errors", such as how PRD can do invalid SCOMs but
 that it's not an error error.
 '''
 
+from builtins import object
 import unittest
 import re
 
@@ -37,7 +38,7 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
 
-class OpalMsglog():
+class OpalMsglog(object):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -103,7 +104,7 @@ class OpalMsglog():
                 fre = re.compile(f)
                 log_entries = [l for l in log_entries if not fre.search(l)]
 
-            msg = '\n'.join(filter(None, log_entries))
+            msg = '\n'.join([_f for _f in log_entries if _f])
             self.assertTrue(len(log_entries) == 0,
                             "Warnings/Errors in OPAL log:\n%s" % msg)
         except CommandFailed as cf:

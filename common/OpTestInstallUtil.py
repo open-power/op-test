@@ -19,17 +19,22 @@
 # OpTest Install Utils
 #
 
+from __future__ import print_function
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import shutil
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import os
 import threading
-import SocketServer
-import BaseHTTPServer
-import SimpleHTTPServer
+import socketserver
+import http.server
+import http.server
 import cgi
-import commands
+import subprocess
 import time
-from Exceptions import CommandFailed, UnexpectedCase
+from .Exceptions import CommandFailed, UnexpectedCase
 import OpTestConfiguration
 
 from common.OpTestSystem import OpSystemState
@@ -50,7 +55,7 @@ BOOTPATH = ""
 
 uploaded_files = {}
 
-class InstallUtil():
+class InstallUtil(object):
     def __init__(self, base_path="", initrd="", vmlinux="",
                  ks="", boot_path="", repo=""):
         global BASE_PATH
@@ -228,7 +233,7 @@ class InstallUtil():
         server_thread = threading.Thread(target=self.server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
-        print("# Server running in thread:", server_thread.name)
+        print(("# Server running in thread:", server_thread.name))
         return port
 
     def stop_server(self):
@@ -252,9 +257,9 @@ class InstallUtil():
         abs_repo_path = os.path.abspath(repo_path)
         # Clear already mount repo
         if os.path.ismount(repo_path):
-            status, output = commands.getstatusoutput("umount %s" % abs_repo_path)
+            status, output = subprocess.getstatusoutput("umount %s" % abs_repo_path)
             if status != 0:
-                print("failed to unmount", abs_repo_path)
+                print(("failed to unmount", abs_repo_path))
                 return ""
         elif os.path.isdir(repo_path):
             shutil.rmtree(repo_path)
@@ -266,7 +271,7 @@ class InstallUtil():
         if os.path.isfile(cdrom):
             cdrom_path = cdrom
         else:
-            cdrom_url = urllib2.urlopen(cdrom)
+            cdrom_url = urllib.request.urlopen(cdrom)
             if not cdrom_url:
                 print("Unknown cdrom path %s" % cdrom)
                 return ""
@@ -274,10 +279,10 @@ class InstallUtil():
                 f.write(cdrom_url.read())
             cdrom_path = os.path.join(BASE_PATH, "iso")
         cmd = "mount -t iso9660 -o loop %s %s" % (cdrom_path, abs_repo_path)
-        status, output = commands.getstatusoutput(cmd)
+        status, output = subprocess.getstatusoutput(cmd)
         if status != 0:
-            print("Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
-                                                        output))
+            print(("Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
+                                                        output)))
             return ""
         return abs_repo_path
 
@@ -304,8 +309,8 @@ class InstallUtil():
             except Exception:
                 return False
         else:
-            vmlinux_file = urllib2.urlopen(vmlinux_src)
-            initrd_file = urllib2.urlopen(initrd_src)
+            vmlinux_file = urllib.request.urlopen(vmlinux_src)
+            initrd_file = urllib.request.urlopen(initrd_src)
             if not (vmlinux_file and initrd_file):
                 print("Unknown repo path %s, %s" % (vmlinux_src, initrd_src))
                 return False
@@ -460,7 +465,7 @@ class InstallUtil():
         return True
 
 
-class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+class ThreadedHTTPHandler(http.server.SimpleHTTPRequestHandler):
     def do_HEAD(self):
         # FIXME: Local repo unable to handle http request while installation
         # Avoid using cdrom if your kickstart file needs repo, if installation
@@ -488,7 +493,7 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
-            print("# Webserver was asked for: ", self.path)
+            print(("# Webserver was asked for: ", self.path))
             if self.path == "/%s" % VMLINUX:
                 f = open("%s/%s" % (BASE_PATH, VMLINUX), "r")
                 d = f.read()
@@ -557,5 +562,5 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         self.wfile.write("Success")
 
 
-class ThreadedHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     pass

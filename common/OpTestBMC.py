@@ -33,26 +33,28 @@ BMC package which contains all BMC related interfaces/function.
 This class encapsulates all function which deals with the BMC in OpenPower
 systems
 '''
+from __future__ import absolute_import
 
+from builtins import object
 import sys
 import time
 import pexpect
 import os.path
 import subprocess
 
-from OpTestIPMI import OpTestIPMI
-from OpTestSSH import OpTestSSH
-from OpTestUtil import OpTestUtil
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from OpTestWeb import OpTestWeb
-from Exceptions import CommandFailed, SSHSessionDisconnected
+from .OpTestIPMI import OpTestIPMI
+from .OpTestSSH import OpTestSSH
+from .OpTestUtil import OpTestUtil
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .OpTestWeb import OpTestWeb
+from .Exceptions import CommandFailed, SSHSessionDisconnected
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class OpTestBMC():
+class OpTestBMC(object):
     '''
     The main object for communicating with a BMC and taking actions with it.
     '''

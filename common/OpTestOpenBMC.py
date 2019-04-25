@@ -17,6 +17,13 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import re
 import sys
 import time
@@ -28,18 +35,18 @@ import requests
 import cgi
 import os
 
-from OpTestSSH import OpTestSSH
-from OpTestBMC import OpTestBMC
-from Exceptions import HTTPCheck
-from Exceptions import CommandFailed
-from OpTestConstants import OpTestConstants as BMC_CONST
-import OpTestSystem
+from .OpTestSSH import OpTestSSH
+from .OpTestBMC import OpTestBMC
+from .Exceptions import HTTPCheck
+from .Exceptions import CommandFailed
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from . import OpTestSystem
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class HostManagement():
+class HostManagement(object):
     '''
     HostManagement Class
     OpenBMC methods to manage the Host
@@ -209,7 +216,7 @@ class HostManagement():
         for j in id_list:
             dict_item = {}
             dict_item['Id'] = str(json_data['data'][sel_dict.get(j)].get('Id'))
-            dict_item['Timestamp'] = datetime.datetime.fromtimestamp(int(str(json_data['data'][sel_dict.get(j)].get('Timestamp')))/1000).strftime("%Y-%m-%d %H:%M:%S")
+            dict_item['Timestamp'] = datetime.datetime.fromtimestamp(old_div(int(str(json_data['data'][sel_dict.get(j)].get('Timestamp'))),1000)).strftime("%Y-%m-%d %H:%M:%S")
             dict_item['Message'] = json_data['data'][sel_dict.get(j)].get('Message')
             dict_item['Description'] = json_data['data'][sel_dict.get(j)].get('Description')
             dict_item['Severity'] = json_data['data'][sel_dict.get(j)].get('Severity').split('.')[-1]
@@ -224,32 +231,32 @@ class HostManagement():
             dict_list.append(dict_item)
 
         if dump:
-            print "\n----------------------------------------------------------------------"
-            print "SELs"
-            print "----------------------------------------------------------------------"
+            print("\n----------------------------------------------------------------------")
+            print("SELs")
+            print("----------------------------------------------------------------------")
             if len(id_list) == 0:
-                print "SEL has no entries"
+                print("SEL has no entries")
             for k in dict_list:
-                print "Id          : {}".format(k.get('Id'))
-                print "Message     : {}".format(k.get('Message'))
-                print "Description : {}".format(k.get('Description'))
-                print "Timestamp   : {}".format(k.get('Timestamp'))
-                print "Severity    : {}".format(k.get('Severity'))
-                print "Resolved    : {}".format(k.get('Resolved'))
+                print("Id          : {}".format(k.get('Id')))
+                print("Message     : {}".format(k.get('Message')))
+                print("Description : {}".format(k.get('Description')))
+                print("Timestamp   : {}".format(k.get('Timestamp')))
+                print("Severity    : {}".format(k.get('Severity')))
+                print("Resolved    : {}".format(k.get('Resolved')))
                 if k.get('EventID') is not None:
-                    print "EventID     : {}".format(k.get('EventID'))
+                    print("EventID     : {}".format(k.get('EventID')))
                 if k.get('Procedure') is not None:
-                    print "Procedure   : {}".format(k.get('Procedure'))
+                    print("Procedure   : {}".format(k.get('Procedure')))
                 if k.get('esel') is not None:
-                    print "ESEL        : characters={}\n".format(len(k.get('esel')))
-                    print "Ruler        : 0123456789012345678901234567890123456789012345678901234567890123"
-                    print "-------------------------------------------------------------------------------"
+                    print("ESEL        : characters={}\n".format(len(k.get('esel'))))
+                    print("Ruler        : 0123456789012345678901234567890123456789012345678901234567890123")
+                    print("-------------------------------------------------------------------------------")
                     for j in range(0, len(k.get('esel')), 64):
-                        print "{:06d}-{:06d}: {}".format(j, j+63, k.get('esel')[j:j+64])
+                        print("{:06d}-{:06d}: {}".format(j, j+63, k.get('esel')[j:j+64]))
                 else:
-                    print "ESEL        : None"
-                print "\n"
-            print "----------------------------------------------------------------------"
+                    print("ESEL        : None")
+                print("\n")
+            print("----------------------------------------------------------------------")
         # sample id_list ['81', '82', '83', '84']
         log.debug("id_list={}".format(id_list))
         log.debug("dict_list={}".format(dict_list))
@@ -506,9 +513,9 @@ class HostManagement():
                                                headers=octet_hdr,
                                                data=fileload)
             if r.status_code != 200:
-                print r.headers
-                print r.text
-                print r
+                print(r.headers)
+                print(r.text)
+                print(r)
 
     def get_image_priority(self, id, minutes=BMC_CONST.HTTP_RETRY):
         '''
@@ -925,7 +932,7 @@ class HostManagement():
         '''
         self.configure_tpm_enable(0)
 
-class OpTestOpenBMC():
+class OpTestOpenBMC(object):
     def __init__(self, ip=None, username=None, password=None, ipmi=None,
             rest_api=None, logfile=sys.stdout,
             check_ssh_keys=False, known_hosts_file=None):

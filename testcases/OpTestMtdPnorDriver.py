@@ -37,10 +37,12 @@ Test MTD PNOR Driver package for OpenPower testing.
    I *severely* doubt this test case currently works as intended.
 '''
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import time
-import subprocess
 import re
-import commands
+import subprocess
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
@@ -117,32 +119,32 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         # Getting the /tmp/pnor file into local x86 machine
         l_path = "/tmp/"
         self.util.copyFilesToDest(l_path, self.host_user, self.host_ip, l_file, self.host_Passwd)
-        l_list =  commands.getstatusoutput("ls -l %s" % l_path)
+        l_list =  subprocess.getstatusoutput("ls -l %s" % l_path)
         log.debug(l_list)
 
         l_workdir = "/tmp/ffs"
         # Remove existing /tmp/ffs directory
-        l_res = commands.getstatusoutput("rm -rf %s" % l_workdir)
+        l_res = subprocess.getstatusoutput("rm -rf %s" % l_workdir)
 
         # Clone latest ffs git repository in local x86 working machine
         l_cmd = "git clone   https://github.com/open-power/ffs/ %s" % l_workdir
-        l_res = commands.getstatusoutput(l_cmd)
+        l_res = subprocess.getstatusoutput(l_cmd)
         self.assertEqual(int(l_res[0]), 0,
                 "Cloning ffs repository is failed")
 
         # Compile ffs repository to get fcp utility
         l_cmd = "cd %s/; autoreconf -i && ./configure && make" % l_workdir
-        l_res = commands.getstatusoutput(l_cmd)
+        l_res = subprocess.getstatusoutput(l_cmd)
         self.assertEqual(int(l_res[0]), 0, "Compiling fcp utility is failed")
 
         # Check existence of fcp utility in ffs repository, after compiling.
         l_cmd = "test -f %s/fcp/fcp" % l_workdir
-        l_res = commands.getstatusoutput(l_cmd)
+        l_res = subprocess.getstatusoutput(l_cmd)
         self.assertEqual(int(l_res[0]), 0, "Compiling fcp utility is failed")
 
         # Check the PNOR flash contents on an x86 machine using fcp utility
         l_cmd = "%s/fcp/fcp -o 0x0 -L %s" % (l_workdir, l_file)
-        l_res = commands.getstatusoutput(l_cmd)
+        l_res = subprocess.getstatusoutput(l_cmd)
         log.debug(l_res[1])
         self.assertEqual(int(l_res[0]), 0,
             "Getting the PNOR data using fcp utility failed")

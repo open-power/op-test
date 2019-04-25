@@ -28,6 +28,7 @@ rather than a firmware issue).
 
 '''
 
+from builtins import object
 import unittest
 import re
 
@@ -40,7 +41,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-class KernelLog():
+class KernelLog(object):
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -145,7 +146,7 @@ class KernelLog():
             fre = re.compile(f)
             log_entries = [l for l in log_entries if not fre.search(l)]
 
-        msg = '\n'.join(filter(None, log_entries))
+        msg = '\n'.join([_f for _f in log_entries if _f])
         self.assertTrue(len(log_entries) == 0,
                         "Warnings/Errors in Kernel log:\n%s" % msg)
 
