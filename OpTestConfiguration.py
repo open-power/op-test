@@ -521,10 +521,13 @@ class OpTestConfiguration():
         OpTestLogger.optest_logger_glob.optest_logger.debug(
             "conf file defaults={}".format(defaults))
         cmd = "git describe --always"
-        git_output = subprocess.check_output(cmd.split())
-        # log for triage of how dated the repo is
-        OpTestLogger.optest_logger_glob.optest_logger.debug(
-            "op-test-framework git level = {}".format(git_output))
+        try:
+            git_output = subprocess.check_output(cmd.split())
+            # log for triage of how dated the repo is
+            OpTestLogger.optest_logger_glob.optest_logger.debug(
+                "op-test-framework git level = {}".format(git_output))
+        except Exception as e:
+            OpTestLogger.optest_logger_glob.optest_logger.debug("Unable to get git describe")
         # setup AES and Hostlocker configs after the logging is setup
         locker_timeout = time.time() + 60*self.args.locker_wait
         locker_code = errno.ETIME # 62
