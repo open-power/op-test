@@ -1263,7 +1263,11 @@ class OpTestUtil():
           raise ConsoleSettings(before=pty.before, after=pty.after,
                   msg="Getting login and sudo not successful, probably connection or credential issue, retry")
         # now just timeout
-        pty.sendcontrol('l')
+        if system_obj.state == 6: # OpSystemState.OS
+            # The login prompt doesn't respond properly to Ctrl-L
+            pty.sendline()
+        else:
+            pty.sendcontrol('l')
         # Ctrl-L may cause a esc[J (erase) character to appear in the buffer.
         # Include this in the patterns that expect $ (end of line)
         rc = pty.expect(['login: (\x1b\[J)*$', ".*#(\x1b\[J)*$", ".*# (\x1b\[J)*$", ".*\$(\x1b\[J)*", "~>(\x1b\[J)", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
