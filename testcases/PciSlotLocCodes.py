@@ -186,7 +186,7 @@ class PciDT(unittest.TestCase):
         count = 1
         for key in output_dict:
             if output_dict[key].get('slot-label-status') != 0 \
-                or output_dict[key].get('loc-code-status') != 0:
+               and output_dict[key].get('loc-code-status') != 0:
                     output_list.append("<----------------------"
                         "Investigate #{}---------------------->"
                         .format(count))
@@ -218,7 +218,7 @@ class PciDT(unittest.TestCase):
                 log.debug("ibm,loc-code={}"
                     .format(output_dict[key].get('loc-code')))
 
-        if self.slot_failures != 0 or self.loccode_failures != 0:
+        if len(output_list):
             failed_list = '\n'.join(filter(None, output_list))
             self.assertTrue(False, "PCI Root: Slot Label "
                 "or Loc Code Failures:\nBased on Platform "
