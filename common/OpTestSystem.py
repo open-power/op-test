@@ -396,7 +396,11 @@ class OpTestSystem(object):
         self.console.enable_setup_term_quiet()
         sys_pty = self.console.get_console()
         self.console.disable_setup_term_quiet()
-        sys_pty.sendcontrol('l')
+        if self.detect_counter > 1:
+            # May be sitting at the host prompt - send a carriage return to force it to refresh
+            sys_pty.sendline()
+        else:
+            sys_pty.sendcontrol('l')
 
         r = sys_pty.expect(["x=exit", "Petitboot", ".*#", ".*\$", "login:", pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         if r in [0,1]:
@@ -455,7 +459,6 @@ class OpTestSystem(object):
           else:
             return OpSystemState.UNKNOWN
         elif (r == 5) or (r == 6):
-          self.detect_counter += 1
           return OpSystemState.UNKNOWN
 
     def check_kernel(self):
