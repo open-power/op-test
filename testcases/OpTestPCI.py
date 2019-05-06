@@ -363,6 +363,10 @@ class OpClassPCI(unittest.TestCase):
                 total_entries = [l for l in total_entries if not fre.search(l)]
             log.debug("P9DSU FILTERED OUT total_entries={}".format(total_entries))
 
+        # Ignore debugging messages about empty slots
+        fre = re.compile('TRACE: Timeout waiting for link up')
+        total_entries = [l for l in total_entries if not fre.search(l)]
+
         msg = '\n'.join(filter(None, total_entries))
         log.debug("total_entries={}".format(total_entries))
         self.assertTrue( len(total_entries) == 0, "pcie link down/timeout Errors in OPAL log:\n{}".format(msg))
