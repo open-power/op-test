@@ -284,6 +284,7 @@ class OpTestUtil():
         if self.conf.dump:
           self.conf.dump = False # possible for multiple passes here
           self.dump_versions()
+          self.dump_nvram_opts()
 
         # leave closing the qemu scratch disk until last
         # no known reasons at this point, document in future
@@ -312,6 +313,33 @@ class OpTestUtil():
             (None if self.conf.firmware_versions is None \
             else ('\n'.join(f for f in self.conf.firmware_versions)))
             ))
+
+    def check_nvram_options(self, console):
+        try:
+            console.run_command("which nvram")
+        except:
+            log.info("No NVRAM utility available to check options")
+            return
+
+        result = console.run_command("nvram -p ibm,skiboot --print-config")
+        self.conf.nvram_debug_opts = [o for o in result if "=" in o]
+
+        if len(self.conf.nvram_debug_opts) == 0:
+            log.info("No NVRAM debugging options set")
+            return
+
+        log.warning("{} NVRAM debugging options set".format(len(self.conf.nvram_debug_opts)))
+
+    def dump_nvram_opts(self):
+        if self.conf.nvram_debug_opts is None or len(self.conf.nvram_debug_opts) == 0:
+            return
+
+        log.warning("\n{} NVRAM debugging options set\n"
+                "These may adversely affect test results; verify these are appropriate if a failure occurs:\n"
+                 "----------------------------------------------------------\n"
+                 "{}\n"
+                 "----------------------------------------------------------\n"
+            .format(len(self.conf.nvram_debug_opts), '\n'.join(f for f in self.conf.nvram_debug_opts)))
 
     def build_proxy(self, proxy, no_proxy_ips):
         if no_proxy_ips is None:

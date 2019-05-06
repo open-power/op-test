@@ -378,6 +378,11 @@ class OpTestSystem(object):
                          message=("OpTestSystem something set the system to UNKNOWN,"
                            " check the logs for details, we will be stopping the system"))
 
+        # If we haven't checked for dangerous NVRAM options yet and
+        # checking won't disrupt the test, do so now.
+        if self.conf.nvram_debug_opts is None and state in [OpSystemState.PETITBOOT_SHELL, OpSystemState.OS]:
+            self.util.check_nvram_options(self.console)
+
     def run_DETECT(self, target_state):
         self.detect_counter += 1
         detect_state = OpSystemState.UNKNOWN
