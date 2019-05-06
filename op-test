@@ -230,7 +230,7 @@ class MamboSuite():
         self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
-        self.s.addTest(Console.suite())
+        #self.s.addTest(Console.suite())
         self.s.addTest(OpTestPNOR.Skiroot())
         self.s.addTest(DeviceTreeValidation.DeviceTreeValidationSkiroot())
         self.s.addTest(unittest.TestLoader().loadTestsFromTestCase(OpalSysfsTests.Skiroot))
