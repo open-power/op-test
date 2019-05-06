@@ -372,6 +372,7 @@ class OpTestConfiguration():
         self.util_bmc_server = None # OpenBMC REST Server
         atexit.register(self.__del__) # allows cleanup handler to run (OpExit)
         self.firmware_versions = None
+        self.nvram_debug_opts = None
 
         for dir in (os.walk(os.path.join(self.basedir, 'addons')).next()[1]):
             optAddons[dir] = importlib.import_module("addons." + dir + ".OpTest" + dir + "Setup")
