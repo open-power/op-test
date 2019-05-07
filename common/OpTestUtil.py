@@ -671,14 +671,33 @@ class OpTestUtil():
               "in HostLocker, please update and retry"
               .format(self.conf.args.hostlocker))
 
+        # parse the hostlocker comment for op-test settings
         host = r.json()[0]
         hostlocker_comment = []
         hostlocker_comment = host['comment'].splitlines()
 
+        # Ignore anything before the [op-test] marker, as a fallback we try
+        # to parse everything if there's no marker.
+        offset = 0;
+        for i, line in enumerate(hostlocker_comment):
+            if line.find("[op-test]") == 0:
+                offset = i
+                break
+
         for key in args_dict.keys():
-            for i in range(len(hostlocker_comment)):
-                if key + ':'  in hostlocker_comment[i]:
-                    args_dict[key] = re.sub(key + ':', "", hostlocker_comment[i]).strip()
+            for l in hostlocker_comment[offset:-1]:
+                line = l.strip()
+                if line.startswith(key + ":"):
+                    value = re.sub(key + ':', "", line).strip()
+                    args_dict[key] = value
+
+                    if "password" in key:
+                        log_value = "<hidden>"
+                    else:
+                        log_value = value
+
+                    log.debug("Hostlocker config: {} = {}".format(key, log_value))
+
                     break
 
         uri = "/lock/"
