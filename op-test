@@ -133,6 +133,7 @@ from testcases import OpTestMamboSim
 from testcases import OpTestMtdPnorDriver
 from testcases import OpTestRebootTimeout
 from testcases import RunHostTest
+from testcases import PetitbootMMU
 import testcases
 
 signal.signal(signal.SIGHUP, optest_handler)
@@ -204,6 +205,7 @@ class SkirootSuite():
         self.s.addTest(gcov.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
+        self.s.addTest(PetitbootMMU.PetitbootMMU())
     def suite(self):
         return self.s
 
@@ -238,6 +240,7 @@ class MamboSuite():
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
 #        self.s.addTest(OpTestEnergyScale.runtime_suite())
+        self.s.addTest(PetitbootMMU.PetitbootMMU())
     def suite(self):
         return self.s
 
@@ -352,6 +355,7 @@ class QemuSuite():
         self.s.addTest(OpalMsglog.Skiroot())
         self.s.addTest(KernelLog.Skiroot())
         self.s.addTest(DPO.DPOSkiroot())
+        self.s.addTest(PetitbootMMU.PetitbootMMU())
     def suite(self):
         return self.s
 
