@@ -515,7 +515,7 @@ class SystemIPLSuite():
 class CrashSuite():
     '''Crash Test Suite'''
     def suite(self):
-        return OpTestKernel.crash_suite()
+        return PowerNVDump.crash_suite()
 
 class FspOpalSuite():
     def __init__(self):
