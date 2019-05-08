@@ -135,7 +135,12 @@ class QemuConsole():
         if self.pnor:
             cmd = cmd + " -drive file={},format=raw,if=mtd".format(self.pnor)
         if self.skiboot:
-            cmd = cmd + " -bios %s" % (self.skiboot)
+            skibootdir = os.path.dirname(self.skiboot)
+            skibootfile = os.path.basename(self.skiboot)
+            if skibootfile:
+                cmd = cmd + " -bios %s" % (skibootfile)
+            if skibootdir:
+                cmd = cmd + " -L %s" % (skibootdir)
         if self.kernel:
             cmd = cmd + " -kernel %s" % (self.kernel)
             if self.initramfs is not None:
