@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -22,7 +22,7 @@ import unittest
 import os
 
 try:
-    from urlparse import urlparse
+    from urllib.parse import urlparse
 except ImportError:
     from urllib.parse import urlparse
 

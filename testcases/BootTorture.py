@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2015,2017
@@ -82,8 +82,8 @@ class BootTorture(unittest.TestCase):
         Performs unified diff of two lists
         '''
         unified_output = difflib.unified_diff(
-            filter(None, listA),
-            filter(None, listB),
+            [_f for _f in listA if _f],
+            [_f for _f in listB if _f],
             fromfile=listA_name,
             tofile=listB_name,
             lineterm="")

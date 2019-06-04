@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2015,2017

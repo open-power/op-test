@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -36,7 +36,7 @@ This testcase basically tests all OPAL EEH Error injection tests.
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 import os
@@ -505,7 +505,7 @@ class OpTestEEHbasic_frozen_pe(OpTestEEH):
         # Ex: echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
         # echo 2:0:4:0:0 > /sys/kernel/debug/powerpc/PCI0001/err_injct && lspci -ns 0001:0c:00.0; echo $?
         # Inject error on every PE
-        for pe, addr in pe_dic.iteritems():
+        for pe, addr in list(pe_dic.items()):
             count = 0
             recover = True
             for e in ERROR:
@@ -592,7 +592,7 @@ class OpTestEEHmax_frozen_pe(OpTestEEH):
         # Ex: echo "PE_number:<0,1>:<function>:0:0" > /sys/kernel/debug/powerpc/PCIxxxx/err_injct
         # echo 2:0:4:0:0 > /sys/kernel/debug/powerpc/PCI0001/err_injct && lspci -ns 0001:0c:00.0; echo $?
         # Inject error on every PE
-        for pe, addr in pe_dic.iteritems():
+        for pe, addr in list(pe_dic.items()):
             count = 0
             recover = True
             for e in ERROR:

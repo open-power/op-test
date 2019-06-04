@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -17,9 +17,9 @@
 # implied. See the License for the specific language governing
 # permissions and limitations under the License.
 
-import OpTestSystem
-from OpTestUtil import OpTestUtil
-from Exceptions import CommandFailed, SSHSessionDisconnected
+from . import OpTestSystem
+from .OpTestUtil import OpTestUtil
+from .Exceptions import CommandFailed, SSHSessionDisconnected
 import re
 import sys
 import os
@@ -33,7 +33,7 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 try:
     from common import OPexpect
 except ImportError:
-    import OPexpect
+    from . import OPexpect
 
 sudo_responses = ["not in the sudoers",
                   "incorrect password"]

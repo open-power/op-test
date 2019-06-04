@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -24,9 +24,9 @@
 #
 # IBM_PROLOG_END_TAG
 
-from Page import Page
-from seleniumimports import *
-from BmcPageConstants import BmcPageConstants
+from .Page import Page
+from .seleniumimports import *
+from .BmcPageConstants import BmcPageConstants
 from selenium.webdriver.support.ui import Select
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError

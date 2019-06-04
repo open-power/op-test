@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -34,7 +34,7 @@ from petitboot through the pflash program
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 import os
@@ -117,8 +117,8 @@ class OpTestPNOR():
             "/tmp/nvram", nvramInfo['offset'], nvramInfo['length'])
         # Compare /tmp/nvram to rewritten nvram contents
         self.comparePartitionFile("/tmp/nvram", "NVRAM")
-        # Check /tmp/null all "erased"
-        d = self.c.run_command("cat /tmp/null | tr -d \"\xff\" | wc -c")
+        # Check /tmp/null all "erased" (377 is 0xFF in octal)
+        d = self.c.run_command("cat /tmp/null | tr -d '\\377' | wc -c")
         self.assertEqual(d[0], "0")
 
     def runTestReadWritePAYLOAD(self):

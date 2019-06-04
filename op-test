@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -112,6 +112,7 @@ import re
 import signal
 import logging
 import OpTestLogger
+import importlib
 # op-test is the parent logger
 optestlog = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 
@@ -828,15 +829,14 @@ try:
         suites = OpTestConfiguration.optAddons[opt].addSuites(suites)
 
     if OpTestConfiguration.conf.args.list_suites:
-        print '{0:34}{1}'.format('Test Suite', 'Description')
-        print '{0:34}{1}'.format('----------', '-----------')
+        print('{0:34}{1}'.format('Test Suite', 'Description'))
+        print('{0:34}{1}'.format('----------', '-----------'))
         for key in suites:
-            print '{0:34}{1}'.format(key, suites[key].__doc__)
+            print('{0:34}{1}'.format(key, suites[key].__doc__))
         OpTestConfiguration.conf.util.cleanup()
         exit(0)
 
-    reload(sys)
-    sys.setdefaultencoding("utf8")
+    importlib.reload(sys)
 
     t = unittest.TestSuite()
 
@@ -859,8 +859,8 @@ try:
             t.addTest(suites['default'].suite())
 
     if OpTestConfiguration.conf.args.list_tests:
-        print '{0:40}'.format('Test')
-        print '{0:40}'.format('----------')
+        print('{0:40}'.format('Test'))
+        print('{0:40}'.format('----------'))
 
         def print_suite(s):
             for test in s:
@@ -868,7 +868,7 @@ try:
                     print_suite(test)
                 else:
                     test_id = test.id()
-                    print '{0:40}'.format(test_id)
+                    print('{0:40}'.format(test_id))
 
         print_suite(t)
         OpTestConfiguration.conf.util.cleanup()

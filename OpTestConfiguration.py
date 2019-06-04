@@ -26,7 +26,7 @@ import traceback
 from datetime import datetime
 import subprocess
 import sys
-import ConfigParser
+import configparser
 import errno
 import OpTestLogger
 import logging
@@ -433,17 +433,19 @@ class OpTestConfiguration():
 
         self.util_server = None  # Hostlocker or AES
         self.util_bmc_server = None  # OpenBMC REST Server
-        atexit.register(self.__del__)  # allows cleanup handler to run (OpExit)
+        atexit.register(self.cleanup)  # allows cleanup handler to run (OpExit)
         self.firmware_versions = None
         self.nvram_debug_opts = None
 
-        for dir in (os.walk(os.path.join(self.basedir, 'addons')).next()[1]):
-            optAddons[dir] = importlib.import_module(
-                "addons." + dir + ".OpTest" + dir + "Setup")
+        for dirname in (next(os.walk(os.path.join(self.basedir, 'addons')))[1]):
+            if dirname == "__pycache__":
+                continue
+            optAddons[dirname] = importlib.import_module(
+                "addons." + dirname + ".OpTest" + dirname + "Setup")
 
         return
 
-    def __del__(self):
+    def cleanup(self):
         if self.atexit_ready:
             # calling cleanup before args initialized pointless
             # attribute errors thrown in cleanup, e.g. ./op-test -h
@@ -458,7 +460,7 @@ class OpTestConfiguration():
 
         args, remaining_args = conf_parser.parse_known_args(argv)
         defaults = {}
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.SafeConfigParser()
         config.read([os.path.expanduser("~/.op-test-framework.conf")])
         if args.config_file:
             if os.access(args.config_file, os.R_OK):
@@ -468,7 +470,7 @@ class OpTestConfiguration():
                     errno.ENOENT), args.config_file)
         try:
             defaults = dict(config.items('op-test'))
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             pass
 
         parser = get_parser()
@@ -547,7 +549,7 @@ class OpTestConfiguration():
         if (not os.path.exists(self.logdir)):
             os.makedirs(self.logdir)
 
-        print("Logs in: {}".format(self.logdir))
+        print(("Logs in: {}".format(self.logdir)))
 
         OpTestLogger.optest_logger_glob.logdir = self.logdir
 
@@ -584,7 +586,8 @@ class OpTestConfiguration():
                                              stdin=subprocess.PIPE,
                                              stderr=sys.stderr,
                                              stdout=sys.stdout,
-                                             shell=True)
+                                             shell=True,
+                                             text=True)
         self.logfile = self.logfile_proc.stdin
 
         # we have enough setup to allow
@@ -817,7 +820,7 @@ class OpTestConfiguration():
                 )
                 bmc.set_system(self.op_system)
             elif self.args.bmc_type in ['qemu']:
-                print(repr(self.args))
+                print((repr(self.args)))
                 bmc = OpTestQemu(conf=self,
                                  qemu_binary=self.args.qemu_binary,
                                  pnor=self.args.host_pnor,

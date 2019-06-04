@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -37,18 +37,18 @@ import socket
 import errno
 import unittest
 
-import OpTestIPMI  # circular dependencies, use package
-import OpTestQemu
-import OpTestMambo
-from OpTestFSP import OpTestFSP
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-import OpTestHost
-from OpTestUtil import OpTestUtil
-from OpTestSSH import ConsoleState as SSHConnectionState
-from Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition
-from Exceptions import ConsoleSettings, UnexpectedCase, StoppingSystem, HTTPCheck
-from OpTestSSH import OpTestSSH
+from . import OpTestIPMI  # circular dependencies, use package
+from . import OpTestQemu
+from . import OpTestMambo
+from .OpTestFSP import OpTestFSP
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from . import OpTestHost
+from .OpTestUtil import OpTestUtil
+from .OpTestSSH import ConsoleState as SSHConnectionState
+from .Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition
+from .Exceptions import ConsoleSettings, UnexpectedCase, StoppingSystem, HTTPCheck
+from .OpTestSSH import OpTestSSH
 
 import logging
 import OpTestLogger
@@ -202,7 +202,7 @@ class OpTestSystem(object):
     def hostboot_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         self.state = OpSystemState.UNKNOWN_BAD
         self.stop = 1
@@ -211,7 +211,7 @@ class OpTestSystem(object):
     def login_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         log.warning(
             "\n\n *** OpTestSystem found the login prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value']))
@@ -222,7 +222,7 @@ class OpTestSystem(object):
     def petitboot_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         log.warning(
             "\n\n *** OpTestSystem found the petitboot prompt \"{}\" but this is unexpected, we will retry\n\n".format(kwargs['value']))
@@ -233,7 +233,7 @@ class OpTestSystem(object):
     def guard_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         self.sys_sel_elist(dump=True)
         guard_exception = UnexpectedCase(
@@ -245,7 +245,7 @@ class OpTestSystem(object):
     def xmon_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         xmon_check_r = kwargs['my_r']
         xmon_value = kwargs['value']
@@ -289,7 +289,7 @@ class OpTestSystem(object):
     def dracut_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         try:
             sys_pty = self.console.get_console()
@@ -306,7 +306,7 @@ class OpTestSystem(object):
     def skiboot_callback(self, **kwargs):
         default_vals = {'my_r': None, 'value': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         self.sys_sel_elist(dump=True)
         skiboot_exception = UnexpectedCase(
@@ -526,7 +526,7 @@ class OpTestSystem(object):
         default_vals = {'expect_dict': None, 'refresh': 1, 'buffer_kicker': 1, 'loop_max': 8,
                         'threshold': 1, 'reconnect': 1, 'fresh_start': 1, 'last_try': 1, 'timeout': 5}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         base_seq = [pexpect.TIMEOUT, pexpect.EOF]
         expect_seq = list(base_seq)  # we want a *copy*
@@ -608,7 +608,7 @@ class OpTestSystem(object):
         default_vals = {'my_r': None, 'check_base_seq': None,
                         'check_expect_seq': None, 'check_expect_dict': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         check_r = kwargs['my_r']
         check_expect_seq = kwargs['check_expect_seq']

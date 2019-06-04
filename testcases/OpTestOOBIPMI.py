@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -41,7 +41,7 @@ import subprocess
 import re
 import os
 import sys
-import commands
+import subprocess
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
@@ -398,7 +398,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
             "diag": "Force Boot from Diagnostic Partition",
             "floppy": "Force Boot from Floppy/primary removable media",
         }
-        for bootdev, ipmiresponse in boot_devices.iteritems():
+        for bootdev, ipmiresponse in list(boot_devices.items()):
             cmd = "chassis bootdev %s" % bootdev
             self.run_ipmi_cmd(cmd)
             self.verify_bootdev(bootdev)
@@ -517,7 +517,7 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     #
     def test_fru_read(self):
         self.run_ipmi_cmd(BMC_CONST.IPMI_FRU_READ)
-        l_res = commands.getstatusoutput("hexdump -C file_fru")
+        l_res = subprocess.getstatusoutput("hexdump -C file_fru")
         if int(l_res[0]) == 0:
             log.debug(l_res[1])
         else:

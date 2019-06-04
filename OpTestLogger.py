@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -34,7 +34,7 @@ class FileLikeLogger():
     def write(self, data):
         lines = data.splitlines()
         for line in lines:
-            self.log.debug(line.rstrip("\n"))
+            self.log.debug(line.rstrip(b"\n"))
 
     def flush(self):
         pass

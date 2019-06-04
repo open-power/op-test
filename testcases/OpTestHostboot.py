@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -168,7 +168,7 @@ def skiroot_suite():
        Tests run in order
     '''
     tests = ['PetitbootChecks']
-    return unittest.TestSuite(map(SkirootBasicCheck, tests))
+    return unittest.TestSuite(list(map(SkirootBasicCheck, tests)))
 
 
 def skiroot_full_suite():
@@ -177,7 +177,7 @@ def skiroot_full_suite():
        Tests run in order
     '''
     tests = ['PetitbootChecks']
-    return unittest.TestSuite(map(SkirootBasicCheck, tests))
+    return unittest.TestSuite(list(map(SkirootBasicCheck, tests)))
 
 
 def host_suite():
@@ -186,7 +186,7 @@ def host_suite():
        Tests run in order
     '''
     tests = ['HostChecks']
-    return unittest.TestSuite(map(HostBasicCheck, tests))
+    return unittest.TestSuite(list(map(HostBasicCheck, tests)))
 
 
 def host_full_suite():
@@ -195,4 +195,4 @@ def host_full_suite():
        Tests run in order
     '''
     tests = ['HostChecks']
-    return unittest.TestSuite(map(HostBasicCheck, tests))
+    return unittest.TestSuite(list(map(HostBasicCheck, tests)))

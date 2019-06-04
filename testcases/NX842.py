@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -27,7 +27,7 @@
 import time
 import subprocess
 import re
-import commands
+import subprocess
 import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST

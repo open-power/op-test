@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -20,16 +20,18 @@
 #
 
 import shutil
-import urllib2
+import urllib.request
+import urllib.error
+import urllib.parse
 import os
 import threading
-import SocketServer
-import BaseHTTPServer
-import SimpleHTTPServer
+import socketserver
+import http.server
+import http.server
 import cgi
-import commands
+import subprocess
 import time
-from Exceptions import CommandFailed, UnexpectedCase
+from .Exceptions import CommandFailed, UnexpectedCase
 import OpTestConfiguration
 
 from common.OpTestSystem import OpSystemState
@@ -238,11 +240,11 @@ class InstallUtil():
         ip, port = self.server.server_address
         if not REPO:
             REPO = "http://%s:%s/repo" % (server_ip, port)
-        print("# Listening on %s:%s" % (ip, port))
+        print(("# Listening on %s:%s" % (ip, port)))
         server_thread = threading.Thread(target=self.server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
-        print("# Server running in thread:", server_thread.name)
+        print(("# Server running in thread:", server_thread.name))
         return port
 
     def stop_server(self):
@@ -266,10 +268,10 @@ class InstallUtil():
         abs_repo_path = os.path.abspath(repo_path)
         # Clear already mount repo
         if os.path.ismount(repo_path):
-            status, output = commands.getstatusoutput(
+            status, output = subprocess.getstatusoutput(
                 "umount %s" % abs_repo_path)
             if status != 0:
-                print("failed to unmount", abs_repo_path)
+                print(("failed to unmount", abs_repo_path))
                 return ""
         elif os.path.isdir(repo_path):
             shutil.rmtree(repo_path)
@@ -281,18 +283,18 @@ class InstallUtil():
         if os.path.isfile(cdrom):
             cdrom_path = cdrom
         else:
-            cdrom_url = urllib2.urlopen(cdrom)
+            cdrom_url = urllib.request.urlopen(cdrom)
             if not cdrom_url:
-                print("Unknown cdrom path %s" % cdrom)
+                print(("Unknown cdrom path %s" % cdrom))
                 return ""
             with open(os.path.join(BASE_PATH, "iso"), 'wb') as f:
                 f.write(cdrom_url.read())
             cdrom_path = os.path.join(BASE_PATH, "iso")
         cmd = "mount -t iso9660 -o loop %s %s" % (cdrom_path, abs_repo_path)
-        status, output = commands.getstatusoutput(cmd)
+        status, output = subprocess.getstatusoutput(cmd)
         if status != 0:
-            print("Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
-                                                        output))
+            print(("Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
+                                                         output)))
             return ""
         return abs_repo_path
 
@@ -319,10 +321,10 @@ class InstallUtil():
             except Exception:
                 return False
         else:
-            vmlinux_file = urllib2.urlopen(vmlinux_src)
-            initrd_file = urllib2.urlopen(initrd_src)
+            vmlinux_file = urllib.request.urlopen(vmlinux_src)
+            initrd_file = urllib.request.urlopen(initrd_src)
             if not (vmlinux_file and initrd_file):
-                print("Unknown repo path %s, %s" % (vmlinux_src, initrd_src))
+                print(("Unknown repo path %s, %s" % (vmlinux_src, initrd_src)))
                 return False
             try:
                 with open(vmlinux_dst, 'wb') as f:
@@ -399,8 +401,8 @@ class InstallUtil():
                 if each_arg in check_output:
                     req_remove_args += "%s " % each_arg
         except CommandFailed as Err:
-            print("Failed to get kernel commandline using %s: %s" %
-                  (Err.command, Err.output))
+            print(("Failed to get kernel commandline using %s: %s" %
+                   (Err.command, Err.output)))
         return req_args.strip(), req_remove_args.strip()
 
     def update_kernel_cmdline(self, args="", remove_args="", reboot=True):
@@ -426,8 +428,8 @@ class InstallUtil():
             try:
                 con.run_command(cmd)
             except CommandFailed as Err:
-                print("Failed to update kernel commandline using %s: %s" %
-                      (Err.command, Err.output))
+                print(("Failed to update kernel commandline using %s: %s" %
+                       (Err.command, Err.output)))
                 return False
         # If grubby is not available fallback by changing grub file
         except CommandFailed:
@@ -443,8 +445,8 @@ class InstallUtil():
                     for each_arg in req_remove_args.split():
                         output = output.strip(each_arg).strip()
             except CommandFailed as Err:
-                print("Failed to get the kernel commandline - %s: %s" %
-                      (Err.command, Err.output))
+                print(("Failed to get the kernel commandline - %s: %s" %
+                       (Err.command, Err.output)))
                 return False
             if req_args or req_remove_args:
                 try:
@@ -453,8 +455,8 @@ class InstallUtil():
                     con.run_command(cmd, timeout=60)
                     con.run_command("update-grub")
                 except CommandFailed as Err:
-                    print("Failed to update kernel commandline - %s: %s" %
-                          (Err.command, Err.output))
+                    print(("Failed to update kernel commandline - %s: %s" %
+                           (Err.command, Err.output)))
                     return False
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
@@ -465,17 +467,17 @@ class InstallUtil():
             req_args, req_remove_args = self.check_kernel_cmdline(args,
                                                                   remove_args)
             if req_args:
-                print("Failed to add arg %s in the cmdline %s" %
-                      (args, output))
+                print(("Failed to add arg %s in the cmdline %s" %
+                       (args, output)))
                 return False
             if req_remove_args:
-                print("Failed to remove arg %s in the cmdline %s" %
-                      (remove_args, output))
+                print(("Failed to remove arg %s in the cmdline %s" %
+                       (remove_args, output)))
                 return False
         return True
 
 
-class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+class ThreadedHTTPHandler(http.server.SimpleHTTPRequestHandler):
     def do_HEAD(self):
         # FIXME: Local repo unable to handle http request while installation
         # Avoid using cdrom if your kickstart file needs repo, if installation
@@ -503,7 +505,7 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
-            print("# Webserver was asked for: ", self.path)
+            print(("# Webserver was asked for: ", self.path))
             if self.path == "/%s" % VMLINUX:
                 f = open("%s/%s" % (BASE_PATH, VMLINUX), "r")
                 d = f.read()
@@ -555,8 +557,8 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         path_elements = path.split('/')
 
         print("INCOMING")
-        print(repr(path))
-        print(repr(path_elements))
+        print((repr(path)))
+        print((repr(path_elements)))
 
         if path_elements[0] != "upload":
             return
@@ -572,5 +574,5 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         self.wfile.write("Success")
 
 
-class ThreadedHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     pass

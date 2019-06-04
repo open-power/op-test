@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # OpenPOWER Automated Test Project
 #
@@ -31,8 +31,8 @@ import tempfile
 import os
 
 from common.Exceptions import CommandFailed
-import OPexpect
-from OpTestUtil import OpTestUtil
+from . import OPexpect
+from .OpTestUtil import OpTestUtil
 import OpTestConfiguration
 
 import logging
@@ -205,8 +205,8 @@ class QemuConsole():
                                 # We can add a bridge here
                                 parent = bridges[i]['bus']
                                 new = bridges[-1]['bus'] + 1
-                                print("Adding new bridge {} on bridge {}".format(
-                                    new, parent))
+                                print(("Adding new bridge {} on bridge {}".format(
+                                    new, parent)))
                                 bridges.append(
                                     {'bus': new, 'n_devices': 0, 'bridged': False})
                                 cmd = cmd + \
@@ -227,8 +227,8 @@ class QemuConsole():
                 # Got a bridge, let's go!
                 # Valid bridge slots are 1..31, but keep 1 free for more bridges
                 addr = 2 + bridge['n_devices']
-                print("Adding disk {} on bus {} at address {}".format(
-                    diskid, bridge['bus'], addr))
+                print(("Adding disk {} on bus {} at address {}".format(
+                    diskid, bridge['bus'], addr)))
                 cmd = cmd + \
                     " -drive file={},id=disk{},if=none".format(
                         disk.name, diskid)
@@ -360,7 +360,7 @@ class OpTestQemu():
                 raise e
 
         self.disks.append(self.conf.args.qemu_scratch_disk)
-        atexit.register(self.__del__)
+        atexit.register(self.cleanup)
         self.console = QemuConsole(qemu_binary=qemu_binary,
                                    pnor=pnor,
                                    skiboot=skiboot,
@@ -371,8 +371,7 @@ class OpTestQemu():
         self.ipmi = QemuIPMI(self.console)
         self.system = None
 
-    def __del__(self):
-
+    def cleanup(self):
         for fd in self.disks:
             log.debug("OpTestQemu cleaning up qemu_scratch_disk={}"
                       .format(self.conf.args.qemu_scratch_disk))

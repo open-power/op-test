@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2015,2018
@@ -54,7 +54,7 @@ class MyIPfromHost(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
         my_ip = self.cv_SYSTEM.get_my_ip_from_host_perspective()
-        print("# FOUND MY IP: %s" % my_ip)
+        print(("# FOUND MY IP: %s" % my_ip))
 
 
 class InstallUbuntu(unittest.TestCase):

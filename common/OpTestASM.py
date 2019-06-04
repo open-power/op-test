@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # encoding=utf8
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
@@ -39,14 +39,18 @@ import subprocess
 import os
 import pexpect
 import sys
-import commands
+import subprocess
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
 
-import cookielib
-import urllib
-import urllib2
+import http.cookiejar
+import urllib.request
+import urllib.parse
+import urllib.error
+import urllib.request
+import urllib.error
+import urllib.parse
 import re
 import ssl
 # Work around issues with python < 2.7.9
@@ -62,10 +66,11 @@ class OpTestASM:
         self.user_name = i_fspUser
         self.password = i_fspPasswd
         self.url = "https://%s/cgi-bin/cgi?" % self.host_name
-        self.cj = cookielib.CookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
+        self.cj = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.cj))
         opener.addheaders = [('User-agent', 'LTCTest')]
-        urllib2.install_opener(opener)
+        urllib.request.install_opener(opener)
         self.setforms()
 
     def setforms(self):
@@ -83,8 +88,8 @@ class OpTestASM:
     def getcsrf(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout=10)
-            except urllib2.URLError:
+                myurl = urllib.request.urlopen(self.url+form, timeout=10)
+            except urllib.error.URLError:
                 time.sleep(2)
                 continue
             break
@@ -97,8 +102,8 @@ class OpTestASM:
     def getpage(self, form):
         while True:
             try:
-                myurl = urllib2.urlopen(self.url+form, timeout=60)
-            except (urllib2.URLError, ssl.SSLError):
+                myurl = urllib.request.urlopen(self.url+form, timeout=60)
+            except (urllib.error.URLError, ssl.SSLError):
                 time.sleep(2)
                 continue
             break
@@ -106,10 +111,10 @@ class OpTestASM:
 
     def submit(self, form, param):
         param['CSRF_TOKEN'] = self.getcsrf(form)
-        data = urllib.urlencode(param)
-        req = urllib2.Request(self.url+form, data)
+        data = urllib.parse.urlencode(param)
+        req = urllib.request.Request(self.url+form, data)
 
-        return urllib2.urlopen(req)
+        return urllib.request.urlopen(req)
 
     def login(self):
         if not len(self.cj) == 0:

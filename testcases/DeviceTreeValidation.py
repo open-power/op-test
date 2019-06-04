@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -334,8 +334,8 @@ class DeviceTreeValidation(unittest.TestCase):
                         skipped_props += 1
                         continue
                     unified_output = difflib.unified_diff(
-                        filter(None, prop_val_pair_skiroot[prop]),
-                        filter(None, prop_val_pair_host[prop]),
+                        [_f for _f in prop_val_pair_skiroot[prop] if _f],
+                        [_f for _f in prop_val_pair_host[prop] if _f],
                         fromfile="skiroot",
                         tofile="host",
                         lineterm="")

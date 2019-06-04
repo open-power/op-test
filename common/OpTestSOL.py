@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -34,9 +34,9 @@ import pexpect
 import os
 
 import OpTestConfiguration
-from OpTestSystem import OpSystemState
-from Exceptions import CommandFailed
-from OpTestIPMI import IPMIConsoleState
+from .OpTestSystem import OpSystemState
+from .Exceptions import CommandFailed
+from .OpTestIPMI import IPMIConsoleState
 
 import logging
 from logging.handlers import RotatingFileHandler

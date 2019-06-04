@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -31,8 +31,8 @@ import subprocess
 import traceback
 import socket
 
-from Exceptions import ParameterCheck, UnexpectedCase
-from OpTestSystem import OpSystemState
+from .Exceptions import ParameterCheck, UnexpectedCase
+from .OpTestSystem import OpSystemState
 
 import logging
 import OpTestLogger

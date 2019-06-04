@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -38,7 +38,7 @@ This test ensures that the ssh server is not running at boot
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -36,7 +36,7 @@ with system level power consumption limits.
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 
@@ -125,17 +125,17 @@ class OpTestEnergyScaleStandby(OpTestEnergyScale):
             self.cv_PLATFORM)
 
         self.cv_IPMI.ipmi_sdr_clear()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
         self.cv_IPMI.ipmi_deactivate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_activate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_deactivate_power_limit()
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_low)
         self.cv_IPMI.ipmi_activate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_get_power_limit()
         print("Get All dcmi readings at power off")
@@ -189,21 +189,21 @@ class OpTestEnergyScaleRuntime(OpTestEnergyScale):
         else:
             l_msg = "OCC's are not in active state"
             raise OpTestError(l_msg)
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_high)
         self.cv_IPMI.ipmi_activate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_deactivate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_activate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_set_power_limit(l_power_limit_low)
         self.cv_IPMI.ipmi_activate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_deactivate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         self.cv_IPMI.ipmi_activate_power_limit()
-        print(self.cv_IPMI.ipmi_get_power_limit())
+        print((self.cv_IPMI.ipmi_get_power_limit()))
         print("Get All dcmi readings at runtime")
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_DISCOVER)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_POWER_READING)

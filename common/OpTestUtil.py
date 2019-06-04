@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -39,20 +39,20 @@ import select
 import time
 import pty
 import pexpect
-import commands
+import subprocess
 import requests
 import traceback
 from requests.adapters import HTTPAdapter
 #from requests.packages.urllib3.util import Retry
-from httplib import HTTPConnection
+from http.client import HTTPConnection
 # HTTPConnection.debuglevel = 1 # this will print some additional info to stdout
 import urllib3  # setUpChildLogger enables integrated logging with op-test
 import json
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
-from Exceptions import HostLocker, AES, ParameterCheck, HTTPCheck, UnexpectedCase
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
+from .Exceptions import HostLocker, AES, ParameterCheck, HTTPCheck, UnexpectedCase
 
 import logging
 import OpTestLogger
@@ -121,10 +121,10 @@ class OpTestUtil():
                 if envs is not None:
                     self.conf.util.aes_print_environments(envs)
                 else:
-                    print("NO environments found, (if Environment_Name added its "
-                          "probably a syntax problem with --aes q, look at "
-                          "--aes-search-args), we used --aes-search-args {}\n"
-                          .format(' '.join(search_criteria)))
+                    print(("NO environments found, (if Environment_Name added its "
+                           "probably a syntax problem with --aes q, look at "
+                           "--aes-search-args), we used --aes-search-args {}\n"
+                           .format(' '.join(search_criteria))))
                 self.conf.util.cleanup()
                 exit(0)
             if lock:
@@ -136,27 +136,27 @@ class OpTestUtil():
                             # working_id should NOT be kept to release upon exit
                             working_id = self.conf.util.aes_lock_env(env=env)
                             if working_id is None:
-                                print ("AES shows NOT available to LOCK, "
+                                print(("AES shows NOT available to LOCK, "
                                        "Environment_EnvId={} Environment_Name='{}' "
                                        "Environment_State={} res_id={} res_email={}"
                                        .format(env['env_id'], env['name'], env['state'],
-                                               env['res_id'], env['res_email']))
+                                               env['res_id'], env['res_email'])))
                             else:
-                                print ("AES LOCKED Environment_EnvId={} "
+                                print(("AES LOCKED Environment_EnvId={} "
                                        "Environment_Name='{}' res_id={} aes-add-locktime "
                                        "(in hours, zero is Never Expires) = '{}'"
                                        .format(env['env_id'], env['name'], working_id,
-                                               self.conf.args.aes_add_locktime))
+                                               self.conf.args.aes_add_locktime)))
                     else:
-                        print ("AES LOCK limit imposed, we found {} environments "
+                        print(("AES LOCK limit imposed, we found {} environments "
                                "using --aes-search-args {} and we must find only "
                                "one to lock here, use --aes q with your "
                                "--aes-search-args to view what we found"
-                               .format(len(envs), ' '.join(search_criteria)))
+                               .format(len(envs), ' '.join(search_criteria))))
                 else:
-                    print ("Found NO environments using --aes-search-args {}, "
+                    print(("Found NO environments using --aes-search-args {}, "
                            "use --aes q with your --aes-search-args to view "
-                           "what we found".format(' '.join(search_criteria)))
+                           "what we found".format(' '.join(search_criteria))))
                 self.conf.util.cleanup()
                 exit(0)  # exit lock branch
             if unlock:
@@ -168,24 +168,24 @@ class OpTestUtil():
                             res_id = self.conf.util.aes_release_reservation(
                                 env=env)
                             if res_id is None:
-                                print ("AES shows NO LOCK, so skipped UNLOCK "
+                                print(("AES shows NO LOCK, so skipped UNLOCK "
                                        "Environment_EnvId={} Environment_Name='{}' "
                                        "Environment_State={} res_id={} res_email={}"
                                        .format(env['env_id'], env['name'], env['state'],
-                                               env['res_id'], env['res_email']))
+                                               env['res_id'], env['res_email'])))
                             else:
-                                print ("AES UNLOCKed Environment_EnvId={} "
+                                print(("AES UNLOCKed Environment_EnvId={} "
                                        "Environment_Name='{}' res_id={} res_email={}"
                                        .format(env['env_id'], env['name'],
-                                               env['res_id'], env['res_email']))
+                                               env['res_id'], env['res_email'])))
                     else:
-                        print ("AES UNLOCK limit imposed, we found {} "
+                        print(("AES UNLOCK limit imposed, we found {} "
                                "environments and we must only find one to unlock "
                                "here, use --aes-search-args to limit "
-                               "serach criteria".format(len(envs)))
+                               "serach criteria".format(len(envs))))
                 else:
-                    print ("NO AES environments found using --aes-search-args {}"
-                           .format(' '.join(search_criteria)))
+                    print(("NO AES environments found using --aes-search-args {}"
+                           .format(' '.join(search_criteria))))
                 self.conf.util.cleanup()
                 exit(0)  # exit unlock branch
             else:  # we filtered out all else so now find an env and lock it
@@ -378,22 +378,22 @@ class OpTestUtil():
         if environments is None:
             return
         sorted_env_list = sorted(environments, key=self.get_env_name)
-        print "--------------------------------------------------------------------------------"
+        print("--------------------------------------------------------------------------------")
         for env in sorted_env_list:
-            print ("--aes-search-args Environment_Name='{}' Environment_EnvId={} "
+            print(("--aes-search-args Environment_Name='{}' Environment_EnvId={} "
                    "Group_Name='{}' Group_GroupId={} Environment_State={} <res_id={} "
                    "res_email={} aes-add-locktime={}>"
                    .format(env['name'], env['env_id'], env['group']['name'],
                            env['group']['group_id'], env['state'], env['res_id'],
-                           env['res_email'], env['res_length'], ))
-        print "--------------------------------------------------------------------------------"
-        print ("\nHELPERS   --aes-search-args Server_VersionName=witherspoon|boston|habanero|zz|tuleta"
-               "|palmetto|brazos|fleetwood|p8dtu|p9dsu|zaius|stratton|firestone|garrison|romulus|alpine")
-        print "          --aes-search-args Server_HardwarePlatform=POWER8|POWER9|openpower"
-        print "          --aes-search-args Group_Name=op-test"
-        print "          --aes-search-args Environment_State=A|R|M|X|H|E"
-        print "A=Available R=Reserved M=Maintenance X=Offline H=HealthCheck E=Exclusive"
-        print "AES Environments found = {}".format(len(sorted_env_list))
+                           env['res_email'], env['res_length'], )))
+        print("--------------------------------------------------------------------------------")
+        print("\nHELPERS   --aes-search-args Server_VersionName=witherspoon|boston|habanero|zz|tuleta"
+              "|palmetto|brazos|fleetwood|p8dtu|p9dsu|zaius|stratton|firestone|garrison|romulus|alpine")
+        print("          --aes-search-args Server_HardwarePlatform=POWER8|POWER9|openpower")
+        print("          --aes-search-args Group_Name=op-test")
+        print("          --aes-search-args Environment_State=A|R|M|X|H|E")
+        print("A=Available R=Reserved M=Maintenance X=Offline H=HealthCheck E=Exclusive")
+        print(("AES Environments found = {}".format(len(sorted_env_list))))
 
     def aes_release_reservation(self, res_id=None, env=None):
         release_dict = {'result': None,
@@ -595,7 +595,7 @@ class OpTestUtil():
                       "for server record, we either have no server record or more "
                       "than one, check FSPs and BMCs")
 
-        for key, value in aes_mappings.items():
+        for key, value in list(aes_mappings.items()):
             if env['servers'][0].get(key) is not None and env['servers'][0].get(key) != '':
                 if key == 'version_name':
                     args_dict[aes_mappings[key]] = version_mappings.get(
@@ -728,7 +728,7 @@ class OpTestUtil():
                 offset = i
                 break
 
-        for key in args_dict.keys():
+        for key in list(args_dict.keys()):
             for l in hostlocker_comment[offset:-1]:
                 line = l.strip()
                 if line.startswith(key + ":"):
@@ -960,7 +960,7 @@ class OpTestUtil():
         cmd = "ping -c 1 " + i_ip + " 1> /dev/null; echo $?"
         count = 0
         while count < 500:
-            output = commands.getstatusoutput(cmd)
+            output = subprocess.getstatusoutput(cmd)
             if output[1] != '0':
                 log.debug("IP %s Comes down" % i_ip)
                 break
@@ -1060,7 +1060,7 @@ class OpTestUtil():
                 term_obj.system.conf.firmware_versions = \
                     pty.before.replace("\r\r\n", "\n").splitlines()
                 matching = [xs for xs in check_list if any(
-                    xs in xa for xa in term_obj.system.conf.firmware_versions)]
+                            xs in xa for xa in term_obj.system.conf.firmware_versions)]
                 if len(matching):
                     term_obj.system.conf.firmware_versions = [
                         "Firmware Versions Unavailable"]
@@ -1880,7 +1880,7 @@ class Server(object):
                         'files': None, 'stream': False,
                         'verify': False, 'headers': None}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
 
         command_dict = {'get': self.session.get,

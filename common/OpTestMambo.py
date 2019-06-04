@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # OpenPOWER Automated Test Project
 #
@@ -29,8 +29,8 @@ import subprocess
 import os
 
 from common.Exceptions import CommandFailed, ParameterCheck
-import OPexpect
-from OpTestUtil import OpTestUtil
+from . import OPexpect
+from .OpTestUtil import OpTestUtil
 
 import logging
 import OpTestLogger

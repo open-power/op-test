@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -33,7 +33,7 @@ This testcase does BMC reset torture in different scenarios.
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 

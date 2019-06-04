@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -33,10 +33,10 @@ import threading
 import pexpect
 
 import OpTestConfiguration
-from OpTestSystem import OpSystemState
-from OpTestConstants import OpTestConstants as BMC_CONST
-from Exceptions import CommandFailed
-from OpTestIPMI import IPMIConsoleState
+from .OpTestSystem import OpSystemState
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .Exceptions import CommandFailed
+from .OpTestIPMI import IPMIConsoleState
 
 import logging
 import OpTestLogger
@@ -110,7 +110,7 @@ class OpSSHThreadLinearVar2(threading.Thread):
         execution_time = time.time() + 60*torture_time,
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_dic))
         while True:
-            for cmd, tm in cmd_dic.iteritems():
+            for cmd, tm in list(cmd_dic.items()):
                 if ignore_fail:
                     try:
                         self.c.run_command(cmd)

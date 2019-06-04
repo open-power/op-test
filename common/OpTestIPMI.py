@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # encoding=utf8
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
@@ -41,15 +41,15 @@ import os
 import pexpect
 import sys
 import re
-import commands
+import subprocess
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from OpTestUtil import OpTestUtil
-import OpTestSystem
-from Exceptions import CommandFailed
-from Exceptions import BMCDisconnected
-import OPexpect
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .OpTestUtil import OpTestUtil
+from . import OpTestSystem
+from .Exceptions import CommandFailed
+from .Exceptions import BMCDisconnected
+from . import OPexpect
 
 import logging
 import OpTestLogger
@@ -325,7 +325,7 @@ class IPMIConsole():
             self.connect()
             count += 1
             if count > 120:
-                raise "IPMI: not able to get sol console"
+                raise("IPMI: not able to get sol console")
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
             self.util.setup_term(self.system, self.pty,
                                  None, self.system.block_setup_term)
@@ -649,11 +649,14 @@ class OpTestIPMI():
         output = self.ipmitool.run('sel elist')
 
         if dump:
-            print "\n----------------------------------------------------------------------"
-            print "SELs"
-            print "----------------------------------------------------------------------"
-            print "{}".format(output)
-            print "----------------------------------------------------------------------"
+            print(
+                "\n----------------------------------------------------------------------")
+            print("SELs")
+            print(
+                "----------------------------------------------------------------------")
+            print(("{}".format(output)))
+            print(
+                "----------------------------------------------------------------------")
 
         return output
 
@@ -794,7 +797,7 @@ class OpTestIPMI():
             rc = self.ipmitool.run(
                 l_cmd, background=False, cmdprefix="echo y |")
             log.info("IPMI code update result: {}".format(rc))
-            if(rc.__contains__("Firmware upgrade procedure successful")):
+            if(rc.__contains__(b"Firmware upgrade procedure successful")):
                 return BMC_CONST.FW_SUCCESS
             elif count == 1:
                 l_msg = "Code Update Failed"

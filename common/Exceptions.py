@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -290,7 +290,7 @@ class UnexpectedCase(Exception):
         default_vals = {'state': None, 'message': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -313,7 +313,7 @@ class WaitForIt(Exception):
         default_vals = {'expect_dict': None, 'reconnect_count': 0}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -334,7 +334,7 @@ class RecoverFailed(Exception):
         default_vals = {'before': None, 'after': None, 'msg': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -357,7 +357,7 @@ class UnknownStateTransition(Exception):
         default_vals = {'state': None, 'message': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -381,7 +381,7 @@ class HostLocker(Exception):
         default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -403,7 +403,7 @@ class HTTPCheck(Exception):
         default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -430,7 +430,7 @@ class OpExit(SystemExit):
         default_vals = {'message': None, 'code': 0}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -449,7 +449,7 @@ class AES(Exception):
         default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -472,7 +472,7 @@ class ParameterCheck(Exception):
         default_vals = {'message': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]
@@ -507,7 +507,7 @@ class ConsoleSettings(Exception):
         default_vals = {'before': None, 'after': None, 'msg': None}
         self.kwargs = {}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 self.kwargs[key] = default_vals[key]
             else:
                 self.kwargs[key] = kwargs[key]

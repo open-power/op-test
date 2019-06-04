@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -39,15 +39,15 @@ import time
 import pexpect
 import os.path
 import subprocess
-import OPexpect
+from . import OPexpect
 
-from OpTestIPMI import OpTestIPMI
-from OpTestSSH import OpTestSSH
-from OpTestUtil import OpTestUtil
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from OpTestWeb import OpTestWeb
-from Exceptions import CommandFailed, SSHSessionDisconnected
+from .OpTestIPMI import OpTestIPMI
+from .OpTestSSH import OpTestSSH
+from .OpTestUtil import OpTestUtil
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .OpTestWeb import OpTestWeb
+from .Exceptions import CommandFailed, SSHSessionDisconnected
 
 import logging
 import OpTestLogger

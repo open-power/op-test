@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -30,8 +30,8 @@ import os
 import pexpect
 import unittest
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
 
 # @package OpTestWeb
 #  Contains all BMC related Web tools
@@ -85,7 +85,7 @@ class OpTestWeb():
             BMC_IP = 'https://'+self.ip
             browser = webdriver.Firefox()
         except:
-            print(BMC_CONST.ERROR_SELENIUM_HEADLESS)
+            print((BMC_CONST.ERROR_SELENIUM_HEADLESS))
             raise OpTestError(BMC_CONST.ERROR_SELENIUM_HEADLESS)
 
         try:

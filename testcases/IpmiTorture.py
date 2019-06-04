@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -46,13 +46,13 @@ class OobIpmiThread(threading.Thread):
         self.cv_IPMI = conf.ipmi()
 
     def run(self):
-        print("Starting " + self.name)
+        print(("Starting " + self.name))
         self.oob_ipmi_thread(self.name, self.cmd, self.execution_time)
-        print("Exiting " + self.name)
+        print(("Exiting " + self.name))
 
     def oob_ipmi_thread(self, threadName, cmd, t):
         execution_time = time.time() + 60*t
-        print("Starting %s for oob-ipmi %s" % (threadName, cmd))
+        print(("Starting %s for oob-ipmi %s" % (threadName, cmd)))
         while True:
             try:
                 self.cv_IPMI.ipmitool.run(cmd, logcmd=False)
@@ -76,14 +76,14 @@ class InbandIpmiThread(threading.Thread):
         self.cv_SYSTEM = conf.system()
 
     def run(self):
-        print("Starting " + self.name)
+        print(("Starting " + self.name))
         self.inband_ipmi_thread(self.name, self.cmd, self.execution_time)
-        print("Exiting " + self.name)
+        print(("Exiting " + self.name))
 
     def inband_ipmi_thread(self, threadName, cmd, t):
         execution_time = time.time() + 60*t
         self.c = self.cv_HOST.get_ssh_connection()
-        print("Starting %s for inband-ipmi %s" % (threadName, cmd))
+        print(("Starting %s for inband-ipmi %s" % (threadName, cmd)))
         while True:
             try:
                 self.c.run_command(self.ipmi_method + cmd)
@@ -105,9 +105,9 @@ class SolConsoleThread(threading.Thread):
         self.cv_SYSTEM = conf.system()
 
     def run(self):
-        print("Starting " + self.name)
+        print(("Starting " + self.name))
         self.sol_console_thread(self.name, self.execution_time)
-        print("Exiting " + self.name)
+        print(("Exiting " + self.name))
 
     def sol_console_thread(self, threadName, t):
         self.c = self.cv_SYSTEM.console
@@ -116,7 +116,7 @@ class SolConsoleThread(threading.Thread):
         execution_time = time.time() + 60*self.execution_time
         i = 0
         while True:
-            print("Iteration %s, SOL open/close" % i)
+            print(("Iteration %s, SOL open/close" % i))
             try:
                 self.c.get_console()
                 # Execute any host command(for console IO) if system is in runtime

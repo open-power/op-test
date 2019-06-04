@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017, 2018
@@ -27,7 +27,7 @@ Really simple tests to ensure we can simply log into a booted host.
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 import os

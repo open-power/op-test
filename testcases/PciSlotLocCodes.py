@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -68,7 +68,7 @@ class PciDT(unittest.TestCase):
             cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
     def dump_lspci(self, lspci_dict):
-        for key, value in lspci_dict.iteritems():
+        for key, value in list(lspci_dict.items()):
             log.debug("Dumping lspci value={} key={} ".format(value, key))
 
     def build_lspci(self, lspci_dict={}):
@@ -99,7 +99,7 @@ class PciDT(unittest.TestCase):
         lspci_names = self.c.run_command("lspci -nn")
         lspci_names_dict = {}
         # 0006:00:00.0 Bridge [0680]: IBM Device [1014:04ea] (rev 01)
-        for key, value in lspci_dict.iteritems():
+        for key, value in list(lspci_dict.items()):
             for i in range(len(lspci_names)):
                 if value in lspci_names[i]:
                     lspci_names_dict[key] = lspci_names[i]
@@ -223,7 +223,7 @@ class PciDT(unittest.TestCase):
                           .format(output_dict[key].get('loc-code')))
 
         if len(output_list):
-            failed_list = '\n'.join(filter(None, output_list))
+            failed_list = '\n'.join([_f for _f in output_list if _f])
             self.assertTrue(False, "PCI Root: Slot Label "
                             "or Loc Code Failures:\nBased on Platform "
                             "Slot Labels may not be present\n{}"

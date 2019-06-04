@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -28,12 +28,12 @@ import requests
 import cgi
 import os
 
-from OpTestSSH import OpTestSSH
-from OpTestBMC import OpTestBMC
-from Exceptions import HTTPCheck
-from Exceptions import CommandFailed
-from OpTestConstants import OpTestConstants as BMC_CONST
-import OpTestSystem
+from .OpTestSSH import OpTestSSH
+from .OpTestBMC import OpTestBMC
+from .Exceptions import HTTPCheck
+from .Exceptions import CommandFailed
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from . import OpTestSystem
 
 import logging
 import OpTestLogger
@@ -241,34 +241,39 @@ class HostManagement():
             dict_list.append(dict_item)
 
         if dump:
-            print "\n----------------------------------------------------------------------"
-            print "SELs"
-            print "----------------------------------------------------------------------"
+            print(
+                "\n----------------------------------------------------------------------")
+            print("SELs")
+            print(
+                "----------------------------------------------------------------------")
             if len(id_list) == 0:
-                print "SEL has no entries"
+                print("SEL has no entries")
             for k in dict_list:
-                print "Id          : {}".format(k.get('Id'))
-                print "Message     : {}".format(k.get('Message'))
-                print "Description : {}".format(k.get('Description'))
-                print "Timestamp   : {}".format(k.get('Timestamp'))
-                print "Severity    : {}".format(k.get('Severity'))
-                print "Resolved    : {}".format(k.get('Resolved'))
+                print(("Id          : {}".format(k.get('Id'))))
+                print(("Message     : {}".format(k.get('Message'))))
+                print(("Description : {}".format(k.get('Description'))))
+                print(("Timestamp   : {}".format(k.get('Timestamp'))))
+                print(("Severity    : {}".format(k.get('Severity'))))
+                print(("Resolved    : {}".format(k.get('Resolved'))))
                 if k.get('EventID') is not None:
-                    print "EventID     : {}".format(k.get('EventID'))
+                    print(("EventID     : {}".format(k.get('EventID'))))
                 if k.get('Procedure') is not None:
-                    print "Procedure   : {}".format(k.get('Procedure'))
+                    print(("Procedure   : {}".format(k.get('Procedure'))))
                 if k.get('esel') is not None:
-                    print "ESEL        : characters={}\n".format(
-                        len(k.get('esel')))
-                    print "Ruler        : 0123456789012345678901234567890123456789012345678901234567890123"
-                    print "-------------------------------------------------------------------------------"
+                    print(("ESEL        : characters={}\n".format(
+                        len(k.get('esel')))))
+                    print(
+                        "Ruler        : 0123456789012345678901234567890123456789012345678901234567890123")
+                    print(
+                        "-------------------------------------------------------------------------------")
                     for j in range(0, len(k.get('esel')), 64):
-                        print "{:06d}-{:06d}: {}".format(j,
-                                                         j+63, k.get('esel')[j:j+64])
+                        print(("{:06d}-{:06d}: {}".format(j,
+                                                          j+63, k.get('esel')[j:j+64])))
                 else:
-                    print "ESEL        : None"
-                print "\n"
-            print "----------------------------------------------------------------------"
+                    print("ESEL        : None")
+                print("\n")
+            print(
+                "----------------------------------------------------------------------")
         # sample id_list ['81', '82', '83', '84']
         log.debug("id_list={}".format(id_list))
         log.debug("dict_list={}".format(dict_list))
@@ -539,9 +544,9 @@ class HostManagement():
                                                headers=octet_hdr,
                                                data=fileload)
             if r.status_code != 200:
-                print r.headers
-                print r.text
-                print r
+                print((r.headers))
+                print((r.text))
+                print(r)
 
     def get_image_priority(self, id, minutes=BMC_CONST.HTTP_RETRY):
         '''

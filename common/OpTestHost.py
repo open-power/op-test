@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -43,14 +43,14 @@ import socket
 import select
 import pty
 import pexpect
-import commands
+import subprocess
 
 import OpTestConfiguration
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from OpTestSSH import OpTestSSH
-import OpTestQemu
-from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .OpTestSSH import OpTestSSH
+from . import OpTestQemu
+from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
 
 import logging
 import OpTestLogger
@@ -124,18 +124,18 @@ class OpTestHost():
         outsuffix = time.strftime("%Y%m%d%H%M%S")
         filename = "%s-%s.log" % (outsuffix, name)
         logfile = os.path.join(self.results_dir, filename)
-        print "Log file: %s" % logfile
+        print(("Log file: %s" % logfile))
         logcmd = "tee %s" % (logfile)
         logcmd = logcmd + "| sed -u -e 's/\\r$//g'|cat -v"
-        print "logcmd: %s" % logcmd
+        print(("logcmd: %s" % logcmd))
         logfile_proc = subprocess.Popen(logcmd,
                                         stdin=subprocess.PIPE,
                                         stderr=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
                                         shell=True)
-        print repr(logfile_proc)
+        print((repr(logfile_proc)))
         logfile = logfile_proc.stdin
-        print "Log file: %s" % logfile
+        print(("Log file: %s" % logfile))
         OpTestLogger.optest_logger_glob.setUpCustomLoggerDebugFile(
             name, filename)
         ssh = OpTestSSH(self.ip, self.user, self.passwd,
@@ -194,7 +194,7 @@ class OpTestHost():
             log.warning(l_msg)
             raise OpTestError(l_msg)
 
-        if(l_rc.__contains__("Firmware upgrade procedure successful")):
+        if(l_rc.__contains__(b"Firmware upgrade procedure successful")):
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Code Update Failed"
@@ -236,7 +236,7 @@ class OpTestHost():
         '''
         default_vals = {'console': 0}
         for key in default_vals:
-            if key not in kwargs.keys():
+            if key not in list(kwargs.keys()):
                 kwargs[key] = default_vals[key]
         l_cmd = 'which ' + ' '.join(i_cmd)
         log.debug(l_cmd)
@@ -733,7 +733,7 @@ class OpTestHost():
 
         for i in core_ids:
             core_ids[i] = list(set(core_ids[i]))
-        core_ids = sorted(core_ids.iteritems())
+        core_ids = sorted(core_ids.items())
         log.debug(core_ids)
         return core_ids
 
@@ -836,7 +836,7 @@ class OpTestHost():
         l_cmd = "lspci -d \"1014::1200\""
         l_res = self.host_run_command(l_cmd, console=console)
         l_res = " ".join(l_res)
-        if (l_res.__contains__('IBM Device') and not l_res.__contains__('062b')):
+        if (l_res.__contains__(b'IBM Device') and not l_res.__contains__(b'062b')):
             l_msg = "Host has a CAPI FPGA card"
             log.debug(l_msg)
             return True
@@ -852,7 +852,7 @@ class OpTestHost():
         l_cmd = "lspci -d \"1014::1200\""
         l_res = self.host_run_command(l_cmd, console=console)
         l_res = " ".join(l_res)
-        if (l_res.__contains__('IBM Device 062b')):
+        if (l_res.__contains__(b'IBM Device 062b')):
             l_msg = "Host has an OpenCAPI FPGA card"
             log.debug(l_msg)
             return True

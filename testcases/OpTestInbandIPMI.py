@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -40,7 +40,7 @@ This class will test the functionality of following commands
 import time
 import subprocess
 import re
-import commands
+import subprocess
 import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
@@ -193,7 +193,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
             "diag": "Force Boot from Diagnostic Partition",
             "floppy": "Force Boot from Floppy/primary removable media",
         }
-        for bootdev, ipmiresponse in boot_devices.iteritems():
+        for bootdev, ipmiresponse in list(boot_devices.items()):
             try:
                 try:
                     r = c.run_command(self.ipmi_method +

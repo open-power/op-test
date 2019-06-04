@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -65,24 +65,20 @@ class Petitbooti18n(unittest.TestCase):
             ['Deutsch', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         rc = raw_pty.expect(
             ['English', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
-        rc = raw_pty.expect([u'Espa\u00f1ol'.encode(
-            'utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
-        rc = raw_pty.expect([u'Fran\u00e7ais'.encode(
-            'utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        rc = raw_pty.expect(
+            ['Español', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        rc = raw_pty.expect(
+            ['Français', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         rc = raw_pty.expect(
             ['Italiano', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
-        rc = raw_pty.expect([u'\u65e5\u672c\u8a9e'.encode(
-            'utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
-        rc = raw_pty.expect([u'\ud55c\uad6d\uc5b4'.encode(
-            'utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        rc = raw_pty.expect(['日本語', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        rc = raw_pty.expect(['한국어', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
         rc = raw_pty.expect(
-            [u'Portugu\u00eas/Brasil'.encode('utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
-        rc = raw_pty.expect([u'\u0420\u0443\u0441\u0441\u043a\u0438\u0439'.encode(
-            'utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
-        rc = raw_pty.expect([u'\u7b80\u4f53\u4e2d\u6587'.encode(
-            'utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
-        rc = raw_pty.expect([u'\u7e41\u9ad4\u4e2d\u6587'.encode(
-            'utf-8'), pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+            ['Português/Brasil', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        rc = raw_pty.expect(
+            ['Русский', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        rc = raw_pty.expect(['简体中文', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
+        rc = raw_pty.expect(['繁體中文', pexpect.TIMEOUT, pexpect.EOF], timeout=5)
 
         # Return to the Petitboot main menu
         raw_pty.sendcontrol('l')  # refresh the screen to Languages
