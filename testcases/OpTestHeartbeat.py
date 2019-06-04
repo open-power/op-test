@@ -39,11 +39,13 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+
 class HeartbeatSkiroot(unittest.TestCase):
     '''
     Checks that kopald is running. This doesn't *really* test that the
     ipmi heartbeat is working, and thus this is a big FIXME.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -56,7 +58,8 @@ class HeartbeatSkiroot(unittest.TestCase):
     def runTest(self):
         self.setup_test()
         res = self.c.run_command("ps -e -o comm|grep opal")
-        self.assertIn("kopald", res, "kopald not running");
+        self.assertIn("kopald", res, "kopald not running")
+
 
 class HeartbeatHost(HeartbeatSkiroot):
     def setup_test(self):

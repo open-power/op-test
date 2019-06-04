@@ -43,6 +43,8 @@ import time
 # @brief: This class manages interaction with FW Update
 # menus and webpages
 #
+
+
 class FWUpdatePage():
 
     ##
@@ -64,25 +66,26 @@ class FWUpdatePage():
     #
     def getUpdateOptionsPage(self):
         try:
-            WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until( EC.alert_is_present() )
-            alert=self.Page.driver.switch_to.alert.accept()
+            WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+                EC.alert_is_present())
+            alert = self.Page.driver.switch_to.alert.accept()
         except TimeoutException:
             print("FWUpdate_Page::getUpdateOptionsPage - \
                                  No alert present. Moving forward")
         self.Page.driver.switch_to.default_content()
         self.Page.driver.switch_to.frame(
-                  self.Page.driver.find_element_by_id(
-                  BmcPageConstants.BMC_MAINFRAME))
-        FWUpdate = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                   EC.presence_of_element_located((By.ID,
-                   BmcPageConstants.BMC_LN_FIRMWARE_UPDATE)))
+            self.Page.driver.find_element_by_id(
+                BmcPageConstants.BMC_MAINFRAME))
+        FWUpdate = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_LN_FIRMWARE_UPDATE)))
         FWUpdate.click()
-        FWUpdate_menu = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_LN_FIRMWARE_UPDATE_MENU)))
-        FWUpdate_submenu = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                           EC.presence_of_element_located((By.CSS_SELECTOR,
-                           BmcPageConstants.BMC_LN_FIRMWARE_UPDATE_HREF)))
+        FWUpdate_menu = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_LN_FIRMWARE_UPDATE_MENU)))
+        FWUpdate_submenu = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            BmcPageConstants.BMC_LN_FIRMWARE_UPDATE_HREF)))
         FWUpdate_submenu.click()
         return BMC_CONST.FW_SUCCESS
 
@@ -98,18 +101,18 @@ class FWUpdatePage():
     def getProtocolConfigPage(self):
         self.Page.driver.switch_to.default_content()
         self.Page.driver.switch_to.frame(
-                  self.Page.driver.find_element_by_id(
-                  BmcPageConstants.BMC_MAINFRAME))
-        FWUpdate = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                   EC.presence_of_element_located((By.ID,
-                   BmcPageConstants.BMC_LN_FIRMWARE_UPDATE)))
+            self.Page.driver.find_element_by_id(
+                BmcPageConstants.BMC_MAINFRAME))
+        FWUpdate = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_LN_FIRMWARE_UPDATE)))
         FWUpdate.click()
-        FWUpdate_menu = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_LN_FIRMWARE_UPDATE_MENU)))
-        FWUpdate_submenu = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                           EC.presence_of_element_located((By.CSS_SELECTOR,
-                           BmcPageConstants.BMC_LN_PROTOCOL_CONFIG_HREF)))
+        FWUpdate_menu = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_LN_FIRMWARE_UPDATE_MENU)))
+        FWUpdate_submenu = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+                                            BmcPageConstants.BMC_LN_PROTOCOL_CONFIG_HREF)))
         FWUpdate_submenu.click()
         return BMC_CONST.FW_SUCCESS
 
@@ -124,14 +127,15 @@ class FWUpdatePage():
     #
     def selectAMI(self):
         self.Page.driver.switch_to.frame(
-                         self.Page.driver.find_element_by_id(
-                         BmcPageConstants.BMC_PAGEFRAME))
-        FWUpdate_AMI = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                       EC.presence_of_element_located((By.ID,
-                       BmcPageConstants.BMC_AMI_RADIO_BTN)))
+            self.Page.driver.find_element_by_id(
+                BmcPageConstants.BMC_PAGEFRAME))
+        FWUpdate_AMI = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_AMI_RADIO_BTN)))
         FWUpdate_AMI.click()
-        FWUpdate_AMI = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).\
-            until(EC.presence_of_element_located((By.ID,BmcPageConstants.BMC_CONTINUE_BTN)))
+        FWUpdate_AMI = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).\
+            until(EC.presence_of_element_located(
+                (By.ID, BmcPageConstants.BMC_CONTINUE_BTN)))
         FWUpdate_AMI.click()
         print("Selected AMI Option")
         return BMC_CONST.FW_SUCCESS
@@ -148,12 +152,12 @@ class FWUpdatePage():
     def doContinue(self):
         FWUpdate_EnterUpdateMode = WebDriverWait(self.Page.driver,
                                                  BMC_CONST.WEB_DRIVER_WAIT).until(
-                                   EC.presence_of_element_located((By.ID,
-                                   BmcPageConstants.BMC_FWUPDATE_BTN)))
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_FWUPDATE_BTN)))
         FWUpdate_EnterUpdateMode.click()
-        WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).\
-            until( EC.alert_is_present() )
-        alert=self.Page.driver.switch_to.alert.accept()
+        WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).\
+            until(EC.alert_is_present())
+        alert = self.Page.driver.switch_to.alert.accept()
         return BMC_CONST.FW_SUCCESS
 
     ##
@@ -167,17 +171,18 @@ class FWUpdatePage():
     #
     def selectHPM(self):
         self.Page.driver.switch_to.frame(
-                         self.Page.driver.find_element_by_id(
-                         BmcPageConstants.BMC_PAGEFRAME))
-        FWUpdate_HPM = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                       EC.presence_of_element_located((By.ID,
-                       BmcPageConstants.BMC_HPM_RADIO_BTN)))
+            self.Page.driver.find_element_by_id(
+                BmcPageConstants.BMC_PAGEFRAME))
+        FWUpdate_HPM = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_HPM_RADIO_BTN)))
         FWUpdate_HPM.click()
-        FWUpdate_HPM = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                       EC.presence_of_element_located((By.ID,
-                       BmcPageConstants.BMC_CONTINUE_BTN)))
+        FWUpdate_HPM = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_CONTINUE_BTN)))
         FWUpdate_HPM.click()
-        WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until( EC.alert_is_present() )
+        WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.alert_is_present())
         self.Page.driver.switch_to.alert.accept()
         print("Selected HPM Option")
         return BMC_CONST.FW_SUCCESS
@@ -194,20 +199,20 @@ class FWUpdatePage():
     #         which will be caught by the calling function
     #
     def selectProtocolType(self, protocol):
-        WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                      EC.presence_of_element_located((By.ID,
-                      BmcPageConstants.BMC_PAGEFRAME)))
+        WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_PAGEFRAME)))
         self.Page.driver.switch_to.frame(
-                         self.Page.driver.find_element_by_id(
-                         BmcPageConstants.BMC_PAGEFRAME))
-        for i in range(1,BmcPageConstants.WEB_PROTOCOL_SELECT_RETRY):
+            self.Page.driver.find_element_by_id(
+                BmcPageConstants.BMC_PAGEFRAME))
+        for i in range(1, BmcPageConstants.WEB_PROTOCOL_SELECT_RETRY):
             time.sleep(BMC_CONST.WEB_DRIVER_WAIT)
-            #This is hard-coded to select TFTP protocol for now
-            FWUpdate_protocoltype = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                                    EC.presence_of_element_located((By.ID,
-                                    BmcPageConstants.BMC_TFTP_OPTION)))
+            # This is hard-coded to select TFTP protocol for now
+            FWUpdate_protocoltype = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+                EC.presence_of_element_located((By.ID,
+                                                BmcPageConstants.BMC_TFTP_OPTION)))
             for option in FWUpdate_protocoltype.find_elements_by_tag_name(
-                                         BmcPageConstants.BMC_OPTION_TAG):
+                    BmcPageConstants.BMC_OPTION_TAG):
                 if option.text == protocol:
                     option.click()
         return BMC_CONST.FW_SUCCESS
@@ -223,9 +228,9 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def inputServerAddress(self, addr):
-        FWUpdate_protocoltype = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                                EC.presence_of_element_located((By.ID,
-                                BmcPageConstants.BMC_SERVER_ADDR_TEXT_AREA)))
+        FWUpdate_protocoltype = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_SERVER_ADDR_TEXT_AREA)))
         FWUpdate_protocoltype.clear()
         FWUpdate_protocoltype.send_keys(addr)
         print(("Server Address: " + addr))
@@ -242,9 +247,9 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def inputImageName(self, image):
-        FWUpdate_imagename = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                             EC.presence_of_element_located((By.ID,
-                             BmcPageConstants.BMC_IMAGE_PATH_TEXT_AREA)))
+        FWUpdate_imagename = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_IMAGE_PATH_TEXT_AREA)))
         FWUpdate_imagename.clear()
         FWUpdate_imagename.send_keys(image)
         print(("Server Image: " + image))
@@ -261,12 +266,13 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def doSave(self):
-        FWUpdate_Save = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_SAVE_BTN)))
+        FWUpdate_Save = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_SAVE_BTN)))
         FWUpdate_Save.click()
-        WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until( EC.alert_is_present() )
-        alert=self.Page.driver.switch_to.alert.accept()
+        WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.alert_is_present())
+        alert = self.Page.driver.switch_to.alert.accept()
         print("Protocol Config Saved")
         return BMC_CONST.FW_SUCCESS
 
@@ -280,9 +286,9 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def selectFile(self, path):
-        FWUpdate_FileSelect = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_UPLOAD_FILE)))
+        FWUpdate_FileSelect = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_UPLOAD_FILE)))
         FWUpdate_FileSelect.send_keys(path)
         return BMC_CONST.FW_SUCCESS
 
@@ -296,9 +302,9 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def doOK(self):
-        FWUpdate_OK_BUTTON = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.XPATH,
-                        BmcPageConstants.BMC_OK_BTN)))
+        FWUpdate_OK_BUTTON = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.XPATH,
+                                            BmcPageConstants.BMC_OK_BTN)))
         FWUpdate_OK_BUTTON.click()
         return BMC_CONST.FW_SUCCESS
 
@@ -312,13 +318,13 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def selectUpdateAll(self):
-        FWUpdate_SELECT_BIOS_RADIO = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_BIOS_UPDATE_OPTION)))
+        FWUpdate_SELECT_BIOS_RADIO = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_BIOS_UPDATE_OPTION)))
         FWUpdate_SELECT_BIOS_RADIO.click()
-        FWUpdate_SELECT_BOOT_RADIO = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_BOOT_UPDATE_OPTION)))
+        FWUpdate_SELECT_BOOT_RADIO = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_BOOT_UPDATE_OPTION)))
         FWUpdate_SELECT_BOOT_RADIO.click()
         return BMC_CONST.FW_SUCCESS
 
@@ -332,9 +338,9 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def selectUpdateBios(self):
-        FWUpdate_SELECT_BIOS_RADIO = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_BIOS_UPDATE_OPTION)))
+        FWUpdate_SELECT_BIOS_RADIO = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_BIOS_UPDATE_OPTION)))
         FWUpdate_SELECT_BIOS_RADIO.click()
         return BMC_CONST.FW_SUCCESS
 
@@ -348,9 +354,9 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def selectUpdateBoot_APP(self):
-        FWUpdate_SELECT_BOOT_RADIO = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_BOOT_UPDATE_OPTION)))
+        FWUpdate_SELECT_BOOT_RADIO = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_BOOT_UPDATE_OPTION)))
         FWUpdate_SELECT_BOOT_RADIO.click()
         return BMC_CONST.FW_SUCCESS
 
@@ -364,12 +370,13 @@ class FWUpdatePage():
     #          which will be caught by the calling function
     #
     def doProceed(self):
-        FWUpdate_PROCEED_BUTTON = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                        EC.presence_of_element_located((By.ID,
-                        BmcPageConstants.BMC_BOOT_PROCEED)))
+        FWUpdate_PROCEED_BUTTON = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.presence_of_element_located((By.ID,
+                                            BmcPageConstants.BMC_BOOT_PROCEED)))
         FWUpdate_PROCEED_BUTTON.click()
-        WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until( EC.alert_is_present() )
-        alert=self.Page.driver.switch_to.alert.accept()
+        WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+            EC.alert_is_present())
+        alert = self.Page.driver.switch_to.alert.accept()
         return BMC_CONST.FW_SUCCESS
 
     ##
@@ -382,10 +389,11 @@ class FWUpdatePage():
     #          This function may throw some unexpected exception on failure
     #          which will be caught by the calling function
     #
-    def WaitForFWUpdateComplete(self,timeout):
+    def WaitForFWUpdateComplete(self, timeout):
         try:
-            WebDriverWait(self.Page.driver,timeout).until(EC.alert_is_present())
-            alert=self.Page.driver.switch_to.alert.accept()
+            WebDriverWait(self.Page.driver, timeout).until(
+                EC.alert_is_present())
+            alert = self.Page.driver.switch_to.alert.accept()
         except TimeoutException:
             print("FWUpdate_Page::WaitForFWUpdateComplete- \
                                  No alert present. FW Update may not have \

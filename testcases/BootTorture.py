@@ -49,6 +49,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class BootTorture(unittest.TestCase):
     '''
     BootTorture x1024
@@ -73,10 +74,10 @@ class BootTorture(unittest.TestCase):
             return file_content
 
     def _diff_my_devices(self,
-                        listA=None,
-                        listA_name=None,
-                        listB=None,
-                        listB_name=None):
+                         listA=None,
+                         listA_name=None,
+                         listB=None,
+                         listB_name=None):
         '''
         Performs unified diff of two lists
         '''
@@ -104,14 +105,14 @@ class BootTorture(unittest.TestCase):
             if self.file_lspci:
                 active_lspci = self.c.run_command("lspci -mm -n")
                 compare_results = self._diff_my_devices(listA=self.file_lspci,
-                                      listA_name=self.conf.lspci_file(),
-                                      listB=active_lspci,
-                                      listB_name="Live System")
+                                                        listA_name=self.conf.lspci_file(),
+                                                        listB=active_lspci,
+                                                        listB_name="Live System")
                 log.debug("compare_results={}".format(compare_results))
                 if len(compare_results):
                     self.assertEqual(len(compare_results), 0,
-                        "Stored ({}) and Active PCI devices differ:\n{}"
-                        .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
+                                     "Stored ({}) and Active PCI devices differ:\n{}"
+                                     .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
 
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail(
@@ -127,6 +128,7 @@ class BootTorture10(BootTorture, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(BootTorture10, cls).setUpClass(boot_iterations=10)
+
 
 class ReBootTorture(BootTorture, unittest.TestCase):
     '''
@@ -151,14 +153,14 @@ class ReBootTorture(BootTorture, unittest.TestCase):
             if self.file_lspci:
                 active_lspci = self.c.run_command("lspci -mm -n")
                 compare_results = self._diff_my_devices(listA=self.file_lspci,
-                                      listA_name=self.conf.lspci_file(),
-                                      listB=active_lspci,
-                                      listB_name="Live System")
+                                                        listA_name=self.conf.lspci_file(),
+                                                        listB=active_lspci,
+                                                        listB_name="Live System")
                 log.debug("compare_results={}".format(compare_results))
                 if len(compare_results):
                     self.assertEqual(len(compare_results), 0,
-                        "Stored ({}) and Active PCI devices differ:\n{}"
-                        .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
+                                     "Stored ({}) and Active PCI devices differ:\n{}"
+                                     .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail(
                 "grep ',[0-4]\]' /sys/firmware/opal/msglog")

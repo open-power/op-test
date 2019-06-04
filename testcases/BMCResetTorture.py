@@ -110,6 +110,7 @@ class StandbyBMCResetTorture(RuntimeBMCResetTorture, unittest.TestCase):
     '''
     Repeatedly does the BMC reset at standby state
     '''
+
     def setUp(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
@@ -124,6 +125,7 @@ class BMCResetvsHostIPLTorture(RuntimeBMCResetTorture, unittest.TestCase):
     '''
     Repeatedly does the BMC Reset vs Host IPL Torture
     '''
+
     def setUp(self):
         pass
 

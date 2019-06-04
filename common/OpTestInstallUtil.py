@@ -50,6 +50,7 @@ BOOTPATH = ""
 
 uploaded_files = {}
 
+
 class InstallUtil():
     def __init__(self, base_path="", initrd="", vmlinux="",
                  ks="", boot_path="", repo=""):
@@ -118,10 +119,12 @@ class InstallUtil():
                 if cf.exitcode is 1:
                     time.sleep(5)
                     retry = retry - 1
-                    log.debug("ping_network Exception path, retry={}".format(retry))
+                    log.debug(
+                        "ping_network Exception path, retry={}".format(retry))
                     pass
                 else:
-                    log.debug("ping_network Exception path ELSE, raise cf={}".format(cf))
+                    log.debug(
+                        "ping_network Exception path ELSE, raise cf={}".format(cf))
                     raise cf
 
     def assign_ip_petitboot(self):
@@ -129,34 +132,41 @@ class InstallUtil():
         Assign host ip in petitboot
         """
         # Lets reduce timeout in petitboot
-        self.cv_SYSTEM.console.run_command("nvram --update-config petitboot,timeout=10", retry=5)
+        self.cv_SYSTEM.console.run_command(
+            "nvram --update-config petitboot,timeout=10", retry=5)
         # this will not work without these
         if not self.conf.args.host_mac \
-          or not self.conf.args.host_submask \
-          or not self.conf.args.host_gateway \
-          or not self.conf.args.host_dns:
+                or not self.conf.args.host_submask \
+                or not self.conf.args.host_gateway \
+                or not self.conf.args.host_dns:
             my_msg = ("We need host_mac/host_submask/host_gateway/host_dns provided"
-                     " on command line args or via configuration files.")
-            noconfig_exception = UnexpectedCase(state="assign_ip_petitboot config", message=my_msg)
+                      " on command line args or via configuration files.")
+            noconfig_exception = UnexpectedCase(
+                state="assign_ip_petitboot config", message=my_msg)
             raise noconfig_exception
-        cmd = ("ip addr|grep -B1 -i %s |grep BROADCAST|awk -F ':' '{print $2}'" % (self.conf.args.host_mac))
+        cmd = (
+            "ip addr|grep -B1 -i %s |grep BROADCAST|awk -F ':' '{print $2}'" % (self.conf.args.host_mac))
         log.debug("ip addr cmd={}".format(cmd, type(cmd)))
         iface = self.cv_SYSTEM.console.run_command(cmd, retry=5)
-        log.debug("iface={} type={} len={}".format(iface, type(iface), len(iface)))
-        if len(iface) >=1:
+        log.debug("iface={} type={} len={}".format(
+            iface, type(iface), len(iface)))
+        if len(iface) >= 1:
             iface = self.cv_SYSTEM.console.run_command(cmd)[0].strip()
         else:
             my_msg = ("We did NOT get interface back from query, UNABLE to proceed with trying to "
-                     "setup the IP, check that Petitboot or Host OS is configured properly.")
-            noface_exception = UnexpectedCase(state="assign_ip_petitboot interface", message=my_msg)
+                      "setup the IP, check that Petitboot or Host OS is configured properly.")
+            noface_exception = UnexpectedCase(
+                state="assign_ip_petitboot interface", message=my_msg)
             raise noiface_exception
-        cmd = ("ifconfig %s %s netmask %s" % (iface, self.cv_HOST.ip, self.conf.args.host_submask))
+        cmd = ("ifconfig %s %s netmask %s" %
+               (iface, self.cv_HOST.ip, self.conf.args.host_submask))
         log.debug("ifconfig cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command(cmd, retry=5)
         cmd = ("route add default gateway %s" % self.conf.args.host_gateway)
         log.debug("route cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
-        cmd = ("echo 'nameserver %s' > /etc/resolv.conf" % self.conf.args.host_dns)
+        cmd = ("echo 'nameserver %s' > /etc/resolv.conf" %
+               self.conf.args.host_dns)
         log.debug("nameserver cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command(cmd, retry=5)
 
@@ -173,7 +183,8 @@ class InstallUtil():
             except Exception as e:
                 log.debug("configure_host_ip Exception={}".format(e))
                 my_msg = "We failed to setup Petitboot or Host IP, check that the IP's are configured and any other configuration parms"
-                noconfig_exception = UnexpectedCase(state="configure_host_ip", message=my_msg)
+                noconfig_exception = UnexpectedCase(
+                    state="configure_host_ip", message=my_msg)
                 raise noconfig_exception
 
     def get_server_ip(self):
@@ -185,7 +196,8 @@ class InstallUtil():
             self.configure_host_ip()
         except Exception as e:
             my_msg = "Exception trying configure_host_ip, e={}".format(e)
-            configure_exception = UnexpectedCase(state="get_server_ip", message=my_msg)
+            configure_exception = UnexpectedCase(
+                state="get_server_ip", message=my_msg)
             raise configure_exception
         retry = 30
         while retry > 0:
@@ -194,9 +206,11 @@ class InstallUtil():
                 log.debug("get_server_ip my_ip={}".format(my_ip))
                 if not my_ip:
                     my_msg = "We were not able to get IP from Petitboot or Host, check that the IP is configured"
-                    noip_exception = UnexpectedCase(state="get_server_ip", message=my_msg)
+                    noip_exception = UnexpectedCase(
+                        state="get_server_ip", message=my_msg)
                     raise noip_exception
-                output = self.cv_SYSTEM.console.run_command("ping {} -c 1".format(my_ip), retry=5)
+                output = self.cv_SYSTEM.console.run_command(
+                    "ping {} -c 1".format(my_ip), retry=5)
                 log.debug("get_server_ip output={}".format(output))
                 break
             except CommandFailed as cf:
@@ -252,7 +266,8 @@ class InstallUtil():
         abs_repo_path = os.path.abspath(repo_path)
         # Clear already mount repo
         if os.path.ismount(repo_path):
-            status, output = commands.getstatusoutput("umount %s" % abs_repo_path)
+            status, output = commands.getstatusoutput(
+                "umount %s" % abs_repo_path)
             if status != 0:
                 print("failed to unmount", abs_repo_path)
                 return ""
@@ -514,15 +529,15 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                         user = 'ubuntu'
 
                     packages = "openssh-server build-essential lvm2 ethtool "
-                    packages+= "nfs-common ssh ksh lsvpd nfs-kernel-server iprutils procinfo "
-                    packages+= "sg3-utils lsscsi libaio-dev libtime-hires-perl "
-                    packages+= "acpid tgt openjdk-8* zip git automake python "
-                    packages+= "expect gcc g++ gdb "
-                    packages+= "python-dev p7zip python-stevedore python-setuptools "
-                    packages+= "libvirt-dev numactl libosinfo-1.0-0 python-pip "
-                    packages+= "linux-tools-common linux-tools-generic lm-sensors "
-                    packages+= "ipmitool i2c-tools pciutils opal-prd opal-utils "
-                    packages+= "device-tree-compiler fwts stress"
+                    packages += "nfs-common ssh ksh lsvpd nfs-kernel-server iprutils procinfo "
+                    packages += "sg3-utils lsscsi libaio-dev libtime-hires-perl "
+                    packages += "acpid tgt openjdk-8* zip git automake python "
+                    packages += "expect gcc g++ gdb "
+                    packages += "python-dev p7zip python-stevedore python-setuptools "
+                    packages += "libvirt-dev numactl libosinfo-1.0-0 python-pip "
+                    packages += "linux-tools-common linux-tools-generic lm-sensors "
+                    packages += "ipmitool i2c-tools pciutils opal-prd opal-utils "
+                    packages += "device-tree-compiler fwts stress"
 
                     ps = d.format("openpower", "example.com",
                                   PROXY, PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
@@ -547,10 +562,10 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             return
 
         form = cgi.FieldStorage(
-            fp = self.rfile,
-            headers = self.headers,
-            environ={ "REQUEST_METHOD": "POST",
-                      "CONTENT_TYPE": self.headers['Content-Type']})
+            fp=self.rfile,
+            headers=self.headers,
+            environ={"REQUEST_METHOD": "POST",
+                     "CONTENT_TYPE": self.headers['Content-Type']})
 
         uploaded_files[form["file"].filename] = form["file"].value
 

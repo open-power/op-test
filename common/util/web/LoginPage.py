@@ -41,6 +41,8 @@ from seleniumimports import *
 # LoginPage # @brief: This class manages interaction with BMC Login
 #                      webpage (no telnet and ssh)
 #
+
+
 class LoginPage():
     ##
     #  @brief Constructor for Login_Page class
@@ -66,30 +68,30 @@ class LoginPage():
     def login(self):
         try:
             self.Page.driver.switch_to.frame(
-                 self.Page.driver.find_element_by_id(
-                 BmcPageConstants.BMC_MAINFRAME))
+                self.Page.driver.find_element_by_id(
+                    BmcPageConstants.BMC_MAINFRAME))
         except NoSuchElementException:
-            l_msg=("Error getting BMC login page. Check if BMC is up and connected to network")
+            l_msg = (
+                "Error getting BMC login page. Check if BMC is up and connected to network")
             print(l_msg)
             raise OpTestError(l_msg)
 
         try:
-            username = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                       EC.presence_of_element_located((By.ID,
-                       BmcPageConstants.BMC_LOGIN_TEXT_AREA)))
-            password = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                       EC.presence_of_element_located((By.ID,
-                       BmcPageConstants.BMC_PASSWORD_TEXT_AREA)))
-            submitbutton = WebDriverWait(self.Page.driver,BMC_CONST.WEB_DRIVER_WAIT).until(
-                       EC.presence_of_element_located((By.ID,
-                       BmcPageConstants.BMC_LOGIN_BTN)))
+            username = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+                EC.presence_of_element_located((By.ID,
+                                                BmcPageConstants.BMC_LOGIN_TEXT_AREA)))
+            password = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+                EC.presence_of_element_located((By.ID,
+                                                BmcPageConstants.BMC_PASSWORD_TEXT_AREA)))
+            submitbutton = WebDriverWait(self.Page.driver, BMC_CONST.WEB_DRIVER_WAIT).until(
+                EC.presence_of_element_located((By.ID,
+                                                BmcPageConstants.BMC_LOGIN_BTN)))
             username.send_keys(self.Username)
             password.send_keys(self.Password)
             submitbutton.click()
         except:
-            l_msg=("Error passing BMC login page. Check username/password")
+            l_msg = ("Error passing BMC login page. Check username/password")
             print(l_msg)
             raise OpTestError(l_msg)
 
         return BMC_CONST.FW_SUCCESS
-

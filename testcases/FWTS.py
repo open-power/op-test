@@ -51,17 +51,20 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class FWTSCommandFailed(unittest.TestCase):
     FAIL = None
 
     def runTest(self):
         self.assertEqual(self.FAIL, None, str(self.FAIL))
 
+
 class FWTSCommandSkipped(unittest.TestCase):
     SKIP = None
 
     def runTest(self):
         raise unittest.SkipTest("QEMU/Mambo running so skipping FWTS tests")
+
 
 class FWTSVersion(unittest.TestCase):
     MAJOR = None
@@ -160,7 +163,8 @@ class FWTSTest(unittest.TestCase):
                                   "https://lists.ubuntu.com/archives/fwts-devel/2018-April/010315.html")
 
                 if re.match('DeviceTreeBaseDTCWarnings', self.SUBTEST_RESULT.get('failure_label')):
-                    self.skipTest("FWTS known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010326.html")
+                    self.skipTest(
+                        "FWTS known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010326.html")
 
                 if re.match('Property of "(board-info|vendor|'
                             'ibm,slot-location-code)" for '
@@ -169,13 +173,15 @@ class FWTSTest(unittest.TestCase):
                             'the CPU device config for missing nodes in the '
                             'device tree if you expect CPU devices.',
                             log_text):
-                    self.skipTest("FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010329.html")
+                    self.skipTest(
+                        "FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010329.html")
 
                 if re.match('No MEM DIMM devices \(memory-buffer\) were found '
                             'in "/sys/firmware/devicetree/base" with a status '
                             'of "okay" or "ok".  This is unexpected so please '
                             'check your system setup for issues.', log_text):
-                    self.skipTest("FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010330.html")
+                    self.skipTest(
+                        "FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010330.html")
 
         self.assertEqual(self.SUBTEST_RESULT.get('failure_label'), 'None',
                          self.SUBTEST_RESULT)
@@ -188,6 +194,7 @@ class FWTS(unittest.TestSuite):
     This is implemented as a TestSuite rather than a TestCase so we can add
     multiple TestCase results to the `op-test` test results.
     '''
+
     def add_fwts_results(self, major_version, minor_version):
         host = self.cv_HOST
         try:
@@ -242,7 +249,7 @@ class FWTS(unittest.TestSuite):
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
         except Exception as e:
             if (isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole)) \
-                or (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
+                    or (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
                 m = FWTSCommandSkipped()
                 m.SKIP = e
                 self.real_fwts_suite.addTest(m)
@@ -262,7 +269,8 @@ class FWTS(unittest.TestSuite):
 
         fwts_version = None
         try:
-            fwts_version = host.host_run_command("PATH=/usr/local/bin:$PATH fwts --version")
+            fwts_version = host.host_run_command(
+                "PATH=/usr/local/bin:$PATH fwts --version")
             log.debug("fwts_version={}".format(fwts_version))
         except CommandFailed as cf:
             command_failed = FWTSCommandFailed()

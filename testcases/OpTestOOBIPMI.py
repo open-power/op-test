@@ -55,6 +55,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestOOBIPMIBase(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -290,7 +291,8 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
                 l_output = self.cv_IPMI.ipmi_get_sel_list()
                 log.debug(l_output)
                 if "OEM" in l_output:
-                    log.debug("IPMI: Disabling of fan control creates an OEM SEL event")
+                    log.debug(
+                        "IPMI: Disabling of fan control creates an OEM SEL event")
                     return BMC_CONST.FW_SUCCESS
                 else:
                     l_msg = "IPMI: Disabling of fan control doesn't create an OEM SEL event"
@@ -335,7 +337,8 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
                 l_output = self.cv_IPMI.ipmi_get_sel_list()
                 log.debug(l_output)
                 if "OEM" in l_output:
-                    log.debug("IPMI: Enabling of fan control creates an OEM SEL event")
+                    log.debug(
+                        "IPMI: Enabling of fan control creates an OEM SEL event")
                     return BMC_CONST.FW_SUCCESS
                 else:
                     l_msg = "IPMI: Enabling of fan control doesn't create an OEM SEL event"
@@ -386,16 +389,16 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
         '''
         log.debug("OOB IPMI: chassis bootdevice tests")
         boot_devices = {
-            "none" : "No override",
-            "pxe"  : "Force PXE",
+            "none": "No override",
+            "pxe": "Force PXE",
             "cdrom": "Force Boot from CD/DVD",
-            "disk" : "Force Boot from default Hard-Drive",
-            "bios" : "Force Boot into BIOS Setup",
-            "safe" : "Force Boot from default Hard-Drive, request Safe-Mode",
-            "diag" : "Force Boot from Diagnostic Partition",
-            "floppy" : "Force Boot from Floppy/primary removable media",
+            "disk": "Force Boot from default Hard-Drive",
+            "bios": "Force Boot into BIOS Setup",
+            "safe": "Force Boot from default Hard-Drive, request Safe-Mode",
+            "diag": "Force Boot from Diagnostic Partition",
+            "floppy": "Force Boot from Floppy/primary removable media",
         }
-        for bootdev,ipmiresponse in boot_devices.iteritems():
+        for bootdev, ipmiresponse in boot_devices.iteritems():
             cmd = "chassis bootdev %s" % bootdev
             self.run_ipmi_cmd(cmd)
             self.verify_bootdev(bootdev)
@@ -671,7 +674,8 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
     #
     def test_sel_get_functionality(self):
-        l_res = self.cv_IPMI.ipmitool.run("sel list first 3 | awk '{print $1}'; echo $?")
+        l_res = self.cv_IPMI.ipmitool.run(
+            "sel list first 3 | awk '{print $1}'; echo $?")
         l_list = l_res.splitlines()
         if int(l_list[-1]) == 0:
             if l_res.__contains__("SEL has no entries"):
@@ -696,8 +700,8 @@ class OpTestOOBIPMI(OpTestOOBIPMIBase):
     def test_sel_clear_functionality(self):
         self.test_sel_clear()
         l_res = self.cv_IPMI.ipmitool.run("sel list")
-        self.assertIn("SEL has no entries", l_res, 
-                    "Sel clear function got cleared event entries")
+        self.assertIn("SEL has no entries", l_res,
+                      "Sel clear function got cleared event entries")
 
     ##
     # @brief  It will execute and test the dcmi related ipmi commands.
@@ -881,8 +885,10 @@ class OOBIPMIRuntime(OpTestOOBIPMI):
 def basic_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(OpTestOOBIPMI)
 
+
 def standby_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(OOBIPMIStandby)
+
 
 def runtime_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(OOBIPMIRuntime)

@@ -53,6 +53,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestMtdPnorDriver(unittest.TestCase):
     '''
     This function has following test steps
@@ -68,6 +69,7 @@ class OpTestMtdPnorDriver(unittest.TestCase):
     8. Check existence of fcp utility in ffs repository, after compiling
     9. Get the PNOR flash contents on an x86 machine using fcp utility
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -94,7 +96,8 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         # loading mtd module based on config option
         l_config = "CONFIG_MTD_POWERNV_FLASH"
         l_module = "mtd"
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+        self.cv_HOST.host_load_module_based_on_config(
+            l_kernel, l_config, l_module)
 
         # Check /dev/mtd0 file existence on host
         l_cmd = "ls -l /dev/mtd0"
@@ -116,8 +119,9 @@ class OpTestMtdPnorDriver(unittest.TestCase):
 
         # Getting the /tmp/pnor file into local x86 machine
         l_path = "/tmp/"
-        self.util.copyFilesToDest(l_path, self.host_user, self.host_ip, l_file, self.host_Passwd)
-        l_list =  commands.getstatusoutput("ls -l %s" % l_path)
+        self.util.copyFilesToDest(
+            l_path, self.host_user, self.host_ip, l_file, self.host_Passwd)
+        l_list = commands.getstatusoutput("ls -l %s" % l_path)
         log.debug(l_list)
 
         l_workdir = "/tmp/ffs"
@@ -128,7 +132,7 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         l_cmd = "git clone   https://github.com/open-power/ffs/ %s" % l_workdir
         l_res = commands.getstatusoutput(l_cmd)
         self.assertEqual(int(l_res[0]), 0,
-                "Cloning ffs repository is failed")
+                         "Cloning ffs repository is failed")
 
         # Compile ffs repository to get fcp utility
         l_cmd = "cd %s/; autoreconf -i && ./configure && make" % l_workdir
@@ -145,5 +149,5 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         l_res = commands.getstatusoutput(l_cmd)
         log.debug(l_res[1])
         self.assertEqual(int(l_res[0]), 0,
-            "Getting the PNOR data using fcp utility failed")
+                         "Getting the PNOR data using fcp utility failed")
         log.debug("Getting PNOR data successfull using fcp utility")

@@ -47,12 +47,14 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestMamboSim(unittest.TestCase):
     '''
     Provide an illustrative example of class methods to run
     both target OS commands as well as switching to the
     Mambo Simulator and running mambo commands and then switching back
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.ipmi = conf.ipmi()
@@ -63,7 +65,8 @@ class OpTestMamboSim(unittest.TestCase):
         self.c = self.system.console
         self.pty = self.c.get_console()
         if not isinstance(self.c, OpTestMambo.MamboConsole):
-            raise unittest.SkipTest("Must be running Mambo to perform this test")
+            raise unittest.SkipTest(
+                "Must be running Mambo to perform this test")
 
     def runTest(self):
         # need to first perform run_command initially
@@ -96,10 +99,12 @@ class OpTestMamboSim(unittest.TestCase):
         # extra character appears and depending on commands
         # run in mambo caller may or may not want to sync
         # e.g. if mambo commands were queued and results need parsed
-        self.pty.sendline() # sync up pexpect buffer
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        self.pty.sendline()  # sync up pexpect buffer
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
 
-        lsprop_output = self.c.run_command('lsprop /sys/firmware/devicetree/base/ibm,opal/firmware')
+        lsprop_output = self.c.run_command(
+            'lsprop /sys/firmware/devicetree/base/ibm,opal/firmware')
         cmdline_output = self.c.run_command('cat /proc/cmdline')
 
         # exit target OS and enter mambo
@@ -112,47 +117,59 @@ class OpTestMamboSim(unittest.TestCase):
         mambo_command_6 = "cat /sys/devices/system/cpu/present"
         mambo_command_7 = "cat /proc/version"
         # mysim command 2
-        self.c.mambo_run_command("mysim console create input in string \"{}\"".format(mambo_command_2))
+        self.c.mambo_run_command(
+            "mysim console create input in string \"{}\"".format(mambo_command_2))
 
         # mysim command 3
-        self.c.mambo_run_command("mysim console create input in string \"{}\"".format(mambo_command_3))
+        self.c.mambo_run_command(
+            "mysim console create input in string \"{}\"".format(mambo_command_3))
 
         # mysim command 4
-        self.c.mambo_run_command("mysim console create input in string \"{}\"".format(mambo_command_4))
+        self.c.mambo_run_command(
+            "mysim console create input in string \"{}\"".format(mambo_command_4))
 
         # mysim command 5
-        self.c.mambo_run_command("mysim console create input in string \"{}\"".format(mambo_command_5))
+        self.c.mambo_run_command(
+            "mysim console create input in string \"{}\"".format(mambo_command_5))
 
         # mysim command 6
-        self.c.mambo_run_command("mysim console create input in string \"{}\"".format(mambo_command_6))
+        self.c.mambo_run_command(
+            "mysim console create input in string \"{}\"".format(mambo_command_6))
 
         # mysim command 7
-        self.c.mambo_run_command("mysim console create input in string \"{}\"".format(mambo_command_7))
+        self.c.mambo_run_command(
+            "mysim console create input in string \"{}\"".format(mambo_command_7))
 
         # return to target OS
         self.c.mambo_exit()
 
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         log.debug("mambo command 2 '{}'".format(mambo_command_2))
         for i in self.pty.before.replace("\r\r\n", "\n").splitlines():
             log.debug("mambo command 2 before=\"{}\"".format(i))
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         log.debug("mambo command 3 '{}'".format(mambo_command_3))
         for i in self.pty.before.replace("\r\r\n", "\n").splitlines():
             log.debug("mambo command 3 before=\"{}\"".format(i))
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         log.debug("mambo command 4 '{}'".format(mambo_command_4))
         for i in self.pty.before.replace("\r\r\n", "\n").splitlines():
             log.debug("mambo command 4 before=\"{}\"".format(i))
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         log.debug("mambo command 5 '{}'".format(mambo_command_5))
         for i in self.pty.before.replace("\r\r\n", "\n").splitlines():
             log.debug("mambo command 5 before=\"{}\"".format(i))
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         log.debug("mambo command 6 '{}'".format(mambo_command_6))
         for i in self.pty.before.replace("\r\r\n", "\n").splitlines():
             log.debug("mambo command 6 before=\"{}\"".format(i))
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         log.debug("mambo command 7 '{}'".format(mambo_command_7))
         for i in self.pty.before.replace("\r\r\n", "\n").splitlines():
             log.debug("mambo command 7 before=\"{}\"".format(i))
@@ -161,22 +178,27 @@ class OpTestMamboSim(unittest.TestCase):
         self.c.mambo_enter()
 
         # mysim command 8
-        self.c.mambo_run_command("mysim console create input in string \"echo 'hello world command 8'\"")
+        self.c.mambo_run_command(
+            "mysim console create input in string \"echo 'hello world command 8'\"")
 
         # mambo commands
         version_list = self.c.mambo_run_command("version list")
         log.debug("version list={}".format(version_list))
-        define_list = self.c.mambo_run_command("define list") # list machines available
+        define_list = self.c.mambo_run_command(
+            "define list")  # list machines available
         log.debug("define list ={}".format(define_list))
-        display_configures = self.c.mambo_run_command("display configures") # all active configuration objects and machines
+        # all active configuration objects and machines
+        display_configures = self.c.mambo_run_command("display configures")
         log.debug("display configures={}".format(display_configures))
 
         # return to target OS
         # queued_echo_output will NOT contain the command 8 echo of 'hello world command 8'
         # when returning to the target OS the pexpect buffer is awaiting retrieval, "expecting"
         queued_echo_output = self.c.mambo_exit()
-        log.debug("mambo_exit command 8 queued_echo_output={}".format(queued_echo_output))
-        rc = self.pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        log.debug("mambo_exit command 8 queued_echo_output={}".format(
+            queued_echo_output))
+        rc = self.pty.expect(
+            [self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         # now retrieve the echo output which sat awaiting
         log.debug("delayed queued_echo_output=\"{}\"".format(self.pty.before))
 

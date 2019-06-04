@@ -9,6 +9,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.OpTestKeys import OpTestKeys as keys
 
+
 class ConfigEditorTestCase(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -29,6 +30,7 @@ class ConfigEditorTestCase(unittest.TestCase):
         c.send('x')
 
         c.expect("e=edit, n=new")
+
 
 class TimeoutConfigTestCase(unittest.TestCase):
     default_timeout = 10
@@ -87,8 +89,10 @@ class TimeoutConfigTestCase(unittest.TestCase):
 
         # exit to shell, check saved timeout
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        timeout = self.console.run_command_ignore_fail('nvram --print-config=petitboot,timeout')
-        self.assertTrue(str(self.new_timeout) in timeout, "New timeout value not seen")
+        timeout = self.console.run_command_ignore_fail(
+            'nvram --print-config=petitboot,timeout')
+        self.assertTrue(str(self.new_timeout) in timeout,
+                        "New timeout value not seen")
 
         self.system.goto_state(OpSystemState.PETITBOOT)
 
@@ -101,7 +105,8 @@ class TimeoutConfigTestCase(unittest.TestCase):
         # exit to shell and check setting
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.console.run_command('ls')
-        timeout = self.console.run_command('nvram --print-config=petitboot,timeout')
+        timeout = self.console.run_command(
+            'nvram --print-config=petitboot,timeout')
         self.assertTrue("314" in timeout, "New timeout value not seen")
 
         # back to UI
@@ -115,10 +120,12 @@ class TimeoutConfigTestCase(unittest.TestCase):
 
         # exit to shell and expect no setting
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        timeout = self.console.run_command_ignore_fail('nvram --print-config | grep -c petitboot,timeout')
+        timeout = self.console.run_command_ignore_fail(
+            'nvram --print-config | grep -c petitboot,timeout')
         self.assertTrue("0" in timeout, "Timeout doesn't appear to be reset")
 
         self.system.goto_state(OpSystemState.PETITBOOT)
+
 
 class StaticNetworkConfigTestCase(unittest.TestCase):
     def setUp(self):
@@ -132,7 +139,7 @@ class StaticNetworkConfigTestCase(unittest.TestCase):
 
         # TODO extend to use real network device in qemu / real machine
         self.network_config_str = (self.bmc.console.mac_str +
-            ',static,192.168.0.1/24,192.168.0.2 dns,192.168.0.3')
+                                   ',static,192.168.0.1/24,192.168.0.2 dns,192.168.0.3')
 
         self.system.goto_state(OpSystemState.PETITBOOT)
 
@@ -184,7 +191,8 @@ class StaticNetworkConfigTestCase(unittest.TestCase):
         # drop to shell
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
         config = self.console.run_command('nvram --print-config')
-        self.assertTrue('petitboot,network=%s' % self.network_config_str in tconfig, "Network config not correct")
+        self.assertTrue('petitboot,network=%s' %
+                        self.network_config_str in tconfig, "Network config not correct")
 
         self.system.goto_state(OpSystemState.PETITBOOT)
 
@@ -214,9 +222,11 @@ class StaticNetworkConfigTestCase(unittest.TestCase):
         # back to shell, check for the same config string
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
         config = self.console.run_command('nvram --print-config')
-        self.assertTrue('petitboot,network=%s' % self.network_config_str in tconfig, "Network config not correct")
+        self.assertTrue('petitboot,network=%s' %
+                        self.network_config_str in tconfig, "Network config not correct")
 
         self.system.goto_state(OpSystemState.PETITBOOT)
+
 
 class RestoreConfigDefaultTestCase(unittest.TestCase):
     def setUp(self):
@@ -230,7 +240,7 @@ class RestoreConfigDefaultTestCase(unittest.TestCase):
 
         # TODO extend to use real network device in qemu / real machine
         self.network_config_str = (self.bmc.console.mac_str +
-            ',static,192.168.0.1/24,192.168.0.2 dns,192.168.0.3')
+                                   ',static,192.168.0.1/24,192.168.0.2 dns,192.168.0.3')
 
         self.system.goto_state(OpSystemState.PETITBOOT)
 
@@ -259,7 +269,8 @@ class RestoreConfigDefaultTestCase(unittest.TestCase):
         c.send(' ')
 
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        config = self.console.run_command('nvram --print-config | grep auto-boot')
+        config = self.console.run_command(
+            'nvram --print-config | grep auto-boot')
         self.assertTrue("auto-boot?=false" in config, "Autoboot not disabled")
 
         self.system.goto_state(OpSystemState.PETITBOOT)
@@ -287,8 +298,10 @@ class RestoreConfigDefaultTestCase(unittest.TestCase):
 
         # we should see that the auto-boot nvram setting has been removed
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        config = self.console.run_command_ignore_fail('nvram --print-config | grep -q auto-boot; echo $?')
-        self.assertTrue("auto-boot?=false" not in config, "Autoboot still disabled")
+        config = self.console.run_command_ignore_fail(
+            'nvram --print-config | grep -q auto-boot; echo $?')
+        self.assertTrue("auto-boot?=false" not in config,
+                        "Autoboot still disabled")
 
         self.system.goto_state(OpSystemState.PETITBOOT)
 
@@ -317,8 +330,10 @@ class RestoreConfigDefaultTestCase(unittest.TestCase):
         c.send(' ')
 
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
-        timeout = self.console.run_command('nvram --print-config | grep petitboot,timeout')
-        self.assertTrue("petitboot,timeout=42" in timeout, "New timeout value not seen")
+        timeout = self.console.run_command(
+            'nvram --print-config | grep petitboot,timeout')
+        self.assertTrue("petitboot,timeout=42" in timeout,
+                        "New timeout value not seen")
 
         # exit shell
         self.system.goto_state(OpSystemState.PETITBOOT)
@@ -345,7 +360,8 @@ class RestoreConfigDefaultTestCase(unittest.TestCase):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         # we should see that the auto-boot nvram setting has been removed
-        timeout = self.console.run_command_ignore_fail('nvram --print-config | grep -q petitboot,timeout')
+        timeout = self.console.run_command_ignore_fail(
+            'nvram --print-config | grep -q petitboot,timeout')
         self.assertTrue("0" in timeout, "Timeout doesn't appear to be reset")
 
         self.system.goto_state(OpSystemState.PETITBOOT)

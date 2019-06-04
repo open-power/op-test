@@ -61,6 +61,7 @@ class UnexpectedBootDevice(Exception):
     def __init__(self, expected, actual):
         self.expected = expected
         self.actual = actual
+
     def __str__(self):
         return "Expected to set %s but instead got %s" % (self.expected, self.actual)
 
@@ -99,13 +100,15 @@ class OpTestInbandIPMIBase(object):
         except CommandFailed as cf:
             my_responses = ["Invalid command",
                             "Error loading interface usb"]
-            matching = [xs for xs in my_responses if any(xs in xa for xa in cf.output)]
+            matching = [xs for xs in my_responses if any(
+                xs in xa for xa in cf.output)]
             if len(matching):
                 self.skipTest("Invalid command or Error loading interface usb")
             else:
                 raise cf
 
-class BasicInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
+
+class BasicInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"
@@ -123,10 +126,11 @@ class BasicInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SENSOR_LIST])
 
 
-class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
+class OpTestInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
     '''
     A more complete test of inband IPMI functionality.
     '''
+
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"
@@ -135,7 +139,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
     def test_chassis_poh(self):
         c = self.set_up()
         try:
-            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POH])
+            self.run_ipmi_cmds(
+                c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POH])
         except CommandFailed as cf:
             if 'Get Chassis Power-On-Hours failed: Invalid command' in cf.output[0]:
                 self.skipTest("OpenBMC doesn't implement POH yet")
@@ -145,7 +150,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         log.debug("Inband IPMI[OPEN]: Chassis tests")
         c = self.set_up()
         try:
-            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_RESTART_CAUSE])
+            self.run_ipmi_cmds(
+                c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_RESTART_CAUSE])
         except CommandFailed as cf:
             if 'Get Chassis Restart Cause failed: Invalid command' in cf.output[0]:
                 self.skipTest("OpenBMC doesn't implement restart_cause yet")
@@ -178,25 +184,27 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         log.debug("Inband IPMI[OPEN]: Chassis Bootdevice tests")
         c = self.set_up()
         boot_devices = {
-            "none" : "No override",
-            "pxe"  : "Force PXE",
+            "none": "No override",
+            "pxe": "Force PXE",
             "cdrom": "Force Boot from CD/DVD",
-            "disk" : "Force Boot from default Hard-Drive",
-            "bios" : "Force Boot into BIOS Setup",
-            "safe" : "Force Boot from default Hard-Drive, request Safe-Mode",
-            "diag" : "Force Boot from Diagnostic Partition",
-            "floppy" : "Force Boot from Floppy/primary removable media",
+            "disk": "Force Boot from default Hard-Drive",
+            "bios": "Force Boot into BIOS Setup",
+            "safe": "Force Boot from default Hard-Drive, request Safe-Mode",
+            "diag": "Force Boot from Diagnostic Partition",
+            "floppy": "Force Boot from Floppy/primary removable media",
         }
-        for bootdev,ipmiresponse in boot_devices.iteritems():
+        for bootdev, ipmiresponse in boot_devices.iteritems():
             try:
                 try:
-                    r = c.run_command(self.ipmi_method + 'chassis bootdev %s' % (bootdev))
+                    r = c.run_command(self.ipmi_method +
+                                      'chassis bootdev %s' % (bootdev))
                 except CommandFailed as cf:
                     if 'Error loading interface usb' in cf.output:
                         self.skipTest("No USB IPMI interface")
                     if not self.cv_BMC.has_inband_bootdev():
                         self.skipTest("Does not support inband bootdev")
-                    self.fail("Could not set boot device %s. Errored with %s" % (bootdev,str(cf)))
+                    self.fail("Could not set boot device %s. Errored with %s" % (
+                        bootdev, str(cf)))
                 self.verify_bootdev(bootdev, ipmiresponse)
             except UnexpectedBootDevice as e:
                 # allow floppy to fail, as realistically,
@@ -211,7 +219,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         # reset to bootdev none
         try:
             c.run_command(self.ipmi_method + 'chassis bootdev none')
-            self.verify_bootdev("none",boot_devices["none"])
+            self.verify_bootdev("none", boot_devices["none"])
         except UnexpectedBootDevice as e:
             self.fail(str(e))
         pass
@@ -266,9 +274,9 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         log.debug("Inband IPMI[OPEN]: SDR type list tests")
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_LIST,
-                                self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_TEMPERATURE,
-                                self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_FAN,
-                                self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_POWER_SUPPLY])
+                               self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_TEMPERATURE,
+                               self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_FAN,
+                               self.ipmi_method + BMC_CONST.IPMI_SDR_TYPE_POWER_SUPPLY])
 
     def test_sdr_get_id(self):
         '''
@@ -300,21 +308,24 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         fru_id = 0
         found_one = False
         nr_sequential_fail = 0
-        for fru_id in range(0,100):
+        for fru_id in range(0, 100):
             if nr_sequential_fail > 25:
                 # If we don't see one for a while, there's probably no more
                 break
             try:
-                self.run_ipmi_cmds(c, [self.ipmi_method + "fru print %d" % fru_id])
+                self.run_ipmi_cmds(
+                    c, [self.ipmi_method + "fru print %d" % fru_id])
             except CommandFailed as cf:
-                log.debug("FRU {} failed: {} {}".format(fru_id, cf.exitcode, cf.output))
+                log.debug("FRU {} failed: {} {}".format(
+                    fru_id, cf.exitcode, cf.output))
                 if cf.exitcode in [1, -1]:
                     nr_sequential_fail = nr_sequential_fail + 1
                     continue
                 nr_sequential_fail = 0
 
             found_one = True
-            self.run_ipmi_cmds(c, [self.ipmi_method + "fru read %d /tmp/file_fru" % fru_id])
+            self.run_ipmi_cmds(
+                c, [self.ipmi_method + "fru read %d /tmp/file_fru" % fru_id])
             # TODO: Check for file output
             l_res = c.run_command("hexdump -C /tmp/file_fru")
 
@@ -349,7 +360,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         c = self.set_up()
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_INFO])
         try:
-            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_GET])
+            self.run_ipmi_cmds(
+                c, [self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_GET])
             self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_OFF,
                                    self.ipmi_method + BMC_CONST.IPMI_MC_WATCHDOG_RESET])
         except CommandFailed as cf:
@@ -417,7 +429,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         log.debug("Inband IPMI[OPEN]: SEL elist test")
         c = self.set_up()
         try:
-            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_ELIST])
+            self.run_ipmi_cmds(
+                c, [self.ipmi_method + BMC_CONST.IPMI_SEL_ELIST])
         except CommandFailed as cf:
             if self.cv_BMC.has_ipmi_sel():
                 raise cf
@@ -433,7 +446,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         c = self.set_up()
         l_res = None
         try:
-            l_res = c.run_command(self.ipmi_method + BMC_CONST.IPMI_SEL_TIME_GET)
+            l_res = c.run_command(
+                self.ipmi_method + BMC_CONST.IPMI_SEL_TIME_GET)
         except CommandFailed as cf:
             if 'Error loading interface usb' in cf.output:
                 self.skipTest("No USB IPMI interface")
@@ -457,14 +471,14 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             # odd failure I've seen a few times
             # we had opened up a different problem where ipmitool gave back bad rc
             # https://github.com/open-power/boston-openpower/issues/1396
-            #Traceback (most recent call last):
+            # Traceback (most recent call last):
             #  File "/home/debmc/test/testcases/OpTestInbandIPMI.py", line 458, in test_sel_list_first_n_entries
             #    raise cf
-            #CommandFailed: Command 'ipmitool sel list first 1' exited with '1'.
-            #Output
+            # CommandFailed: Command 'ipmitool sel list first 1' exited with '1'.
+            # Output
             #['ipmitool sel list first 1', 'SEL has no entries']
             log.debug("sel_list_first_n_entries i_num={} cf={}"
-                .format(i_num, cf))
+                      .format(i_num, cf))
             if self.cv_BMC.has_ipmi_sel():
                 if "SEL has no entries" in cf.output:
                     pass
@@ -493,11 +507,11 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             #    self.test_sel_list_last_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)
             #  File "/home/debmc/test/testcases/OpTestInbandIPMI.py", line 475, in test_sel_list_last_n_entries
             #    raise cf
-            #CommandFailed: Command 'ipmitool sel list last 3' exited with '1'.
-            #Output
+            # CommandFailed: Command 'ipmitool sel list last 3' exited with '1'.
+            # Output
             #['ipmitool sel list last 3', 'SEL has no entries']
             log.debug("sel_list_last_n_entries i_num={} cf={}"
-                .format(i_num, cf))
+                      .format(i_num, cf))
             if self.cv_BMC.has_ipmi_sel():
                 if "SEL has no entries" in cf.output:
                     pass
@@ -515,7 +529,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         '''
         c = self.set_up()
         try:
-            self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_SEL_CLEAR])
+            self.run_ipmi_cmds(
+                c, [self.ipmi_method + BMC_CONST.IPMI_SEL_CLEAR])
         except CommandFailed as cf:
             if self.cv_BMC.has_ipmi_sel():
                 raise cf
@@ -528,7 +543,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         '''
         c = self.set_up()
         try:
-            l_res = c.run_command(self.ipmi_method + "sel list first 3 | awk '{print $1}'")
+            l_res = c.run_command(
+                self.ipmi_method + "sel list first 3 | awk '{print $1}'")
             for entry in l_res:
                 if entry.__contains__("SEL has no entries"):
                     log.debug("IPMI: There are no sel entries to fetch")
@@ -610,7 +626,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             if self.cv_BMC.supports_ipmi_dcmi():
                 raise cf
             else:
-                self.skipTest("BMC Implementation doesn't support DCMI commands")
+                self.skipTest(
+                    "BMC Implementation doesn't support DCMI commands")
 
     def test_echo(self):
         '''
@@ -658,7 +675,8 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         '''
         log.debug("Inband IPMI[OPEN]: Firewall test")
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_FIREWALL_INFO])
+        self.run_ipmi_cmds(
+            c, [self.ipmi_method + BMC_CONST.IPMI_FIREWALL_INFO])
 
     def test_pef(self):
         '''
@@ -710,7 +728,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
         '''
         l_res = self.test_sel_time_get()
         if l_res is not None:
-          i_time = l_res[-1]
+            i_time = l_res[-1]
         log.debug("Inband IPMI[OPEN]: SEL Time set test")
         l_cmd = "sel time set \'%s\'" % i_time
         c = self.set_up()
@@ -783,7 +801,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
             self.fail(str(cf))
 
 
-class ExperimentalInbandIPMI(OpTestInbandIPMIBase,unittest.TestCase):
+class ExperimentalInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_OPEN):
         self.ipmi_method = ipmi_method
         self.test = "host"

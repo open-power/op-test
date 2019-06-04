@@ -105,6 +105,7 @@ class TOD_CORRUPTION(fspTODCorruption, unittest.TestCase):
     '''
     This function tests Boot and runtime behaviour when TOD is corrupted.
     '''
+
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific TOD Corruption tests")

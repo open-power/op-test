@@ -59,6 +59,7 @@ class I2C():
     '''
     Base class for I2C tests
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()

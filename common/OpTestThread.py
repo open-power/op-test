@@ -42,10 +42,12 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpSSHThreadLinearVar1(threading.Thread):
     '''
     Runs a list of commands in a loop with equal sleep times in linear order
     '''
+
     def __init__(self, threadID, name, cmd_list, sleep_time, execution_time, ignore_fail=False):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -60,7 +62,8 @@ class OpSSHThreadLinearVar1(threading.Thread):
 
     def run(self):
         log.debug("Starting %s" % self.name)
-        self.inband_child_thread(self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
+        self.inband_child_thread(
+            self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
@@ -80,10 +83,12 @@ class OpSSHThreadLinearVar1(threading.Thread):
                 break
         log.debug("Thread exiting after run for desired time")
 
+
 class OpSSHThreadLinearVar2(threading.Thread):
     '''
     Runs a dictionary of command(command, sleep time) pairs with each having individual sleep times
     '''
+
     def __init__(self, threadID, name, cmd_dic, execution_time, ignore_fail=False):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -97,7 +102,8 @@ class OpSSHThreadLinearVar2(threading.Thread):
 
     def run(self):
         log.debug("Starting %s" % self.name)
-        self.inband_child_thread(self.name, self.cmd_dic, self.execution_time, self.ignore_fail)
+        self.inband_child_thread(
+            self.name, self.cmd_dic, self.execution_time, self.ignore_fail)
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_dic, torture_time, ignore_fail):
@@ -117,10 +123,12 @@ class OpSSHThreadLinearVar2(threading.Thread):
                 break
         log.debug("Thread exiting after run for desired time")
 
+
 class OpSSHThreadRandom(threading.Thread):
     '''
     Runs a random command from a list of commands in a loop with equal sleep times
     '''
+
     def __init__(self, threadID, name, cmd_list, sleep_time, execution_time, ignore_fail=False):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -135,7 +143,8 @@ class OpSSHThreadRandom(threading.Thread):
 
     def run(self):
         log.debug("Starting %s" % self.name)
-        self.inband_child_thread(self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
+        self.inband_child_thread(
+            self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
@@ -154,5 +163,3 @@ class OpSSHThreadRandom(threading.Thread):
                 break
             time.sleep(sleep_time)
         log.debug("Thread exiting after run for desired time")
-
-

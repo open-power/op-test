@@ -171,6 +171,7 @@ class SkirootAT24(AT24driver, unittest.TestCase):
     '''
     Run the same AT24driver test, but in skiroot environment.
     '''
+
     def setUp(self):
         self.test = "skiroot"
         log.debug("Starting AT24driver test in Skiroot")

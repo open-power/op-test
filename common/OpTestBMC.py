@@ -53,10 +53,12 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestBMC():
     '''
     The main object for communicating with a BMC and taking actions with it.
     '''
+
     def __init__(self, ip=None, username=None, password=None,
                  logfile=sys.stdout, ipmi=None, rest=None,
                  web=None, check_ssh_keys=False, known_hosts_file=None):
@@ -70,7 +72,7 @@ class OpTestBMC():
         self.check_ssh_keys = check_ssh_keys
         self.known_hosts_file = known_hosts_file
         self.ssh = OpTestSSH(ip, username, password, logfile, prompt=None,
-                block_setup_term=0, check_ssh_keys=check_ssh_keys, known_hosts_file=known_hosts_file)
+                             block_setup_term=0, check_ssh_keys=check_ssh_keys, known_hosts_file=known_hosts_file)
         # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
 
@@ -102,7 +104,7 @@ class OpTestBMC():
         return self.ssh.run_command(command, timeout, retry)
 
     ##
-    # @brief 
+    # @brief
     #
     # @return BMC_CONST.FW_SUCCESS on success and
     #         raise OpTestError on failure
@@ -127,7 +129,8 @@ class OpTestBMC():
         # Wait for BMC to go down.
         self.util.ping_fail_check(self.cv_bmcIP)
         # Wait for BMC to ping back.
-        self.util.PingFunc(self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.util.PingFunc(
+            self.cv_bmcIP, totalSleepTime=BMC_CONST.PING_RETRY_POWERCYCLE)
         # Ping the system until it reboots
         while True:
             try:
@@ -179,17 +182,20 @@ class OpTestBMC():
         elif self.known_hosts_file:
             ssh_opts = ssh_opts + ' -o UserKnownHostsFile=' + self.known_hosts_file
 
-        rsync_cmd = 'rsync -P -v -e "ssh -k' + ssh_opts + '" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
+        rsync_cmd = 'rsync -P -v -e "ssh -k' + ssh_opts + \
+            '" %s %s@%s:/tmp' % (img_path, self.cv_bmcUser, self.cv_bmcIP)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
 
         log.debug(rsync_cmd)
         rsync = OPexpect.spawn(rsync_cmd)
         rsync.logfile = OpTestLogger.FileLikeLogger(log)
-        r = rsync.expect(['assword: ', 'total size is', 'error while loading shared lib', pexpect.EOF], timeout=1800)
+        r = rsync.expect(['assword: ', 'total size is',
+                          'error while loading shared lib', pexpect.EOF], timeout=1800)
         if r == 0:
             rsync.sendline(self.cv_bmcPasswd)
-            r = rsync.expect(['assword: ', 'total size is', 'error while loading shared lib', pexpect.EOF], timeout=1800)
+            r = rsync.expect(['assword: ', 'total size is',
+                              'error while loading shared lib', pexpect.EOF], timeout=1800)
 
         if r == 2:
             # On AMI BMCs that are missing libacl.so.1 for rsync,
@@ -199,14 +205,17 @@ class OpTestBMC():
             log.debug("Falling back to SCP")
             if copy_as is None:
                 copy_as = os.path.basename(img_path)
-            scp_cmd = "bash -c \"sshpass -p {} ssh".format(self.cv_bmcPasswd) + ssh_opts + ' -o LogLevel=quiet'
-            scp_cmd = scp_cmd + " {}@{} dd of=/tmp/{} < {}\"".format(self.cv_bmcUser, self.cv_bmcIP,copy_as,img_path)
+            scp_cmd = "bash -c \"sshpass -p {} ssh".format(
+                self.cv_bmcPasswd) + ssh_opts + ' -o LogLevel=quiet'
+            scp_cmd = scp_cmd + " {}@{} dd of=/tmp/{} < {}\"".format(
+                self.cv_bmcUser, self.cv_bmcIP, copy_as, img_path)
             log.debug(scp_cmd)
             scp = OPexpect.spawn(scp_cmd, timeout=120)
             scp.expect(pexpect.EOF)
             scp.wait()
             scp.close()
-            chmod_cmd = "sshpass -p {} ssh {} {}@{} chmod +x /tmp/{}".format(self.cv_bmcPasswd, ssh_opts, self.cv_bmcUser, self.cv_bmcIP, copy_as)
+            chmod_cmd = "sshpass -p {} ssh {} {}@{} chmod +x /tmp/{}".format(
+                self.cv_bmcPasswd, ssh_opts, self.cv_bmcUser, self.cv_bmcIP, copy_as)
             log.debug(chmod_cmd)
             chmod = OPexpect.spawn(chmod_cmd)
             chmod.expect(pexpect.EOF)
@@ -217,7 +226,6 @@ class OpTestBMC():
             rsync.expect(pexpect.EOF)
             rsync.close()
             return rsync.exitstatus
-
 
     def pnor_img_flash_ami(self, i_pflash_dir, i_imageName):
         '''
@@ -258,7 +266,8 @@ class OpTestBMC():
         return rc
 
     def flash_part_ami(self, i_pflash_dir, i_imageName, i_partName):
-        cmd = i_pflash_dir + '/pflash -p /tmp/%s -e -f -P %s' % (i_imageName, i_partName)
+        cmd = i_pflash_dir + \
+            '/pflash -p /tmp/%s -e -f -P %s' % (i_imageName, i_partName)
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 
@@ -312,6 +321,7 @@ class OpTestBMC():
     def has_ipmi_sel(self):
         return True
 
+
 class OpTestSMC(OpTestBMC):
 
     def has_os_boot_sensor(self):
@@ -326,10 +336,11 @@ class OpTestSMC(OpTestBMC):
     def supports_ipmi_dcmi(self):
         return True
 
-    def image_transfer(self,i_imageName, copy_as=None):
+    def image_transfer(self, i_imageName, copy_as=None):
 
         img_path = i_imageName
-        rsync_cmd = 'rsync -av %s rsync://%s/files/' % (img_path, self.cv_bmcIP)
+        rsync_cmd = 'rsync -av %s rsync://%s/files/' % (
+            img_path, self.cv_bmcIP)
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
         log.debug(rsync_cmd)
@@ -350,7 +361,9 @@ class OpTestSMC(OpTestBMC):
         return rc
 
     def flash_part_smc(self, i_pflash_dir, i_imageName, i_partName):
-        cmd = i_pflash_dir + '/pflash -p /tmp/rsync_file/%s -e -f -P %s' % (i_imageName, i_partName)
+        cmd = i_pflash_dir + \
+            '/pflash -p /tmp/rsync_file/%s -e -f -P %s' % (
+                i_imageName, i_partName)
         rc = self.ssh.run_command(cmd, timeout=1800)
         return rc
 

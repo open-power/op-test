@@ -118,8 +118,8 @@ class BasicTest(OpalErrorLog):
             log.debug("Waiting for transfer of error logs to Host: (%d\%d)"
                       % (j, tries))
         if not transfer_complete:
-                self.cv_HOST.host_gather_opal_msg_log()
-                self.cv_HOST.host_gather_kernel_log()
+            self.cv_HOST.host_gather_opal_msg_log()
+            self.cv_HOST.host_gather_kernel_log()
         self.assertTrue(transfer_complete,
                         "Failed to transfer all error logs to Host in 60s")
         self.cv_FSP.clear_errorlogs_in_fsp()

@@ -40,6 +40,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class KernelLog():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -118,7 +119,7 @@ class KernelLog():
                       "mlx4_en.* Port \d+: Initializing port",
                       "mlx4_core.*Old device ETS support detected",
                       "mlx4_core.*Consider upgrading device FW.",
-        ]
+                      ]
 
         if self.bmc_type in ['qemu']:
             # Qemu doesn't (yet) have pstate support, so ignore errors there.

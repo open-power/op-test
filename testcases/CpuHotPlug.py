@@ -52,6 +52,7 @@ class CpuHotPlug(unittest.TestCase):
     Then start hotplugging CPU cores by using the ``ppc64_cpu`` utility to
     turn only a specific number of cores on.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()

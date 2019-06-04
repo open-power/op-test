@@ -59,29 +59,32 @@ class OpTestPNOR():
         self.cv_SYSTEM = conf.system()
 
     def pflashErase(self, offset, length):
-        self.c.run_command("pflash -e -f -a %d -s %d" % (offset,length))
+        self.c.run_command("pflash -e -f -a %d -s %d" % (offset, length))
 
     def pflashErasePartition(self, partition):
         self.c.run_command("pflash -e -f -P %s" % (partition))
 
     def pflashRead(self, filename, offset, length):
-        self.c.run_command("pflash -r %s -a %d -s %d" % (filename,offset,length))
+        self.c.run_command("pflash -r %s -a %d -s %d" %
+                           (filename, offset, length))
 
     def pflashReadPartition(self, filename, partition):
-        self.c.run_command("pflash -r %s -P %s" % (filename,partition))
+        self.c.run_command("pflash -r %s -P %s" % (filename, partition))
 
     def pflashWrite(self, filename, offset, length):
-        self.c.run_command("pflash -f -p %s -a %d -s %d" % (filename,offset,length))
+        self.c.run_command("pflash -f -p %s -a %d -s %d" %
+                           (filename, offset, length))
 
     def pflashWritePartition(self, filename, partition):
-        self.c.run_command("pflash -f -p %s -P %s" % (filename,partition))
+        self.c.run_command("pflash -f -p %s -P %s" % (filename, partition))
 
     def pflashGetPartition(self, partition):
         d = self.c.run_command("pflash --info")
         for line in d:
             s = re.search(partition, line)
             if s:
-                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\)\s(\[)?([A-Za-z-]+)?(\])?.*', line)
+                m = re.match(
+                    r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\)\s(\[)?([A-Za-z-]+)?(\])?.*', line)
                 if not m:
                     continue
                 offset = int(m.group(1), 16)
@@ -110,7 +113,8 @@ class OpTestPNOR():
         # Read the (hopefully) erased NVRAM
         self.pflashReadPartition("/tmp/null", "NVRAM")
         # Write back to the NVRAM partition
-        self.pflashWrite("/tmp/nvram", nvramInfo['offset'], nvramInfo['length'])
+        self.pflashWrite(
+            "/tmp/nvram", nvramInfo['offset'], nvramInfo['length'])
         # Compare /tmp/nvram to rewritten nvram contents
         self.comparePartitionFile("/tmp/nvram", "NVRAM")
         # Check /tmp/null all "erased"
@@ -124,10 +128,11 @@ class OpTestPNOR():
         self.pflashReadPartition("/tmp/payload", "PAYLOAD")
         # Write /tmp/payload to PAYLOAD
         try:
-            self.pflashWrite("/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
+            self.pflashWrite(
+                "/tmp/payload", payloadInfo['offset'], payloadInfo['length'])
         except CommandFailed as cf:
             log.debug("pflashWrite Flags={} cf={} cf.output={} cf.exitcode={}"
-                .format(payloadInfo.get('flags'), cf, cf.output, cf.exitcode))
+                      .format(payloadInfo.get('flags'), cf, cf.output, cf.exitcode))
             if payloadInfo.get('flags'):
                 # we have an iterable, so check it
                 if not ('R' in payloadInfo.get('flags') and cf.exitcode in [8]):
@@ -143,7 +148,7 @@ class OpTestPNOR():
             self.pflashWritePartition("/tmp/payload", "PAYLOAD")
         except CommandFailed as cf:
             log.debug("pflashWritePartition Flags={} cf={} cf.output={} cf.exitcode={}"
-                .format(payloadInfo.get('flags'), cf, cf.output, cf.exitcode))
+                      .format(payloadInfo.get('flags'), cf, cf.output, cf.exitcode))
             if payloadInfo.get('flags'):
                 # we have an iterable, so check it
                 if not ('R' in payloadInfo.get('flags') and cf.exitcode in [8]):
@@ -160,9 +165,11 @@ class OpTestPNOR():
         # Read the toc so we can write it back later
         self.pflashRead("/tmp/toc", tocInfo['offset'], tocInfo['length'])
         # Write all zeros to the toc (Because why not :D)
-        self.c.run_command("dd if=/dev/zero of=/tmp/zeros bs=1 count=%s" % (tocInfo['length']))
+        self.c.run_command(
+            "dd if=/dev/zero of=/tmp/zeros bs=1 count=%s" % (tocInfo['length']))
         try:
-            self.pflashWrite("/tmp/zeros", tocInfo['offset'], tocInfo['length'])
+            self.pflashWrite(
+                "/tmp/zeros", tocInfo['offset'], tocInfo['length'])
         except CommandFailed as cf:
             self.assertEqual(cf.exitcode, 8,
                              "pflash did not exit with correct exit code for "
@@ -200,10 +207,12 @@ class OpTestPNOR():
         # Try write to the TOC
         self.runTestWriteTOC()
 
+
 class Skiroot(OpTestPNOR, unittest.TestCase):
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
+
 
 class Host(OpTestPNOR, unittest.TestCase):
     def setup_test(self):

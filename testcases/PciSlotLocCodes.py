@@ -43,6 +43,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class PciDT(unittest.TestCase):
     '''
     PciDT Class
@@ -90,11 +91,11 @@ class PciDT(unittest.TestCase):
                 lspci_dict[of_key] = of_base
             except Exception as e:
                 log.debug("of_base skipping directory={} Exception={}"
-                    .format(directory, e))
+                          .format(directory, e))
         return lspci_dict
 
     def build_lspci_names(self, lspci_dict):
-        self.dump_lspci(lspci_dict) # just logging
+        self.dump_lspci(lspci_dict)  # just logging
         lspci_names = self.c.run_command("lspci -nn")
         lspci_names_dict = {}
         # 0006:00:00.0 Bridge [0680]: IBM Device [1014:04ea] (rev 01)
@@ -110,7 +111,7 @@ class PciDT(unittest.TestCase):
         values.
         '''
         node_dirs = self.c.run_command("find /proc/device-tree/ -type d "
-                       "| grep -i pciex | grep -i pci@")
+                                       "| grep -i pciex | grep -i pci@")
         output_dict = {}
         self.slot_failures = 0
         self.loccode_failures = 0
@@ -126,14 +127,17 @@ class PciDT(unittest.TestCase):
                     try:
                         check_list = ["npu"]
                         pciObj = re.search("/(pciex@[0-9a-fA-F]+)/", directory)
-                        compat_node = "/proc/device-tree/{}/compatible".format(pciObj.group(1))
-                        compat_output = self.c.run_command("cat {}".format(compat_node))
-                        matching = [xs for xs in check_list if any(xs in xa for xa in compat_output)]
+                        compat_node = "/proc/device-tree/{}/compatible".format(
+                            pciObj.group(1))
+                        compat_output = self.c.run_command(
+                            "cat {}".format(compat_node))
+                        matching = [xs for xs in check_list if any(
+                            xs in xa for xa in compat_output)]
                         if len(matching) == 0:
                             log.debug("Non-NPU compat_output={} for {}"
-                                .format(compat_output, compat_node))
+                                      .format(compat_output, compat_node))
                             res = self.c.run_command("cat {}/ibm,slot-label"
-                                .format(directory))
+                                                     .format(directory))
                             if res[0] == "":
                                 tracking_dict['slot-label-status'] = 1
                                 value = ""
@@ -143,14 +147,14 @@ class PciDT(unittest.TestCase):
                             tracking_dict['slot-label'] = value
                         else:
                             log.debug("NPU compat_output={} for {}"
-                                .format(compat_output, compat_node))
+                                      .format(compat_output, compat_node))
                     except CommandFailed as cf:
                         tracking_dict['slot-label-status'] = 2
                         tracking_dict['slot-label'] = None
                         self.slot_failures += 1
                     try:
                         res = self.c.run_command("cat {}/ibm,loc-code"
-                            .format(directory))
+                                                 .format(directory))
                         if res[0] == "":
                             tracking_dict['loc-code-status'] = 1
                             value = ""
@@ -165,7 +169,7 @@ class PciDT(unittest.TestCase):
                     output_dict[directory] = tracking_dict
             except CommandFailed as cf:
                 log.debug("Unable to query for pciex info, Exception={}"
-                    .format(cf))
+                          .format(cf))
         return output_dict
 
     def doit(self):
@@ -187,43 +191,44 @@ class PciDT(unittest.TestCase):
         for key in output_dict:
             if output_dict[key].get('slot-label-status') != 0 \
                and output_dict[key].get('loc-code-status') != 0:
-                    output_list.append("<----------------------"
-                        "Investigate #{}---------------------->"
-                        .format(count))
-                    count += 1
-                    output_list.append("PCI Path={}".format(key))
-                    output_list.append("{}".format(lspci_mappings[key]))
-                    output_list.append("ibm,slot-label={}"
-                        .format(output_dict[key].get('slot-label')))
-                    output_list.append("ibm,loc-code={}"
-                        .format(output_dict[key].get('loc-code')))
-                    log.debug("Investigate - PCI Root Path={}".format(key))
-                    log.debug("Investigate - {}"
-                        .format(lspci_mappings[key]))
-                    log.debug("Investigate - lspci={}"
-                        .format(lspci_dict.get(key)))
-                    log.debug("Investigate - ibm,slot-label={}"
-                        .format(output_dict[key].get('slot-label')))
-                    log.debug("Investigate - ibm,loc-code={}"
-                        .format(output_dict[key].get('loc-code')))
+                output_list.append("<----------------------"
+                                   "Investigate #{}---------------------->"
+                                   .format(count))
+                count += 1
+                output_list.append("PCI Path={}".format(key))
+                output_list.append("{}".format(lspci_mappings[key]))
+                output_list.append("ibm,slot-label={}"
+                                   .format(output_dict[key].get('slot-label')))
+                output_list.append("ibm,loc-code={}"
+                                   .format(output_dict[key].get('loc-code')))
+                log.debug("Investigate - PCI Root Path={}".format(key))
+                log.debug("Investigate - {}"
+                          .format(lspci_mappings[key]))
+                log.debug("Investigate - lspci={}"
+                          .format(lspci_dict.get(key)))
+                log.debug("Investigate - ibm,slot-label={}"
+                          .format(output_dict[key].get('slot-label')))
+                log.debug("Investigate - ibm,loc-code={}"
+                          .format(output_dict[key].get('loc-code')))
             else:
                 # this path just for logging
                 log.debug("PCI Root Path={}".format(key))
                 log.debug("{}"
-                    .format(lspci_mappings[key]))
+                          .format(lspci_mappings[key]))
                 log.debug("lspci={}"
-                    .format(lspci_dict.get(key)))
+                          .format(lspci_dict.get(key)))
                 log.debug("ibm,slot-label={}"
-                    .format(output_dict[key].get('slot-label')))
+                          .format(output_dict[key].get('slot-label')))
                 log.debug("ibm,loc-code={}"
-                    .format(output_dict[key].get('loc-code')))
+                          .format(output_dict[key].get('loc-code')))
 
         if len(output_list):
             failed_list = '\n'.join(filter(None, output_list))
             self.assertTrue(False, "PCI Root: Slot Label "
-                "or Loc Code Failures:\nBased on Platform "
-                "Slot Labels may not be present\n{}"
-                .format(failed_list))
+                            "or Loc Code Failures:\nBased on Platform "
+                            "Slot Labels may not be present\n{}"
+                            .format(failed_list))
+
 
 class SkirootDT(PciDT):
     '''
@@ -238,6 +243,7 @@ class SkirootDT(PciDT):
     def runTest(self):
         self.doit()
 
+
 class HostDT(PciDT):
     '''
     HostDT Class performs PCI DT checks in the Host OS
@@ -250,4 +256,3 @@ class HostDT(PciDT):
 
     def runTest(self):
         self.doit()
-

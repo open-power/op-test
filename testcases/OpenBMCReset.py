@@ -91,6 +91,7 @@ class OpenBMCRebootHostReboot(unittest.TestCase):
             log.info("Host ping test")
             self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.CMD_RETRY_BMC)
 
+
 class OpenBMCRebootHostRebootTorture(OpenBMCRebootHostReboot):
     def number_of_iteration(self):
         return 10
@@ -132,6 +133,7 @@ class OpenBMCRebootHostShutdown(unittest.TestCase):
             log.info("Waiting for Host to reach standby state")
             self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.CMD_RETRY_BMC)
 
+
 class OpenBMCRebootHostShutdownTorture(OpenBMCRebootHostShutdown):
     def number_of_iteration(self):
         return 10
@@ -170,8 +172,10 @@ class OpenBMCRebootHostTests(unittest.TestCase):
             self.cv_BMC.reboot_nowait()
 
             log.info("Running opal-prd tests")
-            self.c.run_command_ignore_fail("/bin/systemctl restart opal-prd.service")
-            self.c.run_command_ignore_fail("/bin/systemctl status opal-prd.service ")
+            self.c.run_command_ignore_fail(
+                "/bin/systemctl restart opal-prd.service")
+            self.c.run_command_ignore_fail(
+                "/bin/systemctl status opal-prd.service ")
 
             log.info("Running OCC tests")
             self.c.run_command_ignore_fail(BMC_CONST.OCC_RESET)
@@ -195,7 +199,8 @@ class OpenBMCRebootHostTests(unittest.TestCase):
             except CommandFailed as cf:
                 pass
             self.assertFalse(error,
-                             "Critical errors in Kernel log:\n%s" % msg);
+                             "Critical errors in Kernel log:\n%s" % msg)
+
 
 class OpenBMCRebootHostTestsTorture(OpenBMCRebootHostTests):
     def number_of_iteration(self):

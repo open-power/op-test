@@ -58,6 +58,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestHMIHandling(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -71,68 +72,78 @@ class OpTestHMIHandling(unittest.TestCase):
 
     def setUp(self):
         if self.cv_SYSTEM.get_state() == OpSystemState.UNKNOWN_BAD:
-          self.clear_stop()
+            self.clear_stop()
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.clearGardEntries()
         self.cv_HOST.host_enable_all_cores(console=1)
-        self.cpu = ''.join(self.cv_HOST.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'", console=1))
+        self.cpu = ''.join(self.cv_HOST.host_run_command(
+            "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'", console=1))
         if self.cpu in ["POWER9"]:
-            self.revision = ''.join(self.cv_HOST.host_run_command("grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
+            self.revision = ''.join(self.cv_HOST.host_run_command(
+                "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
             if not self.revision in ["2.0", "2.1", "2.2", "2.3"]:
                 log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
-                           .format(self.cpu, self.revision))
+                          .format(self.cpu, self.revision))
                 raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
-                                         .format(self.cpu, self.revision))
+                                        .format(self.cpu, self.revision))
 
-            log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(self.cpu, self.revision))
+            log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(
+                self.cpu, self.revision))
 
     def clear_stop(self):
         self.cv_SYSTEM.stop = 0
         self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         for i in range(3):
-          try:
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
-            self.clearGardEntries()
-            break
-          except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
-            log.debug("\n\n\nOpTestSystem OpTestHMIHandling clear_stop counter i={} (i=0 or i=1 can be seen recovering from failed test) Exception={}\n\n\n".format(i, e))
-            self.cv_SYSTEM.stop = 0
-            self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
+            try:
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                self.clearGardEntries()
+                break
+            except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
+                log.debug(
+                    "\n\n\nOpTestSystem OpTestHMIHandling clear_stop counter i={} (i=0 or i=1 can be seen recovering from failed test) Exception={}\n\n\n".format(i, e))
+                self.cv_SYSTEM.stop = 0
+                self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         else:
-          self.assertTrue(False, "OpTestHMIHandling failed to recover from previous OpSystemState.UNKNOWN_BAD")
+            self.assertTrue(
+                False, "OpTestHMIHandling failed to recover from previous OpSystemState.UNKNOWN_BAD")
 
     def handle_ipl(self):
-        rc = self.cv_SYSTEM.console.pty.expect(["ISTEP", "istep", pexpect.TIMEOUT, pexpect.EOF], timeout=180)
+        rc = self.cv_SYSTEM.console.pty.expect(
+            ["ISTEP", "istep", pexpect.TIMEOUT, pexpect.EOF], timeout=180)
         log.debug("before={}".format(self.cv_SYSTEM.console.pty.before))
         log.debug("after={}".format(self.cv_SYSTEM.console.pty.after))
-        if rc in [0,1]:
-          for i in range(3):
-            try:
-              self.cv_SYSTEM.set_state(OpSystemState.IPLing)
-              self.cv_SYSTEM.goto_state(OpSystemState.OS)
-              break
-            except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
-              log.debug("\n\n\nOpTestSystem OpTestHMIHandling handle_ipl counter i={} (i=0 or i=1 are common test results) Exception={}\n\n\n".format(i, e))
-              self.cv_SYSTEM.stop = 0
-          else:
-            self.clear_stop() # set the machine to recover for whatever comes next
-            self.assertTrue(False, "OpTestHMIHandling failed to normally recover after Error Injection")
+        if rc in [0, 1]:
+            for i in range(3):
+                try:
+                    self.cv_SYSTEM.set_state(OpSystemState.IPLing)
+                    self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                    break
+                except (UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem) as e:
+                    log.debug(
+                        "\n\n\nOpTestSystem OpTestHMIHandling handle_ipl counter i={} (i=0 or i=1 are common test results) Exception={}\n\n\n".format(i, e))
+                    self.cv_SYSTEM.stop = 0
+            else:
+                self.clear_stop()  # set the machine to recover for whatever comes next
+                self.assertTrue(
+                    False, "OpTestHMIHandling failed to normally recover after Error Injection")
         else:
-          self.clear_stop() # set the machine to recover for whatever comes next
-          self.assertTrue(False, "OpTestHMIHandling failed to get ISTEP/istep after Error Injection")
+            self.clear_stop()  # set the machine to recover for whatever comes next
+            self.assertTrue(
+                False, "OpTestHMIHandling failed to get ISTEP/istep after Error Injection")
 
     def verify_proc_recovery(self, l_res):
         if any("Processor Recovery done" in line for line in l_res) and \
-            any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
+                any("Harmless Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
             log.debug("Processor recovery done")
             return
         else:
-            raise Exception("HMI handling failed to log message: for proc_recv_done")
+            raise Exception(
+                "HMI handling failed to log message: for proc_recv_done")
 
     def verify_timer_facility_recovery(self, l_res):
         if any("Timer facility experienced an error" in line for line in l_res) and \
-            any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
+                any("Severe Hypervisor Maintenance interrupt [Recovered]" in line for line in l_res):
             log.debug("Timer facility experienced an error and got recovered")
             return
         else:
@@ -141,7 +152,8 @@ class OpTestHMIHandling(unittest.TestCase):
     def init_test(self):
         self.proc_gen = self.cv_HOST.host_get_proc_gen(console=1)
 
-        l_chips = self.cv_HOST.host_get_list_of_chips(console=1) # ['00000000', '00000001', '00000010']
+        l_chips = self.cv_HOST.host_get_list_of_chips(
+            console=1)  # ['00000000', '00000001', '00000010']
         if not l_chips:
             raise Exception("Getscom failed to list processor chip ids")
 
@@ -149,19 +161,20 @@ class OpTestHMIHandling(unittest.TestCase):
         if not l_cores:
             raise Exception("Failed to get list of core id's")
 
-        log.debug(l_cores) # {0: ['4', '5', '6', 'c', 'd', 'e'], 1: ['4', '5', '6', 'c', 'd', 'e'], 10: ['4', '5', '6', 'c', 'd', 'e']}
+        # {0: ['4', '5', '6', 'c', 'd', 'e'], 1: ['4', '5', '6', 'c', 'd', 'e'], 10: ['4', '5', '6', 'c', 'd', 'e']}
+        log.debug(l_cores)
         # Remove master core where injecting core checkstop leads to IPL expected failures
         # after 2 failures system will starts boot in Golden side of PNOR
         l_cores[0][1].pop(0)
         log.debug(l_cores)
         self.l_dic = []
-        i=0
+        i = 0
         for tup in l_cores:
             new_list = [l_chips[i], tup[1]]
             self.l_dic.append(new_list)
-            i+=1
+            i += 1
         log.debug(self.l_dic)
-        # self.l_dic is a list of chip id's, core id's . and is of below format 
+        # self.l_dic is a list of chip id's, core id's . and is of below format
         # [['00000000', ['4', '5', '6', 'c', 'd', 'e']], ['00000001', ['4', '5', '6', 'c', 'd', 'e']], ['00000010', ['4', '5', '6', 'c', 'd', 'e']]]
 
         # In-order to inject HMI errors on cpu's, cpu should be running, so disabling the sleep states 1 and 2 of all CPU's
@@ -170,12 +183,12 @@ class OpTestHMIHandling(unittest.TestCase):
         # Disable kdump to check behaviour of IPL caused due to kernel panic after injection of core/system checkstop
         self.disable_kdump_service()
 
-
     def disable_kdump_service(self):
         l_oslevel = self.cv_HOST.host_get_OS_Level(console=1)
         try:
             if "Ubuntu" in l_oslevel:
-                self.cv_HOST.host_run_command("service kdump-tools stop", console=1)
+                self.cv_HOST.host_run_command(
+                    "service kdump-tools stop", console=1)
             else:
                 self.cv_HOST.host_run_command("service kdump stop", console=1)
         except CommandFailed as cf:
@@ -193,16 +206,19 @@ class OpTestHMIHandling(unittest.TestCase):
 
     # Disable all CPU idle states except snooze state
     def disable_cpu_idle_states(self):
-        states = self.cv_HOST.host_run_command("find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'", console=1)
+        states = self.cv_HOST.host_run_command(
+            "find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'", console=1)
         for state in states:
             if state is "0":
                 try:
-                    self.cv_HOST.host_run_command("cpupower idle-set -e 0", console=1)
+                    self.cv_HOST.host_run_command(
+                        "cpupower idle-set -e 0", console=1)
                 except CommandFailed:
                     self.enable_idle_state("0")
                 continue
             try:
-                self.cv_HOST.host_run_command("cpupower idle-set -d %s" % state, console=1)
+                self.cv_HOST.host_run_command(
+                    "cpupower idle-set -d %s" % state, console=1)
             except CommandFailed:
                 self.disable_idle_state(state)
 
@@ -210,7 +226,8 @@ class OpTestHMIHandling(unittest.TestCase):
         if self.proc_gen in ["POWER8", "POWER8E"]:
             val = addr[0]+str(core)+addr[2:]
         elif self.proc_gen in ["POWER9"]:
-            val = hex(eval("0x%s | (((%s & 0x1f) + 0x20) << 24)" % (addr, int(core, 16))))
+            val = hex(eval("0x%s | (((%s & 0x1f) + 0x20) << 24)" %
+                           (addr, int(core, 16))))
             log.debug(val)
         return val
 
@@ -222,88 +239,101 @@ class OpTestHMIHandling(unittest.TestCase):
             # maybe add gard --dg to first check if None to skip power cycle ?
             res = self.cv_FSP.fspc.run_command("gard --clr all")
             self.assertIn("Success in clearing Gard Data", res,
-                "Failed to clear GARD entries")
+                          "Failed to clear GARD entries")
             log.debug(self.cv_FSP.fspc.run_command("gard --gc cpu"))
         else:
             my_term = self.cv_SYSTEM.console
             my_pty = my_term.get_console()
-            my_term.run_command("date") # just need to run to get console setup
+            # just need to run to get console setup
+            my_term.run_command("date")
             cmd_list_all = "PATH=/usr/local/sbin:$PATH opal-gard list all"
             my_pty.sendline(cmd_list_all)
-            rc = my_pty.expect([expect_prompt, "Clear the entire GUARD", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+            rc = my_pty.expect(
+                [expect_prompt, "Clear the entire GUARD", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
             log.debug("rc={}".format(rc))
             log.debug("list before={}".format(my_pty.before))
             log.debug("list after={}".format(my_pty.after))
             if rc == 0:
                 output = []
-                output += my_pty.before.replace("\r\r\n","\n").splitlines()
+                output += my_pty.before.replace("\r\r\n", "\n").splitlines()
                 try:
-                    del output[:1] # remove command from the list
+                    del output[:1]  # remove command from the list
                 except Exception as e:
-                    pass # nothing there
+                    pass  # nothing there
                 log.debug("LIST output={}".format(output))
                 if "No GARD entries to display" in output:
                     log.debug("No GARD, so keep on")
-                    return # all good so keep on
+                    return  # all good so keep on
                 else:
                     log.debug("GOT GARD to clear")
                     cmd_clear_all = "PATH=/usr/local/sbin:$PATH opal-gard clear all"
                     my_pty.sendline(cmd_clear_all)
-                    rc = my_pty.expect([expect_prompt, "Clear the entire GUARD", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+                    rc = my_pty.expect(
+                        [expect_prompt, "Clear the entire GUARD", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                     log.debug("GARD Clear rc={}".format(rc))
                     log.debug("GARD Clear before={}".format(my_pty.before))
                     log.debug("GARD Clear after={}".format(my_pty.after))
                     if rc == 0:
                         output = []
-                        output += my_pty.before.replace("\r\r\n","\n").splitlines()
+                        output += my_pty.before.replace(
+                            "\r\r\n", "\n").splitlines()
                         try:
-                            del output[:1] # remove command from the list
+                            del output[:1]  # remove command from the list
                         except Exception as e:
-                            pass # nothing there
+                            pass  # nothing there
                         log.debug("GARD Clear output={}".format(output))
                     if rc == 1:
                         my_pty.sendline("y")
-                        rc = my_pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+                        rc = my_pty.expect(
+                            [expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                         log.debug("GARD Clear Y rc={}".format(rc))
-                        log.debug("GARD Clear Y before={}".format(my_pty.before))
+                        log.debug(
+                            "GARD Clear Y before={}".format(my_pty.before))
                         log.debug("GARD Clear Y after={}".format(my_pty.after))
                         if rc != 0:
-                            self.assertTrue(False, "We failed to clear the GARD, review the debug log.")
+                            self.assertTrue(
+                                False, "We failed to clear the GARD, review the debug log.")
                         else:
                             log.debug("GARD CLEAR Y completed.")
             if rc in [1]:
                 my_pty.sendline("y")
-                rc = my_pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+                rc = my_pty.expect(
+                    [expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                 log.debug("LIST rc={}".format(rc))
                 log.debug("LIST before={}".format(my_pty.before))
                 log.debug("LIST after={}".format(my_pty.after))
                 if rc != 0:
-                    self.assertTrue(False, "We tried to clear the GARD, but did not get the prompt back")
+                    self.assertTrue(
+                        False, "We tried to clear the GARD, but did not get the prompt back")
                 else:
                     log.debug("GARD LIST Clear Y completed.")
-            elif rc in [2,3]: # we timed out, so we got something other than what we expected
-                self.assertTrue(False, "We timed out or EOF from trying to clear the GARD, review the debug log.")
+            elif rc in [2, 3]:  # we timed out, so we got something other than what we expected
+                self.assertTrue(
+                    False, "We timed out or EOF from trying to clear the GARD, review the debug log.")
 
             cmd_list_all = "PATH=/usr/local/sbin:$PATH opal-gard list all"
             my_pty.sendline(cmd_list_all)
-            rc = my_pty.expect([expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+            rc = my_pty.expect(
+                [expect_prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=60)
             log.debug("FINAL GARD LIST rc={}".format(rc))
             log.debug("FINAL before={}".format(my_pty.before))
             log.debug("FINAL after={}".format(my_pty.after))
             if rc == 0:
                 output = []
-                output += my_pty.before.replace("\r\r\n","\n").splitlines()
+                output += my_pty.before.replace("\r\r\n", "\n").splitlines()
                 try:
-                   del output[:1] # remove command from the list
+                    del output[:1]  # remove command from the list
                 except Exception as e:
-                   pass # nothing there
+                    pass  # nothing there
                 log.debug("FINAL output={}".format(output))
                 if "No GARD entries to display" not in output:
-                    self.assertTrue(False, "We failed to get the prompt back from trying to clear the GARD entries")
-                else: # we had something to clear and confirmed we cleared, but now we reboot
+                    self.assertTrue(
+                        False, "We failed to get the prompt back from trying to clear the GARD entries")
+                else:  # we had something to clear and confirmed we cleared, but now we reboot
                     log.debug("ALL confirmed clear GARD")
 
-        log.debug("We must have had GARD cleared, so we are going to Power OFF, then boot to OS")
+        log.debug(
+            "We must have had GARD cleared, so we are going to Power OFF, then boot to OS")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -330,7 +360,8 @@ class OpTestHMIHandling(unittest.TestCase):
         l_con = self.cv_SYSTEM.console
         l_con.run_command("uname -a")
         l_con.run_command("cat /etc/os-release")
-        l_con.run_command("lscpu") # bug https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1732865
+        # bug https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1732865
+        l_con.run_command("lscpu")
         l_con.run_command("dmesg -D")
         if l_test == BMC_CONST.HMI_PROC_RECV_DONE:
             self._test_proc_recv_done()
@@ -354,10 +385,14 @@ class OpTestHMIHandling(unittest.TestCase):
                 self._test_tod_errors(BMC_CONST.TOD_SYNC_CHECK_ERROR)
                 self._test_tod_errors(BMC_CONST.FSM_STATE_PARITY_ERROR)
                 self._test_tod_errors(BMC_CONST.MASTER_PATH_CONTROL_REGISTER)
-                self._test_tod_errors(BMC_CONST.PORT_0_PRIMARY_CONFIGURATION_REGISTER)
-                self._test_tod_errors(BMC_CONST.PORT_1_PRIMARY_CONFIGURATION_REGISTER)
-                self._test_tod_errors(BMC_CONST.PORT_0_SECONDARY_CONFIGURATION_REGISTER)
-                self._test_tod_errors(BMC_CONST.PORT_1_SECONDARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(
+                    BMC_CONST.PORT_0_PRIMARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(
+                    BMC_CONST.PORT_1_PRIMARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(
+                    BMC_CONST.PORT_0_SECONDARY_CONFIGURATION_REGISTER)
+                self._test_tod_errors(
+                    BMC_CONST.PORT_1_SECONDARY_CONFIGURATION_REGISTER)
                 self._test_tod_errors(BMC_CONST.SLAVE_PATH_CONTROL_REGISTER)
                 self._test_tod_errors(BMC_CONST.INTERNAL_PATH_CONTROL_REGISTER)
                 self._test_tod_errors(BMC_CONST.PR_SC_MS_SL_CONTROL_REGISTER)
@@ -391,26 +426,31 @@ class OpTestHMIHandling(unittest.TestCase):
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = self.form_scom_addr(scom_addr, l_core)
-                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000" % (l_chip, l_reg)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000100000" % (
+                    l_chip, l_reg)
                 # recoverable errors may not succeed all the time and
                 # ssh may terminate due to soft/hard lockups so use console
                 console = self.cv_SYSTEM.console
                 console.run_command("dmesg -C")
                 try:
-                    l_res = console.run_command(l_cmd,timeout=20)
+                    l_res = console.run_command(l_cmd, timeout=20)
                 except CommandFailed as cf:
                     l_res = cf.output
                     if cf.exitcode == 1:
                         pass
                     else:
                         if any("Kernel panic - not syncing" in line for line in l_res):
-                            raise Exception("Processor recovery failed: Kernel got panic")
+                            raise Exception(
+                                "Processor recovery failed: Kernel got panic")
                         elif any("Petitboot" in line for line in l_res):
-                            raise Exception("System reached petitboot:Processor recovery failed")
+                            raise Exception(
+                                "System reached petitboot:Processor recovery failed")
                         elif any("ISTEP" in line for line in l_res):
-                            raise Exception("System started booting: Processor recovery failed")
+                            raise Exception(
+                                "System started booting: Processor recovery failed")
                         else:
-                            raise Exception("Failed to inject thread hang recoverable error %s", str(cf))
+                            raise Exception(
+                                "Failed to inject thread hang recoverable error %s", str(cf))
                 time.sleep(0.2)
                 l_res = console.run_command("dmesg")
                 self.verify_proc_recovery(l_res)
@@ -431,7 +471,8 @@ class OpTestHMIHandling(unittest.TestCase):
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = self.form_scom_addr(scom_addr, l_core)
-                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000" % (l_chip, l_reg)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000080000" % (
+                    l_chip, l_reg)
                 # recoverable errors may not succeed all the time and
                 # ssh may terminate due to soft/hard lockups so use console
                 console = self.cv_SYSTEM.console
@@ -444,13 +485,17 @@ class OpTestHMIHandling(unittest.TestCase):
                         pass
                     else:
                         if any("Kernel panic - not syncing" in line for line in l_res):
-                            raise Exception("Processor recovery failed: Kernel got panic")
+                            raise Exception(
+                                "Processor recovery failed: Kernel got panic")
                         elif any("Petitboot" in line for line in l_res):
-                            raise Exception("System reached petitboot:Processor recovery failed")
+                            raise Exception(
+                                "System reached petitboot:Processor recovery failed")
                         elif any("ISTEP" in line for line in l_res):
-                            raise Exception("System started booting: Processor recovery failed")
+                            raise Exception(
+                                "System started booting: Processor recovery failed")
                         else:
-                            raise Exception("Failed to inject thread hang recoverable error %s", str(cf))
+                            raise Exception(
+                                "Failed to inject thread hang recoverable error %s", str(cf))
                 time.sleep(0.2)
                 l_res = console.run_command("dmesg")
                 self.verify_proc_recovery(l_res)
@@ -477,14 +522,16 @@ class OpTestHMIHandling(unittest.TestCase):
         l_core = random.choice(l_pair[1])
 
         l_reg = self.form_scom_addr(scom_addr, l_core)
-        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 1000000000000000" % (l_chip, l_reg)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 1000000000000000" % (
+            l_chip, l_reg)
 
         # Core checkstop will lead to system IPL, so we will wait for certain time for IPL
         # to finish
         # recoverable errors may not succeed all the time and
         # ssh may terminate due to soft/hard lockups so use console
         console = self.cv_SYSTEM.console
-        res = console.run_command("uname -a") # perform any command to make sure console is logged in
+        # perform any command to make sure console is logged in
+        res = console.run_command("uname -a")
 
         # now can send raw pexpect commands which assume log in
         console.pty.sendline(l_cmd)
@@ -510,10 +557,12 @@ class OpTestHMIHandling(unittest.TestCase):
         l_core = random.choice(l_pair[1])
 
         l_reg = self.form_scom_addr(scom_addr, l_core)
-        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (l_chip, l_reg)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s 0000000000008000" % (
+            l_chip, l_reg)
 
         console = self.cv_SYSTEM.console
-        res = console.run_command("uname -a") # perform any command to make sure console is logged in
+        # perform any command to make sure console is logged in
+        res = console.run_command("uname -a")
 
         # now can send raw pexpect commands which assume log in
         console.pty.sendline(l_cmd)
@@ -546,7 +595,8 @@ class OpTestHMIHandling(unittest.TestCase):
             l_chip = l_pair[0]
             for l_core in l_pair[1]:
                 l_reg = self.form_scom_addr(scom_addr, l_core)
-                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, l_reg, l_error)
+                l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (
+                    l_chip, l_reg, l_error)
                 # recoverable errors may not succeed all the time and
                 # ssh may terminate due to soft/hard lockups so use console
                 console = self.cv_SYSTEM.console
@@ -565,7 +615,8 @@ class OpTestHMIHandling(unittest.TestCase):
                         elif any("ISTEP" in line for line in l_res):
                             l_msg = "System started booting: TFMR error injection recovery failed"
                         else:
-                            raise Exception("Failed to inject TFMR error %s " % str(cf))
+                            raise Exception(
+                                "Failed to inject TFMR error %s " % str(cf))
 
                 time.sleep(0.2)
                 l_res = console.run_command("dmesg")
@@ -587,7 +638,8 @@ class OpTestHMIHandling(unittest.TestCase):
         l_pair = random.choice(self.l_dic)
         # Get random chip id
         l_chip = l_pair[0]
-        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
+        l_cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (
+            l_chip, BMC_CONST.TOD_ERROR_REG, l_error)
         console = self.cv_SYSTEM.console
         console.run_command("dmesg -C")
 
@@ -605,25 +657,32 @@ class OpTestHMIHandling(unittest.TestCase):
                 if any("Kernel panic - not syncing" in line for line in l_res):
                     log.debug("TOD ERROR Injection-kernel got panic")
                 elif any("login:" in line for line in l_res):
-                    log.debug("System booted to host OS without any kernel panic message")
+                    log.debug(
+                        "System booted to host OS without any kernel panic message")
                 elif any("Petitboot" in line for line in l_res):
-                    log.debug("System reached petitboot without any kernel panic message")
+                    log.debug(
+                        "System reached petitboot without any kernel panic message")
                 elif any("ISTEP" in line for line in l_res):
-                    log.debug("System started booting without any kernel panic message")
+                    log.debug(
+                        "System started booting without any kernel panic message")
                 else:
-                    raise Exception("TOD: PSS Hamming distance error injection failed %s", str(cf))
+                    raise Exception(
+                        "TOD: PSS Hamming distance error injection failed %s", str(cf))
         time.sleep(0.2)
         l_res = console.run_command("dmesg")
         self.verify_timer_facility_recovery(l_res)
         return
 
+
 class HMI_TFMR_ERRORS(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.TFMR_ERRORS)
 
+
 class TOD_ERRORS(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.TOD_ERRORS)
+
 
 class SingleCoreTOD_ERRORS(OpTestHMIHandling):
     def setUp(self):
@@ -633,27 +692,33 @@ class SingleCoreTOD_ERRORS(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.TOD_ERRORS)
 
+
 class PROC_RECOV_DONE(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_PROC_RECV_DONE)
 
+
 class PROC_RECV_ERROR_MASKED(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_PROC_RECV_ERROR_MASKED)
+
 
 class MalfunctionAlert(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
         self.clearGardEntries()
 
+
 class HypervisorResourceError(OpTestHMIHandling):
     def runTest(self):
         self._testHMIHandling(BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR)
         self.clearGardEntries()
 
+
 class ClearGard(OpTestHMIHandling):
     def runTest(self):
         self.clearGardEntries()
+
 
 def unrecoverable_suite():
     s = unittest.TestSuite()
@@ -662,6 +727,7 @@ def unrecoverable_suite():
     s.addTest(ClearGard())
     return s
 
+
 def suite():
     s = unittest.TestSuite()
     s.addTest(HMI_TFMR_ERRORS())
@@ -669,6 +735,7 @@ def suite():
     s.addTest(PROC_RECV_ERROR_MASKED())
     s.addTest(TOD_ERRORS())
     return s
+
 
 def experimental_suite():
     s = unittest.TestSuite()

@@ -66,11 +66,11 @@ class OpalUtils(unittest.TestCase):
         chips = self.cv_HOST.host_get_list_of_chips()
         cores = self.cv_HOST.host_get_cores()
         log.debug("cores: %s" % cores)
-        i=0
+        i = 0
         for tup in cores:
             new_list = [chips[i], tup[1]]
             self.l_dic.append(new_list)
-            i+=1
+            i += 1
         log.debug(self.l_dic)
 
     def disable_cpu_sleepstates(self):
@@ -111,20 +111,23 @@ class OpalUtils(unittest.TestCase):
         if self.cpu in ["POWER9"]:
             self.DOORBELL_REG = "D0063"
             value = "0x0800000000000000"
-            cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (chip, self.DOORBELL_REG, value)
+            cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (
+                chip, self.DOORBELL_REG, value)
             self.c.run_command(cmd)
             return
 
-        cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (chip, self.TFMR_PURR_REGISTER, value)
+        cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (
+            chip, self.TFMR_PURR_REGISTER, value)
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("SCOM write operation failed")
 
-        cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip, self.TFMR_PURR_REGISTER)
+        cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (
+            chip, self.TFMR_PURR_REGISTER)
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("SCOM read operation failed")
@@ -132,7 +135,7 @@ class OpalUtils(unittest.TestCase):
     def list_gard_records(self):
         cmd = "PATH=/usr/local/sbin:$PATH opal-gard list all"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("List gard records operation failed")
@@ -140,7 +143,7 @@ class OpalUtils(unittest.TestCase):
     def clear_gard_records(self):
         cmd = "PATH=/usr/local/sbin:$PATH opal-gard clear all"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("Clear gard records operation failed")
@@ -148,7 +151,7 @@ class OpalUtils(unittest.TestCase):
     def flash_info(self):
         cmd = "PATH=/usr/local/sbin:$PATH pflash --info"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("pflash info operation failed")
@@ -156,7 +159,7 @@ class OpalUtils(unittest.TestCase):
     def flash_read_part(self):
         cmd = "PATH=/usr/local/sbin:$PATH pflash -r /dev/stdout -P VERSION"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("pflash read PART operation failed")
@@ -164,7 +167,7 @@ class OpalUtils(unittest.TestCase):
     def flash_read_guard_part(self):
         cmd = "PATH=/usr/local/sbin:$PATH pflash -r /mnt/gard.bin -P GUARD"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("pflash read GUARD PART operation failed")
@@ -172,7 +175,7 @@ class OpalUtils(unittest.TestCase):
     def flash_erase_guard_part(self):
         cmd = "PATH=/usr/local/sbin:$PATH pflash -P GUARD -e -f"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("pflash erase GUARD operation failed")
@@ -180,11 +183,10 @@ class OpalUtils(unittest.TestCase):
     def flash_program_guard_part(self):
         cmd = "PATH=/usr/local/sbin:$PATH pflash -p /mnt/gard.bin -P GUARD -e -f"
         try:
-            res = self.c.run_command(cmd,timeout=120)
+            res = self.c.run_command(cmd, timeout=120)
         except CommandFailed as cf:
             log.debug(str(cf))
             raise Exception("pflash programme GUARD operation failed")
-
 
     def runTest(self):
         '''

@@ -47,6 +47,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
 
+
 class OpTestEnergyScale(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -91,6 +92,7 @@ class OpTestEnergyScale(unittest.TestCase):
             raise OpTestError(l_msg)
         return l_power_limit_low, l_power_limit_high
 
+
 class OpTestEnergyScaleStandby(OpTestEnergyScale):
     '''
     This test will test Energy scale features at standby state:
@@ -115,10 +117,12 @@ class OpTestEnergyScaleStandby(OpTestEnergyScale):
     5. Check after system booted to runtime, whether occ's are active or not.
     6. Again in runtime execute all dcmi commands to check the functionality.
     '''
+
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         print("Energy Scale Test 1: Get, Set, activate and deactivate platform power limit at power off")
-        l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
+        l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(
+            self.cv_PLATFORM)
 
         self.cv_IPMI.ipmi_sdr_clear()
         print(self.cv_IPMI.ipmi_get_power_limit())
@@ -169,11 +173,13 @@ class OpTestEnergyScaleRuntime(OpTestEnergyScale):
     5. Issue Power OFF/ON to check whether system boots after setting platform power limit at runtime.
     6. Again in runtime execute all dcmi commands to check the functionality.
     '''
+
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         print("Energy Scale Test 2: Get, Set, activate and deactivate platform power limit at runtime")
-        l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(self.cv_PLATFORM)
+        l_power_limit_low, l_power_limit_high = self.get_platform_power_limits(
+            self.cv_PLATFORM)
 
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         l_status = self.cv_IPMI.ipmi_get_occ_status()
@@ -208,6 +214,7 @@ class OpTestEnergyScaleRuntime(OpTestEnergyScale):
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
 
+
 class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
     '''
     Test below dcmi commands at both standby and runtime states ::
@@ -221,6 +228,7 @@ class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
       ipmitool dcmi get_conf_param   # Get DCMI Configuration Parameters.
       ipmitool dcmi oob_discover     # Ping/Pong Message for DCMI Discovery.
     '''
+
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
@@ -228,7 +236,8 @@ class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
         print("Performing a IPMI Power OFF Operation")
         # Perform a IPMI Power OFF Operation(Immediate Shutdown)
         self.cv_IPMI.ipmi_power_off()
-        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
+        rc = int(self.cv_SYSTEM.sys_wait_for_standby_state(
+            BMC_CONST.SYSTEM_STANDBY_STATE_DELAY))
         if rc == BMC_CONST.FW_SUCCESS:
             print("System is in standby/Soft-off state")
         elif rc == BMC_CONST.FW_PARAMETER:
@@ -246,6 +255,7 @@ class OpTestEnergyScaleDCMIstandby(OpTestEnergyScale):
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_TEMP_READING)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
+
 
 class OpTestEnergyScaleDCMIruntime(OpTestEnergyScale):
     def runTest(self):
@@ -271,11 +281,13 @@ class OpTestEnergyScaleDCMIruntime(OpTestEnergyScale):
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_GET_CONF_PARAM)
         self.run_ipmi_cmd(BMC_CONST.IPMI_DCMI_OOB_DISCOVER)
 
+
 def runtime_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestEnergyScaleRuntime())
     s.addTest(OpTestEnergyScaleDCMIruntime())
-    return s;
+    return s
+
 
 def standby_suite():
     s = unittest.TestSuite()

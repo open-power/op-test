@@ -55,7 +55,8 @@ class InstallUpstreamKernel(unittest.TestCase):
         if not self.repo:
             self.fail("Provide git repo of kernel to install")
         if not (self.conf.args.host_ip and self.conf.args.host_user and self.conf.args.host_password):
-            self.fail("Provide host ip user details refer, --host-{ip,user,password}")
+            self.fail(
+                "Provide host ip user details refer, --host-{ip,user,password}")
         if self.disk:
             OpIU = InstallUtil()
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -79,37 +80,47 @@ class InstallUpstreamKernel(unittest.TestCase):
         try:
             con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
             try:
-                onlinecpus = int(con.run_command("lscpu --online -e|wc -l")[-1])
+                onlinecpus = int(con.run_command(
+                    "lscpu --online -e|wc -l")[-1])
             except Exception:
                 onlinecpus = 20
             log.debug("Downloading linux kernel")
             # Compile and install given kernel
             linux_path = os.path.join(self.home, "linux")
-            con.run_command("[ -d %s ] || mkdir -p %s" % (self.home, self.home))
-            con.run_command("if [ -d %s ];then rm -rf %s;fi" % (linux_path, linux_path))
-            con.run_command("cd %s && git clone --depth 1  %s -b %s linux" % (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
+            con.run_command("[ -d %s ] || mkdir -p %s" %
+                            (self.home, self.home))
+            con.run_command("if [ -d %s ];then rm -rf %s;fi" %
+                            (linux_path, linux_path))
+            con.run_command("cd %s && git clone --depth 1  %s -b %s linux" %
+                            (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
             con.run_command("cd %s" % linux_path)
             if self.patch:
                 patch_file = self.patch.split("/")[-1]
                 if is_url(self.patch):
                     con.run_command("wget %s -O %s" % (self.patch, patch_file))
                 else:
-                    self.cv_HOST.copy_test_file_to_host(self.patch, dstdir=linux_path)
+                    self.cv_HOST.copy_test_file_to_host(
+                        self.patch, dstdir=linux_path)
                 log.debug("Applying given patch")
-                con.run_command("git am %s" % os.path.join(linux_path, patch_file))
+                con.run_command("git am %s" %
+                                os.path.join(linux_path, patch_file))
             log.debug("Downloading linux kernel config")
             if self.config_path:
                 if is_url(self.config_path):
                     con.run_command("wget %s -O .config" % self.config_path)
                 else:
-                    self.cv_HOST.copy_test_file_to_host(self.config_path, dstdir=os.path.join(linux_path, ".config"))
+                    self.cv_HOST.copy_test_file_to_host(
+                        self.config_path, dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
             log.debug("Compile and install linux kernel")
-            con.run_command("make -j %d -s && make modules && make modules_install && make install" % onlinecpus, timeout=self.host_cmd_timeout)
+            con.run_command("make -j %d -s && make modules && make modules_install && make install" %
+                            onlinecpus, timeout=self.host_cmd_timeout)
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
-                con.run_command('grubby --set-default /boot/vmlinuz-`cat include/config/kernel.release 2> /dev/null`')
-                con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
+                con.run_command(
+                    'grubby --set-default /boot/vmlinuz-`cat include/config/kernel.release 2> /dev/null`')
+                con.run_command(
+                    "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
                 log.debug("Rebooting after kernel install...")
                 self.console_thread.console_terminate()
                 con.close()
@@ -120,12 +131,16 @@ class InstallUpstreamKernel(unittest.TestCase):
                 cmdline = con.run_command("cat /proc/cmdline")[-1]
                 if self.append_kernel_cmdline:
                     cmdline += " %s" % self.append_kernel_cmdline
-                kern_rel_str = con.run_command("cat %s/include/config/kernel.release" % linux_path)[-1]
-                initrd_file = con.run_command("ls -l /boot/initr*-%s*" % kern_rel_str)[-1].split(" ")[-1]
-                kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinuz-%s -l" % (initrd_file, cmdline, kern_rel_str)
+                kern_rel_str = con.run_command(
+                    "cat %s/include/config/kernel.release" % linux_path)[-1]
+                initrd_file = con.run_command(
+                    "ls -l /boot/initr*-%s*" % kern_rel_str)[-1].split(" ")[-1]
+                kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinuz-%s -l" % (
+                    initrd_file, cmdline, kern_rel_str)
                 # Let's makesure we set the default boot index to current kernel
                 # to avoid leaving host in unstable state incase boot failure
-                con.run_command('grubby --set-default /boot/vmlinuz-`uname -r 2> /dev/null`')
+                con.run_command(
+                    'grubby --set-default /boot/vmlinuz-`uname -r 2> /dev/null`')
                 con.run_command(kexec_cmdline)
                 con.close()
                 raw_pty = self.cv_SYSTEM.console.get_console()
@@ -135,7 +150,8 @@ class InstallUpstreamKernel(unittest.TestCase):
             res = con.run_command("uname -r")
             log.info("Installed upstream kernel version: %s", res[-1])
             if self.conf.args.host_cmd:
-                con.run_command(self.conf.args.host_cmd, timeout=self.host_cmd_timeout)
+                con.run_command(self.conf.args.host_cmd,
+                                timeout=self.host_cmd_timeout)
             self.cv_HOST.host_gather_opal_msg_log()
             self.cv_HOST.host_gather_kernel_log()
         finally:

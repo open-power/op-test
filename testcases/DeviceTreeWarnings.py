@@ -42,6 +42,7 @@ class DeviceTreeWarnings():
     '''
     Look at the warnings from ``dtc``, filtering out any known issues.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()

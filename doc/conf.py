@@ -38,7 +38,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
               'sphinx.ext.githubpages',
               'sphinxarg.ext',
-]
+              ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -97,11 +97,11 @@ html_theme = 'alabaster'
 # documentation.
 #
 html_theme_options = {
-    'github_user' : 'open-power',
-    'github_repo' : 'op-test-framework',
-    'github_button' : True,
-    'github_banner' : True,
-    'travis_button' : True,
+    'github_user': 'open-power',
+    'github_repo': 'op-test-framework',
+    'github_button': True,
+    'github_banner': True,
+    'travis_button': True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -179,8 +179,6 @@ texinfo_documents = [
      author, 'op-test-framework', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
 
 
 # Example configuration for intersphinx: refer to the Python standard library.

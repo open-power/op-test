@@ -39,6 +39,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestIPMI import IPMIConsoleState
 from common.Exceptions import CommandFailed
 
+
 class NX842(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -57,7 +58,8 @@ class NX842(unittest.TestCase):
         elif self.test == "host":
             self.system.goto_state(OpSystemState.OS)
             kernel = self.host.host_get_kernel_version()
-            self.host.host_load_module_based_on_config(kernel, "CONFIG_ZRAM", "zram")
+            self.host.host_load_module_based_on_config(
+                kernel, "CONFIG_ZRAM", "zram")
             self.c = self.host.get_ssh_connection()
         else:
             raise Exception("Unknow test type")
@@ -83,16 +85,17 @@ class NX842(unittest.TestCase):
         d = c.run_command("mktemp -d")
         d = d[0]
         c.run_command("mount /dev/zram0 %s" % d)
-        c.run_command("dd if=/dev/zero of=%s bs=1024 count=1024" % (d + "/foo"))
+        c.run_command("dd if=/dev/zero of=%s bs=1024 count=1024" %
+                      (d + "/foo"))
         c.run_command("dmesg > %s" % (d + "/dmsg"))
         c.run_command("sync")
         stats = c.run_command("cat /sys/block/zram0/stat")
         stats = stats[0].split()
         # See linux/Documentation/ABI/testing/sysfs-block
         # We use 1 index to match docs
-        self.assertGreater(stats[1-1], 1) # reads
-        self.assertGreater(stats[5-1], 1) # writes
+        self.assertGreater(stats[1-1], 1)  # reads
+        self.assertGreater(stats[5-1], 1)  # writes
         mod_usage = c.run_command("lsmod|grep nx_compress_powernv")[0].split()
-        self.assertGreater(mod_usage[2], 0) # Should be being used by module
+        self.assertGreater(mod_usage[2], 0)  # Should be being used by module
         c.run_command("umount %s" % d)
         c.run_command("echo 1 > /sys/block/zram0/reset")

@@ -40,7 +40,8 @@ lock command then one can access only specific whitelisted in-band ipmi commands
 
 import time
 import subprocess
-import re, sys
+import re
+import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
@@ -51,6 +52,7 @@ from common.OpTestSystem import OpSystemState
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class OpTestIPMILockMode(unittest.TestCase):
     '''
@@ -78,9 +80,10 @@ class OpTestIPMILockMode(unittest.TestCase):
         self.platform = conf.platform()
 
     def runTest(self):
-        #FIXME: detect and don't hardcode
-        if not self.platform in ['habanero','firestone','garrison', 'p9dsu']:
-            raise unittest.SkipTest("Platform %s doesn't support IPMI Lockdown mode" % self.platform)
+        # FIXME: detect and don't hardcode
+        if not self.platform in ['habanero', 'firestone', 'garrison', 'p9dsu']:
+            raise unittest.SkipTest(
+                "Platform %s doesn't support IPMI Lockdown mode" % self.platform)
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -116,7 +119,8 @@ class OpTestIPMILockMode(unittest.TestCase):
             log.debug(sys.exc_info())
         finally:
             # Issue a ipmi unlock command at the end of test.
-            log.debug("Issuing ipmi unlock command through authenticated interface")
+            log.debug(
+                "Issuing ipmi unlock command through authenticated interface")
             self.cv_IPMI.exit_ipmi_lockdown_mode()
 
     def run_inband_ipmi_whitelisted_cmds(self):
@@ -156,7 +160,8 @@ class OpTestIPMILockMode(unittest.TestCase):
         # 7. [Storage] Set SEL time (required for RTC)
         log.debug("Testing Set SEL time")
         l_res = l_con.run_command(BMC_CONST.HOST_GET_SEL_TIME)
-        l_res = l_con.run_command(BMC_CONST.HOST_SET_SEL_TIME + " \'" + l_res[-1] + "\'")
+        l_res = l_con.run_command(
+            BMC_CONST.HOST_SET_SEL_TIME + " \'" + l_res[-1] + "\'")
         l_con.run_command(BMC_CONST.HOST_GET_SEL_TIME)
 
         # 8. [Transport] Get LAN parameters
@@ -179,15 +184,18 @@ class OpTestIPMILockMode(unittest.TestCase):
 
         # 12. [App] Set BMC Global Enables
         log.debug("Testing Set BMC Global Enables")
-        l_res = l_con.run_command(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_OFF)
+        l_res = l_con.run_command(
+            BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_OFF)
         l_con.run_command(BMC_CONST.HOST_GET_BMC_GLOBAL_ENABLES)
         l_con.run_command(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON)
 
         # 13.[App] Get System Interface Capabilities
         if not self.platform in ['p9dsu']:
             log.debug("Testing Get System Interface Capabilities")
-            l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF)
-            l_res = l_con.run_command(BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS)
+            l_res = l_con.run_command(
+                BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF)
+            l_res = l_con.run_command(
+                BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS)
 
         # 14.[App] Get Message Flags
         log.debug("Testing Get Message Flags")
@@ -199,7 +207,8 @@ class OpTestIPMILockMode(unittest.TestCase):
 
         # 16. [App] Clear Message Flags
         log.debug("Testing Clear Message Flags")
-        l_res = l_con.run_command_ignore_fail(BMC_CONST.HOST_CLEAR_MESSAGE_FLAGS)
+        l_res = l_con.run_command_ignore_fail(
+            BMC_CONST.HOST_CLEAR_MESSAGE_FLAGS)
 
         if not self.platform in ['p9dsu']:
             # 17. [OEM] PNOR Access Status
@@ -217,12 +226,12 @@ class OpTestIPMILockMode(unittest.TestCase):
         log.debug("Checking for Reserved entry creation in SEL")
         log.debug(l_res)
         if "eserved" not in l_res:
-            raise Exception("IPMI: Add SEL Entry command, doesn't create an SEL event")
+            raise Exception(
+                "IPMI: Add SEL Entry command, doesn't create an SEL event")
 
         # 19. [App] Set Power State
         log.debug("Testing Set Power State")
         l_res = l_con.run_command(BMC_CONST.HOST_SET_ACPI_POWER_STATE)
-
 
         # 20.[Sensor/Event] Platform Event (0x02)
         log.debug("Testing Platform Event")
@@ -230,12 +239,12 @@ class OpTestIPMILockMode(unittest.TestCase):
         l_res = l_con.run_command(BMC_CONST.HOST_PLATFORM_EVENT)
         l_res = self.cv_IPMI.last_sel()
         if "eserved" not in l_res:
-            raise Exception("IPMI: Platform Event command failed to log SEL event")
+            raise Exception(
+                "IPMI: Platform Event command failed to log SEL event")
 
         # 21.[Chassis] Chassis Control
         log.debug("Testing chassis power on")
         l_res = l_con.run_command(BMC_CONST.HOST_CHASSIS_POWER_ON)
-
 
         # 22. [App] Get ACPI Power State (0x06)
         log.debug("Testing Get ACPI Power State")
@@ -252,23 +261,24 @@ class OpTestIPMILockMode(unittest.TestCase):
         # 24. [Sensor/Event] Get Sensor Type
         log.debug("Testing Get Sensor Type")
         l_res = self.cv_IPMI.sdr_get_watchdog()
-        matchObj = re.search( "Watchdog \((0x\d{1,})\)", l_res)
+        matchObj = re.search("Watchdog \((0x\d{1,})\)", l_res)
         if matchObj:
             log.debug("Got sensor Id for watchdog: %s" % matchObj.group(1))
         else:
             raise Exception("Failed to get sensor id for watchdog sensor")
-        l_res = l_con.run_command(BMC_CONST.HOST_GET_SENSOR_TYPE_FOR_WATCHDOG + " " + matchObj.group(1))
+        l_res = l_con.run_command(
+            BMC_CONST.HOST_GET_SENSOR_TYPE_FOR_WATCHDOG + " " + matchObj.group(1))
 
         # 25.[Sensor/Event] Get Sensor Reading
         log.debug("Testing Get Sensor Reading")
         l_res = self.cv_IPMI.sdr_get_watchdog()
-        matchObj = re.search( "Watchdog \((0x\d{1,})\)", l_res)
+        matchObj = re.search("Watchdog \((0x\d{1,})\)", l_res)
         if matchObj:
             log.debug("Got sensor Id for watchdog: %s" % matchObj.group(1))
         else:
             raise Exception("Failed to get sensor id for watchdog sensor")
-        l_res = l_con.run_command(BMC_CONST.HOST_GET_SENSOR_READING + " " + matchObj.group(1))
-
+        l_res = l_con.run_command(
+            BMC_CONST.HOST_GET_SENSOR_READING + " " + matchObj.group(1))
 
         # 26. [OEM] PNOR Access Response (0x08)
         log.debug("Testing PNOR Access Response")
@@ -287,7 +297,7 @@ class OpTestIPMILockMode(unittest.TestCase):
         l_res = l_con.run_command(BMC_CONST.HOST_RESET_WATCHDOG)
 
         l_res = ''
-        for x in range(0,25):
+        for x in range(0, 25):
             # Reset watchdog should create a SEL event log
             log.debug("# Looking for Watchdog SEL event try %d" % x)
             l_res = self.cv_IPMI.last_sel()
@@ -297,8 +307,8 @@ class OpTestIPMILockMode(unittest.TestCase):
             time.sleep(1)
 
         if "Watchdog" not in l_res:
-            raise Exception("IPMI: Reset Watchdog command, doesn't create an SEL event")
-
+            raise Exception(
+                "IPMI: Reset Watchdog command, doesn't create an SEL event")
 
         # Below commands will effect sensors and fru values and some care to be taken for
         # executing.

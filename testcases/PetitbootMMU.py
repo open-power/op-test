@@ -35,6 +35,7 @@ from common.OpTestSystem import OpSystemState
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class PetitbootMMU(unittest.TestCase):
 
     def setUp(self):
@@ -48,13 +49,18 @@ class PetitbootMMU(unittest.TestCase):
         self.c = self.cv_SYSTEM.console
 
         log.debug("Scraping /proc/cpuinfo for CPU and MMU info")
-        cpu = self.c.run_command("awk '$1 == \"cpu\" {print $3}' /proc/cpuinfo | uniq")[0].strip(',')
-        mmu = self.c.run_command("awk '$1 == \"MMU\" {print $3}' /proc/cpuinfo")[0]
+        cpu = self.c.run_command(
+            "awk '$1 == \"cpu\" {print $3}' /proc/cpuinfo | uniq")[0].strip(',')
+        mmu = self.c.run_command(
+            "awk '$1 == \"MMU\" {print $3}' /proc/cpuinfo")[0]
         log.debug("Got CPU '{}' and MMU '{}'".format(cpu, mmu))
 
         if cpu == 'POWER8':
-            self.assertEqual(mmu, 'Hash', 'Expect hash MMU on Power8, found {}'.format(mmu))
+            self.assertEqual(
+                mmu, 'Hash', 'Expect hash MMU on Power8, found {}'.format(mmu))
         elif cpu == 'POWER9':
-            self.assertEqual(mmu, 'Radix', 'Expect radix MMU on Power9, found {}'.format(mmu))
+            self.assertEqual(
+                mmu, 'Radix', 'Expect radix MMU on Power9, found {}'.format(mmu))
         else:
-            self.skipTest("Unknown CPU '{}', please update testcase to support this CPU")
+            self.skipTest(
+                "Unknown CPU '{}', please update testcase to support this CPU")

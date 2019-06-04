@@ -9,6 +9,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.OpTestKeys import OpTestKeys as keys
 
+
 class PetitbootCancelBoot(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -19,6 +20,7 @@ class PetitbootCancelBoot(unittest.TestCase):
         self.system.sys_power_on()
 
         self.system.state = OpSystemState.PETITBOOT
+
 
 class TestCancel(PetitbootCancelBoot):
     def runTest(self):
@@ -31,7 +33,6 @@ class TestCancel(PetitbootCancelBoot):
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         result = self.system.console.run_command_ignore_fail(
-                "grep \"Cancelling default\" " +
-                "/var/log/petitboot/pb-discover.log")
+            "grep \"Cancelling default\" " +
+            "/var/log/petitboot/pb-discover.log")
         assert("Cancelling default" in result, "Autoboot was not cancelled")
-

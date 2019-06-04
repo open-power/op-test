@@ -33,6 +33,6 @@ Some existing code uses this, and it should be gradually converted to use
 more specialized exceptions.
 """
 
+
 class OpTestError(Exception):
     pass
-

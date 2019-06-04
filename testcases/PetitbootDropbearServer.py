@@ -50,6 +50,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class PetitbootDropbearServer(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf

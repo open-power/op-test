@@ -49,6 +49,7 @@ class OpSOLMonitorThread(threading.Thread):
     This thread just monitors the SOL console for any failures when tests are running
     on other SSH threads
     '''
+
     def __init__(self, threadID, name, execution_time=None):
         threading.Thread.__init__(self)
         self.threadID = threadID
@@ -60,7 +61,7 @@ class OpSOLMonitorThread(threading.Thread):
         logfile = os.path.join(conf.output, "console.log")
         self.sol_logger(logfile)
         self.c = self.system.console.get_console(logger=self.logger)
-        self.c_terminate = False;
+        self.c_terminate = False
 
     def run(self):
         log.debug("Starting %s" % self.name)
@@ -105,12 +106,14 @@ class OpSOLMonitorThread(threading.Thread):
 
     def sol_logger(self, logfile):
         '''
-	Non fomated console log.
+        Non fomated console log.
         '''
         self.logger = logging.getLogger("sol-thread")
         self.logger.setLevel(logging.DEBUG)
-        file_handler = RotatingFileHandler(logfile, maxBytes=2000000, backupCount=10)
+        file_handler = RotatingFileHandler(
+            logfile, maxBytes=2000000, backupCount=10)
         self.logger.addHandler(file_handler)
+
 
 class OpSOLMonitorThreadVM(threading.Thread):
     '''
@@ -118,6 +121,7 @@ class OpSOLMonitorThreadVM(threading.Thread):
     on other SSH threads. This thread can be terminated by just calling console_terminate
     from parent process.
     '''
+
     def __init__(self):
         threading.Thread.__init__(self)
         conf = OpTestConfiguration.conf

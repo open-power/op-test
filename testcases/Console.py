@@ -55,7 +55,7 @@ class Console():
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         console = self.cv_BMC.get_host_console()
-        adjustment = 3 # mambo echo now disabled in initial setup
+        adjustment = 3  # mambo echo now disabled in initial setup
         bs = self.bs
         count = self.count
         self.assertTrue((bs * count) % 16 == 0,
@@ -136,7 +136,7 @@ class ControlC(unittest.TestCase):
         timeout = 60
         try:
             rc = raw_pty.expect([BMC_DISCONNECT, self.prompt,
-                                     pexpect.TIMEOUT, pexpect.EOF], timeout)
+                                 pexpect.TIMEOUT, pexpect.EOF], timeout)
             if rc == 0:
                 raise BMCDisconnected(BMC_DISCONNECT)
             self.assertEqual(rc, 1, "Failed to find expected prompt")

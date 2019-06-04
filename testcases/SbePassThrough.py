@@ -43,6 +43,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class SbePassThrough(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -54,10 +55,12 @@ class SbePassThrough(unittest.TestCase):
 
     def setup_init(self):
         self.c.run_command("dmesg -D")
-        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        self.cpu = ''.join(self.c.run_command(
+            "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
 
         if self.cpu not in ["POWER9"]:
-            self.skipTest("SBE passthrough test not supported on %s" % self.cpu)
+            self.skipTest(
+                "SBE passthrough test not supported on %s" % self.cpu)
 
         if self.cpu == "POWER9":
             self.DOORBELL_REG = "D0063"
@@ -73,7 +76,8 @@ class SbePassThrough(unittest.TestCase):
         for i in range(31):
             self.data = " ".join(self.c.run_command_ignore_fail(cmd))
             if "SBEIO:<< process_sbe_msg" in self.data:
-                log.debug("OPAL Processed the SBE interrupt and called HBRT accordingly")
+                log.debug(
+                    "OPAL Processed the SBE interrupt and called HBRT accordingly")
                 return True
             time.sleep(2)
         else:
@@ -100,24 +104,27 @@ class SbePassThrough(unittest.TestCase):
             log.debug("pid_res={}".format(pid_res))
         except Exception as e:
             log.debug("Unable to start opal-prd.service or keep opal-prd running,"
-                " unable to run test, Exception={}".format(e))
+                      " unable to run test, Exception={}".format(e))
             self.assertTrue(False, "Unable to start opal-prd.service or keep "
-                "opal-prd running, unable to run test, raise a bug {}".format(e))
+                            "opal-prd running, unable to run test, raise a bug {}".format(e))
         self.setup_init()
         for i in range(0, 2):
             for chip in self.chips:
                 self.setup_opalprd_logs()
-                cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (chip, self.DOORBELL_REG)
+                cmd = "PATH=/usr/local/sbin:$PATH getscom -c %s %s" % (
+                    chip, self.DOORBELL_REG)
                 self.c.run_command(cmd)
                 value = "0x0800000000000000"
-                cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (chip, self.DOORBELL_REG, value)
+                cmd = "PATH=/usr/local/sbin:$PATH putscom -c %s %s %s" % (
+                    chip, self.DOORBELL_REG, value)
                 self.c.run_command(cmd)
-                self.assertTrue(self.is_sbe_interrupt_processed(), "OPAL Failed to process the SBE Interrupt")
-                self.assertTrue(self.is_sel_sent_to_bmc(), "HBRT/Host failed to send the eSEL to MC/SP")
+                self.assertTrue(self.is_sbe_interrupt_processed(),
+                                "OPAL Failed to process the SBE Interrupt")
+                self.assertTrue(self.is_sel_sent_to_bmc(),
+                                "HBRT/Host failed to send the eSEL to MC/SP")
                 log.debug(self.cv_SYSTEM.sys_get_sel_list())
                 sels = " ".join(self.c.run_command("ipmitool sel list"))
                 if 'SEL has no entries' in sels:
                     self.assertTrue(False, "SP/MC is failed to log eSEL")
                 elif "OEM record df | 040020" in sels:
                     log.debug("SEL is properly committed and logged by SP/MC")
-

@@ -63,6 +63,7 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
     git repository and check for switch_endian_test directory and make
     the required files. And finally execute bin file switch_endian_test.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()

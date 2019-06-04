@@ -38,6 +38,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class RuntimeEMStress(unittest.TestCase, OpTestEM):
     '''
     Stress test for Energy management/OCC functionalities in FW/OPAL/Linux.
@@ -48,12 +49,13 @@ class RuntimeEMStress(unittest.TestCase, OpTestEM):
     # CPU Governor change tests
     # OCC Reset reload tests
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.host = conf.host()
-        self.torture_time = 780 # 12 hours
+        self.torture_time = 780  # 12 hours
         self.bmc_type = conf.args.bmc_type
         self.thread_list = []
         self.tlbie_count = 2
@@ -71,7 +73,8 @@ class RuntimeEMStress(unittest.TestCase, OpTestEM):
         # kill any previous existing tlbie_test processes
         self.host.ssh.run_command_ignore_fail("pkill -f /tmp/tlbie_test")
         self.host.copy_test_file_to_host("tlbie_test.c")
-        self.host.host_run_command("gcc -pthread -o /tmp/tlbie_test /tmp/tlbie_test.c")
+        self.host.host_run_command(
+            "gcc -pthread -o /tmp/tlbie_test /tmp/tlbie_test.c")
         cmd = "/tmp/tlbie_test &"
         for i in range(self.tlbie_count):
             self.host.host_run_command(cmd)
@@ -87,7 +90,8 @@ class RuntimeEMStress(unittest.TestCase, OpTestEM):
             cmd = "for j in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo %s > $j; done" % gov
             cmd_list.append(cmd)
         num = 1
-        thread = OpSSHThreadLinearVar1(num, "Thread-%s" % num, cmd_list, 2, torture_time, True)
+        thread = OpSSHThreadLinearVar1(
+            num, "Thread-%s" % num, cmd_list, 2, torture_time, True)
         thread.start()
         self.thread_list.append(thread)
 
@@ -107,15 +111,18 @@ class RuntimeEMStress(unittest.TestCase, OpTestEM):
         log.debug(cmd_list)
 
         num = 2
-        thread = OpSSHThreadLinearVar2(num, "Thread-%s" % num, cmd_list, torture_time, True)
+        thread = OpSSHThreadLinearVar2(
+            num, "Thread-%s" % num, cmd_list, torture_time, True)
         thread.start()
         self.thread_list.append(thread)
 
         torture_time = self.torture_time
         # OCC reset reload tests
-        cmd_list = {"opal-prd occ reset":60, "opal-prd --expert-mode htmgt-passthru 4":10}
+        cmd_list = {"opal-prd occ reset": 60,
+                    "opal-prd --expert-mode htmgt-passthru 4": 10}
         num = 3
-        thread = OpSSHThreadLinearVar2(num, "Thread-%s" % num, cmd_list, torture_time, True)
+        thread = OpSSHThreadLinearVar2(
+            num, "Thread-%s" % num, cmd_list, torture_time, True)
         thread.start()
         self.thread_list.append(thread)
 
@@ -130,23 +137,25 @@ class RuntimeEMStress(unittest.TestCase, OpTestEM):
             for core in range(1, num_avail_cores + 1):
                 cmd_list.append("ppc64_cpu --cores-on=%s" % core)
         num = 4
-        thread = OpSSHThreadLinearVar1(num, "Thread-%s" % num, cmd_list, 5, torture_time, True)
+        thread = OpSSHThreadLinearVar1(
+            num, "Thread-%s" % num, cmd_list, 5, torture_time, True)
         thread.start()
         self.thread_list.append(thread)
-
 
         # Read frequency
         torture_time = self.torture_time
         cmd_list = ['ppc64_cpu --frequency']
         num = 5
-        thread = OpSSHThreadLinearVar1(num, "Thread-%s" % num, cmd_list, 2, torture_time, True)
+        thread = OpSSHThreadLinearVar1(
+            num, "Thread-%s" % num, cmd_list, 2, torture_time, True)
         thread.start()
         self.thread_list.append(thread)
 
         # Monitor for errors
         num = 6
         torture_time = self.torture_time
-        thread = OpSOLMonitorThread(num, "Thread-%s" % num, execution_time=torture_time)
+        thread = OpSOLMonitorThread(num, "Thread-%s" %
+                                    num, execution_time=torture_time)
         thread.start()
         self.thread_list.append(thread)
 

@@ -34,6 +34,7 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
+
 class OobIpmiThread(threading.Thread):
     def __init__(self, threadID, name, cmd, execution_time):
         threading.Thread.__init__(self)
@@ -92,6 +93,7 @@ class InbandIpmiThread(threading.Thread):
                 break
             time.sleep(2)
 
+
 class SolConsoleThread(threading.Thread):
     def __init__(self, threadID, name, test, execution_time):
         threading.Thread.__init__(self)
@@ -133,6 +135,7 @@ class SolConsoleThread(threading.Thread):
             if time.time() > execution_time:
                 break
 
+
 class IpmiInterfaceTorture(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -147,11 +150,13 @@ class IpmiInterfaceTorture(unittest.TestCase):
         self.thread_list = []
         # OOB IPMI Torture
         torture_time = self.torture_time
-        cmd_list = ["sdr list", "fru print", "sel list", "sensor list","power status"]
-        for j in range(1,3):
+        cmd_list = ["sdr list", "fru print",
+                    "sel list", "sensor list", "power status"]
+        for j in range(1, 3):
             for idx, cmd in enumerate(cmd_list):
                 num = j*(idx + 1)
-                thread = OobIpmiThread(num, "Thread-%s" % num, cmd, torture_time)
+                thread = OobIpmiThread(num, "Thread-%s" %
+                                       num, cmd, torture_time)
                 thread.start()
                 self.thread_list.append(thread)
 
@@ -162,11 +167,13 @@ class IpmiInterfaceTorture(unittest.TestCase):
             return
 
         # In-band IPMI Torture (Open Interface)
-        cmd_list = ["sdr list", "fru print", "sel list", "sensor list","power status"]
-        for j in range(1,3):
+        cmd_list = ["sdr list", "fru print",
+                    "sel list", "sensor list", "power status"]
+        for j in range(1, 3):
             for idx, cmd in enumerate(cmd_list):
                 num = j*(idx + 1)
-                thread = InbandIpmiThread(num, "Thread-%s" % num, BMC_CONST.IPMITOOL_OPEN, cmd, torture_time)
+                thread = InbandIpmiThread(
+                    num, "Thread-%s" % num, BMC_CONST.IPMITOOL_OPEN, cmd, torture_time)
                 thread.start()
                 self.thread_list.append(thread)
 
@@ -174,9 +181,11 @@ class IpmiInterfaceTorture(unittest.TestCase):
             return
 
         # In-band IPMI Torture (USB Interface)
-        cmd_list = ["sdr list", "fru print", "sel list", "sensor list","power status"]
+        cmd_list = ["sdr list", "fru print",
+                    "sel list", "sensor list", "power status"]
         for idx, cmd in enumerate(cmd_list):
-            thread = InbandIpmiThread(idx, "Thread-%s" % idx, BMC_CONST.IPMITOOL_USB, cmd, torture_time)
+            thread = InbandIpmiThread(
+                idx, "Thread-%s" % idx, BMC_CONST.IPMITOOL_USB, cmd, torture_time)
             thread.start()
             self.thread_list.append(thread)
 
@@ -184,6 +193,7 @@ class IpmiInterfaceTorture(unittest.TestCase):
         # wait for all the threads to finish
         for thread in self.thread_list:
             thread.join()
+
 
 class ConsoleIpmiTorture(unittest.TestCase):
     def setUp(self):
@@ -197,11 +207,13 @@ class ConsoleIpmiTorture(unittest.TestCase):
         # OOB IPMI Torture
         torture_time = self.torture_time
         self.thread_list = []
-        cmd_list = ["sdr list", "fru print", "sel list", "sensor list","power status"]
-        for j in range(1,3):
+        cmd_list = ["sdr list", "fru print",
+                    "sel list", "sensor list", "power status"]
+        for j in range(1, 3):
             for idx, cmd in enumerate(cmd_list):
                 num = j*(idx + 1)
-                thread = OobIpmiThread(num, "Thread-%s" % num, cmd, torture_time)
+                thread = OobIpmiThread(num, "Thread-%s" %
+                                       num, cmd, torture_time)
                 thread.start()
                 self.thread_list.append(thread)
 
@@ -211,18 +223,21 @@ class ConsoleIpmiTorture(unittest.TestCase):
         if "skiroot" in self.test:
             return
 
-        return # Don't enable below inband ipmi torture, console and ssh sessions make the o/p clutter
+        return  # Don't enable below inband ipmi torture, console and ssh sessions make the o/p clutter
         # In-band IPMI Torture
-        cmd_list = ["sdr list", "fru print", "sel list", "sensor list","power status"]
-        for j in range(1,3):
+        cmd_list = ["sdr list", "fru print",
+                    "sel list", "sensor list", "power status"]
+        for j in range(1, 3):
             for idx, cmd in enumerate(cmd_list):
                 num = j*(idx + 1)
-                thread = InbandIpmiThread(num, "Thread-%s" % num, BMC_CONST.IPMITOOL_OPEN, cmd, torture_time)
+                thread = InbandIpmiThread(
+                    num, "Thread-%s" % num, BMC_CONST.IPMITOOL_OPEN, cmd, torture_time)
                 thread.start()
                 self.thread_list.append(thread)
 
     def console_torture(self):
-        thread = SolConsoleThread(1, "SOL-Thread", self.test, self.torture_time)
+        thread = SolConsoleThread(
+            1, "SOL-Thread", self.test, self.torture_time)
         thread.start()
         self.thread_list.append(thread)
 
@@ -235,6 +250,7 @@ class ConsoleIpmiTorture(unittest.TestCase):
         # Wait for all the thread to finish
         for thread in self.thread_list:
             thread.join()
+
 
 class SkirootConsoleTorture(ConsoleIpmiTorture):
     def setup_test(self):
@@ -249,23 +265,27 @@ class SkirootIpmiTorture(IpmiInterfaceTorture):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
 
+
 class RuntimeConsoleTorture(ConsoleIpmiTorture):
     def setup_test(self):
-	self.test = "runtime"
+        self.test = "runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.console
 
+
 class StandbyConsoleTorture(ConsoleIpmiTorture):
     def setup_test(self):
-	self.test = "standby"
+        self.test = "standby"
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.c = self.cv_SYSTEM.console
+
 
 class RuntimeIpmiInterfaceTorture(IpmiInterfaceTorture):
     def setup_test(self):
         self.test = "runtime"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.console
+
 
 class StandbyIpmiInterfaceTorture(IpmiInterfaceTorture):
     def setup_test(self):

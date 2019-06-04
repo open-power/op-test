@@ -44,6 +44,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class RestAPI(unittest.TestCase):
     '''
     RestAPI Class - Execution order independent
@@ -69,6 +70,7 @@ class RestAPI(unittest.TestCase):
             log.debug("Unable to find cls.desired, probably a test code problem")
             cls.cv_SYSTEM.goto_state(OpSystemState.OS)
 
+
 class Runtime(RestAPI, unittest.TestCase):
     '''
     Runtime Class performs tests with Host On
@@ -90,9 +92,11 @@ class Runtime(RestAPI, unittest.TestCase):
         status = self.rest.is_tpm_enabled()
         log.debug("TPM Enabled Starts={}".format(status))
         self.rest.enable_tpm()
-        self.assertTrue(self.rest.is_tpm_enabled(), "OpenBMC failed to enable TPM policy")
+        self.assertTrue(self.rest.is_tpm_enabled(),
+                        "OpenBMC failed to enable TPM policy")
         self.rest.disable_tpm()
-        self.assertFalse(self.rest.is_tpm_enabled(), "OpenBMC failed to disable TPM policy")
+        self.assertFalse(self.rest.is_tpm_enabled(),
+                         "OpenBMC failed to disable TPM policy")
 
     def test_system_power_cap(self):
         '''
@@ -103,12 +107,16 @@ class Runtime(RestAPI, unittest.TestCase):
         # System power cap enable/disable tests
         self.rest.power_cap_enable()
         PowerCapEnable, PowerCap = self.rest.get_power_cap_settings()
-        log.debug("SHOULD BE ENABLED PowerCapEnable={} PowerCap={}".format(PowerCapEnable, PowerCap))
-        self.assertEqual(int(PowerCapEnable), 1, "System Power Cap Enable Failed")
+        log.debug("SHOULD BE ENABLED PowerCapEnable={} PowerCap={}".format(
+            PowerCapEnable, PowerCap))
+        self.assertEqual(int(PowerCapEnable), 1,
+                         "System Power Cap Enable Failed")
         self.rest.power_cap_disable()
         PowerCapEnable, PowerCap = self.rest.get_power_cap_settings()
-        log.debug("SHOULD BE DISABLED PowerCapEnable={} PowerCap={}".format(PowerCapEnable, PowerCap))
-        self.assertEqual(int(PowerCapEnable), 0, "System Power Cap Disable Failed")
+        log.debug("SHOULD BE DISABLED PowerCapEnable={} PowerCap={}".format(
+            PowerCapEnable, PowerCap))
+        self.assertEqual(int(PowerCapEnable), 0,
+                         "System Power Cap Disable Failed")
 
     def test_occ_active(self):
         '''
@@ -123,11 +131,13 @@ class Runtime(RestAPI, unittest.TestCase):
             log.debug("OpSystemState={}".format(self.cv_SYSTEM.get_state()))
             # If system is in runtime OCC should be Active
             if self.cv_SYSTEM.get_state() in [OpSystemState.PETITBOOT, OpSystemState.PETITBOOT_SHELL,
-                                           OpSystemState.BOOTING, OpSystemState.OS]:
-                self.assertTrue(self.rest.is_occ_active(id), "OCC%s is not in active state" % id)
+                                              OpSystemState.BOOTING, OpSystemState.OS]:
+                self.assertTrue(self.rest.is_occ_active(
+                    id), "OCC%s is not in active state" % id)
             # if system is in standby state OCC should be inactive
             elif self.cv_SYSTEM.get_state() == OpSystemState.OFF:
-                self.assertFalse(self.rest.is_occ_active(id), "OCC%s is still in active state" % id)
+                self.assertFalse(self.rest.is_occ_active(
+                    id), "OCC%s is still in active state" % id)
 
     def test_software_enumerate(self):
         '''
@@ -140,11 +150,14 @@ class Runtime(RestAPI, unittest.TestCase):
         log.debug("Software Enumerate IDs: {}".format(ids))
         for id in ids:
             start_priority = self.rest.get_image_priority(id)
-            log.debug("Image ID={} Starting Priority={}".format(id, start_priority))
+            log.debug("Image ID={} Starting Priority={}".format(
+                id, start_priority))
             self.rest.set_image_priority(id, start_priority)
             updated_priority = self.rest.get_image_priority(id)
-            log.debug("Image ID={} Updated Priority={}".format(id, updated_priority))
-            self.assertEqual(start_priority, updated_priority, "Image Priority Change did not happen as expected")
+            log.debug("Image ID={} Updated Priority={}".format(
+                id, updated_priority))
+            self.assertEqual(start_priority, updated_priority,
+                             "Image Priority Change did not happen as expected")
 
     def test_image_lists(self):
         '''
@@ -162,15 +175,19 @@ class Runtime(RestAPI, unittest.TestCase):
         bmc_images = self.rest.bmc_image_ids()
         for id in bmc_images:
             status = self.rest.validate_functional_bootside(id)
-            log.debug("Image ID={} Functional Boot Side Validation: {}".format(id, status))
+            log.debug(
+                "Image ID={} Functional Boot Side Validation: {}".format(id, status))
             if status:
                 try:
-                    activation_status = self.rest.image_ready_for_activation(id, timeout=1)
-                    log.debug("Activation Status: {}".format(activation_status))
+                    activation_status = self.rest.image_ready_for_activation(
+                        id, timeout=1)
+                    log.debug("Activation Status: {}".format(
+                        activation_status))
                 except HTTPCheck as e:
                     # expected since the image is active, we just testing API
                     # xyz.openbmc_project.Software.Activation.Activations.Active
-                    log.debug("HTTPCheck Exception={} e.message={}".format(e, e.message))
+                    log.debug(
+                        "HTTPCheck Exception={} e.message={}".format(e, e.message))
         log.debug("BMC Images: {}".format(bmc_images))
 
     def test_field_mode_enable_disable(self):
@@ -182,11 +199,13 @@ class Runtime(RestAPI, unittest.TestCase):
         # Field mode tests
         self.rest.has_field_mode_set()
         self.rest.set_field_mode("1")
-        self.assertTrue(self.rest.has_field_mode_set(), "Field Mode Enable Failed")
+        self.assertTrue(self.rest.has_field_mode_set(),
+                        "Field Mode Enable Failed")
         self.rest.set_field_mode("0")
         # clear_field_mode will reboot the BMC
         self.cv_BMC.clear_field_mode()
-        self.assertFalse(self.rest.has_field_mode_set(), "Field Mode Disable Failed")
+        self.assertFalse(self.rest.has_field_mode_set(),
+                         "Field Mode Disable Failed")
 
     def test_upload_image(self):
         '''
@@ -279,11 +298,13 @@ class Runtime(RestAPI, unittest.TestCase):
         # Clear SEL entry by ID
         self.rest.clear_sel_by_id()
         id_list, dict_list = self.rest.get_sel_ids()
-        log.debug("SEL ID List: {}\nSEL DICT List: {}\n".format(id_list, dict_list))
+        log.debug("SEL ID List: {}\nSEL DICT List: {}\n".format(
+            id_list, dict_list))
         # Clear Complete SEL Repository
         self.rest.clear_sel()
         # Check if SEL has really zero entries or not
-        self.assertTrue(self.rest.verify_clear_sel(), "openBMC failed to clear SEL repository")
+        self.assertTrue(self.rest.verify_clear_sel(),
+                        "openBMC failed to clear SEL repository")
 
     def test_obmc_delete_dumps(self):
         '''
@@ -334,7 +355,8 @@ class Runtime(RestAPI, unittest.TestCase):
         # Initiate a dump nd get the dump id
         id = self.rest.create_new_dump()
         # Wait for the dump to finish which can be downloaded
-        self.assertTrue(self.rest.wait_for_dump_finish(id, counter=30), "OpenBMC Dump capture timeout")
+        self.assertTrue(self.rest.wait_for_dump_finish(
+            id, counter=30), "OpenBMC Dump capture timeout")
         # Download the dump which is ready to offload
         self.rest.download_dump(id)
 
@@ -357,7 +379,8 @@ class Runtime(RestAPI, unittest.TestCase):
         self.rest.set_bootdev_to_none()
         # Get current bootdev
         bootdev = self.rest.get_current_bootdev()
-        self.assertEqual(bootdev, "Regular", "Failed to set Regular boot device")
+        self.assertEqual(bootdev, "Regular",
+                         "Failed to set Regular boot device")
         # Put the bootdev back how we found it
         if bootdev != start_bootdev:
             if start_bootdev == "Setup":
@@ -393,7 +416,7 @@ class Runtime(RestAPI, unittest.TestCase):
         --run testcases.testRestAPI.Runtime.test_factory_reset_software
         --run testcases.testRestAPI.HostOff.test_factory_reset_software
         '''
-        #self.rest.factory_reset_software()
+        # self.rest.factory_reset_software()
         # Not sure what the effect is, enable with caution
         pass
 
@@ -404,7 +427,7 @@ class Runtime(RestAPI, unittest.TestCase):
         --run testcases.testRestAPI.Runtime.test_factory_reset_network
         --run testcases.testRestAPI.HostOff.test_factory_reset_network
         '''
-        #self.rest.factory_reset_network()
+        # self.rest.factory_reset_network()
         # It may clear static N/W, enable with caution
         pass
 
@@ -418,6 +441,7 @@ class Runtime(RestAPI, unittest.TestCase):
         '''
         self.rest.update_root_password(str(self.conf.args.bmc_password))
 
+
 class HostOff(Runtime):
     '''
     Runtime Class performs tests with Host On
@@ -429,6 +453,7 @@ class HostOff(Runtime):
     def setUpClass(cls):
         cls.desired = OpSystemState.OFF
         super(Runtime, cls).setUpClass()
+
 
 class HostBounces(RestAPI, unittest.TestCase):
     '''
@@ -491,11 +516,13 @@ class HostBounces(RestAPI, unittest.TestCase):
         self.rest.power_off()
         self.rest.wait_for_standby()
 
+
 def host_off_suite():
     # run with Host powered OFF
     s = unittest.TestSuite()
     s.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(HostOff))
     return s
+
 
 def runtime_suite():
     # run with Host powered ON

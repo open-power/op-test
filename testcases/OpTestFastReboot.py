@@ -114,9 +114,9 @@ class OpTestFastReboot(unittest.TestCase):
             # skipTest throws exception when passing null at end
             # exception from skipTest produces malformed XML
             if fast_reboot_state[:4] != "okay":
-                    self.skipTest("Fast reboot currently NOT supported, "
-                        "/proc/device-tree/ibm,opal/fast-reboot: {}"
-                                  .format(fast_reboot_state[:-1]))
+                self.skipTest("Fast reboot currently NOT supported, "
+                              "/proc/device-tree/ibm,opal/fast-reboot: {}"
+                              .format(fast_reboot_state[:-1]))
         except CommandFailed as cf:
             if cf.exitcode is not 1:
                 raise cf
@@ -192,6 +192,7 @@ class FastRebootHostTorture(FastRebootHost):
     def number_reboots_to_do(self):
         return 1000
 
+
 class FastRebootHostStress(FastRebootHost):
     def number_reboots_to_do(self):
         return 2
@@ -201,13 +202,16 @@ class FastRebootHostStress(FastRebootHost):
 
     def do_things_while_booted(self):
         c = self.cv_SYSTEM.console
-        c.run_command("stress --cpu `nproc` --vm `nproc` --vm-bytes 128M > /dev/null &")
-        c.run_command("sleep 120",timeout=200)
+        c.run_command(
+            "stress --cpu `nproc` --vm `nproc` --vm-bytes 128M > /dev/null &")
+        c.run_command("sleep 120", timeout=200)
         c.run_command("uptime")
+
 
 class FastRebootHostStressTorture(FastRebootHostStress):
     def number_reboots_to_do(self):
         return 200
+
 
 class FastRebootTorture(OpTestFastReboot):
     def number_reboots_to_do(self):
