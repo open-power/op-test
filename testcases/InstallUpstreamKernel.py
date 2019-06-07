@@ -58,10 +58,12 @@ class InstallUpstreamKernel(unittest.TestCase):
             self.fail(
                 "Provide host ip user details refer, --host-{ip,user,password}")
         if self.disk:
-            OpIU = InstallUtil()
-            self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-            log.debug("Set given disk as default bootable disk")
-            OpIU.set_bootable_disk(self.disk)
+            # FIXME: Add support to set disk in PowerVM enviroinment
+            if self.conf.args.bmc_type != 'FSP_PHYP':
+                OpIU = InstallUtil()
+                self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+                log.debug("Set given disk as default bootable disk")
+                OpIU.set_bootable_disk(self.disk)
         self.console_thread = OpSOLMonitorThread(1, "console")
 
     def runTest(self):
