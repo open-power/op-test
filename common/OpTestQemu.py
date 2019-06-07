@@ -71,6 +71,7 @@ class QemuConsole():
         self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
         self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
         self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+        self.mac_str = '52:54:00:22:34:56'
 
         # state tracking, reset on boot and state changes
         # console tracking done on System object for the system console
@@ -154,12 +155,18 @@ class QemuConsole():
                 + " -device pcie-pci-bridge,id=pcie.5,bus=pcie.2,addr=0x0"
             )
 
-        prefilled_slots = 0
+        # Put the NIC in slot 2 of the second PHB (1st is reserved for later)
+        cmd = (cmd
+                + " -netdev user,id=u1 -device e1000e,netdev=u1,mac={},bus=pcie.4,addr=2"
+                .format(self.mac_str)
+                )
+        prefilled_slots = 1
+
         if self.cdrom is not None:
-            # Put the CDROM in slot 2 of the second PHB (1 is reserved for later)
+            # Put the CDROM in slot 3 of the second PHB
             cmd = (cmd
                     + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
-                    + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.4,addr=2"
+                    + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.4,addr=3"
                 )
             prefilled_slots += 1
 
