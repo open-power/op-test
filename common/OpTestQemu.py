@@ -51,13 +51,13 @@ class QemuConsole():
     def __init__(self, qemu_binary=None, pnor=None, skiboot=None,
             prompt=None, kernel=None, initramfs=None,
             block_setup_term=None, delaybeforesend=None,
-            logfile=sys.stdout, hda=None, cdrom=None):
+            logfile=sys.stdout, disks=None, cdrom=None):
         self.qemu_binary = qemu_binary
         self.pnor = pnor
         self.skiboot = skiboot
         self.kernel = kernel
         self.initramfs = initramfs
-        self.hda = hda
+        self.disks = disks
         self.state = ConsoleState.DISCONNECTED
         self.logfile = logfile
         self.delaybeforesend = delaybeforesend
@@ -101,6 +101,10 @@ class QemuConsole():
         self.setup_term_quiet = 0
         self.setup_term_disable = 0
 
+    # Because this makes sense for the console
+    def update_disks(self, disks):
+        self.disks = disks
+
     def close(self):
         self.util.clear_state(self)
         try:
@@ -141,22 +145,75 @@ class QemuConsole():
             if self.initramfs is not None:
                 cmd = cmd + " -initrd %s" % (self.initramfs)
 
-        if self.hda is not None:
-            # Put the disk on the first PHB
-            cmd = (cmd
-                    + " -drive file={},id=disk01,if=none".format(self.hda)
-                    + " -device virtio-blk-pci,drive=disk01,id=virtio01,bus=pcie.0,addr=0"
-                )
+        # So in the powernv QEMU model we have 3 PHBs with one slot free each.
+        # We can add a pcie bridge to each of these, and each bridge has 31
+        # slots.. if you see where I'm going..
+        cmd = (cmd
+                + " -device pcie-pci-bridge,id=pcie.3,bus=pcie.0,addr=0x0"
+                + " -device pcie-pci-bridge,id=pcie.4,bus=pcie.1,addr=0x0"
+                + " -device pcie-pci-bridge,id=pcie.5,bus=pcie.2,addr=0x0"
+            )
+
+        prefilled_slots = 0
         if self.cdrom is not None:
-            # Put the CDROM on the second PHB
+            # Put the CDROM in slot 2 of the second PHB (1 is reserved for later)
             cmd = (cmd
                     + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
-                    + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.1,addr=0"
+                    + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.4,addr=2"
                 )
+            prefilled_slots += 1
+
+        bridges = []
+        bridges.append({'bus': 3, 'n_devices': 0, 'bridged' : False})
+        bridges.append({'bus': 4, 'n_devices': prefilled_slots, 'bridged' : False})
+        bridges.append({'bus': 5, 'n_devices': 0, 'bridged' : False})
+
+        # For any amount of disks we have, start finding spots for them in the PHBs
+        if self.disks:
+            diskid = 0
+            bid = 0
+            for disk in self.disks:
+                bridge = bridges[bid]
+                if bridge['n_devices'] >= 30:
+                    # This bridge is full
+                    if bid == len(bridges) - 1:
+                        # All bridges full, find one to extend
+                        if [x for  x in bridges if x['bridged'] == False] == []:
+                            # We messed up and filled up all our slots
+                            raise OpTestError("Oops! We ran out of slots!")
+                        for i in range(0, bid):
+                            if not bridges[i]['bridged']:
+                                # We can add a bridge here
+                                parent = bridges[i]['bus']
+                                new = bridges[-1]['bus'] + 1
+                                print("Adding new bridge {} on bridge {}".format(new, parent))
+                                bridges.append({'bus': new, 'n_devices' : 0, 'bridged' : False})
+                                cmd = cmd + " -device pcie-pci-bridge,id=pcie.{},bus=pcie.{},addr=0x1".format(new, parent)
+                                bid = bid + 1
+                                bridges[i]['bridged'] = True
+                                bridge = bridges[bid]
+                                break
+                    else:
+                        # Just move to the next one, subsequent bridge should
+                        # always have slots
+                        bid = bid + 1
+                        bridge = bridges[bid]
+                        if bridge['n_devices'] >= 30:
+                            raise OpTestError("Lost track of our PCI bridges!")
+
+                # Got a bridge, let's go!
+                # Valid bridge slots are 1..31, but keep 1 free for more bridges
+                addr = 2 + bridge['n_devices']
+                print("Adding disk {} on bus {} at address {}".format(diskid, bridge['bus'], addr))
+                cmd = cmd + " -drive file={},id=disk{},if=none".format(disk.name, diskid)
+                cmd = cmd + " -device virtio-blk-pci,drive=disk{},id=virtio{},bus=pcie.{},addr={}".format(diskid, diskid, bridge['bus'], hex(addr))
+                diskid += 1
+                bridge['n_devices'] += 1
+
         # typical host ip=10.0.2.2 and typical skiroot 10.0.2.15
         # use skiroot as the source, no sshd in skiroot
+
         fru_path = os.path.join(OpTestConfiguration.conf.basedir, "test_binaries", "qemu_fru")
-        cmd = cmd + " -nic user,model=virtio-net-pci"
         cmd = cmd + " -device ipmi-bmc-sim,id=bmc0,frudatafile=" + fru_path + " -device isa-ipmi-bt,bmc=bmc0,irq=10"
         cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
         print(cmd)
@@ -236,6 +293,7 @@ class OpTestQemu():
     def __init__(self, conf=None, qemu_binary=None, pnor=None, skiboot=None,
                  kernel=None, initramfs=None, cdrom=None,
                  logfile=sys.stdout):
+        self.disks = []
         # need the conf object to properly bind opened object
         # we need to be able to cleanup/close the temp file in signal handler
         self.conf = conf
@@ -267,6 +325,7 @@ class OpTestQemu():
                           " and then retry.")
                 raise e
 
+        self.disks.append(self.conf.args.qemu_scratch_disk)
         atexit.register(self.__del__)
         self.console = QemuConsole(qemu_binary=qemu_binary,
                                    pnor=pnor,
@@ -274,24 +333,20 @@ class OpTestQemu():
                                    kernel=kernel,
                                    initramfs=initramfs,
                                    logfile=logfile,
-                                   hda=self.conf.args.qemu_scratch_disk.name,
-                                   cdrom=cdrom)
+                                   disks=self.disks, cdrom=cdrom)
         self.ipmi = QemuIPMI(self.console)
         self.system = None
 
     def __del__(self):
-        log.debug("OpTestQemu cleaning up qemu_scratch_disk={}"
-            .format(self.conf.args.qemu_scratch_disk))
-        if self.conf.args.qemu_scratch_disk:
+        for fd in self.disks:
+            log.debug("OpTestQemu cleaning up qemu_scratch_disk={}"
+                .format(self.conf.args.qemu_scratch_disk))
             try:
-                self.conf.args.qemu_scratch_disk.close()
-                self.conf.args.qemu_scratch_disk = None
-                # if this was a temp file it will be deleted upon close
-                # optest_handler closes if signal encountered
-                log.debug("OpTestQemu closed qemu_scratch_disk")
+                fd.close()
             except Exception as e:
                 log.error("OpTestQemu cleanup, ignoring Exception={}"
                     .format(e))
+        self.disks = []
 
     def set_system(self, system):
         self.console.system = system
@@ -332,3 +387,12 @@ class OpTestQemu():
 
     def has_ipmi_sel(self):
         return False
+
+    def add_temporary_disk(self, size):
+        self.console.close()
+
+        fd = tempfile.NamedTemporaryFile(delete=True)
+        self.disks.append(fd)
+        create_hda = subprocess.check_call(["qemu-img", "create",
+                                            "-fqcow2", fd.name, size])
+        self.console.update_disks(self.disks)
