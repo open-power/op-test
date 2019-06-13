@@ -587,7 +587,8 @@ class OpTestConfiguration():
                                              stderr=sys.stderr,
                                              stdout=sys.stdout,
                                              shell=True,
-                                             text=True)
+                                             universal_newlines=True,
+                                             encoding='utf-8')
         self.logfile = self.logfile_proc.stdin
 
         # we have enough setup to allow
