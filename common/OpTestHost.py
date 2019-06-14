@@ -196,7 +196,7 @@ class OpTestHost():
             log.warning(l_msg)
             raise OpTestError(l_msg)
 
-        if(l_rc.__contains__(b"Firmware upgrade procedure successful")):
+        if(l_rc.__contains__("Firmware upgrade procedure successful")):
             return BMC_CONST.FW_SUCCESS
         else:
             l_msg = "Code Update Failed"

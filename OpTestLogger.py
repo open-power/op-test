@@ -34,7 +34,7 @@ class FileLikeLogger():
     def write(self, data):
         lines = data.splitlines()
         for line in lines:
-            self.log.debug(line.rstrip(b"\n"))
+            self.log.debug(line.rstrip("\n"))
 
     def flush(self):
         pass

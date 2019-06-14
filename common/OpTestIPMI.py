@@ -801,7 +801,7 @@ class OpTestIPMI():
             rc = self.ipmitool.run(
                 l_cmd, background=False, cmdprefix="echo y |")
             log.info("IPMI code update result: {}".format(rc))
-            if(rc.__contains__(b"Firmware upgrade procedure successful")):
+            if(rc.__contains__("Firmware upgrade procedure successful")):
                 return BMC_CONST.FW_SUCCESS
             elif count == 1:
                 l_msg = "Code Update Failed"
