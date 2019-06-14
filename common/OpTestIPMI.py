@@ -98,7 +98,8 @@ class IPMITool():
         log.debug(cmd)
         if background:
             try:
-                child = subprocess.Popen(cmd, shell=True)
+                child = subprocess.Popen(
+                    cmd, shell=True, universal_newlines=True, encoding='utf-8')
             except Exception as e:
                 raise CommandFailed(
                     "Unable to spawn process {}".format(cmd), e, -1)
@@ -108,7 +109,8 @@ class IPMITool():
             # output = check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             try:
                 cmd = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
-                                       stdout=subprocess.PIPE, shell=True)
+                                       stdout=subprocess.PIPE, shell=True,
+                                       universal_newlines=True, encoding='utf-8')
             except:
                 raise CommandFailed(cmd, "Failed to spawn subprocess", -1)
             output = cmd.communicate()[0]
@@ -147,7 +149,8 @@ class pUpdate():
         log.debug(cmd)
         if background:
             try:
-                child = subprocess.Popen(cmd, shell=True)
+                child = subprocess.Popen(
+                    cmd, shell=True, universal_newlines=True, encoding='utf-8')
             except:
                 l_msg = "pUpdate Command Failed: {}".format(cmd)
                 log.error(l_msg)
@@ -158,7 +161,8 @@ class pUpdate():
             # output = check_output(cmd, stderr=subprocess.STDOUT, shell=True)
             try:
                 cmd = subprocess.Popen(cmd, stderr=subprocess.STDOUT,
-                                       stdout=subprocess.PIPE, shell=True)
+                                       stdout=subprocess.PIPE, shell=True,
+                                       universal_newlines=True, encoding='utf-8')
             except:
                 l_msg = "pUpdate Command Failed: {}".format(cmd)
                 log.error(l_msg)

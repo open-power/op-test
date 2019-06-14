@@ -901,7 +901,9 @@ class OpTestUtil():
         while(i_try != 0):
             p1 = subprocess.Popen(["ping", "-c 2", str(i_ip)],
                                   stdin=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)
+                                  stdout=subprocess.PIPE,
+                                  universal_newlines=True,
+                                  encoding='utf-8')
             stdout_value, stderr_value = p1.communicate()
 
             if(stdout_value.__contains__("2 received")):
@@ -1629,7 +1631,9 @@ class OpTestUtil():
             p1 = subprocess.Popen(["bash", "-c", command],
                                   stdin=subprocess.PIPE,
                                   stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE)
+                                  stderr=subprocess.PIPE,
+                                  universal_newlines=True,
+                                  encoding='utf-8')
             # set the polling appropriate
             if minutes > 5:
                 sleep_period = 60

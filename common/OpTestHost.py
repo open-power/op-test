@@ -132,7 +132,9 @@ class OpTestHost():
                                         stdin=subprocess.PIPE,
                                         stderr=subprocess.PIPE,
                                         stdout=subprocess.PIPE,
-                                        shell=True)
+                                        shell=True,
+                                        universal_newlines=True,
+                                        encoding='utf-8')
         print((repr(logfile_proc)))
         logfile = logfile_proc.stdin
         print(("Log file: %s" % logfile))
