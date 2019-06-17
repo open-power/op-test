@@ -268,6 +268,8 @@ class OpTestConstants():
     TFMR_DEC_PARITY_ERROR = "0006080000000000"
     TFMR_PURR_PARITY_ERROR = "0004080000000000"
     TFMR_SPURR_PARITY_ERROR = "0005080000000000"
+    HMI_TOD_TOPOLOGY_FAILOVER = 7
+    OPAL_TI = 8
 
     # CPU sleep states constants
     GET_CPU_SLEEP_STATE2 = "cat /sys/devices/system/cpu/cpu*/cpuidle/state2/disable"
