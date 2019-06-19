@@ -39,6 +39,7 @@ import time
 import pexpect
 import os.path
 import subprocess
+import OPexpect
 
 from OpTestIPMI import OpTestIPMI
 from OpTestSSH import OpTestSSH
@@ -183,7 +184,7 @@ class OpTestBMC():
             rsync_cmd = rsync_cmd + '/' + copy_as
 
         log.debug(rsync_cmd)
-        rsync = pexpect.spawn(rsync_cmd)
+        rsync = OPexpect.spawn(rsync_cmd)
         rsync.logfile = OpTestLogger.FileLikeLogger(log)
         r = rsync.expect(['assword: ', 'total size is', 'error while loading shared lib', pexpect.EOF], timeout=1800)
         if r == 0:
@@ -201,13 +202,13 @@ class OpTestBMC():
             scp_cmd = "bash -c \"sshpass -p {} ssh".format(self.cv_bmcPasswd) + ssh_opts + ' -o LogLevel=quiet'
             scp_cmd = scp_cmd + " {}@{} dd of=/tmp/{} < {}\"".format(self.cv_bmcUser, self.cv_bmcIP,copy_as,img_path)
             log.debug(scp_cmd)
-            scp = pexpect.spawn(scp_cmd, timeout=120)
+            scp = OPexpect.spawn(scp_cmd, timeout=120)
             scp.expect(pexpect.EOF)
             scp.wait()
             scp.close()
             chmod_cmd = "sshpass -p {} ssh {} {}@{} chmod +x /tmp/{}".format(self.cv_bmcPasswd, ssh_opts, self.cv_bmcUser, self.cv_bmcIP, copy_as)
             log.debug(chmod_cmd)
-            chmod = pexpect.spawn(chmod_cmd)
+            chmod = OPexpect.spawn(chmod_cmd)
             chmod.expect(pexpect.EOF)
             chmod.wait()
             chmod.close()
@@ -332,7 +333,7 @@ class OpTestSMC(OpTestBMC):
         if copy_as:
             rsync_cmd = rsync_cmd + '/' + copy_as
         log.debug(rsync_cmd)
-        rsync = pexpect.spawn(rsync_cmd)
+        rsync = OPexpect.spawn(rsync_cmd)
         rsync.logfile = OpTestLogger.FileLikeLogger(log)
         rsync.expect(pexpect.EOF, timeout=300)
         rsync.close()
