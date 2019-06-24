@@ -1,23 +1,23 @@
 ## OpenPower Test Framework ##
 
 This repository provides a collection of tools that enable automated testing of
-OpenPower systems. The op-test-framework suite is designed to test a machine
+OpenPower systems. The op-test suite is designed to test a machine
 largely out of band - that is, it is designed for tests that do things like
 power cycle the machine, test booting different configurations. As part of
-the op-test-framework, we may run tests on the host itself (such as fwts
+the op-test, we may run tests on the host itself (such as fwts
 and HTX)
 
 The end goal is to have a collection of tests that can be run against any
 OpenPower system to validate it's function. The tests are automation/jenkins
 ready.
 
-For full documentation, visit http://open-power.github.io/op-test-framework/
+For full documentation, visit http://open-power.github.io/op-test/
 
 ### Quick Start ###
 
-OVERVIEW - Clone op-test-framework on some linux box, like your laptop.
+OVERVIEW - Clone op-test on some linux box, like your laptop.
 
-git clone https://github.com/open-power/op-test-framework
+git clone https://github.com/open-power/op-test
 
 Prepare the OpenPower system with needed software packages and build the
 needed tools (see below Target System Requirements).
