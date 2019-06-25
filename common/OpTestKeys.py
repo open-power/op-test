@@ -10,4 +10,5 @@ class OpTestKeys():
     PGUP    = '\x1b[5~'
     ENTER   = '\n'
     SPACE   = ' '
+    BACKSPACE = '\x7f'
 
