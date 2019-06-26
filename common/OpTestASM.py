@@ -53,11 +53,6 @@ import urllib.error
 import urllib.parse
 import re
 import ssl
-# Work around issues with python < 2.7.9
-try:
-    ssl._create_default_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass
 
 
 class OpTestASM:
