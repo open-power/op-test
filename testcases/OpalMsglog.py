@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -52,7 +52,7 @@ class OpalMsglog():
             # PRD can send invalid SCOMS, skiboot 6.0 logs these as errors
             "XSCOM: read error gcid=.* pcb_addr=0x40031 stat=0x4",
             "XSCOM: Read failed, ret =  -26",
-                      ]
+        ]
 
         if self.bmc_type in ["qemu"]:
             filter_out.append('SLW: No image found')
@@ -67,7 +67,8 @@ class OpalMsglog():
             filter_out.append("FLASH: Can't load resource id:")
             filter_out.append('CAPP: Error loading ucode lid.')
             # Palmetto qemu model hits this:
-            filter_out.append('STB: container NOT VERIFIED, resource_id=. secureboot not yet initialized')
+            filter_out.append(
+                'STB: container NOT VERIFIED, resource_id=. secureboot not yet initialized')
             # We can take a long time emulating flash, so ignore long time in r/w flash and NVRAM
             filter_out.append('Spent .* msecs in OPAL call 11[01]')
             filter_out.append('Spent .* msecs in OPAL call 8')
@@ -75,7 +76,8 @@ class OpalMsglog():
         if self.bmc_type in ["mambo"]:
             filter_out.append('SBE: Master chip ID not found.')
             filter_out.append('OCC: No HOMER detected, assuming no pstates')
-            filter_out.append('OCC: Unassigned OCC Common Area. No sensors found')
+            filter_out.append(
+                'OCC: Unassigned OCC Common Area. No sensors found')
             filter_out.append("FLASH: Can't load resource id:")
             filter_out.append("ELOG: Error getting buffer to log error")
             filter_out.append("STB: container NOT VERIFIED, resource_id")
@@ -103,7 +105,7 @@ class OpalMsglog():
                 fre = re.compile(f)
                 log_entries = [l for l in log_entries if not fre.search(l)]
 
-            msg = '\n'.join(filter(None, log_entries))
+            msg = '\n'.join([_f for _f in log_entries if _f])
             self.assertTrue(len(log_entries) == 0,
                             "Warnings/Errors in OPAL log:\n%s" % msg)
         except CommandFailed as cf:

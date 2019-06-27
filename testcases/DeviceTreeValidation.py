@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -242,12 +242,14 @@ class DeviceTreeValidation(unittest.TestCase):
         fw_node = "/proc/device-tree/ibm,firmware-versions/"
         # Validate firmware version properties
         if self.bmc_type not in ['OpenBMC', 'SMC', 'AMI']:
-            self.skipTest("ibm,firmware-versions DT node not available on this system")
+            self.skipTest(
+                "ibm,firmware-versions DT node not available on this system")
 
         if self.cv_HOST.host_get_proc_gen() not in ["POWER8", "POWER8E"]:
             try:
                 self.c.run_command("ls --color=never %s/version" % fw_node)
-                version = self.dt_prop_read_str_arr("ibm,firmware-versions/version")
+                version = self.dt_prop_read_str_arr(
+                    "ibm,firmware-versions/version")
                 if not version:
                     raise OpTestError("DT: Firmware version property is empty")
             except CommandFailed:
@@ -257,33 +259,33 @@ class DeviceTreeValidation(unittest.TestCase):
         for prop in props:
             val = self.c.run_command("lsprop %s" % prop)
             if not val:
-                raise OpTestError("DT: Firmware component (%s) is empty" % prop)
-
+                raise OpTestError(
+                    "DT: Firmware component (%s) is empty" % prop)
 
     def check_dt_matches(self):
         # allows the ability to filter for debug
         # skip the parent(s) in the hierarchy
         # leave as None to get checked
         # setting to anything other than None will ignore
-        ignore_dict = {"/proc/device-tree/ibm,opal/"              : None,
-                       "/proc/device-tree/ibm,opal/sensor-groups" : None,
-                       "/proc/device-tree/ibm,opal/sensors"       : None,
-                       "/proc/device-tree/ibm,opal/power-mgt"     : None,
-                       "/proc/device-tree/ibm,opal/fw-features"   : None,
-                      }
+        ignore_dict = {"/proc/device-tree/ibm,opal/": None,
+                       "/proc/device-tree/ibm,opal/sensor-groups": None,
+                       "/proc/device-tree/ibm,opal/sensors": None,
+                       "/proc/device-tree/ibm,opal/power-mgt": None,
+                       "/proc/device-tree/ibm,opal/fw-features": None,
+                       }
         if len(prop_val_pair_skiroot) and len(prop_val_pair_host):
             unified_failed_props = missing_prop_in_skiroot = \
-                 missing_prop_in_host = matched_prop_in_host = 0
+                missing_prop_in_host = matched_prop_in_host = 0
             host_props = unified_diff_passed = \
-                 skipped_props = skiroot_props = 0
+                skipped_props = skiroot_props = 0
             unified_failures = []
             missing_in_host = []
             missing_in_skiroot = []
             matched_in_host = []
-            skiroot_check = all(elem in prop_val_pair_host \
-                for elem in prop_val_pair_skiroot)
-            host_check = all(elem in prop_val_pair_skiroot \
-                for elem in prop_val_pair_host)
+            skiroot_check = all(elem in prop_val_pair_host
+                                for elem in prop_val_pair_skiroot)
+            host_check = all(elem in prop_val_pair_skiroot
+                             for elem in prop_val_pair_host)
             for prop in prop_val_pair_host:
                 host_props += 1
                 if prop not in prop_val_pair_skiroot:
@@ -291,9 +293,9 @@ class DeviceTreeValidation(unittest.TestCase):
                     # log the specifics
                     missing_prop_in_skiroot += 1
                     missing_in_skiroot.append(["DT Node \"{}\" found in host"
-                       " but does NOT exist in skiroot".format(prop)])
+                                               " but does NOT exist in skiroot".format(prop)])
                     log.debug("DT Node \"{}\" found in host"
-                       " but does NOT exist in skiroot".format(prop))
+                              " but does NOT exist in skiroot".format(prop))
             for prop in prop_val_pair_skiroot:
                 skiroot_props += 1
                 if prop in prop_val_pair_host:
@@ -301,39 +303,39 @@ class DeviceTreeValidation(unittest.TestCase):
                     check2_len = len(prop_val_pair_host[prop])
                     # we need the debug to figure out why things fail
                     for elem in prop_val_pair_skiroot[prop]:
-                            log.debug("skiroot elem={}".format(elem))
+                        log.debug("skiroot elem={}".format(elem))
                     for elem in prop_val_pair_host[prop]:
-                            log.debug("host elem={}".format(elem))
-                    check1_skiroot = all(elem in prop_val_pair_host[prop] \
-                        for elem in prop_val_pair_skiroot[prop])
-                    check2_skiroot = all(elem in prop_val_pair_skiroot[prop] \
-                        for elem in prop_val_pair_host[prop])
+                        log.debug("host elem={}".format(elem))
+                    check1_skiroot = all(elem in prop_val_pair_host[prop]
+                                         for elem in prop_val_pair_skiroot[prop])
+                    check2_skiroot = all(elem in prop_val_pair_skiroot[prop]
+                                         for elem in prop_val_pair_host[prop])
                     # if cross check good and same length (just in case
                     # duplicate list items) trying to catch any mods)
                     # if order of list content differs, the unified diff
                     # always flags as difference even though
                     # the elements match (just in a different order)
                     if check1_skiroot and check2_skiroot \
-                      and (check1_len == check2_len):
+                            and (check1_len == check2_len):
                         matched_prop_in_host += 1
                         matched_in_host.append(["Skiroot DT Node \"{}\" found"
-                           " in skiroot and exists in host".format(prop)])
+                                                " in skiroot and exists in host".format(prop)])
                         log.debug("DT Node \"{}\" is the same in both"
                                   " skiroot and host".format(prop))
                         continue
                     log.debug("Skiroot DT Node \"{}\" appears "
-                        "to differ from the Host, ^^^ compare the debug output ^^^"
-                          .format(prop))
+                              "to differ from the Host, ^^^ compare the debug output ^^^"
+                              .format(prop))
                     log.debug("skiroot_len={} host_len={}"
-                               .format(check1_len, check2_len))
+                              .format(check1_len, check2_len))
                     log.debug("skiroot_cross_check_to_host={} host_cross_check_to_skiroot={}"
-                               .format(check1_skiroot, check2_skiroot))
+                              .format(check1_skiroot, check2_skiroot))
                     if ignore_dict.get(str(prop)) != None:
                         skipped_props += 1
                         continue
                     unified_output = difflib.unified_diff(
-                        filter(None, prop_val_pair_skiroot[prop]),
-                        filter(None, prop_val_pair_host[prop]),
+                        [_f for _f in prop_val_pair_skiroot[prop] if _f],
+                        [_f for _f in prop_val_pair_host[prop] if _f],
                         fromfile="skiroot",
                         tofile="host",
                         lineterm="")
@@ -341,28 +343,28 @@ class DeviceTreeValidation(unittest.TestCase):
                     if len(unified_list):
                         unified_failed_props += 1
                         unified_failures.append(["<----------> Diff Failure #{}: \"{}\""
-                            .format(unified_failed_props, prop)])
+                                                 .format(unified_failed_props, prop)])
                         unified_failures.append(unified_list)
-                    else: # diff is OK, should not get here
+                    else:  # diff is OK, should not get here
                         # good cases should have been filtered above
                         unified_diff_passed += 1
                         log.debug("Unexpected case unified_diff passed={}"
-                            .format(prop))
+                                  .format(prop))
                 else:
                     # these failures will show up in the skiroot_check
                     # log the specifics
                     missing_prop_in_host += 1
                     missing_in_host.append(["DT Node \"{}\" does not"
-                       " exist in the host OS".format(prop)])
+                                            " exist in the host OS".format(prop)])
             if unified_failed_props \
-              or (skiroot_props != host_props) \
-              or not skiroot_check \
-              or not host_check:
+                    or (skiroot_props != host_props) \
+                    or not skiroot_check \
+                    or not host_check:
                 for i in unified_failures:
                     line_num = 1
                     for j in i:
                         log.debug("Failure Line #{} {}".format(line_num,
-                            "".join(j)))
+                                                               "".join(j)))
                         line_num += 1
                 self.assertTrue(False, "DT Diff failures detected Total={}"
                                 "\nSUMMARY:\n{}\n"
@@ -376,19 +378,19 @@ class DeviceTreeValidation(unittest.TestCase):
                                 "Host Nodes matched skiroot Nodes = {}\n"
                                 "Failures:{}\n"
                                 .format(
-                                 unified_failed_props,
-                                ('\n'.join(i for f in unified_failures for i in f)),
-                                (None if len(missing_in_host) == 0 \
+                                    unified_failed_props,
+                                    ('\n'.join(i for f in unified_failures for i in f)),
+                                    (None if len(missing_in_host) == 0
                                      else ('\n'.join(i for f in missing_in_host for i in f))),
-                                (None if len(missing_in_skiroot) == 0 \
+                                    (None if len(missing_in_skiroot) == 0
                                      else ('\n'.join(i for f in missing_in_skiroot for i in f))),
-                                 skipped_props,
-                                 matched_prop_in_host,
-                                 skiroot_props,
-                                 host_props,
-                                 skiroot_check,
-                                 host_check,
-                                 unified_failed_props,
+                                    skipped_props,
+                                    matched_prop_in_host,
+                                    skiroot_props,
+                                    host_props,
+                                    skiroot_check,
+                                    host_check,
+                                    unified_failed_props,
                                 ))
             else:
                 log.debug("DT Diff success")
@@ -403,7 +405,7 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
         # goto PS before running any commands
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         if self.cv_HOST.host_get_proc_gen(console=1) not in ["POWER8", "POWER8E",
-                                                    "POWER9"]:
+                                                             "POWER9"]:
             self.skipTest("Unknown CPU type {}".format(
                 self.cv_HOST.host_get_proc_gen(console=1)))
 
@@ -424,7 +426,8 @@ class DeviceTreeValidationSkiroot(DeviceTreeValidation):
             # Not all distros consistently output lsprop (-R) so make it consistent
             # Otherwise we get mismatches which get flagged as failures
             # https://github.com/ibm-power-utilities/powerpc-utils
-            prop_val_pair_skiroot[prop] = self.c.run_command("lsprop -R %s" % prop)
+            prop_val_pair_skiroot[prop] = self.c.run_command(
+                "lsprop -R %s" % prop)
 
         self.check_dt_matches()
 
@@ -434,7 +437,7 @@ class DeviceTreeValidationHost(DeviceTreeValidation):
         # goto OS before running any commands
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.cv_HOST.host_get_proc_gen(console=1) not in ["POWER8", "POWER8E",
-                                                    "POWER9"]:
+                                                             "POWER9"]:
             self.skipTest("Unknown CPU type {}".format(
                 self.cv_HOST.host_get_proc_gen(console=1)))
 
@@ -449,6 +452,7 @@ class DeviceTreeValidationHost(DeviceTreeValidation):
             # Not all distros consistently output lsprop (-R) so make it consistent
             # Otherwise we get mismatches which get flagged as failures
             # https://github.com/ibm-power-utilities/powerpc-utils
-            prop_val_pair_host[prop] = self.c.run_command("lsprop -R %s" % prop)
+            prop_val_pair_host[prop] = self.c.run_command(
+                "lsprop -R %s" % prop)
 
         self.check_dt_matches()

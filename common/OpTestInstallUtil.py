@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -20,16 +20,18 @@
 #
 
 import shutil
-import urllib2
+import urllib.request
+import urllib.error
+import urllib.parse
 import os
 import threading
-import SocketServer
-import BaseHTTPServer
-import SimpleHTTPServer
+import socketserver
+import http.server
+import http.server
 import cgi
-import commands
+import subprocess
 import time
-from Exceptions import CommandFailed, UnexpectedCase
+from .Exceptions import CommandFailed, UnexpectedCase
 import OpTestConfiguration
 
 from common.OpTestSystem import OpSystemState
@@ -49,6 +51,7 @@ REPO = ""
 BOOTPATH = ""
 
 uploaded_files = {}
+
 
 class InstallUtil():
     def __init__(self, base_path="", initrd="", vmlinux="",
@@ -118,10 +121,12 @@ class InstallUtil():
                 if cf.exitcode is 1:
                     time.sleep(5)
                     retry = retry - 1
-                    log.debug("ping_network Exception path, retry={}".format(retry))
+                    log.debug(
+                        "ping_network Exception path, retry={}".format(retry))
                     pass
                 else:
-                    log.debug("ping_network Exception path ELSE, raise cf={}".format(cf))
+                    log.debug(
+                        "ping_network Exception path ELSE, raise cf={}".format(cf))
                     raise cf
 
     def assign_ip_petitboot(self):
@@ -129,34 +134,41 @@ class InstallUtil():
         Assign host ip in petitboot
         """
         # Lets reduce timeout in petitboot
-        self.cv_SYSTEM.console.run_command("nvram --update-config petitboot,timeout=10", retry=5)
+        self.cv_SYSTEM.console.run_command(
+            "nvram --update-config petitboot,timeout=10", retry=5)
         # this will not work without these
         if not self.conf.args.host_mac \
-          or not self.conf.args.host_submask \
-          or not self.conf.args.host_gateway \
-          or not self.conf.args.host_dns:
+                or not self.conf.args.host_submask \
+                or not self.conf.args.host_gateway \
+                or not self.conf.args.host_dns:
             my_msg = ("We need host_mac/host_submask/host_gateway/host_dns provided"
-                     " on command line args or via configuration files.")
-            noconfig_exception = UnexpectedCase(state="assign_ip_petitboot config", message=my_msg)
+                      " on command line args or via configuration files.")
+            noconfig_exception = UnexpectedCase(
+                state="assign_ip_petitboot config", message=my_msg)
             raise noconfig_exception
-        cmd = ("ip addr|grep -B1 -i %s |grep BROADCAST|awk -F ':' '{print $2}'" % (self.conf.args.host_mac))
+        cmd = (
+            "ip addr|grep -B1 -i %s |grep BROADCAST|awk -F ':' '{print $2}'" % (self.conf.args.host_mac))
         log.debug("ip addr cmd={}".format(cmd, type(cmd)))
         iface = self.cv_SYSTEM.console.run_command(cmd, retry=5)
-        log.debug("iface={} type={} len={}".format(iface, type(iface), len(iface)))
-        if len(iface) >=1:
+        log.debug("iface={} type={} len={}".format(
+            iface, type(iface), len(iface)))
+        if len(iface) >= 1:
             iface = self.cv_SYSTEM.console.run_command(cmd)[0].strip()
         else:
             my_msg = ("We did NOT get interface back from query, UNABLE to proceed with trying to "
-                     "setup the IP, check that Petitboot or Host OS is configured properly.")
-            noface_exception = UnexpectedCase(state="assign_ip_petitboot interface", message=my_msg)
+                      "setup the IP, check that Petitboot or Host OS is configured properly.")
+            noface_exception = UnexpectedCase(
+                state="assign_ip_petitboot interface", message=my_msg)
             raise noiface_exception
-        cmd = ("ifconfig %s %s netmask %s" % (iface, self.cv_HOST.ip, self.conf.args.host_submask))
+        cmd = ("ifconfig %s %s netmask %s" %
+               (iface, self.cv_HOST.ip, self.conf.args.host_submask))
         log.debug("ifconfig cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command(cmd, retry=5)
         cmd = ("route add default gateway %s" % self.conf.args.host_gateway)
         log.debug("route cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
-        cmd = ("echo 'nameserver %s' > /etc/resolv.conf" % self.conf.args.host_dns)
+        cmd = ("echo 'nameserver %s' > /etc/resolv.conf" %
+               self.conf.args.host_dns)
         log.debug("nameserver cmd={}".format(cmd))
         self.cv_SYSTEM.console.run_command(cmd, retry=5)
 
@@ -173,7 +185,8 @@ class InstallUtil():
             except Exception as e:
                 log.debug("configure_host_ip Exception={}".format(e))
                 my_msg = "We failed to setup Petitboot or Host IP, check that the IP's are configured and any other configuration parms"
-                noconfig_exception = UnexpectedCase(state="configure_host_ip", message=my_msg)
+                noconfig_exception = UnexpectedCase(
+                    state="configure_host_ip", message=my_msg)
                 raise noconfig_exception
 
     def get_server_ip(self):
@@ -185,7 +198,8 @@ class InstallUtil():
             self.configure_host_ip()
         except Exception as e:
             my_msg = "Exception trying configure_host_ip, e={}".format(e)
-            configure_exception = UnexpectedCase(state="get_server_ip", message=my_msg)
+            configure_exception = UnexpectedCase(
+                state="get_server_ip", message=my_msg)
             raise configure_exception
         retry = 30
         while retry > 0:
@@ -194,9 +208,11 @@ class InstallUtil():
                 log.debug("get_server_ip my_ip={}".format(my_ip))
                 if not my_ip:
                     my_msg = "We were not able to get IP from Petitboot or Host, check that the IP is configured"
-                    noip_exception = UnexpectedCase(state="get_server_ip", message=my_msg)
+                    noip_exception = UnexpectedCase(
+                        state="get_server_ip", message=my_msg)
                     raise noip_exception
-                output = self.cv_SYSTEM.console.run_command("ping {} -c 1".format(my_ip), retry=5)
+                output = self.cv_SYSTEM.console.run_command(
+                    "ping {} -c 1".format(my_ip), retry=5)
                 log.debug("get_server_ip output={}".format(output))
                 break
             except CommandFailed as cf:
@@ -224,11 +240,11 @@ class InstallUtil():
         ip, port = self.server.server_address
         if not REPO:
             REPO = "http://%s:%s/repo" % (server_ip, port)
-        print("# Listening on %s:%s" % (ip, port))
+        print(("# Listening on %s:%s" % (ip, port)))
         server_thread = threading.Thread(target=self.server.serve_forever)
         server_thread.daemon = True
         server_thread.start()
-        print("# Server running in thread:", server_thread.name)
+        print(("# Server running in thread:", server_thread.name))
         return port
 
     def stop_server(self):
@@ -252,9 +268,10 @@ class InstallUtil():
         abs_repo_path = os.path.abspath(repo_path)
         # Clear already mount repo
         if os.path.ismount(repo_path):
-            status, output = commands.getstatusoutput("umount %s" % abs_repo_path)
+            status, output = subprocess.getstatusoutput(
+                "umount %s" % abs_repo_path)
             if status != 0:
-                print("failed to unmount", abs_repo_path)
+                print(("failed to unmount", abs_repo_path))
                 return ""
         elif os.path.isdir(repo_path):
             shutil.rmtree(repo_path)
@@ -266,18 +283,18 @@ class InstallUtil():
         if os.path.isfile(cdrom):
             cdrom_path = cdrom
         else:
-            cdrom_url = urllib2.urlopen(cdrom)
+            cdrom_url = urllib.request.urlopen(cdrom)
             if not cdrom_url:
-                print("Unknown cdrom path %s" % cdrom)
+                print(("Unknown cdrom path %s" % cdrom))
                 return ""
             with open(os.path.join(BASE_PATH, "iso"), 'wb') as f:
                 f.write(cdrom_url.read())
             cdrom_path = os.path.join(BASE_PATH, "iso")
         cmd = "mount -t iso9660 -o loop %s %s" % (cdrom_path, abs_repo_path)
-        status, output = commands.getstatusoutput(cmd)
+        status, output = subprocess.getstatusoutput(cmd)
         if status != 0:
-            print("Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
-                                                        output))
+            print(("Failed to mount iso %s on %s\n %s", (cdrom, abs_repo_path,
+                                                         output)))
             return ""
         return abs_repo_path
 
@@ -304,10 +321,10 @@ class InstallUtil():
             except Exception:
                 return False
         else:
-            vmlinux_file = urllib2.urlopen(vmlinux_src)
-            initrd_file = urllib2.urlopen(initrd_src)
+            vmlinux_file = urllib.request.urlopen(vmlinux_src)
+            initrd_file = urllib.request.urlopen(initrd_src)
             if not (vmlinux_file and initrd_file):
-                print("Unknown repo path %s, %s" % (vmlinux_src, initrd_src))
+                print(("Unknown repo path %s, %s" % (vmlinux_src, initrd_src)))
                 return False
             try:
                 with open(vmlinux_dst, 'wb') as f:
@@ -384,8 +401,8 @@ class InstallUtil():
                 if each_arg in check_output:
                     req_remove_args += "%s " % each_arg
         except CommandFailed as Err:
-            print("Failed to get kernel commandline using %s: %s" %
-                  (Err.command, Err.output))
+            print(("Failed to get kernel commandline using %s: %s" %
+                   (Err.command, Err.output)))
         return req_args.strip(), req_remove_args.strip()
 
     def update_kernel_cmdline(self, args="", remove_args="", reboot=True):
@@ -411,8 +428,8 @@ class InstallUtil():
             try:
                 con.run_command(cmd)
             except CommandFailed as Err:
-                print("Failed to update kernel commandline using %s: %s" %
-                      (Err.command, Err.output))
+                print(("Failed to update kernel commandline using %s: %s" %
+                       (Err.command, Err.output)))
                 return False
         # If grubby is not available fallback by changing grub file
         except CommandFailed:
@@ -428,8 +445,8 @@ class InstallUtil():
                     for each_arg in req_remove_args.split():
                         output = output.strip(each_arg).strip()
             except CommandFailed as Err:
-                print("Failed to get the kernel commandline - %s: %s" %
-                      (Err.command, Err.output))
+                print(("Failed to get the kernel commandline - %s: %s" %
+                       (Err.command, Err.output)))
                 return False
             if req_args or req_remove_args:
                 try:
@@ -438,8 +455,8 @@ class InstallUtil():
                     con.run_command(cmd, timeout=60)
                     con.run_command("update-grub")
                 except CommandFailed as Err:
-                    print("Failed to update kernel commandline - %s: %s" %
-                          (Err.command, Err.output))
+                    print(("Failed to update kernel commandline - %s: %s" %
+                           (Err.command, Err.output)))
                     return False
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
@@ -450,17 +467,17 @@ class InstallUtil():
             req_args, req_remove_args = self.check_kernel_cmdline(args,
                                                                   remove_args)
             if req_args:
-                print("Failed to add arg %s in the cmdline %s" %
-                      (args, output))
+                print(("Failed to add arg %s in the cmdline %s" %
+                       (args, output)))
                 return False
             if req_remove_args:
-                print("Failed to remove arg %s in the cmdline %s" %
-                      (remove_args, output))
+                print(("Failed to remove arg %s in the cmdline %s" %
+                       (remove_args, output)))
                 return False
         return True
 
 
-class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+class ThreadedHTTPHandler(http.server.SimpleHTTPRequestHandler):
     def do_HEAD(self):
         # FIXME: Local repo unable to handle http request while installation
         # Avoid using cdrom if your kickstart file needs repo, if installation
@@ -488,7 +505,7 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
-            print("# Webserver was asked for: ", self.path)
+            print(("# Webserver was asked for: ", self.path))
             if self.path == "/%s" % VMLINUX:
                 f = open("%s/%s" % (BASE_PATH, VMLINUX), "r")
                 d = f.read()
@@ -514,15 +531,15 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                         user = 'ubuntu'
 
                     packages = "openssh-server build-essential lvm2 ethtool "
-                    packages+= "nfs-common ssh ksh lsvpd nfs-kernel-server iprutils procinfo "
-                    packages+= "sg3-utils lsscsi libaio-dev libtime-hires-perl "
-                    packages+= "acpid tgt openjdk-8* zip git automake python "
-                    packages+= "expect gcc g++ gdb "
-                    packages+= "python-dev p7zip python-stevedore python-setuptools "
-                    packages+= "libvirt-dev numactl libosinfo-1.0-0 python-pip "
-                    packages+= "linux-tools-common linux-tools-generic lm-sensors "
-                    packages+= "ipmitool i2c-tools pciutils opal-prd opal-utils "
-                    packages+= "device-tree-compiler fwts stress"
+                    packages += "nfs-common ssh ksh lsvpd nfs-kernel-server iprutils procinfo "
+                    packages += "sg3-utils lsscsi libaio-dev libtime-hires-perl "
+                    packages += "acpid tgt openjdk-8* zip git automake python "
+                    packages += "expect gcc g++ gdb "
+                    packages += "python-dev p7zip python-stevedore python-setuptools "
+                    packages += "libvirt-dev numactl libosinfo-1.0-0 python-pip "
+                    packages += "linux-tools-common linux-tools-generic lm-sensors "
+                    packages += "ipmitool i2c-tools pciutils opal-prd opal-utils "
+                    packages += "device-tree-compiler fwts stress"
 
                     ps = d.format("openpower", "example.com",
                                   PROXY, PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
@@ -540,22 +557,22 @@ class ThreadedHTTPHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         path_elements = path.split('/')
 
         print("INCOMING")
-        print(repr(path))
-        print(repr(path_elements))
+        print((repr(path)))
+        print((repr(path_elements)))
 
         if path_elements[0] != "upload":
             return
 
         form = cgi.FieldStorage(
-            fp = self.rfile,
-            headers = self.headers,
-            environ={ "REQUEST_METHOD": "POST",
-                      "CONTENT_TYPE": self.headers['Content-Type']})
+            fp=self.rfile,
+            headers=self.headers,
+            environ={"REQUEST_METHOD": "POST",
+                     "CONTENT_TYPE": self.headers['Content-Type']})
 
         uploaded_files[form["file"].filename] = form["file"].value
 
         self.wfile.write("Success")
 
 
-class ThreadedHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     pass

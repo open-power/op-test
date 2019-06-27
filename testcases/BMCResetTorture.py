@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -33,7 +33,7 @@ This testcase does BMC reset torture in different scenarios.
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 
@@ -110,6 +110,7 @@ class StandbyBMCResetTorture(RuntimeBMCResetTorture, unittest.TestCase):
     '''
     Repeatedly does the BMC reset at standby state
     '''
+
     def setUp(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
@@ -124,6 +125,7 @@ class BMCResetvsHostIPLTorture(RuntimeBMCResetTorture, unittest.TestCase):
     '''
     Repeatedly does the BMC Reset vs Host IPL Torture
     '''
+
     def setUp(self):
         pass
 

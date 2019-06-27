@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -63,6 +63,7 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
     git repository and check for switch_endian_test directory and make
     the required files. And finally execute bin file switch_endian_test.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()

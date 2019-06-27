@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -43,14 +43,18 @@ class InstallHostOS(unittest.TestCase):
         self.cv_BMC = self.conf.bmc()
         self.bmc_type = self.conf.args.bmc_type
         if not (self.conf.args.os_repo or self.conf.args.os_cdrom):
-            self.fail("Provide installation media for installation, --os-repo is missing")
+            self.fail(
+                "Provide installation media for installation, --os-repo is missing")
         if not (self.conf.args.host_ip and self.conf.args.host_gateway and self.conf.args.host_dns
                 and self.conf.args.host_submask and self.conf.args.host_mac):
-            self.fail("Provide host network details refer, --host-{ip,gateway,dns,submask,mac}")
+            self.fail(
+                "Provide host network details refer, --host-{ip,gateway,dns,submask,mac}")
         if not (self.conf.args.host_user and self.conf.args.host_password):
-            self.fail("Provide host user details refer, --host-{user,password}")
+            self.fail(
+                "Provide host user details refer, --host-{user,password}")
         if not self.conf.args.host_scratch_disk:
-            self.fail("Provide proper host disk to install refer, --host-scratch-disk")
+            self.fail(
+                "Provide proper host disk to install refer, --host-scratch-disk")
         if not self.conf.args.host_name:
             self.fail("Provide hostname to be set during installation")
 
@@ -117,11 +121,11 @@ class InstallHostOS(unittest.TestCase):
         r = None
         while r != 0:
             r = raw_pty.expect(['Running post-installation scripts',
-                             'Starting installer',
-                             'Setting up the installation environment',
-                             'Starting package installation process',
-                             'Performing post-installation setup tasks',
-                             'Configuring installed system'], timeout=1500)
+                                'Starting installer',
+                                'Setting up the installation environment',
+                                'Starting package installation process',
+                                'Performing post-installation setup tasks',
+                                'Configuring installed system'], timeout=1500)
         raw_pty.expect('reboot: Restarting system', timeout=300)
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)

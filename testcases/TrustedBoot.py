@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -52,6 +52,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class TrustedBoot(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -69,20 +70,23 @@ class TrustedBoot(unittest.TestCase):
         raw_pty = self.cv_SYSTEM.console.get_console()
         raw_pty.expect("System shutting down with error status", timeout=100)
         raw_pty.expect("RC_TPM_NOFUNCTIONALTPM_FAIL", timeout=50)
-        raw_pty.expect("================================================", timeout=20)
+        raw_pty.expect(
+            "================================================", timeout=20)
 
     def verify_opal_tb(self):
         c = self.cv_SYSTEM.console
-        self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        self.cpu = ''.join(c.run_command(
+            "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         log.debug(self.cpu)
         if self.cpu in ["POWER9"]:
             part_list = ["CAPP", "IMA_CATALOG", "BOOTKERNEL", "VERSION"]
         elif self.cpu in ["POWER8"]:
             part_list = ["CAPP", "BOOTKERNEL"]
         else:
-           self.skipTest("OPAL TB test not supported on %s" % self.cpu)
+            self.skipTest("OPAL TB test not supported on %s" % self.cpu)
 
-        data = " ".join(c.run_command("cat /sys/firmware/opal/msglog | grep -i stb"))
+        data = " ".join(c.run_command(
+            "cat /sys/firmware/opal/msglog | grep -i stb"))
         if self.trustedmode:
             if not "trusted mode on" in data:
                 self.assertTrue(False, "OPAL: trusted mode is detected as OFF")
@@ -97,11 +101,13 @@ class TrustedBoot(unittest.TestCase):
                 self.assertTrue(False, "OPAL: %s hash not calculated" % part)
             msg = "STB: %s measured on pcr" % part
             if not msg in data:
-                self.assertTrue(False, "OPAL: %s hash not measured on TPM PCR register" % part)
+                self.assertTrue(
+                    False, "OPAL: %s hash not measured on TPM PCR register" % part)
 
         msg = "STB: EV_SEPARATOR measured on pcr"
         if not msg in data:
-            self.assertTrue(False, "OPAL: EV_SEPARATOR measured on TPM PCR registers")
+            self.assertTrue(
+                False, "OPAL: EV_SEPARATOR measured on TPM PCR registers")
 
     def verify_dt_tb(self):
         c = self.cv_SYSTEM.console
@@ -110,7 +116,8 @@ class TrustedBoot(unittest.TestCase):
         if not self.trustedmode:
             return
 
-        c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/trusted-enabled")
+        c.run_command(
+            "ls --color=never /proc/device-tree/ibm,secureboot/trusted-enabled")
         res = c.run_command("find /proc/device-tree/ -name *tpm*")
         tpm_path = res[-1]
         c.run_command("lsprop %s" % tpm_path)
@@ -127,6 +134,7 @@ class TrustedBoot(unittest.TestCase):
             self.cv_SYSTEM.sys_disable_tpm()
         return
 
+
 class VerifyOPALTrustedBoot(TrustedBoot):
     '''
     a. It verify whether OPAL measures and records of all the resources
@@ -134,6 +142,7 @@ class VerifyOPALTrustedBoot(TrustedBoot):
     b. It also verifies the corresponding DT properties for trustedboot
        and TPM device.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         super(VerifyOPALTrustedBoot, self).setUp()
@@ -146,21 +155,25 @@ class VerifyOPALTrustedBoot(TrustedBoot):
         self.verify_dt_tb()
         self.verify_opal_tb()
 
+
 class FunctionalTPM_PolicyOFF(TrustedBoot):
     '''
     Functional TPM, TPM Required(cleared)
         - Test IPL, Measurements & event logs(Secure Mode Override jumper(s) ON or OFF)
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         super(FunctionalTPM_PolicyOFF, self).setUp()
 
     def runTest(self):
         if not self.trustedmode:
-            self.skipTest("This test needs a functional TPM installed on system")
+            self.skipTest(
+                "This test needs a functional TPM installed on system")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_disable_tpm()
-        self.assertFalse(self.cv_SYSTEM.sys_is_tpm_enabled(), "BMC failed to disable TPM policy")
+        self.assertFalse(self.cv_SYSTEM.sys_is_tpm_enabled(),
+                         "BMC failed to disable TPM policy")
         self.tpm_policy = False
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.verify_dt_tb()
@@ -172,55 +185,66 @@ class FunctionalTPM_PolicyON(TrustedBoot):
     Functional TPM, TPM Required(set)
         - Test IPL, Measurements & event logs(Secure Mode Override jumper(s) can be ON or OFF)
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         super(FunctionalTPM_PolicyON, self).setUp()
 
     def runTest(self):
         if not self.trustedmode:
-            self.skipTest("This test needs a functional TPM installed on system")
+            self.skipTest(
+                "This test needs a functional TPM installed on system")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_enable_tpm()
-        self.assertTrue(self.cv_SYSTEM.sys_is_tpm_enabled(), "BMC failed to enable TPM policy")
+        self.assertTrue(self.cv_SYSTEM.sys_is_tpm_enabled(),
+                        "BMC failed to enable TPM policy")
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.verify_dt_tb()
         self.verify_opal_tb()
+
 
 class NoFunctionalTPM_PolicyOFF(TrustedBoot):
     '''
     No Functional TPM, TPM Required(cleared)
         - Test IPL, Measurements & event logs(Secure Mode Override jumper(s) can be ON or OFF)
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         super(NoFunctionalTPM_PolicyOFF, self).setUp()
 
     def runTest(self):
         if self.trustedmode:
-            self.skipTest("This test needs a functional TPM removed from system")
+            self.skipTest(
+                "This test needs a functional TPM removed from system")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_disable_tpm()
-        self.assertFalse(self.cv_SYSTEM.sys_is_tpm_enabled(), "BMC failed to disable TPM setting policy")
+        self.assertFalse(self.cv_SYSTEM.sys_is_tpm_enabled(),
+                         "BMC failed to disable TPM setting policy")
         self.tpm_policy = False
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.verify_dt_tb()
         self.verify_opal_tb()
+
 
 class NoFunctionalTPM_PolicyON(TrustedBoot):
     '''
     No Functional TPM, TPM Required(set)
         - Test IPL, Measurements & event logs(Secure Mode Override jumper(s) can be ON or OFF)
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         super(NoFunctionalTPM_PolicyON, self).setUp()
 
     def runTest(self):
         if self.trustedmode:
-            self.skipTest("This test needs a functional TPM removed from system")
+            self.skipTest(
+                "This test needs a functional TPM removed from system")
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.sys_enable_tpm()
-        self.assertTrue(self.cv_SYSTEM.sys_is_tpm_enabled(), "BMC failed to enable TPM policy")
+        self.assertTrue(self.cv_SYSTEM.sys_is_tpm_enabled(),
+                        "BMC failed to enable TPM policy")
         if self.securemode:
             self.cv_SYSTEM.sys_power_on()
             self.wait_for_system_shutdown()
@@ -230,6 +254,7 @@ class NoFunctionalTPM_PolicyON(TrustedBoot):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.verify_dt_tb()
         self.verify_opal_tb()
+
 
 def trustedboot_suite():
     s = unittest.TestSuite()

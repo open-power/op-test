@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -65,6 +65,7 @@ host_done = 0
 skiroot_lspci = None
 host_lspci = None
 reset_console = 0
+
 
 class OpClassPCI(unittest.TestCase):
     '''
@@ -205,7 +206,8 @@ class OpClassPCI(unittest.TestCase):
             self.c.run_command(cmd)
 
         # Test that we do not EEH on reading all config space
-        self.c.run_command("hexdump -C /sys/bus/pci/devices/*/config", timeout=600)
+        self.c.run_command(
+            "hexdump -C /sys/bus/pci/devices/*/config", timeout=600)
 
     def get_lspci_file(self):
         '''
@@ -225,16 +227,16 @@ class OpClassPCI(unittest.TestCase):
             return file_content
 
     def _diff_my_devices(self,
-                        listA=None,
-                        listA_name=None,
-                        listB=None,
-                        listB_name=None):
+                         listA=None,
+                         listA_name=None,
+                         listB=None,
+                         listB_name=None):
         '''
         Performs unified diff of two lists
         '''
         unified_output = difflib.unified_diff(
-            filter(None, listA),
-            filter(None, listB),
+            [_f for _f in listA if _f],
+            [_f for _f in listB if _f],
             fromfile=listA_name,
             tofile=listB_name,
             lineterm="")
@@ -275,13 +277,13 @@ class OpClassPCI(unittest.TestCase):
             host_done = 1
         if host_done and skiroot_done:
             compare_results = self._diff_my_devices(listA=skiroot_lspci,
-                                  listA_name="skiroot_lspci",
-                                  listB=host_lspci,
-                                  listB_name="host_lspci")
+                                                    listA_name="skiroot_lspci",
+                                                    listB=host_lspci,
+                                                    listB_name="host_lspci")
             if len(compare_results):
                 self.assertEqual(len(compare_results), 0,
-                    "skiroot_lspci and host_lspci devices differ:\n{}"
-                    .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
+                                 "skiroot_lspci and host_lspci devices differ:\n{}"
+                                 .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
             # refresh so next pair can be matched up, i.e. soft or hard
             skiroot_done = 0
             host_done = 0
@@ -310,14 +312,14 @@ class OpClassPCI(unittest.TestCase):
         file_lspci = self.get_lspci_file()
         if file_lspci:
             compare_results = self._diff_my_devices(listA=file_lspci,
-                                  listA_name=self.conf.lspci_file(),
-                                  listB=active_lspci,
-                                  listB_name="Live System")
+                                                    listA_name=self.conf.lspci_file(),
+                                                    listB=active_lspci,
+                                                    listB_name="Live System")
             log.debug("compare_results={}".format(compare_results))
             if len(compare_results):
-               self.assertEqual(len(compare_results), 0,
-                   "Stored ({}) and Active PCI devices differ:\n{}"
-                   .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
+                self.assertEqual(len(compare_results), 0,
+                                 "Stored ({}) and Active PCI devices differ:\n{}"
+                                 .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
 
     def pcie_link_errors(self):
         '''
@@ -333,21 +335,25 @@ class OpClassPCI(unittest.TestCase):
         '''
         total_entries = link_down_entries = timeout_entries = []
         try:
-            link_down_entries = self.c.run_command("grep ',[432]\].*PHB#.* Link down' /sys/firmware/opal/msglog")
+            link_down_entries = self.c.run_command(
+                "grep ',[432]\].*PHB#.* Link down' /sys/firmware/opal/msglog")
         except CommandFailed as cf:
             pass
         if link_down_entries:
             log.debug("link_down_entries={}".format(link_down_entries))
             total_entries = total_entries + link_down_entries
-            log.debug("total_entries with link_down_entries={}".format(total_entries))
+            log.debug(
+                "total_entries with link_down_entries={}".format(total_entries))
         try:
-            timeout_entries = self.c.run_command("grep ',[432]\].*Timeout waiting for' /sys/firmware/opal/msglog")
+            timeout_entries = self.c.run_command(
+                "grep ',[432]\].*Timeout waiting for' /sys/firmware/opal/msglog")
         except CommandFailed as cf:
             pass
         if timeout_entries:
             log.debug("timeout_entries={}".format(timeout_entries))
             total_entries = total_entries + timeout_entries
-            log.debug("total_entries with timeout_entries={}".format(total_entries))
+            log.debug(
+                "total_entries with timeout_entries={}".format(total_entries))
         platform = self.c.run_command("cat /proc/device-tree/compatible")
 
         filter_out = [
@@ -363,9 +369,10 @@ class OpClassPCI(unittest.TestCase):
                 total_entries = [l for l in total_entries if not fre.search(l)]
             log.debug("P9DSU FILTERED OUT total_entries={}".format(total_entries))
 
-        msg = '\n'.join(filter(None, total_entries))
+        msg = '\n'.join([_f for _f in total_entries if _f])
         log.debug("total_entries={}".format(total_entries))
-        self.assertTrue( len(total_entries) == 0, "pcie link down/timeout Errors in OPAL log:\n{}".format(msg))
+        self.assertTrue(len(total_entries) == 0,
+                        "pcie link down/timeout Errors in OPAL log:\n{}".format(msg))
 
     def _get_list_of_pci_devices(self):
         cmd = "ls --color=never /sys/bus/pci/devices/ | awk {'print $1'}"
@@ -392,11 +399,12 @@ class OpClassPCI(unittest.TestCase):
         boot_disk = ''.join(res).split("/dev/")[1]
         boot_disk = boot_disk.replace("\r\n", "")
         awk_string = "awk '{print $(NF-2)}'"
-        pre_cmd  = "ls --color=never -l /dev/disk/by-path/ | grep {} | ".format(boot_disk)
+        pre_cmd = "ls --color=never -l /dev/disk/by-path/ | grep {} | ".format(
+            boot_disk)
         cmd = pre_cmd + awk_string
         res = self.c.run_command(cmd)
         root_pe = res[0].split("-")[1]
-        return  root_pe
+        return root_pe
 
     def _gather_errors(self):
         # Gather all errors from kernel and opal logs
@@ -441,12 +449,15 @@ class OpClassPCI(unittest.TestCase):
             if driver is None:
                 continue
             index = "{}_{}".format(driver, slot)
-            cmd = "echo -n {} > /sys/bus/pci/drivers/{}/unbind".format(slot, driver)
-            log.debug("unbind driver={} slot={} cmd={}".format(driver, slot, cmd))
+            cmd = "echo -n {} > /sys/bus/pci/drivers/{}/unbind".format(
+                slot, driver)
+            log.debug("unbind driver={} slot={} cmd={}".format(
+                driver, slot, cmd))
             try:
                 self.c.run_command(cmd)
             except CommandFailed as cf:
-                msg = "Driver unbind operation failed for driver {}, slot {}".format(slot, driver)
+                msg = "Driver unbind operation failed for driver {}, slot {}".format(
+                    slot, driver)
                 failure_list[index] = msg
             time.sleep(5)
             cmd = 'ls --color=never /sys/bus/pci/drivers/{}'.format(driver)
@@ -457,12 +468,14 @@ class OpClassPCI(unittest.TestCase):
                 rc = 1
             except CommandFailed as cf:
                 pass
-            cmd = "echo -n {} > /sys/bus/pci/drivers/{}/bind".format(slot, driver)
+            cmd = "echo -n {} > /sys/bus/pci/drivers/{}/bind".format(
+                slot, driver)
             log.debug("bind driver={} slot={} cmd={}".format(driver, slot, cmd))
             try:
                 self.c.run_command(cmd)
             except CommandFailed as cf:
-                msg = "Driver bind operation failed for driver {}, slot {}".format(slot, driver)
+                msg = "Driver bind operation failed for driver {}, slot {}".format(
+                    slot, driver)
                 failure_list[index] = msg
             time.sleep(5)
             cmd = 'ls --color=never /sys/bus/pci/drivers/{}'.format(driver)
@@ -481,7 +494,8 @@ class OpClassPCI(unittest.TestCase):
             if rc == 2:
                 msg = "{} not bound back for driver {}".format(slot, driver)
                 failure_list[index] = msg
-        self.assertEqual(failure_list, {}, "Driver bind/unbind failures {}".format(failure_list))
+        self.assertEqual(failure_list, {},
+                         "Driver bind/unbind failures {}".format(failure_list))
 
     def hot_plug_host(self):
         '''
@@ -492,28 +506,32 @@ class OpClassPCI(unittest.TestCase):
         '''
         # Currently this feature enabled only for fsp systems
         if "FSP" not in self.conf.args.bmc_type:
-            log.debug("Skipping test, currently only OPAL FSP Platform supported for hot_plug_host")
-            self.skipTest("Skipping test, currently only OPAL FSP Platform supported for hot_plug_host")
+            log.debug(
+                "Skipping test, currently only OPAL FSP Platform supported for hot_plug_host")
+            self.skipTest(
+                "Skipping test, currently only OPAL FSP Platform supported for hot_plug_host")
         res = self.c.run_command("uname -r")[-1].split("-")[0]
         if LooseVersion(res) < LooseVersion("4.10.0"):
-            log.debug("Skipping test, Kernel does not support hotplug {}".format(res))
-            self.skipTest("Skipping test, Kernel does not support hotplug={}".format(res))
+            log.debug(
+                "Skipping test, Kernel does not support hotplug {}".format(res))
+            self.skipTest(
+                "Skipping test, Kernel does not support hotplug={}".format(res))
         self.cv_HOST.host_load_module("pnv_php")
         device_list = self._get_list_of_pci_devices()
         root_pe = self._get_root_pe_address()
         slot_list = self._get_list_of_slots()
         self.c.run_command("dmesg -D")
-        pair = {} # Pair of device vs slot location code
+        pair = {}  # Pair of device vs slot location code
         for device in device_list:
             cmd = "lspci -k -s {} -vmm".format(device)
             res = self.c.run_command(cmd)
             for line in res:
-                #if "PhySlot:\t" in line:
+                # if "PhySlot:\t" in line:
                 obj = re.match('PhySlot:\t(.*)', line)
                 if obj:
                     pair[device] = obj.group(1)
         failure_list = {}
-        for device, phy_slot in pair.iteritems():
+        for device, phy_slot in list(pair.items()):
             if root_pe in device:
                 continue
             index = "{}_{}".format(device, phy_slot)
@@ -522,7 +540,7 @@ class OpClassPCI(unittest.TestCase):
                 self.c.run_command("test -f {}".format(path))
             except CommandFailed as cf:
                 log.debug("Slot {} does not support hotplug".format(phy_slot))
-                continue # slot does not support hotplug
+                continue  # slot does not support hotplug
             try:
                 self.c.run_command("echo 0 > {}".format(path))
             except CommandFailed as cf:
@@ -544,7 +562,8 @@ class OpClassPCI(unittest.TestCase):
                 msg = "PCI device failed to attach back after power on operation"
                 failure_list[index] = msg
             self._gather_errors()
-        self.assertEqual(failure_list, {}, "PCI Hotplug failures {}".format(failure_list))
+        self.assertEqual(failure_list, {},
+                         "PCI Hotplug failures {}".format(failure_list))
 
     def pci_link_check(self):
         '''
@@ -560,7 +579,8 @@ class OpClassPCI(unittest.TestCase):
         lspci_output = self.c.run_command("lspci")
 
         # List of devices that won't be checked
-        blacklist = ["Broadcom Limited NetXtreme BCM5719 Gigabit Ethernet PCIe (rev 01)"]
+        blacklist = [
+            "Broadcom Limited NetXtreme BCM5719 Gigabit Ethernet PCIe (rev 01)"]
 
         # Populating device id list
         device_ids = []
@@ -616,16 +636,16 @@ class OpClassPCI(unittest.TestCase):
 
             def get_details(self):
                 msg = ("{}, capability={}, secondary={} \n"
-                    .format(self.get_id(), self.capability, self.secondary))
+                       .format(self.get_id(), self.capability, self.secondary))
                 msg += ("capspeed={}, capwidth={}, staspeed={}, stawidth={}"
-                    .format(self.capspeed, self.capwidth, self.staspeed, self.stawidth))
+                        .format(self.capspeed, self.capwidth, self.staspeed, self.stawidth))
                 return msg
 
             def get_id(self):
                 return "{}:{}:{}".format(self.domain, self.primary, self.slotfunc)
 
         # Checking if two devices are linked together
-        def devicesLinked(upstream,downstream):
+        def devicesLinked(upstream, downstream):
             if upstream.domain == downstream.domain:
                 if upstream.secondary == downstream.primary:
                     if upstream.capability == "Root":
@@ -671,21 +691,24 @@ class OpClassPCI(unittest.TestCase):
 
         # Returns a string containing details of the suboptimal link
         def subLinkInfo(upstream, downstream):
-            msg = "\nSuboptimal link between {} and {} - ".format(upstream.get_id(), downstream.get_id())
+            msg = "\nSuboptimal link between {} and {} - ".format(
+                upstream.get_id(), downstream.get_id())
             if not optimalSpeed(upstream, downstream):
                 if upstream.capspeed > downstream.capspeed:
                     optimal_speed = downstream.capspeed
                 else:
                     optimal_speed = upstream.capspeed
                 actual_speed = upstream.staspeed
-                msg += "Link speed capability is {}GT/s but status was {}GT/s. ".format(optimal_speed, actual_speed)
+                msg += "Link speed capability is {}GT/s but status was {}GT/s. ".format(
+                    optimal_speed, actual_speed)
             if not optimalWidth(upstream, downstream):
                 if upstream.capwidth > downstream.capwidth:
                     optimal_width = downstream.capwidth
                 else:
                     optimal_width = upstream.capwidth
                 actual_width = upstream.stawidth
-                msg += "Link width capability is x{} but status was x{}. ".format(optimal_width, actual_width)
+                msg += "Link width capability is x{} but status was x{}. ".format(
+                    optimal_width, actual_width)
             return msg
 
         # Searching through devices to check for links and testing to see if they're optimal
@@ -696,17 +719,19 @@ class OpClassPCI(unittest.TestCase):
                     if endpoint not in checked_devices:
                         if devicesLinked(device, endpoint):
                             checked_devices.append(endpoint)
-                            log.debug("checking link between {} and {}".format(device.get_id(), endpoint.get_id()))
+                            log.debug("checking link between {} and {}".format(
+                                device.get_id(), endpoint.get_id()))
                             log.debug(device.get_details())
                             log.debug(endpoint.get_details())
                             if endpoint.name in blacklist:
                                 no_check_msg = ("Link between {} and {} not checked as {} is in the list of blacklisted devices"
-                                    .format(device.get_id(), endpoint.get_id(), endpoint.get_id()))
+                                                .format(device.get_id(), endpoint.get_id(), endpoint.get_id()))
                                 log.info(no_check_msg)
                                 blacklist_links += "{}\n".format(no_check_msg)
                             else:
-                                if(not optimalSpeed(device, endpoint)) or (not optimalWidth(device,endpoint)):
-                                    suboptimal_links += subLinkInfo(device, endpoint)
+                                if(not optimalSpeed(device, endpoint)) or (not optimalWidth(device, endpoint)):
+                                    suboptimal_links += subLinkInfo(
+                                        device, endpoint)
                             log.debug("")
 
         log.debug("Finished testing links")
@@ -715,6 +740,7 @@ class OpClassPCI(unittest.TestCase):
         log.debug("suboptimal_links={}".format(suboptimal_links))
         # Assert suboptimal list is empty
         self.assertEqual(len(suboptimal_links), 0, suboptimal_links)
+
 
 class PCISkirootSoftboot(OpClassPCI, unittest.TestCase):
     '''
@@ -737,6 +763,7 @@ class PCISkirootSoftboot(OpClassPCI, unittest.TestCase):
         # this left as placeholder for per test setUp
         super(PCISkirootSoftboot, self).setUp()
 
+
 class PCISkirootHardboot(OpClassPCI, unittest.TestCase):
     '''
     Class allows to run parent classes with unique setup
@@ -753,13 +780,16 @@ class PCISkirootHardboot(OpClassPCI, unittest.TestCase):
         # this left as placeholder for per test setUp
         super(PCISkirootHardboot, self).setUp()
 
+
 class PCISkiroot(OpClassPCI, unittest.TestCase):
     '''
     Class allows to run parent classes with unique setup
     '''
+
     def setUp(self):
         # this left as placeholder for per test setUp
         super(PCISkiroot, self).setUp()
+
 
 class PCIHostSoftboot(OpClassPCI, unittest.TestCase):
     '''
@@ -782,13 +812,15 @@ class PCIHostSoftboot(OpClassPCI, unittest.TestCase):
         # this left as placeholder for per test setUp
         super(PCIHostSoftboot, self).setUp()
 
+
 class PCIHostHardboot(OpClassPCI, unittest.TestCase):
     '''
     Class allows to run parent classes with unique setup
     '''
     @classmethod
     def setUpClass(cls):
-        super(PCIHostHardboot, cls).setUpClass(desired=OpSystemState.OS, power_cycle=1)
+        super(PCIHostHardboot, cls).setUpClass(
+            desired=OpSystemState.OS, power_cycle=1)
 
     @classmethod
     def tearDownClass(cls):
@@ -797,6 +829,7 @@ class PCIHostHardboot(OpClassPCI, unittest.TestCase):
     def setUp(self):
         # this left as placeholder for per test setUp
         super(PCIHostHardboot, self).setUp()
+
 
 class PCIHost(OpClassPCI, unittest.TestCase):
     '''
@@ -810,14 +843,17 @@ class PCIHost(OpClassPCI, unittest.TestCase):
         # this left as placeholder for per test setUp
         super(PCIHost, self).setUp()
 
+
 def skiroot_softboot_suite():
     '''
     Function used to prepare a test suite (see op-test)
     --run-suite pci-regression
     --run testcases.OpTestPCI.skiroot_softboot_suite
     '''
-    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices']
-    return unittest.TestSuite(map(PCISkirootSoftboot, tests))
+    tests = ['pcie_link_errors', 'compare_live_devices',
+             'pci_link_check', 'compare_boot_devices']
+    return unittest.TestSuite(list(map(PCISkirootSoftboot, tests)))
+
 
 def skiroot_hardboot_suite():
     '''
@@ -825,8 +861,10 @@ def skiroot_hardboot_suite():
     --run-suite pci-regression
     --run testcases.OpTestPCI.skiroot_hardboot_suite
     '''
-    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices']
-    return unittest.TestSuite(map(PCISkirootHardboot, tests))
+    tests = ['pcie_link_errors', 'compare_live_devices',
+             'pci_link_check', 'compare_boot_devices']
+    return unittest.TestSuite(list(map(PCISkirootHardboot, tests)))
+
 
 def skiroot_suite():
     '''
@@ -837,7 +875,8 @@ def skiroot_suite():
     This suite does not care on soft vs hard boot
     '''
     tests = ['pcie_link_errors', 'compare_live_devices']
-    return unittest.TestSuite(map(PCISkiroot, tests))
+    return unittest.TestSuite(list(map(PCISkiroot, tests)))
+
 
 def skiroot_full_suite():
     '''
@@ -846,8 +885,10 @@ def skiroot_full_suite():
 
     This suite does not care on soft vs hard boot
     '''
-    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'driver_bind']
-    return unittest.TestSuite(map(PCISkiroot, tests))
+    tests = ['pcie_link_errors', 'compare_live_devices',
+             'pci_link_check', 'driver_bind']
+    return unittest.TestSuite(list(map(PCISkiroot, tests)))
+
 
 def host_softboot_suite():
     '''
@@ -855,8 +896,10 @@ def host_softboot_suite():
     --run-suite pci-regression
     --run testcases.OpTestPCI.host_softboot_suite
     '''
-    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices', 'driver_bind', 'hot_plug_host']
-    return unittest.TestSuite(map(PCIHostSoftboot, tests))
+    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check',
+             'compare_boot_devices', 'driver_bind', 'hot_plug_host']
+    return unittest.TestSuite(list(map(PCIHostSoftboot, tests)))
+
 
 def host_hardboot_suite():
     '''
@@ -864,8 +907,10 @@ def host_hardboot_suite():
     --run-suite pci-regression
     --run testcases.OpTestPCI.host_hardboot_suite
     '''
-    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'compare_boot_devices', 'driver_bind', 'hot_plug_host']
-    return unittest.TestSuite(map(PCIHostHardboot, tests))
+    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check',
+             'compare_boot_devices', 'driver_bind', 'hot_plug_host']
+    return unittest.TestSuite(list(map(PCIHostHardboot, tests)))
+
 
 def host_suite():
     '''
@@ -876,7 +921,8 @@ def host_suite():
     This suite does not care on soft vs hard boot
     '''
     tests = ['pcie_link_errors', 'compare_live_devices']
-    return unittest.TestSuite(map(PCIHost, tests))
+    return unittest.TestSuite(list(map(PCIHost, tests)))
+
 
 def host_full_suite():
     '''
@@ -885,5 +931,6 @@ def host_full_suite():
 
     This suite does not care on soft vs hard boot
     '''
-    tests = ['pcie_link_errors', 'compare_live_devices', 'pci_link_check', 'driver_bind', 'hot_plug_host']
-    return unittest.TestSuite(map(PCIHost, tests))
+    tests = ['pcie_link_errors', 'compare_live_devices',
+             'pci_link_check', 'driver_bind', 'hot_plug_host']
+    return unittest.TestSuite(list(map(PCIHost, tests)))

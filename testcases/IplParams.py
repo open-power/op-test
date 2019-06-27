@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -40,6 +40,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class IplParams():
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -76,14 +77,17 @@ class IplParams():
         p8_params["disable"] = ["fw-bcctrl-serialized", "inst-thread-reconfig-control-trig0-1",
                                 "fw-ltptr-serialized", "inst-l1d-flush-trig2", "fw-l1d-thread-split", "user-mode-branch-speculation"]
 
-        self.cpu = ''.join(self.c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        self.cpu = ''.join(self.c.run_command(
+            "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         if self.cpu in ["POWER9"]:
-            self.revision = ''.join(self.c.run_command("grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'"))
+            self.revision = ''.join(self.c.run_command(
+                "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'"))
             if not self.revision in ["2.2", "2.3"]:
                 return {}
             rl = 0
             try:
-                self.c.run_command("ls --color=never /proc/device-tree/ipl-params/sys-params/elevated-risk-level")
+                self.c.run_command(
+                    "ls --color=never /proc/device-tree/ipl-params/sys-params/elevated-risk-level")
                 rl = 1
             except CommandFailed:
                 rl = 0
@@ -96,12 +100,14 @@ class IplParams():
         elif self.cpu in ["POWER8", "POWER8E"]:
             return p8_params
         else:
-            log.error("CPU %s doesn't have the supported fw-feature set" % self.cpu)
+            log.error(
+                "CPU %s doesn't have the supported fw-feature set" % self.cpu)
             return {}
 
     def file_exists(self, path):
         try:
-            self.c.run_command("ls --color=never /proc/device-tree/ibm,opal/fw-features/%s" % path)
+            self.c.run_command(
+                "ls --color=never /proc/device-tree/ibm,opal/fw-features/%s" % path)
             exist = True
         except CommandFailed:
             exist = False
@@ -110,10 +116,12 @@ class IplParams():
     def test_feature_enable(self):
         self.setup_test()
         params = self.get_params_table()
-        log.debug("List of features which are expected to be in enabled state\n{}".format(params))
+        log.debug(
+            "List of features which are expected to be in enabled state\n{}".format(params))
         if not params:
             # skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)
-            raise unittest.SkipTest("Skipping test, fw-feature set table not found or processor not supported")
+            raise unittest.SkipTest(
+                "Skipping test, fw-feature set table not found or processor not supported")
 
         fail_params = {}
         fail_params["enable"] = []
@@ -129,16 +137,19 @@ class IplParams():
                 else:
                     fail_params["not-found"].append(param)
         if fail_params["enable"] or fail_params["not-found"]:
-            message = "fw-feature expected to be enabled,\n\tdisabled list: %s\n\tnot-found list: %s" % (fail_params["enable"], fail_params["not-found"])
+            message = "fw-feature expected to be enabled,\n\tdisabled list: %s\n\tnot-found list: %s" % (
+                fail_params["enable"], fail_params["not-found"])
             self.assertTrue(False, message)
 
     def test_feature_disable(self):
         self.setup_test()
         params = self.get_params_table()
-        log.debug("List of features which are expected to be in disabled state\n{}".format(params))
+        log.debug(
+            "List of features which are expected to be in disabled state\n{}".format(params))
         if not params:
             # skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)
-            raise unittest.SkipTest("fw-feature set table not found, check if the processor is supported")
+            raise unittest.SkipTest(
+                "fw-feature set table not found, check if the processor is supported")
 
         fail_params = {}
         fail_params["disable"] = []
@@ -155,8 +166,10 @@ class IplParams():
                     fail_params["not-found"].append(param)
 
         if fail_params["disable"] or fail_params["not-found"]:
-            message = "fw-feature expected to be disabled,\n\tenabled list: %s,\n\tnot-found list: %s" % (fail_params["disable"], fail_params["not-found"])
+            message = "fw-feature expected to be disabled,\n\tenabled list: %s,\n\tnot-found list: %s" % (
+                fail_params["disable"], fail_params["not-found"])
             self.assertTrue(False, message)
+
 
 class Skiroot(IplParams, unittest.TestCase):
     def setup_test(self):
@@ -165,6 +178,7 @@ class Skiroot(IplParams, unittest.TestCase):
         if (isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole)) \
                 or (isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole)):
             raise unittest.SkipTest("QEMU/Mambo running so skipping tests")
+
 
 class Host(IplParams, unittest.TestCase):
     def setup_test(self):

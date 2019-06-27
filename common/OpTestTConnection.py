@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # encoding=utf8
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
@@ -25,18 +25,21 @@
 #
 # IBM_PROLOG_END_TAG
 
-## @package OpTestTConnection
+# @package OpTestTConnection
 #  TConnection-API to telnet connection
-#  This library of tconnection can use in cases if any platform has 
+#  This library of tconnection can use in cases if any platform has
 #  telnet connection to their SP/MC.(i.e EX: FSP uses tenet connection)
 
 import telnetlib
 
+
 class NoLoginPrompt(Exception):
-    def __init__(self,output):
-        self.output=output
+    def __init__(self, output):
+        self.output = output
+
     def __str__(self):
         return "No login prompt found, instead got: {}".format(repr(self.output))
+
 
 class TConnection():
 
@@ -67,7 +70,7 @@ class TConnection():
         self.tn.write(self.user_name + '\n')
         self.tn.read_until('assword: ')
         self.tn.write(self.password + '\n')
-        ret=self.tn.read_until(self.prompt)
+        ret = self.tn.read_until(self.prompt)
         if not self.prompt in ret:
             raise NoLoginPrompt(ret)
 
@@ -80,7 +83,7 @@ class TConnection():
         response = self.tn.read_until(self.prompt)
         return self._send_only_result(command, response)
 
-    def issue_forget(self,command):
+    def issue_forget(self, command):
         self.tn.write(command + '\n')
         response = self.tn.read_very_eager()
         return self._send_only_result(command, response)
@@ -90,7 +93,7 @@ class TConnection():
         if command in output[0]:
             output.pop(0)
         output.pop()
-        output = [ element.lstrip()+'\n' for element in output]
+        output = [element.lstrip()+'\n' for element in output]
         response = ''.join(output)
         response = response.strip()
         return ''.join(response)

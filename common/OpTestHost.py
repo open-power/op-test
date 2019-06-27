@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -43,27 +43,27 @@ import socket
 import select
 import pty
 import pexpect
-import commands
+import subprocess
 
 import OpTestConfiguration
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
-from OpTestSSH import OpTestSSH
-import OpTestQemu
-from Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
+from .OpTestSSH import OpTestSSH
+from . import OpTestQemu
+from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-import logging
-import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class OpTestHost():
     '''
     An object to manipulate and run things on the host.
     '''
+
     def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
                  scratch_disk="", proxy="", logfile=sys.stdout,
                  check_ssh_keys=False, known_hosts_file=None, conf=None):
@@ -76,8 +76,8 @@ class OpTestHost():
         self.results_dir = i_results_dir
         self.logfile = logfile
         self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
-                logfile=self.logfile, check_ssh_keys=check_ssh_keys,
-                known_hosts_file=known_hosts_file)
+                             logfile=self.logfile, check_ssh_keys=check_ssh_keys,
+                             known_hosts_file=known_hosts_file)
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None
@@ -103,13 +103,15 @@ class OpTestHost():
         if self.scratch_disk_size is not None:
             return self.scratch_disk_size
         if console is None:
-            raise Exception("You need to call get_scratch_disk_size() with a console first")
-        dev_sdX = console.run_command("readlink -f %s" % self.get_scratch_disk())
-        dev_sdX = dev_sdX[0].replace("/dev/","")
-        scratch_disk_size = console.run_command("cat /sys/block/%s/size" % dev_sdX)
+            raise Exception(
+                "You need to call get_scratch_disk_size() with a console first")
+        dev_sdX = console.run_command(
+            "readlink -f %s" % self.get_scratch_disk())
+        dev_sdX = dev_sdX[0].replace("/dev/", "")
+        scratch_disk_size = console.run_command(
+            "cat /sys/block/%s/size" % dev_sdX)
         # Use the (undocumented) /size sysfs property of nr 512byte sectors
         self.scratch_disk_size = int(scratch_disk_size[0])*512
-
 
     def get_proxy(self):
         return self.proxy
@@ -118,23 +120,26 @@ class OpTestHost():
         return self.ssh
 
     def get_new_ssh_connection(self, name="temp"):
-        #time.sleep(1)
+        # time.sleep(1)
         outsuffix = time.strftime("%Y%m%d%H%M%S")
         filename = "%s-%s.log" % (outsuffix, name)
-        logfile = os.path.join(self.results_dir,filename)
-        print "Log file: %s" % logfile
+        logfile = os.path.join(self.results_dir, filename)
+        print(("Log file: %s" % logfile))
         logcmd = "tee %s" % (logfile)
         logcmd = logcmd + "| sed -u -e 's/\\r$//g'|cat -v"
-        print "logcmd: %s" % logcmd
+        print(("logcmd: %s" % logcmd))
         logfile_proc = subprocess.Popen(logcmd,
-                                             stdin=subprocess.PIPE,
-                                             stderr=subprocess.PIPE,
-                                             stdout=subprocess.PIPE,
-                                             shell=True)
-        print repr(logfile_proc)
+                                        stdin=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        stdout=subprocess.PIPE,
+                                        shell=True,
+                                        universal_newlines=True,
+                                        encoding='utf-8')
+        print((repr(logfile_proc)))
         logfile = logfile_proc.stdin
-        print "Log file: %s" % logfile
-        OpTestLogger.optest_logger_glob.setUpCustomLoggerDebugFile(name, filename)
+        print(("Log file: %s" % logfile))
+        OpTestLogger.optest_logger_glob.setUpCustomLoggerDebugFile(
+            name, filename)
         ssh = OpTestSSH(self.ip, self.user, self.passwd,
                         logfile=logfile, check_ssh_keys=self.check_ssh_keys,
                         known_hosts_file=self.known_hosts_file, use_parent_logger=False)
@@ -145,7 +150,8 @@ class OpTestHost():
         '''
         Get the OS version.
         '''
-        l_oslevel = self.host_run_command("cat /etc/os-release", timeout=60, console=console)
+        l_oslevel = self.host_run_command(
+            "cat /etc/os-release", timeout=60, console=console)
         return '\n'.join(l_oslevel)
 
     def host_cold_reset(self):
@@ -171,7 +177,7 @@ class OpTestHost():
         # Copy the hpm file to the tmp folder in the host
         try:
             self.util.copyFilesToDest(i_image, self.user,
-                                             self.ip, "/tmp/", self.passwd)
+                                      self.ip, "/tmp/", self.passwd)
         except:
             l_msg = "Copying hpm file to host failed"
             log.warning(l_msg)
@@ -183,7 +189,8 @@ class OpTestHost():
         try:
             l_rc = self.ssh.run_command(l_cmd, timeout=1500)
             log.debug(l_rc)
-            self.ssh.run_command("rm -rf /tmp/" + i_image.rsplit("/", 1)[1],timeout=120)
+            self.ssh.run_command(
+                "rm -rf /tmp/" + i_image.rsplit("/", 1)[1], timeout=120)
         except subprocess.CalledProcessError:
             l_msg = "Code Update Failed"
             log.warning(l_msg)
@@ -199,16 +206,17 @@ class OpTestHost():
     def host_run_command(self, i_cmd, timeout=1500, retry=0, console=0):
         # if we are QEMU use the system console
         if isinstance(self.ssh.system.console, OpTestQemu.QemuConsole) or (console == 1):
-          return self.ssh.system.console.run_command(i_cmd, timeout, retry)
+            return self.ssh.system.console.run_command(i_cmd, timeout, retry)
         else:
-          return self.ssh.run_command(i_cmd, timeout, retry)
+            return self.ssh.run_command(i_cmd, timeout, retry)
 
     def host_gather_opal_msg_log(self, console=0):
         '''
         Gather OPAL logs (from the host) and store in a file
         '''
         try:
-            l_data = '\n'.join(self.host_run_command(BMC_CONST.OPAL_MSG_LOG, console=console))
+            l_data = '\n'.join(self.host_run_command(
+                BMC_CONST.OPAL_MSG_LOG, console=console))
         except OpTestError:
             l_msg = "Failed to gather OPAL message logs"
             raise OpTestError(l_msg)
@@ -230,14 +238,15 @@ class OpTestHost():
         '''
         default_vals = {'console': 0}
         for key in default_vals:
-          if key not in kwargs.keys():
-            kwargs[key] = default_vals[key]
+            if key not in list(kwargs.keys()):
+                kwargs[key] = default_vals[key]
         l_cmd = 'which ' + ' '.join(i_cmd)
         log.debug(l_cmd)
         try:
             l_res = self.host_run_command(l_cmd, console=kwargs['console'])
         except CommandFailed as c:
-            l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (','.join(i_cmd), l_cmd, '\n'.join(c.output))
+            l_msg = "host_check_command: (%s) not present on host. output of '%s': %s" % (
+                ','.join(i_cmd), l_cmd, '\n'.join(c.output))
             log.error(l_msg)
             raise OpTestError(l_msg)
 
@@ -247,7 +256,8 @@ class OpTestHost():
         '''
         Get Linux kernel version running on the host (using uname).
         '''
-        l_kernel = self.host_run_command("uname -a | awk {'print $3'}", timeout=60, console=0)
+        l_kernel = self.host_run_command(
+            "uname -a | awk {'print $3'}", timeout=60, console=0)
         l_kernel = ''.join(l_kernel)
         log.debug(l_kernel)
         return l_kernel
@@ -275,7 +285,8 @@ class OpTestHost():
         '''
         l_file = "/boot/config-%s" % i_kernel
         try:
-            l_res = self.host_run_command("test -e %s" % l_file, timeout=60, console=console)
+            l_res = self.host_run_command(
+                "test -e %s" % l_file, timeout=60, console=console)
         except CommandFailed:
             raise NoKernelConfig(i_kernel, l_file)
 
@@ -287,14 +298,14 @@ class OpTestHost():
         for o in l_res:
             m = re.match('# (.*) is not set', o)
             if m:
-                config_opts[m.group(0)]='n'
+                config_opts[m.group(0)] = 'n'
             else:
                 if '=' in o:
                     opt, val = o.split("=")
                     config_opts[opt] = val
 
-        if config_opts.get(i_config) not in ["y","m"]:
-                raise KernelConfigNotSet(i_config)
+        if config_opts.get(i_config) not in ["y", "m"]:
+            raise KernelConfigNotSet(i_config)
 
         return config_opts[i_config]
 
@@ -316,7 +327,7 @@ class OpTestHost():
         and also this function works only in root user mode
         '''
         if "PowerKVM" not in i_oslevel:
-            o = self.ssh.run_command("modprobe ibmpowernv",timeout=60)
+            o = self.ssh.run_command("modprobe ibmpowernv", timeout=60)
             cmd = "lsmod | grep -i ibmpowernv"
             response = self.ssh.run_command(cmd, timeout=60)
             if "ibmpowernv" not in ''.join(response):
@@ -377,11 +388,14 @@ class OpTestHost():
         It will load the module using modprobe and verify whether it is loaded or not
         '''
         try:
-            l_res = self.host_run_command("modprobe %s" % i_module, console=console)
+            l_res = self.host_run_command(
+                "modprobe %s" % i_module, console=console)
         except CommandFailed as c:
-            l_msg = "Error in loading the module %s, modprobe failed: %s" % (i_module,str(c))
+            l_msg = "Error in loading the module %s, modprobe failed: %s" % (
+                i_module, str(c))
             raise OpTestError(l_msg)
-        l_res = self.host_run_command("lsmod | grep -i --color=never %s" % i_module, console=console)
+        l_res = self.host_run_command(
+            "lsmod | grep -i --color=never %s" % i_module, console=console)
         if re.search(i_module, ''.join(l_res)):
             log.debug("%s module is loaded" % i_module)
             return BMC_CONST.FW_SUCCESS
@@ -409,7 +423,8 @@ class OpTestHost():
         format should be "2015-01-01 12:12:12"
         '''
         log.debug("Setting the hwclock time to %s" % i_time)
-        self.host_run_command("hwclock --set --date \'%s\'" % i_time, console=console)
+        self.host_run_command("hwclock --set --date \'%s\'" %
+                              i_time, console=console)
 
     ##
     #
@@ -451,7 +466,8 @@ class OpTestHost():
         '''
         l_msg = 'https://github.com/open-power/skiboot.git/'
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self.host_run_command("git config --global http.sslverify false", console=console)
+        self.host_run_command(
+            "git config --global http.sslverify false", console=console)
         self.host_run_command("rm -rf %s" % i_dir, console=console)
         self.host_run_command("mkdir %s" % i_dir, console=console)
         try:
@@ -482,7 +498,8 @@ class OpTestHost():
         '''
         self.pci_domains = []
         self.host_run_command("lspci -mm", console=console)
-        res = self.host_run_command('lspci -mm | cut -d":" -f1 | sort | uniq', console=console)
+        res = self.host_run_command(
+            'lspci -mm | cut -d":" -f1 | sort | uniq', console=console)
         for domain in res:
             if not domain:
                 continue
@@ -504,13 +521,13 @@ class OpTestHost():
         res = self.host_run_command(cmd, console=console)
         boot_disk = ''.join(res).split("/dev/")[1]
         boot_disk = boot_disk.replace("\r\n", "")
-        cmd  = "ls -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
+        cmd = "ls -l /dev/disk/by-path/ | grep %s | awk '{print $(NF-2)}'" % boot_disk
         res = self.host_run_command(cmd, console=console)
         matchObj = re.search(r"\d{4}(?!\d)", '\n'.join(res), re.S)
         if not matchObj:
             raise OpTestError("Not able to find out root phb domain")
         boot_domain = 'PCI' + matchObj.group(0)
-        return  boot_domain
+        return boot_domain
 
     def host_gather_kernel_log(self, console=0):
         '''
@@ -550,7 +567,8 @@ class OpTestHost():
         This function gets the status of opal_errd daemon.
         Raises an exception if not running.
         '''
-        res = self.host_run_command("ps -ef | grep -v grep | grep opal_errd | wc -l", console=console)
+        res = self.host_run_command(
+            "ps -ef | grep -v grep | grep opal_errd | wc -l", console=console)
         log.debug(res)
         if res[0].strip() == "0":
             log.warning("Opal_errd daemon is not running")
@@ -577,7 +595,8 @@ class OpTestHost():
         '''
         This function gets the number of error logs
         '''
-        res = self.host_run_command("ls %s | wc -l" % BMC_CONST.OPAL_ELOG_DIR, console=console)
+        res = self.host_run_command("ls %s | wc -l" %
+                                    BMC_CONST.OPAL_ELOG_DIR, console=console)
         log.debug(res)
         return res
 
@@ -585,28 +604,34 @@ class OpTestHost():
         '''
         This function clears/acknowledges all error logs in host
         '''
-        self.host_run_command("rm -f %s/*" % BMC_CONST.OPAL_ELOG_DIR, console=console)
-        res = self.host_run_command("ls %s -1 --color=never" % BMC_CONST.OPAL_ELOG_SYSFS_DIR, console=console)
+        self.host_run_command("rm -f %s/*" %
+                              BMC_CONST.OPAL_ELOG_DIR, console=console)
+        res = self.host_run_command(
+            "ls %s -1 --color=never" % BMC_CONST.OPAL_ELOG_SYSFS_DIR, console=console)
         log.debug('\n'.join(res))
         for entry in res:
             entry = entry.strip()
             if entry == '':
                 continue
-            self.host_run_command("echo 1 > %s/%s/acknowledge" % (BMC_CONST.OPAL_ELOG_SYSFS_DIR, entry), console=console)
+            self.host_run_command("echo 1 > %s/%s/acknowledge" %
+                                  (BMC_CONST.OPAL_ELOG_SYSFS_DIR, entry), console=console)
         return True
 
     def host_clear_all_dumps(self, console=0):
         '''
         This function clears/acknowledges all dumps in host.
         '''
-        self.host_run_command("rm -f %s/*" % BMC_CONST.OPAL_DUMP_DIR, console=console)
-        res = self.host_run_command("ls %s -1 --color=never" % BMC_CONST.OPAL_DUMP_SYSFS_DIR, console=console)
+        self.host_run_command("rm -f %s/*" %
+                              BMC_CONST.OPAL_DUMP_DIR, console=console)
+        res = self.host_run_command(
+            "ls %s -1 --color=never" % BMC_CONST.OPAL_DUMP_SYSFS_DIR, console=console)
         for entry in res:
             entry = entry.strip()
             if (entry == "initiate_dump") or (entry == ''):
                 continue
             else:
-                self.host_run_command("echo 1 > %s/%s/acknowledge" % (BMC_CONST.OPAL_DUMP_SYSFS_DIR, entry), console=console)
+                self.host_run_command("echo 1 > %s/%s/acknowledge" %
+                                      (BMC_CONST.OPAL_DUMP_SYSFS_DIR, entry), console=console)
         return True
 
     def host_disable_kdump_service(self, os_level, console=0):
@@ -615,9 +640,11 @@ class OpTestHost():
         know if we should use systemd commands or not.
         '''
         if "Ubuntu" in os_level:
-            self.host_run_command("systemctl stop kdump-tools.service", console=console)
+            self.host_run_command(
+                "systemctl stop kdump-tools.service", console=console)
             try:
-                self.host_run_command("systemctl status kdump-tools.service", console=console)
+                self.host_run_command(
+                    "systemctl status kdump-tools.service", console=console)
             except CommandFailed as cf:
                 if cf.exitcode == 3:
                     pass
@@ -625,9 +652,11 @@ class OpTestHost():
                     log.debug(str(cf))
                     raise OpTestError("kdump-tools service is failed to stop")
         else:
-            self.host_run_command("systemctl stop kdump.service", console=console)
+            self.host_run_command(
+                "systemctl stop kdump.service", console=console)
             try:
-                self.host_run_command("systemctl status kdump.service", console=console)
+                self.host_run_command(
+                    "systemctl status kdump.service", console=console)
             except CommandFailed as cf:
                 if cf.exitcode == 3:
                     pass
@@ -640,16 +669,23 @@ class OpTestHost():
         disables kdump service, needs `/etc/os-release` to work out service name.
         '''
         if "Ubuntu" in os_level:
-            self.host_run_command("systemctl stop kdump-tools.service", console=console)
-            self.host_run_command("systemctl start kdump-tools.service", console=console)
-            self.host_run_command("systemctl status kdump-tools.service", console=console)
+            self.host_run_command(
+                "systemctl stop kdump-tools.service", console=console)
+            self.host_run_command(
+                "systemctl start kdump-tools.service", console=console)
+            self.host_run_command(
+                "systemctl status kdump-tools.service", console=console)
         else:
-            self.host_run_command("systemctl stop kdump.service", console=console)
-            self.host_run_command("systemctl start kdump.service", console=console)
-            self.host_run_command("systemctl status kdump.service", console=console)
+            self.host_run_command(
+                "systemctl stop kdump.service", console=console)
+            self.host_run_command(
+                "systemctl start kdump.service", console=console)
+            self.host_run_command(
+                "systemctl status kdump.service", console=console)
 
     def host_check_sysfs_path_availability(self, path, console=0):
-        res = self.host_run_command("ls --color=never %s" % path, console=console)
+        res = self.host_run_command(
+            "ls --color=never %s" % path, console=console)
         if "No such file or directory" in res:
             return False
         return True
@@ -662,7 +698,8 @@ class OpTestHost():
         return True
 
     def host_get_list_of_chips(self, console=0):
-        res = self.host_run_command("PATH=/usr/local/sbin:$PATH getscom -l", console=console)
+        res = self.host_run_command(
+            "PATH=/usr/local/sbin:$PATH getscom -l", console=console)
         chips = []
         for line in res:
             matchObj = re.search("(\d{8}).*processor", line)
@@ -671,20 +708,21 @@ class OpTestHost():
         if not chips:
             raise Exception("Getscom failed to list processor chip ids")
         chips.sort()
-        log.debug(chips) # ['00000000', '00000001', '00000010']
+        log.debug(chips)  # ['00000000', '00000001', '00000010']
         return chips
 
     def host_get_cores(self, console=0):
         proc_gen = self.host_get_proc_gen(console=console)
         core_ids = {}
-        cpu_pirs = self.host_run_command("find /sys/devices/system/cpu/*/pir -exec cat {} \;", console=console)
+        cpu_pirs = self.host_run_command(
+            "find /sys/devices/system/cpu/*/pir -exec cat {} \;", console=console)
         for pir in cpu_pirs:
             if proc_gen in ["POWER8", "POWER8E"]:
-                core_id = hex((int("0x%s" % pir, 16) >> 3 ) & 0xf)
-                chip_id = hex((int("0x%s" % pir, 16) >> 7 ) & 0x3f)
+                core_id = hex((int("0x%s" % pir, 16) >> 3) & 0xf)
+                chip_id = hex((int("0x%s" % pir, 16) >> 7) & 0x3f)
             elif proc_gen in ["POWER9"]:
-                core_id =hex((int("0x%s" % pir, 16) >> 2 ) & 0x3f)
-                chip_id = hex((int("0x%s" % pir, 16) >> 8 ) & 0x7f)
+                core_id = hex((int("0x%s" % pir, 16) >> 2) & 0x3f)
+                chip_id = hex((int("0x%s" % pir, 16) >> 8) & 0x7f)
             else:
                 raise OpTestError("Unknown or new processor type")
             core_id = core_id.split('x')[1]
@@ -697,7 +735,7 @@ class OpTestHost():
 
         for i in core_ids:
             core_ids[i] = list(set(core_ids[i]))
-        core_ids = sorted(core_ids.iteritems())
+        core_ids = sorted(core_ids.items())
         log.debug(core_ids)
         return core_ids
 
@@ -717,7 +755,8 @@ class OpTestHost():
             if self.proc_gen:
                 pass
         except AttributeError:
-            self.proc_gen = ''.join(self.host_run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'", console=console))
+            self.proc_gen = ''.join(self.host_run_command(
+                "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'", console=console))
         return self.proc_gen
 
     def host_get_smt(self, console=0):
@@ -734,15 +773,17 @@ class OpTestHost():
         return int(res[0])/(self.host_get_smt(console=console))
 
     def host_gather_debug_logs(self, console=0):
-        self.host_run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog", console=console)
-        self.host_run_command("dmesg -T --level=alert,crit,err,warn", console=console)
+        self.host_run_command(
+            "grep ',[0-4]\]' /sys/firmware/opal/msglog", console=console)
+        self.host_run_command(
+            "dmesg -T --level=alert,crit,err,warn", console=console)
 
     def host_copy_fake_gard(self):
         i_image = os.path.join(self.conf.basedir, "test_binaries", "fake.gard")
         # Copy the fake.gard file to the tmp folder in the host
         try:
             self.util.copyFilesToDest(i_image, self.user,
-                                             self.ip, "/tmp/", self.passwd)
+                                      self.ip, "/tmp/", self.passwd)
         except:
             l_msg = "Copying fake.gard file to host failed"
             log.error(l_msg)
@@ -753,7 +794,7 @@ class OpTestHost():
         i_image = os.path.join(self.conf.basedir, sourcedir, filename)
         try:
             self.util.copyFilesToDest(i_image, self.user,
-                                             self.ip, dstdir, self.passwd)
+                                      self.ip, dstdir, self.passwd)
         except subprocess.CalledProcessError as e:
             l_msg = "Copying %s file to host failed" % filename
             log.error(l_msg)
@@ -776,7 +817,8 @@ class OpTestHost():
         for line in d:
             s = re.search(partition, line)
             if s:
-                m = re.match(r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\)\s(\[)?([A-Za-z-]+)?(\])?.*', line)
+                m = re.match(
+                    r'ID=\d+\s+\S+\s+((0[xX])?[0-9a-fA-F]+)..(0[xX])?[0-9a-fA-F]+\s+\(actual=((0[xX])?[0-9a-fA-F]+)\)\s(\[)?([A-Za-z-]+)?(\])?.*', line)
                 if not m:
                     continue
                 offset = int(m.group(1), 16)
@@ -796,7 +838,7 @@ class OpTestHost():
         l_cmd = "lspci -d \"1014::1200\""
         l_res = self.host_run_command(l_cmd, console=console)
         l_res = " ".join(l_res)
-        if (l_res.__contains__('IBM Device') and not l_res.__contains__('062b')):
+        if (l_res.__contains__(b'IBM Device') and not l_res.__contains__(b'062b')):
             l_msg = "Host has a CAPI FPGA card"
             log.debug(l_msg)
             return True
@@ -812,7 +854,7 @@ class OpTestHost():
         l_cmd = "lspci -d \"1014::1200\""
         l_res = self.host_run_command(l_cmd, console=console)
         l_res = " ".join(l_res)
-        if (l_res.__contains__('IBM Device 062b')):
+        if (l_res.__contains__(b'IBM Device 062b')):
             l_msg = "Host has an OpenCAPI FPGA card"
             log.debug(l_msg)
             return True
@@ -830,7 +872,8 @@ class OpTestHost():
         '''
         l_msg = "https://github.com/ibm-capi/cxl-tests.git"
         l_cmd = "git clone %s %s" % (l_msg, i_dir)
-        self.host_run_command("git config --global http.sslverify false", console=console)
+        self.host_run_command(
+            "git config --global http.sslverify false", console=console)
         self.host_run_command("rm -rf %s" % i_dir, console=console)
         self.host_run_command("mkdir %s" % i_dir, console=console)
         l_res = self.host_run_command(l_cmd, console=console)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -72,8 +72,8 @@ class DPOSkiroot(Base):
         # retry added for IPMI cases, seems more sensitive with initial start
         # of state=4
         if isinstance(self.cv_SYSTEM.console, OpTestQemu.QemuConsole) \
-            or isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole):
-                raise self.skipTest("Performing \"ipmitool power soft\" will "
+                or isinstance(self.cv_SYSTEM.console, OpTestMambo.MamboConsole):
+            raise self.skipTest("Performing \"ipmitool power soft\" will "
                                 "terminate QEMU/Mambo so skipped")
         self.cv_SYSTEM.console.run_command("uname -a", retry=5)
         if self.host == "Host":
@@ -92,6 +92,7 @@ class DPOSkiroot(Base):
         self.assertIn(rc, [0, 1, 2, 3], "Failed to power down")
         rc = self.cv_SYSTEM.sys_wait_for_standby_state()
         log.debug(rc)
-        self.cv_SYSTEM.console.pty.expect_exact(['.*',pexpect.TIMEOUT],timeout=3)
+        self.cv_SYSTEM.console.pty.expect_exact(
+            ['.*', pexpect.TIMEOUT], timeout=3)
         # Force the system state to be detected again.
         self.cv_SYSTEM.set_state(OpSystemState.OFF)

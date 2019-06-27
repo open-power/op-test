@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # encoding=utf8
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
@@ -41,15 +41,16 @@ import subprocess
 import os
 import pexpect
 import sys
-import commands
+import subprocess
 
-from OpTestTConnection import TConnection
-from OpTestASM import OpTestASM
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
+from .OpTestTConnection import TConnection
+from .OpTestASM import OpTestASM
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
 
 Possible_Hyp_value = {'01': 'PowerVM', '03': 'PowerKVM'}
-Possible_Sys_State = {'terminated':0, 'standby':1, 'prestandby':2, 'ipling':3, 'runtime':4}
+Possible_Sys_State = {'terminated': 0, 'standby': 1,
+                      'prestandby': 2, 'ipling': 3, 'runtime': 4}
 
 
 class OpTestFSP():
@@ -86,10 +87,11 @@ class OpTestFSP():
         '''
         print("Disabling the firewall before running any FSP commands")
         self.cv_ASM.disablefirewall()
-        self.fspc = TConnection(self.host_name, self.user_name, self.password, self.prompt)
+        self.fspc = TConnection(
+            self.host_name, self.user_name, self.password, self.prompt)
         self.fspc.login()
         self.fsp_name = self.fspc.run_command("hostname")
-        print("Established Connection with FSP: {0} ".format(self.fsp_name))
+        print(("Established Connection with FSP: {0} ".format(self.fsp_name)))
 
     def fsp_run_command(self, command):
         '''
@@ -155,24 +157,25 @@ class OpTestFSP():
         Get OPAL log from in memory console (using getmemproc on FSP).
         '''
         if self.is_sys_powered_on() > 0:
-            output = self.fspc.run_command("getmemproc 31000000 40000 -fb /tmp/con && cat /tmp/con")
+            output = self.fspc.run_command(
+                "getmemproc 31000000 40000 -fb /tmp/con && cat /tmp/con")
         else:
-            output=''
+            output = ''
         return output
 
     def clear_fsp_errors(self):
         '''
         Clear all FSP errors: error logs, gards, fipsdumps, and sysdumps.
         '''
-        #clear errl logs
+        # clear errl logs
         self.fspc.run_command("errl -p")
-        #clear gard
+        # clear gard
         self.fspc.run_command("gard --clr all")
 
-        #clear fipsdump
+        # clear fipsdump
         self.fspc.run_command("fipsdump -i")
 
-        #clear sysdump
+        # clear sysdump
         self.fspc.run_command("sysdump -idall")
         return True
 
@@ -187,7 +190,7 @@ class OpTestFSP():
         if state == 'standby':
             return True
         elif state == 'runtime' or state == 'ipling':
-            print("Powering off, current state: "+state)
+            print(("Powering off, current state: "+state))
             output = self.fspc.run_command("panlexec -f 8")
             output = output.rstrip('\n')
             if output.find("success"):
@@ -217,13 +220,14 @@ class OpTestFSP():
             if self.fspc.run_command("registry -Hr menu/HypMode") != '03':
                 print("Not in OPAL mode, switching to OPAL Hypervisor mode")
                 self.fspc.run_command("registry -Hw menu/HypMode 03")
-            print("Powering on the system: " + state)
+            print(("Powering on the system: " + state))
             output = self.fspc.run_command("plckIPLRequest 0x01")
             output = output.rstrip('\n')
             if output.find("success"):
                 print("Waiting for system to reach runtime...")
                 while not self.is_sys_powered_on():
-                    print("Current system state: {0}, progress code: {1} ".format(self.get_sys_status(), self.get_progress_code()))
+                    print(("Current system state: {0}, progress code: {1} ".format(
+                        self.get_sys_status(), self.get_progress_code())))
                     time_me += 5
                     if time_me > 1200:
                         print("System not yet runtime even after 20minutes?")
@@ -232,11 +236,12 @@ class OpTestFSP():
                     else:
                         time.sleep(5)
                 print("PowerOn Successful")
-                print("System at runtime and current progress code: "+self.get_progress_code())
+                print(("System at runtime and current progress code: " +
+                       self.get_progress_code()))
                 return True
             else:
                 print("Poweron Failed")
-                print("Last know Progress code:"+self.get_progress_code())
+                print(("Last know Progress code:"+self.get_progress_code()))
                 print(output)
                 return False
 
@@ -274,11 +279,11 @@ class OpTestFSP():
         timeout = time.time() + 60*timeout
         while True:
             if self.is_sys_standby():
-                print("Current system status: %s" % self.get_sys_status())
-                print("Current progress code: %s" % self.get_progress_code())
+                print(("Current system status: %s" % self.get_sys_status()))
+                print(("Current progress code: %s" % self.get_progress_code()))
                 break
-            print("Current system status: %s" % self.get_sys_status())
-            print("Current progress code: %s" % self.get_progress_code())
+            print(("Current system status: %s" % self.get_sys_status()))
+            print(("Current progress code: %s" % self.get_progress_code()))
             if time.time() > timeout:
                 l_msg = "Standby timeout"
                 raise OpTestError(l_msg)
@@ -293,11 +298,11 @@ class OpTestFSP():
         timeout = time.time() + 60*timeout
         while True:
             if self.get_sys_status() == "ipling":
-                print("Current system status: %s" % self.get_sys_status())
-                print("Current progress code: %s" % self.get_progress_code())
+                print(("Current system status: %s" % self.get_sys_status()))
+                print(("Current progress code: %s" % self.get_progress_code()))
                 break
-            print("Current system status: %s" % self.get_sys_status())
-            print("Current progress code: %s" % self.get_progress_code())
+            print(("Current system status: %s" % self.get_sys_status()))
+            print(("Current progress code: %s" % self.get_progress_code()))
             if time.time() > timeout:
                 l_msg = "IPL timeout"
                 raise OpTestError(l_msg)
@@ -313,8 +318,8 @@ class OpTestFSP():
             count += 1
             time.sleep(60)
         else:
-            print("Current system status: %s" % self.get_sys_status())
-            print("Current progress code: %s" % self.get_progress_code())
+            print(("Current system status: %s" % self.get_sys_status()))
+            print(("Current progress code: %s" % self.get_progress_code()))
             raise OpTestError("System dump not started even after 3 minutes")
 
     def wait_for_runtime(self, timeout=10):
@@ -324,11 +329,11 @@ class OpTestFSP():
         timeout = time.time() + 60*timeout
         while True:
             if self.is_sys_powered_on():
-                print("Current system status: %s" % self.get_sys_status())
-                print("Current progress code: %s" % self.get_progress_code())
+                print(("Current system status: %s" % self.get_sys_status()))
+                print(("Current progress code: %s" % self.get_progress_code()))
                 break
-            print("Current system status: %s" % self.get_sys_status())
-            print("Current progress code: %s" % self.get_progress_code())
+            print(("Current system status: %s" % self.get_sys_status()))
+            print(("Current progress code: %s" % self.get_progress_code()))
             if time.time() > timeout:
                 l_msg = "IPL timeout"
                 raise OpTestError(l_msg)
@@ -352,7 +357,7 @@ class OpTestFSP():
         if self.mount_exists():
             state = self.fspc.run_command("putmemproc 300000f8 0xdeadbeef")
             state = state.strip('\n')
-            print('Status of the putmemproc command %s' % state)
+            print(('Status of the putmemproc command %s' % state))
             if 'k0:n0:s0:p00' in state:
                 print("Successfully triggered the sysdump from FSP")
                 return True
@@ -377,7 +382,8 @@ class OpTestFSP():
             time.sleep(60)
             count += 1
         else:
-            raise OpTestError("Even after a wait of 30 mins system dump is not available!")
+            raise OpTestError(
+                "Even after a wait of 30 mins system dump is not available!")
         return True
 
     def trigger_fipsdump_in_fsp(self):
@@ -388,7 +394,7 @@ class OpTestFSP():
         self.fspc.run_command("fipsdump -u")
         time.sleep(60)
         dumpname = self.fspc.run_command("fipsdump -l | sed 's/\ .*//'")
-        print("fipsdump name : %s" % dumpname)
+        print(("fipsdump name : %s" % dumpname))
         size_fsp = self.fspc.run_command("fipsdump -l | awk '{print $2}'")
         return dumpname, size_fsp
 
@@ -398,7 +404,7 @@ class OpTestFSP():
         '''
         print("FSP: List all fipsdumps")
         cmd = "fipsdump -l"
-        print("Running the command %s on FSP" % cmd)
+        print(("Running the command %s on FSP" % cmd))
         res = self.fspc.run_command(cmd)
         print(res)
 
@@ -408,7 +414,7 @@ class OpTestFSP():
         '''
         cmd = "fipsdump -i"
         print("FSP: Clearing all the fipsdump's in fsp")
-        print("Running the command %s on FSP" % cmd)
+        print(("Running the command %s on FSP" % cmd))
         res = self.fspc.run_command(cmd)
         print(res)
 
@@ -419,7 +425,7 @@ class OpTestFSP():
         '''
         cmd = "errl -C --comp=0x4400 --etype=021 --refcode=04390 --sev=0x20 --commit=0x2000;echo $?"
         print("FSP: Generating error log using errl command")
-        print("FSP: Running the command %s on fsp" % cmd)
+        print(("FSP: Running the command %s on fsp" % cmd))
         res = self.fspc.run_command(cmd)
         if res == "0":
             print("FSP: error log generated successfully")
@@ -433,7 +439,7 @@ class OpTestFSP():
         '''
         print("FSP: List all error logs")
         cmd = "errl -l"
-        print("Running the command %s on FSP" % cmd)
+        print(("Running the command %s on FSP" % cmd))
         res = self.fspc.run_command(cmd)
         print(res)
 
@@ -442,7 +448,7 @@ class OpTestFSP():
         Clear all error logs from fsp. Throws exception on error.
         '''
         cmd = "errl -p"
-        print("Running the command %s on FSP" % cmd)
+        print(("Running the command %s on FSP" % cmd))
         res = self.fspc.run_command(cmd)
         print(res)
         if "ERRL repository purged all entries successfully" in res:
@@ -455,7 +461,8 @@ class OpTestFSP():
         '''
         Get MTM (Machine Type Model) from FSP from FSP registry.
         '''
-        self.fsp_MTM = self.fspc.run_command("registry -r svpd/Raw_MachineTypeModel")
+        self.fsp_MTM = self.fspc.run_command(
+            "registry -r svpd/Raw_MachineTypeModel")
         return self.fsp_MTM
 
     def fsp_issue_power_on(self):

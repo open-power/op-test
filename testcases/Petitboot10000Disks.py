@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import time
 import unittest
@@ -8,6 +8,7 @@ from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.OpTestKeys import OpTestKeys as keys
+
 
 class ManyDisksTestCase(unittest.TestCase):
     def setUp(self):
@@ -21,7 +22,7 @@ class ManyDisksTestCase(unittest.TestCase):
         # Realistically you probably don't have a machine on hand that has the
         # memory to do 10,000 disks. This starts at five, change this number to
         # push it further.
-        for i in range(1,5):
+        for i in range(1, 5):
             self.bmc.add_temporary_disk("500K")
 
         self.system.goto_state(OpSystemState.PETITBOOT_SHELL)

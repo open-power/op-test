@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -53,7 +53,7 @@ Mc warm reset boot sequence
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 
@@ -62,6 +62,7 @@ from common.OpTestError import OpTestError
 import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
+
 
 class OpTestSystemBootSequence(unittest.TestCase):
     def setUp(self):
@@ -78,6 +79,7 @@ class OpTestSystemBootSequence(unittest.TestCase):
     def tearDown(self):
         # Reset the system power policy back to "always-off" at the end of test
         self.cv_IPMI.ipmi_set_power_policy("always-off")
+
 
 class ColdReset_IPL(OpTestSystemBootSequence):
     '''
@@ -106,6 +108,7 @@ class ColdReset_IPL(OpTestSystemBootSequence):
         # Perform a IPMI Power ON Operation
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
+
 class WarmReset_IPL(OpTestSystemBootSequence):
     '''
     This function will test mc warm reset boot sequence,
@@ -117,6 +120,7 @@ class WarmReset_IPL(OpTestSystemBootSequence):
     4. After BMC comes up, Issue a Power ON of the system
     5. Check for system status and gather OPAL msg log.
     '''
+
     def runTest(self):
         print("Testing MC Warm reset boot sequence")
         print("Performing a IPMI Power OFF Operation")
@@ -131,6 +135,7 @@ class WarmReset_IPL(OpTestSystemBootSequence):
         print("Performing a IPMI Power ON Operation")
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
+
 class PowerPolicyOFF_IPL(OpTestSystemBootSequence):
     '''
     This function will test system auto reboot policy always-off.
@@ -143,6 +148,7 @@ class PowerPolicyOFF_IPL(OpTestSystemBootSequence):
     5. Issue a Power ON of the system
     6. Check for system status and gather OPAL msg log.
     '''
+
     def runTest(self):
         print("Testing System Power Policy:always-off")
         print("Performing a IPMI Power OFF Operation")
@@ -168,6 +174,7 @@ class PowerPolicyOFF_IPL(OpTestSystemBootSequence):
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         self.assertFalse(fail, l_msg)
 
+
 class PowerPolicyON_IPL(OpTestSystemBootSequence):
     '''
     This function will test system auto reboot policy always-on.
@@ -180,6 +187,7 @@ class PowerPolicyON_IPL(OpTestSystemBootSequence):
        If not power policy is not working as expected
     5. Check for system status and gather OPAL msg log.
     '''
+
     def runTest(self):
         print("Testing System Power Policy:Always-ON")
         print("Performing a IPMI Power OFF Operation")
@@ -205,6 +213,7 @@ class PowerPolicyON_IPL(OpTestSystemBootSequence):
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
         self.assertFalse(fail, l_msg)
 
+
 class PowerPolicyPrevious_IPL(OpTestSystemBootSequence):
     '''
     This function will test system auto reboot policy previous
@@ -217,6 +226,7 @@ class PowerPolicyPrevious_IPL(OpTestSystemBootSequence):
        previous power status before issuing cold reset.
     5. Check for system status and gather OPAL msg log.
     '''
+
     def runTest(self):
         print("Testing System Power Policy:previous")
         print("Performing a IPMI Power OFF Operation")

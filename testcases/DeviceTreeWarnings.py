@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -42,6 +42,7 @@ class DeviceTreeWarnings():
     '''
     Look at the warnings from ``dtc``, filtering out any known issues.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -67,7 +68,7 @@ class DeviceTreeWarnings():
             fre = re.compile(f)
             log_entries = [l for l in log_entries if not fre.search(l)]
 
-        msg = '\n'.join(filter(None, log_entries))
+        msg = '\n'.join([_f for _f in log_entries if _f])
         self.assertTrue(len(log_entries) == 0,
                         "Warnings/Errors in Device Tree:\n{}".format(msg))
 

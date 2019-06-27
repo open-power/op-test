@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -93,6 +93,7 @@ class UsysIdentifyTest(LightPathDiagnostics):
     '''
     This function tests usysident identification of LEDs
     '''
+
     def runTest(self):
         self.lpd_init()
         loc_codes = self.get_location_codes()
@@ -135,6 +136,7 @@ class UsysAttnFSPTest(LightPathDiagnostics):
     '''
     This function tests system attention indicator LED
     '''
+
     def runTest(self):
         self.lpd_init()
         loc_code = self.get_sysattn_indicator_loc()
@@ -180,6 +182,7 @@ class UsysAttnHostTest(LightPathDiagnostics):
     '''
     This function tests system attention indicator LED
     '''
+
     def runTest(self):
         self.lpd_init()
         loc_code = self.get_sysattn_indicator_loc()
@@ -219,6 +222,7 @@ class UsysFaultTest(LightPathDiagnostics):
     '''
     This function tests usysfault identification of LED's
     '''
+
     def runTest(self):
         self.lpd_init()
         loc_codes = self.get_location_codes()

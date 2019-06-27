@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -31,8 +31,8 @@ import subprocess
 import traceback
 import socket
 
-from Exceptions import ParameterCheck, UnexpectedCase
-from OpTestSystem import OpSystemState
+from .Exceptions import ParameterCheck, UnexpectedCase
+from .OpTestSystem import OpSystemState
 
 import logging
 import OpTestLogger
@@ -56,7 +56,8 @@ match_list = ["CRONUS_HOME",
               "LABCPU",
               "LABTS",
               "SBE_TOOLS_PATH",
-             ]
+              ]
+
 
 class OpTestCronus():
     '''
@@ -67,9 +68,9 @@ class OpTestCronus():
 
     def __init__(self, conf=None):
         self.conf = conf
-        self.env_ready = False # too early to know if system supports cronus
-        self.cronus_ready = False # flag to indicate setup complete
-        self.cv_SYSTEM = None # flag to show if we have a system yet
+        self.env_ready = False  # too early to know if system supports cronus
+        self.cronus_ready = False  # flag to indicate setup complete
+        self.cv_SYSTEM = None  # flag to show if we have a system yet
         self.capable = False
         self.current_target = None
         self.cronus_env = None
@@ -79,11 +80,12 @@ class OpTestCronus():
             log.debug("os.environ[{}]={}".format(xs, os.environ[xs]))
 
     def setup(self):
-        self.cv_SYSTEM = self.conf.system() # we hope its not still too early
+        self.cv_SYSTEM = self.conf.system()  # we hope its not still too early
         # test no op_system
         self.capable = self.cv_SYSTEM.cronus_capable()
         if not self.cv_SYSTEM.cronus_capable():
-            log.debug("System is NOT cronus_capable={}".format(self.cv_SYSTEM.cronus_capable()))
+            log.debug("System is NOT cronus_capable={}".format(
+                self.cv_SYSTEM.cronus_capable()))
             # safeguards
             self.env_ready = False
             self.cronus_ready = False
@@ -98,11 +100,11 @@ class OpTestCronus():
                                   "-bmc \"k0:eth:{}\" "
                                   "-bmcid \"k0:{}\" "
                                   "-bmcpw \"k0:{}\""
-                     .format(proposed_target,
-                             just_ip,
-                             just_ip,
-                             self.conf.args.bmc_username,
-                             self.conf.args.bmc_password))
+                                  .format(proposed_target,
+                                          just_ip,
+                                          just_ip,
+                                          self.conf.args.bmc_username,
+                                          self.conf.args.bmc_password))
         try:
             op_cronus_login = "/etc/profile.d/openpower.sh"
             self.cronus_env = os.path.join(self.conf.logdir, "cronus.env")
@@ -121,31 +123,33 @@ class OpTestCronus():
                                      self.conf.args.cronus_code_level,
                                      self.cronus_env))
             command = "source"
-            stdout_value = self.conf.util.cronus_subcommand(command=source_string, minutes=2)
+            stdout_value = self.conf.util.cronus_subcommand(
+                command=source_string, minutes=2)
             log.debug("source stdout='{}'".format(stdout_value))
 
             if not os.path.isfile(self.cronus_env):
                 log.error("NO Cronus environment "
                           "data captured, this is a problem")
                 raise UnexpectedCase(message="NO Cronus environment "
-                          "data captured, this is a problem")
+                                     "data captured, this is a problem")
             ecmd_dict = {}
             with open(self.cronus_env) as f:
                 for line in f:
                     new_line = line.split("=")
                     for xs in match_list:
                         if xs == new_line[0]:
-                            if len(new_line) >=2:
+                            if len(new_line) >= 2:
                                 ecmd_dict[new_line[0]] = new_line[1].rstrip()
             log.debug("ECMD's len(match_list)={} len(ecmd_dict)={}, "
                       "these may not match"
                       .format(len(match_list), len(ecmd_dict)))
-            for k,v in sorted(ecmd_dict.items()):
+            for k, v in sorted(ecmd_dict.items()):
                 log.debug("ecmd_dict[{}]={}".format(k, ecmd_dict[k]))
                 os.environ[k] = ecmd_dict[k]
 
             self.env_ready = True
-            log.debug("cronus setup setting self.env_ready={}".format(self.env_ready))
+            log.debug(
+                "cronus setup setting self.env_ready={}".format(self.env_ready))
 
         except subprocess.CalledProcessError as e:
             tb = traceback.format_exc()
@@ -160,12 +164,14 @@ class OpTestCronus():
 
         try:
             command = "ecmdtargetsetup"
-            stdout_value = self.conf.util.cronus_subcommand(command=ecmdtargetsetup_string, minutes=2)
+            stdout_value = self.conf.util.cronus_subcommand(
+                command=ecmdtargetsetup_string, minutes=2)
             log.debug("ecmdtargetsetup stdout='{}'".format(stdout_value))
 
             target_string = "target {}".format(proposed_target)
             command = "target"
-            stdout_value = self.conf.util.cronus_subcommand(command=target_string, minutes=2)
+            stdout_value = self.conf.util.cronus_subcommand(
+                command=target_string, minutes=2)
             log.debug("target stdout='{}'".format(stdout_value))
 
             self.current_target = proposed_target
@@ -174,14 +180,16 @@ class OpTestCronus():
             os.environ['ECMD_TARGET'] = self.current_target
 
             command = "setupsp"
-            stdout_value = self.conf.util.cronus_subcommand(command=command, minutes=2)
+            stdout_value = self.conf.util.cronus_subcommand(
+                command=command, minutes=2)
             log.debug("target stdout='{}'".format(stdout_value))
 
             if self.cv_SYSTEM.get_state() not in [OpSystemState.OFF]:
                 command = "crodetcnfg"
                 crodetcnfg_string = ("crodetcnfg {}"
-                                    .format(self.conf.args.cronus_system_type))
-                stdout_value = self.conf.util.cronus_subcommand(command=crodetcnfg_string, minutes=2)
+                                     .format(self.conf.args.cronus_system_type))
+                stdout_value = self.conf.util.cronus_subcommand(
+                    command=crodetcnfg_string, minutes=2)
                 log.debug("crodetcnfg stdout='{}'".format(stdout_value))
                 self.cronus_ready = True
                 log.debug("cronus_ready={}".format(self.cronus_ready))
@@ -190,7 +198,7 @@ class OpTestCronus():
                             "System powered ON and it is OFF")
                 raise UnexpectedCase(state=self.cv_SYSTEM.get_state(),
                                      message=("Cronus setup problem, we need"
-                                     " the System powered ON and it is OFF"))
+                                              " the System powered ON and it is OFF"))
         except subprocess.CalledProcessError as e:
             tb = traceback.format_exc()
             raise UnexpectedCase(message="Cronus setup issue rc={} output={}"

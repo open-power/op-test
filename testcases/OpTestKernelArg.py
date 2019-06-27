@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -37,6 +37,7 @@ class OpTestKernelArg(unittest.TestCase):
     Example: ./op-test --add-kernel-args "hugepagesz=1G default_hugepagesz=1G hugepages=5" \
              --remove-kernel-args "disable_radix" <other args..>
     '''
+
     def setUp(self):
         self.conf = OpTestConfiguration.conf
         self.kernel_add_args = self.conf.args.add_kernel_args

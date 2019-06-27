@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # OpenPOWER Automated Test Project
 #
@@ -31,27 +31,30 @@ import tempfile
 import os
 
 from common.Exceptions import CommandFailed
-import OPexpect
-from OpTestUtil import OpTestUtil
+from . import OPexpect
+from .OpTestUtil import OpTestUtil
 import OpTestConfiguration
 
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class ConsoleState():
     DISCONNECTED = 0
     CONNECTED = 1
+
 
 class QemuConsole():
     """
     A 'connection' to the Qemu Console involves *launching* qemu.
     Closing a connection will *terminate* the qemu process.
     """
+
     def __init__(self, qemu_binary=None, pnor=None, skiboot=None,
-            prompt=None, kernel=None, initramfs=None,
-            block_setup_term=None, delaybeforesend=None,
-            logfile=sys.stdout, disks=None, cdrom=None):
+                 prompt=None, kernel=None, initramfs=None,
+                 block_setup_term=None, delaybeforesend=None,
+                 logfile=sys.stdout, disks=None, cdrom=None):
         self.qemu_binary = qemu_binary
         self.pnor = pnor
         self.skiboot = skiboot
@@ -68,9 +71,12 @@ class QemuConsole():
         self.prompt = prompt
         self.expect_prompt = self.util.build_prompt(prompt) + "$"
         self.pty = None
-        self.block_setup_term = block_setup_term # allows caller specific control of when to block setup_term
-        self.setup_term_quiet = 0 # tells setup_term to not throw exceptions, like when system off
-        self.setup_term_disable = 0 # flags the object to abandon setup_term operations, like when system off
+        # allows caller specific control of when to block setup_term
+        self.block_setup_term = block_setup_term
+        # tells setup_term to not throw exceptions, like when system off
+        self.setup_term_quiet = 0
+        # flags the object to abandon setup_term operations, like when system off
+        self.setup_term_disable = 0
         self.mac_str = '52:54:00:22:34:56'
 
         # state tracking, reset on boot and state changes
@@ -111,11 +117,11 @@ class QemuConsole():
         try:
             rc_child = self.pty.close()
             exitCode = signalstatus = None
-            if self.pty.status != -1: # leaving for debug
-              if os.WIFEXITED(self.pty.status):
-                exitCode = os.WEXITSTATUS(self.pty.status)
-              else:
-                signalstatus = os.WTERMSIG(self.pty.status)
+            if self.pty.status != -1:  # leaving for debug
+                if os.WIFEXITED(self.pty.status):
+                    exitCode = os.WEXITSTATUS(self.pty.status)
+                else:
+                    signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
         except pexpect.ExceptionPexpect as e:
             self.state = ConsoleState.DISCONNECTED
@@ -129,14 +135,14 @@ class QemuConsole():
         if self.state == ConsoleState.CONNECTED:
             return self.pty
         else:
-            self.util.clear_state(self) # clear when coming in DISCONNECTED
+            self.util.clear_state(self)  # clear when coming in DISCONNECTED
 
         log.debug("#Qemu Console CONNECT")
 
         cmd = ("%s" % (self.qemu_binary)
                + " -machine powernv -m 4G"
                + " -nographic -nodefaults"
-           )
+               )
         if self.pnor:
             cmd = cmd + " -drive file={},format=raw,if=mtd".format(self.pnor)
         if self.skiboot:
@@ -155,30 +161,31 @@ class QemuConsole():
         # We can add a pcie bridge to each of these, and each bridge has 31
         # slots.. if you see where I'm going..
         cmd = (cmd
-                + " -device pcie-pci-bridge,id=pcie.3,bus=pcie.0,addr=0x0"
-                + " -device pcie-pci-bridge,id=pcie.4,bus=pcie.1,addr=0x0"
-                + " -device pcie-pci-bridge,id=pcie.5,bus=pcie.2,addr=0x0"
-            )
+               + " -device pcie-pci-bridge,id=pcie.3,bus=pcie.0,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.4,bus=pcie.1,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.5,bus=pcie.2,addr=0x0"
+               )
 
         # Put the NIC in slot 2 of the second PHB (1st is reserved for later)
         cmd = (cmd
-                + " -netdev user,id=u1 -device e1000e,netdev=u1,mac={},bus=pcie.4,addr=2"
-                .format(self.mac_str)
-                )
+               + " -netdev user,id=u1 -device e1000e,netdev=u1,mac={},bus=pcie.4,addr=2"
+               .format(self.mac_str)
+               )
         prefilled_slots = 1
 
         if self.cdrom is not None:
             # Put the CDROM in slot 3 of the second PHB
             cmd = (cmd
-                    + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
-                    + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.4,addr=3"
-                )
+                   + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
+                   + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.4,addr=3"
+                   )
             prefilled_slots += 1
 
         bridges = []
-        bridges.append({'bus': 3, 'n_devices': 0, 'bridged' : False})
-        bridges.append({'bus': 4, 'n_devices': prefilled_slots, 'bridged' : False})
-        bridges.append({'bus': 5, 'n_devices': 0, 'bridged' : False})
+        bridges.append({'bus': 3, 'n_devices': 0, 'bridged': False})
+        bridges.append(
+            {'bus': 4, 'n_devices': prefilled_slots, 'bridged': False})
+        bridges.append({'bus': 5, 'n_devices': 0, 'bridged': False})
 
         # For any amount of disks we have, start finding spots for them in the PHBs
         if self.disks:
@@ -190,7 +197,7 @@ class QemuConsole():
                     # This bridge is full
                     if bid == len(bridges) - 1:
                         # All bridges full, find one to extend
-                        if [x for  x in bridges if x['bridged'] == False] == []:
+                        if [x for x in bridges if x['bridged'] == False] == []:
                             # We messed up and filled up all our slots
                             raise OpTestError("Oops! We ran out of slots!")
                         for i in range(0, bid):
@@ -198,9 +205,13 @@ class QemuConsole():
                                 # We can add a bridge here
                                 parent = bridges[i]['bus']
                                 new = bridges[-1]['bus'] + 1
-                                print("Adding new bridge {} on bridge {}".format(new, parent))
-                                bridges.append({'bus': new, 'n_devices' : 0, 'bridged' : False})
-                                cmd = cmd + " -device pcie-pci-bridge,id=pcie.{},bus=pcie.{},addr=0x1".format(new, parent)
+                                print(("Adding new bridge {} on bridge {}".format(
+                                    new, parent)))
+                                bridges.append(
+                                    {'bus': new, 'n_devices': 0, 'bridged': False})
+                                cmd = cmd + \
+                                    " -device pcie-pci-bridge,id=pcie.{},bus=pcie.{},addr=0x1".format(
+                                        new, parent)
                                 bid = bid + 1
                                 bridges[i]['bridged'] = True
                                 bridge = bridges[bid]
@@ -216,33 +227,40 @@ class QemuConsole():
                 # Got a bridge, let's go!
                 # Valid bridge slots are 1..31, but keep 1 free for more bridges
                 addr = 2 + bridge['n_devices']
-                print("Adding disk {} on bus {} at address {}".format(diskid, bridge['bus'], addr))
-                cmd = cmd + " -drive file={},id=disk{},if=none".format(disk.name, diskid)
-                cmd = cmd + " -device virtio-blk-pci,drive=disk{},id=virtio{},bus=pcie.{},addr={}".format(diskid, diskid, bridge['bus'], hex(addr))
+                print(("Adding disk {} on bus {} at address {}".format(
+                    diskid, bridge['bus'], addr)))
+                cmd = cmd + \
+                    " -drive file={},id=disk{},if=none".format(
+                        disk.name, diskid)
+                cmd = cmd + " -device virtio-blk-pci,drive=disk{},id=virtio{},bus=pcie.{},addr={}".format(
+                    diskid, diskid, bridge['bus'], hex(addr))
                 diskid += 1
                 bridge['n_devices'] += 1
 
         # typical host ip=10.0.2.2 and typical skiroot 10.0.2.15
         # use skiroot as the source, no sshd in skiroot
 
-        fru_path = os.path.join(OpTestConfiguration.conf.basedir, "test_binaries", "qemu_fru")
-        cmd = cmd + " -device ipmi-bmc-sim,id=bmc0,frudatafile=" + fru_path + " -device isa-ipmi-bt,bmc=bmc0,irq=10"
+        fru_path = os.path.join(
+            OpTestConfiguration.conf.basedir, "test_binaries", "qemu_fru")
+        cmd = cmd + " -device ipmi-bmc-sim,id=bmc0,frudatafile=" + \
+            fru_path + " -device isa-ipmi-bt,bmc=bmc0,irq=10"
         cmd = cmd + " -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off"
         print(cmd)
         try:
-          self.pty = OPexpect.spawn(cmd,logfile=self.logfile)
+            self.pty = OPexpect.spawn(cmd, logfile=self.logfile)
         except Exception as e:
-          self.state = ConsoleState.DISCONNECTED
-          raise CommandFailed('OPexpect.spawn',
-                  'OPexpect.spawn encountered a problem: ' + str(e), -1)
+            self.state = ConsoleState.DISCONNECTED
+            raise CommandFailed('OPexpect.spawn',
+                                'OPexpect.spawn encountered a problem: ' + str(e), -1)
 
         self.state = ConsoleState.CONNECTED
-        self.pty.setwinsize(1000,1000)
+        self.pty.setwinsize(1000, 1000)
         if self.delaybeforesend:
-          self.pty.delaybeforesend = self.delaybeforesend
+            self.pty.delaybeforesend = self.delaybeforesend
 
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-          self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
+            self.util.setup_term(self.system, self.pty,
+                                 None, self.system.block_setup_term)
 
         # Wait a moment for isalive() to read a correct value and then check
         # if the command has already exited. If it has then QEMU has most
@@ -258,7 +276,8 @@ class QemuConsole():
             self.connect()
         else:
             if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
-                self.util.setup_term(self.system, self.pty, None, self.system.block_setup_term)
+                self.util.setup_term(self.system, self.pty,
+                                     None, self.system.block_setup_term)
 
         return self.pty
 
@@ -268,6 +287,7 @@ class QemuConsole():
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.util.run_command_ignore_fail(self, command, timeout, retry)
 
+
 class QemuIPMI():
     """
     Qemu has fairly limited IPMI capability, and we probably need to
@@ -275,6 +295,7 @@ class QemuIPMI():
     gets skipped.
 
     """
+
     def __init__(self, console):
         self.console = console
 
@@ -301,6 +322,7 @@ class QemuIPMI():
     def sys_set_bootdev_no_override(self):
         pass
 
+
 class OpTestQemu():
     def __init__(self, conf=None, qemu_binary=None, pnor=None, skiboot=None,
                  kernel=None, initramfs=None, cdrom=None,
@@ -313,14 +335,14 @@ class OpTestQemu():
             try:
                 # starts as name string
                 log.debug("OpTestQemu opening file={}"
-                    .format(self.conf.args.qemu_scratch_disk))
+                          .format(self.conf.args.qemu_scratch_disk))
                 self.conf.args.qemu_scratch_disk = \
                     open(self.conf.args.qemu_scratch_disk, 'wb')
                 # now is a file-like object
             except Exception as e:
                 log.error("OpTestQemu encountered a problem "
                           "opening file={} Exception={}"
-                    .format(self.conf.args.qemu_scratch_disk, e))
+                          .format(self.conf.args.qemu_scratch_disk, e))
         else:
             # update with new object to close in cleanup
             self.conf.args.qemu_scratch_disk = \
@@ -338,7 +360,7 @@ class OpTestQemu():
                 raise e
 
         self.disks.append(self.conf.args.qemu_scratch_disk)
-        atexit.register(self.__del__)
+        atexit.register(self.cleanup)
         self.console = QemuConsole(qemu_binary=qemu_binary,
                                    pnor=pnor,
                                    skiboot=skiboot,
@@ -349,15 +371,15 @@ class OpTestQemu():
         self.ipmi = QemuIPMI(self.console)
         self.system = None
 
-    def __del__(self):
+    def cleanup(self):
         for fd in self.disks:
             log.debug("OpTestQemu cleaning up qemu_scratch_disk={}"
-                .format(self.conf.args.qemu_scratch_disk))
+                      .format(self.conf.args.qemu_scratch_disk))
             try:
                 fd.close()
             except Exception as e:
                 log.error("OpTestQemu cleanup, ignoring Exception={}"
-                    .format(e))
+                          .format(e))
         self.disks = []
 
     def set_system(self, system):
@@ -368,7 +390,7 @@ class OpTestQemu():
 
     def run_command(self, command, timeout=10, retry=0):
         # qemu only supports system console object, not this bmc object
-        return None # at least return something and have the testcase handle
+        return None  # at least return something and have the testcase handle
 
     def get_ipmi(self):
         return self.ipmi

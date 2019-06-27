@@ -28,14 +28,15 @@ Run something (see below Running the tests).
 
 This framework runs on most Linux based systems.
 
-You need python 2.7 or greater and also needs below modules to be installed
+You need python 3.6 or greater as well as pip:
 
-    pip install pexpect importlib ptyprocess requests pysocks
+    apt install python3 python3-pip
 
-    Optionally:  pip install unittest-xml-reporting unittest2
-    For XML output: sudo apt-get install python-xmlrunner
+and to install the python dependencies:
 
-    For qemu: sudo apt-get install qemu-utils
+    pip3 install -r requirements.txt
+
+    For qemu: apt install qemu-utils
 
 You will also need below packages to be installed
 

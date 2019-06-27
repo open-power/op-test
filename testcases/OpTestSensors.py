@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -63,6 +63,7 @@ class OpTestSensors(unittest.TestCase):
     5. At the end it will test sensors command functionality
        with different options
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_IPMI = conf.ipmi()
@@ -71,8 +72,8 @@ class OpTestSensors(unittest.TestCase):
 
     def tearDown(self):
         if self.cv_SYSTEM.get_state() == OpSystemState.OS:
-          self.cv_HOST.host_gather_opal_msg_log()
-          self.cv_HOST.host_gather_kernel_log()
+            self.cv_HOST.host_gather_opal_msg_log()
+            self.cv_HOST.host_gather_kernel_log()
 
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -35,6 +35,8 @@ OpenPower systems
 '''
 
 import pexpect
+
+
 class OpTestConstants():
 
     # Platforms
@@ -44,7 +46,6 @@ class OpTestConstants():
     GARRISON = 'garrison'
     P9DSU = "p9dsu"
     WITHERSPOON = "witherspoon"
-
 
     # Platform power limits in watts for different platforms taken from MRW xml file
     HABANERO_POWER_LIMIT_LOW = "1000"
@@ -57,7 +58,6 @@ class OpTestConstants():
     P9DSU_POWER_LIMIT_HIGH = "1650"
     WITHERSPOON_POWER_LIMIT_LOW = "1550"
     WITHERSPOON_POWER_LIMIT_HIGH = "3050"
-
 
     PRIMARY_SIDE = "0x0080"
     GOLDEN_SIDE = "0x0180"
@@ -89,10 +89,12 @@ class OpTestConstants():
     BMC_SOL_DEACTIVATE = " sol deactivate"
     BMC_SEL_LIST = 'sel list'
     BMC_SDR_ELIST = 'sdr elist'
-    BMC_BOOT_COUNT_2 = 'raw 0x04 0x30 xx 0x01 0x00 0x2 0x00' # (replace xx with boot count sensor)
-    BMC_BIOS_GOLDEN_SENSOR_TO_PRIMARY = 'raw 0x04 0x30 xx 0x01 0x00 0x00 0 0 0 0 0 0' #Sets sensor to 0 (replace xx with bios golden sensor)
-    BMC_BIOS_GOLDEN_SENSOR_TO_GOLDEN = 'raw 0x04 0x30 xx 0x01 0x00 0x01 0 0 0 0 0 0' #Sets sensor to 1 (replace xx with bios golden sensor)
-
+    # (replace xx with boot count sensor)
+    BMC_BOOT_COUNT_2 = 'raw 0x04 0x30 xx 0x01 0x00 0x2 0x00'
+    # Sets sensor to 0 (replace xx with bios golden sensor)
+    BMC_BIOS_GOLDEN_SENSOR_TO_PRIMARY = 'raw 0x04 0x30 xx 0x01 0x00 0x00 0 0 0 0 0 0'
+    # Sets sensor to 1 (replace xx with bios golden sensor)
+    BMC_BIOS_GOLDEN_SENSOR_TO_GOLDEN = 'raw 0x04 0x30 xx 0x01 0x00 0x01 0 0 0 0 0 0'
 
     # Commands to be executed on the OS
     OS_GETSCOM_LIST = "/getscom -l"
@@ -201,7 +203,7 @@ class OpTestConstants():
     POWER_ACTIVATE_SUCCESS = "Power limit successfully activated"
     POWER_DEACTIVATE_SUCCESS = "Power limit successfully deactivated"
 
-    #CPU states
+    # CPU states
     CPU_ENABLE_STATE = '0'
     CPU_DISABLE_STATE = '1'
 
@@ -216,13 +218,14 @@ class OpTestConstants():
     IPMI_SOL_ACTIVATE_TIME = 5
     IPMI_SOL_DEACTIVATE_TIME = 10
 
-    IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT = ["[SOL Session operational.  Use ~? for help]\r\n", \
-        "Error: Unable to establish IPMI v2 / RMCP+ session", pexpect.TIMEOUT, pexpect.EOF]
-    IPMI_CONSOLE_EXPECT_ENTER_OUTPUT = ["login: ", "#", "/ #", "Petitboot", pexpect.TIMEOUT, pexpect.EOF, "$"]
+    IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT = ["[SOL Session operational.  Use ~? for help]\r\n",
+                                        "Error: Unable to establish IPMI v2 / RMCP+ session", pexpect.TIMEOUT, pexpect.EOF]
+    IPMI_CONSOLE_EXPECT_ENTER_OUTPUT = [
+        "login: ", "#", "/ #", "Petitboot", pexpect.TIMEOUT, pexpect.EOF, "$"]
     IPMI_CONSOLE_EXPECT_LOGIN = 0
     IPMI_CONSOLE_EXPECT_PASSWORD = 0
-    IPMI_CONSOLE_EXPECT_PETITBOOT = [2,3]
-    IPMI_CONSOLE_EXPECT_RANDOM_STATE = [4,5]
+    IPMI_CONSOLE_EXPECT_PETITBOOT = [2, 3]
+    IPMI_CONSOLE_EXPECT_RANDOM_STATE = [4, 5]
 
     # HMI Test case constants
     HMI_PROC_RECV_DONE = 1
@@ -426,7 +429,7 @@ class OpTestConstants():
     IPMI_GET_LED_STATE_HOST_STATUS = "raw 0x3a 0x02 0x02"
     IPMI_GET_LED_STATE_CHASSIS_IDENTIFY = "raw 0x3a 0x02 0x03"
     IPMI_ENABLE_FAN_CONTROL_TASK_THREAD = "raw 0x3a 0x12 0x01"
-    IPMI_DISABLE_FAN_CONTROL_TASK_THREAD ="raw 0x3a 0x12 0x00"
+    IPMI_DISABLE_FAN_CONTROL_TASK_THREAD = "raw 0x3a 0x12 0x00"
     IPMI_FAN_CONTROL_TASK_THREAD_STATE = "raw 0x3a 0x13"
     IPMI_FAN_CONTROL_THREAD_RUNNING = "01"
     IPMI_FAN_CONTROL_THREAD_NOT_RUNNING = "00"

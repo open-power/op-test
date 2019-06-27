@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -41,6 +41,7 @@ from common.Exceptions import UnexpectedCase
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class Cronus(unittest.TestCase):
     '''
@@ -93,7 +94,7 @@ class Cronus(unittest.TestCase):
         if "OpenBMC" not in cls.conf.args.bmc_type:
             # kick out early so setUp can skipTest
             log.debug("Skipping setUpClass so setUp instance can "
-                "skiptest without having to power cycle, etc")
+                      "skiptest without having to power cycle, etc")
             return
         cls.cv_SYSTEM = cls.conf.system()
         cls.cv_BMC = cls.conf.bmc()
@@ -105,16 +106,18 @@ class Cronus(unittest.TestCase):
             else:
                 cls.cv_SYSTEM.goto_state(OpSystemState.OS)
         except Exception as e:
-            log.debug("Unable to find cls.desired, probably a test code problem, Exception={}".format(e))
+            log.debug(
+                "Unable to find cls.desired, probably a test code problem, Exception={}".format(e))
             cls.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     def setUp(self):
         # skipTest needs an instance of the class, so this is as early as we can catch
         if "OpenBMC" not in self.conf.args.bmc_type:
             log.debug("Skipping test={}, currently only OpenBMC supported "
-                "for running Cronus".format(self._testMethodName))
+                      "for running Cronus".format(self._testMethodName))
             self.skipTest("Skipping test={}, currently only OpenBMC supported "
-                "for running Cronus".format(self._testMethodName))
+                          "for running Cronus".format(self._testMethodName))
+
 
 class Runtime(Cronus, unittest.TestCase):
     '''
@@ -136,10 +139,11 @@ class Runtime(Cronus, unittest.TestCase):
         '''
         command = "ecmdquery chips -dc"
         try:
-            output = self.conf.util.cronus_run_command(command=command, minutes=1)
+            output = self.conf.util.cronus_run_command(
+                command=command, minutes=1)
         except Exception as e:
             log.warning("Problem with cronus_run_command='{}', Exception={}"
-                .format(command, e))
+                        .format(command, e))
             raise unittest.SkipTest("Cronus problem, skipping")
 
     def test_getcfam(self):
@@ -150,10 +154,11 @@ class Runtime(Cronus, unittest.TestCase):
         '''
         command = "getcfam pu 1007 -all"
         try:
-            output = self.conf.util.cronus_run_command(command=command, minutes=1)
+            output = self.conf.util.cronus_run_command(
+                command=command, minutes=1)
         except Exception as e:
             log.warning("Problem with cronus_run_command='{}', Exception={}"
-                .format(command, e))
+                        .format(command, e))
             raise unittest.SkipTest("Cronus problem, skipping")
 
     def test_crondump(self):
@@ -180,30 +185,32 @@ class Runtime(Cronus, unittest.TestCase):
         if not os.access(crondump_dir, os.X_OK | os.W_OK):
             log.error("Cronus problem accessing cronus-dump-directory, "
                       "check for WRITE permissions on '{}'"
-                        .format(crondump_dir))
+                      .format(crondump_dir))
             self.assertTrue(False, "Cronus problem accessing "
-                "cronus-dump-directory, check for WRITE permissions on '{}'"
-                        .format(crondump_dir))
+                            "cronus-dump-directory, check for WRITE permissions on '{}'"
+                            .format(crondump_dir))
         cronus_datetime = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
         log.debug("crondump output will be '{}/scanoutlog.{}.{}'"
                   .format(crondump_dir,
-                   self.conf.args.cronus_dump_suffix,
-                   cronus_datetime))
-        command = ("crondump -o {} -f {} -N {}.{}"
-                  .format(crondump_dir,
-                          self.conf.args.cronus_hdct,
                           self.conf.args.cronus_dump_suffix,
                           cronus_datetime))
+        command = ("crondump -o {} -f {} -N {}.{}"
+                   .format(crondump_dir,
+                           self.conf.args.cronus_hdct,
+                           self.conf.args.cronus_dump_suffix,
+                           cronus_datetime))
         try:
-            output = self.conf.util.cronus_run_command(command=command, minutes=5)
+            output = self.conf.util.cronus_run_command(
+                command=command, minutes=5)
         except Exception as e:
             log.warning("Problem with cronus_run_command='{}', Exception={}"
-                .format(command, e))
+                        .format(command, e))
             log.warning("crondump output will be '{}/scanoutlog.{}.{}'"
-                      .format(crondump_dir,
-                       self.conf.args.cronus_dump_suffix,
-                       cronus_datetime))
+                        .format(crondump_dir,
+                                self.conf.args.cronus_dump_suffix,
+                                cronus_datetime))
             raise unittest.SkipTest("Cronus problem, skipping")
+
 
 class HostOff(Runtime):
     '''
@@ -221,11 +228,13 @@ class HostOff(Runtime):
         cls.desired = OpSystemState.OFF
         super(Runtime, cls).setUpClass()
 
+
 def host_off_suite():
     # run with Host powered OFF
     s = unittest.TestSuite()
     s.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(HostOff))
     return s
+
 
 def runtime_suite():
     # run with Host powered ON

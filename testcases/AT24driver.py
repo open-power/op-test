@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -79,7 +79,7 @@ class AT24driver(I2C, unittest.TestCase):
                 "CONFIG_EEPROM_AT24": "at24"}
 
         try:
-            for (c, m) in mods.items():
+            for (c, m) in list(mods.items()):
                 self.cv_HOST.host_load_module_based_on_config(l_kernel, c, m)
         except KernelConfigNotSet as ns:
             self.assertTrue(False, str(ns))
@@ -171,6 +171,7 @@ class SkirootAT24(AT24driver, unittest.TestCase):
     '''
     Run the same AT24driver test, but in skiroot environment.
     '''
+
     def setUp(self):
         self.test = "skiroot"
         log.debug("Starting AT24driver test in Skiroot")

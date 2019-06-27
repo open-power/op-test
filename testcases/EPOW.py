@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -44,7 +44,7 @@ This module tests the EPOW feature incase of FSP systems.
 
 import time
 import subprocess
-import commands
+import subprocess
 import re
 import sys
 import pexpect
@@ -61,6 +61,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class EPOWBase(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -74,7 +75,6 @@ class EPOWBase(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
 
-
     def get_epow_limits(self):
         fsp_MTM = self.cv_FSP.get_raw_mtm()
         matchObj = re.search("-\d{2}.", fsp_MTM)
@@ -84,11 +84,13 @@ class EPOWBase(unittest.TestCase):
         var = y[1] + "s" + y[0] + "u"
 
         self.proc_gen = self.cv_HOST.host_get_proc_gen(console=1)
-        print self.proc_gen
+        print((self.proc_gen))
         if self.proc_gen in ["POWER8", "POWER8E"]:
-            file = '/opt/fips/components/engd/power_management_tul_%s.def' % (var)
+            file = '/opt/fips/components/engd/power_management_tul_%s.def' % (
+                var)
         elif self.proc_gen in ["POWER9"]:
-            file = '/opt/fips/components/engd/power_management_zz_%s.def' % (var)
+            file = '/opt/fips/components/engd/power_management_zz_%s.def' % (
+                var)
 
         # Check for Nebs enable\disable
         cmd = "registry -l svpd/NebsEnabled | sed -n '2p' | awk {'print $1'}"
@@ -133,12 +135,13 @@ class EPOWBase(unittest.TestCase):
 
     def check_graceful_shutdown(self, pty):
         try:
-            rc = pty.expect_exact(["reboot: Power down", "Power down"], timeout=120)
+            rc = pty.expect_exact(
+                ["reboot: Power down", "Power down"], timeout=120)
             if rc == 0 or rc == 1:
                 res = pty.before
                 log.debug(pty.after)
                 log.debug("System got graceful shutdown")
-        except pexpect.TIMEOUT, e:
+        except pexpect.TIMEOUT as e:
             log.debug("System is in active state")
             log.debug(pty.before)
 
@@ -157,6 +160,7 @@ class EPOWBase(unittest.TestCase):
 
     def get_temp_for_param(self, param):
         return self.limits[param]
+
 
 class EPOW3Random(EPOWBase):
     '''
@@ -187,8 +191,10 @@ class EPOW3Random(EPOWBase):
         test_temp = int(random.choice(temp_list))
         log.debug(temp_list)
         log.debug(test_temp)
-        log.debug("========================EPOW3_RANDOM:%i==========================" % test_temp)
-        log.debug("****************Testing EPOW3 at Random EPOW Temperature*****************")
+        log.debug(
+            "========================EPOW3_RANDOM:%i==========================" % test_temp)
+        log.debug(
+            "****************Testing EPOW3 at Random EPOW Temperature*****************")
         temp_prev = self.get_ambient_temp_ipmi()
         log.debug("Current ambient temp: %s " % temp_prev)
         log.debug("Current system status: %s" % self.cv_FSP.get_sys_status())
@@ -201,7 +207,7 @@ class EPOW3Random(EPOWBase):
         temp_current = self.get_ambient_temp_ipmi()
         log.debug("Current ambient temp: %s " % temp_current)
         self.assertEqual(int(temp_current), int(test_temp),
-            "EPOW3 is working, looks like temp simulated is slightly different")
+                         "EPOW3 is working, looks like temp simulated is slightly different")
         log.debug("EPOW3 is successfull")
         self.cv_FSP.wait_for_standby()
         # simulate EPOW3 reset temperature to bring back the system
@@ -215,11 +221,12 @@ class EPOW3Random(EPOWBase):
         temp_current = self.get_ambient_temp_ipmi()
         log.debug("Current ambient temp: %s " % temp_current)
         self.assertEqual(int(temp_current), int(reset_temp),
-            "Temperature simulated is not equal to EPOW3_RESET")
+                         "Temperature simulated is not equal to EPOW3_RESET")
         log.debug("EPOW3 RESET Done: Temperature simulated to EPOW3_RESET")
         # Power on the system after issuing EPOW3 RESET
         self.cv_FSP.power_on_sys()
         self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+
 
 class EPOW3LOW(EPOWBase):
     '''
@@ -234,6 +241,7 @@ class EPOW3LOW(EPOWBase):
     If user faces any problem in bringing the system UP please run below
     command "smgr toolReset" in fsp console
     '''
+
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP specific OPAL EPOW Test.")
@@ -246,8 +254,10 @@ class EPOW3LOW(EPOWBase):
         temp_2 = int(EPOW3)-2
         temp_1 = int(EPOW3)-1
         for test_temp in [temp_1, temp_2]:
-            log.debug("========================EPOW3_LOW:%i==========================" % test_temp)
-            log.debug("*********Testing ambient temperatures lower than EPOW3, system should be alive***********")
+            log.debug(
+                "========================EPOW3_LOW:%i==========================" % test_temp)
+            log.debug(
+                "*********Testing ambient temperatures lower than EPOW3, system should be alive***********")
             temp_prev = self.get_ambient_temp_ipmi()
             log.debug("Current ambient temp: %s " % temp_prev)
             cmd = self.get_cmd_for_temp(test_temp)
@@ -261,17 +271,19 @@ class EPOW3LOW(EPOWBase):
                 state = self.cv_FSP.get_sys_status()
                 log.debug("Current system status: %s" % state)
                 self.assertEqual(state, 'runtime',
-                        "EPOW3_LOW is failing at this temp: %s" % test_temp)
+                                 "EPOW3_LOW is failing at this temp: %s" % test_temp)
                 time.sleep(6)
-            self.util.PingFunc(self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
+            self.util.PingFunc(
+                self.cv_HOST.ip, BMC_CONST.PING_RETRY_POWERCYCLE)
             temp_current = self.get_ambient_temp_ipmi()
             log.debug("Current ambient temp: %s " % temp_current)
             self.assertEqual(int(temp_current), int(test_temp),
-                "EPOW3_LOW is working, looks like temp simulated is different")
+                             "EPOW3_LOW is working, looks like temp simulated is different")
+
 
 def suite():
     s = unittest.TestSuite()
     s.addTest(EPOW3LOW())
     s.addTest(EPOW3Random())
-    #TODO: s.addTest(EPOW3CRITICAL())
+    # TODO: s.addTest(EPOW3CRITICAL())
     return s

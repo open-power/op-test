@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -59,6 +59,7 @@ class I2C():
     '''
     Base class for I2C tests
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -88,7 +89,7 @@ class I2C():
                 "CONFIG_EEPROM_AT24": "at24"}
 
         try:
-            for (c, m) in mods.items():
+            for (c, m) in list(mods.items()):
                 self.cv_HOST.host_load_module_based_on_config(l_kernel, c, m)
         except KernelConfigNotSet as ns:
             self.assertTrue(False, str(ns))

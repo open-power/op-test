@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -36,6 +36,7 @@ from testcases.OpTestFlash import OpalLidsFLASH
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class SecureBoot(unittest.TestCase):
     def setUp(self):
@@ -78,7 +79,8 @@ class SecureBoot(unittest.TestCase):
 
     def wait_for_sb_kt_start(self):
         raw_pty = self.cv_SYSTEM.console.get_console()
-        raw_pty.expect("sbe|Performing Secure Boot key transition", timeout=300)
+        raw_pty.expect(
+            "sbe|Performing Secure Boot key transition", timeout=300)
 
     def wait_for_shutdown(self):
         raw_pty = self.cv_SYSTEM.console.get_console()
@@ -87,23 +89,27 @@ class SecureBoot(unittest.TestCase):
     def verify_opal_sb(self):
         c = self.cv_SYSTEM.console
 
-        self.cpu = ''.join(c.run_command("grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
+        self.cpu = ''.join(c.run_command(
+            "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         log.debug(self.cpu)
         if self.cpu in ["POWER9"]:
             part_list = ["CAPP", "IMA_CATALOG", "BOOTKERNEL", "VERSION"]
         elif self.cpu in ["POWER8"]:
             part_list = ["CAPP", "BOOTKERNEL"]
         else:
-           self.skipTest("OPAL SB test not supported on %s" % self.cpu)
+            self.skipTest("OPAL SB test not supported on %s" % self.cpu)
 
-        data = " ".join(c.run_command("cat /sys/firmware/opal/msglog | grep -i stb"))
+        data = " ".join(c.run_command(
+            "cat /sys/firmware/opal/msglog | grep -i stb"))
         if self.securemode:
             if not "secure mode on" in data:
-                self.assertTrue(False, "OPAL-SB: Secure mode is detected as OFF")
+                self.assertTrue(
+                    False, "OPAL-SB: Secure mode is detected as OFF")
         for part in part_list:
             msg = "STB: %s verified" % part
             if not msg in data:
-                self.assertTrue(False, "OPAL-SB: %s verification failed or not happened" % part)
+                self.assertTrue(
+                    False, "OPAL-SB: %s verification failed or not happened" % part)
 
     def verify_dt_sb(self):
         c = self.cv_SYSTEM.console
@@ -113,23 +119,33 @@ class SecureBoot(unittest.TestCase):
             c.run_command("ls --color=never /proc/device-tree/ibm,secureboot")
         except CommandFailed:
             if self.securemode:
-                self.assertTrue(False, "OPAL-SB: ibm,secureboot DT node not created")
+                self.assertTrue(
+                    False, "OPAL-SB: ibm,secureboot DT node not created")
             else:
                 self.skipTest("Secureboot not supported on this system")
         c.run_command("lsprop /proc/device-tree/ibm,secureboot")
         if self.securemode:
-            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/secure-enabled")
-        c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/compatible")
-        c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash")
+            c.run_command(
+                "ls --color=never /proc/device-tree/ibm,secureboot/secure-enabled")
+        c.run_command(
+            "ls --color=never /proc/device-tree/ibm,secureboot/compatible")
+        c.run_command(
+            "ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash")
         c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/name")
-        value = c.run_command("cat /proc/device-tree/ibm,secureboot/compatible")[-1]
+        value = c.run_command(
+            "cat /proc/device-tree/ibm,secureboot/compatible")[-1]
         if "ibm,secureboot-v2" in value:
-            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash-size")
-            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc")
-            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/compatible")
-            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/memory-region")
+            c.run_command(
+                "ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash-size")
+            c.run_command(
+                "ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc")
+            c.run_command(
+                "ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/compatible")
+            c.run_command(
+                "ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/memory-region")
         elif "ibm,secureboot-v1" in value:
-            c.run_command("ls --color=never /proc/device-tree/ibm,secureboot/hash-algo")
+            c.run_command(
+                "ls --color=never /proc/device-tree/ibm,secureboot/hash-algo")
 
 
 class VerifyOPALSecureboot(SecureBoot):
@@ -154,6 +170,7 @@ class UnSignedPNOR(SecureBoot, PNORFLASH):
     OFF     Unsigned  Pass
     ======= ========= ===========
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.un_signed_pnor
@@ -185,6 +202,7 @@ class SignedPNOR(SecureBoot, PNORFLASH):
     OFF     Signed    Pass
     ======= ========= ===========
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.signed_pnor
@@ -213,6 +231,7 @@ class SignedToPNOR(SecureBoot, PNORFLASH):
     OFF     Signed    Pass
     ======= ========= ===========
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.signed_to_pnor
@@ -238,6 +257,7 @@ class KeyTransitionPNOR(SecureBoot, PNORFLASH):
     - prod to dev
     - prod to prod
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.kt_pnor = conf.args.key_transition_pnor
@@ -265,6 +285,7 @@ class OPALContainerTest(SecureBoot, OpalLidsFLASH):
     Flash signed containers with wrong keys
     Secureboot verify should fail and boot should abort
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.skiboot = None
@@ -277,7 +298,7 @@ class OPALContainerTest(SecureBoot, OpalLidsFLASH):
         test_list = []
         if not self.test_containers:
             self.skipTest("No test containers provided")
-        known_part_list = ["BOOTKERNEL","CAPP", "IMA_CATALOG", "VERSION"]
+        known_part_list = ["BOOTKERNEL", "CAPP", "IMA_CATALOG", "VERSION"]
         # sort list with known order list
         for item in known_part_list:
             for pair in self.test_containers:

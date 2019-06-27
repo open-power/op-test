@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -60,6 +60,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestFlashBase(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -80,23 +81,29 @@ class OpTestFlashBase(unittest.TestCase):
 
     def validate_side_activated(self):
         l_bmc_side, l_pnor_side = self.cv_IPMI.ipmi_get_side_activated()
-        self.assertIn(BMC_CONST.PRIMARY_SIDE, l_bmc_side, "BMC: Primary side is not active")
+        self.assertIn(BMC_CONST.PRIMARY_SIDE, l_bmc_side,
+                      "BMC: Primary side is not active")
         if (l_pnor_side == BMC_CONST.GOLDEN_SIDE):
             log.info("PNOR: Primary side is not active")
             bios_sensor = self.cv_IPMI.ipmi_get_golden_side_sensor_id()
-            self.assertNotEqual(bios_sensor, None, "Failed to get the BIOS Golden side sensor id")
+            self.assertNotEqual(bios_sensor, None,
+                                "Failed to get the BIOS Golden side sensor id")
             boot_count_sensor = self.cv_IPMI.ipmi_get_boot_count_sensor_id()
-            self.assertNotEqual(boot_count_sensor, None, "Failed to get the Boot Count sensor id")
-            self.cv_IPMI.ipmi_set_pnor_primary_side(bios_sensor, boot_count_sensor)
+            self.assertNotEqual(boot_count_sensor, None,
+                                "Failed to get the Boot Count sensor id")
+            self.cv_IPMI.ipmi_set_pnor_primary_side(
+                bios_sensor, boot_count_sensor)
             l_bmc_side, l_pnor_side = self.cv_IPMI.ipmi_get_side_activated()
-        self.assertIn(BMC_CONST.PRIMARY_SIDE, l_pnor_side, "PNOR: Primary side is not active")
+        self.assertIn(BMC_CONST.PRIMARY_SIDE, l_pnor_side,
+                      "PNOR: Primary side is not active")
 
     def get_pnor_level(self):
         rc = self.cv_IPMI.ipmi_get_PNOR_level()
         log.info(rc)
 
     def bmc_down_check(self):
-        self.assertTrue(self.util.ping_fail_check(self.cv_BMC.host_name), "FSP/BMC keeps on pinging up")
+        self.assertTrue(self.util.ping_fail_check(
+            self.cv_BMC.host_name), "FSP/BMC keeps on pinging up")
 
     def scp_file(self, src_file_path, dst_file_path):
         self.util.copyFilesToDest(src_file_path, self.bmc_username, self.bmc_ip,
@@ -118,8 +125,8 @@ class OpTestFlashBase(unittest.TestCase):
         except Exception as e:
             log.debug("Unexpected failure Exception={}".format(e))
             self.assertTrue(False,
-                "Unexpected failure in get_version_tar, "
-                "check if you have the proper file, Exception={}".format(e))
+                            "Unexpected failure in get_version_tar, "
+                            "check if you have the proper file, Exception={}".format(e))
         return version
 
     def get_image_version(self, path):
@@ -137,7 +144,8 @@ class OpTestFlashBase(unittest.TestCase):
         while (retry < 20):
             image_list = []
             try:
-                image_list = self.cv_BMC.run_command("ls -1 -d /tmp/images/*/ --color=never")
+                image_list = self.cv_BMC.run_command(
+                    "ls -1 -d /tmp/images/*/ --color=never")
             except CommandFailed as cf:
                 pass
             for i in range(0, len(image_list)):
@@ -171,6 +179,7 @@ class BmcImageFlash(OpTestFlashBase):
     Currently supports SuperMicro (SMC) BMCs and OpenBMC.
     FSP systems need to use a separate mechanism.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.bmc_image = conf.args.bmc_image
@@ -186,7 +195,7 @@ class BmcImageFlash(OpTestFlashBase):
                 self.fail("BMC image {} does not exist".format(self.bmc_image))
 
         if "SMC" in self.bmc_type and not self.pupdate:
-                self.fail("pupdate tool is needed for flashing BMC on SMC platforms")
+            self.fail("pupdate tool is needed for flashing BMC on SMC platforms")
 
         # FORCE us to not detect system state.
         # Since we're flashing, we need to ignore what's currently on the
@@ -206,7 +215,8 @@ class BmcImageFlash(OpTestFlashBase):
                 log.info("BMC has code for the new PNOR Code update via REST")
                 try:
                     # because openbmc
-                    l_res = self.cv_BMC.run_command("rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
+                    l_res = self.cv_BMC.run_command(
+                        "rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
                 except CommandFailed as cf:
                     # Ok to just keep giong, may not have patched firmware
                     pass
@@ -219,9 +229,11 @@ class BmcImageFlash(OpTestFlashBase):
                 img_ids = self.cv_REST.bmc_image_ids()
 
                 if self.cv_REST.is_image_already_active(id):
-                    log.warning("# The given BMC image %s is already active on the system" % id)
+                    log.warning(
+                        "# The given BMC image %s is already active on the system" % id)
                     if self.cv_REST.validate_functional_bootside(id):
-                        log.warning("# And the given BMC image is already functional")
+                        log.warning(
+                            "# And the given BMC image is already functional")
                         return True
                     # If non functional set the priority and reboot the BMC
                     self.cv_REST.set_image_priority(id, "0")
@@ -237,31 +249,36 @@ class BmcImageFlash(OpTestFlashBase):
                     for img_id in img_ids:
                         d = self.cv_REST.image_data(img_id)
                         if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
-                            log.debug("BMC image %s is ready to activate" % img_id)
+                            log.debug(
+                                "BMC image %s is ready to activate" % img_id)
                             break
                     else:
                         continue
                     break
-                self.assertTrue(retries > 0, "Uploaded image but it never is ready to activate it")
+                self.assertTrue(
+                    retries > 0, "Uploaded image but it never is ready to activate it")
                 log.debug("Going to activate image id: %s" % img_id)
                 self.assertIsNotNone(img_id, "Could not find Image ID")
                 self.cv_REST.activate_image(img_id)
-                self.assertTrue(self.cv_REST.wait_for_image_active_complete(img_id), "Failed to activate image")
+                self.assertTrue(self.cv_REST.wait_for_image_active_complete(
+                    img_id), "Failed to activate image")
                 # On SMC reboot will happen automatically, but on OpenBMC needs manual reboot to upgrade the BMC FW.
                 self.cv_BMC.reboot()
                 self.wait_for_bmc_runtime()
                 # Once BMC comes up, verify whether BMC really booted from the code which we flashed.
                 # As BMC maintains two levels of code, so there may be possibilities/bugs which causes
                 # the boot from alternate side or other code.
-                self.assertTrue(self.cv_REST.validate_functional_bootside(img_id), "BMC failed to boot from the right code")
-                log.info("# BMC booting from the right code with image ID: %s" % img_id)
+                self.assertTrue(self.cv_REST.validate_functional_bootside(
+                    img_id), "BMC failed to boot from the right code")
+                log.info(
+                    "# BMC booting from the right code with image ID: %s" % img_id)
         c = 0
         while True:
             time.sleep(5)
             try:
                 self.cv_SYSTEM.sys_wait_for_standby_state()
             except OpTestError as e:
-                c+=1
+                c += 1
                 if c == 10:
                     raise e
             else:
@@ -288,6 +305,7 @@ class PNORFLASH(OpTestFlashBase):
 
     FSP systems use a different mechanism.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pnor = conf.args.host_pnor
@@ -306,13 +324,14 @@ class PNORFLASH(OpTestFlashBase):
             self.skipTest("OP AMI/OpenBMC PNOR Flash test")
 
         if "AMI" in self.bmc_type and not self.pflash:
-                self.fail("pflash tool is needed for flashing PNOR on AMI platforms")
+            self.fail("pflash tool is needed for flashing PNOR on AMI platforms")
         elif "SMC" in self.bmc_type:
             self.cv_BMC.ssh.run_command("rm -rf /tmp/rsync_file/*")
             if self.pupdate:
                 pass
             elif not self.pflash:
-                self.fail("pupdate or pflash tool is needed for flashing PNOR on SMC platforms")
+                self.fail(
+                    "pupdate or pflash tool is needed for flashing PNOR on SMC platforms")
         else:
             pass
 
@@ -327,7 +346,8 @@ class PNORFLASH(OpTestFlashBase):
             if self.pupdate:
                 self.cv_IPMI.pUpdate.set_binary(self.pupdate_binary)
             elif self.pflash:
-                self.assertTrue(self.cv_BMC.validate_pflash_tool("/tmp/rsync_file"), "No pflash on BMC")
+                self.assertTrue(self.cv_BMC.validate_pflash_tool(
+                    "/tmp/rsync_file"), "No pflash on BMC")
         # FORCE us to not detect system state.
         # Since we're flashing, we need to ignore what's currently on the
         # machine as it may be pretty garbage firmware left over from previous
@@ -343,13 +363,15 @@ class PNORFLASH(OpTestFlashBase):
                 self.cv_IPMI.pUpdate.run(" -pnor %s" % self.pnor)
             elif self.pflash:
                 self.cv_BMC.image_transfer(self.pnor)
-                self.cv_BMC.pnor_img_flash_smc("/tmp/rsync_file", os.path.basename(self.pnor))
+                self.cv_BMC.pnor_img_flash_smc(
+                    "/tmp/rsync_file", os.path.basename(self.pnor))
         elif "OpenBMC" in self.bmc_type:
             if self.cv_BMC.has_new_pnor_code_update():
                 log.info("BMC has code for the new PNOR Code update via REST")
                 try:
                     # because openbmc
-                    l_res = self.cv_BMC.run_command("rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
+                    l_res = self.cv_BMC.run_command(
+                        "rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
                 except CommandFailed as cf:
                     # Ok to just keep giong, may not have patched firmware
                     pass
@@ -369,7 +391,8 @@ class PNORFLASH(OpTestFlashBase):
                     time.sleep(1)
                     img_ids = self.cv_REST.host_image_ids()
                     retries = retries - 1
-                self.assertTrue(retries > 0, "Uploaded image but it never showed up")
+                self.assertTrue(
+                    retries > 0, "Uploaded image but it never showed up")
                 for img_id in img_ids:
                     d = self.cv_REST.image_data(img_id)
                     if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
@@ -377,10 +400,12 @@ class PNORFLASH(OpTestFlashBase):
                 log.info("Going to activate image id: %s" % img_id)
                 self.assertIsNotNone(img_id, "Could not find Image ID")
                 self.cv_REST.activate_image(img_id)
-                self.assertTrue(self.cv_REST.wait_for_image_active_complete(img_id), "Failed to activate image")
+                self.assertTrue(self.cv_REST.wait_for_image_active_complete(
+                    img_id), "Failed to activate image")
                 # We need to have below check after power on of the host.
                 #self.assertTrue(self.cv_REST.validate_functional_bootside(img_id), "PNOR failed to boot from the right code")
-                log.debug("# PNOR boots from the right code with image ID: %s" % img_id)
+                log.debug(
+                    "# PNOR boots from the right code with image ID: %s" % img_id)
             else:
                 log.debug("Fallback to old code update method using pflash tool")
                 self.cv_BMC.image_transfer(self.pnor)
@@ -409,6 +434,7 @@ class OpalLidsFLASH(OpTestFlashBase):
     AMI,SMC,OpenBMC systems need skiboot.lid.xz
     unless secure boot is enabled, and then they need skiboot.lid.xz.stb
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.pflash = conf.args.pflash
@@ -427,13 +453,13 @@ class OpalLidsFLASH(OpTestFlashBase):
 
     def runTest(self):
         if not self.skiboot and not self.skiroot_kernel and not self.skiroot_initramfs \
-            and not self.flash_part_list:
+                and not self.flash_part_list:
             self.skipTest("No custom skiboot/kernel to flash")
         if any(s in self.bmc_type for s in ("QEMU", "qemu")):
             self.skipTest("Skipping OpalLidsFLASH on QEMU machine")
 
         if self.bmc_type in ["AMI", "SMC"] and not self.pflash:
-                self.fail("pflash tool is needed for flashing OPAL lids")
+            self.fail("pflash tool is needed for flashing OPAL lids")
 
         if "SMC" in self.bmc_type and self.smc_presshipmicmd:
             self.cv_IPMI.ipmitool.run(self.smc_presshipmicmd)
@@ -461,60 +487,74 @@ class OpalLidsFLASH(OpTestFlashBase):
             if not self.cv_BMC.mount_exists():
                 raise OpTestError("Please mount NFS and retry the test")
             self.cv_BMC.fsp_run_command("/usr/sbin/sshd")
-            cmd = "rm -fr {0} 2> /dev/null; mkdir -p {0}".format(self.ext_lid_test_path)
+            cmd = "rm -fr {0} 2> /dev/null; mkdir -p {0}".format(
+                self.ext_lid_test_path)
             self.cv_BMC.fsp_run_command(cmd)
             if self.skiboot:
-                self.cv_BMC.fsp_run_command("cp -f /opt/extucode/80f00100.lid %s/80f00100_bkp.lid" % self.ext_lid_test_path)
-                log.debug("Backup of skiboot lid is in %s/80f00100_bkp.lid" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command(
+                    "cp -f /opt/extucode/80f00100.lid %s/80f00100_bkp.lid" % self.ext_lid_test_path)
+                log.debug("Backup of skiboot lid is in %s/80f00100_bkp.lid" %
+                          self.ext_lid_test_path)
                 self.cv_BMC.fsp_run_command("rm -f /opt/extucode/80f00100.lid")
                 self.scp_file(self.skiboot, "/opt/extucode/80f00100.lid")
 
             if not self.skiroot_kernel and not self.skiroot_initramfs:
                 log.debug("No skiroot lids provided, Flashing only skiboot")
             else:
-                self.cv_BMC.fsp_run_command("cp -f /opt/extucode/80f00101.lid %s/80f00101_bkp.lid" % self.ext_lid_test_path)
-                log.debug("Backup of skiroot kernel lid is in %s/80f00101_bkp.lid" % self.ext_lid_test_path)
-                self.cv_BMC.fsp_run_command("cp -f /opt/extucode/80f00102.lid %s/80f00102_bkp.lid" % self.ext_lid_test_path)
-                log.debug("Backup of skiroot initrd lid is in %s/80f00102_bkp.lid" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command(
+                    "cp -f /opt/extucode/80f00101.lid %s/80f00101_bkp.lid" % self.ext_lid_test_path)
+                log.debug(
+                    "Backup of skiroot kernel lid is in %s/80f00101_bkp.lid" % self.ext_lid_test_path)
+                self.cv_BMC.fsp_run_command(
+                    "cp -f /opt/extucode/80f00102.lid %s/80f00102_bkp.lid" % self.ext_lid_test_path)
+                log.debug(
+                    "Backup of skiroot initrd lid is in %s/80f00102_bkp.lid" % self.ext_lid_test_path)
                 self.cv_BMC.fsp_run_command("rm -f /opt/extucode/80f00101.lid")
                 self.cv_BMC.fsp_run_command("rm -f /opt/extucode/80f00102.lid")
-                self.scp_file(self.skiroot_kernel, "/opt/extucode/80f00101.lid")
-                self.scp_file(self.skiroot_initramfs, "/opt/extucode/80f00102.lid")
+                self.scp_file(self.skiroot_kernel,
+                              "/opt/extucode/80f00101.lid")
+                self.scp_file(self.skiroot_initramfs,
+                              "/opt/extucode/80f00102.lid")
             log.info("Regenerating the hashes by running command cupdmfg -opt")
             self.cv_BMC.fsp_run_command("cupdmfg -opt")
 
         if "AMI" in self.bmc_type:
             if self.skiboot:
                 self.cv_BMC.image_transfer(self.skiboot)
-                self.cv_BMC.skiboot_img_flash_ami("/tmp", os.path.basename(self.skiboot))
+                self.cv_BMC.skiboot_img_flash_ami(
+                    "/tmp", os.path.basename(self.skiboot))
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
-                self.cv_BMC.skiroot_img_flash_ami("/tmp", os.path.basename(self.skiroot_kernel))
+                self.cv_BMC.skiroot_img_flash_ami(
+                    "/tmp", os.path.basename(self.skiroot_kernel))
             if self.flash_part_list:
-                    for part_pair in self.flash_part_list:
-                        self.cv_BMC.image_transfer(part_pair[1])
-                        self.cv_BMC.flash_part_ami("/tmp", os.path.basename(part_pair[1]),
-                                                   part_pair[0])
+                for part_pair in self.flash_part_list:
+                    self.cv_BMC.image_transfer(part_pair[1])
+                    self.cv_BMC.flash_part_ami("/tmp", os.path.basename(part_pair[1]),
+                                               part_pair[0])
 
         if "SMC" in self.bmc_type:
             if self.skiboot:
                 self.cv_BMC.image_transfer(self.skiboot)
-                self.cv_BMC.skiboot_img_flash_smc("/tmp/rsync_file", os.path.basename(self.skiboot))
+                self.cv_BMC.skiboot_img_flash_smc(
+                    "/tmp/rsync_file", os.path.basename(self.skiboot))
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
-                self.cv_BMC.skiroot_img_flash_smc("/tmp/rsync_file", os.path.basename(self.skiroot_kernel))
+                self.cv_BMC.skiroot_img_flash_smc(
+                    "/tmp/rsync_file", os.path.basename(self.skiroot_kernel))
             if self.flash_part_list:
-                    for part_pair in self.flash_part_list:
-                        self.cv_BMC.image_transfer(part_pair[1])
-                        self.cv_BMC.flash_part_smc("/tmp/rsync_file", os.path.basename(part_pair[1]),
-                                                   part_pair[0])
+                for part_pair in self.flash_part_list:
+                    self.cv_BMC.image_transfer(part_pair[1])
+                    self.cv_BMC.flash_part_smc("/tmp/rsync_file", os.path.basename(part_pair[1]),
+                                               part_pair[0])
 
         if "OpenBMC" in self.bmc_type:
             # Check for field mode first, if it is enabled, clear that and flash host firmware.
             # otherwise OpenBMC won't allow to patch any Host FW code in field mode.
             if self.cv_REST.has_field_mode_set():
                 self.cv_BMC.clear_field_mode()
-                self.assertFalse(self.cv_REST.has_field_mode_set(), "Field mode disable failed")
+                self.assertFalse(self.cv_REST.has_field_mode_set(),
+                                 "Field mode disable failed")
 
             try:
                 # OpenBMC started removing overrides *after* flashing new image
@@ -526,14 +566,17 @@ class OpalLidsFLASH(OpTestFlashBase):
                 pass
             if self.skiboot:
                 self.cv_BMC.image_transfer(self.skiboot)
-                self.cv_BMC.skiboot_img_flash_openbmc(os.path.basename(self.skiboot))
+                self.cv_BMC.skiboot_img_flash_openbmc(
+                    os.path.basename(self.skiboot))
             if self.skiroot_kernel:
                 self.cv_BMC.image_transfer(self.skiroot_kernel)
-                self.cv_BMC.skiroot_img_flash_openbmc(os.path.basename(self.skiroot_kernel))
+                self.cv_BMC.skiroot_img_flash_openbmc(
+                    os.path.basename(self.skiroot_kernel))
             if self.flash_part_list:
-                    for part_pair in self.flash_part_list:
-                        self.cv_BMC.image_transfer(part_pair[1])
-                        self.cv_BMC.flash_part_openbmc(os.path.basename(part_pair[1]), part_pair[0])
+                for part_pair in self.flash_part_list:
+                    self.cv_BMC.image_transfer(part_pair[1])
+                    self.cv_BMC.flash_part_openbmc(
+                        os.path.basename(part_pair[1]), part_pair[0])
 
         raw_pty = self.cv_SYSTEM.console.get_console()
         if "AMI" in self.bmc_type:
@@ -546,7 +589,7 @@ class OOBHpmFLASH(OpTestFlashBase):
         conf = OpTestConfiguration.conf
         self.hpm_path = conf.args.host_hpm
         self.assertNotEqual(os.path.exists(self.hpm_path), 0,
-            "HPM File %s not doesn't exist" % self.hpm_path)
+                            "HPM File %s not doesn't exist" % self.hpm_path)
         super(OOBHpmFLASH, self).setUp()
 
     def runTest(self):
@@ -560,7 +603,8 @@ class OOBHpmFLASH(OpTestFlashBase):
         # test runs.
         self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_IPMI.ipmi_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        self.cv_IPMI.ipmi_code_update(self.hpm_path, str(
+            BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.validate_side_activated()
         self.cv_SYSTEM.sys_sel_check()
@@ -571,7 +615,7 @@ class InbandHpmFLASH(OpTestFlashBase):
         conf = OpTestConfiguration.conf
         self.hpm_path = conf.args.host_hpm
         self.assertNotEqual(os.path.exists(self.hpm_path), 0,
-            "HPM File %s not doesn't exist" % self.hpm_path)
+                            "HPM File %s not doesn't exist" % self.hpm_path)
         super(InbandHpmFLASH, self).setUp()
 
     def runTest(self):
@@ -579,7 +623,8 @@ class InbandHpmFLASH(OpTestFlashBase):
             self.skipTest("OP AMI BMC In-band firmware Update test")
         self.cv_SYSTEM.sys_sdr_clear()
         self.validate_side_activated()
-        self.cv_HOST.host_code_update(self.hpm_path, str(BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
+        self.cv_HOST.host_code_update(self.hpm_path, str(
+            BMC_CONST.BMC_FWANDPNOR_IMAGE_UPDATE))
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.validate_side_activated()
@@ -595,13 +640,15 @@ class FSPFWImageFLASH(OpTestFlashBase):
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP In-band firmware Update test")
-	if not self.image:
-	    self.skipTest("No FSP firmware image provided")
+        if not self.image:
+            self.skipTest("No FSP firmware image provided")
 
         self.cv_BMC.fsp_get_console()
         # Fetch the FSP side of flash active to verify after the update
-        preup_boot = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Boot Side\"")
-        preup_build = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Side Driver\"")
+        preup_boot = self.cv_BMC.fsp_run_command(
+            "cupdcmd -f | grep \"Current Boot Side\"")
+        preup_build = self.cv_BMC.fsp_run_command(
+            "cupdcmd -f | grep \"Current Side Driver\"")
         log.info("System boot side %s, build: %s" % (preup_boot, preup_build))
         preup_boot = re.search('.*([T|P])', preup_boot)
         preup_boot = preup_boot.group(1)
@@ -621,16 +668,21 @@ class FSPFWImageFLASH(OpTestFlashBase):
         con.pty.send('quit\r')
         con.close()
         self.bmc_down_check()
-        self.util.PingFunc(self.cv_BMC.host_name, BMC_CONST.PING_RETRY_POWERCYCLE)
+        self.util.PingFunc(self.cv_BMC.host_name,
+                           BMC_CONST.PING_RETRY_POWERCYCLE)
         time.sleep(10)
         self.cv_BMC.fsp_get_console()
         con = self.cv_SYSTEM.console
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         con.run_command("update_flash -d")
-        postup_boot = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Boot Side\"")
+        postup_boot = self.cv_BMC.fsp_run_command(
+            "cupdcmd -f | grep \"Current Boot Side\"")
         postup_boot = re.search('.*([T|P])', postup_boot)
         postup_boot = postup_boot.group(1)
-        postup_build = self.cv_BMC.fsp_run_command("cupdcmd -f | grep \"Current Side Driver\"")
-        log.info("System Boot side: %s, build: %s" % (postup_boot, postup_build))
-        self.assertEqual(preup_boot, postup_boot, "System booted from different bootside")
+        postup_build = self.cv_BMC.fsp_run_command(
+            "cupdcmd -f | grep \"Current Side Driver\"")
+        log.info("System Boot side: %s, build: %s" %
+                 (postup_boot, postup_build))
+        self.assertEqual(preup_boot, postup_boot,
+                         "System booted from different bootside")

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -52,6 +52,7 @@ class CpuHotPlug(unittest.TestCase):
     Then start hotplugging CPU cores by using the ``ppc64_cpu`` utility to
     turn only a specific number of cores on.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -64,7 +65,8 @@ class CpuHotPlug(unittest.TestCase):
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         self.num_avail_cores = self.cv_HOST.host_get_core_count()
-        smt_range = ["on", "off"] + range(1, self.cv_HOST.host_get_smt()+1)
+        smt_range = ["on", "off"] + \
+            list(range(1, self.cv_HOST.host_get_smt()+1))
         log.debug("Possible smt values: %s" % smt_range)
         for smt in smt_range:
             self.c.run_command("ppc64_cpu --smt=%s" % str(smt))

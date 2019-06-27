@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2018
@@ -43,6 +43,7 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 WAITTIME = 15
 BOOTTIME = 500
 STALLTIME = 3
+
 
 class OpHmcState():
     '''
@@ -125,7 +126,8 @@ class OpTestHMC():
         return self.ssh.run_command(i_cmd, timeout)
 
     def deactivate_lpar_console(self):
-        self.run_command("rmvterm -m %s -p %s" % (self.system, self.lpar_name), timeout=10)
+        self.run_command("rmvterm -m %s -p %s" %
+                         (self.system, self.lpar_name), timeout=10)
 
     def poweroff_system(self):
         if self.get_system_state() != OpManagedState.OPERATING:
@@ -220,7 +222,8 @@ class OpTestHMC():
             rc = console.expect([self.expect_prompt], timeout=timeout)
             if rc != 0:
                 exitcode = int(console.before)
-                log.debug("# LAST COMMAND EXIT CODE %d (%s)" % (exitcode, repr(console.before)))
+                log.debug("# LAST COMMAND EXIT CODE %d (%s)" %
+                          (exitcode, repr(console.before)))
         except pexpect.TIMEOUT as e:
             log.debug(e)
             log.debug("# TIMEOUT waiting for command to finish.")
@@ -254,20 +257,23 @@ class OpTestHMC():
         l_rc = console.expect(["login:", pexpect.TIMEOUT], timeout=WAITTIME)
         if l_rc == 0:
             console.send('\r')
-            console = self.wait_login_prompt(console, self.lpar_user, self.lpar_password)
+            console = self.wait_login_prompt(
+                console, self.lpar_user, self.lpar_password)
         else:
             time.sleep(STALLTIME)
             console.send('\r')
             console.sendline('PS1=' + self.util.build_prompt(self.prompt))
             console.send('\r')
             time.sleep(STALLTIME)
-            l_rc = console.expect([self.expect_prompt, pexpect.TIMEOUT], timeout=WAITTIME)
+            l_rc = console.expect(
+                [self.expect_prompt, pexpect.TIMEOUT], timeout=WAITTIME)
             if l_rc == 0:
                 log.debug("Shell prompt changed")
             else:
                 console.send('\r')
                 log.debug("Waiting till booting!")
-                console = self.wait_login_prompt(console, self.lpar_user, self.lpar_password)
+                console = self.wait_login_prompt(
+                    console, self.lpar_user, self.lpar_password)
         return console
 
     def check_vterm(self):
@@ -283,7 +289,7 @@ class OpTestHMC():
         time.sleep(STALLTIME)
         log.debug("Waiting for login screen")
         i = console.expect(
-                ["login:", self.expect_prompt, pexpect.TIMEOUT], timeout=BOOTTIME)
+            ["login:", self.expect_prompt, pexpect.TIMEOUT], timeout=BOOTTIME)
         if i == 0:
             log.debug("System has booted")
             if username and password:
@@ -315,7 +321,6 @@ class OpTestHMC():
             log.error("%s %s" % (i, self.lpar_con.before))
             raise OpTestError("Console in different state")
 
-
     def get_console_prompt(self):
         if self.get_lpar_state() != OpHmcState.RUNNING:
             raise OpTestError(
@@ -327,7 +332,7 @@ class OpTestHMC():
                   " -o afstokenpassing=no -q -o 'UserKnownHostsFile=/dev/null'"\
                   " -o 'StrictHostKeyChecking=no'"
         self.lpar_con = OPexpect.spawn(
-                command % (self.passwd, self.user, self.hmc_ip))
+            command % (self.passwd, self.user, self.hmc_ip))
         self.wait_lpar_state()
         log.info("Opening the LPAR console")
         self.vterm = True

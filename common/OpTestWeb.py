@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -30,15 +30,17 @@ import os
 import pexpect
 import unittest
 
-from OpTestConstants import OpTestConstants as BMC_CONST
-from OpTestError import OpTestError
+from .OpTestConstants import OpTestConstants as BMC_CONST
+from .OpTestError import OpTestError
 
-## @package OpTestWeb
+# @package OpTestWeb
 #  Contains all BMC related Web tools
 #
 #  This class encapsulates all function which deals with the BMC Using Web GUI
 #  in OpenPower systems
 #
+
+
 class OpTestWeb():
 
     ##
@@ -77,42 +79,42 @@ class OpTestWeb():
             from MaintenancePage import MaintenancePage
             from Page import Page
 
-            #Open web browser using headless selenium
+            # Open web browser using headless selenium
             display = Display(visible=0, size=(1024, 768))
             display.start()
-            BMC_IP='https://'+self.ip
+            BMC_IP = 'https://'+self.ip
             browser = webdriver.Firefox()
         except:
-            print(BMC_CONST.ERROR_SELENIUM_HEADLESS)
+            print((BMC_CONST.ERROR_SELENIUM_HEADLESS))
             raise OpTestError(BMC_CONST.ERROR_SELENIUM_HEADLESS)
 
         try:
-            #Open BMC webpage
+            # Open BMC webpage
             BMC = Page(browser, BMC_IP)
             BMC.getPage()
 
-            #Login to BMC
+            # Login to BMC
             BMCAuth = LoginPage(BMC, self.id, self.password)
             BMCAuth.login()
 
-            #Find FW Update Option in menus
+            # Find FW Update Option in menus
             BMCUpdate = FWUpdatePage(BMC)
 
-            #Get Maintenance Page
+            # Get Maintenance Page
             Maintenance = MaintenancePage(BMC)
             Maintenance.getMaintenancePage()
             Maintenance.preserveIPMI()
             Maintenance.preserveNetwork()
             Maintenance.savePage()
 
-            #Configure TFTP Protocol Server and Image
+            # Configure TFTP Protocol Server and Image
             BMCUpdate.getProtocolConfigPage()
             BMCUpdate.selectProtocolType('TFTP')
             BMCUpdate.inputServerAddress(self.ip)
             BMCUpdate.inputImageName(i_image)
             BMCUpdate.doSave()
 
-            #Traverse Back to FW Update Page
+            # Traverse Back to FW Update Page
             BMCUpdate.getUpdateOptionsPage()
             BMCUpdate.selectHPM()
             BMCUpdate.doContinue()
@@ -136,5 +138,3 @@ class OpTestWeb():
             raise OpTestError(l_msg)
 
         return BMC_CONST.FW_SUCCESS
-
-

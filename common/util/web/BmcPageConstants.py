@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -24,7 +24,7 @@
 #
 # IBM_PROLOG_END_TAG
 
-## @package BmcPageConstants
+# @package BmcPageConstants
 #  package which contains all BMC related Web constants
 #
 #  This class encapsulates all constants which deals with the BMC Using Web GUI
@@ -33,82 +33,82 @@
 
 class BmcPageConstants():
 
-    #BMC MainFrame
+    # BMC MainFrame
     BMC_MAINFRAME = 'MAINFRAME'
 
-    #BMC PageFrame
+    # BMC PageFrame
     BMC_PAGEFRAME = 'pageFrame'
 
-    #FW Update Menu Option
+    # FW Update Menu Option
     BMC_LN_FIRMWARE_UPDATE = 'LN_FIRMWARE_UPDATE'
 
-    #FW Update Menu Option
+    # FW Update Menu Option
     BMC_LN_FIRMWARE_UPDATE_MENU = 'LN_FIRMWARE_UPDATE_menu'
 
-    #FW Update HREF Link
+    # FW Update HREF Link
     BMC_LN_FIRMWARE_UPDATE_HREF = "a[href='../page/fw_update.html']"
 
-    #Protocol config HREF Link
+    # Protocol config HREF Link
     BMC_LN_PROTOCOL_CONFIG_HREF = "a[href='../page/configure_fw_image.html']"
 
-    #FW Update Menu Option
+    # FW Update Menu Option
     BMC_LN_MAINTENANCE = 'LN_MAINTENANCE'
 
-    #FW Update Menu Option
+    # FW Update Menu Option
     BMC_LN_MAINTENANCE_MENU = 'LN_MAINTENANCE_menu'
 
-    #Protocol config HREF Link
+    # Protocol config HREF Link
     BMC_LN_PRESERVE_CONFIG_HREF = "a[href='../page/preserve_cfg.html']"
 
-    #HPM Radio Buton
+    # HPM Radio Buton
     BMC_HPM_RADIO_BTN = '_rdoHPM'
 
-    #AMI Radio Buton
+    # AMI Radio Buton
     BMC_AMI_RADIO_BTN = '_rdoAMI'
 
-    #Continue Buton
+    # Continue Buton
     BMC_CONTINUE_BTN = '_btnContinue'
 
-    #FW Update Buton
+    # FW Update Buton
     BMC_FWUPDATE_BTN = '_btnFWUpdate'
 
-    #Save Buton (Protocol Config, Preserve Config)
+    # Save Buton (Protocol Config, Preserve Config)
     BMC_SAVE_BTN = '_btnSave'
 
-    #TFTP Drop Down Option
+    # TFTP Drop Down Option
     BMC_TFTP_OPTION = '_lstProtocol'
 
-    #Option html tag
+    # Option html tag
     BMC_OPTION_TAG = 'option'
 
-    #Text box to enter server info
+    # Text box to enter server info
     BMC_SERVER_ADDR_TEXT_AREA = '_txtAddress'
 
-    #Text box to enter filepath info
+    # Text box to enter filepath info
     BMC_IMAGE_PATH_TEXT_AREA = '_txtSrcPath'
 
-    #Text box to enter user login id
+    # Text box to enter user login id
     BMC_LOGIN_TEXT_AREA = 'login_username'
 
-    #Text box to enter user login password
+    # Text box to enter user login password
     BMC_PASSWORD_TEXT_AREA = 'login_password'
 
-    #Login submit button
+    # Login submit button
     BMC_LOGIN_BTN = 'LOGIN_VALUE_1'
 
-    #Upload File Button
+    # Upload File Button
     BMC_UPLOAD_FILE = 'brwsUpld'
 
-    #OK Button
+    # OK Button
     BMC_OK_BTN = '//input[@type="button" and @value="Ok"]'
 
-    #SELECT_BIOS_UPDATE
+    # SELECT_BIOS_UPDATE
     BMC_BIOS_UPDATE_OPTION = '_chkSecStatus0'
 
-    #SELECT_BOOT_UPDATE
+    # SELECT_BOOT_UPDATE
     BMC_BOOT_UPDATE_OPTION = '_chkSecStatus1'
 
-    #BOOT Proceed Button
+    # BOOT Proceed Button
     BMC_BOOT_PROCEED = '__proceed'
 
     # Select PROTOCAL RETRY

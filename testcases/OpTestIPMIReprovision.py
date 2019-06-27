@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -47,6 +47,7 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
+
 class OpTestIPMIReprovision(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -54,6 +55,7 @@ class OpTestIPMIReprovision(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.platform = conf.platform()
+
 
 class NVRAM(OpTestIPMIReprovision):
     '''
@@ -70,9 +72,11 @@ class NVRAM(OpTestIPMIReprovision):
     5. Once system booted, check for NVRAM parition whether the test config
        data got erased or not.
     '''
+
     def runTest(self):
-        if not self.platform in ['habanero','firestone','garrison']:
-            raise unittest.SkipTest("Platform %s doesn't support IPMI Reprovision" % self.platform)
+        if not self.platform in ['habanero', 'firestone', 'garrison']:
+            raise unittest.SkipTest(
+                "Platform %s doesn't support IPMI Reprovision" % self.platform)
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -88,7 +92,6 @@ class NVRAM(OpTestIPMIReprovision):
                                                       BMC_CONST.IPMI_POWERNV)
         self.cv_HOST.host_load_module_based_on_config(l_kernel, BMC_CONST.CONFIG_IPMI_HANDLER,
                                                       BMC_CONST.IPMI_MSG_HANDLER)
-
 
         self.cv_HOST.host_run_command("uname -a")
         self.cv_HOST.host_run_command(BMC_CONST.NVRAM_PRINT_CFG)
@@ -111,9 +114,11 @@ class NVRAM(OpTestIPMIReprovision):
         if l_res.__contains__(BMC_CONST.NVRAM_TEST_DATA):
             l_msg = "NVRAM Partition - IPMI Reprovision not happening, nvram test config data still exists"
             raise OpTestError(l_msg)
-        print("NVRAM Partition - IPMI Reprovision is done, cleared the nvram test config data")
+        print(
+            "NVRAM Partition - IPMI Reprovision is done, cleared the nvram test config data")
         self.cv_HOST.host_gather_opal_msg_log()
         return
+
 
 class GARD(OpTestIPMIReprovision):
     '''
@@ -130,13 +135,16 @@ class GARD(OpTestIPMIReprovision):
        not.
     6. Reboot the system back to see system is booting fine or not.
     '''
+
     def runTest(self):
-        if not self.platform in ['habanero','firestone','garrison']:
-            raise unittest.SkipTest("Platform %s doesn't support IPMI Reprovision" % self.platform)
+        if not self.platform in ['habanero', 'firestone', 'garrison']:
+            raise unittest.SkipTest(
+                "Platform %s doesn't support IPMI Reprovision" % self.platform)
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-        print("IPMI_Reprovision: Injecting system core checkstop to guard the phyisical cpu")
+        print(
+            "IPMI_Reprovision: Injecting system core checkstop to guard the phyisical cpu")
         self.opTestHMIHandling.testHMIHandling(BMC_CONST.HMI_MALFUNCTION_ALERT)
 
         print("IPMI_Reprovision: Performing a IPMI Power OFF Operation")
@@ -152,15 +160,18 @@ class GARD(OpTestIPMIReprovision):
         print("IPMI_Reprovision: gathering the opal message logs")
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_get_OS_Level()
-        g = self.cv_HOST.host_run_command("PATH=/usr/local/sbin:$PATH opal-gard list")
+        g = self.cv_HOST.host_run_command(
+            "PATH=/usr/local/sbin:$PATH opal-gard list")
         if "No GARD entries to display" not in g:
-            raise Exception("IPMI: Reprovision not happening, gard records are not erased")
+            raise Exception(
+                "IPMI: Reprovision not happening, gard records are not erased")
 
 
 def experimental_suite():
     s = unittest.TestSuite()
     s.addTest(NVRAM())
     return s
+
 
 def broken_suite():
     s = unittest.TestSuite()

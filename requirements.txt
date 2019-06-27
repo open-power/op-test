@@ -1,1 +1,6 @@
 pexpect
+unittest-xml-reporting
+ptyprocess
+requests
+pysocks
+unittest2

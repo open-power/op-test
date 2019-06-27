@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # OpenPOWER Automated Test Project
 #
@@ -35,7 +35,7 @@ throws.
 """
 
 import pexpect
-from Exceptions import *
+from .Exceptions import *
 
 
 class spawn(pexpect.spawn):
@@ -43,7 +43,7 @@ class spawn(pexpect.spawn):
     def __init__(self, command, args=[], maxread=8000,
                  searchwindowsize=None, logfile=None, cwd=None, env=None,
                  ignore_sighup=False, echo=True, preexec_fn=None,
-                 encoding=None, codec_errors='strict', dimensions=None,
+                 encoding='utf-8', codec_errors='strict', dimensions=None,
                  failure_callback=None, failure_callback_data=None):
         self.command = command
         self.failure_callback = failure_callback
@@ -53,13 +53,14 @@ class spawn(pexpect.spawn):
                                     searchwindowsize=searchwindowsize,
                                     logfile=logfile,
                                     cwd=cwd, env=env,
-                                    ignore_sighup=ignore_sighup)
+                                    ignore_sighup=ignore_sighup,
+                                    encoding=encoding)
 
     def set_system(self, system):
         self.op_test_system = system
         return
 
-    def expect(self, pattern, timeout=-1, searchwindowsize=-1, async=False):
+    def expect(self, pattern, timeout=-1, searchwindowsize=-1):
         op_patterns = ["qemu: could find kernel",
                        "INFO: rcu_sched self-detected stall on CPU",
                        "kernel BUG at",

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -39,6 +39,7 @@ from common.Exceptions import CommandFailed
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class KernelLog():
     def setUp(self):
@@ -118,7 +119,7 @@ class KernelLog():
                       "mlx4_en.* Port \d+: Initializing port",
                       "mlx4_core.*Old device ETS support detected",
                       "mlx4_core.*Consider upgrading device FW.",
-        ]
+                      ]
 
         if self.bmc_type in ['qemu']:
             # Qemu doesn't (yet) have pstate support, so ignore errors there.
@@ -145,7 +146,7 @@ class KernelLog():
             fre = re.compile(f)
             log_entries = [l for l in log_entries if not fre.search(l)]
 
-        msg = '\n'.join(filter(None, log_entries))
+        msg = '\n'.join([_f for _f in log_entries if _f])
         self.assertTrue(len(log_entries) == 0,
                         "Warnings/Errors in Kernel log:\n%s" % msg)
 

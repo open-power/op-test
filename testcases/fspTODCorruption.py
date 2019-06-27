@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -32,7 +32,7 @@ Corrupt TOD and check host boot and runtime behaviours
 import time
 import subprocess
 import re
-import commands
+import subprocess
 
 from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
@@ -68,7 +68,7 @@ class fspTODCorruption():
         return res
 
     def set_tod(self):
-        time = commands.getoutput('date +"%Y%m%d%H%M%S"')
+        time = subprocess.getoutput('date +"%Y%m%d%H%M%S"')
         log.debug("Setting back the system time using rtim timeofday ")
         cmd = "rtim timeofday %s" % time
         log.debug("Running command on FSP: %s" % cmd)
@@ -105,6 +105,7 @@ class TOD_CORRUPTION(fspTODCorruption, unittest.TestCase):
     '''
     This function tests Boot and runtime behaviour when TOD is corrupted.
     '''
+
     def runTest(self):
         if "FSP" not in self.bmc_type:
             self.skipTest("FSP Platform OPAL specific TOD Corruption tests")

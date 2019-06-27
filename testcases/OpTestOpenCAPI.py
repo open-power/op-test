@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -53,6 +53,7 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestOpenCAPI(unittest.TestCase):
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -78,8 +79,8 @@ class OpTestOpenCAPI(unittest.TestCase):
         # Load module ocxl based on config option
         l_config = "CONFIG_OCXL"
         l_module = "ocxl"
-        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, \
-                                                   l_module)
+        self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config,
+                                                      l_module)
 
 
 class OcxlDeviceFileTest(OpTestOpenCAPI, unittest.TestCase):
@@ -87,6 +88,7 @@ class OcxlDeviceFileTest(OpTestOpenCAPI, unittest.TestCase):
     If the system has a OpenCAPI FPGA card, then this test load the ocxl module
     if required and check that the ocxl device files afu0.0m and afu0.0s exist
     '''
+
     def setUp(self):
         super(OcxlDeviceFileTest, self).setUp()
 
@@ -105,6 +107,7 @@ class MemCpy3AFUTest(OpTestOpenCAPI, unittest.TestCase):
     If the system has a OpenCAPI FPGA card, then this test load the ocxl module
     if required and test the memcpy3 AFU with ocxl_memcpy
     '''
+
     def setUp(self):
         super(MemCpy3AFUTest, self).setUp()
 
@@ -135,6 +138,7 @@ class MemCpy3AFUIrqTest(OpTestOpenCAPI, unittest.TestCase):
     If the system has a OpenCAPI FPGA card, then load the ocxl module
     if required and test the memcpy3 AFU with ocxl_memcpy -i
     '''
+
     def setUp(self):
         super(MemCpy3AFUIrqTest, self).setUp()
 
@@ -165,6 +169,7 @@ class MemCpy3AFUReallocTest(OpTestOpenCAPI, unittest.TestCase):
     If the system has a OpenCAPI FPGA card, then load the ocxl module
     if required and test the memcpy3 AFU with ocxl_memcpy -r
     '''
+
     def setUp(self):
         super(MemCpy3AFUReallocTest, self).setUp()
 
@@ -195,6 +200,7 @@ class MemCpy3AFUIncrementTest(OpTestOpenCAPI, unittest.TestCase):
     If the system has a OpenCAPI FPGA card, then load the ocxl module
     if required and test the memcpy3 AFU with ocxl_memcpy -a
     '''
+
     def setUp(self):
         super(MemCpy3AFUIncrementTest, self).setUp()
 
@@ -225,6 +231,7 @@ class MemCpy3AFUAtomicCasTest(OpTestOpenCAPI, unittest.TestCase):
     If the system has a OpenCAPI FPGA card, then load the ocxl module
     if required and test the memcpy3 AFU with ocxl_memcpy -A
     '''
+
     def setUp(self):
         super(MemCpy3AFUAtomicCasTest, self).setUp()
 

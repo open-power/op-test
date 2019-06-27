@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -43,7 +43,7 @@ USB interface rather than BT.
 import time
 import subprocess
 import re
-import commands
+import subprocess
 import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
@@ -54,14 +54,18 @@ from common.OpTestSystem import OpSystemState
 from testcases.OpTestInbandIPMI import BasicInbandIPMI, OpTestInbandIPMI, ExperimentalInbandIPMI
 from testcases.OpTestInbandIPMI import SkirootBasicInbandIPMI, SkirootFullInbandIPMI
 
+
 def experimental_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(ExperimentalInbandUSB)
+
 
 def basic_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(BasicInbandUSB)
 
+
 def full_suite():
     return unittest.defaultTestLoader.loadTestsFromModule(InbandUSB)
+
 
 def skiroot_full_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootInbandUSB)
@@ -75,6 +79,7 @@ class BasicInbandUSB(BasicInbandIPMI):
         if "OpenBMC" in self.bmc_type:
             self.skipTest("OpenBMC doesn't support inband IPMI over USB")
         super(BasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
+
 
 class InbandUSB(OpTestInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):

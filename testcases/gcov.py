@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # OpenPOWER Automated Test Project
 #
 # Contributors Listed Below - COPYRIGHT 2017
@@ -41,6 +41,7 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 NR_GCOV_DUMPS = 0
 
+
 class gcov():
     '''
     Base "test case" for extracting skiboot GCOV code coverage data from the
@@ -53,6 +54,7 @@ class gcov():
     all the nice usual ways of transferring files around. The good news is that
     implementing a simple HTTP POST request in shell isn't that hard.
     '''
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_HOST = conf.host()
@@ -62,12 +64,12 @@ class gcov():
 
     def runTest(self):
         self.setup_test()
-	try:
+        try:
             exports = self.c.run_command(
                 "ls -1 --color=never /sys/firmware/opal/exports/")
-	except CommandFailed as cf:
-	    log.debug("exports cf.output={}".format(cf.output))
-	    exports = "EMPTY"
+        except CommandFailed as cf:
+            log.debug("exports cf.output={}".format(cf.output))
+            exports = "EMPTY"
         if 'gcov' not in exports:
             self.skipTest("Not a GCOV build")
 
@@ -78,9 +80,11 @@ class gcov():
             log.debug("my_ip={}".format(my_ip))
         except Exception as e:
             log.debug("get_server_ip Exception={}".format(e))
-            self.fail("Unable to get the IP from Petitboot or Host, check that the IP's are configured")
+            self.fail(
+                "Unable to get the IP from Petitboot or Host, check that the IP's are configured")
         if not my_ip:
-            self.fail("We failed to get the IP from Petitboot or Host, check that the IP's are configured")
+            self.fail(
+                "We failed to get the IP from Petitboot or Host, check that the IP's are configured")
         port = iutil.start_server(my_ip)
 
         url = 'http://{}:{}/upload'.format(my_ip, port)
@@ -102,7 +106,8 @@ class gcov():
 
         global NR_GCOV_DUMPS
         NR_GCOV_DUMPS = NR_GCOV_DUMPS + 1
-        filename = os.path.join(self.gcov_dir,'gcov-saved-{}'.format(NR_GCOV_DUMPS))
+        filename = os.path.join(
+            self.gcov_dir, 'gcov-saved-{}'.format(NR_GCOV_DUMPS))
         with open(filename, 'wb') as f:
             f.write(iutil.get_uploaded_file('gcov'))
 
@@ -111,6 +116,7 @@ class Skiroot(gcov, unittest.TestCase):
     '''
     Extract GCOV code coverage in skiroot environment.
     '''
+
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         self.c = self.cv_SYSTEM.console
@@ -120,6 +126,7 @@ class Host(gcov, unittest.TestCase):
     '''
     Extract GCOV code coverage from a host OS.
     '''
+
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()

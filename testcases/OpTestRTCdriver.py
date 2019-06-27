@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
@@ -71,7 +71,8 @@ class FullRTC(unittest.TestCase):
             # loading rtc_opal module based on config option
             l_config = "CONFIG_RTC_DRV_OPAL"
             l_module = "rtc_opal"
-            self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config, l_module)
+            self.cv_HOST.host_load_module_based_on_config(
+                l_kernel, l_config, l_module)
 
         elif self.test == "skiroot":
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -118,7 +119,8 @@ class FullRTC(unittest.TestCase):
         4. After executing above each function reading the Hardware clock in b/w functions.
         '''
         # Get the device files for rtc driver
-        l_files = self.cv_HOST.host_run_command("ls --color=never /dev/ | grep -i --color=never rtc")
+        l_files = self.cv_HOST.host_run_command(
+            "ls --color=never /dev/ | grep -i --color=never rtc")
         l_list = []
         for name in l_files:
             if name.__contains__("rtc"):
@@ -171,7 +173,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock -r -f %s" % i_file)
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "reading the hwclock from file failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "reading the hwclock from file failed: %s" % str(c))
 
     def set_hwclock_in_utc(self, i_time):
         '''
@@ -182,9 +185,11 @@ class FullRTC(unittest.TestCase):
         '''
         log.debug("Setting the hwclock in UTC: %s" % i_time)
         try:
-            self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --utc" % i_time)
+            self.cv_HOST.host_run_command(
+                "hwclock --set --date \'%s\' --utc" % i_time)
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Setting the hwclock in UTC failed: %s" % str(c));
+            self.assertEqual(
+                c.exitcode, 0, "Setting the hwclock in UTC failed: %s" % str(c))
 
     def set_hwclock_in_localtime(self, i_time):
         '''
@@ -194,9 +199,11 @@ class FullRTC(unittest.TestCase):
         '''
         log.debug("Setting the hwclock in localtime: %s" % i_time)
         try:
-            self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --localtime" % i_time)
+            self.cv_HOST.host_run_command(
+                "hwclock --set --date \'%s\' --localtime" % i_time)
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Setting the hwclock in localtime failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "Setting the hwclock in localtime failed: %s" % str(c))
 
     def systime_to_hwclock(self):
         '''
@@ -206,7 +213,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock --systohc")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Setting the hwclock from system time failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "Setting the hwclock from system time failed: %s" % str(c))
 
     def systime_to_hwclock_in_utc(self):
         '''
@@ -216,7 +224,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock --systohc --utc")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Setting the hwclock from system time in UTC format failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "Setting the hwclock from system time in UTC format failed: %s" % str(c))
 
     def systime_to_hwclock_in_localtime(self):
         '''
@@ -226,7 +235,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock --systohc --localtime")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Setting the hwclock from system time in localtime format failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "Setting the hwclock from system time in localtime format failed: %s" % str(c))
 
     def hwclock_to_systime(self):
         '''
@@ -236,7 +246,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock --hctosys")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Setting the system time from hwclock failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "Setting the system time from hwclock failed: %s" % str(c))
 
     def hwclock_in_utc(self):
         '''
@@ -246,7 +257,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock --utc")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Keeping the hwclock in UTC is failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "Keeping the hwclock in UTC is failed: %s" % str(c))
 
     def hwclock_in_localtime(self):
         '''
@@ -256,7 +268,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock --localtime")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "Keeping the hwclock in localtime is failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "Keeping the hwclock in localtime is failed: %s" % str(c))
 
     def hwclock_predict(self, i_time):
         '''
@@ -266,9 +279,11 @@ class FullRTC(unittest.TestCase):
         '''
         log.debug("Testing the hwclock predict function to a time: %s" % i_time)
         try:
-            self.cv_HOST.host_run_command("hwclock --predict --date \'%s\'" % i_time)
+            self.cv_HOST.host_run_command(
+                "hwclock --predict --date \'%s\'" % i_time)
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "hwclock predict function failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "hwclock predict function failed: %s" % str(c))
 
     def hwclock_debug_mode(self):
         '''
@@ -281,7 +296,8 @@ class FullRTC(unittest.TestCase):
             self.cv_HOST.host_run_command("hwclock --systohc --debug")
             self.cv_HOST.host_run_command("hwclock --hctosys --debug")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "hwclock debug mode failed: %s" % str(c) )
+            self.assertEqual(
+                c.exitcode, 0, "hwclock debug mode failed: %s" % str(c))
 
     def hwclock_test_mode(self, i_time):
         '''
@@ -294,9 +310,11 @@ class FullRTC(unittest.TestCase):
         '''
         log.debug("Testing the hwclock test mode, set time to: %s" % i_time)
         try:
-            self.cv_HOST.host_run_command("hwclock --set --date \'%s\' --test" % i_time)
+            self.cv_HOST.host_run_command(
+                "hwclock --set --date \'%s\' --test" % i_time)
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "hwclock test function failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "hwclock test function failed: %s" % str(c))
 
     def hwclock_adjust(self):
         '''
@@ -306,7 +324,8 @@ class FullRTC(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("hwclock --adjust")
         except CommandFailed as c:
-            self.assertEqual(c.exitcode, 0, "hwclock adjust function failed: %s" % str(c))
+            self.assertEqual(
+                c.exitcode, 0, "hwclock adjust function failed: %s" % str(c))
         l_res = self.cv_HOST.host_run_command("cat /etc/adjtime")
         log.debug('\n'.join(l_res))
 
@@ -320,6 +339,7 @@ class BasicRTC(FullRTC):
         self.cv_HOST.host_read_hwclock()
         self.cv_HOST.host_read_systime()
 
+
 class HostRTC(FullRTC):
     def setUp(self):
         self.test = "host"
@@ -327,6 +347,7 @@ class HostRTC(FullRTC):
 
     def runTest(self):
         self.RunFullRTC()
+
 
 class SkirootRTC(FullRTC):
     def setUp(self):
