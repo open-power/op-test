@@ -172,6 +172,22 @@ class OpTestHMC():
             self.wait_login_prompt(self.get_console_prompt())
             self.close_console(self.lpar_con)
 
+    def dumprestart_lpar(self):
+        if self.get_lpar_state() in [OpHmcState.NOT_ACTIVE, OpHmcState.NA]:
+            log.info('LPAR Already powered-off!')
+            return
+        self.run_command("chsysstate -m %s -r lpar -n %s -o dumprestart" %
+                         (self.system, self.lpar_name))
+        self.wait_lpar_state()
+
+    def restart_lpar(self):
+        if self.get_lpar_state() in [OpHmcState.NOT_ACTIVE, OpHmcState.NA]:
+            log.info('LPAR Already powered-off!')
+            return
+        self.run_command("chsysstate -m %s -r lpar -n %s -o shutdown --immed --restart" %
+                         (self.system, self.lpar_name))
+        self.wait_lpar_state()
+
     def get_lpar_state(self, vios=False):
         lpar_name = self.lpar_name
         if vios:
