@@ -114,7 +114,7 @@ class OpTestFlashBase(unittest.TestCase):
             tar = tarfile.open(file_path)
             for member in tar.getmembers():
                 fd = tar.extractfile(member)
-                content = fd.read()
+                content = fd.read().decode("utf-8")
                 if "version=" in content:
                     content = content.split("\n")
                     content = [x for x in content if "version=" in x]
