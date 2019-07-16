@@ -300,42 +300,47 @@ class OpTestHMC():
             raise OpTestError("Console is not provided")
         # Assuming 'Normal' boot set in LPAR profile
         # We wait for upto 500 seconds for LPAR to boot to OS
-        console.buffer = ""
-        console.send('\r')
-        time.sleep(STALLTIME)
-        log.debug("Waiting for login screen")
-        i = console.expect(
-            ["login:", self.expect_prompt, pexpect.TIMEOUT], timeout=BOOTTIME)
-        if i == 0:
-            log.debug("System has booted")
-            if username and password:
-                self.lpar_con.sendline(username)
-                self.lpar_con.send('\r')
-                time.sleep(STALLTIME)
-                i = self.lpar_con.expect(
-                    ["Password:", pexpect.TIMEOUT], timeout=60)
-                if i == 0:
-                    self.lpar_con.sendline(password)
+        last_count = 0
+        while True:
+            console.buffer = ""
+            console.send('\r')
+            time.sleep(STALLTIME)
+            log.debug("Waiting for login screen")
+            i = console.expect(
+                ["login:", self.expect_prompt, pexpect.TIMEOUT], timeout=BOOTTIME)
+            if i == 0:
+                log.debug("System has booted")
+                if username and password:
+                    self.lpar_con.sendline(username)
                     self.lpar_con.send('\r')
                     time.sleep(STALLTIME)
                     i = self.lpar_con.expect(
-                        ["Last login", "incorrect", pexpect.TIMEOUT], timeout=60)
+                        ["Password:", pexpect.TIMEOUT], timeout=60)
                     if i == 0:
-                        log.info('Logged in to console')
+                        self.lpar_con.sendline(password)
+                        self.lpar_con.send('\r')
                         time.sleep(STALLTIME)
-                        return self.lpar_con
-                    elif i == 1:
-                        raise OpTestError("Wrong Credentials for host")
-                    else:
-                        raise OpTestError("Upexpected return")
-            time.sleep(STALLTIME)
-            return self.lpar_con
-        elif i == 1:
-            # Assuming console already logged in !"
-            return self.lpar_con
-        else:
-            log.error("%s %s" % (i, self.lpar_con.before))
-            raise OpTestError("Console in different state")
+                        i = self.lpar_con.expect(
+                            ["Last login", "incorrect", pexpect.TIMEOUT], timeout=60)
+                        if i == 0:
+                            log.info('Logged in to console')
+                            time.sleep(STALLTIME)
+                            return self.lpar_con
+                        elif i == 1:
+                            raise OpTestError("Wrong Credentials for host")
+                        else:
+                            last_count = last_count + 1
+                            if last_count == 2:
+                                raise OpTestError("Upexpected return")
+
+                time.sleep(STALLTIME)
+                return self.lpar_con
+            elif i == 1:
+                # Assuming console already logged in !"
+                return self.lpar_con
+            else:
+                log.error("%s %s" % (i, self.lpar_con.before))
+                raise OpTestError("Console in different state")
 
     def get_console_prompt(self):
         if self.get_lpar_state() != OpHmcState.RUNNING:
