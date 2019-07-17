@@ -496,6 +496,7 @@ class HostManagement():
         log.debug("Image IDs={}".format(r.json()))
         ids = []
         for k in r.json().get('data'):
+            log.debug("Image Data Info k={}".format(k))
             m = re.match(r'/xyz/openbmc_project/software/(.*)', k)
             # According to the OpenBMC docs, Image ID can be
             # Implementation defined, and thus, the word 'active'
@@ -512,6 +513,7 @@ class HostManagement():
             # like the 'active' or (new) 'functional'.
             # Adriana has promised me that this is safe into the future.
             if m:
+                log.debug("Image Data Info ID={}: {}".format(m.group(1), k))
                 i = self.image_data(m.group(1))
                 if i['data'].get('Purpose') is not None:
                     ids.append(m.group(1))
@@ -554,6 +556,11 @@ class HostManagement():
         '''
         json_data = self.image_data(id, minutes=minutes)
         log.debug("Image Data: {}".format(json_data))
+        # we use the strings below for easy grepping of debug logs
+        log.debug("Image Data Info ID: {}".format(id))
+        log.debug("Image Data Info Priority: {}".format(json_data.get('data').get('Priority')))
+        log.debug("Image Data Info Purpose: {}".format(json_data.get('data').get('Purpose')))
+        log.debug("Image Data Info Version: {}".format(json_data.get('data').get('Version')))
         return json_data.get('data').get('Priority')
 
     def set_image_priority(self, id, level, minutes=BMC_CONST.HTTP_RETRY):
@@ -563,8 +570,9 @@ class HostManagement():
         https://bmcip/xyz/openbmc_project/software/<id>/attr/Priority
         "data" : 0
         '''
+        # xyz.openbmc_project.Software.RedundancyPriority Priority y 0
         uri = "/xyz/openbmc_project/software/{}/attr/Priority".format(id)
-        payload = {"data": level}
+        payload = {"data" : int(level)}
         r = self.conf.util_bmc_server.put(
             uri=uri, json=payload, minutes=minutes)
 
@@ -638,7 +646,10 @@ class HostManagement():
                 break
             if json_data.get('data').get('Activation') \
                     == "xyz.openbmc_project.Software.Activation.Activations.Failed":
-                log.error("Image activation failed. Good luck.")
+                log.error("Image activation failed. Try --run testcases.testRestAPI.HostOff.test_field_mode_enable_disable, which leaves field mode disabled.")
+                log.warning("Bug reported SW461922 : OP930:FVT: Software Field mode disable operation does not throw error or warning, future this will not work")
+                log.warning("You need to factory reset the BMC which requires re-setting BMC IP's (BMC serial connection needed due to loss of networking")
+                log.warning("Alternate methods are via BMC busctl commands")
                 return False
             if time.time() > timeout:
                 raise HTTPCheck(
@@ -668,7 +679,7 @@ class HostManagement():
             # Here, we assume that if we don't have 'Purpose' it's something special
             # like the 'active' or (new) 'functional'.
             # Adriana has promised me that this is safe.
-            log.debug("Image ID: {}".format(i))
+            log.debug("Image Data Info ID: {}".format(i))
             if i['data'].get('Purpose') != purpose:
                 log.debug("Removing Image ID: {} "
                           "Purpose={} does not match purpose={}"
@@ -792,7 +803,10 @@ class HostManagement():
         r = self.software_enumerate(minutes=minutes)
         try:
             if int(r.json().get('data').get('FieldModeEnabled')) == 1:
+                log.debug("has_field_mode_set=1")
                 return True
+            else:
+                log.debug("has_field_mode_set NOT True")
         except Exception as e:
             log.debug(
                 "Unable to get FieldModeEnabled so returning False, Exception={}".format(e))
@@ -809,6 +823,7 @@ class HostManagement():
         payload = {"data": int(mode)}
         r = self.conf.util_bmc_server.put(
             uri=uri, json=payload, minutes=minutes)
+        log.debug("set_field_mode={}".format(r))
 
     def validate_functional_bootside(self, id, minutes=BMC_CONST.HTTP_RETRY):
         '''
@@ -1013,7 +1028,7 @@ class OpTestOpenBMC():
         self.console.set_system(system)
         self.bmc.set_system(system)
 
-    def has_new_pnor_code_update(self, minutes=BMC_CONST.HTTP_RETRY):
+    def query_vpnor(self, minutes=BMC_CONST.HTTP_RETRY):
         if self.has_vpnor is not None:
             return self.has_vpnor
 
@@ -1021,28 +1036,30 @@ class OpTestOpenBMC():
         try:
             self.bmc.run_command("ls -1 /usr/local/share/pnor")
         except CommandFailed:
+            log.debug("We do not have /usr/local/share/pnor, so has_local_share_pnor=False")
             has_local_share_pnor = False
 
         has_pflash = self.bmc.validate_pflash_tool()
 
-        # As of April 2019, now there's APIs for machies using the non-vpnor
-        # layout. So our previosu logic of assuming that we should use pflash
+        # As of April 2019, now there's APIs for machines using the non-vpnor
+        # layout. So our previous logic of assuming that we should use pflash
         # only if the API is not there is now invalid.
         # So we have to guess, as there's no real good documented way to work
         # out what to do.
         if not has_local_share_pnor and has_pflash:
             return False
 
+        log.debug("We are proceeding to validate VPNOR image for Host")
         list = self.rest_api.get_list_of_image_ids(minutes=minutes)
         for id in list:
+            log.debug("id={}".format(id))
             i = self.rest_api.image_data(id)
             if i['data'].get('Purpose') == 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
                 log.debug("Host image")
                 self.has_vpnor = True
                 return True
-        log.debug("# Checking for pflash on BMC to determine update method")
-        self.has_vpnor = not self.bmc.validate_pflash_tool()
-        return self.has_vpnor
+        # if we got this far we should return and say we don't have anything
+        return False
 
     def reboot(self):
         self.bmc.reboot()
@@ -1060,7 +1077,8 @@ class OpTestOpenBMC():
         self.bmc.pnor_img_flash_openbmc(pnor_name)
 
     def skiboot_img_flash_openbmc(self, lid_name):
-        if not self.has_new_pnor_code_update():
+        if not self.query_vpnor():
+            log.debug("We do NOT have vpnor, so calling old pflash")
             self.bmc.skiboot_img_flash_openbmc(lid_name)
         else:
             # don't ask. There appears to be a bug where we need to be 4k aligned.
@@ -1073,20 +1091,22 @@ class OpTestOpenBMC():
             #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/PAYLOAD" % lid_name, timeout=60)
 
     def skiroot_img_flash_openbmc(self, lid_name):
-        if not self.has_new_pnor_code_update():
+        if not self.query_vpnor():
             self.bmc.skiroot_img_flash_openbmc(lid_name)
         else:
             # don't ask. There appears to be a bug where we need to be 4k aligned.
-            self.bmc.run_command(
-                "dd if=/dev/zero of=/dev/stdout bs=16M count=1 | tr '\\000' '\\377' > /tmp/ones")
-            self.bmc.run_command(
-                "cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
-            self.bmc.run_command(
-                "dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
-            #self.bmc.run_command("mv /tmp/%s /usr/local/share/pnor/BOOTKERNEL" % lid_name, timeout=60)
+            #self.bmc.run_command("dd if=/dev/zero of=/dev/stdout bs=16M count=1 | tr '\\000' '\\377' > /tmp/ones")
+            #self.bmc.run_command("cat /tmp/%s /tmp/ones > /tmp/padded" % lid_name)
+            try:
+                # seems the success on following command gives echo $?=1
+                #self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
+                self.bmc.run_command("rm -f /usr/local/share/pnor/BOOTKERNEL", timeout=60)
+                self.bmc.run_command("ln -s /tmp/{} /usr/local/share/pnor/BOOTKERNEL".format(lid_name), timeout=60)
+            except CommandFailed as e:
+                log.warning("FLASHING CommandFailed, check that this is ok for your setup")
 
     def flash_part_openbmc(self, lid_name, part_name):
-        if not self.has_new_pnor_code_update():
+        if not self.query_vpnor():
             self.bmc.flash_part_openbmc(lid_name, part_name)
         else:
             self.bmc.run_command(
@@ -1095,6 +1115,7 @@ class OpTestOpenBMC():
     def clear_field_mode(self):
         self.bmc.run_command("fw_setenv fieldmode")
         self.bmc.run_command("systemctl unmask usr-local.mount")
+        log.info("clear_field_mode rebooting the BMC")
         self.reboot()
 
     def bmc_host(self):

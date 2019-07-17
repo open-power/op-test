@@ -41,7 +41,6 @@ import os
 import pexpect
 import sys
 import re
-import subprocess
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
@@ -114,6 +113,7 @@ class IPMITool():
             except:
                 raise CommandFailed(cmd, "Failed to spawn subprocess", -1)
             output = cmd.communicate()[0]
+            log.debug("pUpdate output={}".format(output))
             return output
 
 
@@ -146,7 +146,7 @@ class pUpdate():
             cmd = cmdprefix + self.binary + self.arguments() + cmd
         else:
             cmd = self.binary + self.arguments() + cmd
-        log.debug(cmd)
+        log.debug("Running pUpdate cmd={}".format(cmd))
         if background:
             try:
                 child = subprocess.Popen(
