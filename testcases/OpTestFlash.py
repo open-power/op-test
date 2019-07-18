@@ -110,18 +110,23 @@ class OpTestFlashBase(unittest.TestCase):
                                   dst_file_path, self.bmc_password)
 
     def get_version_tar(self, file_path):
+        version = None
         try:
             tar = tarfile.open(file_path)
-            for member in tar.getmembers():
-                fd = tar.extractfile(member)
-                content = fd.read()
-                if "version=" in content:
-                    content = content.split("\n")
-                    content = [x for x in content if "version=" in x]
-                    version = content[0].split("=")[-1]
+            manifest = tar.getmember("MANIFEST")
+            fd = tar.extractfile(manifest)
+            # you probably shouldn't have bad characters in your PNOR version,
+            # but if you do, it shouldn't stop op-test from running
+            content = fd.read().decode("utf-8", errors="ignore")
+            for line in content.split("\n"):
+                if line.startswith("version="):
+                    version = line.split("=")[-1]
                     break
             tar.close()
             log.info(version)
+
+            if version is None:
+                raise OpTestError("Couldn't find version in tar manifest")
         except Exception as e:
             log.debug("Unexpected failure Exception={}".format(e))
             self.assertTrue(False,
