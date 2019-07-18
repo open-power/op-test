@@ -73,7 +73,7 @@ class FWTSVersion(unittest.TestCase):
     def version_check(self):
         if self.MAJOR is None and self.MINOR is None:
             self.skipTest("Test not meant to be run this way.")
-        return (self.MAJOR == 17 and self.MINOR >= 1) or self.MAJOR > 17
+        return (int(self.MAJOR) == 17 and int(self.MINOR) >= 1) or int(self.MAJOR) > 17
 
     def runTest(self):
         self.assertTrue(self.version_check(),
