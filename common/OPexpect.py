@@ -43,7 +43,7 @@ class spawn(pexpect.spawn):
     def __init__(self, command, args=[], maxread=8000,
                  searchwindowsize=None, logfile=None, cwd=None, env=None,
                  ignore_sighup=False, echo=True, preexec_fn=None,
-                 encoding='utf-8', codec_errors='strict', dimensions=None,
+                 encoding='utf-8', codec_errors='ignore', dimensions=None,
                  failure_callback=None, failure_callback_data=None):
         self.command = command
         self.failure_callback = failure_callback
@@ -54,7 +54,8 @@ class spawn(pexpect.spawn):
                                     logfile=logfile,
                                     cwd=cwd, env=env,
                                     ignore_sighup=ignore_sighup,
-                                    encoding=encoding)
+                                    encoding=encoding,
+                                    codec_errors=codec_errors)
 
     def set_system(self, system):
         self.op_test_system = system
