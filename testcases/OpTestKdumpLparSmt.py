@@ -69,6 +69,7 @@ class OpTestKernelBase(unittest.TestCase):
         self.bmc_type = conf.args.bmc_type
         self.util = self.cv_SYSTEM.util
         self.cv_HMC = self.cv_SYSTEM.hmc
+        self.host_password = conf.args.host_password
 
     def kernel_crash(self):
         '''
@@ -87,7 +88,7 @@ class OpTestKernelBase(unittest.TestCase):
         try:
             self.cv_HMC.vterm_run_command(self.console, "echo c > /proc/sysrq-trigger")
         except (KernelOOPS, KernelKdump):
-            self.cv_HMC.wait_login_prompt(self.console, username="root", password="passw0rd")
+            self.cv_HMC.wait_login_prompt(self.console, username="root", password=self.host_password)
 
     def vmcore_check(self):
         '''
@@ -129,7 +130,7 @@ class KernelCrash_Kdump(OpTestKernelBase):
     def setup_test(self):
         self.console = self.cv_HMC.get_console()
         self.cv_HMC.restart_lpar()
-        self.cv_HMC.wait_login_prompt(self.console, username="root", password="passw0rd")
+        self.cv_HMC.wait_login_prompt(self.console, username="root", password=self.host_password)
         self.console = self.cv_HMC.get_console()
         self.cv_HMC.vterm_run_command(self.console, "uname -a")
         res = self.cv_HMC.vterm_run_command(self.console, "cat /etc/os-release | grep NAME | head -1")
@@ -138,7 +139,7 @@ class KernelCrash_Kdump(OpTestKernelBase):
             self.cv_HMC.vterm_run_command(self.console, "sed -i 's/crashkernel=[0-9]\+M/crashkernel=2G-4G:512M,4G-64G:1024M,64G-128G:2048M,128G-:4096M/' /etc/default/grub;")
             self.cv_HMC.vterm_run_command(self.console, "grub2-mkconfig -o /boot/grub2/grub.cfg")
             self.cv_HMC.restart_lpar()
-            self.cv_HMC.wait_login_prompt(self.console, username="root", password="passw0rd")
+            self.cv_HMC.wait_login_prompt(self.console, username="root", password=self.host_password)
             self.console = self.cv_HMC.get_console()
         elif 'Red Hat' in res[0].strip():
             self.distro = 'RHEL'
