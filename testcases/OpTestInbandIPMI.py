@@ -385,7 +385,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
                                    self.ipmi_method + BMC_CONST.IPMI_MC_SELFTEST])
         except CommandFailed as cf:
             # It's valid to not implement selftest, so let's not fail things on it.
-            if 'Selftest: not implemented' in cf.output[0]:
+            if 'Selftest: not implemented' in '\n'.join(cf.output):
                 pass
             else:
                 raise cf
