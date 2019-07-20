@@ -694,6 +694,7 @@ class OpTestHostbootSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestHostboot.skiroot_full_suite())
         self.s.addTest(OpTestHostboot.host_full_suite())
+        self.s.addTest(PowerNVDump.SBECrash_MPIPL())
 
     def suite(self):
         return self.s
