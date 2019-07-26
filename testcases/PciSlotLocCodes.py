@@ -213,8 +213,9 @@ class PciDT(unittest.TestCase):
             else:
                 # this path just for logging
                 log.debug("PCI Root Path={}".format(key))
-                log.debug("{}"
-                          .format(lspci_mappings[key]))
+                # depending on the lspci -nn output we may not get the KEY
+                log.debug("KEY {}"
+                          .format(lspci_mappings.get(key)))
                 log.debug("lspci={}"
                           .format(lspci_dict.get(key)))
                 log.debug("ibm,slot-label={}"
