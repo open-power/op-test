@@ -119,8 +119,8 @@ class OpTestMtdPnorDriver(unittest.TestCase):
 
         # Getting the /tmp/pnor file into local x86 machine
         l_path = "/tmp/"
-        self.util.copyFilesToDest(
-            l_path, self.host_user, self.host_ip, l_file, self.host_Passwd)
+        self.util.copyFilesFromDest(
+            self.host_user, self.host_ip, l_file, self.host_Passwd, l_path)
         l_list = subprocess.getstatusoutput("ls -l %s" % l_path)
         log.debug(l_list)
 
@@ -129,7 +129,7 @@ class OpTestMtdPnorDriver(unittest.TestCase):
         l_res = subprocess.getstatusoutput("rm -rf %s" % l_workdir)
 
         # Clone latest ffs git repository in local x86 working machine
-        l_cmd = "git clone   https://github.com/open-power/ffs/ %s" % l_workdir
+        l_cmd = "git clone https://github.com/open-power/ffs/ %s" % l_workdir
         l_res = subprocess.getstatusoutput(l_cmd)
         self.assertEqual(int(l_res[0]), 0,
                          "Cloning ffs repository is failed")
