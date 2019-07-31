@@ -149,6 +149,7 @@ class Runtime(RestAPI, unittest.TestCase):
         ids = self.rest.get_list_of_image_ids()
         log.debug("Software Enumerate IDs: {}".format(ids))
         for id in ids:
+            log.debug("Looking at Image Data Info ID={}".format(id))
             start_priority = self.rest.get_image_priority(id)
             log.debug("Image ID={} Starting Priority={}".format(
                 id, start_priority))

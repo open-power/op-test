@@ -296,11 +296,13 @@ class OpTestBMC():
         '''
         i_dir = os.path.join(i_dir, "pflash")
         try:
-            l_res = self.ssh.run_command("which %s" % i_dir)
+            l_res = self.ssh.run_command("which {}".format(i_dir))
+            log.debug("checking pflash tool l_res={}".format(l_res))
         except CommandFailed:
-            l_msg = "# pflash tool is not available on BMC"
-            log.error(l_msg)
+            l_msg = "# pflash tool is not available on BMC, i_dir={}".format(i_dir)
+            log.info(l_msg)
             return False
+        log.debug("validate_pflash_tool setting to True")
         return True
 
     def has_inband_bootdev(self):

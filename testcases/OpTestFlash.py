@@ -163,7 +163,7 @@ class OpTestFlashBase(unittest.TestCase):
     def get_image_id(self, version):
         img_path = self.get_image_path(version)
         img_id = img_path.split("/")[-2]
-        log.info("Image id for Host image is : %s" % img_id)
+        log.info("Image Data Info : {}".format(img_id))
         return img_id
 
     def wait_for_bmc_runtime(self):
@@ -215,68 +215,75 @@ class BmcImageFlash(OpTestFlashBase):
             self.cv_IPMI.pUpdate.run(" -f  %s" % self.bmc_image)
             self.wait_for_bmc_runtime()
         elif "OpenBMC" in self.bmc_type:
-            if self.cv_BMC.has_new_pnor_code_update():
-                # Assume all new systems has new BMC code update via REST
-                log.info("BMC has code for the new PNOR Code update via REST")
-                try:
-                    # because openbmc
-                    l_res = self.cv_BMC.run_command(
-                        "rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
-                except CommandFailed as cf:
-                    # Ok to just keep giong, may not have patched firmware
-                    pass
-                # OpenBMC implementation for updating code level 'X' to 'X' is really a no-operation
-                # it only updates the code from 'X' to 'Y' or 'Y' to 'X'  to avoid duplicates
-                self.delete_images_dir()
-                self.cv_REST.upload_image(self.bmc_image)
-                version = self.get_version_tar(self.bmc_image)
-                id = self.get_image_id(version)
-                img_ids = self.cv_REST.bmc_image_ids()
+            # Assume all new systems has new BMC code update via REST
+            log.debug("Assume BMC has code for the new PNOR Code update via REST")
+            if self.cv_REST.has_field_mode_set():
+                log.debug("has_field_mode_set so calling clear_field_mode")
+                self.cv_BMC.clear_field_mode()
+                self.assertFalse(self.cv_REST.has_field_mode_set(), "Field mode disable failed")
+            else:
+                log.debug("has_field_mode_set NOT true, so did not clear")
+            try:
+                # because openbmc
+                l_res = self.cv_BMC.run_command(
+                    "rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
+            except CommandFailed as cf:
+                # Ok to just keep giong, may not have patched firmware
+                pass
+            # OpenBMC implementation for updating code level 'X' to 'X' is really a no-operation
+            # it only updates the code from 'X' to 'Y' or 'Y' to 'X'  to avoid duplicates
+            self.delete_images_dir()
+            self.cv_REST.upload_image(self.bmc_image)
+            version = self.get_version_tar(self.bmc_image)
+            id = self.get_image_id(version)
+            img_ids = self.cv_REST.bmc_image_ids()
 
-                if self.cv_REST.is_image_already_active(id):
-                    log.warning(
-                        "# The given BMC image %s is already active on the system" % id)
-                    if self.cv_REST.validate_functional_bootside(id):
-                        log.warning(
-                            "# And the given BMC image is already functional")
-                        return True
-                    # If non functional set the priority and reboot the BMC
-                    self.cv_REST.set_image_priority(id, "0")
-                    self.cv_BMC.reboot()
-                    self.wait_for_bmc_runtime()
+            if self.cv_REST.is_image_already_active(id):
+                log.info("BMC image {} is active on the system".format(id))
+                if self.cv_REST.validate_functional_bootside(id):
+                    log.info("BMC image {} is also set as the functional image, so all is good".format(id))
                     return True
-
-                retries = 60
-                while retries > 0:
-                    time.sleep(1)
-                    img_ids = self.cv_REST.bmc_image_ids()
-                    retries = retries - 1
-                    for img_id in img_ids:
-                        d = self.cv_REST.image_data(img_id)
-                        if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
-                            log.debug(
-                                "BMC image %s is ready to activate" % img_id)
-                            break
-                    else:
-                        continue
-                    break
-                self.assertTrue(
-                    retries > 0, "Uploaded image but it never is ready to activate it")
-                log.debug("Going to activate image id: %s" % img_id)
-                self.assertIsNotNone(img_id, "Could not find Image ID")
-                self.cv_REST.activate_image(img_id)
-                self.assertTrue(self.cv_REST.wait_for_image_active_complete(
-                    img_id), "Failed to activate image")
-                # On SMC reboot will happen automatically, but on OpenBMC needs manual reboot to upgrade the BMC FW.
+                # If non functional set the priority and reboot the BMC
+                log.info("Now setting BMC image {} as the functional image on the system".format(id))
+                self.cv_REST.set_image_priority(id, "0")
+                log.info("Now rebooting the BMC to refresh")
                 self.cv_BMC.reboot()
                 self.wait_for_bmc_runtime()
-                # Once BMC comes up, verify whether BMC really booted from the code which we flashed.
-                # As BMC maintains two levels of code, so there may be possibilities/bugs which causes
-                # the boot from alternate side or other code.
-                self.assertTrue(self.cv_REST.validate_functional_bootside(
-                    img_id), "BMC failed to boot from the right code")
-                log.info(
-                    "# BMC booting from the right code with image ID: %s" % img_id)
+                return True
+
+            retries = 60
+            while retries > 0:
+                time.sleep(1)
+                img_ids = self.cv_REST.bmc_image_ids()
+                retries = retries - 1
+                for img_id in img_ids:
+                    d = self.cv_REST.image_data(img_id)
+                    log.debug("img_id={} d={}".format(img_id, d))
+                    if d['data']['Activation'] == "xyz.openbmc_project.Software.Activation.Activations.Ready":
+                        log.debug(
+                            "BMC image %s is ready to activate" % img_id)
+                        break
+                else:
+                    log.debug("img_id={} continue".format(img_id))
+                    continue
+                break
+            self.assertTrue(
+                retries > 0, "Uploaded image but it never is ready to activate it")
+            log.debug("Going to activate image id: %s" % img_id)
+            self.assertIsNotNone(img_id, "Could not find Image ID")
+            self.cv_REST.activate_image(img_id)
+            self.assertTrue(self.cv_REST.wait_for_image_active_complete(
+                img_id), "Failed to activate image")
+            # On SMC reboot will happen automatically, but on OpenBMC needs manual reboot to upgrade the BMC FW.
+            self.cv_BMC.reboot()
+            self.wait_for_bmc_runtime()
+            # Once BMC comes up, verify whether BMC really booted from the code which we flashed.
+            # As BMC maintains two levels of code, so there may be possibilities/bugs which causes
+            # the boot from alternate side or other code.
+            self.assertTrue(self.cv_REST.validate_functional_bootside(
+                img_id), "BMC failed to boot from the right code")
+            log.info(
+                "# BMC booting from the right code with image ID: %s" % img_id)
         c = 0
         while True:
             time.sleep(5)
@@ -365,14 +372,16 @@ class PNORFLASH(OpTestFlashBase):
             self.cv_BMC.pnor_img_flash_ami("/tmp", os.path.basename(self.pnor))
         elif "SMC" in self.bmc_type:
             if self.pupdate:
-                self.cv_IPMI.pUpdate.run(" -pnor %s" % self.pnor)
+                output = self.cv_IPMI.pUpdate.run(" -pnor {}".format(self.pnor))
+                if "failed to update PNOR" in output:
+                    self.assertTrue(False, "We failed to update the SMC PNOR, please retry")
             elif self.pflash:
                 self.cv_BMC.image_transfer(self.pnor)
                 self.cv_BMC.pnor_img_flash_smc(
                     "/tmp/rsync_file", os.path.basename(self.pnor))
         elif "OpenBMC" in self.bmc_type:
-            if self.cv_BMC.has_new_pnor_code_update():
-                log.info("BMC has code for the new PNOR Code update via REST")
+            if self.cv_BMC.query_vpnor():
+                log.info("BMC has VPNOR")
                 try:
                     # because openbmc
                     l_res = self.cv_BMC.run_command(
@@ -557,17 +566,23 @@ class OpalLidsFLASH(OpTestFlashBase):
             # Check for field mode first, if it is enabled, clear that and flash host firmware.
             # otherwise OpenBMC won't allow to patch any Host FW code in field mode.
             if self.cv_REST.has_field_mode_set():
+                log.debug("has_field_mode_set so calling clear_field_mode")
                 self.cv_BMC.clear_field_mode()
                 self.assertFalse(self.cv_REST.has_field_mode_set(),
                                  "Field mode disable failed")
+            else:
+                log.debug("has_field_mode_set NOT true, so did not clear")
 
+            log.debug("passed field_mode_set checks")
             try:
                 # OpenBMC started removing overrides *after* flashing new image
                 # but on boot of the host, so we can't assume that just writing
                 # new overrides is going to work. We're going to have to do
                 # this sequence.
+                log.debug("run_command systemctl restart mboxd.service")
                 self.cv_BMC.run_command("systemctl restart mboxd.service")
             except CommandFailed as cf:
+                log.debug("run_command systemctl restart mboxd.service failed cf={}".format(cf))
                 pass
             if self.skiboot:
                 self.cv_BMC.image_transfer(self.skiboot)
