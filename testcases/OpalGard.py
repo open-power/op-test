@@ -41,6 +41,9 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
+import logging
+import OpTestLogger
+log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpalGard(unittest.TestCase):
     def setUp(self):
@@ -92,7 +95,7 @@ class OpalGard(unittest.TestCase):
         self.c.run_command("dmesg -D")
         data = self.cv_HOST.host_pflash_get_partition("GUARD")
         try:
-            offset = hex(int(data["offset"])/16)
+            offset = hex(data["offset"]//16)
         except Exception as e:
             self.assertTrue(
                 False, "OpenPOWER BMC unable to find valid offset for partition=GUARD")
