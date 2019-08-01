@@ -50,6 +50,8 @@ from .Exceptions import CommandFailed
 from .Exceptions import BMCDisconnected
 from . import OPexpect
 
+from .SerialConsole import SerialConsole
+
 import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -345,7 +347,7 @@ class IPMIConsole():
 
 class OpTestIPMI():
     def __init__(self, i_bmcIP, i_bmcUser, i_bmcPwd, logfile=sys.stdout,
-                 host=None, delaybeforesend=None):
+                 host=None, delaybeforesend=None, host_console_command=None):
         self.cv_bmcIP = i_bmcIP
         self.cv_bmcUser = i_bmcUser
         self.cv_bmcPwd = i_bmcPwd
@@ -359,9 +361,14 @@ class OpTestIPMI():
                                ip=i_bmcIP,
                                username=i_bmcUser,
                                password=i_bmcPwd)
-        self.console = IPMIConsole(ipmitool=self.ipmitool,
-                                   logfile=self.logfile,
-                                   delaybeforesend=delaybeforesend)
+        if host_console_command:
+            self.console = SerialConsole(console_command=host_console_command,
+                                         logfile=self.logfile,
+                                         delaybeforesend=delaybeforesend)
+        else:
+            self.console = IPMIConsole(ipmitool=self.ipmitool,
+                                       logfile=self.logfile,
+                                       delaybeforesend=delaybeforesend)
         # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
         self.host = host

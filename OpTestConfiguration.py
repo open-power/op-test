@@ -259,6 +259,10 @@ def get_parser():
     hostgroup.add_argument("--host-ip", help="Host address")
     hostgroup.add_argument("--host-user", help="SSH username for Host")
     hostgroup.add_argument("--host-password", help="SSH password for Host")
+    hostgroup.add_argument("--host-serial-console-command",
+                           help="Command to get serial console for host."
+                           "Used instead of IPMI SoL. Useful for buggy BMCs.")
+
     hostgroup.add_argument("--host-lspci", help="Known 'lspci -n -m' for host")
     hostgroup.add_argument("--host-scratch-disk",
                            help="A block device we can erase", default="")
@@ -713,6 +717,7 @@ class OpTestConfiguration():
                                       self.args.bmc_usernameipmi,
                                       self.args.bmc_passwordipmi,
                                       host=host,
+                                      host_console_command=self.args.host_serial_console_command,
                                       logfile=self.logfile,
                                       )
 
