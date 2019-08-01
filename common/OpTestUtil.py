@@ -332,7 +332,15 @@ class OpTestUtil():
             log.info("No NVRAM utility available to check options")
             return
 
-        result = console.run_command("nvram -p ibm,skiboot --print-config")
+        try:
+            result = console.run_command("nvram -p ibm,skiboot --print-config")
+        except CommandFailed as cf:
+            if 'There is no Open Firmware "ibm,skiboot" partition!' in ''.join(cf.output):
+                result = []
+                pass
+            else:
+                raise cf
+
         self.conf.nvram_debug_opts = [o for o in result if "=" in o]
 
         if len(self.conf.nvram_debug_opts) == 0:
