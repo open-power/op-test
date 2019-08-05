@@ -48,9 +48,6 @@ import http.cookiejar
 import urllib.request
 import urllib.parse
 import urllib.error
-import urllib.request
-import urllib.error
-import urllib.parse
 import re
 import ssl
 
@@ -62,9 +59,12 @@ class OpTestASM:
         self.password = i_fspPasswd
         self.url = "https://%s/cgi-bin/cgi?" % self.host_name
         self.cj = http.cookiejar.CookieJar()
-        opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(self.cj))
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=context))
         opener.addheaders = [('User-agent', 'LTCTest')]
+        opener.add_handler(urllib.request.HTTPCookieProcessor(self.cj))
         urllib.request.install_opener(opener)
         self.setforms()
 
@@ -88,25 +88,19 @@ class OpTestASM:
                 time.sleep(2)
                 continue
             break
-        out = myurl.read()
+        out = myurl.read().decode("utf-8")
         if 'CSRF_TOKEN' in out:
             return re.findall('CSRF_TOKEN.*value=\'(.*)\'', out)[0]
         else:
             return '0'
 
     def getpage(self, form):
-        while True:
-            try:
-                myurl = urllib.request.urlopen(self.url+form, timeout=60)
-            except (urllib.error.URLError, ssl.SSLError):
-                time.sleep(2)
-                continue
-            break
-        return myurl.read()
+        myurl = urllib.request.urlopen(self.url+form, timeout=60)
+        return myurl.read().decode("utf-8")
 
     def submit(self, form, param):
         param['CSRF_TOKEN'] = self.getcsrf(form)
-        data = urllib.parse.urlencode(param)
+        data = urllib.parse.urlencode(param).encode("utf-8")
         req = urllib.request.Request(self.url+form, data)
 
         return urllib.request.urlopen(req)
@@ -120,15 +114,22 @@ class OpTestASM:
                  'lang':      '0',
                  'CSRF_TOKEN': ''}
         form = "form=2"
-        self.submit(form, param)
+        resp = self.submit(form, param)
 
         count = 0
         while count < 2:
             if not len(self.cj) == 0:
                 break
+
+            # the login can quietly fail because the FSP has 'too many users' logged in,
+            # even though it actually doesn't.  let's check to see if this is the case
+            # by trying a request.
+            if "Too many users" in self.getpage("form=2"):
+                raise OpTestError("FSP reports 'Too many users', FSP needs power cycle")
+
             time.sleep(10)
             self.submit(form, param)
-            msg = "Login Failed with user:%s and password:%s".format(
+            msg = "Login failed with user:{0} and password:{1}".format(
                 self.user_name, self.password)
             print(msg)
             count += 1
