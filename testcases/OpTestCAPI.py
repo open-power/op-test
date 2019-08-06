@@ -126,9 +126,10 @@ class SysfsABITest(OpTestCAPI, unittest.TestCase):
             self.cv_HOST.host_clone_cxl_tests(l_dir)
             self.cv_HOST.host_build_cxl_tests(l_dir)
 
-        # Run sysfs abi tests
+        # Unconditionally unload incompatible module cxl_memcpy,
+        # then run sysfs abi tests
         l_exec = "libcxl_tests >/tmp/libcxl_tests.log"
-        cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s;" % (l_dir, l_exec)
+        cmd = "rmmod cxl_memcpy; cd %s && LD_LIBRARY_PATH=libcxl ./%s;" % (l_dir, l_exec)
         log.debug(cmd)
         try:
             self.cv_HOST.host_run_command(cmd)
@@ -237,8 +238,8 @@ class MemCpyAFUReallocTest(OpTestCAPI, unittest.TestCase):
 class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
     '''
     If a given system has a CAPI FPGA card, then this test load the cxl module
-    if required and also check if the card PSL supports timebase sync, if it
-    supports runs the timebase sync with memcpy_afu_ctx -t tests from libcxl
+    if required and also check if the card PSL supports timebase sync. If it
+    supports it, then test timebase sync with memcpy_afu_ctx -t
     '''
 
     def setUp(self):
@@ -274,6 +275,46 @@ class TimeBaseSyncTest(OpTestCAPI, unittest.TestCase):
             self.assertTrue(False, "memcpy_afu_ctx -t tests failed")
 
 
+class KernelAPITest(OpTestCAPI, unittest.TestCase):
+    '''
+    If a given system has a CAPI FPGA card, then this test load the cxl and
+    the cxl_memcpy modules if required, and test the kernel API of memcpy
+    with memcpy_afu_ctx -K.
+    '''
+
+    def setUp(self):
+        super(KernelAPITest, self).setUp()
+
+    def runTest(self):
+        self.set_up()
+
+        # Check that cxl-tests binary and library are available
+        # If not, clone and build cxl-tests (along with libcxl)
+        l_dir = "/tmp/cxl-tests"
+        if (self.cv_HOST.host_check_binary(l_dir, "memcpy_afu_ctx") != True or
+                self.cv_HOST.host_check_binary(l_dir, "libcxl/libcxl.so") != True):
+            self.cv_HOST.host_clone_cxl_tests(l_dir)
+            self.cv_HOST.host_build_cxl_tests(l_dir)
+
+        # Load module cxl_memcpy if required
+        l_cmd = "lsmod | grep cxl_memcpy || (cd %s && (make cxl-memcpy.ko && insmod ./cxl-memcpy.ko))" % l_dir
+        try:
+            self.cv_HOST.host_run_command(l_cmd)
+        except CommandFailed:
+            l_msg = "Could not load module cxl_memcpy"
+            raise unittest.SkipTest(l_msg)
+
+        # Run memcpy kernel API tests
+        l_exec = "memcpy_afu_ctx -K -p1 -l1 >/tmp/memcpy_afu_ctx-K.log"
+        cmd = "(cd %s && LD_LIBRARY_PATH=libcxl ./%s);" % (l_dir, l_exec)
+        log.debug(cmd)
+        try:
+            self.cv_HOST.host_run_command(cmd)
+            log.debug("memcpy_afu_ctx -K tests pass")
+        except CommandFailed:
+            self.assertTrue(False, "memcpy_afu_ctx -K tests failed")
+
+
 def capi_test_suite():
     s = unittest.TestSuite()
     s.addTest(CxlDeviceFileTest())
@@ -282,4 +323,5 @@ def capi_test_suite():
     s.addTest(MemCpyAFUIrqTest())
     s.addTest(MemCpyAFUReallocTest())
     s.addTest(TimeBaseSyncTest())
+    s.addTest(KernelAPITest())
     return s
