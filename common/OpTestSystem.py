@@ -1293,10 +1293,24 @@ class OpTestSystem(object):
             log.debug("Processing in Exception path, e={}".format(e))
             raw_pty.sendcontrol('c')  # to avoid incase nc command hangs
             time.sleep(2)  # give it time to recover
-            log.debug("Exception path sleeping 2 seconds to recover")
-            # Petitboot does not support hostname -I
-            log.warning(
-                "Using my_ip={} from Exception path handling, this may not work".format(my_ip))
+            try:
+                ip = subprocess.check_output(['hostname', '-i']).decode('utf-8').strip()
+                ip_lst = subprocess.check_output(['hostname', '-I']).decode('utf-8').strip().split()
+                # Let's validate the IP
+                for item in ip_lst:
+                    if item == ip:
+                        my_ip = ip
+                        break
+                if not my_ip:
+                    if len(ip_lst) == 1:
+                        my_ip = ip_lst[0]
+                    else:
+                        log.warning("Unable to get server ip, "
+                                    "hostname -i does not provide valid IP, "
+                                    "correct and proceed with installation")
+            except subprocess.CalledProcessError as e:
+                log.warning("Unable to get server ip, hostname -i/-I "
+                            "commands not supported in server")
 
         return my_ip
 
