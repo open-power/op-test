@@ -507,13 +507,13 @@ class ThreadedHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             print(("# Webserver was asked for: ", self.path))
             if self.path == "/%s" % VMLINUX:
-                f = open("%s/%s" % (BASE_PATH, VMLINUX), "r")
+                f = open("%s/%s" % (BASE_PATH, VMLINUX), "rb")
                 d = f.read()
                 self.wfile.write(d)
                 f.close()
                 return
             elif self.path == "/%s" % INITRD:
-                f = open("%s/%s" % (BASE_PATH, INITRD), "r")
+                f = open("%s/%s" % (BASE_PATH, INITRD), "rb")
                 d = f.read()
                 self.wfile.write(d)
                 f.close()
