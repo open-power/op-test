@@ -634,6 +634,36 @@ class OpTestHost():
                                       (BMC_CONST.OPAL_DUMP_SYSFS_DIR, entry), console=console)
         return True
 
+    def host_check_pkg_installed(self, i_oslevel, package, console=0):
+        '''
+        This function will check whether particular package is installed or not
+        The `i_oslevel` is used to determine if we should use `dpkg` or `rpm` to
+        search for the package name.
+        '''
+        l_cmd = ""
+        if 'Ubuntu' in i_oslevel:
+            l_cmd = "dpkg -l %s" % package
+        else:
+            l_cmd = "rpm -q %s" % package
+
+        try:
+            self.host_run_command(l_cmd, timeout=60, console=console)
+            return True
+        except CommandFailed:
+            return False
+
+    def host_check_pkg_kdump(self, i_oslevel, console=0):
+        '''
+        This function will check whether kdump package is installed or not
+        '''
+        l_pkg = ""
+        if 'Ubuntu' in i_oslevel:
+            l_pkg = "kdump-tools"
+        else:
+            l_pkg = "kexec-tools"
+
+        return self.host_check_pkg_installed(i_oslevel, l_pkg, console)
+
     def host_disable_kdump_service(self, os_level, console=0):
         '''
         This function disables kdump service. Needs the OS version (from `/etc/os-release`) to
