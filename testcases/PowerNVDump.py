@@ -6,7 +6,7 @@
 #
 # OpenPOWER Automated Test Project
 #
-# Contributors Listed Below - COPYRIGHT 2018
+# Contributors Listed Below - COPYRIGHT 2018-2019
 # [+] International Business Machines Corp.
 #
 #
@@ -25,10 +25,10 @@
 # IBM_PROLOG_END_TAG
 
 #  @package PowerNVDump.py
-#  This module can contain testcases related to FW & Kernel interaction features
-#  like kdump, fadump and MPIPL etc.
+#  This module can contain testcases related to Firmware & Kernel dump feature
+#  including kdump, fadump aka MPIPL, opaldump, etc.
 #
-#   fadump:
+#   fadump aka MPIPL:
 #   The goal of firmware-assisted dump is to enable the dump of
 #   a crashed system, and to do so from a fully-reset system.
 #   For more details refer
@@ -41,10 +41,19 @@
 #   For more details refer
 #       https://www.kernel.org/doc/Documentation/kdump/kdump.txt
 #
-#   1. Enable both fadump and kdump - trigger a kernel crash
-#   2. Enable only kdump - trigger a kernel crash
-#   3. Disable both - trigger kernel crash
-#   And verify boot progress and collected dump components(vmcore and opalcore)
+#   opaldump:
+#   With MPIPL we support capturing opalcore. We can use gdb to debug OPAL
+#   issues. For details refer `doc/mpipl.rst` under skiboot source tree.
+#
+#   Test scenarios:
+#   1. Verify SBE initiated MPIPL flow (trigger SBE S0 interrupt directly)
+#   2. Verify OPAL crash (trigger OPAL assert via pdbg)
+#   3. Enable fadump - trigger a kernel crash
+#   4. Enable kdump  - trigger a kernel crash
+#   5. Disable dump  - trigger a kernel crash
+#
+#      and verify boot progress and collected dump components
+#      (vmcore and opalcore).
 #
 
 import os
@@ -69,11 +78,9 @@ class PowerNVDump(unittest.TestCase):
 
     def setUp(self):
         conf = OpTestConfiguration.conf
-        self.cv_IPMI = conf.ipmi()
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
         self.cv_BMC = conf.bmc()
-        self.platform = conf.platform()
         self.bmc_type = conf.args.bmc_type
         self.util = self.cv_SYSTEM.util
         self.pdbg = conf.args.pdbg
@@ -89,12 +96,11 @@ class PowerNVDump(unittest.TestCase):
             "ls -l /var/crash | awk '{print $9}'")
         self.crash_content.pop(0)
 
+    # Verify fadump command line parameter
     def is_fadump_param_enabled(self):
         res = self.cv_HOST.host_run_command(BMC_CONST.PROC_CMDLINE)
-
         if "fadump=on" in " ".join(res):
             return True
-
         return False
 
     def is_fadump_enabled(self):
@@ -113,6 +119,7 @@ class PowerNVDump(unittest.TestCase):
         except CommandFailed:
             return False
 
+    # Verify /ibm,opal/dump node is present int DT or not
     def is_mpipl_supported(self):
         try:
             self.c.run_command("ls %s" % BMC_CONST.OPAL_DUMP_NODE)
@@ -120,11 +127,18 @@ class PowerNVDump(unittest.TestCase):
         except CommandFailed:
             return False
 
+    def is_mpipl_boot(self):
+        try:
+            self.c.run_command("ls %s/mpipl-boot 2>/dev/null" % BMC_CONST.OPAL_DUMP_NODE)
+            return True
+        except CommandFailed:
+            return False
+
     def verify_dump_dt_node(self, boot_type=BootType.NORMAL):
         self.c.run_command_ignore_fail("lsprop  %s" % BMC_CONST.OPAL_DUMP_NODE)
-        self.c.run_command("ls %s/fw-source-table" % BMC_CONST.OPAL_DUMP_NODE)
-        self.c.run_command("ls %s/fw-load-area" % BMC_CONST.OPAL_DUMP_NODE)
-        self.c.run_command("ls %s/cpu-data-version" % BMC_CONST.OPAL_DUMP_NODE)
+        self.c.run_command("lsprop %s/fw-load-area" % BMC_CONST.OPAL_DUMP_NODE)
+        if boot_type == BootType.MPIPL:
+            self.c.run_command("lsprop %s/mpipl-boot" % BMC_CONST.OPAL_DUMP_NODE)
 
     def verify_dump_file(self, boot_type=BootType.NORMAL):
         crash_content_after = self.c.run_command(
@@ -152,19 +166,24 @@ class PowerNVDump(unittest.TestCase):
         self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
         self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
 
+        # Verify OPAL msglog to confirm whether registration passed or not
         opal_data = " ".join(self.c.run_command_ignore_fail(
             "%s | diff -a /tmp/opal_log -" % BMC_CONST.OPAL_MSG_LOG))
-        if "DUMP: Payload registered for fadump" in opal_data:
+        if "DUMP: Payload registered for MPIPL" in opal_data:
             print("OPAL: Payload registered successfully for MPIPL")
         else:
-            raise OpTestError("Payload failed to register for MPIPL")
+            raise OpTestError("OPAL: Payload failed to register for MPIPL")
 
+        # Verify kernel dmesg
         dmesg_data = " ".join(self.c.run_command_ignore_fail(
             "dmesg | diff -a /tmp/dmesg_log -"))
-        if "opal fadump: Registration is successful!" in dmesg_data:
-            print("Kernel powernv fadump registration successful")
+        if "fadump: Registering for firmware-assisted kernel dump" in dmesg_data:
+            print("PowerNV: Registering for firmware-assisted kernel dump")
         else:
-            raise OpTestError("Kernel powernv fadump registration failed")
+            raise OpTestError("PowerNV: Registering for firmware-assisted kernel dump failed")
+
+        self.c.run_command_ignore_fail("rm /tmp/opal_log")
+        self.c.run_command_ignore_fail("rm /tmp/dmesg_log")
 
     def verify_fadump_unreg(self):
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
@@ -172,19 +191,30 @@ class PowerNVDump(unittest.TestCase):
             self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
 
         self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
+        self.c.run_command("dmesg > /tmp/dmesg_log")
         self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
 
         opal_data = " ".join(self.c.run_command_ignore_fail(
             "%s | diff -a /tmp/opal_log -" % BMC_CONST.OPAL_MSG_LOG))
-        if "DUMP: Payload unregistered for fadump" in opal_data:
-            return True
+        if "DUMP: Payload unregistered for MPIPL" in opal_data:
+            print("OPAL: Payload unregistered for MPIPL")
         else:
-            raise OpTestError("Payload failed to unregister for MPIPL")
+            raise OpTestError("OPAL: Payload failed to unregister for MPIPL")
+
+        dmesg_data = " ".join(self.c.run_command_ignore_fail(
+            "dmesg | diff -a /tmp/dmesg_log -"))
+        if "fadump: Un-register firmware-assisted dump" in dmesg_data:
+            print("PowerNV: Un-registering for firmware-assisted kernel dump")
+        else:
+            raise OpTestError("PowerNV: Un-registering for firmware-assisted kernel dump failed")
+
+        self.c.run_command_ignore_fail("rm /tmp/opal_log")
+        self.c.run_command_ignore_fail("rm /tmp/dmesg_log")
 
     ##
     # @brief This function will test the kernel crash followed by system
-    #        reboot. it has below steps
-    #        1. Enable reboot on kernel panic: echo 10  > /proc/sys/kernel/panic
+    #        reboot. It has below steps
+    #        1. Enable reboot on kernel panic: echo 10 > /proc/sys/kernel/panic
     #        2. Trigger kernel crash: echo c > /proc/sysrq-trigger
     #
     # @return BMC_CONST.FW_SUCCESS or raise OpTestError
@@ -194,7 +224,7 @@ class PowerNVDump(unittest.TestCase):
         self.c.run_command("cat /etc/os-release")
         # Disable fast-reboot, otherwise MPIPL may lead to fast-reboot
         self.c.run_command("nvram -p ibm,skiboot --update-config fast-reset=0")
-        self.c.run_command("echo 10  > /proc/sys/kernel/panic")
+        self.c.run_command("echo 10 > /proc/sys/kernel/panic")
         # Enable sysrq before triggering the kernel crash
         self.c.pty.sendline("echo 1 > /proc/sys/kernel/sysrq")
         self.c.pty.sendline("echo c > /proc/sysrq-trigger")
@@ -204,13 +234,14 @@ class PowerNVDump(unittest.TestCase):
         while not done:
             try:
                 # MPIPL completion + system reboot would take time, keeping it
-                # 600 seconds.
+                # 600 seconds. Post MPIPL, kernel will offload vmcore and reboot
+                # system. Hostboot will run istep 10.1 in normal boot only. So
+                # check for istep 10.1 to detect normal boot.
                 rc = self.c.pty.expect(
                     ["ISTEP 10. 1", "kdump: saving vmcore complete", "saved vmcore"], timeout=600)
             except KernelFADUMP:
                 print("====================MPIPL boot started==================")
-                # if fadump is enabled & kdump is disabled, system should
-                # start MPIPL after kernel crash(oops)
+                # if fadump is enabled system should start MPIPL after kernel crash
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
                 boot_type = BootType.MPIPL
             except KernelOOPS:
@@ -224,8 +255,7 @@ class PowerNVDump(unittest.TestCase):
                 boot_type = BootType.NORMAL
             except KernelKdump:
                 print("================Kdump kernel boot=======================")
-                # if only kdump is enabled, kdump kernel should boot
-                # after kernel crash
+                # if kdump is enabled, kdump kernel should boot after kernel crash
                 boot_type = BootType.KDUMPKERNEL
             except KernelCrashUnknown:
                 self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
@@ -242,11 +272,9 @@ class PowerNVDump(unittest.TestCase):
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
                 done = True
             if rc == 1 or rc == 2:
-                print(
-                    "Kdump finished collecting core file, waiting for regular IPL to complete")
+                print("Kdump finished collecting core file, waiting for regular IPL to complete")
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        #self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         print("System booted fine to host OS...")
         return boot_type
 
@@ -255,14 +283,38 @@ class PowerNVDump(unittest.TestCase):
 
 
 class OPALCrash_MPIPL(PowerNVDump):
-
+    '''
+    OPAL initiated MPIPL flow validation. This will verify whether OPAL
+    supports MPIPL or not and then triggers OPAL assert. This will verify
+    OPAL MPIPL flow and device tree property after dump. It will not
+    verify whether core file is generated or not.
+    '''
     def runTest(self):
         if not self.pdbg or not os.path.exists(self.pdbg):
             self.fail("pdbg file %s doesn't exist" % self.pdbg)
-        if not self.is_fadump_param_enabled():
-            raise self.skipTest(
-                "fadump=on not added in kernel param, please add and re-try")
+
         self.setup_test()
+
+        if not self.is_mpipl_supported():
+            raise self.skipTest("MPIPL support is not found")
+
+        # Verify device tree properties
+        self.verify_dump_dt_node()
+
+        pdbg_cmd = ""
+        if "OpenBMC" in self.bmc_type:
+            pdbg_cmd = "/tmp/pdbg -a putmem 0x300000f8 < /tmp/deadbeef"
+        elif "SMC" in self.bmc_type:
+            pdbg_cmd = "/tmp/rsync_file/pdbg -a putmem 0x300000f8 < /tmp/rsync_file/deadbeef"
+        else:
+            raise self.skipTest("pdbg not support on this BMC type : %s" % self.bmc_type)
+
+        # To Verify OPAL MPIPL flow we don't need host kdump service.
+        # Hence disable kdump service
+        os_level = self.cv_HOST.host_get_OS_Level()
+        if self.cv_HOST.host_check_pkg_kdump(os_level) is True:
+            self.cv_HOST.host_disable_kdump_service(os_level)
+
         cmd = "rm /tmp/pdbg; rm /tmp/deadbeef"
         try:
             self.cv_BMC.run_command(cmd)
@@ -272,23 +324,19 @@ class OPALCrash_MPIPL(PowerNVDump):
         self.cv_BMC.image_transfer(self.pdbg)
         deadbeef = os.path.join(self.basedir, "test_binaries", "deadbeef")
         self.cv_BMC.image_transfer(deadbeef)
-        if "OpenBMC" in self.bmc_type:
-            cmd = "/tmp/pdbg -a putmem 0x300000f8 < /tmp/deadbeef"
-        elif "SMC" in self.bmc_type:
-            cmd = "/tmp/rsync_file/pdbg -a putmem 0x300000f8 < /tmp/rsync_file/deadbeef"
-        self.cv_BMC.run_command(cmd)
+        # Trigger OPAL assert via pdbg
+        self.cv_BMC.run_command(pdbg_cmd)
+
         done = False
         boot_type = BootType.NORMAL
         rc = -1
         while not done:
             try:
-                # MPIPL completion + system reboot would take time, keeping it
-                # 600 seconds. we expect ISTEP 10.1 to assert normal boot
-                rc = self.c.pty.expect(['\n', 'ISTEP 10.1'], timeout=600)
+                # MPIPL boot will take time, keeping it 600 seconds.
+                rc = self.c.pty.expect(['\n', 'ISTEP 14. 8'], timeout=600)
             except(SkibootAssert, KernelFADUMP):
                 print("====================MPIPL boot started===================")
-                # if fadump is enabled & kdump is disabled, system should start
-                # MPIPL after kernel crash(oops)
+                # System will start MPIPL flow after OPAL assert
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
                 boot_type = BootType.MPIPL
             except pexpect.TIMEOUT:
@@ -303,25 +351,28 @@ class OPALCrash_MPIPL(PowerNVDump):
                 done = True
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        #self.cv_HOST.ssh.state = SSHConnectionState.DISCONNECTED
         print("System booted fine to host OS...")
-        self.verify_dump_file(boot_type)
+        if not self.is_mpipl_boot():
+            raise OpTestError("OPAL: MPIPL boot failed")
+        self.verify_dump_dt_node(BootType.MPIPL)
         return boot_type
 
 
 class SBECrash_MPIPL(PowerNVDump):
     '''
     Testcase to test SBE and hostboot part of MPIPL code.
-    This test would trigger SBE S0/S1 interrupt directly to initiate MPIPL.
+    This test would trigger SBE S0 interrupt directly to initiate MPIPL.
     SBE will initiate MPIPL flow and eventually system boots back.
     '''
 
     def runTest(self):
 
-        self.setup_test()
         if "OpenBMC" not in self.bmc_type:
             raise self.skipTest(
                 "SBE initiated MPIPL is not supported on non-OpenBMC machine yet")
+
+        self.setup_test()
+
         self.c.run_command("uname -a")
         self.c.run_command("cat /etc/os-release")
         # Get all chip ids on the machine
@@ -333,14 +384,24 @@ class SBECrash_MPIPL(PowerNVDump):
             if node:
                 chip_id = self.c.run_command(
                     "lsprop /sys/firmware/devicetree/base/%s/ibm,chip-id" % node)
-                # check if chip_id is primary
-                if os.path.exists("/sys/firmware/devicetree/base/%s/primary" % node):
+                # Check if chip_id is primary. For some reason os.path.exists is
+                # failing. Hence using `ls` command to detect primary property
+                try:
+                    self.c.run_command("ls /sys/firmware/devicetree/base/%s/primary 2>/dev/null" % node)
                     primary_chipid = chip_id[-1].strip()
-                else:
+                except CommandFailed:
                     secondary_chip_ids.append(chip_id[-1].strip())
+                    pass
+
         if not primary_chipid:
-            raise OpTestError(
-                "Bug: Primary node property is missing!!")
+            raise OpTestError("BUG: Primary node property is missing!!")
+
+        # To Verify SBE/hostboot MPIPL flow we don't need host kdump service.
+        # Hence disable kdump service
+        os_level = self.cv_HOST.host_get_OS_Level()
+        if self.cv_HOST.host_check_pkg_kdump(os_level) is True:
+            self.cv_HOST.host_disable_kdump_service(os_level)
+
         # Make sure /tmp/skiboot directory does not exist
         r_workdir = "/tmp/skiboot"
         self.c.run_command("rm -rf %s" % r_workdir)
@@ -349,7 +410,7 @@ class SBECrash_MPIPL(PowerNVDump):
         r_cmd = "git clone --depth 1 https://github.com/open-power/skiboot.git %s" % r_workdir
         self.c.run_command(r_cmd)
         # Compile putscom utility
-        r_cmd = "cd %s/external/xscom-utils; make;cd" % r_workdir
+        r_cmd = "cd %s/external/xscom-utils; make; cd -" % r_workdir
         self.c.run_command(r_cmd)
         try:
             # Check existence of putscom utility after compiling
@@ -362,20 +423,21 @@ class SBECrash_MPIPL(PowerNVDump):
         # to initial flash area and SBE can load it from LPC bus.
         cmd = "mboxctl --reset"
         self.cv_BMC.run_command(cmd)
-        # trigger SBE initiated MPIPL starting with secondary chipids followed
-        # by primary chip
+        # trigger SBE initiated MPIPL starting with secondary chip ids followed
+        # by primary chip (Send S0 interrupt to SBE).
         if secondary_chip_ids:
             for chip_id in secondary_chip_ids:
                 self.c.pty.sendline(
                     "%s/external/xscom-utils/putscom -c %s 0x50008 0x0002000000000000" % (r_workdir, chip_id))
         self.c.pty.sendline(
             "%s/external/xscom-utils/putscom -c %s 0x50008 0x0002000000000000" % (r_workdir, primary_chipid))
+
         done = False
         boot_type = BootType.NORMAL
         rc = -1
         while not done:
             try:
-                # Verify MPIPL boot
+                # Verify MPIPL boot (wait for 600 secs before throwing error)
                 rc = self.c.pty.expect(['ISTEP 14. 8'], timeout=600)
             except pexpect.TIMEOUT:
                 done = True
@@ -389,6 +451,7 @@ class SBECrash_MPIPL(PowerNVDump):
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
                 boot_type = BootType.MPIPL
                 done = True
+
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         print("System booted fine to host OS...")
         print("cleanup skiboot clone")
