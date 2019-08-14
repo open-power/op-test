@@ -120,30 +120,6 @@ class OpTestFSP():
         else:
             return str(tmp)
 
-    def is_sys_powered_on(self):
-        '''
-        Check for system runtime state.
-        Returns True if runtime, else False.
-        '''
-        state = self.fspc.run_command("smgr mfgState")
-        state = state.rstrip('\n')
-        if state == 'runtime':
-            return True
-        else:
-            return False
-
-    def is_sys_standby(self):
-        '''
-        Check for system standby state.
-        Returns True if system is in standby state else False.
-        '''
-        state = self.fspc.run_command("smgr mfgState")
-        state = state.rstrip('\n')
-        if state == 'standby':
-            return True
-        else:
-            return False
-
     def get_sys_status(self):
         '''
         Get current system status (same as 'smgr mfgState' on FSP).
@@ -151,6 +127,20 @@ class OpTestFSP():
         state = self.fspc.run_command("smgr mfgState")
         state = state.rstrip('\n')
         return state
+
+    def is_sys_powered_on(self):
+        '''
+        Check for system runtime state.
+        Returns True if runtime, else False.
+        '''
+        return self.get_sys_status() == "runtime"
+
+    def is_sys_standby(self):
+        '''
+        Check for system standby state.
+        Returns True if system is in standby state else False.
+        '''
+        return self.get_sys_status() == "standby"
 
     def get_opal_console_log(self):
         '''
@@ -185,8 +175,7 @@ class OpTestFSP():
         Returns True if successfully powered off, False if for some
         reason we failed to power off the system.
         '''
-        state = self.fspc.run_command("smgr mfgState")
-        state = state.rstrip('\n')
+        state = self.get_sys_status()
         if state == 'standby':
             return True
         elif state == 'runtime' or state == 'ipling':
@@ -212,8 +201,7 @@ class OpTestFSP():
         OPAL mode (will switch HypMode before IPL if needed).
         Returns True if we reach Runtime state, False otherwise.
         '''
-        state = self.fspc.run_command("smgr mfgState")
-        state = state.rstrip('\n')
+        state = self.get_sys_status()
         time_me = 0
         if state == 'standby':
             # just make sure we are booting in OPAL mode
