@@ -519,8 +519,8 @@ class ThreadedHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 f.close()
                 return
             elif self.path == "/%s" % KS:
-                f = open("%s/%s" % (BASE_PATH, KS), "r")
-                d = f.read()
+                f = open("%s/%s" % (BASE_PATH, KS), "rb")
+                d = f.read().decode()
                 if "hostos" in BASE_PATH:
                     ps = d.format(REPO, PROXY, PASSWORD, DISK, DISK, DISK)
                 elif "rhel" in BASE_PATH:
@@ -545,7 +545,7 @@ class ThreadedHTTPHandler(http.server.SimpleHTTPRequestHandler):
                                   PROXY, PASSWORD, PASSWORD, user, PASSWORD, PASSWORD, DISK, packages)
                 else:
                     print("unknown distro")
-                self.wfile.write(ps)
+                self.wfile.write(ps.encode())
                 return
             else:
                 self.send_response(404)
