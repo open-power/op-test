@@ -128,6 +128,9 @@ class OpTestFSP():
         state = state.rstrip('\n')
         return state
 
+    def progress_line(self):
+        return "progress code {1}, system state: {0}".format(self.get_sys_status(), self.get_progress_code())
+
     def is_sys_powered_on(self):
         '''
         Check for system runtime state.
@@ -214,8 +217,7 @@ class OpTestFSP():
             if output.find("success"):
                 print("Waiting for system to reach runtime...")
                 while not self.is_sys_powered_on():
-                    print(("Current system state: {0}, progress code: {1} ".format(
-                        self.get_sys_status(), self.get_progress_code())))
+                    print(self.progress_line())
                     time_me += 5
                     if time_me > 1200:
                         print("System not yet runtime even after 20minutes?")
@@ -224,8 +226,8 @@ class OpTestFSP():
                     else:
                         time.sleep(5)
                 print("PowerOn Successful")
-                print(("System at runtime and current progress code: " +
-                       self.get_progress_code()))
+                print(self.progress_line())
+
                 return True
             else:
                 print("Poweron Failed")
@@ -266,12 +268,10 @@ class OpTestFSP():
         '''
         timeout = time.time() + 60*timeout
         while True:
+            print(self.progress_line())
+
             if self.is_sys_standby():
-                print(("Current system status: %s" % self.get_sys_status()))
-                print(("Current progress code: %s" % self.get_progress_code()))
                 break
-            print(("Current system status: %s" % self.get_sys_status()))
-            print(("Current progress code: %s" % self.get_progress_code()))
             if time.time() > timeout:
                 l_msg = "Standby timeout"
                 raise OpTestError(l_msg)
@@ -285,12 +285,10 @@ class OpTestFSP():
         '''
         timeout = time.time() + 60*timeout
         while True:
+            print(self.progress_line())
+
             if self.get_sys_status() == "ipling":
-                print(("Current system status: %s" % self.get_sys_status()))
-                print(("Current progress code: %s" % self.get_progress_code()))
                 break
-            print(("Current system status: %s" % self.get_sys_status()))
-            print(("Current progress code: %s" % self.get_progress_code()))
             if time.time() > timeout:
                 l_msg = "IPL timeout"
                 raise OpTestError(l_msg)
@@ -306,8 +304,7 @@ class OpTestFSP():
             count += 1
             time.sleep(60)
         else:
-            print(("Current system status: %s" % self.get_sys_status()))
-            print(("Current progress code: %s" % self.get_progress_code()))
+            print(self.progress_line())
             raise OpTestError("System dump not started even after 3 minutes")
 
     def wait_for_runtime(self, timeout=10):
@@ -316,12 +313,10 @@ class OpTestFSP():
         '''
         timeout = time.time() + 60*timeout
         while True:
+            print(self.progress_line())
+
             if self.is_sys_powered_on():
-                print(("Current system status: %s" % self.get_sys_status()))
-                print(("Current progress code: %s" % self.get_progress_code()))
                 break
-            print(("Current system status: %s" % self.get_sys_status()))
-            print(("Current progress code: %s" % self.get_progress_code()))
             if time.time() > timeout:
                 l_msg = "IPL timeout"
                 raise OpTestError(l_msg)
