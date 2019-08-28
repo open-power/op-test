@@ -293,7 +293,52 @@ class OpTestUtil():
             self.conf.util_bmc_server.close()
 
         if self.conf.dump:
-            self.conf.dump = False  # possible for multiple passes here
+            self.conf.dump = False # possible for multiple passes here
+            # currently only pulling OpenBMC logs
+            marker_time = (time.asctime(time.localtime())).replace(" ", "_")
+            if self.conf.args.bmc_type in ['OpenBMC']:
+                try:
+                    self.PingMTUCheck(self.conf.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+                except Exception as e:
+                    log.warning("Check that the BMC is healthy, maybe the Broadcom bug, Exception={}".format(e))
+                log.info("OpTestSystem Starting to Gather BMC logs")
+                try:
+                    journal_dmesg_outfile = "op-test-openbmc-journal-dmesg.{}".format(marker_time)
+                    journal_dmesg_entries = self.conf.bmc().run_command("journalctl -k --no-pager >/tmp/{}".format(journal_dmesg_outfile))
+                    journal_outfile = "op-test-openbmc-journal.{}".format(marker_time)
+                    journal_entries = self.conf.bmc().run_command("journalctl --no-pager >/tmp/{}".format(journal_outfile))
+                    top_outfile = "op-test-openbmc-top.{}".format(marker_time)
+                    top_entries = self.conf.bmc().run_command("top -b -n 1 >/tmp/{}".format(top_outfile))
+                    df_outfile = "op-test-openbmc-df.{}".format(marker_time)
+                    df_entries = self.conf.bmc().run_command("df -h >/tmp/{}".format(df_outfile))
+                    uptime_outfile = "op-test-openbmc-uptime.{}".format(marker_time)
+                    uptime_entries = self.conf.bmc().run_command("uptime >/tmp/{}".format(uptime_outfile))
+                    console_outfile = "op-test-openbmc-console-log.{}".format(marker_time)
+                    # obmc-console.log will exist even if empty
+                    console_entries = self.conf.bmc().run_command("cp /var/log/obmc-console.log /tmp/{}"
+                                          .format(console_outfile))
+                    self.copyFilesFromDest(self.conf.args.bmc_username,
+                        self.conf.args.bmc_ip,
+                        "/tmp/op-test*",
+                        self.conf.args.bmc_password,
+                        self.conf.logdir)
+                except Exception as e:
+                    log.debug("OpTestSystem encountered a problem trying to gather the BMC logs, Exception={}".format(e))
+                # remove temp files
+                try:
+                    self.conf.bmc().run_command("rm /tmp/op-test*")
+                except Exception as e:
+                    log.warning("OpTestSystem encountered a problem cleaning up BMC /tmp files, you may want to check.")
+                log.info("OpTestSystem Completed Gathering BMC logs, find them in the Log Location")
+            # this will get esels for all
+            log.info("OpTestSystem Starting to Gather ESEL's")
+            try:
+                esel_entries = self.conf.op_system.sys_sel_elist()
+                esel_outfile = "{}/op-test-esel.{}".format(self.conf.logdir, marker_time)
+                self.dump_list(entries=esel_entries, outfile=esel_outfile)
+                log.info("OpTestSystem Completed Gathering ESEL's, find them in the Log Location")
+            except Exception as e:
+                log.debug("OpTestSystem encountered a problem trying to gather ESEL's, Exception={}".format(e))
             self.dump_versions()
             self.dump_nvram_opts()
 
@@ -310,6 +355,23 @@ class OpTestUtil():
             log.debug("self.conf.args.qemu_scratch_disk={} "
                       "closing Exception={}"
                       .format(self.conf.args.qemu_scratch_disk, e))
+
+    def dump_list(self, entries=None, outfile=None):
+        '''
+        Purpose of this function is to dump a list object to the
+        file system to be used by other methods, etc.
+        '''
+        if entries is None or outfile is None:
+            raise ParameterCheck(message="Check your call to dump_list, entries"
+                                     " and outfile need valid values")
+        if type(entries) == str:
+            list_obj = entries.splitlines()
+        else:
+            list_obj = entries
+        list_obj.insert(0, "From BMC {} Host {}".format(self.conf.args.bmc_ip, self.conf.args.host_ip))
+        with open(outfile, 'w') as f:
+            for line in list_obj:
+                f.write("{}\n".format(line))
 
     def dump_versions(self):
         log.info("Log Location: {}/*debug*".format(self.conf.output))
@@ -939,6 +1001,45 @@ class OpTestUtil():
         raise ParameterCheck(message="PingFunc fails to ping '{}', "
                              "check your configuration and setup and manually "
                              "verify and release any reservations".format(i_ip))
+
+    def PingMTUCheck(self, i_ip, i_try=1, totalSleepTime=BMC_CONST.HOST_BRINGUP_TIME):
+        if i_ip == None:
+            raise ParameterCheck(message="PingMTUCheck has i_ip set to 'None', "
+                "check your configuration and setup")
+        sleepTime = 0;
+        while(i_try != 0):
+            p1 = subprocess.Popen(["ping", "-M", "do", "-s 1400", "-c 5", str(i_ip)],
+                                  stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  universal_newlines=True,
+                                  encoding='utf-8')
+            stdout_value, stderr_value = p1.communicate()
+
+            if(stdout_value.__contains__("5 received")):
+                log.debug("Ping successfully verified MTU discovery check (prohibit fragmentation), ping -M do -s 1400 -c 5 {}".format(i_ip))
+                return BMC_CONST.PING_SUCCESS
+
+            else:
+                # need to print message otherwise no interactive feedback
+                # and user left guessing something is not happening
+                log.info("PingMTUCheck is not able to successfully verify '{}', waited {} of {}, {} "
+                         "more loop cycles remaining, you may start to check "
+                         "your configuration for bmc_ip or host_ip"
+                         .format(i_ip, sleepTime, totalSleepTime, i_try))
+                log.debug("%s is not able to successfully verify MTU discovery (Waited %d of %d, %d more "
+                          "loop cycles remaining)" % (i_ip, sleepTime,
+                          totalSleepTime, i_try))
+                time.sleep(1)
+                sleepTime += 1
+                if (sleepTime == totalSleepTime):
+                    i_try -= 1
+                    sleepTime = 0
+
+        log.warning("'{}' is not able to successfully verify MTU discovery (prohibit fragmentation) and we tried many times, "
+                  "check your configuration and setup.".format(i_ip))
+        raise ParameterCheck(message="PingMTUCheck fails to verify MTU discovery (prohibit fragmentation) '{}', "
+            "check your configuration and setup manually ".format(i_ip))
 
     def copyFilesToDest(self, hostfile, destid, destName, destPath, passwd):
         arglist = (

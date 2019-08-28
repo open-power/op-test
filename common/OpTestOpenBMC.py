@@ -240,6 +240,8 @@ class HostManagement():
                     dict_item['Procedure'] = str(add_data[i].split('=')[1])
             dict_list.append(dict_item)
 
+        # we leave this to print to stdout to allow piping to appropriate logfile or console
+        # TODO: When PR #361 merges collapse this and convert using OpTestUtil methods
         if dump:
             print(
                 "\n----------------------------------------------------------------------")
@@ -278,6 +280,36 @@ class HostManagement():
         log.debug("id_list={}".format(id_list))
         log.debug("dict_list={}".format(dict_list))
         return id_list, dict_list
+
+    def convert_esels_to_list(self, id_list=None, dict_list=None):
+        esel_list = []
+        esel_list.append("\n----------------------------------------------------------------------")
+        esel_list.append("SELs")
+        esel_list.append("----------------------------------------------------------------------")
+        if len(id_list) == 0:
+            esel_list.append("SEL has no entries")
+        for k in dict_list:
+            esel_list.append("Id          : {}".format(k.get('Id')))
+            esel_list.append("Message     : {}".format(k.get('Message')))
+            esel_list.append("Description : {}".format(k.get('Description')))
+            esel_list.append("Timestamp   : {}".format(k.get('Timestamp')))
+            esel_list.append("Severity    : {}".format(k.get('Severity')))
+            esel_list.append("Resolved    : {}".format(k.get('Resolved')))
+            if k.get('EventID') is not None:
+                esel_list.append("EventID     : {}".format(k.get('EventID')))
+            if k.get('Procedure') is not None:
+                esel_list.append("Procedure   : {}".format(k.get('Procedure')))
+            if k.get('esel') is not None:
+                esel_list.append("ESEL        : characters={}\n".format(len(k.get('esel'))))
+                esel_list.append("Ruler        : 0123456789012345678901234567890123456789012345678901234567890123")
+                esel_list.append("-------------------------------------------------------------------------------")
+                for j in range(0, len(k.get('esel')), 64):
+                    esel_list.append("{:06d}-{:06d}: {}".format(j, j+63, k.get('esel')[j:j+64]))
+            else:
+                esel_list.append("ESEL        : None")
+            esel_list.append("\n")
+        esel_list.append("----------------------------------------------------------------------")
+        return esel_list
 
     def clear_sel_by_id(self, minutes=BMC_CONST.HTTP_RETRY):
         '''
