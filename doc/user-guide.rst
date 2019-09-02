@@ -245,6 +245,7 @@ in it for running tests. An example of such a configuration file is below:
   [op-test]
   bmc_type=qemu
   qemu_binary=~/qemu/ppc64-softmmu/qemu-system-ppc64
+  host_pnor=palmetto.pnor
   flash_skiboot=~/skiboot/skiboot.lid
   flash_kernel=zImage.epapr
   flash_initramfs=rootfs.cpio
@@ -257,7 +258,8 @@ load, and while it's not *required*, using the uncompressed `rootfs.cpio`
 does *significantly* improve boot time to Petitboot.
 
 In this configuration file example, we point to a `qemu` development tree
-rather than using the system default `qemu-system-ppc64` binary.
+rather than using the system default `qemu-system-ppc64` binary. We also
+specify a ``--host-pnor`` file so that `qemu` can mount an NVRAM partition.
 
 To run the "boot to petitboot" test in qemu with the above configuration file,
 you can do so like this:
