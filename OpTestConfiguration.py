@@ -424,6 +424,12 @@ def get_parser():
     misc_group.add_argument("--accept-unknown-args", default=False, action='store_true',
                             help="Don't exit if we find unknown command line arguments")
 
+    monitorgroup = parser.add_argument_group('Monitor',
+                                              'Monitor enable commands')
+    monitorgroup.add_argument("--enable-monitors", help="If set, monitors will be enabled",
+                               action='store_true', default=False)
+    monitorgroup.add_argument("--monitor-file", help="provide the monitors file, monitors given in the file will be enabled",
+                               default="./monitors")
     return parser
 
 

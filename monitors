@@ -1,0 +1,33 @@
+# Supported format to run monitors
+# command,freqency in seconds,where to run,name of monitor
+# Eg:-
+# date,2,sut,date-1
+#
+# 	Above line will create a monitor which runs `date` 
+# 	command every 2 seconds inside host using SSH session
+# 	and stores in a file which named *date-1*.log
+# 	in respective test-reports folder. 
+# 
+# command:             Any command that is available in the place where it runs.
+#
+# freqency in seconds: Takes any integer value, `0` is a special value
+# 		       where given command itself will run in batch and no
+# 		       need to run the command in intervals.
+#
+# where to run:        Currently supports only in `sut` ie. Host for which
+# 		       test is run.
+#                      TODO:-
+#                      server - runs commands in the server where optest runs.
+#		       bmc - runs commands inside bmc.
+#
+# name of monitor:    Name to be used to represent the monitor
+# 		       bydefault, command name is used.
+#
+# regular expression: To extract useful information from monitor output file.
+#                     
+#
+#
+#date,2,sut,date-1,*,
+#vmstat 1,0,sut,test1,*,
+#date,2,sut,,*,
+#lparstat 1,2,sut,,.*---\n([(\d+.\d+)\s+]+),
