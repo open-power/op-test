@@ -58,13 +58,14 @@ class OpTestFSP():
     Contains most of the common methods to interface with FSP.
     '''
 
-    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, ipmi=None, rest=None):
+    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, ipmi=None, hmc=None, rest=None):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
         self.password = i_fspPasswd
         self.prompt = "$"
         self.cv_ASM = OpTestASM(i_fspIP, i_fspUser, i_fspPasswd)
         self.cv_IPMI = ipmi
+        self.cv_HMC = hmc
         self.rest = rest
 
     def bmc_host(self):
@@ -73,13 +74,17 @@ class OpTestFSP():
     def get_ipmi(self):
         return self.cv_IPMI
 
+    def get_hmc(self):
+        return self.cv_HMC
+
     def get_rest_api(self):
         return self.rest
 
     def get_host_console(self):
         if self.cv_IPMI:
             return self.cv_IPMI.get_host_console()
-        return None
+        else:
+            return self.cv_HMC.get_host_console()
 
     def fsp_get_console(self):
         '''

@@ -40,6 +40,7 @@ import unittest
 from . import OpTestIPMI  # circular dependencies, use package
 from . import OpTestQemu
 from . import OpTestMambo
+from . import OpTestHMC
 from .OpTestFSP import OpTestFSP
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
@@ -89,14 +90,12 @@ class OpTestSystem(object):
     def __init__(self,
                  bmc=None,
                  host=None,
-                 hmc=None,
                  prompt=None,
                  conf=None,
                  state=OpSystemState.UNKNOWN):
         self.conf = conf
         self.util = conf.util
         self.bmc = self.cv_BMC = bmc
-        self.hmc = self.cv_HMC = hmc
         self.cv_HOST = host
         self.cv_IPMI = bmc.get_ipmi()
         self.rest = self.bmc.get_rest_api()
@@ -367,6 +366,10 @@ class OpTestSystem(object):
                 and (state == OpSystemState.OS):
             raise unittest.SkipTest(
                 "OpTestSystem running QEMU/Mambo so skipping OpSystemState.OS test")
+        if isinstance(self.console, OpTestHMC.HMCConsole) \
+                and state in [OpSystemState.IPLing, OpSystemState.PETITBOOT, OpSystemState.PETITBOOT_SHELL]:
+            raise unittest.SkipTest(
+                "OpTestSystem running HMC so skipping OpSystemState.[IPLing|PETITBOOT|PETITBOOT_SHELL] test")
         if (self.state == OpSystemState.UNKNOWN):
             log.debug(
                 "OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state))
@@ -1335,13 +1338,11 @@ class OpTestFSPSystem(OpTestSystem):
     def __init__(self,
                  host=None,
                  bmc=None,
-                 hmc=None,
                  conf=None,
                  state=OpSystemState.UNKNOWN):
         bmc.fsp_get_console()
         super(OpTestFSPSystem, self).__init__(host=host,
                                               bmc=bmc,
-                                              hmc=hmc,
                                               conf=conf,
                                               state=state)
 
@@ -1353,6 +1354,84 @@ class OpTestFSPSystem(OpTestSystem):
         sys_pty = self.console.get_console()
         self.cv_BMC.wait_for_runtime()
         return super(OpTestFSPSystem, self).wait_for_it(**kwargs)
+
+    def skiboot_log_on_console(self):
+        return False
+
+    def has_host_accessible_eeprom(self):
+        return False
+
+    def has_host_led_support(self):
+        return True
+
+    def has_centaurs_in_dt(self):
+        return False
+
+    def has_mtd_pnor_access(self):
+        return False
+
+
+class OpTestLPARSystem(OpTestSystem):
+    '''
+    Implementation of an OpTestSystem for IBM FSP based systems (such as Tuleta and ZZ)
+
+    Main differences are that some functions need to be done via the service processor
+    rather than via IPMI due to differences in functionality.
+    '''
+
+    def __init__(self,
+                 host=None,
+                 bmc=None,
+                 conf=None,
+                 state=OpSystemState.UNKNOWN):
+        bmc.fsp_get_console()
+        self.hmc = bmc.get_hmc()
+        super(OpTestLPARSystem, self).__init__(host=host,
+                                              bmc=bmc,
+                                              conf=conf,
+                                              state=state)
+
+    def sys_wait_for_standby_state(self, i_timeout=20):
+        return 0
+
+    def sys_sdr_clear(self):
+        return 0
+
+    def sys_set_bootdev_setup(self):
+        return
+
+    def sys_set_bootdev_no_override(self):
+        return
+
+    def sys_power_on(self):
+        self.hmc.poweron_lpar()
+
+    def sys_power_off(self):
+        self.hmc.poweroff_lpar()
+
+    def wait_for_it(self, **kwargs):
+        sys_pty = self.console.get_console()
+        return super(OpTestLPARSystem, self).wait_for_it(**kwargs)
+
+    def run_OFF(self, state):
+        """
+        Power on the LPAR from OFF state
+        Return to BOOTING state skipping non-applicable IPL, Petitboot states
+        """
+        self.block_setup_term = 1
+        if state == OpSystemState.OFF:
+            return OpSystemState.OFF
+        if state == OpSystemState.UNKNOWN:
+            raise UnknownStateTransition(state=self.state,
+                                         message="OpTestSystem in run_OFF and something caused the system to go to UNKNOWN")
+
+        r = self.sys_power_on()
+        # Only retry once
+        if r == BMC_CONST.FW_FAILED:
+            r = self.sys_power_on()
+            if r == BMC_CONST.FW_FAILED:
+                raise 'Failed powering on system'
+        return OpSystemState.BOOTING
 
     def skiboot_log_on_console(self):
         return False
