@@ -255,7 +255,7 @@ class OpTestPrdDriver(unittest.TestCase):
             self.IPOLL_MASK_REGISTER_CONTENT = "a400000000000000"
 
         try:
-            l_con.run_command("opal-prd --pnor /dev/mtd0 --debug --stdio")
+            l_con.run_command("opal-prd --debug --stdio")
         except CommandFailed as cf:
             log.debug("opal-prd failed to activate %s" % str(cf))
 
