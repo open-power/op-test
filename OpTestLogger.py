@@ -101,7 +101,8 @@ class OpTestLogger():
         if (not os.path.exists(self.logdir)):
             os.makedirs(self.logdir)
         self.fh = RotatingFileHandler(os.path.join(self.logdir, self.logger_file),
-                                      maxBytes=self.maxBytes_logger_file, backupCount=self.backupCount_logger_files)
+                                      maxBytes=self.maxBytes_logger_file, backupCount=self.backupCount_logger_files,
+                                      encoding="utf8")
         self.fh.setLevel(logging.INFO)
         self.fh.setFormatter(logging.Formatter(
             '%(asctime)s:%(name)s:%(levelname)s:%(message)s'))
@@ -122,7 +123,8 @@ class OpTestLogger():
         if (not os.path.exists(self.logdir)):
             os.makedirs(self.logdir)
         self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file),
-                                      maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
+                                      maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files,
+                                      encoding="utf8")
         self.dh.setLevel(logging.DEBUG)
         self.dh.setFormatter(logging.Formatter(
             '%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
@@ -156,7 +158,8 @@ class OpTestLogger():
         if (not os.path.exists(self.logdir)):
             os.makedirs(self.logdir)
         self.dh = RotatingFileHandler(os.path.join(self.logdir, self.logger_debug_file),
-                                      maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files)
+                                      maxBytes=self.maxBytes_logger_debug_file, backupCount=self.backupCount_debug_files,
+                                      encoding="utf8")
         self.dh.setLevel(logging.DEBUG)
         self.dh.setFormatter(logging.Formatter(
             '%(asctime)s:%(name)s:%(funcName)s:%(levelname)s:%(message)s'))
