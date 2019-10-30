@@ -36,12 +36,15 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
 class InstallUpstreamKernel(unittest.TestCase):
+
     def setUp(self):
         self.conf = OpTestConfiguration.conf
         self.cv_HOST = self.conf.host()
         self.cv_SYSTEM = self.conf.system()
         self.host_cmd_timeout = self.conf.args.host_cmd_timeout
         self.repo = self.conf.args.git_repo
+        # An option to provide path for pre cloned kernel source
+        self.repo_path = self.conf.args.git_repo_path
         self.branch = self.conf.args.git_branch
         self.home = self.conf.args.git_home
         self.config = self.conf.args.git_repoconfig
@@ -52,7 +55,8 @@ class InstallUpstreamKernel(unittest.TestCase):
         self.append_kernel_cmdline = self.conf.args.append_kernel_cmdline
         if self.config_path:
             self.config = "olddefconfig"
-        if not self.repo:
+        # make sure at least one option is given
+        if not self.repo and not self.repo_path:
             self.fail("Provide git repo of kernel to install")
         if not (self.conf.args.host_ip and self.conf.args.host_user and self.conf.args.host_password):
             self.fail(
@@ -74,7 +78,8 @@ class InstallUpstreamKernel(unittest.TestCase):
             if urlparse(path).scheme in valid_schemes:
                 return True
             return False
-
+        # Bring the system to a working state before every kernel build, boot
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.console_thread.start()
         try:
@@ -91,8 +96,17 @@ class InstallUpstreamKernel(unittest.TestCase):
                             (self.home, self.home))
             con.run_command("if [ -d %s ];then rm -rf %s;fi" %
                             (linux_path, linux_path))
-            con.run_command("cd %s && git clone --depth 1  %s -b %s linux" %
-                            (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
+            # get the linux tar ball and untar in build directory
+            if self.repo_path:
+                tar_file = '/root/%s' % self.repo_path.split("/")[-1]
+                self.cv_HOST.copy_test_file_to_host(
+                    self.repo_path, dstdir='/root/')
+                con.run_command("mkdir -p %s && tar -xzf %s -C %s --strip-components 1" %
+                                (linux_path, tar_file, linux_path))
+                con.run_command("rm -rf %s" % tar_file)
+            else:
+                con.run_command("cd %s && git clone --depth 1  %s -b %s linux" %
+                                (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
             con.run_command("cd %s" % linux_path)
             if self.patch:
                 patch_file = self.patch.split("/")[-1]
@@ -112,10 +126,10 @@ class InstallUpstreamKernel(unittest.TestCase):
                     self.cv_HOST.copy_test_file_to_host(
                         self.config_path, dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
-            log.debug("Compile and install linux kernel")
-            con.run_command("make -j %d -s && make modules && make modules_install && make install" %
-                            onlinecpus, timeout=self.host_cmd_timeout)
             if not self.use_kexec:
+                log.debug("Compile and install linux kernel")
+                con.run_command("make -j %d -s && make modules && make modules_install && make install" %
+                                onlinecpus, timeout=self.host_cmd_timeout)
                 # FIXME: Handle distributions which do not support grub
                 con.run_command(
                     'grubby --set-default /boot/vmlinuz-`cat include/config/kernel.release 2> /dev/null`')
@@ -128,15 +142,25 @@ class InstallUpstreamKernel(unittest.TestCase):
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
             else:
                 self.console_thread.console_terminate()
+                log.debug("Compile linux kernel")
+                # as we do not want to install kernel and just do kexec boot of
+                # vmlinux and initrd
+                con.run_command("make -j %d -s && make modules && make modules_install" %
+                                onlinecpus, timeout=self.host_cmd_timeout)
                 cmdline = con.run_command("cat /proc/cmdline")[-1]
                 if self.append_kernel_cmdline:
                     cmdline += " %s" % self.append_kernel_cmdline
                 kern_rel_str = con.run_command(
                     "cat %s/include/config/kernel.release" % linux_path)[-1]
-                initrd_file = con.run_command(
-                    "ls -l /boot/initr*-%s*" % kern_rel_str)[-1].split(" ")[-1]
-                kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinuz-%s -l" % (
-                    initrd_file, cmdline, kern_rel_str)
+                vmlinux_file = "/boot/vmlinux-%s" % kern_rel_str
+                initrd_file = "/boot/initramfs-%s" % kern_rel_str
+                # build a initramfs file for the new kernel from the modules
+                # installed
+                con.run_command("dracut %s %s -f" % (initrd_file, kern_rel_str))
+                con.run_command(
+                    "cp -rf %s/vmlinux %s" % (linux_path, vmlinux_file))
+                kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" -l %s" % (
+                    initrd_file, cmdline, vmlinux_file)
                 # Let's makesure we set the default boot index to current kernel
                 # to avoid leaving host in unstable state incase boot failure
                 con.run_command(

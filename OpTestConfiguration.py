@@ -315,6 +315,8 @@ def get_parser():
         'git repo', 'Git repository details for upstream kernel install/boot')
     gitgroup.add_argument(
         "--git-repo", help="Kernel git repository", default=None)
+    gitgroup.add_argument(
+        "--git-repo-path", help="Linux source tar file path", default=None)
     gitgroup.add_argument("--git-repoconfigpath",
                           help="Kernel config file to be used", default=None)
     gitgroup.add_argument(
