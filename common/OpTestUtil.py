@@ -1955,7 +1955,8 @@ class Server(object):
         payload = {"data": []}
         try:
             # make direct call to requests post, by-pass loop_it
-            r = self.session.post(self._url(uri), json=payload)
+            # we only try for a short time (seconds) in case things are hung up
+            r = self.session.post(self._url(uri), json=payload, timeout=30)
             if r.status_code != requests.codes.ok:
                 log.debug("Requests post problem with logging "
                           "out, r.status_code={} r.text={} r.headers={} "
