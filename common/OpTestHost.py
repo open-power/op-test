@@ -948,3 +948,77 @@ class OpTestHost():
             l_msg = "Executable file %s/%s is not present" % (i_dir, i_file)
             log.debug(l_msg)
             return False
+
+
+class OpTestLPAR(OpTestHost):
+    '''
+    An object to manipulate and run things on the LPAR.
+    Methods not applicable for an LPAR are overridden here
+    '''
+
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
+                 scratch_disk="", proxy="", logfile=sys.stdout,
+                 check_ssh_keys=False, known_hosts_file=None, conf=None):
+        super(OpTestLPAR, self).__init__(i_hostip,
+                i_hostuser, i_hostpasswd, i_bmcip, i_results_dir, scratch_disk,
+                proxy, logfile, check_ssh_keys, known_hosts_file, conf)
+
+    def host_gather_opal_msg_log(self, *args):
+        pass
+
+    def host_pflash_get_partition(self, *args):
+        pass
+
+    def host_gather_debug_logs(self, *args):
+        pass
+
+    def host_get_list_of_chips(self, *args):
+        pass
+
+    def host_cold_reset(self, *args):
+        pass
+
+    def host_code_update(self, *args):
+        pass
+
+    def host_load_ibmpowernv(self, *args):
+        pass
+
+    def host_start_lm_sensor_svc(self, *args):
+        pass
+
+    def host_clone_skiboot_source(self, *args):
+        pass
+
+    def host_start_opal_errd_daemon(self, *args):
+        pass
+
+    def host_stop_opal_errd_daemon(self, *args):
+        pass
+
+    def host_get_status_of_opal_errd_daemon(self, *args):
+        pass
+
+    def host_list_all_errorlogs(self, *args):
+        pass
+
+    def host_list_all_service_action_logs(self, *args):
+        pass
+
+    def host_get_number_of_errorlogs(self, *args):
+        pass
+
+    def host_clear_error_logs(self, *args):
+        pass
+
+    def host_clear_all_dumps(self, *args):
+        pass
+
+    def host_get_list_of_chips(self, *args):
+        pass
+
+    def host_prd_supported(self, *args):
+        pass
+
+    def host_copy_fake_gard(self, *args):
+        pass
