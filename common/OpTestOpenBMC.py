@@ -1034,6 +1034,33 @@ class HostManagement():
         '''
         self.configure_tpm_enable(0)
 
+    def is_sreset_supported(self, minutes=BMC_CONST.HTTP_RETRY):
+        '''
+        GET
+        https://${BMC_IP}/redfish/v1/Systems/system/
+        '''
+        uri = "/redfish/v1/Systems/system"
+        r = self.conf.util_bmc_server.get(uri=uri, minutes=minutes)
+        RestTypeAllowedValues = r.json().get('Actions'). \
+            get('#ComputerSystem.Reset'). \
+            get('ResetType@Redfish.AllowableValues')
+        if 'Nmi' in RestTypeAllowedValues:
+            log.info("SRESET Supported")
+            return True
+        else:
+            log.info("SRESET is not Supported")
+            return False
+
+    def inject_sreset(self, minutes=BMC_CONST.HTTP_RETRY):
+        '''
+        PUT
+        https://${BMC_IP}/redfish/v1/Systems/system/Actions/ComputerSystem.Reset
+        '''
+        uri = "/redfish/v1/Systems/system/Actions/ComputerSystem.Reset"
+        payload = {"ResetType": "Nmi"}
+        r = self.conf.util_bmc_server.post(
+            uri=uri, json=payload, minutes=minutes)
+
 
 class OpTestOpenBMC():
     def __init__(self, ip=None, username=None, password=None, ipmi=None,

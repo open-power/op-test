@@ -102,6 +102,7 @@ from testcases import OpTestSensors
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestHostboot
 from testcases import OpTestExample
+from testcases import OpTestSReset
 import OpTestConfiguration
 import sys
 import time
