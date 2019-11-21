@@ -191,7 +191,7 @@ class OpTestConstants():
     GET_POWER_LIMIT = " dcmi power get_limit "
     DCMI_POWER_DEACTIVATE = "dcmi power deactivate"
     DCMI_POWER_ACTIVATE = "dcmi power activate"
-    OP_CHECK_OCC = "sdr elist |grep 'OCC'"
+    OP_CHECK_OCC = "sdr elist |grep -i 'OCC'"
     OP_CHECK_PROCESSOR = "sensor list|grep -i proc"
     OP_CHECK_CPU = "sensor list|grep -i cpu"
     OP_CHECK_DIMM = "sensor list|grep -i dimm"
