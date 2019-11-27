@@ -664,6 +664,26 @@ class OpTestHost():
 
         return self.host_check_pkg_installed(i_oslevel, l_pkg, console)
 
+    def host_is_kdump_active(self, os_level, console=0):
+        '''
+        This function will check whether the kdump service is running/active or not. 
+        '''
+        if "Ubuntu" in os_level:
+            try:
+                self.host_run_command(
+                    "systemctl status kdump-tools.service --no-pager", console=console)
+                return True
+            except CommandFailed:
+                return False
+        else:
+            try:
+                self.host_run_command(
+                    "systemctl status kdump.service --no-pager", console=console)
+                return True
+            except CommandFailed:
+                return False
+
+
     def host_disable_kdump_service(self, os_level, console=0):
         '''
         This function disables kdump service. Needs the OS version (from `/etc/os-release`) to
@@ -674,7 +694,7 @@ class OpTestHost():
                 "systemctl stop kdump-tools.service", console=console)
             try:
                 self.host_run_command(
-                    "systemctl status kdump-tools.service", console=console)
+                    "systemctl status kdump-tools.service --no-pager", console=console)
             except CommandFailed as cf:
                 if cf.exitcode == 3:
                     pass
@@ -686,7 +706,7 @@ class OpTestHost():
                 "systemctl stop kdump.service", console=console)
             try:
                 self.host_run_command(
-                    "systemctl status kdump.service", console=console)
+                    "systemctl status kdump.service --no-pager", console=console)
             except CommandFailed as cf:
                 if cf.exitcode == 3:
                     pass
@@ -703,15 +723,23 @@ class OpTestHost():
                 "systemctl stop kdump-tools.service", console=console)
             self.host_run_command(
                 "systemctl start kdump-tools.service", console=console)
-            self.host_run_command(
-                "systemctl status kdump-tools.service", console=console)
+            try:
+                self.host_run_command(
+                    "systemctl status kdump-tools.service --no-pager", console=console)
+            except CommandFailed as cf:
+                log.debug(str(cf))
+                raise OpTestError("kdump service is failed to start")
         else:
             self.host_run_command(
                 "systemctl stop kdump.service", console=console)
             self.host_run_command(
                 "systemctl start kdump.service", console=console)
-            self.host_run_command(
-                "systemctl status kdump.service", console=console)
+            try:
+                self.host_run_command(
+                    "systemctl status kdump.service --no-pager", console=console)
+            except CommandFailed as cf:
+                log.debug(str(cf))
+                raise OpTestError("kdump service is failed to start")
 
     def host_check_sysfs_path_availability(self, path, console=0):
         res = self.host_run_command(
