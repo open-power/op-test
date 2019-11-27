@@ -300,7 +300,7 @@ def get_parser():
 
     hostgroup.add_argument("--platform",
                            help="Platform (used for EnergyScale tests)",
-                           choices=['unknown', 'habanero', 'firestone', 'garrison', 'firenze', 'p9dsu', 'witherspoon'])
+                           choices=['unknown', 'habanero', 'firestone', 'garrison', 'firenze', 'p9dsu', 'witherspoon', 'mihawk'])
 
     osgroup = parser.add_argument_group(
         'OS Images', 'OS Images to boot/install')

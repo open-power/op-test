@@ -87,6 +87,9 @@ class OpTestEnergyScale(unittest.TestCase):
         elif BMC_CONST.P9DSU in l_platform:
             l_power_limit_high = BMC_CONST.P9DSU_POWER_LIMIT_HIGH
             l_power_limit_low = BMC_CONST.P9DSU_POWER_LIMIT_LOW
+        elif BMC_CONST.MIHAWK in l_platform:
+            l_power_limit_high = BMC_CONST.MIHAWK_POWER_LIMIT_HIGH
+            l_power_limit_low = BMC_CONST.MIHAWK_POWER_LIMIT_LOW
         else:
             l_msg = "New platform, add power limit support to this platform and retry"
             raise OpTestError(l_msg)
