@@ -67,7 +67,7 @@ class OpSSHThreadLinearVar1(threading.Thread):
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60*torture_time
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_list))
         while True:
             for cmd in cmd_list:
@@ -107,7 +107,7 @@ class OpSSHThreadLinearVar2(threading.Thread):
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_dic, torture_time, ignore_fail):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60*torture_time
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_dic))
         while True:
             for cmd, tm in list(cmd_dic.items()):
@@ -148,7 +148,7 @@ class OpSSHThreadRandom(threading.Thread):
         log.debug("Exiting %s" % self.name)
 
     def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
-        execution_time = time.time() + 60*torture_time,
+        execution_time = time.time() + 60*torture_time
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_list))
         while True:
             cmd = random.choice(cmd_list)
