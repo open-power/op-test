@@ -46,6 +46,7 @@ class OpTestConstants():
     GARRISON = 'garrison'
     P9DSU = "p9dsu"
     WITHERSPOON = "witherspoon"
+    MIHAWK = "mihawk"
 
     # Platform power limits in watts for different platforms taken from MRW xml file
     HABANERO_POWER_LIMIT_LOW = "1000"
@@ -58,6 +59,8 @@ class OpTestConstants():
     P9DSU_POWER_LIMIT_HIGH = "1650"
     WITHERSPOON_POWER_LIMIT_LOW = "1550"
     WITHERSPOON_POWER_LIMIT_HIGH = "3050"
+    MIHAWK_POWER_LIMIT_LOW = "1945"
+    MIHAWK_POWER_LIMIT_HIGH = "2500"
 
     PRIMARY_SIDE = "0x0080"
     GOLDEN_SIDE = "0x0180"
@@ -191,7 +194,7 @@ class OpTestConstants():
     GET_POWER_LIMIT = " dcmi power get_limit "
     DCMI_POWER_DEACTIVATE = "dcmi power deactivate"
     DCMI_POWER_ACTIVATE = "dcmi power activate"
-    OP_CHECK_OCC = "sdr elist |grep 'OCC'"
+    OP_CHECK_OCC = "sdr elist |grep -i 'OCC'"
     OP_CHECK_PROCESSOR = "sensor list|grep -i proc"
     OP_CHECK_CPU = "sensor list|grep -i cpu"
     OP_CHECK_DIMM = "sensor list|grep -i dimm"
