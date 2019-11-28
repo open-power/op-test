@@ -1268,7 +1268,7 @@ class OpTestSystem(object):
                     log.debug("socket.error raise  Exception={}".format(e))
                     raise e
             try:
-                sock.send('Hello World!')
+                sock.send('Hello World!'.encode())
                 log.debug("sock send Hello World")
                 sock.close()
                 log.debug("sock close")
