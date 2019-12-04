@@ -495,6 +495,7 @@ class OpalLidsFLASH(OpTestFlashBase):
         # test runs.
         self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        # FIXME: verify the system is actually off
         self.cv_SYSTEM.sys_sdr_clear()
         if "FSP" in self.bmc_type:
             self.cv_BMC.fsp_get_console()
