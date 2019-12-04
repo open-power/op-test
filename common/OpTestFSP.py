@@ -272,7 +272,16 @@ class OpTestFSP():
         throws exception on error.
         '''
         timeout = time.time() + 60*timeout
+        print("Waiting for the standby state")
         while True:
+            # This check shouldn't be necessary, but I've noticed that on
+            # some FSP systems op-test gets stuck in this wait loop it skipped
+            # the "standby" state and went straigh to "ipling" again. I have
+            # no idea why...
+            if self.is_sys_powered_on():
+                print("Hit runtime while waiting in wait_for_standby(), odd!");
+                self.sys_power_off()
+
             print(self.progress_line())
 
             if self.is_sys_standby():
