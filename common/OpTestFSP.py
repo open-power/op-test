@@ -280,7 +280,7 @@ class OpTestFSP():
             # no idea why...
             if self.is_sys_powered_on():
                 print("Hit runtime while waiting in wait_for_standby(), odd!");
-                self.sys_power_off()
+                self.power_off_sys()
 
             print(self.progress_line())
 
