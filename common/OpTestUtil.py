@@ -799,7 +799,7 @@ class OpTestUtil():
                 break
 
         for key in list(args_dict.keys()):
-            for l in hostlocker_comment[offset:-1]:
+            for l in hostlocker_comment[offset:]:
                 line = l.strip()
                 if line.startswith(key + ":"):
                     value = re.sub(key + ':', "", line).strip()
