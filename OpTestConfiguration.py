@@ -413,6 +413,12 @@ def get_parser():
     hmcgroup.add_argument(
         "--lpar-vios", help="Lpar VIOS to boot before other LPARS", default=None)
 
+    misc_group = parser.add_argument_group("Misc")
+    misc_group.add_argument("--check-ssh-keys", action='store_true', default=False,
+                            help="Check remote host keys when using SSH (auto-yes on new)")
+    misc_group.add_argument("--known-hosts-file",
+                            help="Specify a custom known_hosts file")
+
     return parser
 
 
@@ -479,11 +485,6 @@ class OpTestConfiguration():
 
         parser = get_parser()
         parser.set_defaults(**defaults)
-
-        parser.add_argument("--check-ssh-keys", action='store_true', default=False,
-                            help="Check remote host keys when using SSH (auto-yes on new)")
-        parser.add_argument("--known-hosts-file",
-                            help="Specify a custom known_hosts file")
 
         self.args, self.remaining_args = parser.parse_known_args(
             remaining_args)
