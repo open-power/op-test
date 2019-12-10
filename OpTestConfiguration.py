@@ -480,14 +480,6 @@ class OpTestConfiguration():
         parser = get_parser()
         parser.set_defaults(**defaults)
 
-        if defaults.get('qemu_binary'):
-            qemu_default = defaults['qemu_binary']
-
-        if defaults.get('mambo_binary'):
-            mambo_default = defaults['mambo_binary']
-        if defaults.get('mambo_initial_run_script'):
-            mambo_default = defaults['mambo_initial_run_script']
-
         parser.add_argument("--check-ssh-keys", action='store_true', default=False,
                             help="Check remote host keys when using SSH (auto-yes on new)")
         parser.add_argument("--known-hosts-file",
