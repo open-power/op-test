@@ -43,7 +43,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 class OpTestDlpar(unittest.TestCase):
-  def setUp(self):
+   def setUp(self):
       conf = OpTestConfiguration.conf
       self.cv_SYSTEM = conf.system()
       conf = OpTestConfiguration.conf
@@ -56,40 +56,67 @@ class OpTestDlpar(unittest.TestCase):
       # The following variables needs to be defined in
       # ~/.op-test-framework.conf
       self.cpu_resource = conf.args.cpu_resource
+      self.mem_resource = conf.args.mem_resource
       self.lpar2_name = conf.args.lpar2_name
 
+   def AddRemove(self,res_type,res_option,operation,res_num):
+      log.debug("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                 %(res_type, self.system_name, self.lpar_name))
+      self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                 %(res_type, self.system_name, self.lpar_name))
+      log.debug("chhwres -r %s -m %s -o %s -p %s %s %s"
+                 %(res_type,self.system_name,operation,self.lpar_name,
+                 res_option,res_num))
+      self.cv_HMC.run_command("chhwres -r %s -m %s -o %s -p %s %s %s"
+                 %(res_type,self.system_name,operation,self.lpar_name,
+                 res_option,res_num))
+      log.debug("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                 %(res_type,self.system_name,self.lpar_name))
+      self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                 %(res_type,self.system_name,self.lpar_name))
 
-  def AddRemove(self,resource,operation,num_resource):
-      self.cv_HMC.run_command("lshwres -r "+resource+" -m "+self.system_name+
-                           " --level lpar --filter lpar_names="+self.lpar_name)
-      self.cv_HMC.run_command("chhwres -r "+resource+" -m "+self.system_name+" -o "+operation+" -p "+
-                           self.lpar_name+" --procs %s" % num_resource)
-      self.cv_HMC.run_command("lshwres -r "+resource+" -m " + self.system_name +
-                           " --level lpar --filter lpar_names=" + self.lpar_name)
-
-  def Move(self,resource,num_resource):
-      self.cv_HMC.run_command("lshwres -r "+resource+" -m "+self.system_name+
-                           " --level lpar --filter lpar_names="+self.lpar_name)
-      self.cv_HMC.run_command("lshwres -r "+resource+" -m "+self.system_name+
-                           " --level lpar --filter lpar_names="+self.lpar2_name)
-      self.cv_HMC.run_command("chhwres -r "+resource+" -m "+self.system_name+" -o m -p" +
-                              self.lpar_name+" -t "+self.lpar2_name+" --procs %s"% num_resource)
-      self.cv_HMC.run_command("lshwres -r " + resource + " -m " + self.system_name +
-                              " --level lpar --filter lpar_names=" + self.lpar_name)
-      self.cv_HMC.run_command("lshwres -r " + resource + " -m " + self.system_name +
-                              " --level lpar --filter lpar_names=" + self.lpar2_name)
-
+   def Move(self,res_type,res_option,res_num):
+      log.debug("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     %(res_type,self.system_name,self.lpar_name))
+      self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     %(res_type,self.system_name,self.lpar_name))
+      log.debug("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     %(res_type,self.system_name,self.lpar2_name))
+      self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     %(res_type,self.system_name,self.lpar2_name))
+      log.debug("chhwres -r %s -m %s -o m -p %s -t %s %s %s"
+                     % (res_type,self.system_name,self.lpar_name,self.lpar2_name,res_option,res_num))
+      self.cv_HMC.run_command("chhwres -r %s -m %s -o m -p %s -t %s %s %s"
+                     % (res_type,self.system_name,self.lpar_name,self.lpar2_name,res_option,res_num))
+      log.debug("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     % (res_type,self.system_name,self.lpar_name))
+      self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     % (res_type,self.system_name,self.lpar_name))
+      log.debug("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     % (res_type,self.system_name,self.lpar2_name))
+      self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s"
+                     % (res_type,self.system_name,self.lpar2_name))
 
 class DlparCPUBasic(OpTestDlpar,unittest.TestCase):
-  '''Class for DLPAR CPU Basic Tests
-     This class allows --run testcases.OpTestDlpar.DlparCPUBasic
-  '''
-  def setUp(self):
-      self.my_desired_state = OpSystemState.PETITBOOT_SHELL
+   '''Class for DLPAR CPU Basic Tests
+      This class allows --run testcases.OpTestDlpar.DlparCPUBasic
+   '''
+   def setUp(self):
       super(DlparCPUBasic, self).setUp()
-  def runTest(self):
-      self.AddRemove("proc","a",self.cpu_resource)
-      self.AddRemove("proc","r",self.cpu_resource)
-      self.Move("proc",self.cpu_resource)
+   def runTest(self):
+      self.AddRemove("proc","--procs","a",self.cpu_resource)
+      self.AddRemove("proc","--procs","r",self.cpu_resource)
+      self.Move("proc","--procs",self.cpu_resource)
 
+class DlparMemBasic(OpTestDlpar,unittest.TestCase):
+   '''Class for DLPAR Memory Basic Tests
+      This class allows --run testcases.OpTestDlpar.DlparMemBasic
+   '''
+   def setUp(self):
+      super(DlparMemBasic, self).setUp()
+   def runTest(self):
+      self.AddRemove("mem","-q","a",self.mem_resource)
+      self.AddRemove("mem","-q","r",self.mem_resource)
+      self.Move("mem","-q",self.mem_resource)
 global conf
+
