@@ -51,8 +51,7 @@ import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from testcases.OpTestInbandIPMI import BasicInbandIPMI, OpTestInbandIPMI, ExperimentalInbandIPMI
-from testcases.OpTestInbandIPMI import SkirootBasicInbandIPMI, SkirootFullInbandIPMI
+import testcases.OpTestInbandIPMI as ib
 
 
 def experimental_suite():
@@ -71,7 +70,7 @@ def skiroot_full_suite():
     return unittest.defaultTestLoader.loadTestsFromTestCase(SkirootInbandUSB)
 
 
-class BasicInbandUSB(BasicInbandIPMI):
+class BasicInbandUSB(ib.BasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
         self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
@@ -81,7 +80,7 @@ class BasicInbandUSB(BasicInbandIPMI):
         super(BasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 
-class InbandUSB(OpTestInbandIPMI):
+class InbandUSB(ib.OpTestInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
         self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
@@ -91,7 +90,7 @@ class InbandUSB(OpTestInbandIPMI):
         super(InbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 
-class SkirootBasicInbandUSB(SkirootBasicInbandIPMI):
+class SkirootBasicInbandUSB(ib.SkirootBasicInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
         self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
@@ -101,7 +100,7 @@ class SkirootBasicInbandUSB(SkirootBasicInbandIPMI):
         super(SkirootBasicInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 
-class SkirootInbandUSB(SkirootFullInbandIPMI):
+class SkirootInbandUSB(ib.SkirootFullInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
         self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
@@ -111,7 +110,7 @@ class SkirootInbandUSB(SkirootFullInbandIPMI):
         super(SkirootInbandUSB, self).setUp(ipmi_method=ipmi_method)
 
 
-class ExperimentalInbandUSB(ExperimentalInbandIPMI):
+class ExperimentalInbandUSB(ib.ExperimentalInbandIPMI):
     def setUp(self, ipmi_method=BMC_CONST.IPMITOOL_USB):
         self.bmc_type = OpTestConfiguration.conf.args.bmc_type
         if "FSP" in self.bmc_type:
