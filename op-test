@@ -156,6 +156,18 @@ except Exception as e:
     print("Config error: {}".format(e));
     sys.exit(1)
 
+def print_tests(s):
+    for test in s:
+        if isinstance(test, unittest.TestSuite):
+            print_tests(test)
+        else:
+            test_id = test.id()
+            print('{0:40}'.format(test_id))
+
+if OpTestConfiguration.conf.args.list_all_tests:
+    print_tests(unittest.TestLoader().discover('testcases', '*.py'))
+    exit(0)
+
 # create loggers, take hostlocks, etc
 try:
     OpTestConfiguration.conf.do_testing_setup()
@@ -875,18 +887,9 @@ try:
             t.addTest(suites['default'].suite())
 
     if OpTestConfiguration.conf.args.list_tests:
-        print('{0:40}'.format('Test'))
+        print('{0:40}'.format('Tests'))
         print('{0:40}'.format('----------'))
-
-        def print_suite(s):
-            for test in s:
-                if isinstance(test, unittest.TestSuite):
-                    print_suite(test)
-                else:
-                    test_id = test.id()
-                    print('{0:40}'.format(test_id))
-
-        print_suite(t)
+        print_tests(t)
         OpTestConfiguration.conf.util.cleanup()
         exit(0)
 

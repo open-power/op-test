@@ -162,6 +162,8 @@ def get_parser():
                         help="List available suites to run")
     tgroup.add_argument("--list-tests", action='store_true',
                         help="List each test that would have been run")
+    tgroup.add_argument("--list-all-tests", action='store_true',
+                        help="List all defined tests")
     tgroup.add_argument("--run-suite", action='append',
                         help="Run a test suite(s)")
     tgroup.add_argument("--run", action='append',
