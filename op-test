@@ -112,7 +112,6 @@ import re
 import signal
 import logging
 import OpTestLogger
-import importlib
 # op-test is the parent logger
 optestlog = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 
@@ -836,8 +835,6 @@ try:
             print('{0:34}{1}'.format(key, suites[key].__doc__))
         OpTestConfiguration.conf.util.cleanup()
         exit(0)
-
-    importlib.reload(sys)
 
     t = unittest.TestSuite()
 
