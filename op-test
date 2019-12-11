@@ -148,7 +148,14 @@ signal.signal(signal.SIGSEGV, optest_handler)
 signal.signal(signal.SIGTERM, optest_handler)
 signal.signal(signal.SIGUSR1, optest_handler)
 signal.signal(signal.SIGUSR2, optest_handler)
-args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
+
+# parse config options and create log files, take the host lock, etc.
+try:
+    args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
+except Exception as e:
+    print("Config error: {}".format(e));
+    sys.exit(1)
+
 OpTestConfiguration.conf.objs()
 
 

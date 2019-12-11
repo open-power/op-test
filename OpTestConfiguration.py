@@ -418,6 +418,8 @@ def get_parser():
                             help="Check remote host keys when using SSH (auto-yes on new)")
     misc_group.add_argument("--known-hosts-file",
                             help="Specify a custom known_hosts file")
+    misc_group.add_argument("--accept-unknown-args", default=False, action='store_true',
+                            help="Don't exit if we find unknown command line arguments")
 
     return parser
 
@@ -486,8 +488,14 @@ class OpTestConfiguration():
         parser = get_parser()
         parser.set_defaults(**defaults)
 
-        self.args, self.remaining_args = parser.parse_known_args(
-            remaining_args)
+        # don't parse argv[0]
+        self.args, self.remaining_args = parser.parse_known_args(argv[1:])
+
+        # we use parse_known_args() and generate our own usage because the number
+        # of args makes the default usage string... unwieldy
+        if len(self.remaining_args) > 0 and not self.args.accept_unknown_args:
+            raise Exception("Unknown command line argument(s): {}"
+                                .format(str(self.remaining_args)))
 
         args_dict = vars(self.args)
 
