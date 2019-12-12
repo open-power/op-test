@@ -9,6 +9,7 @@ from common.OpTestFSP import OpTestFSP
 from common.OpTestOpenBMC import OpTestOpenBMC
 from common.OpTestQemu import OpTestQemu
 from common.OpTestMambo import OpTestMambo
+from common.OpTestSystem import OpSystemState
 import common.OpTestSystem
 import common.OpTestHost
 from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
@@ -465,13 +466,10 @@ class OpTestConfiguration():
 
     def parse_args(self, argv=None):
         conf_parser = argparse.ArgumentParser(add_help=False)
+        conf_parser.add_argument("-c", "--config-file", metavar="FILE")
+        config_args, _ = conf_parser.parse_known_args(argv)
+        self.defaults = {}
 
-        # We have two parsers so we have correct --help, we need -c in both
-        conf_parser.add_argument("-c", "--config-file", help="Configuration File",
-                                 metavar="FILE")
-
-        args, remaining_args = conf_parser.parse_known_args(argv)
-        defaults = {}
         config = configparser.SafeConfigParser()
         config.read([os.path.expanduser("~/.op-test-framework.conf")])
         if args.config_file:
@@ -481,12 +479,12 @@ class OpTestConfiguration():
                 raise OSError(errno.ENOENT, os.strerror(
                     errno.ENOENT), args.config_file)
         try:
-            defaults = dict(config.items('op-test'))
+            self.defaults = dict(config.items('op-test'))
         except configparser.NoSectionError:
             pass
 
         parser = get_parser()
-        parser.set_defaults(**defaults)
+        parser.set_defaults(**self.defaults)
 
         # don't parse argv[0]
         self.args, self.remaining_args = parser.parse_known_args(argv[1:])
@@ -511,18 +509,30 @@ class OpTestConfiguration():
             if args_dict.get(key) is None:
                 args_dict[key] = default_val[key]
 
-        stateMap = {'UNKNOWN': common.OpTestSystem.OpSystemState.UNKNOWN,
-                    'UNKNOWN_BAD': common.OpTestSystem.OpSystemState.UNKNOWN_BAD,
-                    'OFF': common.OpTestSystem.OpSystemState.OFF,
-                    'PETITBOOT': common.OpTestSystem.OpSystemState.PETITBOOT,
-                    'PETITBOOT_SHELL': common.OpTestSystem.OpSystemState.PETITBOOT_SHELL,
-                    'OS': common.OpTestSystem.OpSystemState.OS
-                    }
 
         # Some quick sanity checking
         if self.args.known_hosts_file and not self.args.check_ssh_keys:
             parser.error("--known-hosts-file requires --check-ssh-keys")
 
+        # FIXME: Passing machine_state doesn't work at all with qemu or mambo
+        if self.args.machine_state == None:
+            if self.args.bmc_type in ['qemu', 'mambo']:
+                # Force UNKNOWN_BAD so that we don't try to setup the console early
+                self.startState = OpSystemState.UNKNOWN_BAD
+            else:
+                self.startState = OpSystemState.UNKNOWN
+        else:
+            stateMap = {'UNKNOWN':          OpSystemState.UNKNOWN,
+                        'UNKNOWN_BAD':      OpSystemState.UNKNOWN_BAD,
+                        'OFF':              OpSystemState.OFF,
+                        'PETITBOOT':        OpSystemState.PETITBOOT,
+                        'PETITBOOT_SHELL':  OpSystemState.PETITBOOT_SHELL,
+                        'OS':               OpSystemState.OS
+            }
+            self.startState = stateMap[self.args.machine_state]
+        return self.args, self.remaining_args
+
+    def do_testing_setup(self):
         # Setup some defaults for the output options
         # Order of precedence
         # 1. cmdline arg
@@ -603,7 +613,7 @@ class OpTestConfiguration():
         self.atexit_ready = True
         # now that we have loggers, dump conf file to help debug later
         OpTestLogger.optest_logger_glob.optest_logger.debug(
-            "conf file defaults={}".format(defaults))
+            "conf file defaults={}".format(self.defaults))
         cmd = "git describe --always"
         try:
             git_output = subprocess.check_output(cmd.split())
@@ -661,16 +671,6 @@ class OpTestConfiguration():
                         " every minute"
                         .format(self.args.locker_wait))
                     time.sleep(60)
-
-        if self.args.machine_state == None:
-            if self.args.bmc_type in ['qemu', 'mambo']:
-                # Force UNKNOWN_BAD so that we don't try to setup the console early
-                self.startState = common.OpTestSystem.OpSystemState.UNKNOWN_BAD
-            else:
-                self.startState = common.OpTestSystem.OpSystemState.UNKNOWN
-        else:
-            self.startState = stateMap[self.args.machine_state]
-        return self.args, self.remaining_args
 
     def get_suffix(self):
         # Grab the suffix, if not given use current time

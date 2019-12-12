@@ -156,8 +156,19 @@ except Exception as e:
     print("Config error: {}".format(e));
     sys.exit(1)
 
-OpTestConfiguration.conf.objs()
+# create loggers, take hostlocks, etc
+try:
+    OpTestConfiguration.conf.do_testing_setup()
+except Exception as e:
+    print()
+    print("Test setup error! {}".format(e));
+    print()
+    print(traceback.format_exc())
+    print()
+    OpTestConfiguration.conf.util.cleanup()
+    sys.exit(1)
 
+OpTestConfiguration.conf.objs()
 
 class SystemAccessSuite():
     '''
