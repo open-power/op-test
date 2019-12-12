@@ -408,6 +408,10 @@ class OpTestSystem(object):
                 self.util.check_nvram_options(self.console)
 
     def run_DETECT(self, target_state):
+        if not self.sys_power_is_on():
+            log.info("Detected powered off system")
+            return OpSystemState.OFF
+
         self.detect_counter += 1
         detect_state = OpSystemState.UNKNOWN
         if self.detect_counter >= 3:
@@ -915,6 +919,9 @@ class OpTestSystem(object):
         except OpTestError as e:
             return BMC_CONST.FW_FAILED
         return rc
+
+    def sys_power_is_on(self):
+        return self.cv_IPMI.ipmi_power_status()
 
     ##
     # @brief Power off the system
