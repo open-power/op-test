@@ -464,24 +464,37 @@ class OpTestConfiguration():
             # attribute errors thrown in cleanup, e.g. ./op-test -h
             self.util.cleanup()
 
+
+    def parse_config_file(self, filename, optional=False):
+        config = configparser.ConfigParser()
+
+        if not os.access(filename, os.R_OK):
+            if optional:
+                return {}
+            raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
+
+        config.read(filename)
+
+        if config.has_section('op-test'):
+            d = dict(config.items('op-test'))
+        else:
+            msg = "{} is missing an an [op-test] section header".format(filename)
+            raise configparser.NoSectionError(msg)
+
+        return dict(config.items('op-test'))
+
     def parse_args(self, argv=None):
         conf_parser = argparse.ArgumentParser(add_help=False)
         conf_parser.add_argument("-c", "--config-file", metavar="FILE")
         config_args, _ = conf_parser.parse_known_args(argv)
-        self.defaults = {}
 
-        config = configparser.SafeConfigParser()
-        config.read([os.path.expanduser("~/.op-test-framework.conf")])
-        if args.config_file:
-            if os.access(args.config_file, os.R_OK):
-                config.read([args.config_file])
-            else:
-                raise OSError(errno.ENOENT, os.strerror(
-                    errno.ENOENT), args.config_file)
-        try:
-            self.defaults = dict(config.items('op-test'))
-        except configparser.NoSectionError:
-            pass
+        userfile = os.path.expanduser("~/.op-test-framework.conf")
+        self.defaults = self.parse_config_file(userfile, True)
+
+        # parse specified config file
+        if config_args.config_file:
+            cfg = self.parse_config_file(config_args.config_file)
+            self.defaults.update(cfg)
 
         parser = get_parser()
         parser.set_defaults(**self.defaults)
