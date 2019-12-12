@@ -561,7 +561,7 @@ class OpTestConfiguration():
         self.outsuffix = self.get_suffix()
 
         # set up where all the logs go
-        logfile = os.path.join(self.output, "%s.log" % self.outsuffix)
+        logfile = os.path.join(self.output, "host-console.log")
 
         logcmd = "tee %s" % (logfile)
         # we use 'cat -v' to convert control characters
@@ -577,10 +577,9 @@ class OpTestConfiguration():
             OpTestLogger.optest_logger_glob.sh_level = logging.INFO
             OpTestLogger.optest_logger_glob.sh.setLevel(logging.INFO)
 
-        OpTestLogger.optest_logger_glob.setUpLoggerFile(
-            datetime.utcnow().strftime("%Y%m%d%H%M%S%f")+'.main.log')
-        OpTestLogger.optest_logger_glob.setUpLoggerDebugFile(
-            datetime.utcnow().strftime("%Y%m%d%H%M%S%f")+'.debug.log')
+        OpTestLogger.optest_logger_glob.setUpLoggerFile('main.log')
+        OpTestLogger.optest_logger_glob.setUpLoggerDebugFile('debug.log')
+
         OpTestLogger.optest_logger_glob.optest_logger.info(
             'TestCase Log files: {}/*'.format(self.output))
         OpTestLogger.optest_logger_glob.optest_logger.info(
