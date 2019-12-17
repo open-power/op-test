@@ -112,7 +112,6 @@ import re
 import signal
 import logging
 import OpTestLogger
-import importlib
 # op-test is the parent logger
 optestlog = logging.getLogger(OpTestLogger.optest_logger_glob.parent_logger)
 
@@ -149,9 +148,39 @@ signal.signal(signal.SIGSEGV, optest_handler)
 signal.signal(signal.SIGTERM, optest_handler)
 signal.signal(signal.SIGUSR1, optest_handler)
 signal.signal(signal.SIGUSR2, optest_handler)
-args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
-OpTestConfiguration.conf.objs()
 
+# parse config options and create log files, take the host lock, etc.
+try:
+    args, remaining_args = OpTestConfiguration.conf.parse_args(sys.argv)
+except Exception as e:
+    print("Config error: {}".format(e));
+    sys.exit(1)
+
+def print_tests(s):
+    for test in s:
+        if isinstance(test, unittest.TestSuite):
+            print_tests(test)
+        else:
+            test_id = test.id()
+            print('{0:40}'.format(test_id))
+
+if OpTestConfiguration.conf.args.list_all_tests:
+    print_tests(unittest.TestLoader().discover('testcases', '*.py'))
+    exit(0)
+
+# create loggers, take hostlocks, etc
+try:
+    OpTestConfiguration.conf.do_testing_setup()
+except Exception as e:
+    print()
+    print("Test setup error! {}".format(e));
+    print()
+    print(traceback.format_exc())
+    print()
+    OpTestConfiguration.conf.util.cleanup()
+    sys.exit(1)
+
+OpTestConfiguration.conf.objs()
 
 class SystemAccessSuite():
     '''
@@ -837,8 +866,6 @@ try:
         OpTestConfiguration.conf.util.cleanup()
         exit(0)
 
-    importlib.reload(sys)
-
     t = unittest.TestSuite()
 
     if OpTestConfiguration.conf.args.run_suite:
@@ -860,18 +887,9 @@ try:
             t.addTest(suites['default'].suite())
 
     if OpTestConfiguration.conf.args.list_tests:
-        print('{0:40}'.format('Test'))
+        print('{0:40}'.format('Tests'))
         print('{0:40}'.format('----------'))
-
-        def print_suite(s):
-            for test in s:
-                if isinstance(test, unittest.TestSuite):
-                    print_suite(test)
-                else:
-                    test_id = test.id()
-                    print('{0:40}'.format(test_id))
-
-        print_suite(t)
+        print_tests(t)
         OpTestConfiguration.conf.util.cleanup()
         exit(0)
 
