@@ -100,7 +100,7 @@ class HMCUtil():
                  logfile=sys.stdout, managed_system=None, lpar_name=None, prompt=None,
                  block_setup_term=None, delaybeforesend=None, timeout_factor=None,
                  lpar_prof=None, lpar_vios=None, lpar_user=None, lpar_password=None,
-                 check_ssh_keys=False, known_hosts_file=None):
+                 lpar_prof_edit_params=None, check_ssh_keys=False, known_hosts_file=None):
         self.hmc_ip = hmc_ip
         self.user = user_name
         self.passwd = password
@@ -110,6 +110,7 @@ class HMCUtil():
         self.known_hosts_file = known_hosts_file
         self.lpar_name = lpar_name
         self.lpar_prof = lpar_prof
+        self.lpar_prof_edit_params = lpar_prof_edit_params
         self.lpar_user = lpar_user
         self.lpar_password = lpar_password
         self.lpar_vios = lpar_vios
@@ -203,6 +204,27 @@ class HMCUtil():
                          (self.mg_system, self.lpar_name))
         self.wait_lpar_state()
 
+    def edit_lpar_profile(self):
+        if not self.lpar_prof_edit_params:
+            return
+        details = self.list_lpar_profile_prop()
+        log.info("\nBefore Edit:\n%s" % details)
+        self.ssh.run_command("chsyscfg -r prof -m %s -i \"lpar_name=%s,name=%s,%s\"" %
+                         (self.mg_system, self.lpar_name, self.lpar_prof, self.lpar_prof_edit_params))
+        details = self.list_lpar_profile_prop()
+        log.info("\nAfter Edit:\n%s" % details)
+
+    def list_lpar_profile_prop(self):
+        if not self.lpar_prof_edit_params:
+            return ""
+        properties = ",".join(dict(item.split("=") for item in self.lpar_prof_edit_params.split(',')).keys())
+        state = self.ssh.run_command("lssyscfg -r prof -m %s --filter \"lpar_names=%s,profile_names=%s\" -F %s" %
+                         (self.mg_system, self.lpar_name, self.lpar_prof, properties))
+        return_string = []
+        for prop, value in zip(properties.split(','), state[-1].split(',')):
+            return_string.append("%s = %s" % (prop, value))
+        return "\n".join(return_string)
+
     def get_lpar_state(self, vios=False):
         lpar_name = self.lpar_name
         if vios:
@@ -256,12 +278,12 @@ class OpTestHMC(HMCUtil):
                  logfile=sys.stdout, managed_system=None, lpar_name=None, prompt=None,
                  block_setup_term=None, delaybeforesend=None, timeout_factor=None,
                  lpar_prof=None, lpar_vios=None, lpar_user=None, lpar_password=None,
-                 check_ssh_keys=False, known_hosts_file=None):
+                 lpar_prof_edit_params=None, check_ssh_keys=False, known_hosts_file=None):
         super(OpTestHMC, self).__init__(hmc_ip, user_name, password, scratch_disk,
                                         proxy, logfile, managed_system, lpar_name, prompt,
                                         block_setup_term, delaybeforesend, timeout_factor,
                                         lpar_prof, lpar_vios, lpar_user, lpar_password,
-                                        check_ssh_keys, known_hosts_file)
+                                        lpar_prof_edit_params, check_ssh_keys, known_hosts_file)
 
         self.console = HMCConsole(hmc_ip, user_name, password, managed_system, lpar_name,
                                   lpar_vios, lpar_prof, lpar_user, lpar_password)

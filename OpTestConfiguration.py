@@ -415,6 +415,8 @@ def get_parser():
         "--lpar-prof", help="Lpar profile provided in HMC", default=None)
     hmcgroup.add_argument(
         "--lpar-vios", help="Lpar VIOS to boot before other LPARS", default=None)
+    hmcgroup.add_argument(
+        "--lpar-prof-edit-params", help="Lpar profile edit parameters, as obtained from help of HMC command 'chsyscfg'. Format: key1=value1,key2=value2. Example1: proc_mode=ded,sharing_mode=share_idle_procs. Example2: proc_mode=shared,sharing_mode=cap,min_proc_units=1,max_proc_units=1,desired_proc_units=1", default=None)
 
     misc_group = parser.add_argument_group("Misc")
     misc_group.add_argument("--check-ssh-keys", action='store_true', default=False,
@@ -816,6 +818,7 @@ class OpTestConfiguration():
                                     lpar_name=self.args.lpar_name,
                                     lpar_vios=self.args.lpar_vios,
                                     lpar_prof=self.args.lpar_prof,
+                                    lpar_prof_edit_params=self.args.lpar_prof_edit_params,
                                     lpar_user=self.args.host_user,
                                     lpar_password=self.args.host_password,
                                     logfile=self.logfile
