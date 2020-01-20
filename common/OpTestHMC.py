@@ -239,7 +239,7 @@ class HMCUtil():
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
-        return self.ssh.run_command_ignore_fail(self, command, timeout*self.timeout_factor, retry)
+        return self.ssh.run_command_ignore_fail(command, timeout*self.timeout_factor, retry)
 
     def run_command(self, i_cmd, timeout=15):
         return self.ssh.run_command(i_cmd, timeout)
@@ -254,7 +254,7 @@ class OpTestHMC(HMCUtil):
 
     def __init__(self, hmc_ip, user_name, password, scratch_disk="", proxy="",
                  logfile=sys.stdout, managed_system=None, lpar_name=None, prompt=None,
-                 block_setup_term=None, delaybeforesend=None, timeout_factor=None,
+                 block_setup_term=None, delaybeforesend=None, timeout_factor=1,
                  lpar_prof=None, lpar_vios=None, lpar_user=None, lpar_password=None,
                  check_ssh_keys=False, known_hosts_file=None):
         super(OpTestHMC, self).__init__(hmc_ip, user_name, password, scratch_disk,
