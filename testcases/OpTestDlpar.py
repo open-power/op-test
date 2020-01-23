@@ -173,7 +173,7 @@ class DlparMemBasic(OpTestDlpar,unittest.TestCase):
       self.AddRemove("mem","-q","r",self.mem_resource)
       self.Move("mem","-q",self.mem_resource)
 class DlparCPUExtended(OpTestDlpar,unittest.TestCase):
-   '''Class for DLPAR CPU Basic Tests
+   '''Class for DLPAR CPU Extended Tests
       This class allows --run testcases.OpTestDlpar.DlparCPUExtended
    '''
    def setUp(self):
@@ -241,6 +241,80 @@ class DlparCPUExtended(OpTestDlpar,unittest.TestCase):
       if(path.exists(smt_script) != 1):
           log.debug("Deleting smt script")
           self.console.run_command("rm ./smt_script")
+
+class DlparMemExtended(OpTestDlpar, unittest.TestCase):
+    '''Class for DLPAR Mem Extended Tests
+       This class allows --run testcases.OpTestDlpar.DlparMemExtended
+    '''
+
+    def setUp(self):
+        super(DlparMemExtended, self).setUp()
+
+    def runTest(self):
+        if (path.exists("smt_script") != 1):
+            self.console.run_command(
+                'echo -e "ppc64_cpu --smt=off\nsleep 10s\nppc64_cpu --smt=on\nfor i in `seq 1 5000`;\ndo\nppc64_cpu --smt\nppc64_cpu --smt=2\nsleep 10s\nppc64_cpu --smt\nppc64_cpu --smt=3\nsleep 10s \nppc64_cpu --smt\nppc64_cpu --smt=4\nsleep 10s \nppc64_cpu --smt\ndone\" > smt_script')
+            self.console.run_command("chmod +x ./smt_script")
+        log.debug("Mem_LOOP_IDLE Executing..")
+        log.debug("#########################")
+        self.extended['loop'] = 1
+        log.debug("Mem add in a loop")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "a", self.mem_resource)
+        log.debug("Mem remove in a loop")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "r", self.mem_resource)
+        log.debug("Mem move in a loop")
+        log.debug("=================")
+        self.Move("mem", "-q", self.mem_resource)
+        log.debug("Mem_LOOP_IDLE Complete")
+        log.debug("Mem_SMT Executing..")
+        log.debug("#########################")
+        self.extended['loop'] = 0
+        self.extended['smt'] = 1
+        log.debug("Mem add and SMT")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "a", self.mem_resource)
+        log.debug("Mem remove and SMT")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "r", self.mem_resource)
+        log.debug("Mem move and SMT")
+        log.debug("=================")
+        self.Move("mem", "-q", self.mem_resource)
+        log.debug("Mem_SMT Complete")
+        log.debug("Mem_WKLD Executing..")
+        log.debug("#########################")
+        self.extended['smt'] = 0
+        self.extended['wkld'] = 1
+        log.debug("Mem add and WKLD")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "a", self.mem_resource)
+        log.debug("Mem remove and WKLD")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "r", self.mem_resource)
+        log.debug("Mem move and WKLD")
+        log.debug("=================")
+        self.Move("mem", "-q", self.mem_resource)
+        log.debug("Mem_WKLD Complete")
+        log.debug("Mem_WKLD Complete..")
+        log.debug("Mem_WKLD_LOOP Executing..")
+        log.debug("#########################")
+        self.extended['wkld'] = 1
+        self.extended['loop'] = 1
+        log.debug("Mem add loop and WKLD")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "a", self.mem_resource)
+        log.debug("Mem remove loop and WKLD")
+        log.debug("=================")
+        self.AddRemove("mem", "-q", "r", self.mem_resource)
+        log.debug("Mem move loop and WKLD")
+        log.debug("=================")
+        self.Move("mem", "-q", self.mem_resource)
+        log.debug("Mem_WKLD_LOOP Complete")
+        if (path.exists(smt_script) != 1):
+            log.debug("Deleting smt script")
+            self.console.run_command("rm ./smt_script")
+
 def tearDown(self):
     self.console_thread.console_terminate()
 #reboot machine & delete script smt_script
