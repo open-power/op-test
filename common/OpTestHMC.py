@@ -208,8 +208,15 @@ class HMCUtil():
         if vios:
             lpar_name = self.lpar_vios
         state = self.ssh.run_command(
-            'lssyscfg -m %s -r lpar --filter lpar_names=%s -F state' % (self.mg_system, lpar_name))
-        return state[-1]
+            'lssyscfg -m %s -r lpar --filter lpar_names=%s -F state' % (self.mg_system, lpar_name))[-1]
+        ref_code = self.ssh.run_command(
+            'lsrefcode -m %s -r lpar --filter lpar_names=%s -F refcode' % (self.mg_system, lpar_name))[-1]
+        if state == 'Running':
+            if 'Linux' in ref_code or not ref_code:
+                return 'Running'
+            else:
+                return 'Booting'
+        return state
 
     def get_system_state(self):
         state = self.ssh.run_command(
