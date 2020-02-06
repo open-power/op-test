@@ -750,7 +750,7 @@ class OpTestHost():
             if proc_gen in ["POWER8", "POWER8E"]:
                 core_id = hex((int("0x%s" % pir, 16) >> 3) & 0xf)
                 chip_id = hex((int("0x%s" % pir, 16) >> 7) & 0x3f)
-            elif proc_gen in ["POWER9"]:
+            elif proc_gen in ["POWER9", "POWER9P"]:
                 core_id = hex((int("0x%s" % pir, 16) >> 2) & 0x3f)
                 chip_id = hex((int("0x%s" % pir, 16) >> 8) & 0x7f)
             else:
@@ -793,7 +793,7 @@ class OpTestHost():
         self.cpu = self.host_get_proc_gen(console=console)
         if self.cpu in ["POWER8", "POWER8E"]:
             return 8
-        elif self.cpu in ["POWER9"]:
+        elif self.cpu in ["POWER9", "POWER9P"]:
             return 4
         else:
             return 1

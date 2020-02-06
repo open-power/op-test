@@ -88,7 +88,7 @@ class EPOWBase(unittest.TestCase):
         if self.proc_gen in ["POWER8", "POWER8E"]:
             file = '/opt/fips/components/engd/power_management_tul_%s.def' % (
                 var)
-        elif self.proc_gen in ["POWER9"]:
+        elif self.proc_gen in ["POWER9", "POWER9P"]:
             file = '/opt/fips/components/engd/power_management_zz_%s.def' % (
                 var)
 
