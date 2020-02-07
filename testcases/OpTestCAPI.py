@@ -336,7 +336,7 @@ class CxlResetTest(OpTestCAPI, unittest.TestCase):
             self.cv_HOST.host_build_cxl_tests(l_dir)
 
         # Run memcpy afu reset tests
-        l_exec = "cxl_eeh_tests.sh"
+        l_exec = "cxl_eeh_tests.sh -l10"
         cmd = "cd %s && LD_LIBRARY_PATH=libcxl ./%s" % (l_dir, l_exec)
         log.debug(cmd)
         try:
