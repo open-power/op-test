@@ -1280,9 +1280,9 @@ class OpTestUtil():
             if rc == 0:
                 pty.sendline(my_pwd)
                 time.sleep(0.5)
-                rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$",
+                rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~ #",
                                  'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-                if rc not in [1, 2, 3]:
+                if rc not in [1, 2, 3, 4]:
                     if term_obj.setup_term_quiet == 0:
                         log.warning("OpTestSystem Problem with the login and/or password prompt,"
                                     " raised Exception ConsoleSettings but continuing")
@@ -1314,9 +1314,9 @@ class OpTestUtil():
                 if rc == 0:
                     pty.sendline(my_pwd)
                     time.sleep(0.5)
-                    rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$",
+                    rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~ #",
                                      'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-                    if rc not in [1, 2, 3]:
+                    if rc not in [1, 2, 3, 4]:
                         if term_obj.setup_term_quiet == 0:
                             log.warning("OpTestSystem Problem with the login and/or password prompt,"
                                         " raised Exception ConsoleSettings but continuing")
@@ -1453,7 +1453,7 @@ class OpTestUtil():
         if system_obj.state == 3:  # OpSystemState.PETITBOOT
             return
 
-        rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~>",
+        rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~>", "~ #",
                          'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
@@ -1461,7 +1461,7 @@ class OpTestUtil():
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
             return
-        if rc in [1, 2, 3, 4]:
+        if rc in [1, 2, 3, 4, 5]:
             track_obj.PS1_set = self.set_PS1(
                 term_obj, pty, self.build_prompt(system_obj.prompt))
             # ssh port 22 can get in which uses sshpass or Petitboot, do this after set_PS1 to make sure we have something
@@ -1469,9 +1469,9 @@ class OpTestUtil():
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
             return
-        if rc == 5:
+        if rc == 6:
             return  # Petitboot so nothing to do
-        if rc == 7:  # EOF
+        if rc == 8:  # EOF
             term_obj.close()  # mark as bad
             raise ConsoleSettings(before=pty.before, after=pty.after,
                                   msg="Getting login and sudo not successful, probably connection or credential issue, retry")
@@ -1484,20 +1484,20 @@ class OpTestUtil():
         # Ctrl-L may cause a esc[J (erase) character to appear in the buffer.
         # Include this in the patterns that expect $ (end of line)
         rc = pty.expect(['login: (\x1b\[J)*$', ".*#(\x1b\[J)*$", ".*# (\x1b\[J)*$", ".*\$(\x1b\[J)*",
-                         "~>(\x1b\[J)", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                         "~>(\x1b\[J)", "~ #(\x1b\[J)", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
             return
-        if rc in [1, 2, 3, 4]:
+        if rc in [1, 2, 3, 4, 5]:
             track_obj.LOGIN_set = track_obj.PS1_set = self.set_PS1(
                 term_obj, pty, self.build_prompt(system_obj.prompt))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
             return
-        if rc == 5:
+        if rc == 6:
             return  # Petitboot do nothing
         else:
             if term_obj.setup_term_quiet == 0:
