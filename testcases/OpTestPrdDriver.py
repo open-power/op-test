@@ -209,9 +209,9 @@ class OpTestPrdDriver(unittest.TestCase):
         3. call test_prd_for_fir() function for each core FIR error and this function
            can be used for any number of errors, like it is a generic function
         '''
-        if "FSP" in self.bmc_type:
-            self.skipTest("OpenPower specific")
-        # In P9 FSP systems we need to enable this test
+        if not self.cv_HOST.host_prd_supported(self.bmc_type):
+            self.skipTest("opal-prd NOT supported on this system, bmc_type={}".format(self.bmc_type))
+
         self.prd_init()
         # need console in case of crash or lockups
         l_con = self.cv_SYSTEM.console
