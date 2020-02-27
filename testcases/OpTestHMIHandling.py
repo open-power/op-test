@@ -79,16 +79,20 @@ class OpTestHMIHandling(unittest.TestCase):
         self.cv_HOST.host_enable_all_cores(console=1)
         self.cpu = ''.join(self.cv_HOST.host_run_command(
             "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'", console=1))
-        if self.cpu in ["POWER9"]:
-            self.revision = ''.join(self.cv_HOST.host_run_command(
-                "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
-            if not self.revision in ["2.0", "2.1", "2.2", "2.3"]:
-                log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
-                          .format(self.cpu, self.revision))
-                raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
-                                        .format(self.cpu, self.revision))
+        self.revision = ''.join(self.cv_HOST.host_run_command(
+            "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
+        supported = True
+        if self.cpu in ["POWER9"] and not self.revision in ["2.0", "2.1", "2.2", "2.3"]:
+            supported = False
+        if self.cpu in ["POWER9P"] and not self.revision in ["1.0"]:
+            supported = False
+        if not supported:
+            log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
+                      .format(self.cpu, self.revision))
+            raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
+                                    .format(self.cpu, self.revision))
 
-            log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(
+        log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(
                 self.cpu, self.revision))
 
     def clear_stop(self):
@@ -225,7 +229,7 @@ class OpTestHMIHandling(unittest.TestCase):
     def form_scom_addr(self, addr, core):
         if self.proc_gen in ["POWER8", "POWER8E"]:
             val = addr[0]+str(core)+addr[2:]
-        elif self.proc_gen in ["POWER9"]:
+        elif self.proc_gen in ["POWER9", "POWER9P"]:
             val = hex(eval("0x%s | (((%s & 0x1f) + 0x20) << 24)" %
                            (addr, int(core, 16))))
             log.debug(val)
@@ -415,7 +419,7 @@ class OpTestHMIHandling(unittest.TestCase):
         and also this function injecting error on all the cpus one by one and
         verify whether cpu is recovered or not.
         '''
-        if self.proc_gen in ["POWER9"]:
+        if self.proc_gen in ["POWER9", "POWER9P"]:
             scom_addr = "20010A40"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
             scom_addr = "10013100"
@@ -507,7 +511,7 @@ class OpTestHMIHandling(unittest.TestCase):
         A processor core in the system has to be checkstopped (failed recovery).
         Injecting core checkstop on random core of random chip
         '''
-        if self.proc_gen in ["POWER9"]:
+        if self.proc_gen in ["POWER9", "POWER9P"]:
             scom_addr = "20010A40"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
             scom_addr = "10013100"
@@ -542,7 +546,7 @@ class OpTestHMIHandling(unittest.TestCase):
         This function is used to test HMI: Hypervisor resource error
         Injecting Hypervisor resource error on random core of random chip
         '''
-        if self.proc_gen in ["POWER9"]:
+        if self.proc_gen in ["POWER9", "POWER9P"]:
             scom_addr = "20010A40"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
             scom_addr = "10013100"
@@ -583,7 +587,7 @@ class OpTestHMIHandling(unittest.TestCase):
         - BMC_CONST.TFMR_PURR_PARITY_ERROR
         - BMC_CONST.TFMR_SPURR_PARITY_ERROR
         '''
-        if self.proc_gen in ["POWER9"]:
+        if self.proc_gen in ["POWER9", "POWER9P"]:
             scom_addr = "20010A84"
         elif self.proc_gen in ["POWER8", "POWER8E"]:
             scom_addr = "10013281"

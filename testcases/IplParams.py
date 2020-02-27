@@ -178,7 +178,7 @@ class IplParams():
 
         self.cpu = ''.join(self.c.run_command(
             "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
-        if self.cpu in ["POWER9"]:
+        if self.cpu in ["POWER9", "POWER9P"]:
             self.revision = ''.join(self.c.run_command(
                 "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'"))
             log.debug("self.cpu={} self.revision={}".format(self.cpu, self.revision))

@@ -58,11 +58,11 @@ class SbePassThrough(unittest.TestCase):
         self.cpu = ''.join(self.c.run_command(
             "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
 
-        if self.cpu not in ["POWER9"]:
+        if self.cpu not in ["POWER9", "POWER9P"]:
             self.skipTest(
                 "SBE passthrough test not supported on %s" % self.cpu)
 
-        if self.cpu == "POWER9":
+        if self.cpu in ["POWER9", "POWER9P"]:
             self.DOORBELL_REG = "D0063"
         self.os_level = self.cv_HOST.host_get_OS_Level()
         self.chips = self.cv_HOST.host_get_list_of_chips()

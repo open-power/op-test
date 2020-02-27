@@ -219,7 +219,7 @@ class OpTestPrdDriver(unittest.TestCase):
         cpu = self.cv_HOST.host_get_proc_gen(console=1)
         faults_to_inject = []
 
-        if cpu not in ["POWER8", "POWER8E", "POWER9"]:
+        if cpu not in ["POWER8", "POWER8E", "POWER9", "POWER9P"]:
             self.skipTest("Unknown CPU type %s" % cpu)
 
         if cpu in ["POWER8", "POWER8E"]:
@@ -249,7 +249,7 @@ class OpTestPrdDriver(unittest.TestCase):
                               PBA_FAULT_ISOLATION_MASK_REGISTER,
                               PBAFIR_PB_RDADRERR_FW),
             ]
-        if cpu in ["POWER9"]:
+        if cpu in ["POWER9", "POWER9P"]:
             # TP.TPCHIP.PIB.PCBMS.COMP.INTR_COMP.HOST_MASK_REG
             self.IPOLL_MASK_REGISTER = "0xF0033"
             self.IPOLL_MASK_REGISTER_CONTENT = "a400000000000000"
