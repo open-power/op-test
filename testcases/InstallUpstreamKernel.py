@@ -152,7 +152,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             if self.conf.args.host_cmd:
                 con.run_command(self.conf.args.host_cmd,
                                 timeout=self.host_cmd_timeout)
-            self.cv_HOST.host_gather_opal_msg_log()
+            self.cv_HOST.host_gather_fw_logs()
             self.cv_HOST.host_gather_kernel_log()
         finally:
             if self.console_thread.isAlive():
