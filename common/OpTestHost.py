@@ -223,6 +223,37 @@ class OpTestHost():
         with open(fn, 'w') as f:
             f.write(l_data)
 
+    def host_gather_uv_msg_log(self, console=0):
+        '''
+        Gather Ultravisor logs(from the host) and store in a file
+        '''
+        uv_enabled_cmd = '[ -d /sys/firmware/devicetree/base/ibm,ultravisor ] && echo "enabled"'
+        if "enabled" in self.host_run_command(uv_enabled_cmd, console=console):
+            try:
+                l_data = '\n'.join(self.host_run_command(
+                    BMC_CONST.ULTRAVISOR_MSG_LOG, console=console))
+            except OpTestError:
+                l_msg = "Failed to gather ULTRAVISOR message logs"
+                raise OpTestError(l_msg)
+
+            if not self.results_dir:
+                log.debug(l_data)
+                return
+
+            l_res = (time.asctime(time.localtime())).replace(" ", "_")
+            l_logFile = "Ultravisor_msglog_%s.log" % l_res
+            fn = os.path.join(self.results_dir, l_logFile)
+            log.debug(fn)
+            with open(fn, 'w') as f:
+                f.write(l_data)
+
+    def host_gather_fw_logs(self, console=0):
+        '''
+        Wrapper function to gather all firmware related logs
+        '''
+        self.host_gather_opal_msg_log(console)
+        self.host_gather_uv_msg_log(console)
+
     def host_check_command(self, *i_cmd, **kwargs):
         '''
         Check if one or more binaries are present on host
@@ -984,6 +1015,12 @@ class OpTestLPAR(OpTestHost):
                                          known_hosts_file, conf)
 
     def host_gather_opal_msg_log(self, *args):
+        pass
+
+    def host_gather_uv_msg_log(self, *args):
+        pass
+
+    def host_gather_fw_logs(self, *args):
         pass
 
     def host_pflash_get_partition(self, *args):

@@ -110,6 +110,7 @@ class OpTestConstants():
     CLEAR_GARD_CMD = '/gard clear all'
     LIST_GARD_CMD = '/gard list'
     OPAL_MSG_LOG = "cat /sys/firmware/opal/msglog"
+    ULTRAVISOR_MSG_LOG = "cat /sys/firmware/ultravisor/msglog"
     PROC_CMDLINE = "cat /proc/cmdline"
     OPAL_DUMP_NODE = "/proc/device-tree/ibm,opal/dump/"
     NVRAM_PRINT_CFG = "nvram --print-config"
