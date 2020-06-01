@@ -74,6 +74,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             if urlparse(path).scheme in valid_schemes:
                 return True
             return False
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.console_thread.start()
         try:
