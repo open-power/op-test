@@ -480,7 +480,7 @@ class HostManagement():
                 message="HTTP problem getting CurrentBMCState {}".format(problem))
         return r.json().get('data')
 
-    def wait_bmc(self, key=None, value_target=None, token=None, minutes=10):
+    def wait_bmc(self, key=None, value_target=None, token=None, minutes=15):
         '''
         Wait on BMC
         Given a token, target, key wait for a match
