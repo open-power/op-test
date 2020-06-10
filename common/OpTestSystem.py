@@ -1523,7 +1523,9 @@ class OpTestOpenBMCSystem(OpTestSystem):
         self.rest.list_sel()
 
     def sys_wait_for_standby_state(self, i_timeout=120):
-        self.rest.wait_for_standby()
+        # wait_for_standby() takes timeout in minutes.
+        # In Python3 this will be always a float, but looks like we're alright
+        self.rest.wait_for_standby(timeout=i_timeout/60)
         return 0
 
     def wait_for_it(self, **kwargs):

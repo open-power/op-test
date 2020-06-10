@@ -144,18 +144,9 @@ class HostManagement():
         PUT
         https://bmcip/xyz/openbmc_project/state/chassis0/attr/RequestedPowerTransition
         "data": "xyz.openbmc_project.State.Chassis.Transition.Off"
-
-        PUT
-        https://bmcip/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
-        "data": "xyz.openbmc_project.State.Chassis.Transition.Off"
         '''
         uri = "/xyz/openbmc_project/state/chassis0/attr/RequestedPowerTransition"
         payload = {"data": "xyz.openbmc_project.State.Chassis.Transition.Off"}
-        r = self.conf.util_bmc_server.put(
-            uri=uri, json=payload, minutes=minutes)
-
-        uri = "/xyz/openbmc_project/state/host0/attr/RequestedHostTransition"
-        payload = {"data": "xyz.openbmc_project.State.Host.Transition.Off"}
         r = self.conf.util_bmc_server.put(
             uri=uri, json=payload, minutes=minutes)
 
