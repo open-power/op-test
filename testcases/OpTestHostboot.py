@@ -70,7 +70,10 @@ class OpTestHostboot(unittest.TestCase):
         log.debug("System Power Off")
         self.cv_SYSTEM.sys_power_off()
         self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
-        time.sleep(30)
+        log.debug("Wait for Standby")
+        # Use 300 seconds as timeout as some systems will take longer
+        # to runtime even with immediate power_off
+        self.cv_SYSTEM.sys_wait_for_standby_state(i_timeout=300)
         log.debug("System Power On")
         self.cv_SYSTEM.sys_power_on()
         count = self.threshold_attempts
