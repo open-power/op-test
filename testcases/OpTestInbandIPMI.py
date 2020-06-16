@@ -153,8 +153,10 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
             self.run_ipmi_cmds(
                 c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_RESTART_CAUSE])
         except CommandFailed as cf:
-            if 'Get Chassis Restart Cause failed: Invalid command' in cf.output[0]:
+            if 'Get Chassis Restart Cause failed: Invalid command' in cf.output:
                 self.skipTest("OpenBMC doesn't implement restart_cause yet")
+            if 'Get Chassis Restart Cause failed: Unspecified error' in cf.output:
+                self.skipTest("OpenBMC does implement restart_cause, but D-BUS backend doesn't")
             self.fail(str(cf))
 
         self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_CHASSIS_POLICY_LIST,
