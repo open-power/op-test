@@ -656,10 +656,20 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
         3. Memory: Correctable ECC
         '''
         log.debug("Inband IPMI[OPEN]: event tests")
+
+        events = [BMC_CONST.IPMI_EVENT_1, BMC_CONST.IPMI_EVENT_2, BMC_CONST.IPMI_EVENT_3]
         c = self.set_up()
-        self.run_ipmi_cmds(c, [self.ipmi_method + BMC_CONST.IPMI_EVENT_1,
-                               self.ipmi_method + BMC_CONST.IPMI_EVENT_2,
-                               self.ipmi_method + BMC_CONST.IPMI_EVENT_3])
+
+        for event in events:
+            try:
+                self.run_ipmi_cmds(c, [self.ipmi_method + event])
+            except CommandFailed as cf:
+                if 'Platform Event Message command failed: Request data length invalid' in cf.output:
+                    log.debug("Synthetic event apparently not yet supported: " + event)
+                else:
+                    self.fail(str(cf))
+
+        self.skipTest("OpenBMC doesn't support synthetic test events yet")
 
     def test_exec(self):
         '''
