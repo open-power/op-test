@@ -1055,34 +1055,18 @@ class OpTestOpenBMC():
         if self.has_vpnor is not None:
             return self.has_vpnor
 
-        has_local_share_pnor = True
-        try:
-            self.bmc.run_command("ls -1 /usr/local/share/pnor")
-        except CommandFailed:
-            log.debug("We do not have /usr/local/share/pnor, so has_local_share_pnor=False")
-            has_local_share_pnor = False
+        # As of June 2020, we came to the determination that:
+        # * Both VPNOR and non-VPNOR OpenBMCs can answer with an inventory of Host
+        #   images (using Redfish APIs)
+        # * Both VPNOR and non-VPNOR OpenBMCs can have that above list empty
+        # * So the only reliable way of checking for VPNOR capability is to check
+        #   for 'pflash' presence in the BMC, since OpenBMC should be bundling it
+        #   ONLY on systems that are NOT capable of VPNOR:
 
-        has_pflash = self.bmc.validate_pflash_tool()
+        self.has_vpnor = not self.bmc.validate_pflash_tool()
 
-        # As of April 2019, now there's APIs for machines using the non-vpnor
-        # layout. So our previous logic of assuming that we should use pflash
-        # only if the API is not there is now invalid.
-        # So we have to guess, as there's no real good documented way to work
-        # out what to do.
-        if not has_local_share_pnor and has_pflash:
-            return False
-
-        log.debug("We are proceeding to validate VPNOR image for Host")
-        list = self.rest_api.get_list_of_image_ids(minutes=minutes)
-        for id in list:
-            log.debug("id={}".format(id))
-            i = self.rest_api.image_data(id)
-            if i['data'].get('Purpose') == 'xyz.openbmc_project.Software.Version.VersionPurpose.Host':
-                log.debug("Host image")
-                self.has_vpnor = True
-                return True
-        # if we got this far we should return and say we don't have anything
-        return False
+        log.debug("System is " + ("" if self.has_vpnor else "NOT") + " VPNOR-capable")
+        return self.has_vpnor
 
     def reboot(self):
         self.bmc.reboot()
