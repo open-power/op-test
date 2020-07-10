@@ -176,7 +176,8 @@ class ControlC(unittest.TestCase):
             # the timeout needs to be long enough so the pty spawn object has time
             # to figure out the sockets are dead, we've seen like 40-50 secs
             log.debug("Control-C/Z back from sendcontrol {}".format(self.CONTROL))
-            rc = raw_pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=90)
+            # We're using an oversized timeout due to LTC Bug 186797 (OpenBMC)
+            rc = raw_pty.expect([self.prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=180)
             log.debug("Control-C/Z rc={}".format(rc))
             log.debug("Control-C/Z before={}".format(raw_pty.before))
             log.debug("Control-C/Z after={}".format(raw_pty.after))
