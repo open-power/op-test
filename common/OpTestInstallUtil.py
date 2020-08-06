@@ -415,6 +415,7 @@ class InstallUtil():
 
         :return: True on success and False on failure
         """
+        output = ""
         con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         req_args, req_remove_args = self.check_kernel_cmdline(args,
                                                               remove_args)
@@ -435,15 +436,15 @@ class InstallUtil():
         except CommandFailed:
             grub_key = "GRUB_CMDLINE_LINUX_DEFAULT"
             boot_cfg = self.get_boot_cfg()
-            cmd = ("cat %s | grep %s | awk -F '=' '{print $2}'" %
-                   (boot_cfg, grub_key))
+            cmd = "grep %s %s" % (grub_key, boot_cfg)
             try:
-                output = con.run_command(cmd, timeout=60)[0].strip("\"")
+                output = con.run_command(cmd, timeout=60)[0].replace("\"", "")
+                output = output.split("GRUB_CMDLINE_LINUX_DEFAULT=")[-1].strip()
                 if req_args:
                     output += " %s" % req_args
                 if req_remove_args:
                     for each_arg in req_remove_args.split():
-                        output = output.strip(each_arg).strip()
+                        output = output.replace(each_arg, "")
             except CommandFailed as Err:
                 print(("Failed to get the kernel commandline - %s: %s" %
                        (Err.command, Err.output)))
