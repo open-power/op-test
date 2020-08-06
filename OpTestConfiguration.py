@@ -332,6 +332,8 @@ def get_parser():
         "--use-kexec", help="Use kexec to boot to new kernel", action='store_true', default=False)
     gitgroup.add_argument("--append-kernel-cmdline",
                           help="Append kernel commandline while booting with kexec", default=None)
+    gitgroup.add_argument(
+        "--use-reboot", help="Use reboot command replacing a hard power off/on", action='store_true', default=False)
 
     imagegroup = parser.add_argument_group(
         'Images', 'Firmware LIDs/images to flash')

@@ -405,7 +405,8 @@ class InstallUtil():
                    (Err.command, Err.output)))
         return req_args.strip(), req_remove_args.strip()
 
-    def update_kernel_cmdline(self, distro, args="", remove_args="", reboot=True):
+    def update_kernel_cmdline(self, distro, args="", remove_args="", reboot=True,
+                              reboot_cmd=False):
         """
         Update default Kernel cmdline arguments
 
@@ -464,8 +465,13 @@ class InstallUtil():
                     return False
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            if reboot_cmd:
+                raw_pty = self.cv_SYSTEM.console.get_console()
+                raw_pty.sendline("reboot")
+                raw_pty.expect("login:", timeout=900)
+            else:
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
             # check for added/removed args in /proc/cmdline
             req_args, req_remove_args = self.check_kernel_cmdline(args,
