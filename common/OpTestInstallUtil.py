@@ -405,7 +405,7 @@ class InstallUtil():
                    (Err.command, Err.output)))
         return req_args.strip(), req_remove_args.strip()
 
-    def update_kernel_cmdline(self, args="", remove_args="", reboot=True):
+    def update_kernel_cmdline(self, distro, args="", remove_args="", reboot=True):
         """
         Update default Kernel cmdline arguments
 
@@ -454,7 +454,10 @@ class InstallUtil():
                     cmd = "sed -i 's/%s=.*/%s=\"%s\"/g' %s" % (grub_key, grub_key,
                                                                output, boot_cfg)
                     con.run_command(cmd, timeout=60)
-                    con.run_command("update-grub")
+                    if 'Ubuntu' in distro:
+                        con.run_command('update-grub')
+                    else:
+                        con.run_command('grub2-mkconfig -o /boot/grub2/grub.cfg')
                 except CommandFailed as Err:
                     print(("Failed to update kernel commandline - %s: %s" %
                            (Err.command, Err.output)))
