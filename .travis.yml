@@ -1,26 +1,15 @@
-sudo: false
-dist: trusty
+sudo: true
+dist: focal
 
 cache:
-  apt: true
   ccache: true
 
 git:
   depth: false
 
-addons:
-  apt:
-    packages:
-      - python3-pip
-      - latexmk
-      - libalgorithm-diff-perl
-      - texlive
-      - texlive-latex-extra
-      - texlive-humanities
-      - texlive-generic-recommended
-      - graphviz
-      - texlive-generic-extra
-
+before_install:
+  - sudo apt-get -y install python3-pip latexmk libalgorithm-diff-perl texlive
+    texlive-latex-extra texlive-humanities graphviz texlive-plain-generic
 
 language: python
 python:
