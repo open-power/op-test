@@ -22,8 +22,8 @@ script:
   - python3 op-test --bmc-type AMI --run testcases.HelloWorld
   - (cd doc/; make latexpdf html)
   - ./ci/build-qemu-powernv.sh
-  - wget https://openpower.xyz/job/openpower/job/openpower-op-build/label=slave,target=palmetto/lastSuccessfulBuild/artifact/images/palmetto.pnor
-  - PATH=$(pwd)/qemu:$PATH ./op-test --bmc-type qemu --qemu-binary `pwd`/qemu/ppc64-softmmu/qemu-system-ppc64 --host-pnor palmetto.pnor --run-suite qemu
+  - wget https://openpower.xyz/job/openpower/job/openpower-op-build/label=slave,target=witherspoon/lastSuccessfulBuild/artifact/images/witherspoon.pnor
+  - PATH=$(pwd)/qemu:$PATH ./op-test --bmc-type qemu --qemu-binary `pwd`/qemu/ppc64-softmmu/qemu-system-ppc64 --host-pnor witherspoon.pnor --run-suite qemu
 
 deploy:
   provider: pages
