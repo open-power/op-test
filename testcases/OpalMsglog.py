@@ -55,9 +55,20 @@ class OpalMsglog():
         ]
 
         if self.bmc_type in ["qemu"]:
+            # Power management stuff we don't support in Qemu
             filter_out.append('SLW: No image found')
+            filter_out.append('SLW: HOMER base not set .*')
             filter_out.append('SLW: Sleep not enabled by HB on this platform')
             filter_out.append('OCC: No HOMER detected, assuming no pstates')
+            filter_out.append('OCC: Unassigned OCC Common Area. No sensors found')
+            filter_out.append('HOMER image is not reserved! Reserving')
+            filter_out.append('SLW: Failed to set HRMOR for CPU .*,RC=0x1')
+            filter_out.append('OCC common area is not reserved! Reserving')
+            filter_out.append('Disabling deep stop states')
+            filter_out.append('OCC: Chip: .*: OCC not active')
+            filter_out.append('OCC: Initialization on all chips did not complete.*')
+            filter_out.append('IMC: IMC: Pausing ucode failed')
+            filter_out.append('IMC: IMC Devices not added')
             # A bunch of qemu configurations won't have a pnor
             filter_out.append('FFS: Reading the flash has returned all 0xFF.')
             filter_out.append('Are you reading erased flash?')
@@ -72,6 +83,13 @@ class OpalMsglog():
             # We can take a long time emulating flash, so ignore long time in r/w flash and NVRAM
             filter_out.append('Spent .* msecs in OPAL call 11[01]')
             filter_out.append('Spent .* msecs in OPAL call 8')
+            # I2C doesn't appear to be working on Qemu
+            filter_out.append('I2C: Command stuck, aborting !!')
+            filter_out.append('I2C: Initial command complete not set')
+            filter_out.append('I2C: Initial error status .*')
+            filter_out.append('I2C: Failed to reset .*')
+            # SBE doesn't appear to be supported in powernv(9)
+            filter_out.append('SBE: Master chip ID not found.')
 
         if self.bmc_type in ["mambo"]:
             filter_out.append('SBE: Master chip ID not found.')
