@@ -157,18 +157,21 @@ class QemuConsole():
             if self.initramfs is not None:
                 cmd = cmd + " -initrd %s" % (self.initramfs)
 
-        # So in the powernv QEMU model we have 3 PHBs with one slot free each.
+        # So in the powernv(9) QEMU model we have 6 PHBs with one slot free each.
         # We can add a pcie bridge to each of these, and each bridge has 31
         # slots.. if you see where I'm going..
         cmd = (cmd
-               + " -device pcie-pci-bridge,id=pcie.3,bus=pcie.0,addr=0x0"
-               + " -device pcie-pci-bridge,id=pcie.4,bus=pcie.1,addr=0x0"
-               + " -device pcie-pci-bridge,id=pcie.5,bus=pcie.2,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.6,bus=pcie.0,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.7,bus=pcie.1,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.8,bus=pcie.2,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.9,bus=pcie.3,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.10,bus=pcie.4,addr=0x0"
+               + " -device pcie-pci-bridge,id=pcie.11,bus=pcie.5,addr=0x0"
                )
 
         # Put the NIC in slot 2 of the second PHB (1st is reserved for later)
         cmd = (cmd
-               + " -netdev user,id=u1 -device e1000e,netdev=u1,mac={},bus=pcie.4,addr=2"
+               + " -netdev user,id=u1 -device e1000e,netdev=u1,mac={},bus=pcie.7,addr=2"
                .format(self.mac_str)
                )
         prefilled_slots = 1
@@ -177,15 +180,21 @@ class QemuConsole():
             # Put the CDROM in slot 3 of the second PHB
             cmd = (cmd
                    + " -drive file={},id=cdrom01,if=none,media=cdrom".format(self.cdrom)
-                   + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.4,addr=3"
+                   + " -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.7,addr=3"
                    )
             prefilled_slots += 1
 
         bridges = []
         bridges.append({'bus': 3, 'n_devices': 0, 'bridged': False})
-        bridges.append(
-            {'bus': 4, 'n_devices': prefilled_slots, 'bridged': False})
+        bridges.append({'bus': 4, 'n_devices': 0, 'bridged': False})
         bridges.append({'bus': 5, 'n_devices': 0, 'bridged': False})
+        bridges.append({'bus': 6, 'n_devices': 0, 'bridged': False})
+        bridges.append(
+            {'bus': 7, 'n_devices': prefilled_slots, 'bridged': False})
+        bridges.append({'bus': 8, 'n_devices': 0, 'bridged': False})
+        bridges.append({'bus': 9, 'n_devices': 0, 'bridged': False})
+        bridges.append({'bus': 10, 'n_devices': 0, 'bridged': False})
+        bridges.append({'bus': 11, 'n_devices': 0, 'bridged': False})
 
         # For any amount of disks we have, start finding spots for them in the PHBs
         if self.disks:

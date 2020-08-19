@@ -110,6 +110,9 @@ class OpalSysfsTests():
         self.get_proc_gen()
         if self.cpu not in ["POWER9", "POWER9P"]:
             return
+        if "qemu" in self.bmc_type:
+            self.skipTest("Qemu doesn't support OCC-based tests")
+
         cur_powercap = int(self.c.run_command("cat %s" %
                                               str(POWERCAP_CURRENT))[-1])
         max_powercap = int(self.c.run_command(
@@ -136,6 +139,9 @@ class OpalSysfsTests():
         self.get_proc_gen()
         if self.cpu not in ["POWER9", "POWER9P"]:
             return
+        if "qemu" in self.bmc_type:
+            self.skipTest("Qemu doesn't support OCC-based tests")
+
         list = self.c.run_command("ls --color=never -1 %s" % str(OPAL_PSR))
         for entry in list:
             value = self.c.run_command("cat %s/%s" % (str(OPAL_PSR), entry))
@@ -151,6 +157,9 @@ class OpalSysfsTests():
         log.debug(repr(self.cpu))
         if self.cpu not in ["POWER9", "POWER9P"]:
             return
+        if "qemu" in self.bmc_type:
+            self.skipTest("Qemu doesn't support OCC-based tests")
+
         list = self.c.run_command(
             "ls --color=never -1 %s" % str(OPAL_SENSOR_GROUPS))
         for entry in list:

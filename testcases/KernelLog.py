@@ -119,6 +119,8 @@ class KernelLog():
                       "mlx4_en.* Port \d+: Initializing port",
                       "mlx4_core.*Old device ETS support detected",
                       "mlx4_core.*Consider upgrading device FW.",
+                      # Skiboot doesn't yet support secvars, but the Kernel looks for them
+                      "secvar-sysfs: secvar: failed to retrieve secvar operations.",
                       ]
 
         if self.bmc_type in ['qemu']:
