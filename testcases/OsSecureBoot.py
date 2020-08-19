@@ -27,7 +27,8 @@ THE PLAN:
 
 # Location of the oskernels.tar and oskeys.tar test data files
 # These belong somewhere else, possibly in the code tree?
-URL = "http://SET.THIS.TO.SOMETHING"
+# using a temporary link to the github page, this should probably be something more reliable
+URL = "https://github.com/erichte-ibm/op-test/raw/erichte-ibm/os-secure-boot-squashed/test_binaries"
 
 class OsSecureBoot(unittest.TestCase):
     def setUp(self):
