@@ -79,6 +79,34 @@ class OsSecureBoot(unittest.TestCase):
             con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/clear-os-keys")
 
 
+    def checkFirmwareSupport(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+        con = self.cv_SYSTEM.console
+
+        output = con.run_command_ignore_fail("test -d /sys/firmware/devicetree/base/ibm,opal/secvar || echo no")
+        if "no" in "".join(output):
+            self.skipTest("Skiboot does not support secure variables")
+
+        output = con.run_command_ignore_fail("test -d /sys/firmware/secvar || echo no")
+        if "no" in "".join(output):
+            self.skipTest("Skiroot does not support the secure variables sysfs interface")
+
+        # We only support one backend for now, skip if using an unknown backend
+        output = con.run_command("cat /sys/firmware/secvar/format")
+        if "ibm,edk2-compat-v1" not in "".join(output):
+            self.skipTest("Test case only supports the 'ibm,edk2-compat-v1' backend")
+
+
+    def cleanPhysicalPresence(self):
+        self.cv_BMC.run_command("rm -f /usr/local/share/pnor/ATTR_TMP")
+        self.cv_BMC.run_command("rm -f /var/lib/obmc/cfam_overrides")
+        self.cv_IPMI.ipmitool.run("raw 0x04 0x30 0xE8 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00")
+
+        # Reboot to be super sure
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
+
     def assertPhysicalPresence(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
@@ -91,6 +119,8 @@ class OsSecureBoot(unittest.TestCase):
         output = self.cv_IPMI.ipmitool.run("raw 0x04 0x2D 0xE8")
         self.assertTrue("40 40 00 00" in output)
         
+        # Special case, powering on this way since there is no appropriate state
+        #  for the opened physical presence window
         self.cv_SYSTEM.sys_power_on()
 
         raw_pty = self.cv_SYSTEM.console.get_console()
@@ -99,13 +129,11 @@ class OsSecureBoot(unittest.TestCase):
         raw_pty.expect("System Will Power Off and Wait For Manual Power On", timeout=30)
         raw_pty.expect("shutdown complete", timeout=30)
 
-        # Shut itself off, turn it back on
-        # Need to turn it on by the BMC for some reason?
-        self.cv_BMC.run_command("obmcutil power on")
+        # Machine is off now, can resume using the state machine
+        self.cv_SYSTEM.set_state(OpSystemState.OFF)
 
-        # This is apparently needed because otherwise op-test can't determine
-        # the state of the machine?
-        self.cv_SYSTEM.sys_check_host_status()
+        # Turn it back on to complete the process
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         self.checkSecureBootEnabled(enabled=False, physical=True)
         self.checkKeysEnrolled(enrolled=False)
@@ -121,12 +149,8 @@ class OsSecureBoot(unittest.TestCase):
             con.run_command("cat /tmp/{0}.auth > /sys/firmware/secvar/vars/{0}/update".format(k))
 
         # System needs to power fully off to process keys on next reboot
-        # need to stall because otherwise it just blows on through on its own
-        # hopefully one of these two actually powers it off
-        self.cv_SYSTEM.sys_power_off()
-        time.sleep(10)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)  
-        time.sleep(10)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         self.checkSecureBootEnabled(enabled=True)
         self.checkKeysEnrolled(enrolled=True)
@@ -156,7 +180,13 @@ class OsSecureBoot(unittest.TestCase):
 
 
     def runTest(self):
-        # start clean
+        # skip test if the machine firmware doesn't support secure variables
+        self.checkFirmwareSupport()
+
+        # clean up any previous physical presence attempt
+        self.cleanPhysicalPresence()
+
+        # start in a clean secure boot state
         self.assertPhysicalPresence()
 
         # add secure boot keys
@@ -167,3 +197,4 @@ class OsSecureBoot(unittest.TestCase):
 
         # clean up after 
         self.assertPhysicalPresence()
+        self.cleanPhysicalPresence()
