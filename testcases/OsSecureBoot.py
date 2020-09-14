@@ -51,34 +51,6 @@ class OsSecureBoot(unittest.TestCase):
         con.run_command("tar xf /tmp/{} -C /tmp/".format(fil))
 
 
-    def checkKeysEnrolled(self, enrolled=True):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        con = self.cv_SYSTEM.console
-
-        assertfunc = self.assertFalse if enrolled else self.assertTrue
-
-        for k in ["PK", "KEK", "db", "dbx"]:
-            # Size should return a nonzero ascii value when enrolled
-            output = con.run_command("cat /sys/firmware/secvar/vars/{}/size".format(k))
-            assertfunc("0" in output)
-
-            # Data should contain something
-            output = con.run_command("cat /sys/firmware/secvar/vars/{}/data | wc -c".format(k))
-            assertfunc("0" in output)
-
-
-    def checkSecureBootEnabled(self, enabled=True, physical=False):
-        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        con = self.cv_SYSTEM.console
-
-        con.run_command("test {} -f /sys/firmware/devicetree/base/ibm,secureboot/os-secureboot-enforcing"
-            .format("" if enabled else "!"))
-
-        if physical:
-            con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/physical-presence-asserted")
-            con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/clear-os-keys")
-
-
     def checkFirmwareSupport(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         con = self.cv_SYSTEM.console
@@ -147,8 +119,19 @@ class OsSecureBoot(unittest.TestCase):
         # Turn it back on to complete the process
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
-        self.checkSecureBootEnabled(enabled=False, physical=True)
-        self.checkKeysEnrolled(enrolled=False)
+        con = self.cv_SYSTEM.console
+        con.run_command("test ! -f /sys/firmware/devicetree/base/ibm,secureboot/os-secureboot-enforcing")
+        con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/physical-presence-asserted")
+        con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/clear-os-keys")
+
+        for k in ["PK", "KEK", "db", "dbx"]:
+            # No keys should be enrolled, so size should be ascii "0" for each
+            output = con.run_command("cat /sys/firmware/secvar/vars/{}/size".format(k))
+            self.assertTrue("0" in output)
+
+            # Data should not contain anything
+            output = con.run_command("cat /sys/firmware/secvar/vars/{}/data | wc -c".format(k))
+            self.assertTrue("0" in output)
 
 
     def addSecureBootKeys(self):
@@ -164,8 +147,16 @@ class OsSecureBoot(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)  
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
-        self.checkSecureBootEnabled(enabled=True)
-        self.checkKeysEnrolled(enrolled=True)
+        con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/os-secureboot-enforcing")
+
+        for k in ["PK", "KEK", "db", "dbx"]:
+            # Size should return a nonzero ascii value when enrolled
+            output = con.run_command("cat /sys/firmware/secvar/vars/{}/size".format(k))
+            self.assertFalse("0" in output)
+
+            # Data should contain something
+            output = con.run_command("cat /sys/firmware/secvar/vars/{}/data | wc -c".format(k))
+            self.assertFalse("0" in output)
 
 
     def checkKexecKernels(self):
