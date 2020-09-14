@@ -92,6 +92,7 @@ class OsSecureBoot(unittest.TestCase):
             self.skipTest("Skiroot does not support the secure variables sysfs interface")
 
         # We only support one backend for now, skip if using an unknown backend
+        # NOTE: This file must exist if the previous checks pass, fail the test if not present
         output = con.run_command("cat /sys/firmware/secvar/format")
         if "ibm,edk2-compat-v1" not in "".join(output):
             self.skipTest("Test case only supports the 'ibm,edk2-compat-v1' backend")
@@ -100,6 +101,8 @@ class OsSecureBoot(unittest.TestCase):
     def cleanPhysicalPresence(self):
         self.cv_BMC.run_command("rm -f /usr/local/share/pnor/ATTR_TMP")
         self.cv_BMC.run_command("rm -f /var/lib/obmc/cfam_overrides")
+
+        # Unset the Key Clear Request sensor
         self.cv_IPMI.ipmitool.run("raw 0x04 0x30 0xE8 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00")
 
         # Reboot to be super sure
@@ -112,10 +115,18 @@ class OsSecureBoot(unittest.TestCase):
 
         self.cv_BMC.image_transfer("test_binaries/physicalPresence.bin")
         self.cv_BMC.run_command("cp /tmp/physicalPresence.bin /usr/local/share/pnor/ATTR_TMP")
+
+        # Disable security settings on development images, to allow remote physical presence assertion
         self.cv_BMC.run_command("echo '0 0x283a 0x15000000' > /var/lib/obmc/cfam_overrides")
         self.cv_BMC.run_command("echo '0 0x283F 0x20000000' >> /var/lib/obmc/cfam_overrides")
 
+        # The "ClearHostSecurityKeys" sensor is used on the OpenBMC to keep track of any Key Clear Request.
+        # During the (re-)IPL, the values will be sent to Hostboot for processing.
+        # This sets the sensor value to 0x40, which indicates KEY_CLEAR_OS_KEYS
         self.cv_IPMI.ipmitool.run("raw 0x04 0x30 0xE8 0x00 0x40 0x00 0x00 0x00 0x00 0x00 0x00 0x00")
+
+        # Read back the sensor value.
+        # Expected Output is 4 bytes: where the first byte (ZZ) is the sensor value: ZZ 40 00 00
         output = self.cv_IPMI.ipmitool.run("raw 0x04 0x2D 0xE8")
         self.assertTrue("40 40 00 00" in output)
         
@@ -125,6 +136,7 @@ class OsSecureBoot(unittest.TestCase):
 
         raw_pty = self.cv_SYSTEM.console.get_console()
 
+        # Check for expected hostboot log output for a success physical presence assertion
         raw_pty.expect("Opened Physical Presence Detection Window", timeout=120)
         raw_pty.expect("System Will Power Off and Wait For Manual Power On", timeout=30)
         raw_pty.expect("shutdown complete", timeout=30)
@@ -195,6 +207,6 @@ class OsSecureBoot(unittest.TestCase):
         # attempt to securely boot test kernels
         self.checkKexecKernels()
 
-        # clean up after 
+        # clean up after, and ensure keys are properly cleared
         self.assertPhysicalPresence()
         self.cleanPhysicalPresence()
