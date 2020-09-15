@@ -18,6 +18,7 @@ THE PLAN:
  - fail to regular kexec an unsigned kernel
  - fail to load an unsigned kernel
  - fail to load a dbx'd kernel
+ - fail to load a signed kernel with unenrolled key
  - successfully load a signed kernel
  - assert physical presence
    - ensure machine is in a non-secure boot state
@@ -172,6 +173,10 @@ class OsSecureBoot(unittest.TestCase):
 
         # Fail dbx kernel
         output = con.run_command_ignore_fail("kexec -s /tmp/kernel-dbx")
+        self.assertTrue("Permission denied" in "".join(output))
+
+        # Fail signed kernel with unenrolled key
+        output = con.run_command_ignore_fail("kexec -s /tmp/kernel-unenrolled")
         self.assertTrue("Permission denied" in "".join(output))
         
         # Succeed good kernel
