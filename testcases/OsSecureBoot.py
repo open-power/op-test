@@ -25,10 +25,6 @@ THE PLAN:
 
 """
 
-# Location of the oskernels.tar and oskeys.tar test data files
-# These belong somewhere else, possibly in the code tree?
-# using a temporary link to the github page, this should probably be something more reliable
-URL = "https://github.com/erichte-ibm/op-test/raw/erichte-ibm/os-secure-boot-squashed/test_binaries"
 
 class OsSecureBoot(unittest.TestCase):
     def setUp(self):
@@ -38,6 +34,7 @@ class OsSecureBoot(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_IPMI = conf.ipmi()
         self.OpIU = InstallUtil()
+        self.URL = conf.args.secvar_payload_url
 
 
     def getTestData(self, data="keys"):
@@ -45,7 +42,7 @@ class OsSecureBoot(unittest.TestCase):
         self.OpIU.configure_host_ip()
 
         fil = "os{}.tar".format(data)
-        url = URL + "/" + fil
+        url = self.URL + "/" + fil
 
         con.run_command("wget {0} -O /tmp/{1}".format(url, fil))
         con.run_command("tar xf /tmp/{} -C /tmp/".format(fil))
