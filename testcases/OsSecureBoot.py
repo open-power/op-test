@@ -71,6 +71,7 @@ class OsSecureBoot(unittest.TestCase):
         self.cv_IPMI = conf.ipmi()
         self.OpIU = InstallUtil()
         self.URL = conf.args.secvar_payload_url
+        self.bmc_type = conf.args.bmc_type
 
 
     def getTestData(self, data="keys"):
@@ -85,6 +86,9 @@ class OsSecureBoot(unittest.TestCase):
 
 
     def checkFirmwareSupport(self):
+        if "OpenBMC" not in self.bmc_type:
+            self.skipTest("Test only applies for OpenBMC-based machines")
+
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         con = self.cv_SYSTEM.console
 
@@ -221,7 +225,6 @@ class OsSecureBoot(unittest.TestCase):
         
         # Succeed good kernel
         output = con.run_command("kexec -s /tmp/kernel-signed")
-        self.assertFalse("Permission denied" in "".join(output)) # may not be needed, command should fail
 
 
     def runTest(self):
