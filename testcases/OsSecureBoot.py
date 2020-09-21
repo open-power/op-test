@@ -22,7 +22,42 @@ THE PLAN:
  - successfully load a signed kernel
  - assert physical presence
    - ensure machine is in a non-secure boot state
+"""
 
+"""
+Generating physicalPresence.bin:
+ Create an attribute override file with the following contents (not including leading spaces):
+
+  CLEAR
+  target = k0:s0:
+  ATTR_BOOT_FLAGS 0x15000000 CONST
+  ATTR_PHYS_PRES_FAKE_ASSERT 0x01 CONST
+  # ATTR_PHYS_PRES_REQUEST_OPEN_WINDOW 0x01 CONST
+
+ Go to your op-build's <op-build>//build/hostboot-<commit#>/obj/genfiles directory
+ From that directory run the following:
+
+  ./attributeOverride -d <path_to_attribute_override_text_file_from_above>
+
+ If it is successful, then an attrOverride.bin file will be created in that directory
+"""
+
+"""
+Generating oskeys.tar:
+ Keys were generated via the makefile in https://git.kernel.org/pub/scm/linux/kernel/git/jejb/efitools.git.
+ Running make (along with building the tools) generates and assembles a set of openssl keys, ESLs, and signed auth files.
+ Only the auth files are included in the tarball.
+
+
+Generating oskernels.tar:
+ kernel-unsigned   - very stripped down kernel built with minimal config options. no signature
+ kernel-signed     - same kernel as above, signed with the db present in oskeys.tar
+ kernel-unenrolled - same kernel, signed with another generated key that is NOT in oskeys.tar
+ kernel-dbx        - same kconfig, but adjusted version name. signed with the same db key. hash present in oskeys.tar's dbx
+
+Signing kernels:
+ Kernels are signed with the `sign-file` utility in the linux source tree, like so:
+  ./scripts/sign-file sha256 db.key db.crt vmlinuz kernel-signed
 
 """
 
@@ -83,6 +118,11 @@ class OsSecureBoot(unittest.TestCase):
     def assertPhysicalPresence(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
+        # This file was generated using the settings detailed at the top of this file
+        # It should be sufficient for any version of hostboot after these attributes were added
+        # This might break if something changes about these attributes, or if these attributes are not
+        # used on a later platform.
+        # NOTE: This override will NOT work on production firmware
         self.cv_BMC.image_transfer("test_binaries/physicalPresence.bin")
         self.cv_BMC.run_command("cp /tmp/physicalPresence.bin /usr/local/share/pnor/ATTR_TMP")
 
