@@ -45,8 +45,26 @@ Generating physicalPresence.bin:
 """
 Generating oskeys.tar:
  Keys were generated via the makefile in https://git.kernel.org/pub/scm/linux/kernel/git/jejb/efitools.git.
- Running make (along with building the tools) generates and assembles a set of openssl keys, ESLs, and signed auth files.
+  NOTE: these tools will currently only build on x86
+ Running make generates and assembles a set of openssl keys, ESLs, and signed auth files following the
+  commands below.
  Only the auth files are included in the tarball.
+
+ Generating keys (PK example):
+  openssl req -new -x509 -newkey rsa:2048 -subj "/CN=PK/" -keyout PK.key -out PK.crt -days 3650 -nodes -sha256
+
+ Generating ESLs (PK example):
+  cert-to-efi-sig-list PK.crt PK.esl
+
+ Generating Auths:
+  sign-efi-sig-list -k PK.key -c PK.crt PK PK.esl PK.auth
+  sign-efi-sig-list -k PK.key -c PK.crt KEK KEK.esl KEK.auth
+  sign-efi-sig-list -k KEK.key -c KEK.crt db db.esl db.auth
+  sign-efi-sig-list -k KEK.key -c KEK.crt dbx dbx.esl dbx.auth
+
+ NOTE: dbx.esl is currently generated using a soon-to-be-released internal tool, and will be integrated in this test/documentation
+ Normally, dbx.esl would be generated with hash-to-efi-sig-list, however that tool has a dependency on PECOFF which
+  is not compatible with POWER.
 
 
 Generating oskernels.tar:
@@ -119,6 +137,11 @@ class OsSecureBoot(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
 
+    # Assert physical presence remotely to remove any currently installed OS secure boot keys
+    #  NOTE: This is NOT something an end-user should expect to do, there is a different process
+    #   for a physical presence assertion that actually requires physical access on production machines
+    #  This is included in the test to make sure the machine is in a clean initial state, and also
+    #   to ensure that skiboot handles physical presence key clear reset requests properly.
     def assertPhysicalPresence(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
@@ -133,6 +156,9 @@ class OsSecureBoot(unittest.TestCase):
         # Disable security settings on development images, to allow remote physical presence assertion
         self.cv_BMC.run_command("echo '0 0x283a 0x15000000' > /var/lib/obmc/cfam_overrides")
         self.cv_BMC.run_command("echo '0 0x283F 0x20000000' >> /var/lib/obmc/cfam_overrides")
+
+        # The rest of this function applies to the physical presence assertion of a production machine,
+        #  and should behave the same way.
 
         # The "ClearHostSecurityKeys" sensor is used on the OpenBMC to keep track of any Key Clear Request.
         # During the (re-)IPL, the values will be sent to Hostboot for processing.
@@ -162,12 +188,20 @@ class OsSecureBoot(unittest.TestCase):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
         con = self.cv_SYSTEM.console
+
+        # After a physical presence, the firmware should NOT be enforcing secure boot as there should be
+        #  no PK (or other secure boot keys)
         con.run_command("test ! -f /sys/firmware/devicetree/base/ibm,secureboot/os-secureboot-enforcing")
+
+        # After a physical presence clear, there should be device tree entries indicating that
+        #  1. a physical presence was asserted, and
         con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/physical-presence-asserted")
+        #  2. what request was made, in this case clearing of os secureboot keys
         con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/clear-os-keys")
 
+        # As mentioned before, no keys should be enrolled, double check to make sure each is empty
         for k in ["PK", "KEK", "db", "dbx"]:
-            # No keys should be enrolled, so size should be ascii "0" for each
+            # Size should be ascii "0" for each, as each should be empty
             output = con.run_command("cat /sys/firmware/secvar/vars/{}/size".format(k))
             self.assertTrue("0" in output)
 
@@ -176,54 +210,81 @@ class OsSecureBoot(unittest.TestCase):
             self.assertTrue("0" in output)
 
 
+    # Enroll keys to enable secure boot
+    #  Keys are generated ahead of time, following the process outlined at the top of this file
+    #  See: "Generating oskeys.tar"
     def addSecureBootKeys(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         con = self.cv_SYSTEM.console
 
+        # Fetch the pregenerated test data containing the signed update files
+        #  Future work: generate these test files are part of the test case (dependent on efitools/secvarctl)
         self.getTestData()
 
-        for k in ["PK", "KEK", "db", "dbx"]:
-            con.run_command("cat /tmp/{0}.auth > /sys/firmware/secvar/vars/{0}/update".format(k))
+        # Enqueue the PK update first, will enter secure mode and enforce signature
+        #  checking for the remaining updates below
+        con.run_command("cat /tmp/PK.auth > /sys/firmware/secvar/vars/PK/update".format(k))
+
+        # Enqueue the KEK update
+        con.run_command("cat /tmp/KEK.auth > /sys/firmware/secvar/vars/KEK/update".format(k))
+
+        # Enqueue the db update, this contains the key needed for validating signed kernels
+        con.run_command("cat /tmp/db.auth > /sys/firmware/secvar/vars/db/update".format(k))
+
+        # Enqueue the dbx update, contains a list of denylisted kernel hashes
+        con.run_command("cat /tmp/dbx.auth > /sys/firmware/secvar/vars/dbx/update".format(k))
 
         # System needs to power fully off to process keys on next reboot
+        #  Key updates are only processed as skiboot initializes
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)  
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
 
+        # If all key updates were processed successfully, then we should have entered secure mode
+        #  This device tree entry is created if a PK is present, and forces skiroot to only kexec
+        #  properly signed kernels with a key in the db variable.
         con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/os-secureboot-enforcing")
 
+        # Loop through and double check that all the variables now contain data
         for k in ["PK", "KEK", "db", "dbx"]:
             # Size should return a nonzero ascii value when enrolled
             output = con.run_command("cat /sys/firmware/secvar/vars/{}/size".format(k))
             self.assertFalse("0" in output)
 
-            # Data should contain something
+            # Data should contain the ESL data as generated before
+            #  NOTE: this is NOT the same as the .auth data, the auth header and signature are removed
+            #  as part of processing the update
+            # Future work: compare the /data field against the generated ESL data
             output = con.run_command("cat /sys/firmware/secvar/vars/{}/data | wc -c".format(k))
             self.assertFalse("0" in output)
 
 
+    # Attempt to kexec load a set of kernels to ensure secure mode is enforced correctly
     def checkKexecKernels(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
         con = self.cv_SYSTEM.console
 
+        # Obtain pregenerated test kernels, see top of file for how these were generated
         self.getTestData(data="kernels")
 
-        # Fail regular kexec_load
+        # Fail regular kexec_load, syscall should be disabled by skiroot when enforcing secure boot
+        #  Petitboot should automatically use avoid using this syscall when applicable
         output = con.run_command_ignore_fail("kexec -l /tmp/kernel-unsigned")
         self.assertTrue("Permission denied" in "".join(output))
 
-        # Fail unsigned kernel
+        # Fail using kexec_file_load with an unsigned kernel
         output = con.run_command_ignore_fail("kexec -s /tmp/kernel-unsigned")
         self.assertTrue("Permission denied" in "".join(output))
 
-        # Fail dbx kernel
+        # Fail loading a kernel whose hash is in the dbx denylist
         output = con.run_command_ignore_fail("kexec -s /tmp/kernel-dbx")
         self.assertTrue("Permission denied" in "".join(output))
 
-        # Fail signed kernel with unenrolled key
+        # Fail loading a properly signed kernel with key that is NOT enrolled in the db
+        #  Future work: enroll the key used to sign this kernel and try again
         output = con.run_command_ignore_fail("kexec -s /tmp/kernel-unenrolled")
         self.assertTrue("Permission denied" in "".join(output))
         
-        # Succeed good kernel
+        # Successfully kexec_file_load a kernel signed with a key in the db
         output = con.run_command("kexec -s /tmp/kernel-signed")
 
 
@@ -236,6 +297,7 @@ class OsSecureBoot(unittest.TestCase):
 
         # start in a clean secure boot state
         self.assertPhysicalPresence()
+        self.cleanPhysicalPresence()
 
         # add secure boot keys
         self.addSecureBootKeys()
