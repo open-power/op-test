@@ -65,6 +65,8 @@ Generating oskeys.tar:
  NOTE: dbx.esl is currently generated using a soon-to-be-released internal tool, and will be integrated in this test/documentation
  Normally, dbx.esl would be generated with hash-to-efi-sig-list, however that tool has a dependency on PECOFF which
   is not compatible with POWER.
+ NOTE: newPK is signed by the PK to test updating the PK, and deletePK is an empty file signed by newPK
+  to test the removal of a PK, which exits secure boot enforcement mode.
 
 
 Generating oskernels.tar:
@@ -79,6 +81,20 @@ Signing kernels:
 
 """
 
+
+# Variable data after enrollment (located in /sys/firmware/secvar/vars/<variable name>/data should
+#  be in the ESL format, WITHOUT the signed update auth header.
+# These hashes are of the ESL data prior to signing the data as an update, and should match the
+#  post-enrollment data
+# Future work: generate the full set of key/crt->ESL->auth data as part of this test, and
+#  calculate the expected hashes from the generated ESL rather than hardcoding them here.
+esl_hashes = {
+    "PK":    "91f15df8fc8f80bd0a1bbf2c77a5c5a16d2b189dd6f14d7b7c1e274fedd53f47",
+    "KEK":   "1b6e26663bbd4bbb2b44af9e36d14258cdf700428f04388b0c689696450a9544",
+    "db":    "480b652075d7b52ce07577631444848fb1231d6e4da9394e6adbe734795a7eb2",
+    "dbx":   "2310745cd7756d9bfd8cacf0935a27a7bd1d2f1b1783da03902b5598a0928da6",
+    "newPK": "9a1d186c08c18887b68fadd81be48bca06dd007fa214dfcdb0f4195b5aff996c",
+}
 
 class OsSecureBoot(unittest.TestCase):
     def setUp(self):
@@ -223,16 +239,16 @@ class OsSecureBoot(unittest.TestCase):
 
         # Enqueue the PK update first, will enter secure mode and enforce signature
         #  checking for the remaining updates below
-        con.run_command("cat /tmp/PK.auth > /sys/firmware/secvar/vars/PK/update".format(k))
+        con.run_command("cat /tmp/PK.auth > /sys/firmware/secvar/vars/PK/update")
 
         # Enqueue the KEK update
-        con.run_command("cat /tmp/KEK.auth > /sys/firmware/secvar/vars/KEK/update".format(k))
+        con.run_command("cat /tmp/KEK.auth > /sys/firmware/secvar/vars/KEK/update")
 
         # Enqueue the db update, this contains the key needed for validating signed kernels
-        con.run_command("cat /tmp/db.auth > /sys/firmware/secvar/vars/db/update".format(k))
+        con.run_command("cat /tmp/db.auth > /sys/firmware/secvar/vars/db/update")
 
         # Enqueue the dbx update, contains a list of denylisted kernel hashes
-        con.run_command("cat /tmp/dbx.auth > /sys/firmware/secvar/vars/dbx/update".format(k))
+        con.run_command("cat /tmp/dbx.auth > /sys/firmware/secvar/vars/dbx/update")
 
         # System needs to power fully off to process keys on next reboot
         #  Key updates are only processed as skiboot initializes
@@ -256,6 +272,13 @@ class OsSecureBoot(unittest.TestCase):
             # Future work: compare the /data field against the generated ESL data
             output = con.run_command("cat /sys/firmware/secvar/vars/{}/data | wc -c".format(k))
             self.assertFalse("0" in output)
+
+            # Check the integrity of the data by hashing and comparing against an expected hash
+            # See top of the file for how these hashes were calculated
+            output = con.run_command("sha256sum /sys/firmware/secvar/vars/{}/data".format(k))
+            # output is of the form ["<hash> <filename>"], so extract just the hash value to compare
+            output = output[0].split(" ")[0]
+            self.assertTrue(esl_hashes[k] == output)
 
 
     # Attempt to kexec load a set of kernels to ensure secure mode is enforced correctly
@@ -283,9 +306,73 @@ class OsSecureBoot(unittest.TestCase):
         #  Future work: enroll the key used to sign this kernel and try again
         output = con.run_command_ignore_fail("kexec -s /tmp/kernel-unenrolled")
         self.assertTrue("Permission denied" in "".join(output))
-        
+
         # Successfully kexec_file_load a kernel signed with a key in the db
         output = con.run_command("kexec -s /tmp/kernel-signed")
+
+    # To replace the PK, sign a new PK esl with the previous PK
+    #  Replacing the PK will not change the secure enforcing status, nor will
+    #  it remove the other variables
+    # To delete the PK, sign an empty file with the PK. The update processing
+    #  logic will interpret this as a deletion.
+    #  NOTE: removing the PK DISABLES OS secure boot enforcement, but will NOT
+    #   clear your other variables.
+    def replaceAndDeletePK(self):
+        con = self.cv_SYSTEM.console
+
+        # Obtain tarball containing a replacement PK
+        self.getTestData(data="keys")
+
+        # Enqueue an update to the PK
+        #  New PK updates must be signed with the previous PK
+        con.run_command("cat /tmp/newPK.auth > /sys/firmware/secvar/vars/PK/update")
+
+        # Reboot the system to process the update
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
+        # Confirm we are still enforcing secure boot
+        con.run_command("test -f /sys/firmware/devicetree/base/ibm,secureboot/os-secureboot-enforcing")
+
+        # Check that the new PK is enrolled now
+        output = con.run_command("sha256sum /sys/firmware/secvar/vars/PK/data")
+        output = output[0].split(" ")[0]
+        self.assertTrue(esl_hashes["newPK"] == output)
+
+        # Obtain tarball containing a PK deletion update
+        self.getTestData(data="keys")
+
+        # Enqueue a deletion update to the PK
+        #  This update is a signed empty file, which is interpreted as a deletion action
+        con.run_command("cat /tmp/deletePK.auth > /sys/firmware/secvar/vars/PK/update")
+
+        # Reboot the system to process the update
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
+
+        # Secure boot enforcement should now be DISABLED
+        con.run_command("test ! -f /sys/firmware/devicetree/base/ibm,secureboot/os-secureboot-enforcing")
+
+        # PK size should be empty now
+        output = con.run_command("cat /sys/firmware/secvar/vars/PK/size")
+        self.assertTrue("0" in output)
+
+        # PK data should not contain any data
+        output = con.run_command("cat /sys/firmware/secvar/vars/PK/data | wc -c")
+        self.assertTrue("0" in output)
+
+        # Loop through and double check that all the other variables still contain their data
+        # This is the same logic as in .addSecureBootKeys()
+        for k in ["KEK", "db", "dbx"]:
+            output = con.run_command("cat /sys/firmware/secvar/vars/{}/size".format(k))
+            self.assertFalse("0" in output)
+
+            output = con.run_command("cat /sys/firmware/secvar/vars/{}/data | wc -c".format(k))
+            self.assertFalse("0" in output)
+
+            output = con.run_command("sha256sum /sys/firmware/secvar/vars/{}/data".format(k))
+            output = output[0].split(" ")[0]
+            self.assertTrue(esl_hashes[k] == output)
 
 
     def runTest(self):
@@ -304,6 +391,9 @@ class OsSecureBoot(unittest.TestCase):
 
         # attempt to securely boot test kernels
         self.checkKexecKernels()
+
+        # replace PK, delete PK
+        self.replaceAndDeletePK()
 
         # clean up after, and ensure keys are properly cleared
         self.assertPhysicalPresence()
