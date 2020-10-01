@@ -98,6 +98,7 @@ default_val = {
     'host_user': 'root',
     'host_password': 'abc123',
     'host_ip': None,
+    'secvar_payload_url': 'https://github.com/erichte-ibm/op-test/raw/erichte-ibm/os-secure-boot-squashed/test_binaries',
 }
 
 default_val_fsp = {
@@ -423,6 +424,8 @@ def get_parser():
                             help="Specify a custom known_hosts file")
     misc_group.add_argument("--accept-unknown-args", default=False, action='store_true',
                             help="Don't exit if we find unknown command line arguments")
+    misc_group.add_argument("--secvar-payload-url",
+                            help="Specify a URL for the secvar test data payload")
 
     return parser
 
