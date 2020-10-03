@@ -131,6 +131,9 @@ class OpTestFastReboot(unittest.TestCase):
             self.skipTest("OpTestSystem does not have MTD PNOR access,"
                           "so skipping Fast Reboot")
 
+        # Throughout skiboot history, there were several different ways of
+        # forcing fast-reset, to change the changing defaults as well.
+        # Use all of them since we need to support different skiboot levels
         c.run_command("nvram -p ibm,skiboot --update-config fast-reset=1")
         res = c.run_command("nvram --print-config=fast-reset -p ibm,skiboot")
         self.assertNotIn("0", res, "Failed to set the fast-reset mode")
@@ -138,6 +141,9 @@ class OpTestFastReboot(unittest.TestCase):
         res = c.run_command(BMC_CONST.NVRAM_PRINT_FAST_RESET_VALUE)
         self.assertIn("feeling-lucky", res,
                       "Failed to set the fast-reset mode")
+        c.run_command("nvram -p ibm,skiboot --update-config force-fast-reset=1")
+        res = c.run_command("nvram --print-config=force-fast-reset -p ibm,skiboot")
+        self.assertIn("1", res, "Failed to set force-fast-reset")
         initialResetCount = self.get_fast_reset_count(c)
         log.debug("INITIAL reset count: %d" % initialResetCount)
         for i in range(0, self.number_reboots_to_do()):
