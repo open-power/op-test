@@ -152,6 +152,8 @@ class OpTestFastReboot(unittest.TestCase):
             # 'reboot' isn't meant to return
             self.pty = self.cv_SYSTEM.console.get_console()
             self.pty.sendline(self.reboot_command())
+            # make sure that the reboot command arrives before grepping the log
+            time.sleep(0.5)
             self.cv_SYSTEM.set_state(OpSystemState.IPLing)
             # We're looking for a skiboot log message, that it's doing fast
             # reboot. We *may* not get this, as on some systems (notably IBM
