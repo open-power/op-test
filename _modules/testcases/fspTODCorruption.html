@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.fspTODCorruption &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.fspTODCorruption</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015,2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">FSP TOD Corruption</span>
+<span class="sd">------------------</span>
+
+<span class="sd">Corrupt TOD and check host boot and runtime behaviours</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+
+<span class="kn">from</span> <span class="nn">common.OpTestIPMI</span> <span class="kn">import</span> <span class="n">OpTestIPMI</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">common.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSSH</span> <span class="kn">import</span> <span class="n">ConsoleState</span> <span class="k">as</span> <span class="n">SSHConnectionState</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">fspTODCorruption</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">bmc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_opal_msg_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_kernel_log</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_tod</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running command on FSP: rtim timeofday&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;rtim timeofday&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">set_tod</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">getoutput</span><span class="p">(</span><span class="s1">&#39;date +&quot;%Y%m</span><span class="si">%d</span><span class="s1">%H%M%S&quot;&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting back the system time using rtim timeofday &quot;</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;rtim timeofday </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">time</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running command on FSP: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_tod</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">tod_force_clock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tod</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;valid&quot;</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;system time is VALID&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;System time is invalid,exiting..., &quot;</span>
+                            <span class="s2">&quot;please set time and rerun&quot;</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running command on FSP: rtim forceClockValue&quot;</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;rtim forceClockValue&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tod</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;INVALID&quot;</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;system time is INVALID&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;rtim: forceClockValue interface not forcing &quot;</span>
+                            <span class="s2">&quot;tod value to invalid&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">check_hwclock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_set_hwclock_time</span><span class="p">(</span><span class="s2">&quot;2015-01-01 10:10:10&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_set_hwclock_time</span><span class="p">(</span><span class="s2">&quot;2016-01-01 20:20:20&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="TOD_CORRUPTION"><a class="viewcode-back" href="../../tests.html#testcases.fspTODCorruption.TOD_CORRUPTION">[docs]</a><span class="k">class</span> <span class="nc">TOD_CORRUPTION</span><span class="p">(</span><span class="n">fspTODCorruption</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This function tests Boot and runtime behaviour when TOD is corrupted.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FSP Platform OPAL specific TOD Corruption tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_get_console</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">mount_exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Please mount NFS and retry the test&quot;</span><span class="p">)</span>
+
+        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;smgr mfgState&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">clear_fsp_errors</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tod_force_clock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tearDown</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_tod</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_hwclock</span><span class="p">()</span></div>
+
+
+<span class="k">def</span> <span class="nf">suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">TOD_CORRUPTION</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

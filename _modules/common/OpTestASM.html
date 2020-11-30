@@ -1,0 +1,329 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>common.OpTestASM &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for common.OpTestASM</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># encoding=utf8</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/common/OpTestASM.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestASM: Advanced System Management (FSP Web UI)</span>
+<span class="sd">--------------------------------------------------</span>
+
+<span class="sd">This class can contains common functions which are useful for</span>
+<span class="sd">FSP ASM Web page. Some functionality is only accessible through</span>
+<span class="sd">the FSP Web UI (such as progress codes), so we scrape it.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+
+<span class="kn">from</span> <span class="nn">.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+
+<span class="kn">import</span> <span class="nn">http.cookiejar</span>
+<span class="kn">import</span> <span class="nn">urllib.request</span>
+<span class="kn">import</span> <span class="nn">urllib.parse</span>
+<span class="kn">import</span> <span class="nn">urllib.error</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">ssl</span>
+
+
+<div class="viewcode-block" id="OpTestASM"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM">[docs]</a><span class="k">class</span> <span class="nc">OpTestASM</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_fspIP</span><span class="p">,</span> <span class="n">i_fspUser</span><span class="p">,</span> <span class="n">i_fspPasswd</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span> <span class="o">=</span> <span class="n">i_fspIP</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span> <span class="o">=</span> <span class="n">i_fspUser</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">i_fspPasswd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://</span><span class="si">%s</span><span class="s2">/cgi-bin/cgi?&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cj</span> <span class="o">=</span> <span class="n">http</span><span class="o">.</span><span class="n">cookiejar</span><span class="o">.</span><span class="n">CookieJar</span><span class="p">()</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="n">ssl</span><span class="o">.</span><span class="n">create_default_context</span><span class="p">()</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">check_hostname</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">verify_mode</span> <span class="o">=</span> <span class="n">ssl</span><span class="o">.</span><span class="n">CERT_NONE</span>
+        <span class="n">opener</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">build_opener</span><span class="p">(</span><span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">HTTPSHandler</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">))</span>
+        <span class="n">opener</span><span class="o">.</span><span class="n">addheaders</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;User-agent&#39;</span><span class="p">,</span> <span class="s1">&#39;LTCTest&#39;</span><span class="p">)]</span>
+        <span class="n">opener</span><span class="o">.</span><span class="n">add_handler</span><span class="p">(</span><span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">HTTPCookieProcessor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cj</span><span class="p">))</span>
+        <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">install_opener</span><span class="p">(</span><span class="n">opener</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setforms</span><span class="p">()</span>
+
+<div class="viewcode-block" id="OpTestASM.setforms"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.setforms">[docs]</a>    <span class="k">def</span> <span class="nf">setforms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;FW860&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ver</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hrdwr</span> <span class="o">=</span> <span class="s1">&#39;p8&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frms</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pwr&#39;</span><span class="p">:</span>       <span class="s1">&#39;59&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;dbg&#39;</span><span class="p">:</span>       <span class="s1">&#39;78&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;immpwroff&#39;</span><span class="p">:</span> <span class="s1">&#39;32&#39;</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hrdwr</span> <span class="o">=</span> <span class="s1">&#39;p7&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">frms</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pwr&#39;</span><span class="p">:</span>       <span class="s1">&#39;60&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;dbg&#39;</span><span class="p">:</span>       <span class="s1">&#39;79&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;immpwroff&#39;</span><span class="p">:</span> <span class="s1">&#39;33&#39;</span><span class="p">}</span></div>
+
+<div class="viewcode-block" id="OpTestASM.getcsrf"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.getcsrf">[docs]</a>    <span class="k">def</span> <span class="nf">getcsrf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">form</span><span class="p">):</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">myurl</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">+</span><span class="n">form</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">urllib</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">URLError</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">break</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">myurl</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;CSRF_TOKEN&#39;</span> <span class="ow">in</span> <span class="n">out</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;CSRF_TOKEN.*value=</span><span class="se">\&#39;</span><span class="s1">(.*)</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">out</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;0&#39;</span></div>
+
+<div class="viewcode-block" id="OpTestASM.getpage"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.getpage">[docs]</a>    <span class="k">def</span> <span class="nf">getpage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">form</span><span class="p">):</span>
+        <span class="n">myurl</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">+</span><span class="n">form</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">myurl</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestASM.submit"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.submit">[docs]</a>    <span class="k">def</span> <span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="n">param</span><span class="p">[</span><span class="s1">&#39;CSRF_TOKEN&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getcsrf</span><span class="p">(</span><span class="n">form</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">urlencode</span><span class="p">(</span><span class="n">param</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">+</span><span class="n">form</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestASM.login"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cj</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span>      <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span>
+                 <span class="s1">&#39;password&#39;</span><span class="p">:</span>  <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+                 <span class="s1">&#39;login&#39;</span><span class="p">:</span>     <span class="s1">&#39;Log in&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;lang&#39;</span><span class="p">:</span>      <span class="s1">&#39;0&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;CSRF_TOKEN&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">}</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=2&quot;</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span>
+
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cj</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="c1"># the login can quietly fail because the FSP has &#39;too many users&#39; logged in,</span>
+            <span class="c1"># even though it actually doesn&#39;t.  let&#39;s check to see if this is the case</span>
+            <span class="c1"># by trying a request.</span>
+            <span class="k">if</span> <span class="s2">&quot;Too many users&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">getpage</span><span class="p">(</span><span class="s2">&quot;form=2&quot;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;FSP reports &#39;Too many users&#39;, FSP needs power cycle&quot;</span><span class="p">)</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Login failed with user:</span><span class="si">{0}</span><span class="s2"> and password:</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="OpTestASM.logout"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.logout">[docs]</a>    <span class="k">def</span> <span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;submit&#39;</span><span class="p">:</span>     <span class="s1">&#39;Log out&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;CSRF_TOKEN&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">}</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=1&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestASM.ver"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.ver">[docs]</a>    <span class="k">def</span> <span class="nf">ver</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=1&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getpage</span><span class="p">(</span><span class="n">form</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestASM.execommand"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.execommand">[docs]</a>    <span class="k">def</span> <span class="nf">execommand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Failed to login ASM page&quot;</span><span class="p">)</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;form&#39;</span><span class="p">:</span>       <span class="s1">&#39;16&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;exe&#39;</span><span class="p">:</span>        <span class="s1">&#39;Execute&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;CSRF_TOKEN&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;cmd&#39;</span><span class="p">:</span>        <span class="n">cmd</span><span class="p">}</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=16&amp;frm=0&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestASM.disablefirewall"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.disablefirewall">[docs]</a>    <span class="k">def</span> <span class="nf">disablefirewall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Failed to login ASM page&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execommand</span><span class="p">(</span><span class="s1">&#39;iptables -F&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logout</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestASM.clearlogs"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.clearlogs">[docs]</a>    <span class="k">def</span> <span class="nf">clearlogs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Failed to login ASM page&quot;</span><span class="p">)</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;form&#39;</span><span class="p">:</span>  <span class="s1">&#39;30&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;clear&#39;</span><span class="p">:</span> <span class="s2">&quot;Clear all error/event log entries&quot;</span><span class="p">,</span>
+                 <span class="s1">&#39;CSRF_TOKEN&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">}</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=30&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logout</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestASM.powerstat"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.powerstat">[docs]</a>    <span class="k">def</span> <span class="nf">powerstat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">frms</span><span class="p">[</span><span class="s1">&#39;pwr&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">getpage</span><span class="p">(</span><span class="n">form</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestASM.start_debugvtty_session"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.start_debugvtty_session">[docs]</a>    <span class="k">def</span> <span class="nf">start_debugvtty_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">partitionId</span><span class="o">=</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">sessionId</span><span class="o">=</span><span class="s1">&#39;0&#39;</span><span class="p">,</span>
+                                <span class="n">sessionTimeout</span><span class="o">=</span><span class="s1">&#39;600&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Failed to login ASM page&quot;</span><span class="p">)</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;form&#39;</span><span class="p">:</span> <span class="s1">&#39;81&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="n">partitionId</span><span class="p">,</span>
+                 <span class="s1">&#39;s&#39;</span><span class="p">:</span> <span class="n">sessionId</span><span class="p">,</span>
+                 <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">sessionTimeout</span><span class="p">,</span>
+                 <span class="s1">&#39;Save settings&#39;</span><span class="p">:</span> <span class="s1">&#39;Save settings&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;CSRF_TOKEN&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">}</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=81&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logout</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestASM.enable_err_injct_policy"><a class="viewcode-back" href="../../programming.html#common.OpTestASM.OpTestASM.enable_err_injct_policy">[docs]</a>    <span class="k">def</span> <span class="nf">enable_err_injct_policy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Failed to login ASM page&quot;</span><span class="p">)</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;form&#39;</span><span class="p">:</span>  <span class="s1">&#39;56&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;p&#39;</span><span class="p">:</span>      <span class="s1">&#39;1&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;submit&#39;</span><span class="p">:</span> <span class="s1">&#39;Save settings&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;CSRF_TOKEN&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">}</span>
+        <span class="n">form</span> <span class="o">=</span> <span class="s2">&quot;form=56&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">form</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logout</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

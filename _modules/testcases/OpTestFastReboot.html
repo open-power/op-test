@@ -1,0 +1,351 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestFastReboot &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestFastReboot</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestFastReboot.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestFastReboot</span>
+<span class="sd">----------------</span>
+
+<span class="sd">Issue fast reboot in petitboot and host OS, on a system having</span>
+<span class="sd">skiboot 5.4 rc1(which has fast-reset feature). Any further tests</span>
+<span class="sd">on fast-reset system will be added here.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OpTestFastReboot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.OpTestFastReboot">[docs]</a><span class="k">class</span> <span class="nc">OpTestFastReboot</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestFastReboot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.OpTestFastReboot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span></div>
+
+    <span class="k">def</span> <span class="nf">number_reboots_to_do</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">2</span>
+
+    <span class="k">def</span> <span class="nf">boot_to_os</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">do_things_while_booted</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">reboot_command</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;reboot&quot;</span>
+
+    <span class="k">def</span> <span class="nf">get_fast_reset_count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;grep &#39;RESET: Initiating fast&#39; /sys/firmware/opal/msglog&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;RESET: Initiating fast reboot ([0-9]*)&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">count</span><span class="p">):</span>
+                    <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">count</span>
+
+<div class="viewcode-block" id="OpTestFastReboot.runTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.OpTestFastReboot.runTest">[docs]</a>    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function tests fast reset of power systems.</span>
+<span class="sd">        It will check booting sequence when reboot command</span>
+<span class="sd">        getting executed in both petitboot and host OS</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="s2">&quot;qemu&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Qemu platform doesn&#39;t have fast-reboot support&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">boot_to_os</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fast_reboot_state</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;cat /proc/device-tree/ibm,opal/fast-reboot&quot;</span><span class="p">))</span>
+            <span class="c1"># skipTest throws exception when passing null at end</span>
+            <span class="c1"># exception from skipTest produces malformed XML</span>
+            <span class="k">if</span> <span class="n">fast_reboot_state</span><span class="p">[:</span><span class="mi">4</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;okay&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Fast reboot currently NOT supported, &quot;</span>
+                              <span class="s2">&quot;/proc/device-tree/ibm,opal/fast-reboot: </span><span class="si">{}</span><span class="s2">&quot;</span>
+                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fast_reboot_state</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+
+        <span class="n">cpu</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;grep &#39;^cpu&#39; /proc/cpuinfo|uniq|sed -e &#39;s/^.*: //;s/[,]* .*//;&#39;&quot;</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">cpu</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">cpu</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Fast Reboot not supported on </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">cpu</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">has_mtd_pnor_access</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OpTestSystem does not have MTD PNOR access,&quot;</span>
+                          <span class="s2">&quot;so skipping Fast Reboot&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Throughout skiboot history, there were several different ways of</span>
+        <span class="c1"># forcing fast-reset, to change the changing defaults as well.</span>
+        <span class="c1"># Use all of them since we need to support different skiboot levels</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;nvram -p ibm,skiboot --update-config fast-reset=1&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;nvram --print-config=fast-reset -p ibm,skiboot&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="s2">&quot;Failed to set the fast-reset mode&quot;</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">NVRAM_SET_FAST_RESET_MODE</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">NVRAM_PRINT_FAST_RESET_VALUE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;feeling-lucky&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span>
+                      <span class="s2">&quot;Failed to set the fast-reset mode&quot;</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;nvram -p ibm,skiboot --update-config force-fast-reset=1&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;nvram --print-config=force-fast-reset -p ibm,skiboot&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="s2">&quot;Failed to set force-fast-reset&quot;</span><span class="p">)</span>
+        <span class="n">initialResetCount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_fast_reset_count</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;INITIAL reset count: </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">initialResetCount</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_reboots_to_do</span><span class="p">()):</span>
+            <span class="n">loopResetCount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_fast_reset_count</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+            <span class="c1"># We do some funny things with the raw pty here, as</span>
+            <span class="c1"># &#39;reboot&#39; isn&#39;t meant to return</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reboot_command</span><span class="p">())</span>
+            <span class="c1"># make sure that the reboot command arrives before grepping the log</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">IPLing</span><span class="p">)</span>
+            <span class="c1"># We&#39;re looking for a skiboot log message, that it&#39;s doing fast</span>
+            <span class="c1"># reboot. We *may* not get this, as on some systems (notably IBM</span>
+            <span class="c1"># FSP based systems) the skiboot log is *not* printed to IPMI</span>
+            <span class="c1"># console</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">skiboot_log_on_console</span><span class="p">():</span>
+                <span class="n">rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s2">&quot; RESET: Initiating fast reboot&quot;</span><span class="p">,</span>
+                                      <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span>
+                                     <span class="n">timeout</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">rc</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]:</span>
+                    <span class="n">c</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>  <span class="c1"># close the console obj</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">boot_to_os</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+            <span class="n">newResetCount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_fast_reset_count</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">loopResetCount</span> <span class="o">&lt;</span> <span class="n">newResetCount</span><span class="p">,</span>
+                            <span class="s2">&quot;Did not do fast reboot&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">initialResetCount</span> <span class="o">&lt;</span> <span class="n">newResetCount</span><span class="p">,</span>
+                            <span class="s2">&quot;Did not do fast reboot&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Completed Fast reboot cycle </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">do_things_while_booted</span><span class="p">()</span>
+
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">NVRAM_DISABLE_FAST_RESET_MODE</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">NVRAM_PRINT_FAST_RESET_VALUE</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span>
+                             <span class="s2">&quot;getting unset fast-reboot is meant to fail!&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;We expected to fail at getting cleared &quot;</span>
+                            <span class="s2">&quot;fast-reset nvram variable&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="FastRebootHost"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.FastRebootHost">[docs]</a><span class="k">class</span> <span class="nc">FastRebootHost</span><span class="p">(</span><span class="n">OpTestFastReboot</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">boot_to_os</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="FastRebootHostTorture"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.FastRebootHostTorture">[docs]</a><span class="k">class</span> <span class="nc">FastRebootHostTorture</span><span class="p">(</span><span class="n">FastRebootHost</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">boot_to_os</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">number_reboots_to_do</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">1000</span></div>
+
+
+<div class="viewcode-block" id="FastRebootHostStress"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.FastRebootHostStress">[docs]</a><span class="k">class</span> <span class="nc">FastRebootHostStress</span><span class="p">(</span><span class="n">FastRebootHost</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">number_reboots_to_do</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">2</span>
+
+    <span class="k">def</span> <span class="nf">reboot_command</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;reboot -ff&quot;</span>
+
+    <span class="k">def</span> <span class="nf">do_things_while_booted</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;stress --cpu `nproc` --vm `nproc` --vm-bytes 128M &gt; /dev/null &amp;&quot;</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;sleep 120&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uptime&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FastRebootHostStressTorture"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.FastRebootHostStressTorture">[docs]</a><span class="k">class</span> <span class="nc">FastRebootHostStressTorture</span><span class="p">(</span><span class="n">FastRebootHostStress</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">number_reboots_to_do</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">200</span></div>
+
+
+<div class="viewcode-block" id="FastRebootTorture"><a class="viewcode-back" href="../../tests.html#testcases.OpTestFastReboot.FastRebootTorture">[docs]</a><span class="k">class</span> <span class="nc">FastRebootTorture</span><span class="p">(</span><span class="n">OpTestFastReboot</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">number_reboots_to_do</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">1000</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,552 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.I2C &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.I2C</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015,2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">I2C tests</span>
+<span class="sd">---------</span>
+
+<span class="sd">This class will test functionality of following drivers:</span>
+<span class="sd">I2C Driver(Inter-Integrated Circuit) driver</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span><span class="p">,</span> <span class="n">KernelModuleNotLoaded</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">KernelConfigNotSet</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="I2CDetectUnsupported"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2CDetectUnsupported">[docs]</a><span class="k">class</span> <span class="nc">I2CDetectUnsupported</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Asked to do i2c detect on a bus that doesn&#39;t support detection</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="I2C"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C">[docs]</a><span class="k">class</span> <span class="nc">I2C</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Base class for I2C tests</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">set_up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;skiroot&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;host&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unknown test type&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span>
+
+    <span class="k">def</span> <span class="nf">i2c_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_OS_Level</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_command</span><span class="p">(</span><span class="s2">&quot;i2cdump&quot;</span><span class="p">,</span> <span class="s2">&quot;i2cdetect&quot;</span><span class="p">,</span> <span class="s2">&quot;hexdump&quot;</span><span class="p">,</span>
+                                        <span class="s2">&quot;i2cget&quot;</span><span class="p">,</span> <span class="s2">&quot;i2cset&quot;</span><span class="p">)</span>
+
+        <span class="n">l_kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_kernel_version</span><span class="p">()</span>
+
+        <span class="n">mods</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;CONFIG_I2C_OPAL&quot;</span><span class="p">:</span> <span class="s2">&quot;i2c_opal&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CONFIG_I2C_CHARDEV&quot;</span><span class="p">:</span> <span class="s2">&quot;i2c_dev&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CONFIG_EEPROM_AT24&quot;</span><span class="p">:</span> <span class="s2">&quot;at24&quot;</span><span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">mods</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module_based_on_config</span><span class="p">(</span><span class="n">l_kernel</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">KernelConfigNotSet</span> <span class="k">as</span> <span class="n">ns</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">ns</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">KernelModuleNotLoaded</span> <span class="k">as</span> <span class="n">km</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">km</span><span class="o">.</span><span class="n">module</span> <span class="o">==</span> <span class="s2">&quot;at24&quot;</span><span class="p">:</span>
+                <span class="c1"># We can fail if we don&#39;t load it, not all systems have it</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">km</span><span class="p">))</span>
+
+        <span class="c1"># Get information of EEPROM chips</span>
+        <span class="n">eeprom_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_get_info_of_eeprom_chips</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">has_host_accessible_eeprom</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">eeprom_info</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">eeprom_info</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="I2C.host_get_list_of_i2c_buses"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.host_get_list_of_i2c_buses">[docs]</a>    <span class="k">def</span> <span class="nf">host_get_list_of_i2c_buses</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function will return the list of installed i2c buses on host in</span>
+<span class="sd">        two formats:</span>
+
+<span class="sd">        list-by number, e.g. ::</span>
+
+<span class="sd">          [&quot;0&quot;,&quot;1&quot;,&quot;2&quot;,....]</span>
+
+<span class="sd">        list-by-name, eg ::</span>
+
+<span class="sd">           [&quot;i2c-0&quot;,&quot;i2c-1&quot;,&quot;i2c-2&quot;....]</span>
+
+<span class="sd">        :returns: (l_list, l_list1) : list of i2c buses by number,</span>
+<span class="sd">                  list of i2c buses by name</span>
+<span class="sd">        :raises: :class:`common.Exceptions.CommandFailed`</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;i2cdetect -l&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;i2cdetect -l | awk &#39;{print $1}&#39;&quot;</span><span class="p">)</span>
+        <span class="c1"># list by number Ex: [&quot;0&quot;,&quot;1&quot;,&quot;2&quot;,....]</span>
+        <span class="n">l_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># list by name Ex: [&quot;i2c-0&quot;,&quot;i2c-1&quot;...]</span>
+        <span class="n">l_list1</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">l_bus</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="n">matchObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;(i2c)-(\d{1,})&quot;</span><span class="p">,</span> <span class="n">l_bus</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">matchObj</span><span class="p">:</span>
+                <span class="n">l_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+                <span class="n">l_list1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l_bus</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">l_list</span><span class="p">,</span> <span class="n">l_list1</span></div>
+
+<div class="viewcode-block" id="I2C.host_get_list_of_eeprom_chips"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.host_get_list_of_eeprom_chips">[docs]</a>    <span class="k">def</span> <span class="nf">host_get_list_of_eeprom_chips</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will return list with elements having pairs of eeprom chip</span>
+<span class="sd">        addresses and corresponding i2c bus where the chip is attached.</span>
+<span class="sd">        This information is getting through sysfs interface. format is ::</span>
+
+<span class="sd">          [&quot;0 0x50&quot;,&quot;0 0x51&quot;,&quot;1 0x51&quot;,&quot;1 0x52&quot;....]</span>
+
+<span class="sd">        :returns: list -- list having pairs of i2c bus number and eeprom chip</span>
+<span class="sd">                  address.</span>
+<span class="sd">        :raises: :class:`common.Exceptions.CommandFailed`</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find /sys/ -name eeprom&quot;</span><span class="p">)</span>
+        <span class="n">l_chips</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">l_line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l_line</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s2">&quot;eeprom&quot;</span><span class="p">):</span>
+                <span class="n">matchObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;/(\d{1,}-\d</span><span class="si">{4}</span><span class="s2">)/eeprom&quot;</span><span class="p">,</span> <span class="n">l_line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">matchObj</span><span class="p">:</span>
+                    <span class="n">l_line</span> <span class="o">=</span> <span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">i_args</span> <span class="o">=</span> <span class="p">(</span><span class="n">l_line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">))</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">i_args</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">i_args</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot; 00&quot;</span><span class="p">,</span> <span class="s2">&quot; 0x&quot;</span><span class="p">,</span> <span class="n">i_args</span><span class="p">)</span>
+                <span class="n">l_chips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i_args</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">i_args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">l_chips</span></div>
+
+<div class="viewcode-block" id="I2C.host_get_info_of_eeprom_chips"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.host_get_info_of_eeprom_chips">[docs]</a>    <span class="k">def</span> <span class="nf">host_get_info_of_eeprom_chips</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function will get information of EEPROM chips attached to the i2c</span>
+<span class="sd">        buses</span>
+
+<span class="sd">        :returns: str EEPROM chips information</span>
+<span class="sd">        :raises: :class:`common.Exceptions.CommandFailed`</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Getting the information of EEPROM chips&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat /sys/bus/i2c/drivers/at24/*/name&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -C&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;rmmod at24&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module</span><span class="p">(</span><span class="s2">&quot;at24&quot;</span><span class="p">)</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;cat /sys/bus/i2c/drivers/at24/*/name&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">except</span> <span class="n">KernelModuleNotLoaded</span> <span class="k">as</span> <span class="n">km</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">l_res</span></div>
+
+<div class="viewcode-block" id="I2C.host_hexdump"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.host_hexdump">[docs]</a>    <span class="k">def</span> <span class="nf">host_hexdump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_dev</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        The hexdump utility is used to display the specified files.</span>
+<span class="sd">        This function will display in both ASCII+hexadecimal format.</span>
+
+<span class="sd">        :param: i_dev: this is the file used as a input to hexdump for display</span>
+<span class="sd">                       info</span>
+<span class="sd">        :type i_dev: str</span>
+
+<span class="sd">        :raises: :class:`common.Exceptions.CommandFailed`</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hexdump -C </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_dev</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="I2C.query_i2c_bus"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.query_i2c_bus">[docs]</a>    <span class="k">def</span> <span class="nf">query_i2c_bus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_bus</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function query&#39;s the i2c bus for devices attached to it.</span>
+<span class="sd">        i2cdetect is a utility to scan an I2C bus for devices</span>
+
+<span class="sd">        :param: i_bus: i2c bus numer</span>
+<span class="sd">        :type i_bus: str</span>
+<span class="sd">        :raises: :class:`common.Exceptions.CommandFailed`</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">rc</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Querying the i2c bus </span><span class="si">%s</span><span class="s2"> for devices attached to it&quot;</span> <span class="o">%</span> <span class="n">i_bus</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;i2cdetect -y </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_bus</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="n">rc</span> <span class="o">=</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span>
+
+        <span class="k">if</span> <span class="n">rc</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;i2cdetect -F </span><span class="si">%i</span><span class="s2">|egrep &#39;(Send|Receive) Bytes&#39;|grep yes&quot;</span>
+                    <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_bus</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;i2c bus </span><span class="si">%i</span><span class="s2"> doesn&#39;t support query&quot;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_bus</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="n">I2CDetectUnsupported</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;i2cdetect -y -r </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_bus</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                 <span class="s2">&quot;Querying the i2cbus for devices failed&quot;</span>
+                                 <span class="s2">&quot;:</span><span class="si">{}</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i_bus</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="I2C.i2c_dump"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.i2c_dump">[docs]</a>    <span class="k">def</span> <span class="nf">i2c_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_args</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This i2cdump function takes arguments in pair of a string like</span>
+<span class="sd">        &quot;i2cbus address&quot;. i2cbus indicates the number or name of the I2C bus to</span>
+<span class="sd">        be scanned. This number should correspond  to  one  of  the busses</span>
+<span class="sd">        listed by i2cdetect -l. address indicates the address to be scanned on</span>
+<span class="sd">        that bus, and is an integer between 0x03 and 0x77 i2cdump is a program</span>
+<span class="sd">        to examine registers visible through the I2C bus.</span>
+
+<span class="sd">        The command may fail due to problems with the device, hardware, or</span>
+<span class="sd">        firmware.</span>
+
+<span class="sd">        :param i_args: this is the argument to i2cdump utility. Arguments are</span>
+<span class="sd">                       in the form of &quot;i2c-bus-number eeprom-chip-address&quot;</span>
+<span class="sd">                       e.g. ``0 0x51``, ``3 0x52``</span>
+<span class="sd">        :type i_args: str</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;i2cdump -f -y </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_args</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                             <span class="s2">&quot;i2cdump failed for the device: </span><span class="si">%s</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span>
+                             <span class="o">%</span> <span class="p">(</span><span class="n">i_args</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="I2C.i2c_get"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.i2c_get">[docs]</a>    <span class="k">def</span> <span class="nf">i2c_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_args</span><span class="p">,</span> <span class="n">i_addr</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function i2cget read from I2C/SMBus chip registers.</span>
+
+<span class="sd">        command usage: ::</span>
+
+<span class="sd">          i2cget [-f] [-y] i2cbus chip-address [data-address [mode]]</span>
+
+<span class="sd">        :param i_args: this is the argument to i2cget utility. Arguments are</span>
+<span class="sd">                       in the form of &quot;i2c-bus-number eeprom-chip-address&quot;</span>
+<span class="sd">                       e.g. ``0 0x51``, ``3 0x52``</span>
+<span class="sd">        :type i_args: str</span>
+<span class="sd">        :param i_addr: this is the data-address on chip, from where data will</span>
+<span class="sd">                       be read.</span>
+<span class="sd">                       e.g. &quot;0x00&quot;,&quot;0x10&quot;,&quot;0x20&quot;...</span>
+
+<span class="sd">        :returns: data present on data-address</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;i2cget -f -y </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i_args</span><span class="p">,</span> <span class="n">i_addr</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                             <span class="s2">&quot;i2cget: Getting data from address </span><span class="si">%s</span><span class="s2"> failed: </span><span class="si">%s</span><span class="s2">&quot;</span>
+                             <span class="o">%</span> <span class="p">(</span><span class="n">i_addr</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="I2C.i2c_set"><a class="viewcode-back" href="../../tests.html#testcases.I2C.I2C.i2c_set">[docs]</a>    <span class="k">def</span> <span class="nf">i2c_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_args</span><span class="p">,</span> <span class="n">i_addr</span><span class="p">,</span> <span class="n">i_val</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function i2cset will be used for setting I2C registers.</span>
+
+<span class="sd">        command usage: ::</span>
+
+<span class="sd">          i2cset [-f] [-y] [-m mask] [-r] i2cbus chip-address data-address [value] ...  [mode]</span>
+
+<span class="sd">        :param i_args: this is the argument to i2cset utility. Arguments are</span>
+<span class="sd">                       in the form of &quot;i2c-bus-number eeprom-chip-address&quot;</span>
+<span class="sd">                       e.g. ``0 0x51``, ``3 0x52`` ....etc</span>
+<span class="sd">        :type i_args: str</span>
+<span class="sd">        :param i_addr: this is the data-address on chip, where data will be set</span>
+<span class="sd">                       e.g. 0x00&quot;,&quot;0x10&quot;,&quot;0x20&quot;...</span>
+<span class="sd">        :type i_addr: str</span>
+<span class="sd">        :param i_val: this is the value which will be set into</span>
+<span class="sd">                      data-address i_addr</span>
+<span class="sd">        :type i_val: str</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;i2cset -f -y </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i_args</span><span class="p">,</span> <span class="n">i_addr</span><span class="p">,</span> <span class="n">i_val</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                             <span class="s2">&quot;i2cset: Setting the data to a address </span><span class="si">%s</span><span class="s2"> failed:&quot;</span>
+                             <span class="s2">&quot; </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i_addr</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">)))</span></div></div>
+
+
+<div class="viewcode-block" id="FullI2C"><a class="viewcode-back" href="../../tests.html#testcases.I2C.FullI2C">[docs]</a><span class="k">class</span> <span class="nc">FullI2C</span><span class="p">(</span><span class="n">I2C</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This test has following test steps:</span>
+
+<span class="sd">    1. Getting host information(OS and kernel info)</span>
+<span class="sd">    2. Checking the required utilites are present on host or not</span>
+<span class="sd">    3. Loading the necessary modules to test I2C device driver functionalites</span>
+<span class="sd">       (i2c_dev, i2c_opal and at24)</span>
+<span class="sd">    4. Getting the list of i2c buses</span>
+<span class="sd">    5. Querying the i2c bus for devices</span>
+<span class="sd">    6. Getting the list of i2c buses and eeprom chip addresses</span>
+<span class="sd">    7. Accessing the registers visible through the i2cbus using i2cdump utility</span>
+<span class="sd">    8. Listing the i2c adapter conetents and i2c bus entries to make sure</span>
+<span class="sd">       sysfs entries created for each bus.</span>
+<span class="sd">    9. Testing i2cget functionality for limited samples</span>
+
+<span class="sd">    Avoiding i2cset functionality, it may damage the system.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">BASIC_TEST</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="FullI2C.setUp"><a class="viewcode-back" href="../../tests.html#testcases.I2C.FullI2C.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FullI2C</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;host&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">i2c_init</span><span class="p">()</span>
+        <span class="c1"># Get list of i2c buses available on host,</span>
+        <span class="c1"># l_list=[&quot;0&quot;,&quot;1&quot;....]</span>
+        <span class="c1"># l_list1=[&quot;i2c-0&quot;,&quot;i2c-1&quot;,&quot;i2c-2&quot;....]</span>
+        <span class="n">l_list</span><span class="p">,</span> <span class="n">l_list1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_get_list_of_i2c_buses</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">BASIC_TEST</span><span class="p">:</span>
+            <span class="c1"># For the basic test, just go for the first of everything.</span>
+            <span class="n">l_list</span> <span class="o">=</span> <span class="n">l_list</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">l_list1</span> <span class="o">=</span> <span class="n">l_list1</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Scanning i2c bus for devices attached to it.</span>
+        <span class="k">for</span> <span class="n">l_bus</span> <span class="ow">in</span> <span class="n">l_list</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">query_i2c_bus</span><span class="p">(</span><span class="n">l_bus</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">I2CDetectUnsupported</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unsupported i2cdetect on bus </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">l_bus</span><span class="p">)</span>
+
+        <span class="c1"># Get list of pairs of i2c bus and EEPROM device addresses in the host</span>
+        <span class="n">l_chips</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_get_list_of_eeprom_chips</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">has_host_accessible_eeprom</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l_chips</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                                <span class="s2">&quot;No EEPROMs detected, while OpTestSystem says &quot;</span>
+                                <span class="s2">&quot;there should be&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">l_args</span> <span class="ow">in</span> <span class="n">l_chips</span><span class="p">:</span>
+                <span class="c1"># Accessing the registers visible through the i2cbus using</span>
+                <span class="c1"># i2cdump utility</span>
+                <span class="c1"># l_args format: &quot;0 0x51&quot;,&quot;1 0x53&quot;,.....etc</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">i2c_dump</span><span class="p">(</span><span class="n">l_args</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l_chips</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                             <span class="s2">&quot;Detected EEPROM where OpTestSystem said there &quot;</span>
+                             <span class="s2">&quot;should be none&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">has_host_accessible_eeprom</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l_chips</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                               <span class="s2">&quot;Expected to find EEPROM chips&quot;</span><span class="p">)</span>
+            <span class="c1"># Currently testing only getting the data from a data address,</span>
+            <span class="c1"># avoiding setting data.</span>
+            <span class="c1"># Only four samples are gathered to check whether reading eeprom</span>
+            <span class="c1"># data is working or not.</span>
+            <span class="c1"># Setting eeprom data is dangerous and make your system UNBOOTABLE</span>
+            <span class="n">l_addrs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;0x00&quot;</span><span class="p">,</span> <span class="s2">&quot;0x10&quot;</span><span class="p">,</span> <span class="s2">&quot;0x20&quot;</span><span class="p">,</span> <span class="s2">&quot;0x30&quot;</span><span class="p">,</span> <span class="s2">&quot;0x40&quot;</span><span class="p">,</span> <span class="s2">&quot;0x50&quot;</span><span class="p">,</span> <span class="s2">&quot;0x60&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;0x70&quot;</span><span class="p">,</span> <span class="s2">&quot;0x80&quot;</span><span class="p">,</span> <span class="s2">&quot;0x90&quot;</span><span class="p">,</span> <span class="s2">&quot;0xa0&quot;</span><span class="p">,</span> <span class="s2">&quot;0xb0&quot;</span><span class="p">,</span> <span class="s2">&quot;0xc0&quot;</span><span class="p">,</span> <span class="s2">&quot;0xd0&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;0xe0&quot;</span><span class="p">,</span> <span class="s2">&quot;0xf0&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">l_addr</span> <span class="ow">in</span> <span class="n">l_addrs</span><span class="p">:</span>
+                <span class="n">l_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">i2c_get</span><span class="p">(</span><span class="n">l_chips</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">l_addr</span><span class="p">)</span>
+                <span class="c1"># self.i2c_set(l_list2[1], l_addr, &quot;0x50&quot;)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;skiroot&quot;</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># list i2c adapter contents</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never -l /sys/class/i2c-adapter&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+
+        <span class="c1"># Checking the sysfs entry of each i2c bus</span>
+        <span class="k">for</span> <span class="n">l_bus</span> <span class="ow">in</span> <span class="n">l_list1</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;ls --color=never -l /sys/class/i2c-adapter/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">l_bus</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span></div>
+
+
+<div class="viewcode-block" id="BasicI2C"><a class="viewcode-back" href="../../tests.html#testcases.I2C.BasicI2C">[docs]</a><span class="k">class</span> <span class="nc">BasicI2C</span><span class="p">(</span><span class="n">FullI2C</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="n">BASIC_TEST</span> <span class="o">=</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="BasicI2C.setUp"><a class="viewcode-back" href="../../tests.html#testcases.I2C.BasicI2C.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BasicI2C</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="BasicSkirootI2C"><a class="viewcode-back" href="../../tests.html#testcases.I2C.BasicSkirootI2C">[docs]</a><span class="k">class</span> <span class="nc">BasicSkirootI2C</span><span class="p">(</span><span class="n">FullI2C</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="n">BASIC_TEST</span> <span class="o">=</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="BasicSkirootI2C.setUp"><a class="viewcode-back" href="../../tests.html#testcases.I2C.BasicSkirootI2C.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FullI2C</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

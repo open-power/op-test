@@ -1,0 +1,393 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.InstallUbuntu &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.InstallUbuntu</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015,2018</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Install Ubuntu</span>
+<span class="sd">--------------</span>
+
+<span class="sd">Installs Ubuntu on the host.</span>
+
+<span class="sd">The idea behind this test is to both set up an OS suitable to run `op-test`</span>
+<span class="sd">against and check our backwards compatibility with installation media.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common</span> <span class="kn">import</span> <span class="n">OpTestInstallUtil</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="MyIPfromHost"><a class="viewcode-back" href="../../tests.html#testcases.InstallUbuntu.MyIPfromHost">[docs]</a><span class="k">class</span> <span class="nc">MyIPfromHost</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="MyIPfromHost.setUp"><a class="viewcode-back" href="../../tests.html#testcases.InstallUbuntu.MyIPfromHost.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="n">my_ip</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_my_ip_from_host_perspective</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;# FOUND MY IP: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">my_ip</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="InstallUbuntu"><a class="viewcode-back" href="../../tests.html#testcases.InstallUbuntu.InstallUbuntu">[docs]</a><span class="k">class</span> <span class="nc">InstallUbuntu</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="InstallUbuntu.setUp"><a class="viewcode-back" href="../../tests.html#testcases.InstallUbuntu.InstallUbuntu.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_repo</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_cdrom</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                <span class="s2">&quot;Provide installation media for installation with --os-repo or --os-cdrom&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;qemu&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_ip</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_gateway</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_dns</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_submask</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_mac</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                <span class="s2">&quot;Provide host network details refer, --host-{ip,gateway,dns,submask,mac}&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_user</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_password</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                <span class="s2">&quot;Provide host user details refer, --host-{user,password}&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_scratch_disk</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                <span class="s2">&quot;Provide proper host disk to install refer, --host-scratch-disk&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">select_petitboot_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT</span><span class="p">)</span>
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">while</span> <span class="n">r</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s1">&#39;\*.*\s+&#39;</span> <span class="o">+</span> <span class="n">item</span><span class="p">,</span> <span class="s1">&#39;\*.*\s+&#39;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">],</span>
+                               <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\x1b</span><span class="s2">[A&quot;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendcontrol</span><span class="p">(</span><span class="s1">&#39;l&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">no_os_reinstall</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                <span class="s2">&quot;--no-os-reinstall set, not trying to run install OS test&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+
+        <span class="c1"># Set the install paths</span>
+        <span class="n">base_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">basedir</span><span class="p">,</span> <span class="s2">&quot;osimages&quot;</span><span class="p">,</span> <span class="s2">&quot;ubuntu&quot;</span><span class="p">)</span>
+        <span class="n">boot_path</span> <span class="o">=</span> <span class="s2">&quot;ubuntu-installer/ppc64el&quot;</span>
+        <span class="n">vmlinux</span> <span class="o">=</span> <span class="s2">&quot;vmlinux&quot;</span>
+        <span class="n">initrd</span> <span class="o">=</span> <span class="s2">&quot;initrd.gz&quot;</span>
+        <span class="n">ks</span> <span class="o">=</span> <span class="s2">&quot;preseed.cfg&quot;</span>
+        <span class="n">OpIU</span> <span class="o">=</span> <span class="n">OpTestInstallUtil</span><span class="o">.</span><span class="n">InstallUtil</span><span class="p">(</span><span class="n">base_path</span><span class="o">=</span><span class="n">base_path</span><span class="p">,</span>
+                                             <span class="n">vmlinux</span><span class="o">=</span><span class="n">vmlinux</span><span class="p">,</span>
+                                             <span class="n">initrd</span><span class="o">=</span><span class="n">initrd</span><span class="p">,</span>
+                                             <span class="n">ks</span><span class="o">=</span><span class="n">ks</span><span class="p">,</span>
+                                             <span class="n">boot_path</span><span class="o">=</span><span class="n">boot_path</span><span class="p">)</span>
+        <span class="n">my_ip</span> <span class="o">=</span> <span class="n">OpIU</span><span class="o">.</span><span class="n">get_server_ip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">my_ip</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;unable to get the ip from host&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;qemu&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_cdrom</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_repo</span><span class="p">:</span>
+                <span class="n">repo</span> <span class="o">=</span> <span class="n">OpIU</span><span class="o">.</span><span class="n">setup_repo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_cdrom</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_repo</span><span class="p">:</span>
+                <span class="n">repo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_repo</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">repo</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;No valid repo to start installation&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">OpIU</span><span class="o">.</span><span class="n">extract_install_files</span><span class="p">(</span><span class="n">repo</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;Unable to download install files&quot;</span><span class="p">)</span>
+
+        <span class="c1"># start our web server</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="n">OpIU</span><span class="o">.</span><span class="n">start_server</span><span class="p">(</span><span class="n">my_ip</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;qemu&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">os_repo</span><span class="p">:</span>
+            <span class="n">repo</span> <span class="o">=</span> <span class="s1">&#39;http://</span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">/repo&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">my_ip</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+
+        <span class="n">kernel_args</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39; auto console=hvc0 &#39;</span>
+                       <span class="s1">&#39;interface=auto &#39;</span>
+                       <span class="s1">&#39;localechooser/languagelist=en &#39;</span>
+                       <span class="s1">&#39;debian-installer/country=US &#39;</span>
+                       <span class="s1">&#39;debian-installer/locale=en_US &#39;</span>
+                       <span class="s1">&#39;console-setup/ask_detect=false &#39;</span>
+                       <span class="s1">&#39;console-setup/layoutcode=us &#39;</span>
+                       <span class="s1">&#39;netcfg/get_hostname=ubuntu &#39;</span>
+                       <span class="s1">&#39;netcfg/get_domain=example.com &#39;</span>
+                       <span class="s1">&#39;netcfg/link_wait_timeout=60 &#39;</span>
+                       <span class="s1">&#39;partman-auto/disk=</span><span class="si">%s</span><span class="s1"> &#39;</span>
+                       <span class="s1">&#39;locale=en_US &#39;</span>
+                       <span class="s1">&#39;url=http://</span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">/preseed.cfg&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_scratch_disk</span><span class="p">(),</span>
+                                                         <span class="n">my_ip</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_dns</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">]:</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> <span class="s1">&#39; netcfg/disable_autoconfig=true &#39;</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> <span class="s1">&#39;netcfg/get_nameservers=</span><span class="si">%s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_dns</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> <span class="s1">&#39;netcfg/get_ipaddress=</span><span class="si">%s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">ip</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> <span class="s1">&#39;netcfg/get_netmask=</span><span class="si">%s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_submask</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> <span class="s1">&#39;netcfg/get_gateway=</span><span class="si">%s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_gateway</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">proxy</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">]:</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> \
+                <span class="s1">&#39;mirror/http/proxy=</span><span class="si">{}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">proxy</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">if</span> <span class="s2">&quot;qemu&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> <span class="s1">&#39; netcfg/choose_interface=auto &#39;</span>
+            <span class="c1"># For Qemu, we boot from CDROM, so let&#39;s use petitboot!</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">select_petitboot_item</span><span class="p">(</span><span class="s1">&#39;Install Ubuntu Server&#39;</span><span class="p">)</span>
+            <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;e&#39;</span><span class="p">)</span>
+            <span class="c1"># In future, we should implement a method like this:</span>
+            <span class="c1">#  self.petitboot_select_field(&#39;Boot arguments:&#39;)</span>
+            <span class="c1"># But, in the meantime:</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t\t\t\t</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># FIXME :)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\b\b\b\b</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># remove &#39; ---&#39;</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\b\b\b\b\b</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># remove &#39;quiet&#39;</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">kernel_args</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">kernel_args</span> <span class="o">=</span> <span class="n">kernel_args</span> <span class="o">+</span> <span class="s1">&#39; netcfg/choose_interface=</span><span class="si">%s</span><span class="s1"> BOOTIF=01-</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_mac</span><span class="p">,</span>
+                                                                                      <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_mac</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)))</span>
+
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;[ -f </span><span class="si">%s</span><span class="s2"> ]&amp;&amp; rm -f </span><span class="si">%s</span><span class="s2">;[ -f </span><span class="si">%s</span><span class="s2"> ] &amp;&amp; rm -f </span><span class="si">%s</span><span class="s2">;true&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">vmlinux</span><span class="p">,</span>
+                                                                       <span class="n">vmlinux</span><span class="p">,</span>
+                                                                       <span class="n">initrd</span><span class="p">,</span>
+                                                                       <span class="n">initrd</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install OPEN marker for wget vmlinux&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;wget http://</span><span class="si">%s</span><span class="s2">:</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                                   <span class="p">(</span><span class="n">my_ip</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">vmlinux</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install CLOSE marker for wget vmlinux&quot;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install OPEN marker for wget initrd&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;wget http://</span><span class="si">%s</span><span class="s2">:</span><span class="si">%s</span><span class="s2">/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                                   <span class="p">(</span><span class="n">my_ip</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">initrd</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install CLOSE marker for wget initrd&quot;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install OPEN marker for kexec&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;kexec -i </span><span class="si">%s</span><span class="s2"> -c </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> -l&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">initrd</span><span class="p">,</span>
+                                                                    <span class="n">kernel_args</span><span class="p">,</span>
+                                                                    <span class="n">vmlinux</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install CLOSE marker for kexec&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;wget or kexec Exception=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;kexec -e&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Do things</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s1">&#39;Sent SIGKILL to all processes&#39;</span><span class="p">,</span> <span class="s1">&#39;Starting new kernel&#39;</span><span class="p">],</span>
+                       <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install OPEN marker for Loading Configure&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;There sometimes are timing issues with Host OS networking coming live concurrently, just retry&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;Symptoms seen are failure to download preseed.cfg from op-test box, etc.&quot;</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s1">&#39;Loading additional components&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;Configure the keyboard&#39;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install CLOSE marker for Loading Configure&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;r=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;raw_pty.before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">raw_pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;raw_pty.after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">raw_pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;# Preseed isn&#39;t perfect when it comes to keyboard selection. Urgh&quot;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s1">&#39;Go Back&#39;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s1">&#39;Keyboard layout&#39;</span><span class="p">])</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s1">&#39;activates buttons&#39;</span><span class="p">])</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s1">&#39;Loading additional components&#39;</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+                <span class="p">[</span><span class="s1">&#39;udeb&#39;</span><span class="p">,</span> <span class="s1">&#39;Setting up the clock&#39;</span><span class="p">,</span> <span class="s1">&#39;Detecting hardware&#39;</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install OPEN marker for Partitions formatting&quot;</span><span class="p">)</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s1">&#39;Partitions formatting&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install CLOSE marker for Partitions formatting&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install OPEN marker for Installing the base system&quot;</span><span class="p">)</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s1">&#39;Installing the base system&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install CLOSE marker for Installing the base system&quot;</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">while</span> <span class="n">r</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># FIXME: looping forever isn&#39;t ideal</span>
+            <span class="c1"># But we do want to ensure forward progress</span>
+            <span class="c1"># and not just timeout on a slow network</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s1">&#39;Finishing the installation&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;Select and install software&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;Preparing&#39;</span><span class="p">,</span> <span class="s1">&#39;Configuring&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;Cleaning up&#39;</span>
+                                <span class="s1">&#39;Retrieving&#39;</span><span class="p">,</span> <span class="s1">&#39;Installing&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;boot loader&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;Running&#39;</span><span class="p">,</span>
+                                <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install OPEN marker for Requesting system reboot&quot;</span><span class="p">)</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s1">&#39;Requesting system reboot&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Install CLOSE marker for Requesting system reboot&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">IPLing</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="n">OpIU</span><span class="o">.</span><span class="n">stop_server</span><span class="p">()</span>
+        <span class="n">OpIU</span><span class="o">.</span><span class="n">set_bootable_disk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_scratch_disk</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="c1"># sometimes coming back up we need a few attempts</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uname -a&quot;</span><span class="p">,</span> <span class="n">retry</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat /etc/os-release&quot;</span><span class="p">,</span> <span class="n">retry</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_opal_msg_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_kernel_log</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

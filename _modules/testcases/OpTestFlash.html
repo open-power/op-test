@@ -1,0 +1,834 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestFlash &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestFlash</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestFlash.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestFlash</span>
+<span class="sd">-----------</span>
+<span class="sd">Firmware flash tests for OpenPower testing.</span>
+
+<span class="sd">This class contains the OpenPower Firmware flashing scripts for</span>
+<span class="sd">all the OPAL PowerNV platforms(AMI, FSP, SMC and OpenBMC).</span>
+
+<span class="sd">- Host PNOR Firmware Updates</span>
+<span class="sd">- OPAL Lid Updates(Both Skiboot and Skiroot lids flashing)</span>
+<span class="sd">- Out-of-band HPM Update</span>
+<span class="sd">- In-band HPM Update</span>
+
+<span class="sd">Tools needed (can vary per platform):</span>
+
+<span class="sd">- ipmitool</span>
+<span class="sd">- pflash</span>
+<span class="sd">- pUpdate</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">common.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+<span class="kn">from</span> <span class="nn">common</span> <span class="kn">import</span> <span class="n">OpTestInstallUtil</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OpTestFlashBase"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.OpTestFlashBase">[docs]</a><span class="k">class</span> <span class="nc">OpTestFlashBase</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestFlashBase.setUp"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.OpTestFlashBase.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">get_rest_api</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">platform</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">util</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">OpIU</span> <span class="o">=</span> <span class="n">OpTestInstallUtil</span><span class="o">.</span><span class="n">InstallUtil</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_ip</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_ip</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_username</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_password</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pupdate_binary</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pupdate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pflash</span></div>
+
+    <span class="k">def</span> <span class="nf">validate_side_activated</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">l_bmc_side</span><span class="p">,</span> <span class="n">l_pnor_side</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_side_activated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PRIMARY_SIDE</span><span class="p">,</span> <span class="n">l_bmc_side</span><span class="p">,</span>
+                      <span class="s2">&quot;BMC: Primary side is not active&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">l_pnor_side</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">GOLDEN_SIDE</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PNOR: Primary side is not active&quot;</span><span class="p">)</span>
+            <span class="n">bios_sensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_golden_side_sensor_id</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">bios_sensor</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+                                <span class="s2">&quot;Failed to get the BIOS Golden side sensor id&quot;</span><span class="p">)</span>
+            <span class="n">boot_count_sensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_boot_count_sensor_id</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">boot_count_sensor</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+                                <span class="s2">&quot;Failed to get the Boot Count sensor id&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_pnor_primary_side</span><span class="p">(</span>
+                <span class="n">bios_sensor</span><span class="p">,</span> <span class="n">boot_count_sensor</span><span class="p">)</span>
+            <span class="n">l_bmc_side</span><span class="p">,</span> <span class="n">l_pnor_side</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_side_activated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PRIMARY_SIDE</span><span class="p">,</span> <span class="n">l_pnor_side</span><span class="p">,</span>
+                      <span class="s2">&quot;PNOR: Primary side is not active&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_pnor_level</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_PNOR_level</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">rc</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">bmc_down_check</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">ping_fail_check</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">host_name</span><span class="p">),</span> <span class="s2">&quot;FSP/BMC keeps on pinging up&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">scp_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">src_file_path</span><span class="p">,</span> <span class="n">dst_file_path</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">copyFilesToDest</span><span class="p">(</span><span class="n">src_file_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_ip</span><span class="p">,</span>
+                                  <span class="n">dst_file_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_password</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_version_tar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tar</span> <span class="o">=</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="n">manifest</span> <span class="o">=</span> <span class="n">tar</span><span class="o">.</span><span class="n">getmember</span><span class="p">(</span><span class="s2">&quot;MANIFEST&quot;</span><span class="p">)</span>
+            <span class="n">fd</span> <span class="o">=</span> <span class="n">tar</span><span class="o">.</span><span class="n">extractfile</span><span class="p">(</span><span class="n">manifest</span><span class="p">)</span>
+            <span class="c1"># you probably shouldn&#39;t have bad characters in your PNOR version,</span>
+            <span class="c1"># but if you do, it shouldn&#39;t stop op-test from running</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">content</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;version=&quot;</span><span class="p">):</span>
+                    <span class="n">version</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">break</span>
+            <span class="n">tar</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Couldn&#39;t find version in tar manifest&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unexpected failure Exception=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="s2">&quot;Unexpected failure in get_version_tar, &quot;</span>
+                            <span class="s2">&quot;check if you have the proper file, Exception=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">version</span>
+
+    <span class="k">def</span> <span class="nf">get_image_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat </span><span class="si">%s</span><span class="s2"> | grep </span><span class="se">\&quot;</span><span class="s2">version=</span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">delete_images_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;rm -rf /tmp/images/*&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">get_image_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_version</span><span class="p">):</span>
+        <span class="n">retry</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="p">(</span><span class="n">retry</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">):</span>
+            <span class="n">image_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">image_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;ls -1 -d /tmp/images/*/ --color=never&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">image_list</span><span class="p">)):</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_image_version</span><span class="p">(</span><span class="n">image_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;MANIFEST&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">version</span> <span class="o">==</span> <span class="n">image_version</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">image_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="n">retry</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">get_image_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+        <span class="n">img_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_image_path</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+        <span class="n">img_id</span> <span class="o">=</span> <span class="n">img_path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Image Data Info : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">img_id</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">img_id</span>
+
+    <span class="k">def</span> <span class="nf">wait_for_bmc_runtime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">PingFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_ip</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PING_RETRY_FOR_STABILITY</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_wait_for_bmc_runtime</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="s2">&quot;OpenBMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">wait_for_bmc_runtime</span><span class="p">()</span>
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="BmcImageFlash"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.BmcImageFlash">[docs]</a><span class="k">class</span> <span class="nc">BmcImageFlash</span><span class="p">(</span><span class="n">OpTestFlashBase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Flashes the BMC with BMC firmware.</span>
+<span class="sd">    This enables a single op-test incantation to test with a specific</span>
+<span class="sd">    BMC firmware build.</span>
+
+<span class="sd">    Currently supports SuperMicro (SMC) BMCs and OpenBMC.</span>
+<span class="sd">    FSP systems need to use a separate mechanism.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="BmcImageFlash.setUp"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.BmcImageFlash.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pupdate</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pupdate</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BmcImageFlash</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC image not provided, so skipping test&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;BMC image </span><span class="si">{}</span><span class="s2"> does not exist&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;BMC image </span><span class="si">{}</span><span class="s2"> does not exist&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pupdate</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;pupdate tool is needed for flashing BMC on SMC platforms&quot;</span><span class="p">)</span>
+
+        <span class="c1"># FORCE us to not detect system state.</span>
+        <span class="c1"># Since we&#39;re flashing, we need to ignore what&#39;s currently on the</span>
+        <span class="c1"># machine as it may be pretty garbage firmware left over from previous</span>
+        <span class="c1"># test runs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sdr_clear</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">pUpdate</span><span class="o">.</span><span class="n">set_binary</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupdate_binary</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">pUpdate</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot; -f  </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_bmc_runtime</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="s2">&quot;OpenBMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="c1"># Assume all new systems has new BMC code update via REST</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Assume BMC has code for the new PNOR Code update via REST&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">has_field_mode_set</span><span class="p">():</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;has_field_mode_set so calling clear_field_mode&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">clear_field_mode</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">has_field_mode_set</span><span class="p">(),</span> <span class="s2">&quot;Field mode disable failed&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;has_field_mode_set NOT true, so did not clear&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># because openbmc</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="c1"># Ok to just keep giong, may not have patched firmware</span>
+                <span class="k">pass</span>
+            <span class="c1"># OpenBMC implementation for updating code level &#39;X&#39; to &#39;X&#39; is really a no-operation</span>
+            <span class="c1"># it only updates the code from &#39;X&#39; to &#39;Y&#39; or &#39;Y&#39; to &#39;X&#39;  to avoid duplicates</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">delete_images_dir</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">upload_image</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span><span class="p">)</span>
+            <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_version_tar</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_image</span><span class="p">)</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_image_id</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+            <span class="n">img_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">bmc_image_ids</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">is_image_already_active</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;BMC image </span><span class="si">{}</span><span class="s2"> is active on the system&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">validate_functional_bootside</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;BMC image </span><span class="si">{}</span><span class="s2"> is also set as the functional image, so all is good&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+                <span class="c1"># If non functional set the priority and reboot the BMC</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Now setting BMC image </span><span class="si">{}</span><span class="s2"> as the functional image on the system&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">set_image_priority</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Now rebooting the BMC to refresh&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">reboot</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_bmc_runtime</span><span class="p">()</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+            <span class="n">retries</span> <span class="o">=</span> <span class="mi">60</span>
+            <span class="k">while</span> <span class="n">retries</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">img_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">bmc_image_ids</span><span class="p">()</span>
+                <span class="n">retries</span> <span class="o">=</span> <span class="n">retries</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="k">for</span> <span class="n">img_id</span> <span class="ow">in</span> <span class="n">img_ids</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">image_data</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;img_id=</span><span class="si">{}</span><span class="s2"> d=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">img_id</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;Activation&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;xyz.openbmc_project.Software.Activation.Activations.Ready&quot;</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                            <span class="s2">&quot;BMC image </span><span class="si">%s</span><span class="s2"> is ready to activate&quot;</span> <span class="o">%</span> <span class="n">img_id</span><span class="p">)</span>
+                        <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;img_id=</span><span class="si">{}</span><span class="s2"> continue&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">img_id</span><span class="p">))</span>
+                    <span class="k">continue</span>
+                <span class="k">break</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                <span class="n">retries</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Uploaded image but it never is ready to activate it&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Going to activate image id: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">img_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">img_id</span><span class="p">,</span> <span class="s2">&quot;Could not find Image ID&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">activate_image</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">wait_for_image_active_complete</span><span class="p">(</span>
+                <span class="n">img_id</span><span class="p">),</span> <span class="s2">&quot;Failed to activate image&quot;</span><span class="p">)</span>
+            <span class="c1"># On SMC reboot will happen automatically, but on OpenBMC needs manual reboot to upgrade the BMC FW.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">reboot</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_bmc_runtime</span><span class="p">()</span>
+            <span class="c1"># Once BMC comes up, verify whether BMC really booted from the code which we flashed.</span>
+            <span class="c1"># As BMC maintains two levels of code, so there may be possibilities/bugs which causes</span>
+            <span class="c1"># the boot from alternate side or other code.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">validate_functional_bootside</span><span class="p">(</span>
+                <span class="n">img_id</span><span class="p">),</span> <span class="s2">&quot;BMC failed to boot from the right code&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;# BMC booting from the right code with image ID: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">img_id</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_wait_for_standby_state</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">OpTestError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="mi">10</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">e</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">POWERING_OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sel_check</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="PNORFLASH"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.PNORFLASH">[docs]</a><span class="k">class</span> <span class="nc">PNORFLASH</span><span class="p">(</span><span class="n">OpTestFlashBase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Flash full PNOR image</span>
+
+<span class="sd">    For OpenBMC, uses REST image upload</span>
+<span class="sd">    For SMC, uses pUpdate for regular images or pflash for upstream images</span>
+<span class="sd">    For AMI, relies on pflash</span>
+
+<span class="sd">    op-test needs to be provided locations of pUpdate and pflash</span>
+<span class="sd">    binaries to successfully flash machines that need them.</span>
+
+<span class="sd">    Supports SMC, AMI and OpenBMC based BMCs.</span>
+
+<span class="sd">    FSP systems use a different mechanism.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="PNORFLASH.setUp"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.PNORFLASH.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_pnor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pupdate</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pupdate</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PNORFLASH</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;PNOR image not provided, so skipping test&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;PNOR image </span><span class="si">{}</span><span class="s2"> does not exist&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;PNOR image </span><span class="si">{}</span><span class="s2"> does not exist&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;FSP&quot;</span><span class="p">,</span> <span class="s2">&quot;QEMU&quot;</span><span class="p">,</span> <span class="s2">&quot;qemu&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI/OpenBMC PNOR Flash test&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;pflash tool is needed for flashing PNOR on AMI platforms&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">ssh</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;rm -rf /tmp/rsync_file/*&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pupdate</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                    <span class="s2">&quot;pupdate or pflash tool is needed for flashing PNOR on SMC platforms&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">,</span> <span class="s2">&quot;pflash&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">validate_pflash_tool</span><span class="p">(</span><span class="s2">&quot;/tmp&quot;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;No pflash on BMC&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pupdate</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">pUpdate</span><span class="o">.</span><span class="n">set_binary</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pupdate_binary</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">validate_pflash_tool</span><span class="p">(</span>
+                    <span class="s2">&quot;/tmp/rsync_file&quot;</span><span class="p">),</span> <span class="s2">&quot;No pflash on BMC&quot;</span><span class="p">)</span>
+        <span class="c1"># FORCE us to not detect system state.</span>
+        <span class="c1"># Since we&#39;re flashing, we need to ignore what&#39;s currently on the</span>
+        <span class="c1"># machine as it may be pretty garbage firmware left over from previous</span>
+        <span class="c1"># test runs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sdr_clear</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">pnor_img_flash_ami</span><span class="p">(</span><span class="s2">&quot;/tmp&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pupdate</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">pUpdate</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot; -pnor </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">))</span>
+                <span class="k">if</span> <span class="s2">&quot;failed to update PNOR&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;We failed to update the SMC PNOR, please retry&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">pnor_img_flash_smc</span><span class="p">(</span>
+                    <span class="s2">&quot;/tmp/rsync_file&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="s2">&quot;OpenBMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">query_vpnor</span><span class="p">():</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;BMC has VPNOR&quot;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c1"># because openbmc</span>
+                    <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                        <span class="s2">&quot;rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                    <span class="c1"># Ok to just keep giong, may not have patched firmware</span>
+                    <span class="k">pass</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_version_tar</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">)</span>
+
+                <span class="c1"># Because OpenBMC does not have a way to determine what the image ID</span>
+                <span class="c1"># is in advance, and can fill up the filesystem and fail weirdly,</span>
+                <span class="c1"># along with the fun of setting priorities...</span>
+                <span class="n">img_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">host_image_ids</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">img_id</span> <span class="ow">in</span> <span class="n">img_ids</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">delete_image</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">upload_image</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">)</span>
+                <span class="n">img_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">host_image_ids</span><span class="p">()</span>
+                <span class="n">retries</span> <span class="o">=</span> <span class="mi">60</span>
+                <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">img_ids</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">retries</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">img_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">host_image_ids</span><span class="p">()</span>
+                    <span class="n">retries</span> <span class="o">=</span> <span class="n">retries</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                    <span class="n">retries</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Uploaded image but it never showed up&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">img_id</span> <span class="ow">in</span> <span class="n">img_ids</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">image_data</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;Activation&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;xyz.openbmc_project.Software.Activation.Activations.Ready&quot;</span><span class="p">:</span>
+                        <span class="k">break</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to activate image id: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">img_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">img_id</span><span class="p">,</span> <span class="s2">&quot;Could not find Image ID&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">activate_image</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">wait_for_image_active_complete</span><span class="p">(</span>
+                    <span class="n">img_id</span><span class="p">),</span> <span class="s2">&quot;Failed to activate image&quot;</span><span class="p">)</span>
+                <span class="c1"># We need to have below check after power on of the host.</span>
+                <span class="c1">#self.assertTrue(self.cv_REST.validate_functional_bootside(img_id), &quot;PNOR failed to boot from the right code&quot;)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;# PNOR boots from the right code with image ID: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">img_id</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Fallback to old code update method using pflash tool&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">pnor_img_flash_openbmc</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">))</span>
+
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sel_check</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="OpalLidsFLASH"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.OpalLidsFLASH">[docs]</a><span class="k">class</span> <span class="nc">OpalLidsFLASH</span><span class="p">(</span><span class="n">OpTestFlashBase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Flash specific LIDs (partitions).</span>
+<span class="sd">    Can be combined with a full PNOR flash to test a base firmware image</span>
+<span class="sd">    plus new code. For example, if testing a new skiboot (before incorporating</span>
+<span class="sd">    it into upstream) you can test a base image plus new skiboot.</span>
+
+<span class="sd">    Compatible with AMI, SMC, OpenBMC and FSP.</span>
+
+<span class="sd">    This just flashes the raw file you provide, so you need to provide it</span>
+<span class="sd">    with the correct format for the system.</span>
+
+<span class="sd">    e.g. for skiboot:</span>
+<span class="sd">    FSP systems needs raw skiboot.lid</span>
+<span class="sd">    AMI,SMC,OpenBMC systems need skiboot.lid.xz</span>
+<span class="sd">    unless secure boot is enabled, and then they need skiboot.lid.xz.stb</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="OpalLidsFLASH.setUp"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.OpalLidsFLASH.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pflash</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">flash_skiboot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">flash_kernel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_initramfs</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">flash_initramfs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">flash_part</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smc_presshipmicmd</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">smc_presshipmicmd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span> <span class="o">=</span> <span class="s2">&quot;/opt/extucode/lid_test&quot;</span>
+
+        <span class="k">for</span> <span class="n">lid</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_initramfs</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">lid</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">lid</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                                    <span class="s2">&quot;OPAL lid </span><span class="si">%s</span><span class="s2"> not doesn&#39;t exist&quot;</span> <span class="o">%</span> <span class="n">lid</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OpalLidsFLASH</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_initramfs</span> \
+                <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No custom skiboot/kernel to flash&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;QEMU&quot;</span><span class="p">,</span> <span class="s2">&quot;qemu&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Skipping OpalLidsFLASH on QEMU machine&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;AMI&quot;</span><span class="p">,</span> <span class="s2">&quot;SMC&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;pflash tool is needed for flashing OPAL lids&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">smc_presshipmicmd</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmitool</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">smc_presshipmicmd</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span> <span class="ow">and</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pflash</span><span class="p">,</span> <span class="s2">&quot;pflash&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">validate_pflash_tool</span><span class="p">(</span><span class="s2">&quot;/tmp&quot;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;No pflash on BMC&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">validate_pflash_tool</span><span class="p">(</span><span class="s2">&quot;/tmp/rsync_file&quot;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;No pflash on BMC&quot;</span><span class="p">)</span>
+
+        <span class="c1"># FORCE us to not detect system state.</span>
+        <span class="c1"># Since we&#39;re flashing, we need to ignore what&#39;s currently on the</span>
+        <span class="c1"># machine as it may be pretty garbage firmware left over from previous</span>
+        <span class="c1"># test runs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="c1"># FIXME: verify the system is actually off</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sdr_clear</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_get_console</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">mount_exists</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Please mount NFS and retry the test&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;/usr/sbin/sshd&quot;</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;rm -fr </span><span class="si">{0}</span><span class="s2"> 2&gt; /dev/null; mkdir -p </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;cp -f /opt/extucode/80f00100.lid </span><span class="si">%s</span><span class="s2">/80f00100_bkp.lid&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Backup of skiboot lid is in </span><span class="si">%s</span><span class="s2">/80f00100_bkp.lid&quot;</span> <span class="o">%</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;rm -f /opt/extucode/80f00100.lid&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scp_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">,</span> <span class="s2">&quot;/opt/extucode/80f00100.lid&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_initramfs</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No skiroot lids provided, Flashing only skiboot&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;cp -f /opt/extucode/80f00101.lid </span><span class="si">%s</span><span class="s2">/80f00101_bkp.lid&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;Backup of skiroot kernel lid is in </span><span class="si">%s</span><span class="s2">/80f00101_bkp.lid&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;cp -f /opt/extucode/80f00102.lid </span><span class="si">%s</span><span class="s2">/80f00102_bkp.lid&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;Backup of skiroot initrd lid is in </span><span class="si">%s</span><span class="s2">/80f00102_bkp.lid&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ext_lid_test_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;rm -f /opt/extucode/80f00101.lid&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;rm -f /opt/extucode/80f00102.lid&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scp_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">,</span>
+                              <span class="s2">&quot;/opt/extucode/80f00101.lid&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scp_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_initramfs</span><span class="p">,</span>
+                              <span class="s2">&quot;/opt/extucode/80f00102.lid&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Regenerating the hashes by running command cupdmfg -opt&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;cupdmfg -opt&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">skiboot_img_flash_ami</span><span class="p">(</span>
+                    <span class="s2">&quot;/tmp&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">skiroot_img_flash_ami</span><span class="p">(</span>
+                    <span class="s2">&quot;/tmp&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">part_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="n">part_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">flash_part_ami</span><span class="p">(</span><span class="s2">&quot;/tmp&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">part_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                                               <span class="n">part_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">skiboot_img_flash_smc</span><span class="p">(</span>
+                    <span class="s2">&quot;/tmp/rsync_file&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">skiroot_img_flash_smc</span><span class="p">(</span>
+                    <span class="s2">&quot;/tmp/rsync_file&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">part_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="n">part_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">flash_part_smc</span><span class="p">(</span><span class="s2">&quot;/tmp/rsync_file&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">part_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                                               <span class="n">part_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="s2">&quot;OpenBMC&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="c1"># Check for field mode first, if it is enabled, clear that and flash host firmware.</span>
+            <span class="c1"># otherwise OpenBMC won&#39;t allow to patch any Host FW code in field mode.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">has_field_mode_set</span><span class="p">():</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;has_field_mode_set so calling clear_field_mode&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">clear_field_mode</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span><span class="o">.</span><span class="n">has_field_mode_set</span><span class="p">(),</span>
+                                 <span class="s2">&quot;Field mode disable failed&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;has_field_mode_set NOT true, so did not clear&quot;</span><span class="p">)</span>
+
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;passed field_mode_set checks&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># OpenBMC started removing overrides *after* flashing new image</span>
+                <span class="c1"># but on boot of the host, so we can&#39;t assume that just writing</span>
+                <span class="c1"># new overrides is going to work. We&#39;re going to have to do</span>
+                <span class="c1"># this sequence.</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;run_command systemctl restart mboxd.service&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;systemctl restart mboxd.service&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;run_command systemctl restart mboxd.service failed cf=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+                <span class="k">pass</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">skiboot_img_flash_openbmc</span><span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">skiroot_img_flash_openbmc</span><span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">part_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flash_part_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">image_transfer</span><span class="p">(</span><span class="n">part_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">flash_part_openbmc</span><span class="p">(</span>
+                        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">part_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">part_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sel_check</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="OOBHpmFLASH"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.OOBHpmFLASH">[docs]</a><span class="k">class</span> <span class="nc">OOBHpmFLASH</span><span class="p">(</span><span class="n">OpTestFlashBase</span><span class="p">):</span>
+<div class="viewcode-block" id="OOBHpmFLASH.setUp"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.OOBHpmFLASH.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_hpm</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                            <span class="s2">&quot;HPM File </span><span class="si">%s</span><span class="s2"> not doesn&#39;t exist&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OOBHpmFLASH</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC Out-of-band firmware Update test&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sdr_clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="c1"># FORCE us to not detect system state.</span>
+        <span class="c1"># Since we&#39;re flashing, we need to ignore what&#39;s currently on the</span>
+        <span class="c1"># machine as it may be pretty garbage firmware left over from previous</span>
+        <span class="c1"># test runs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_code_update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">BMC_FWANDPNOR_IMAGE_UPDATE</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sel_check</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="InbandHpmFLASH"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.InbandHpmFLASH">[docs]</a><span class="k">class</span> <span class="nc">InbandHpmFLASH</span><span class="p">(</span><span class="n">OpTestFlashBase</span><span class="p">):</span>
+<div class="viewcode-block" id="InbandHpmFLASH.setUp"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.InbandHpmFLASH.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_hpm</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                            <span class="s2">&quot;HPM File </span><span class="si">%s</span><span class="s2"> not doesn&#39;t exist&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">InbandHpmFLASH</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC In-band firmware Update test&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sdr_clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_code_update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hpm_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">BMC_FWANDPNOR_IMAGE_UPDATE</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_side_activated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_sel_check</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="FSPFWImageFLASH"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.FSPFWImageFLASH">[docs]</a><span class="k">class</span> <span class="nc">FSPFWImageFLASH</span><span class="p">(</span><span class="n">OpTestFlashBase</span><span class="p">):</span>
+<div class="viewcode-block" id="FSPFWImageFLASH.setUp"><a class="viewcode-back" href="../../programming.html#testcases.OpTestFlash.FSPFWImageFLASH.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">host_img_url</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FSPFWImageFLASH</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FSP In-band firmware Update test&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No FSP firmware image provided&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_get_console</span><span class="p">()</span>
+        <span class="c1"># Fetch the FSP side of flash active to verify after the update</span>
+        <span class="n">preup_boot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;cupdcmd -f | grep </span><span class="se">\&quot;</span><span class="s2">Current Boot Side</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">preup_build</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;cupdcmd -f | grep </span><span class="se">\&quot;</span><span class="s2">Current Side Driver</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;System boot side </span><span class="si">%s</span><span class="s2">, build: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">preup_boot</span><span class="p">,</span> <span class="n">preup_build</span><span class="p">))</span>
+        <span class="n">preup_boot</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;.*([T|P])&#39;</span><span class="p">,</span> <span class="n">preup_boot</span><span class="p">)</span>
+        <span class="n">preup_boot</span> <span class="o">=</span> <span class="n">preup_boot</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+
+        <span class="c1"># Wait until we have a route (i.e. network is up)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;#Waiting for network (by waiting for a route)&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">OpIU</span><span class="o">.</span><span class="n">configure_host_ip</span><span class="p">()</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;wget </span><span class="si">%s</span><span class="s2"> -O /tmp/firm.img&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;update_flash -d&quot;</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;update_flash -f /tmp/firm.img&quot;</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s1">&#39;Projected Flash Update Results&#39;</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s1">&#39;FLASH: Image ready...rebooting the system...&#39;</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">sendcontrol</span><span class="p">(</span><span class="s1">&#39;]&#39;</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;quit</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_down_check</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">PingFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span>
+                           <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PING_RETRY_POWERCYCLE</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_get_console</span><span class="p">()</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">IPLing</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;update_flash -d&quot;</span><span class="p">)</span>
+        <span class="n">postup_boot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;cupdcmd -f | grep </span><span class="se">\&quot;</span><span class="s2">Current Boot Side</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">postup_boot</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;.*([T|P])&#39;</span><span class="p">,</span> <span class="n">postup_boot</span><span class="p">)</span>
+        <span class="n">postup_boot</span> <span class="o">=</span> <span class="n">postup_boot</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">postup_build</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;cupdcmd -f | grep </span><span class="se">\&quot;</span><span class="s2">Current Side Driver</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;System Boot side: </span><span class="si">%s</span><span class="s2">, build: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                 <span class="p">(</span><span class="n">postup_boot</span><span class="p">,</span> <span class="n">postup_build</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">preup_boot</span><span class="p">,</span> <span class="n">postup_boot</span><span class="p">,</span>
+                         <span class="s2">&quot;System booted from different bootside&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

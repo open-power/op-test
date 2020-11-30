@@ -1,0 +1,657 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.testRestAPI &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.testRestAPI</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Test OpenBMC REST API</span>
+<span class="sd">---------------------</span>
+
+<span class="sd">Tests a bunch of functionality only available through OpenBMC REST API</span>
+
+<span class="sd">Generally takes about 10 minutes to run rest-api suite</span>
+
+<span class="sd">.. note::</span>
+
+<span class="sd">   The OpenBMC REST API is not a long term nor stable API.</span>
+<span class="sd">   It&#39;s just as likely that OpenBMC changes their API as anything.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">HTTPCheck</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="RestAPI"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.RestAPI">[docs]</a><span class="k">class</span> <span class="nc">RestAPI</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    RestAPI Class - Execution order independent</span>
+<span class="sd">    --run-suite rest-api</span>
+<span class="sd">    --run testcases.testRestAPI.Runtime</span>
+<span class="sd">    --run testcases.testRestAPI.HostOff</span>
+<span class="sd">    or run the individual tests</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="RestAPI.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.RestAPI.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="k">if</span> <span class="s2">&quot;OpenBMC&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;OpenBMC specific Rest API Tests&quot;</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">rest</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">rest</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unable to find cls.desired, probably a test code problem&quot;</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="Runtime"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime">[docs]</a><span class="k">class</span> <span class="nc">Runtime</span><span class="p">(</span><span class="n">RestAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Runtime Class performs tests with Host On</span>
+<span class="sd">    HostOff Class will turn the Host Off</span>
+<span class="sd">    --run testcases.testRestAPI.Runtime</span>
+<span class="sd">    --run testcases.testRestAPI.HostOff</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="Runtime.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">=</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Runtime</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Runtime.test_tpm_policy_setting"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_tpm_policy_setting">[docs]</a>    <span class="k">def</span> <span class="nf">test_tpm_policy_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST TPM Policy Settings</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_tpm_policy_setting</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_tpm_policy_setting</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">is_tpm_enabled</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;TPM Enabled Starts=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">status</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">enable_tpm</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">is_tpm_enabled</span><span class="p">(),</span>
+                        <span class="s2">&quot;OpenBMC failed to enable TPM policy&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">disable_tpm</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">is_tpm_enabled</span><span class="p">(),</span>
+                         <span class="s2">&quot;OpenBMC failed to disable TPM policy&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_system_power_cap"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_system_power_cap">[docs]</a>    <span class="k">def</span> <span class="nf">test_system_power_cap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST System Power Cap</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_system_power_cap</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_system_power_cap</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># System power cap enable/disable tests</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_cap_enable</span><span class="p">()</span>
+        <span class="n">PowerCapEnable</span><span class="p">,</span> <span class="n">PowerCap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_power_cap_settings</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SHOULD BE ENABLED PowerCapEnable=</span><span class="si">{}</span><span class="s2"> PowerCap=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">PowerCapEnable</span><span class="p">,</span> <span class="n">PowerCap</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">PowerCapEnable</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span>
+                         <span class="s2">&quot;System Power Cap Enable Failed&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_cap_disable</span><span class="p">()</span>
+        <span class="n">PowerCapEnable</span><span class="p">,</span> <span class="n">PowerCap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_power_cap_settings</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SHOULD BE DISABLED PowerCapEnable=</span><span class="si">{}</span><span class="s2"> PowerCap=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">PowerCapEnable</span><span class="p">,</span> <span class="n">PowerCap</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">PowerCapEnable</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                         <span class="s2">&quot;System Power Cap Disable Failed&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_occ_active"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_occ_active">[docs]</a>    <span class="k">def</span> <span class="nf">test_occ_active</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST OCC Active</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_occ_active</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_occ_active</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># OCC Active state tests using RestAPI</span>
+        <span class="n">ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_occ_ids</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OCC IDs: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ids</span><span class="p">))</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OpSystemState=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()))</span>
+            <span class="c1"># If system is in runtime OCC should be Active</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT</span><span class="p">,</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">,</span>
+                                              <span class="n">OpSystemState</span><span class="o">.</span><span class="n">BOOTING</span><span class="p">,</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">is_occ_active</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="p">),</span> <span class="s2">&quot;OCC</span><span class="si">%s</span><span class="s2"> is not in active state&quot;</span> <span class="o">%</span> <span class="nb">id</span><span class="p">)</span>
+            <span class="c1"># if system is in standby state OCC should be inactive</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">is_occ_active</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="p">),</span> <span class="s2">&quot;OCC</span><span class="si">%s</span><span class="s2"> is still in active state&quot;</span> <span class="o">%</span> <span class="nb">id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_software_enumerate"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_software_enumerate">[docs]</a>    <span class="k">def</span> <span class="nf">test_software_enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Software Enumerate</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_software_enumerate</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_software_enumerate</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">software_enumerate</span><span class="p">()</span>
+        <span class="n">ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_list_of_image_ids</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Software Enumerate IDs: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ids</span><span class="p">))</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Looking at Image Data Info ID=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">id</span><span class="p">))</span>
+            <span class="n">start_priority</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_image_priority</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Image ID=</span><span class="si">{}</span><span class="s2"> Starting Priority=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">id</span><span class="p">,</span> <span class="n">start_priority</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">set_image_priority</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">start_priority</span><span class="p">)</span>
+            <span class="n">updated_priority</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_image_priority</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Image ID=</span><span class="si">{}</span><span class="s2"> Updated Priority=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">id</span><span class="p">,</span> <span class="n">updated_priority</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">start_priority</span><span class="p">,</span> <span class="n">updated_priority</span><span class="p">,</span>
+                             <span class="s2">&quot;Image Priority Change did not happen as expected&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_image_lists"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_image_lists">[docs]</a>    <span class="k">def</span> <span class="nf">test_image_lists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Image Interfaces</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_image_lists</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_image_lists</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_list_of_image_ids</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Image IDs: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ids</span><span class="p">))</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">is_image_already_active</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Image ID=</span><span class="si">{}</span><span class="s2"> Active=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">status</span><span class="p">))</span>
+        <span class="n">host_images</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">host_image_ids</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Host Images: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">host_images</span><span class="p">))</span>
+        <span class="n">bmc_images</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">bmc_image_ids</span><span class="p">()</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">bmc_images</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">validate_functional_bootside</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Image ID=</span><span class="si">{}</span><span class="s2"> Functional Boot Side Validation: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">status</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">activation_status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">image_ready_for_activation</span><span class="p">(</span>
+                        <span class="nb">id</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Activation Status: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">activation_status</span><span class="p">))</span>
+                <span class="k">except</span> <span class="n">HTTPCheck</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="c1"># expected since the image is active, we just testing API</span>
+                    <span class="c1"># xyz.openbmc_project.Software.Activation.Activations.Active</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;HTTPCheck Exception=</span><span class="si">{}</span><span class="s2"> e.message=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;BMC Images: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bmc_images</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Runtime.test_field_mode_enable_disable"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_field_mode_enable_disable">[docs]</a>    <span class="k">def</span> <span class="nf">test_field_mode_enable_disable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Field Mode Enable and Disable</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_field_mode_enable_disable</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_field_mode_enable_disable</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Field mode tests</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">has_field_mode_set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">set_field_mode</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">has_field_mode_set</span><span class="p">(),</span>
+                        <span class="s2">&quot;Field Mode Enable Failed&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">set_field_mode</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">)</span>
+        <span class="c1"># clear_field_mode will reboot the BMC</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">clear_field_mode</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">has_field_mode_set</span><span class="p">(),</span>
+                         <span class="s2">&quot;Field Mode Disable Failed&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_upload_image"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_upload_image">[docs]</a>    <span class="k">def</span> <span class="nf">test_upload_image</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Upload Image</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_upload_image</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_upload_image</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Upload image</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">upload_image</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="s2">&quot;README.md&quot;</span><span class="p">),</span> <span class="n">minutes</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># upload_image only works for verified images</span>
+            <span class="c1"># so this is expected to fail, but we test the API</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Upload Image Exception=</span><span class="si">{}</span><span class="s2"> Message=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">))</span>
+            <span class="n">check_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Version already exists&quot;</span><span class="p">,</span>
+                          <span class="s2">&quot;failed to be extracted&quot;</span><span class="p">,</span>
+                          <span class="s2">&quot;we timed out trying&quot;</span><span class="p">]</span>
+            <span class="n">matching</span> <span class="o">=</span> <span class="p">[</span><span class="n">xs</span> <span class="k">for</span> <span class="n">xs</span> <span class="ow">in</span> <span class="n">check_list</span> <span class="k">if</span> <span class="n">xs</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;Unexpected failure on upload_image&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_inventory"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_inventory">[docs]</a>    <span class="k">def</span> <span class="nf">test_inventory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Get Inventory</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_inventory</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_inventory</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># FRU Inventory</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_inventory</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inventory: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="p">))</span></div>
+        <span class="c1"># r = dictionary of dictionaries</span>
+
+<div class="viewcode-block" id="Runtime.test_sensors"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_sensors">[docs]</a>    <span class="k">def</span> <span class="nf">test_sensors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Sensors</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_sensors</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_sensors</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Sensors</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">sensors</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Sensors: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="p">))</span></div>
+        <span class="c1"># r = dictionary of dictionaries</span>
+
+<div class="viewcode-block" id="Runtime.test_obmc_states"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_obmc_states">[docs]</a>    <span class="k">def</span> <span class="nf">test_obmc_states</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST OBMC States</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_obmc_states</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_obmc_states</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># get BMC State</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_bmc_state</span><span class="p">()</span>
+        <span class="c1"># r=xyz.openbmc_project.State.BMC.BMCState.Ready</span>
+        <span class="c1"># Get Chassis Power State</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_power_state</span><span class="p">()</span>
+        <span class="c1"># r=xyz.openbmc_project.State.Host.HostState.Running</span>
+        <span class="c1"># Get Host State</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_host_state</span><span class="p">()</span></div>
+        <span class="c1"># r=xyz.openbmc_project.State.Host.HostState.Running</span>
+
+<div class="viewcode-block" id="Runtime.test_list_sel"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_list_sel">[docs]</a>    <span class="k">def</span> <span class="nf">test_list_sel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST List SELs</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_list_sel</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_list_sel</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># List SEL records</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">list_sel</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;List SEL: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">json_data</span><span class="p">))</span>
+        <span class="c1"># get list of SEL event ID&#39;s if any exist</span>
+        <span class="n">id_list</span><span class="p">,</span> <span class="n">dict_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_sel_ids</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SEL ID List: </span><span class="si">{}</span><span class="s2"> SEL DICT List: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">id_list</span><span class="p">,</span> <span class="n">dict_list</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Runtime.test_dump_sels"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_dump_sels">[docs]</a>    <span class="k">def</span> <span class="nf">test_dump_sels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Dump SELs</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_dump_sels</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_dump_sels</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Dump SEL records</span>
+        <span class="c1"># Dump list of SEL event ID&#39;s if any exist</span>
+        <span class="n">id_list</span><span class="p">,</span> <span class="n">dict_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_sel_ids</span><span class="p">(</span><span class="n">dump</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SEL ID List: </span><span class="si">{}</span><span class="s2"> SEL DICT List: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">id_list</span><span class="p">,</span> <span class="n">dict_list</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Runtime.test_clear_sel"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_clear_sel">[docs]</a>    <span class="k">def</span> <span class="nf">test_clear_sel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Clear SELs</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_clear_sel</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_clear_sel</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Clear SEL entry by ID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">clear_sel_by_id</span><span class="p">()</span>
+        <span class="n">id_list</span><span class="p">,</span> <span class="n">dict_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_sel_ids</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SEL ID List: </span><span class="si">{}</span><span class="se">\n</span><span class="s2">SEL DICT List: </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">id_list</span><span class="p">,</span> <span class="n">dict_list</span><span class="p">))</span>
+        <span class="c1"># Clear Complete SEL Repository</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">clear_sel</span><span class="p">()</span>
+        <span class="c1"># Check if SEL has really zero entries or not</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">verify_clear_sel</span><span class="p">(),</span>
+                        <span class="s2">&quot;openBMC failed to clear SEL repository&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_obmc_delete_dumps"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_obmc_delete_dumps">[docs]</a>    <span class="k">def</span> <span class="nf">test_obmc_delete_dumps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST OBMC Delete ALL Dumps</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_obmc_delete_dumps</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_obmc_delete_dumps</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Delete all the dumps</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">delete_all_dumps</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Deleted all dumps&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_obmc_create_dump"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_obmc_create_dump">[docs]</a>    <span class="k">def</span> <span class="nf">test_obmc_create_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST OBMC Create Dump</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_obmc_create_dump</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_obmc_create_dump</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Create a dump</span>
+        <span class="n">dump_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">create_new_dump</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Created new dump ID=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dump_id</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Runtime.test_obmc_download_dumps"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_obmc_download_dumps">[docs]</a>    <span class="k">def</span> <span class="nf">test_obmc_download_dumps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST OBMC Download ALL Dumps</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_obmc_download_dumps</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_obmc_download_dumps</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># List available dumps</span>
+        <span class="n">dump_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_dump_ids</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Available Dumps to Download: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dump_ids</span><span class="p">))</span>
+        <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">dump_ids</span><span class="p">:</span>
+            <span class="n">dump_id</span> <span class="o">=</span> <span class="nb">id</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Downloading Dump ID: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dump_id</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">download_dump</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">dump_ids</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No Available dumps to download&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_obmc_dump"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_obmc_dump">[docs]</a>    <span class="k">def</span> <span class="nf">test_obmc_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST OBMC List, Create and Download a Dump</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_obmc_dump</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_obmc_dump</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># List available dumps</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">list_available_dumps</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Available Dumps: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">)))</span>
+        <span class="c1"># OpenBMC Dump capture procedure</span>
+        <span class="c1"># Initiate a dump nd get the dump id</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">create_new_dump</span><span class="p">()</span>
+        <span class="c1"># Wait for the dump to finish which can be downloaded</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_dump_finish</span><span class="p">(</span>
+            <span class="nb">id</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span> <span class="s2">&quot;OpenBMC Dump capture timeout&quot;</span><span class="p">)</span>
+        <span class="c1"># Download the dump which is ready to offload</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">download_dump</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runtime.test_set_bootdevs"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_set_bootdevs">[docs]</a>    <span class="k">def</span> <span class="nf">test_set_bootdevs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Set Boot Device to Setup then Regular,</span>
+<span class="sd">        this leaves the boot device as we found it</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_set_bootdevs</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_set_bootdevs</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Check current bootdev</span>
+        <span class="n">start_bootdev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_current_bootdev</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Boot Device Starts=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">start_bootdev</span><span class="p">))</span>
+        <span class="c1"># Set bootdev to setup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">set_bootdev_to_setup</span><span class="p">()</span>
+        <span class="c1"># Get current bootdev</span>
+        <span class="n">bootdev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_current_bootdev</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">bootdev</span><span class="p">,</span> <span class="s2">&quot;Setup&quot;</span><span class="p">,</span> <span class="s2">&quot;Failed to set Setup boot device&quot;</span><span class="p">)</span>
+        <span class="c1"># Set bootdev to Default</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">set_bootdev_to_none</span><span class="p">()</span>
+        <span class="c1"># Get current bootdev</span>
+        <span class="n">bootdev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_current_bootdev</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">bootdev</span><span class="p">,</span> <span class="s2">&quot;Regular&quot;</span><span class="p">,</span>
+                         <span class="s2">&quot;Failed to set Regular boot device&quot;</span><span class="p">)</span>
+        <span class="c1"># Put the bootdev back how we found it</span>
+        <span class="k">if</span> <span class="n">bootdev</span> <span class="o">!=</span> <span class="n">start_bootdev</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">start_bootdev</span> <span class="o">==</span> <span class="s2">&quot;Setup&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">set_bootdev_to_setup</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">set_bootdev_to_none</span><span class="p">()</span>
+        <span class="c1"># Check bootdev</span>
+        <span class="n">bootdev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_current_bootdev</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Boot Device Ends=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bootdev</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Runtime.test_get_boot_progress"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_get_boot_progress">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_boot_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Get Boot Progress</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_get_boot_progress</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_get_boot_progress</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Get boot progress info</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">get_boot_progress</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Boot Progress=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Runtime.test_clear_gard_record"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_clear_gard_record">[docs]</a>    <span class="k">def</span> <span class="nf">test_clear_gard_record</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Clear ALL Gard Records</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_clear_gard_record</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_clear_gard_record</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">clear_gard_records</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Runtime.test_factory_reset_software"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_factory_reset_software">[docs]</a>    <span class="k">def</span> <span class="nf">test_factory_reset_software</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Factory Reset Software</span>
+<span class="sd">        USE AT YOUR OWN RISK</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_factory_reset_software</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_factory_reset_software</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># self.rest.factory_reset_software()</span>
+        <span class="c1"># Not sure what the effect is, enable with caution</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Runtime.test_factory_reset_network"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_factory_reset_network">[docs]</a>    <span class="k">def</span> <span class="nf">test_factory_reset_network</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Factory Reset Network</span>
+<span class="sd">        USE AT YOUR OWN RISK</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_factory_reset_network</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_factory_reset_network</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># self.rest.factory_reset_network()</span>
+        <span class="c1"># It may clear static N/W, enable with caution</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Runtime.test_update_root_password"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.Runtime.test_update_root_password">[docs]</a>    <span class="k">def</span> <span class="nf">test_update_root_password</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Update Root Password</span>
+<span class="sd">        Caution if OpTestConfiguration bmc_password is modified</span>
+<span class="sd">        util_bmc_server does automatic login with stored credentials</span>
+<span class="sd">        --run testcases.testRestAPI.Runtime.test_update_root_password</span>
+<span class="sd">        --run testcases.testRestAPI.HostOff.test_update_root_password</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">update_root_password</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_password</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="HostOff"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostOff">[docs]</a><span class="k">class</span> <span class="nc">HostOff</span><span class="p">(</span><span class="n">Runtime</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Runtime Class performs tests with Host On</span>
+<span class="sd">    HostOff Class will turn the Host Off</span>
+<span class="sd">    --run testcases.testRestAPI.Runtime</span>
+<span class="sd">    --run testcases.testRestAPI.HostOff</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="HostOff.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostOff.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">=</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Runtime</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="HostBounces"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostBounces">[docs]</a><span class="k">class</span> <span class="nc">HostBounces</span><span class="p">(</span><span class="n">RestAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Performs Reboots and Power On/Off variety</span>
+<span class="sd">    Purpose is to exercise the REST API&#39;s</span>
+<span class="sd">    --run testcases.testRestAPI.HostBounces</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="HostBounces.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostBounces.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">=</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">HostBounces</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="HostBounces.test_power_on"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostBounces.test_power_on">[docs]</a>    <span class="k">def</span> <span class="nf">test_power_on</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Power On</span>
+<span class="sd">        --run testcases.testRestAPI.HostBounces.test_power_on</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="HostBounces.test_soft_reboot"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostBounces.test_soft_reboot">[docs]</a>    <span class="k">def</span> <span class="nf">test_soft_reboot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Soft Reboot</span>
+<span class="sd">        --run testcases.testRestAPI.HostBounces.test_soft_reboot</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">soft_reboot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_standby</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="HostBounces.test_hard_reboot"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostBounces.test_hard_reboot">[docs]</a>    <span class="k">def</span> <span class="nf">test_hard_reboot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Hard Reboot</span>
+<span class="sd">        --run testcases.testRestAPI.HostBounces.test_hard_reboot</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">hard_reboot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_standby</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="HostBounces.test_power_soft"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostBounces.test_power_soft">[docs]</a>    <span class="k">def</span> <span class="nf">test_power_soft</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Power Soft Off</span>
+<span class="sd">        --run testcases.testRestAPI.HostBounces.test_power_soft</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_soft</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_standby</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="HostBounces.test_power_off"><a class="viewcode-back" href="../../tests.html#testcases.testRestAPI.HostBounces.test_power_off">[docs]</a>    <span class="k">def</span> <span class="nf">test_power_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        REST Power Off</span>
+<span class="sd">        --run testcases.testRestAPI.HostBounces.test_power_off</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">power_off</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rest</span><span class="o">.</span><span class="n">wait_for_standby</span><span class="p">()</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">host_off_suite</span><span class="p">():</span>
+    <span class="c1"># run with Host powered OFF</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">HostOff</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">s</span>
+
+
+<span class="k">def</span> <span class="nf">runtime_suite</span><span class="p">():</span>
+    <span class="c1"># run with Host powered ON</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">Runtime</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,418 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.IplParams &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.IplParams</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2018</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">IPL Params</span>
+<span class="sd">----------</span>
+
+<span class="sd">This test verifies certain fw features are enabled/disabled during</span>
+<span class="sd">IPL time as per expectation. These features will control run time</span>
+<span class="sd">enablement of certain components.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">common.OpTestMambo</span> <span class="k">as</span> <span class="nn">OpTestMambo</span>
+<span class="kn">import</span> <span class="nn">common.OpTestQemu</span> <span class="k">as</span> <span class="nn">OpTestQemu</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">IplParams</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_params_table</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># P9 Nimbus DD2.3</span>
+        <span class="c1"># this is HDAT Risk Level=4, which hostboot translates for OpenPOWER</span>
+        <span class="c1"># if NOT /proc/device-tree/ipl-params/sys-params/elevated-risk-level, use table 0</span>
+        <span class="c1"># hostboot src/usr/hdat/hdatiplparms.H</span>
+        <span class="n">p9_dd2_3_rl0_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">p9_dd2_3_rl0_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                         <span class="s2">&quot;tm-suspend-mode&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;inst-spec-barrier-ori31,31,0&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;inst-l1d-flush-trig2&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;fw-l1d-thread-split&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;fw-count-cache-flush-bcctr2,0,0&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;speculation-policy-favor-security&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-l1d-flush-msr-hv-1-to-0&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-l1d-flush-msr-pr-0-to-1&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-spec-barrier-for-bound-checks&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-count-cache-flush-on-context-switch&quot;</span><span class="p">,</span>
+                                         <span class="p">]</span>
+        <span class="n">p9_dd2_3_rl0_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                          <span class="s2">&quot;fw-bcctrl-serialized&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-l1d-flush-ori30,30,0&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-branch-hints-honored&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-thread-reconfig-control-trig0-1&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-count-cache-disabled&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-ltptr-serialized&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;user-mode-branch-speculation&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;needs-pmu-restricted&quot;</span><span class="p">,</span>
+                                         <span class="p">]</span>
+        <span class="c1"># P9 Nimbus DD2.3</span>
+        <span class="c1"># this is HDAT Risk Level=5, which hostboot translates for OpenPOWER</span>
+        <span class="c1"># if /proc/device-tree/ipl-params/sys-params/elevated-risk-level, use table 1</span>
+        <span class="c1"># hostboot src/usr/hdat/hdatiplparms.H</span>
+        <span class="n">p9_dd2_3_rl1_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">p9_dd2_3_rl1_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                         <span class="s2">&quot;tm-suspend-mode&quot;</span><span class="p">,</span>
+                                        <span class="p">]</span>
+        <span class="n">p9_dd2_3_rl1_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                          <span class="s2">&quot;inst-spec-barrier-ori31,31,0&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-l1d-flush-trig2&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-l1d-thread-split&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-count-cache-flush-bcctr2,0,0&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;speculation-policy-favor-security&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;needs-l1d-flush-msr-hv-1-to-0&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;needs-l1d-flush-msr-pr-0-to-1&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;needs-spec-barrier-for-bound-checks&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;needs-count-cache-flush-on-context-switch&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-bcctrl-serialized&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-l1d-flush-ori30,30,0&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-branch-hints-honored&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-thread-reconfig-control-trig0-1&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-count-cache-disabled&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-ltptr-serialized&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;user-mode-branch-speculation&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;needs-pmu-restricted&quot;</span><span class="p">,</span>
+                                         <span class="p">]</span>
+        <span class="c1"># P9 DD2.2 Risk level 0 fw feature table(System boots always with default risk level 0)</span>
+        <span class="n">p9_dd2_2_rl0_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">p9_dd2_2_rl0_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                         <span class="s2">&quot;fw-count-cache-disabled&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;fw-l1d-thread-split&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;inst-l1d-flush-trig2&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;inst-spec-barrier-ori31,31,0&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-l1d-flush-msr-hv-1-to-0&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-l1d-flush-msr-pr-0-to-1&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-spec-barrier-for-bound-checks&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;speculation-policy-favor-security&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;tm-suspend-mode&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;fw-branch-hints-honored&quot;</span><span class="p">,</span>
+                                         <span class="p">]</span>
+        <span class="n">p9_dd2_2_rl0_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                          <span class="s2">&quot;inst-l1d-flush-ori30,30,0&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-bcctrl-serialized&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-thread-reconfig-control-trig0-1&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-ltptr-serialized&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;user-mode-branch-speculation&quot;</span><span class="p">,</span>
+                                         <span class="p">]</span>
+        <span class="c1"># P9 DD2.2 Risk level 1 fw feature table</span>
+        <span class="n">p9_dd2_2_rl1_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">p9_dd2_2_rl1_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                         <span class="s2">&quot;fw-l1d-thread-split&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;fw-bcctrl-serialized&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;inst-l1d-flush-trig2&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;inst-spec-barrier-ori31,31,0&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-l1d-flush-msr-hv-1-to-0&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-l1d-flush-msr-pr-0-to-1&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;needs-spec-barrier-for-bound-checks&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;speculation-policy-favor-security&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;tm-suspend-mode&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;fw-branch-hints-honored&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;user-mode-branch-speculation&quot;</span>
+                                         <span class="p">]</span>
+        <span class="n">p9_dd2_2_rl1_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                                          <span class="s2">&quot;fw-count-cache-disabled&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-l1d-flush-ori30,30,0&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;inst-thread-reconfig-control-trig0-1&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;fw-ltptr-serialized&quot;</span><span class="p">]</span>
+
+        <span class="n">table_0</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;2.2&#39;</span>    <span class="p">:</span> <span class="n">p9_dd2_2_rl0_params</span><span class="p">,</span>
+            <span class="s1">&#39;2.3&#39;</span>    <span class="p">:</span> <span class="n">p9_dd2_3_rl0_params</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">table_1</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;2.2&#39;</span>    <span class="p">:</span> <span class="n">p9_dd2_2_rl1_params</span><span class="p">,</span>
+            <span class="s1">&#39;2.3&#39;</span>    <span class="p">:</span> <span class="n">p9_dd2_3_rl1_params</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># P8 fw-feature table</span>
+        <span class="n">p8_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">p8_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                               <span class="s2">&quot;inst-l1d-flush-ori30,30,0&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;fw-count-cache-disabled&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;inst-spec-barrier-ori31,31,0&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;needs-l1d-flush-msr-hv-1-to-0&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;needs-l1d-flush-msr-pr-0-to-1&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;needs-spec-barrier-for-bound-checks&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;speculation-policy-favor-security&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;tm-suspend-mode&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;fw-branch-hints-honored&quot;</span>
+                               <span class="p">]</span>
+        <span class="n">p8_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                               <span class="s2">&quot;fw-bcctrl-serialized&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;inst-thread-reconfig-control-trig0-1&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;fw-ltptr-serialized&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;inst-l1d-flush-trig2&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;fw-l1d-thread-split&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;user-mode-branch-speculation&quot;</span>
+                               <span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;grep &#39;^cpu&#39; /proc/cpuinfo |uniq|sed -e &#39;s/^.*: //;s/[,]* .*//;&#39;&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">revision</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;grep &#39;^revision&#39; /proc/cpuinfo |uniq|sed -e &#39;s/^.*: //;s/ (.*)//;&#39;&quot;</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;self.cpu=</span><span class="si">{}</span><span class="s2"> self.revision=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">revision</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">revision</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;2.2&quot;</span><span class="p">,</span> <span class="s2">&quot;2.3&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="p">{}</span>
+            <span class="n">rl</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;ls --color=never /proc/device-tree/ipl-params/sys-params/elevated-risk-level&quot;</span><span class="p">)</span>
+                <span class="n">rl</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;NO /proc/device-tree/ipl-params/sys-params/elevated-risk-level found, proceeding with default risk level comparisons&quot;</span><span class="p">)</span>
+                <span class="n">rl</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">if</span> <span class="n">rl</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">table_0</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">revision</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">rl</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">table_1</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">revision</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{}</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">p8_params</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;CPU </span><span class="si">%s</span><span class="s2"> doesn&#39;t have the supported fw-feature set&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">file_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,opal/fw-features/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+            <span class="n">exist</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="n">exist</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">exist</span>
+
+    <span class="k">def</span> <span class="nf">test_feature_enable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_test</span><span class="p">()</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_params_table</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;List of features which are expected to be in enabled state</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">params</span><span class="p">:</span>
+            <span class="c1"># skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span>
+                <span class="s2">&quot;Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported&quot;</span><span class="p">)</span>
+
+        <span class="n">fail_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Verify the params feature to be enabled</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">/enabled&quot;</span> <span class="o">%</span> <span class="n">param</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">/disabled&quot;</span> <span class="o">%</span> <span class="n">param</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                    <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">]:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;fw-feature expected to be enabled,</span><span class="se">\n\t</span><span class="s2">disabled list: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s2">not-found list: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;enable&quot;</span><span class="p">],</span> <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_feature_disable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_test</span><span class="p">()</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_params_table</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;List of features which are expected to be in disabled state</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">params</span><span class="p">:</span>
+            <span class="c1"># skip the test if the processor is not GA level (for such cases as op910 supports only dd2.1)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span>
+                <span class="s2">&quot;Skipping IplParams test, we did not get ANY params to compare against, fw-feature set table not found or processor not supported&quot;</span><span class="p">)</span>
+
+        <span class="n">fail_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Verify the params feature to be disabled</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">/disabled&quot;</span> <span class="o">%</span> <span class="n">param</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">/enabled&quot;</span> <span class="o">%</span> <span class="n">param</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                    <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">]:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;fw-feature expected to be disabled,</span><span class="se">\n\t</span><span class="s2">enabled list: </span><span class="si">%s</span><span class="s2">,</span><span class="se">\n\t</span><span class="s2">not-found list: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;disable&quot;</span><span class="p">],</span> <span class="n">fail_params</span><span class="p">[</span><span class="s2">&quot;not-found&quot;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Skiroot"><a class="viewcode-back" href="../../tests.html#testcases.IplParams.Skiroot">[docs]</a><span class="k">class</span> <span class="nc">Skiroot</span><span class="p">(</span><span class="n">IplParams</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">,</span> <span class="n">OpTestQemu</span><span class="o">.</span><span class="n">QemuConsole</span><span class="p">))</span> \
+                <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">,</span> <span class="n">OpTestMambo</span><span class="o">.</span><span class="n">MamboConsole</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;QEMU/Mambo running so skipping tests&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Host"><a class="viewcode-back" href="../../tests.html#testcases.IplParams.Host">[docs]</a><span class="k">class</span> <span class="nc">Host</span><span class="p">(</span><span class="n">IplParams</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">,</span> <span class="n">OpTestQemu</span><span class="o">.</span><span class="n">QemuConsole</span><span class="p">))</span> \
+                <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">,</span> <span class="n">OpTestMambo</span><span class="o">.</span><span class="n">MamboConsole</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;QEMU/Mambo running so skipping tests&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

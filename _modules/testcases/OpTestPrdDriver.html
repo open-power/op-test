@@ -1,0 +1,404 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestPrdDriver &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestPrdDriver</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestPrdDriver.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestPrdDriver</span>
+<span class="sd">---------------</span>
+
+<span class="sd">PRD driver package for OpenPower testing.</span>
+
+<span class="sd">This class will test the functionality of following:</span>
+
+<span class="sd">- PRD (Processor Runtime Diagnostic) enables the support for handing certain</span>
+<span class="sd">  RAS events by the userspace application.</span>
+<span class="sd">- For testing out this feature, we require the userspace xscom-utils, part of the &#39;skiboot&#39; tree.</span>
+<span class="sd">- skiboot tree is cloning in /tmp directory.</span>
+<span class="sd">- Using the xscom utility, we need to inject errors through FIR (Fault Isolation Register)</span>
+<span class="sd">  and observe them getting cleared if PRD handles them successfully.</span>
+
+<span class="sd">  - 0x01020013 IPOLL mask register</span>
+<span class="sd">  - 0x02010840 PBA Local Fault isolation register</span>
+<span class="sd">  - 0x02010843 PBA Local fault isolation mask register</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ErrorToInject</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">desc</span><span class="p">,</span> <span class="n">FIR</span><span class="p">,</span> <span class="n">FIMR</span><span class="p">,</span> <span class="n">ERROR</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">desc</span> <span class="o">=</span> <span class="n">desc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">FIR</span> <span class="o">=</span> <span class="n">FIR</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">FIMR</span> <span class="o">=</span> <span class="n">FIMR</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ERROR</span> <span class="o">=</span> <span class="n">ERROR</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">desc</span>
+
+
+<div class="viewcode-block" id="OpTestPrdDriver"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPrdDriver.OpTestPrdDriver">[docs]</a><span class="k">class</span> <span class="nc">OpTestPrdDriver</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestPrdDriver.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPrdDriver.OpTestPrdDriver.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">platform</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div>
+
+    <span class="c1">#</span>
+    <span class="c1"># @return BMC_CONST.FW_SUCCESS or raise OpTestError</span>
+    <span class="c1">#</span>
+<div class="viewcode-block" id="OpTestPrdDriver.prd_init"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPrdDriver.OpTestPrdDriver.prd_init">[docs]</a>    <span class="k">def</span> <span class="nf">prd_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This is a common function for all the PRD test cases. This will be executed before</span>
+<span class="sd">        any test case starts. Basically this provides below requirements.</span>
+
+<span class="sd">        1. Validates all required host commands</span>
+<span class="sd">        2. Get the list Of Chips (Using getscom binary). e.g. ::</span>
+
+<span class="sd">             [&#39;00000000&#39;, &#39;00000001&#39;, &#39;00000010&#39;]</span>
+
+<span class="sd">        3. generate a random chip.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Get OS level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_OS_Level</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Getting list of processor chip Id&#39;s(executing getscom -l to get chip id&#39;s)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;PATH=/usr/local/sbin:$PATH getscom -l&quot;</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">l_chips</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="n">matchObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;(\d</span><span class="si">{8}</span><span class="s2">).*processor&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">matchObj</span><span class="p">:</span>
+                <span class="n">l_chips</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;chips list:</span><span class="si">%s</span><span class="s2"> list length: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_chips</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">l_chips</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">l_chips</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Getscom failed to list processor chip id&#39;s&quot;</span><span class="p">)</span>
+        <span class="n">l_chips</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_chips</span><span class="p">)</span>  <span class="c1"># [&#39;00000000&#39;, &#39;00000001&#39;, &#39;00000010&#39;]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_chip</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">l_chips</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestPrdDriver.prd_test_core_fir"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPrdDriver.OpTestPrdDriver.prd_test_core_fir">[docs]</a>    <span class="k">def</span> <span class="nf">prd_test_core_fir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">FIR</span><span class="p">,</span> <span class="n">FIMR</span><span class="p">,</span> <span class="n">ERROR</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function injects some core FIR errors and verifies whether opal-prd clears the errors.</span>
+<span class="sd">        and also this function injects errors on random chip.</span>
+
+<span class="sd">        :param FIR: Local Fault Isolation register</span>
+<span class="sd">        :type FIR: str</span>
+<span class="sd">        :param FIMR: Local Fault Isolation mask register</span>
+<span class="sd">        :type FIMR: str</span>
+<span class="sd">        :param ERROR: Core FIR error, this error will be written to FIR.</span>
+<span class="sd">        :type ERROR: str</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="n">chip_id</span> <span class="o">=</span> <span class="s2">&quot;0x&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_chip</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">chip_id</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OPAL-PRD: Injecting error 0x</span><span class="si">%x</span><span class="s2"> on FIR: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ERROR</span><span class="p">,</span> <span class="n">FIR</span><span class="p">))</span>
+        <span class="c1"># Read Local Fault Isolation register</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH getscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">chip_id</span><span class="p">,</span> <span class="n">FIR</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+        <span class="c1"># Reading Local Fault Isolation mask register</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH getscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">chip_id</span><span class="p">,</span> <span class="n">FIMR</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+
+        <span class="c1"># Changing the FIMR value to un-masked value.</span>
+        <span class="n">LEN</span> <span class="o">=</span> <span class="mi">16</span>
+        <span class="n">l_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">l_val</span> <span class="o">=</span> <span class="nb">hex</span><span class="p">(</span>
+            <span class="nb">int</span><span class="p">((</span><span class="s2">&quot;0x&quot;</span> <span class="o">+</span> <span class="s2">&quot;0&quot;</span><span class="o">*</span><span class="p">(</span><span class="n">LEN</span> <span class="o">-</span> <span class="n">l_len</span><span class="p">)</span> <span class="o">+</span> <span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="mi">16</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">ERROR</span> <span class="o">^</span> <span class="mh">0xffffffffffffffff</span><span class="p">))</span>
+
+        <span class="c1"># Writing the same value to Local Fault Isolation mask register again</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">chip_id</span><span class="p">,</span> <span class="n">FIMR</span><span class="p">,</span> <span class="n">l_val</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+        <span class="c1"># Inject a core error on FIR</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">chip_id</span><span class="p">,</span> <span class="n">FIR</span><span class="p">,</span> <span class="nb">hex</span><span class="p">(</span><span class="n">ERROR</span><span class="p">))</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">30</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="p">):</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># Read Local Fault Isolation register again</span>
+            <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH getscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">chip_id</span><span class="p">,</span> <span class="n">FIR</span><span class="p">)</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FAULT_ISOLATION_REGISTER_CONTENT</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Opal-prd handled core hardware error&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Opal-prd hardware error not cleared, waiting &quot;</span>
+                          <span class="s2">&quot;(</span><span class="si">%d</span><span class="s2">/</span><span class="si">%d</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">tries</span><span class="p">))</span>
+
+        <span class="c1"># Check FIR got cleared by opal-prd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FAULT_ISOLATION_REGISTER_CONTENT</span><span class="p">,</span>
+                         <span class="s2">&quot;Opal-prd not clearing hardware errors in runtime&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Reading the Local Fault Isolation Mask Register again</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH getscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">chip_id</span><span class="p">,</span> <span class="n">FIMR</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+
+        <span class="c1"># check for IPOLL mask register value to see opal-prd cleared the value</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH getscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">chip_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER_CONTENT</span><span class="p">,</span>
+                         <span class="s2">&quot;Opal-prd is not clearing the IPOLL MASK REGISTER after injecting core FIR error&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Opal-prd cleared the IPOLL MASK REGISTER&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span></div>
+
+    <span class="c1">##</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return BMC_CONST.FW_SUCCESS or raise OpTestError</span>
+    <span class="c1">#</span>
+<div class="viewcode-block" id="OpTestPrdDriver.runTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPrdDriver.OpTestPrdDriver.runTest">[docs]</a>    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function performs below steps:</span>
+
+<span class="sd">        1. Initially connecting to host for execution.</span>
+<span class="sd">        2. check for IPOLL mask register value to see whether opal-prd is running or not</span>
+<span class="sd">           if it is 0--&gt;opal-prd is running--&gt;continue</span>
+<span class="sd">           else start opal-prd service again</span>
+<span class="sd">        3. call test_prd_for_fir() function for each core FIR error and this function</span>
+<span class="sd">           can be used for any number of errors, like it is a generic function</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_prd_supported</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;opal-prd NOT supported on this system, bmc_type=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">prd_init</span><span class="p">()</span>
+        <span class="c1"># need console in case of crash or lockups</span>
+        <span class="n">l_con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+
+        <span class="n">cpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">faults_to_inject</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">cpu</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Unknown CPU type </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">cpu</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0x01020013&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER_CONTENT</span> <span class="o">=</span> <span class="s2">&quot;0000000000000000&quot;</span>
+            <span class="n">PBA_FAULT_ISOLATION_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0x02010840&quot;</span>
+            <span class="n">PBA_FAULT_ISOLATION_MASK_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0x02010843&quot;</span>
+            <span class="n">PBAFIR_OCI_APAR_ERR</span> <span class="o">=</span> <span class="mh">0x8000000000000000</span>
+            <span class="n">PBAFIR_PB_CE_FW</span> <span class="o">=</span> <span class="mh">0x0400000000000000</span>
+            <span class="n">PBAFIR_PB_RDDATATO_FW</span> <span class="o">=</span> <span class="mh">0x2000000000000000</span>
+            <span class="n">PBAFIR_PB_RDADRERR_FW</span> <span class="o">=</span> <span class="mh">0x6000000000000000</span>
+            <span class="n">faults_to_inject</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">ErrorToInject</span><span class="p">(</span><span class="s2">&quot;PRD: Test for PBAFIR_OCI_APAR_ERR--&gt;OCI Address Parity Error&quot;</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_MASK_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBAFIR_OCI_APAR_ERR</span><span class="p">),</span>
+                <span class="n">ErrorToInject</span><span class="p">(</span><span class="s2">&quot;PRD: Test for PBAFIR_PB_CE_FW--&gt;PB Read Data CE Error for Forwarded Request&quot;</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_MASK_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBAFIR_PB_CE_FW</span><span class="p">),</span>
+                <span class="n">ErrorToInject</span><span class="p">(</span><span class="s2">&quot;PRD: Test for PBAFIR_PB_RDDATATO_FW--&gt;PB Read Data Timeout for Forwarded Request&quot;</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_MASK_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBAFIR_PB_RDDATATO_FW</span><span class="p">),</span>
+                <span class="n">ErrorToInject</span><span class="p">(</span><span class="s2">&quot;PRD: Test for PBAFIR_PB_RDADRERR_FW--&gt;PB CRESP Addr Error Received for Forwarded Read Request&quot;</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBA_FAULT_ISOLATION_MASK_REGISTER</span><span class="p">,</span>
+                              <span class="n">PBAFIR_PB_RDADRERR_FW</span><span class="p">),</span>
+            <span class="p">]</span>
+        <span class="k">if</span> <span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="c1"># TP.TPCHIP.PIB.PCBMS.COMP.INTR_COMP.HOST_MASK_REG</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0xF0033&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER_CONTENT</span> <span class="o">=</span> <span class="s2">&quot;a400000000000000&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;opal-prd --debug --stdio&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;opal-prd failed to activate </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+
+        <span class="c1"># check for IPOLL mask register value to check opal-prd is running or not</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH getscom -c 0x0 </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER_CONTENT</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Opal-prd is running&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;service opal-prd start&quot;</span><span class="p">)</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">IPOLL_MASK_REGISTER_CONTENT</span><span class="p">,</span>
+                             <span class="s2">&quot;IPOLL MASK REGISTER is not getting cleared by opal-prd&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Opal-prd is running&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Test for PBA FIR with different core errors</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">faults_to_inject</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;PRD Test: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prd_test_core_fir</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">FIR</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">FIMR</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">ERROR</span><span class="p">)</span>
+
+        <span class="k">pass</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

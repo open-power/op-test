@@ -1,0 +1,420 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.FWTS &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.FWTS</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015,2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+
+<span class="c1"># This test runs FWTS and munges the JSON report output into</span>
+<span class="c1"># python unittest.TestCase objects, so we get the individual</span>
+<span class="c1"># failure/successes into the TestResult output (e.g. junit XML)</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">FWTS</span>
+<span class="sd">----</span>
+
+<span class="sd">Run the Canonical FirmWare Test Suite (FWTS, see</span>
+<span class="sd">https://wiki.ubuntu.com/FirmwareTestSuite for details).</span>
+
+<span class="sd">Largely, if we can implement a test as part of FWTS, we should do it there</span>
+<span class="sd">as it&#39;s easy to run and packaged.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+<span class="kn">import</span> <span class="nn">common.OpTestMambo</span> <span class="k">as</span> <span class="nn">OpTestMambo</span>
+<span class="kn">import</span> <span class="nn">common.OpTestQemu</span> <span class="k">as</span> <span class="nn">OpTestQemu</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="FWTSCommandFailed"><a class="viewcode-back" href="../../tests.html#testcases.FWTS.FWTSCommandFailed">[docs]</a><span class="k">class</span> <span class="nc">FWTSCommandFailed</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="n">FAIL</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">FAIL</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">FAIL</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="FWTSCommandSkipped"><a class="viewcode-back" href="../../tests.html#testcases.FWTS.FWTSCommandSkipped">[docs]</a><span class="k">class</span> <span class="nc">FWTSCommandSkipped</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="n">SKIP</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;QEMU/Mambo running so skipping FWTS tests&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FWTSVersion"><a class="viewcode-back" href="../../tests.html#testcases.FWTS.FWTSVersion">[docs]</a><span class="k">class</span> <span class="nc">FWTSVersion</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="n">MAJOR</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">MINOR</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">version_check</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAJOR</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">MINOR</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Test not meant to be run this way.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MAJOR</span><span class="p">)</span> <span class="o">==</span> <span class="mi">17</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MINOR</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MAJOR</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">17</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">version_check</span><span class="p">(),</span>
+                        <span class="s1">&#39;FWTS must be at least Version 17.01&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FWTSTest"><a class="viewcode-back" href="../../tests.html#testcases.FWTS.FWTSTest">[docs]</a><span class="k">class</span> <span class="nc">FWTSTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="n">SUBTEST_RESULT</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">CENTAURS_PRESENT</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">IS_FSP_SYSTEM</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">FWTS_MAJOR_VERSION</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">FWTS_MINOR_VERSION</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Test not meant to be run this way.&quot;</span><span class="p">)</span>
+
+        <span class="n">DTC_FLASH_INVALID_LENGTH</span> <span class="o">=</span> <span class="s1">&#39;dtc reports warnings from device tree:&#39;</span>\
+            <span class="s1">&#39;Warning (reg_format): &quot;reg&quot; property in /ibm,opal/flash@0 has &#39;</span>\
+            <span class="s1">&#39;invalid length (8 bytes) (#address-cells == 0, #size-cells == 0)&#39;</span>\
+            <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;log_text&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">DTC_FLASH_INVALID_LENGTH</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s1">&#39;/ibm,opal/flash@0 known warning&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Some FWTS verions barfed (incorrectly) on missing nodes</span>
+        <span class="c1"># in the device tree. If we spot this, skip the test</span>
+        <span class="c1"># this work-around should be removed when the FWTS version readily</span>
+        <span class="c1"># available from the archives no longer has this problem</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;failure_label&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;None&#39;</span><span class="p">):</span>
+            <span class="n">log_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;log_text&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;Property of &quot;(status|manufacturer-id|part-number|&#39;</span>
+                        <span class="s1">&#39;serial-number)&quot; for &#39;</span>
+                        <span class="s1">&#39;&quot;/sys/firmware/devicetree/base/memory-buffer&#39;</span><span class="p">,</span>
+                        <span class="n">log_text</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FWTS bug: Incorrect Missing &#39;(status|&quot;</span>
+                              <span class="s2">&quot;manufacturer-id|part-number|serial-number)&#39; &quot;</span>
+                              <span class="s2">&quot;property in memory-buffer/dimm&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;property &quot;serial-number&quot; contains unprintable &#39;</span>
+                        <span class="s1">&#39;characters&#39;</span><span class="p">,</span> <span class="n">log_text</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FWTS bug: DIMM VPD has binary serial number&quot;</span><span class="p">)</span>
+            <span class="c1"># The following is a guess based on when</span>
+            <span class="c1"># https://lists.ubuntu.com/archives/fwts-devel/2018-April/010318.html</span>
+            <span class="c1"># will be merged</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">FWTS_MAJOR_VERSION</span> <span class="o">&lt;=</span> <span class="mi">18</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">FWTS_MAJOR_VERSION</span> <span class="o">&lt;</span> <span class="mi">18</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">FWTS_MINOR_VERSION</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;CPUFreqClaimedMax&#39;</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;failure_label&#39;</span><span class="p">)):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Bug in FWTS r.e. boost frequencies, &quot;</span>
+                                      <span class="s2">&quot;fixed sometime after April 2018&quot;</span><span class="p">)</span>
+
+            <span class="c1"># On FSP machines, memory-buffers (centaurs) aren&#39;t present in DT</span>
+            <span class="c1"># and FWTS 17.03 (at least) expects them to be, so skip those</span>
+            <span class="c1"># failures</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">CENTAURS_PRESENT</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span>
+                    <span class="s1">&#39;No MEM devices \(memory-buffer&#39;</span><span class="p">,</span> <span class="n">log_text</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FWTS assumes Centaurs present on FSP systems&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">IS_FSP_SYSTEM</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span>
+                    <span class="s1">&#39;Property of &quot;(board-info|part-number|serial-number|vendor&#39;</span>
+                    <span class="s1">&#39;|ibm,slot-location-code)&quot; for &#39;</span>
+                    <span class="s1">&#39;&quot;/sys/firmware/devicetree/base/xscom@.*&quot; was not able to &#39;</span>
+                    <span class="s1">&#39;be retrieved. Check the installation for the CPU device &#39;</span>
+                    <span class="s1">&#39;config for missing nodes in the device tree if you &#39;</span>
+                    <span class="s1">&#39;expect CPU devices&#39;</span><span class="p">,</span> <span class="n">log_text</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FWTS assumes some nodes present on FSP systems &quot;</span>
+                              <span class="s2">&quot;which aren&#39;t&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;Attempt was made to stop the opal-prd.service but &#39;</span>
+                        <span class="s1">&#39;was not successful&#39;</span><span class="p">,</span> <span class="n">log_text</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FWTS bug: prd did actually stop, and there&#39;s &quot;</span>
+                              <span class="s2">&quot;something strange with FWTS&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;OPAL &quot;/ibm,firmware-versions&quot; firmware version from &#39;</span>
+                        <span class="s1">&#39;device tree node &quot;open-power&quot; was not found&#39;</span><span class="p">,</span>
+                        <span class="n">log_text</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FWTS known issue: &#39;open-power&#39; version no &quot;</span>
+                              <span class="s2">&quot;longer required&quot;</span><span class="p">)</span>
+
+            <span class="c1"># We currently guess that all these are going to be merged for</span>
+            <span class="c1"># FWTS 18.05 :)</span>
+            <span class="c1"># To be extra cautious, allowing them to fail for all of 18.XX</span>
+            <span class="c1"># though.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">FWTS_MAJOR_VERSION</span> <span class="o">&lt;=</span> <span class="mi">18</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;CPUPstateLimitsTestFail&#39;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;failure_label&#39;</span><span class="p">)):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FWTS known issue: &quot;</span>
+                                  <span class="s2">&quot;https://lists.ubuntu.com/archives/fwts-devel/2018-April/010315.html&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;DeviceTreeBaseDTCWarnings&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;failure_label&#39;</span><span class="p">)):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                        <span class="s2">&quot;FWTS known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010326.html&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;Property of &quot;(board-info|vendor|&#39;</span>
+                            <span class="s1">&#39;ibm,slot-location-code)&quot; for &#39;</span>
+                            <span class="s1">&#39;&quot;/sys/firmware/devicetree/base/xscom.*&quot; was not &#39;</span>
+                            <span class="s1">&#39;able to be retrieved. Check the installation for &#39;</span>
+                            <span class="s1">&#39;the CPU device config for missing nodes in the &#39;</span>
+                            <span class="s1">&#39;device tree if you expect CPU devices.&#39;</span><span class="p">,</span>
+                            <span class="n">log_text</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                        <span class="s2">&quot;FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010329.html&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;No MEM DIMM devices \(memory-buffer\) were found &#39;</span>
+                            <span class="s1">&#39;in &quot;/sys/firmware/devicetree/base&quot; with a status &#39;</span>
+                            <span class="s1">&#39;of &quot;okay&quot; or &quot;ok&quot;.  This is unexpected so please &#39;</span>
+                            <span class="s1">&#39;check your system setup for issues.&#39;</span><span class="p">,</span> <span class="n">log_text</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                        <span class="s2">&quot;FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010330.html&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;failure_label&#39;</span><span class="p">),</span> <span class="s1">&#39;None&#39;</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FWTS"><a class="viewcode-back" href="../../tests.html#testcases.FWTS.FWTS">[docs]</a><span class="k">class</span> <span class="nc">FWTS</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Run the FWTS tests, importing the test results into `op-test`.</span>
+
+<span class="sd">    This is implemented as a TestSuite rather than a TestCase so we can add</span>
+<span class="sd">    multiple TestCase results to the `op-test` test results.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">add_fwts_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">major_version</span><span class="p">,</span> <span class="n">minor_version</span><span class="p">):</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fwtsjson</span> <span class="o">=</span> <span class="n">host</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                <span class="s2">&quot;PATH=/usr/local/bin:$PATH fwts -q -r stdout --log-type=json&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="c1"># FWTS will have exit code of 1 if any test fails,</span>
+            <span class="c1"># we want to ignore that and parse the output.</span>
+            <span class="n">fwtsjson</span> <span class="o">=</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span>
+            <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+                <span class="n">command_failed</span> <span class="o">=</span> <span class="n">FWTSCommandFailed</span><span class="p">()</span>
+                <span class="n">command_failed</span><span class="o">.</span><span class="n">FAIL</span> <span class="o">=</span> <span class="n">cf</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">command_failed</span><span class="p">)</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fwtsjson</span><span class="p">),</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;latin-1&#39;</span><span class="p">)</span>
+        <span class="n">tests</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">fwts</span> <span class="ow">in</span> <span class="n">r</span><span class="p">[</span><span class="s1">&#39;fwts&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fwts</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;tests&quot;</span><span class="p">:</span>
+                    <span class="n">tests</span> <span class="o">=</span> <span class="n">fwts</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">test_container</span> <span class="ow">in</span> <span class="n">tests</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">test_container</span><span class="p">:</span>
+                <span class="n">js_suite</span> <span class="o">=</span> <span class="n">test_container</span><span class="p">[</span><span class="n">tr</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">js_subtests</span> <span class="o">=</span> <span class="n">test_container</span><span class="p">[</span><span class="n">tr</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">suite</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+
+                <span class="k">for</span> <span class="n">sts</span> <span class="ow">in</span> <span class="n">js_subtests</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">sts</span> <span class="o">==</span> <span class="s2">&quot;subtests&quot;</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">subtest</span> <span class="ow">in</span> <span class="n">js_subtests</span><span class="p">[</span><span class="n">sts</span><span class="p">]:</span>
+                            <span class="k">for</span> <span class="n">st_info</span> <span class="ow">in</span> <span class="n">subtest</span><span class="p">[</span><span class="s1">&#39;subtest&#39;</span><span class="p">]:</span>
+                                <span class="k">if</span> <span class="ow">not</span> <span class="n">st_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;subtest_results&#39;</span><span class="p">):</span>
+                                    <span class="k">continue</span>
+                                <span class="k">for</span> <span class="n">st_r</span> <span class="ow">in</span> <span class="n">st_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;subtest_results&#39;</span><span class="p">):</span>
+                                    <span class="n">t</span> <span class="o">=</span> <span class="n">FWTSTest</span><span class="p">()</span>
+                                    <span class="n">t</span><span class="o">.</span><span class="n">SUBTEST_RESULT</span> <span class="o">=</span> <span class="n">st_r</span>
+                                    <span class="n">t</span><span class="o">.</span><span class="n">CENTAURS_PRESENT</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">centaurs_present</span>
+                                    <span class="n">t</span><span class="o">.</span><span class="n">FWTS_MAJOR_VERSION</span> <span class="o">=</span> <span class="n">major_version</span>
+                                    <span class="n">t</span><span class="o">.</span><span class="n">FWTS_MINOR_VERSION</span> <span class="o">=</span> <span class="n">minor_version</span>
+                                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">==</span> <span class="s1">&#39;FSP&#39;</span><span class="p">:</span>
+                                        <span class="n">t</span><span class="o">.</span><span class="n">IS_FSP_SYSTEM</span> <span class="o">=</span> <span class="kc">True</span>
+                                    <span class="n">suite</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">suite</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">,</span> <span class="n">OpTestQemu</span><span class="o">.</span><span class="n">QemuConsole</span><span class="p">))</span> \
+                    <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">,</span> <span class="n">OpTestMambo</span><span class="o">.</span><span class="n">MamboConsole</span><span class="p">)):</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">FWTSCommandSkipped</span><span class="p">()</span>
+                <span class="n">m</span><span class="o">.</span><span class="n">SKIP</span> <span class="o">=</span> <span class="n">e</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="c1"># In the event of something going wrong during IPL,</span>
+            <span class="c1"># We need to catch that here as we&#39;re abusing UnitTest</span>
+            <span class="c1"># TestSuite infra and we don&#39;t have the catch-all that</span>
+            <span class="c1"># a TestCase provides.</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">FWTSCommandFailed</span><span class="p">()</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">FAIL</span> <span class="o">=</span> <span class="n">e</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">centaurs_present</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">has_centaurs_in_dt</span><span class="p">()</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span>
+
+        <span class="n">fwts_version</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fwts_version</span> <span class="o">=</span> <span class="n">host</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                <span class="s2">&quot;PATH=/usr/local/bin:$PATH fwts --version&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;fwts_version=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fwts_version</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="n">command_failed</span> <span class="o">=</span> <span class="n">FWTSCommandFailed</span><span class="p">()</span>
+            <span class="n">command_failed</span><span class="o">.</span><span class="n">FAIL</span> <span class="o">=</span> <span class="n">cf</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">command_failed</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fwts_version</span><span class="p">:</span>
+            <span class="c1"># We want to ensure we&#39;re at least at version 17.01</span>
+            <span class="c1"># which means we need to parse this:</span>
+            <span class="c1"># fwts, Version V17.01.00, 2017-01-19 04:20:38</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;fwts, Version V(\d+)\.(\d+)&quot;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fwts_version</span><span class="p">))</span>
+            <span class="n">major</span><span class="p">,</span> <span class="n">minor</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">v</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+            <span class="n">checkver</span> <span class="o">=</span> <span class="n">FWTSVersion</span><span class="p">()</span>
+            <span class="n">checkver</span><span class="o">.</span><span class="n">MAJOR</span> <span class="o">=</span> <span class="n">major</span>
+            <span class="n">checkver</span><span class="o">.</span><span class="n">MINOR</span> <span class="o">=</span> <span class="n">minor</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">checkver</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">checkver</span><span class="o">.</span><span class="n">version_check</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_fwts_results</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">major</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">minor</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">real_fwts_suite</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

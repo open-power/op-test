@@ -1,0 +1,566 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>common.OpTestQemu &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for common.OpTestQemu</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015,2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Support testing against Qemu simulator</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">atexit</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">OPexpect</span>
+<span class="kn">from</span> <span class="nn">.OpTestUtil</span> <span class="kn">import</span> <span class="n">OpTestUtil</span>
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ConsoleState"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.ConsoleState">[docs]</a><span class="k">class</span> <span class="nc">ConsoleState</span><span class="p">():</span>
+    <span class="n">DISCONNECTED</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">CONNECTED</span> <span class="o">=</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="QemuConsole"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole">[docs]</a><span class="k">class</span> <span class="nc">QemuConsole</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A &#39;connection&#39; to the Qemu Console involves *launching* qemu.</span>
+<span class="sd">    Closing a connection will *terminate* the qemu process.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qemu_binary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pnor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skiboot</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">initramfs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">block_setup_term</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delaybeforesend</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">logfile</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">disks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cdrom</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qemu_binary</span> <span class="o">=</span> <span class="n">qemu_binary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="n">pnor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span> <span class="o">=</span> <span class="n">skiboot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initramfs</span> <span class="o">=</span> <span class="n">initramfs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disks</span> <span class="o">=</span> <span class="n">disks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">DISCONNECTED</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logfile</span> <span class="o">=</span> <span class="n">logfile</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delaybeforesend</span> <span class="o">=</span> <span class="n">delaybeforesend</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">system</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cdrom</span> <span class="o">=</span> <span class="n">cdrom</span>
+        <span class="c1"># OpTestUtil instance is NOT conf&#39;s</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span> <span class="o">=</span> <span class="n">OpTestUtil</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prompt</span> <span class="o">=</span> <span class="n">prompt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expect_prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">build_prompt</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;$&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pty</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># allows caller specific control of when to block setup_term</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_setup_term</span> <span class="o">=</span> <span class="n">block_setup_term</span>
+        <span class="c1"># tells setup_term to not throw exceptions, like when system off</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_term_quiet</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># flags the object to abandon setup_term operations, like when system off</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_term_disable</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mac_str</span> <span class="o">=</span> <span class="s1">&#39;52:54:00:22:34:56&#39;</span>
+
+        <span class="c1"># state tracking, reset on boot and state changes</span>
+        <span class="c1"># console tracking done on System object for the system console</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">PS1_set</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">LOGIN_set</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">SUDO_set</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+<div class="viewcode-block" id="QemuConsole.set_system"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.set_system">[docs]</a>    <span class="k">def</span> <span class="nf">set_system</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">system</span> <span class="o">=</span> <span class="n">system</span></div>
+
+<div class="viewcode-block" id="QemuConsole.set_system_setup_term"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.set_system_setup_term">[docs]</a>    <span class="k">def</span> <span class="nf">set_system_setup_term</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">block_setup_term</span> <span class="o">=</span> <span class="n">flag</span></div>
+
+<div class="viewcode-block" id="QemuConsole.get_system_setup_term"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.get_system_setup_term">[docs]</a>    <span class="k">def</span> <span class="nf">get_system_setup_term</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">block_setup_term</span></div>
+
+<div class="viewcode-block" id="QemuConsole.set_block_setup_term"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.set_block_setup_term">[docs]</a>    <span class="k">def</span> <span class="nf">set_block_setup_term</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_setup_term</span> <span class="o">=</span> <span class="n">flag</span></div>
+
+<div class="viewcode-block" id="QemuConsole.get_block_setup_term"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.get_block_setup_term">[docs]</a>    <span class="k">def</span> <span class="nf">get_block_setup_term</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">block_setup_term</span></div>
+
+<div class="viewcode-block" id="QemuConsole.enable_setup_term_quiet"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.enable_setup_term_quiet">[docs]</a>    <span class="k">def</span> <span class="nf">enable_setup_term_quiet</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_term_quiet</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_term_disable</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="QemuConsole.disable_setup_term_quiet"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.disable_setup_term_quiet">[docs]</a>    <span class="k">def</span> <span class="nf">disable_setup_term_quiet</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_term_quiet</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_term_disable</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+    <span class="c1"># Because this makes sense for the console</span>
+<div class="viewcode-block" id="QemuConsole.update_disks"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.update_disks">[docs]</a>    <span class="k">def</span> <span class="nf">update_disks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">disks</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disks</span> <span class="o">=</span> <span class="n">disks</span></div>
+
+<div class="viewcode-block" id="QemuConsole.close"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">clear_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">rc_child</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">exitCode</span> <span class="o">=</span> <span class="n">signalstatus</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>  <span class="c1"># leaving for debug</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">WIFEXITED</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">status</span><span class="p">):</span>
+                    <span class="n">exitCode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">WEXITSTATUS</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">signalstatus</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">WTERMSIG</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">DISCONNECTED</span>
+        <span class="k">except</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">ExceptionPexpect</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">DISCONNECTED</span>
+            <span class="k">raise</span> <span class="s2">&quot;Qemu Console: failed to close console&quot;</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">DISCONNECTED</span>
+            <span class="k">pass</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Qemu close -&gt; TERMINATE&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QemuConsole.connect"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">CONNECTED</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">clear_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>  <span class="c1"># clear when coming in DISCONNECTED</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;#Qemu Console CONNECT&quot;</span><span class="p">)</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qemu_binary</span><span class="p">)</span>
+               <span class="o">+</span> <span class="s2">&quot; -machine powernv -m 4G&quot;</span>
+               <span class="o">+</span> <span class="s2">&quot; -nographic -nodefaults&quot;</span>
+               <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -drive file=</span><span class="si">{}</span><span class="s2">,format=raw,if=mtd&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">:</span>
+            <span class="n">skibootdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">)</span>
+            <span class="n">skibootfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">skibootfile</span><span class="p">:</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -bios </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">skibootfile</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">skibootdir</span><span class="p">:</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -L </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">skibootdir</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -kernel </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initramfs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -initrd </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initramfs</span><span class="p">)</span>
+
+        <span class="c1"># So in the powernv(9) QEMU model we have 6 PHBs with one slot free each.</span>
+        <span class="c1"># We can add a pcie bridge to each of these, and each bridge has 31</span>
+        <span class="c1"># slots.. if you see where I&#39;m going..</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="n">cmd</span>
+               <span class="o">+</span> <span class="s2">&quot; -device pcie-pci-bridge,id=pcie.6,bus=pcie.0,addr=0x0&quot;</span>
+               <span class="o">+</span> <span class="s2">&quot; -device pcie-pci-bridge,id=pcie.7,bus=pcie.1,addr=0x0&quot;</span>
+               <span class="o">+</span> <span class="s2">&quot; -device pcie-pci-bridge,id=pcie.8,bus=pcie.2,addr=0x0&quot;</span>
+               <span class="o">+</span> <span class="s2">&quot; -device pcie-pci-bridge,id=pcie.9,bus=pcie.3,addr=0x0&quot;</span>
+               <span class="o">+</span> <span class="s2">&quot; -device pcie-pci-bridge,id=pcie.10,bus=pcie.4,addr=0x0&quot;</span>
+               <span class="o">+</span> <span class="s2">&quot; -device pcie-pci-bridge,id=pcie.11,bus=pcie.5,addr=0x0&quot;</span>
+               <span class="p">)</span>
+
+        <span class="c1"># Put the NIC in slot 2 of the second PHB (1st is reserved for later)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="n">cmd</span>
+               <span class="o">+</span> <span class="s2">&quot; -netdev user,id=u1 -device e1000e,netdev=u1,mac=</span><span class="si">{}</span><span class="s2">,bus=pcie.7,addr=2&quot;</span>
+               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mac_str</span><span class="p">)</span>
+               <span class="p">)</span>
+        <span class="n">prefilled_slots</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cdrom</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Put the CDROM in slot 3 of the second PHB</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="n">cmd</span>
+                   <span class="o">+</span> <span class="s2">&quot; -drive file=</span><span class="si">{}</span><span class="s2">,id=cdrom01,if=none,media=cdrom&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cdrom</span><span class="p">)</span>
+                   <span class="o">+</span> <span class="s2">&quot; -device virtio-blk-pci,drive=cdrom01,id=virtio02,bus=pcie.7,addr=3&quot;</span>
+                   <span class="p">)</span>
+            <span class="n">prefilled_slots</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">bridges</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="p">{</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="n">prefilled_slots</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="mi">11</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+
+        <span class="c1"># For any amount of disks we have, start finding spots for them in the PHBs</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">disks</span><span class="p">:</span>
+            <span class="n">diskid</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">bid</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">disk</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">disks</span><span class="p">:</span>
+                <span class="n">bridge</span> <span class="o">=</span> <span class="n">bridges</span><span class="p">[</span><span class="n">bid</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">bridge</span><span class="p">[</span><span class="s1">&#39;n_devices&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">30</span><span class="p">:</span>
+                    <span class="c1"># This bridge is full</span>
+                    <span class="k">if</span> <span class="n">bid</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">bridges</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="c1"># All bridges full, find one to extend</span>
+                        <span class="k">if</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">bridges</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;bridged&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">False</span><span class="p">]</span> <span class="o">==</span> <span class="p">[]:</span>
+                            <span class="c1"># We messed up and filled up all our slots</span>
+                            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Oops! We ran out of slots!&quot;</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">bid</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="n">bridges</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;bridged&#39;</span><span class="p">]:</span>
+                                <span class="c1"># We can add a bridge here</span>
+                                <span class="n">parent</span> <span class="o">=</span> <span class="n">bridges</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;bus&#39;</span><span class="p">]</span>
+                                <span class="n">new</span> <span class="o">=</span> <span class="n">bridges</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;bus&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+                                <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Adding new bridge </span><span class="si">{}</span><span class="s2"> on bridge </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="n">new</span><span class="p">,</span> <span class="n">parent</span><span class="p">)))</span>
+                                <span class="n">bridges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                                    <span class="p">{</span><span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="n">new</span><span class="p">,</span> <span class="s1">&#39;n_devices&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;bridged&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+                                <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> \
+                                    <span class="s2">&quot; -device pcie-pci-bridge,id=pcie.</span><span class="si">{}</span><span class="s2">,bus=pcie.</span><span class="si">{}</span><span class="s2">,addr=0x1&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                        <span class="n">new</span><span class="p">,</span> <span class="n">parent</span><span class="p">)</span>
+                                <span class="n">bid</span> <span class="o">=</span> <span class="n">bid</span> <span class="o">+</span> <span class="mi">1</span>
+                                <span class="n">bridges</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;bridged&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                                <span class="n">bridge</span> <span class="o">=</span> <span class="n">bridges</span><span class="p">[</span><span class="n">bid</span><span class="p">]</span>
+                                <span class="k">break</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Just move to the next one, subsequent bridge should</span>
+                        <span class="c1"># always have slots</span>
+                        <span class="n">bid</span> <span class="o">=</span> <span class="n">bid</span> <span class="o">+</span> <span class="mi">1</span>
+                        <span class="n">bridge</span> <span class="o">=</span> <span class="n">bridges</span><span class="p">[</span><span class="n">bid</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">bridge</span><span class="p">[</span><span class="s1">&#39;n_devices&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">30</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Lost track of our PCI bridges!&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Got a bridge, let&#39;s go!</span>
+                <span class="c1"># Valid bridge slots are 1..31, but keep 1 free for more bridges</span>
+                <span class="n">addr</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">bridge</span><span class="p">[</span><span class="s1">&#39;n_devices&#39;</span><span class="p">]</span>
+                <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Adding disk </span><span class="si">{}</span><span class="s2"> on bus </span><span class="si">{}</span><span class="s2"> at address </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">diskid</span><span class="p">,</span> <span class="n">bridge</span><span class="p">[</span><span class="s1">&#39;bus&#39;</span><span class="p">],</span> <span class="n">addr</span><span class="p">)))</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> \
+                    <span class="s2">&quot; -drive file=</span><span class="si">{}</span><span class="s2">,id=disk</span><span class="si">{}</span><span class="s2">,if=none&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">disk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">diskid</span><span class="p">)</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -device virtio-blk-pci,drive=disk</span><span class="si">{}</span><span class="s2">,id=virtio</span><span class="si">{}</span><span class="s2">,bus=pcie.</span><span class="si">{}</span><span class="s2">,addr=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">diskid</span><span class="p">,</span> <span class="n">diskid</span><span class="p">,</span> <span class="n">bridge</span><span class="p">[</span><span class="s1">&#39;bus&#39;</span><span class="p">],</span> <span class="nb">hex</span><span class="p">(</span><span class="n">addr</span><span class="p">))</span>
+                <span class="n">diskid</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">bridge</span><span class="p">[</span><span class="s1">&#39;n_devices&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># typical host ip=10.0.2.2 and typical skiroot 10.0.2.15</span>
+        <span class="c1"># use skiroot as the source, no sshd in skiroot</span>
+
+        <span class="n">fru_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">basedir</span><span class="p">,</span> <span class="s2">&quot;test_binaries&quot;</span><span class="p">,</span> <span class="s2">&quot;qemu_fru&quot;</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -device ipmi-bmc-sim,id=bmc0,frudatafile=&quot;</span> <span class="o">+</span> \
+            <span class="n">fru_path</span> <span class="o">+</span> <span class="s2">&quot; -device isa-ipmi-bt,bmc=bmc0,irq=10&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot; -serial none -device isa-serial,chardev=s1 -chardev stdio,id=s1,signal=off&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pty</span> <span class="o">=</span> <span class="n">OPexpect</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">logfile</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">logfile</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">DISCONNECTED</span>
+            <span class="k">raise</span> <span class="n">CommandFailed</span><span class="p">(</span><span class="s1">&#39;OPexpect.spawn&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;OPexpect.spawn encountered a problem: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">CONNECTED</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">setwinsize</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">delaybeforesend</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">delaybeforesend</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delaybeforesend</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">SUDO_set</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">LOGIN_set</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">PS1_set</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">setup_term</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="p">,</span>
+                                 <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">block_setup_term</span><span class="p">)</span>
+
+        <span class="c1"># Wait a moment for isalive() to read a correct value and then check</span>
+        <span class="c1"># if the command has already exited. If it has then QEMU has most</span>
+        <span class="c1"># likely encountered an error and there&#39;s no point proceeding.</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">isalive</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">CommandFailed</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span></div>
+
+<div class="viewcode-block" id="QemuConsole.get_console"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.get_console">[docs]</a>    <span class="k">def</span> <span class="nf">get_console</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">ConsoleState</span><span class="o">.</span><span class="n">DISCONNECTED</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">clear_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">SUDO_set</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">LOGIN_set</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">PS1_set</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">setup_term</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span><span class="p">,</span>
+                                     <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">block_setup_term</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pty</span></div>
+
+<div class="viewcode-block" id="QemuConsole.run_command"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.run_command">[docs]</a>    <span class="k">def</span> <span class="nf">run_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">retry</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">retry</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QemuConsole.run_command_ignore_fail"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuConsole.run_command_ignore_fail">[docs]</a>    <span class="k">def</span> <span class="nf">run_command_ignore_fail</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">retry</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">retry</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="QemuIPMI"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI">[docs]</a><span class="k">class</span> <span class="nc">QemuIPMI</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Qemu has fairly limited IPMI capability, and we probably need to</span>
+<span class="sd">    extend the capability checks so that more of the IPMI test suite</span>
+<span class="sd">    gets skipped.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">console</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span> <span class="o">=</span> <span class="n">console</span>
+
+<div class="viewcode-block" id="QemuIPMI.ipmi_power_off"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI.ipmi_power_off">[docs]</a>    <span class="k">def</span> <span class="nf">ipmi_power_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;For Qemu, this just kills the simulator&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="QemuIPMI.ipmi_wait_for_standby_state"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI.ipmi_wait_for_standby_state">[docs]</a>    <span class="k">def</span> <span class="nf">ipmi_wait_for_standby_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;For Qemu, we just kill the simulator&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="QemuIPMI.ipmi_set_boot_to_petitboot"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI.ipmi_set_boot_to_petitboot">[docs]</a>    <span class="k">def</span> <span class="nf">ipmi_set_boot_to_petitboot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="QemuIPMI.ipmi_sel_check"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI.ipmi_sel_check">[docs]</a>    <span class="k">def</span> <span class="nf">ipmi_sel_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_string</span><span class="o">=</span><span class="s2">&quot;Transition to Non-recoverable&quot;</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="QemuIPMI.ipmi_sel_elist"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI.ipmi_sel_elist">[docs]</a>    <span class="k">def</span> <span class="nf">ipmi_sel_elist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dump</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="QemuIPMI.ipmi_set_no_override"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI.ipmi_set_no_override">[docs]</a>    <span class="k">def</span> <span class="nf">ipmi_set_no_override</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="QemuIPMI.sys_set_bootdev_no_override"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.QemuIPMI.sys_set_bootdev_no_override">[docs]</a>    <span class="k">def</span> <span class="nf">sys_set_bootdev_no_override</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="OpTestQemu"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu">[docs]</a><span class="k">class</span> <span class="nc">OpTestQemu</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conf</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">qemu_binary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pnor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skiboot</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">initramfs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cdrom</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">logfile</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># need the conf object to properly bind opened object</span>
+        <span class="c1"># we need to be able to cleanup/close the temp file in signal handler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">conf</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># starts as name string</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OpTestQemu opening file=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span> <span class="o">=</span> \
+                    <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span>
+                <span class="c1"># now is a file-like object</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;OpTestQemu encountered a problem &quot;</span>
+                          <span class="s2">&quot;opening file=</span><span class="si">{}</span><span class="s2"> Exception=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># update with new object to close in cleanup</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span> <span class="o">=</span> \
+                <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="c1"># now a file-like object</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">create_hda</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">([</span><span class="s2">&quot;qemu-img&quot;</span><span class="p">,</span> <span class="s2">&quot;create&quot;</span><span class="p">,</span>
+                                                    <span class="s2">&quot;-fqcow2&quot;</span><span class="p">,</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                                    <span class="s2">&quot;10G&quot;</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;OpTestQemu encountered a problem with qemu-img,&quot;</span>
+                          <span class="s2">&quot; check that you have qemu-utils installed first&quot;</span>
+                          <span class="s2">&quot; and then retry.&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">e</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">disks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span><span class="p">)</span>
+        <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span> <span class="o">=</span> <span class="n">QemuConsole</span><span class="p">(</span><span class="n">qemu_binary</span><span class="o">=</span><span class="n">qemu_binary</span><span class="p">,</span>
+                                   <span class="n">pnor</span><span class="o">=</span><span class="n">pnor</span><span class="p">,</span>
+                                   <span class="n">skiboot</span><span class="o">=</span><span class="n">skiboot</span><span class="p">,</span>
+                                   <span class="n">kernel</span><span class="o">=</span><span class="n">kernel</span><span class="p">,</span>
+                                   <span class="n">initramfs</span><span class="o">=</span><span class="n">initramfs</span><span class="p">,</span>
+                                   <span class="n">logfile</span><span class="o">=</span><span class="n">logfile</span><span class="p">,</span>
+                                   <span class="n">disks</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">disks</span><span class="p">,</span> <span class="n">cdrom</span><span class="o">=</span><span class="n">cdrom</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi</span> <span class="o">=</span> <span class="n">QemuIPMI</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">system</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="OpTestQemu.cleanup"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">fd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">disks</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OpTestQemu cleaning up qemu_scratch_disk=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">qemu_scratch_disk</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">fd</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;OpTestQemu cleanup, ignoring Exception=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disks</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.set_system"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.set_system">[docs]</a>    <span class="k">def</span> <span class="nf">set_system</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">system</span> <span class="o">=</span> <span class="n">system</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.get_host_console"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.get_host_console">[docs]</a>    <span class="k">def</span> <span class="nf">get_host_console</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">console</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.run_command"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.run_command">[docs]</a>    <span class="k">def</span> <span class="nf">run_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">retry</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="c1"># qemu only supports system console object, not this bmc object</span>
+        <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># at least return something and have the testcase handle</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.get_ipmi"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.get_ipmi">[docs]</a>    <span class="k">def</span> <span class="nf">get_ipmi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ipmi</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.power_off"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.power_off">[docs]</a>    <span class="k">def</span> <span class="nf">power_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.power_on"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.power_on">[docs]</a>    <span class="k">def</span> <span class="nf">power_on</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.get_rest_api"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.get_rest_api">[docs]</a>    <span class="k">def</span> <span class="nf">get_rest_api</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.has_os_boot_sensor"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.has_os_boot_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">has_os_boot_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.has_occ_active_sensor"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.has_occ_active_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">has_occ_active_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.has_host_status_sensor"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.has_host_status_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">has_host_status_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.has_inband_bootdev"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.has_inband_bootdev">[docs]</a>    <span class="k">def</span> <span class="nf">has_inband_bootdev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.supports_ipmi_dcmi"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.supports_ipmi_dcmi">[docs]</a>    <span class="k">def</span> <span class="nf">supports_ipmi_dcmi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.has_ipmi_sel"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.has_ipmi_sel">[docs]</a>    <span class="k">def</span> <span class="nf">has_ipmi_sel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpTestQemu.add_temporary_disk"><a class="viewcode-back" href="../../programming.html#common.OpTestQemu.OpTestQemu.add_temporary_disk">[docs]</a>    <span class="k">def</span> <span class="nf">add_temporary_disk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">fd</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
+        <span class="n">create_hda</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">([</span><span class="s2">&quot;qemu-img&quot;</span><span class="p">,</span> <span class="s2">&quot;create&quot;</span><span class="p">,</span>
+                                            <span class="s2">&quot;-fqcow2&quot;</span><span class="p">,</span> <span class="n">fd</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">size</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">update_disks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">disks</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

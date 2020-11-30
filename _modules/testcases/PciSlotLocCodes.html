@@ -1,0 +1,384 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.PciSlotLocCodes &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.PciSlotLocCodes</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">PCI Slot/Location Codes</span>
+<span class="sd">-----------------------</span>
+
+<span class="sd">This test will use the device tree to determine if the pciex is</span>
+<span class="sd">a root/switch fabric with one or more switch devices.</span>
+
+<span class="sd">Slot labels and loc codes are retrieved and if missing or empty</span>
+<span class="sd">the test will identify for investigation.  Not all test results</span>
+<span class="sd">reporting missing or empty slot labels or loc codes are problems,</span>
+<span class="sd">it is the system owner to make that determination.</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PciDT"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.PciDT">[docs]</a><span class="k">class</span> <span class="nc">PciDT</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    PciDT Class</span>
+<span class="sd">    --run testcases.PciSlotLocCodes</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="PciDT.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.PciDT.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;qemu&#39;</span><span class="p">,</span> <span class="s1">&#39;mambo&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;QEMU/Mambo running so skipping tests&quot;</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unable to find cls.desired, probably a test code problem&quot;</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">dump_lspci</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lspci_dict</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">lspci_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Dumping lspci value=</span><span class="si">{}</span><span class="s2"> key=</span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">build_lspci</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lspci_dict</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="n">bus_dirs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find /sys/bus/pci/devices -type l&quot;</span><span class="p">)</span>
+        <span class="c1"># first build a dict with device info</span>
+        <span class="c1"># of_base=0000:00:00.0</span>
+        <span class="c1"># pciex_spec=/pciex@600c3c0000000/pci@0</span>
+        <span class="c1"># of_key=/proc/device-tree/pciex@600c3c0000000/pci@0</span>
+        <span class="k">for</span> <span class="n">directory</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">bus_dirs</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">of_base</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
+                <span class="n">of_node_path</span> <span class="o">=</span> <span class="n">directory</span> <span class="o">+</span> <span class="s2">&quot;/of_node&quot;</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;ls -l </span><span class="si">%s</span><span class="s2"> | awk &#39;{print $11}&#39;&quot;</span> <span class="o">%</span> <span class="n">of_node_path</span>
+                <span class="c1"># goal is to pull off the pciex to build key for dict lookup</span>
+                <span class="c1"># ../../../firmware/devicetree/base/pciex@600c3c0000000/pci@0</span>
+                <span class="c1"># /proc/device-tree/pciex@600c3c0000000/pci@0</span>
+                <span class="n">of_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="n">pciex_spec</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;^(.*base)&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">of_output</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">of_key</span> <span class="o">=</span> <span class="s2">&quot;/proc/device-tree&quot;</span> <span class="o">+</span> <span class="n">pciex_spec</span>
+                <span class="n">lspci_dict</span><span class="p">[</span><span class="n">of_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">of_base</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;of_base skipping directory=</span><span class="si">{}</span><span class="s2"> Exception=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">lspci_dict</span>
+
+    <span class="k">def</span> <span class="nf">build_lspci_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lspci_dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dump_lspci</span><span class="p">(</span><span class="n">lspci_dict</span><span class="p">)</span>  <span class="c1"># just logging</span>
+        <span class="n">lspci_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lspci -nn&quot;</span><span class="p">)</span>
+        <span class="n">lspci_names_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># 0006:00:00.0 Bridge [0680]: IBM Device [1014:04ea] (rev 01)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">lspci_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lspci_names</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">lspci_names</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                    <span class="n">lspci_names_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">lspci_names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">lspci_names_dict</span>
+
+<div class="viewcode-block" id="PciDT.build_slot_loc_tables"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.PciDT.build_slot_loc_tables">[docs]</a>    <span class="k">def</span> <span class="nf">build_slot_loc_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Builds a dictionary to track slots and loc codes and their</span>
+<span class="sd">        values.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">node_dirs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find /proc/device-tree/ -type d &quot;</span>
+                                       <span class="s2">&quot;| grep -i pciex | grep -i pci@&quot;</span><span class="p">)</span>
+        <span class="n">output_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slot_failures</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loccode_failures</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">directory</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">node_dirs</span><span class="p">):</span>
+            <span class="n">matchObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;.*/pci@\d{1,}$&quot;</span><span class="p">,</span> <span class="n">directory</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">M</span><span class="p">)</span>
+            <span class="n">tracking_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find </span><span class="si">{}</span><span class="s2"> -type d&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">))</span>
+                <span class="c1"># empty=1, missing=2</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">matchObj</span><span class="p">:</span>
+                    <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;slot-label-status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;loc-code-status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">check_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;npu&quot;</span><span class="p">]</span>
+                        <span class="n">pciObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;/(pciex@[0-9a-fA-F]+)/&quot;</span><span class="p">,</span> <span class="n">directory</span><span class="p">)</span>
+                        <span class="n">compat_node</span> <span class="o">=</span> <span class="s2">&quot;/proc/device-tree/</span><span class="si">{}</span><span class="s2">/compatible&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">pciObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+                        <span class="n">compat_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                            <span class="s2">&quot;cat </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">compat_node</span><span class="p">))</span>
+                        <span class="n">matching</span> <span class="o">=</span> <span class="p">[</span><span class="n">xs</span> <span class="k">for</span> <span class="n">xs</span> <span class="ow">in</span> <span class="n">check_list</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+                            <span class="n">xs</span> <span class="ow">in</span> <span class="n">xa</span> <span class="k">for</span> <span class="n">xa</span> <span class="ow">in</span> <span class="n">compat_output</span><span class="p">)]</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Non-NPU compat_output=</span><span class="si">{}</span><span class="s2"> for </span><span class="si">{}</span><span class="s2">&quot;</span>
+                                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">compat_output</span><span class="p">,</span> <span class="n">compat_node</span><span class="p">))</span>
+                            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat </span><span class="si">{}</span><span class="s2">/ibm,slot-label&quot;</span>
+                                                     <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">))</span>
+                            <span class="k">if</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                                <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;slot-label-status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                                <span class="n">value</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">slot_failures</span> <span class="o">+=</span> <span class="mi">1</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">value</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span><span class="p">)</span>
+                            <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;slot-label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;NPU compat_output=</span><span class="si">{}</span><span class="s2"> for </span><span class="si">{}</span><span class="s2">&quot;</span>
+                                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">compat_output</span><span class="p">,</span> <span class="n">compat_node</span><span class="p">))</span>
+                    <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                        <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;slot-label-status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+                        <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;slot-label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">slot_failures</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat </span><span class="si">{}</span><span class="s2">/ibm,loc-code&quot;</span>
+                                                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">))</span>
+                        <span class="k">if</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                            <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;loc-code-status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                            <span class="n">value</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">loccode_failures</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">value</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span><span class="p">)</span>
+                        <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;loc-code&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                    <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                        <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;loc-code-status&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+                        <span class="n">tracking_dict</span><span class="p">[</span><span class="s1">&#39;loc-code&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">loccode_failures</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">output_dict</span><span class="p">[</span><span class="n">directory</span><span class="p">]</span> <span class="o">=</span> <span class="n">tracking_dict</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unable to query for pciex info, Exception=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">output_dict</span></div>
+
+<div class="viewcode-block" id="PciDT.doit"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.PciDT.doit">[docs]</a>    <span class="k">def</span> <span class="nf">doit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Performs the building of an lspci like lookup that will</span>
+<span class="sd">        be used to output helpful information when failures occur</span>
+<span class="sd">        as well as logging both good and not so good results</span>
+<span class="sd">        to the debug log for analysis.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># build a dictionary of devices, helpfulness in display</span>
+        <span class="n">lspci_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_lspci</span><span class="p">()</span>
+        <span class="c1"># map the devices to names, helpfulness in display</span>
+        <span class="n">lspci_mappings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_lspci_names</span><span class="p">(</span><span class="n">lspci_dict</span><span class="p">)</span>
+        <span class="c1"># build the slot and loc code tables</span>
+        <span class="n">output_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_slot_loc_tables</span><span class="p">()</span>
+        <span class="c1"># package up failures to report</span>
+        <span class="n">output_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">output_dict</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;slot-label-status&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> \
+               <span class="ow">and</span> <span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;loc-code-status&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">output_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&lt;----------------------&quot;</span>
+                                   <span class="s2">&quot;Investigate #</span><span class="si">{}</span><span class="s2">----------------------&gt;&quot;</span>
+                                   <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count</span><span class="p">))</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">output_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;PCI Path=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                <span class="n">output_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lspci_mappings</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+                <span class="n">output_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;ibm,slot-label=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                                   <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;slot-label&#39;</span><span class="p">)))</span>
+                <span class="n">output_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;ibm,loc-code=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                                   <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;loc-code&#39;</span><span class="p">)))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Investigate - PCI Root Path=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Investigate - </span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lspci_mappings</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Investigate - lspci=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lspci_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Investigate - ibm,slot-label=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;slot-label&#39;</span><span class="p">)))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Investigate - ibm,loc-code=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;loc-code&#39;</span><span class="p">)))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># this path just for logging</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;PCI Root Path=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                <span class="c1"># depending on the lspci -nn output we may not get the KEY</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;KEY </span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lspci_mappings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;lspci=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lspci_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;ibm,slot-label=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;slot-label&#39;</span><span class="p">)))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;ibm,loc-code=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;loc-code&#39;</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_list</span><span class="p">):</span>
+            <span class="n">failed_list</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">_f</span> <span class="k">for</span> <span class="n">_f</span> <span class="ow">in</span> <span class="n">output_list</span> <span class="k">if</span> <span class="n">_f</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;PCI Root: Slot Label &quot;</span>
+                            <span class="s2">&quot;or Loc Code Failures:</span><span class="se">\n</span><span class="s2">Based on Platform &quot;</span>
+                            <span class="s2">&quot;Slot Labels may not be present</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">failed_list</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="SkirootDT"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.SkirootDT">[docs]</a><span class="k">class</span> <span class="nc">SkirootDT</span><span class="p">(</span><span class="n">PciDT</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    SkirootDT Class performs PCI DT checks in skiroot</span>
+<span class="sd">    --run testcases.PciSlotLocCodes.SkirootDT</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="SkirootDT.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.SkirootDT.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">=</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SkirootDT</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">doit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="HostDT"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.HostDT">[docs]</a><span class="k">class</span> <span class="nc">HostDT</span><span class="p">(</span><span class="n">PciDT</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    HostDT Class performs PCI DT checks in the Host OS</span>
+<span class="sd">    --run testcases.PciSlotLocCodes.HostDT</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="HostDT.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.PciSlotLocCodes.HostDT.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">=</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">HostDT</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">doit</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

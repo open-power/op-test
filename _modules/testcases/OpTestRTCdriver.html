@@ -1,0 +1,487 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestRTCdriver &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestRTCdriver</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestRTCdriver.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestRTCdriver</span>
+<span class="sd">---------------</span>
+
+<span class="sd">RTC (Real Time Clock) package for OpenPower testing.</span>
+
+<span class="sd">This class will test the functionality of following drivers</span>
+
+<span class="sd">1. RTC driver: Real time clock</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="FullRTC"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC">[docs]</a><span class="k">class</span> <span class="nc">FullRTC</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="FullRTC.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="FullRTC.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;host&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+
+            <span class="c1"># Get hwclock version</span>
+            <span class="n">l_hwclock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock -V&quot;</span><span class="p">)</span>
+            <span class="c1"># Get Kernel Version</span>
+            <span class="n">l_kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_kernel_version</span><span class="p">()</span>
+
+            <span class="c1"># loading rtc_opal module based on config option</span>
+            <span class="n">l_config</span> <span class="o">=</span> <span class="s2">&quot;CONFIG_RTC_DRV_OPAL&quot;</span>
+            <span class="n">l_module</span> <span class="o">=</span> <span class="s2">&quot;rtc_opal&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module_based_on_config</span><span class="p">(</span>
+                <span class="n">l_kernel</span><span class="p">,</span> <span class="n">l_config</span><span class="p">,</span> <span class="n">l_module</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;skiroot&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+    <span class="c1"># We have a busy box version hwclock with limited options</span>
+    <span class="c1"># to access the HW RTC</span>
+    <span class="k">def</span> <span class="nf">skiroot_read_hwclock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Reading the hwclock&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hwclock -r&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">skiroot_set_hwclock_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the hwclock time from system time&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hwclock -w&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">skiroot_set_system_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the system time from hwclock time&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hwclock -s&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">skiroot_assume_hwclock_utc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Assume hardware clock is kept in UTC&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hwclock -u&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">skiroot_assume_hwclock_localtime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Assume hardware clock is kept in local time&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hwclock -l&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FullRTC.RunFullRTC"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.RunFullRTC">[docs]</a>    <span class="k">def</span> <span class="nf">RunFullRTC</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function will cover following test steps</span>
+
+<span class="sd">        1. Getting host information(OS and Kernel info)</span>
+<span class="sd">        2. Loading rtc_opal module based on config option</span>
+<span class="sd">        3. Testing the rtc driver functions:</span>
+
+<span class="sd">            - Display the current time,</span>
+<span class="sd">            - set the Hardware Clock to a specified time,</span>
+<span class="sd">            - set the Hardware Clock from the System Time, or</span>
+<span class="sd">            - set the System Time from the Hardware Clock</span>
+<span class="sd">            - keep the Hardware clock in UTC or local time format</span>
+<span class="sd">            - Hardware clock compare, predict and adjust functions</span>
+<span class="sd">            - Hardware clock debug and test modes</span>
+<span class="sd">            - Reading the Hardware clock from special file instead of default</span>
+<span class="sd">        4. After executing above each function reading the Hardware clock in b/w functions.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Get the device files for rtc driver</span>
+        <span class="n">l_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;ls --color=never /dev/ | grep -i --color=never rtc&quot;</span><span class="p">)</span>
+        <span class="n">l_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">l_files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s2">&quot;rtc&quot;</span><span class="p">):</span>
+                <span class="n">l_file</span> <span class="o">=</span> <span class="s2">&quot;/dev/&quot;</span> <span class="o">+</span> <span class="n">name</span>
+                <span class="n">l_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">continue</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_list</span><span class="p">)</span>
+        <span class="c1"># Display the time of hwclock from device files</span>
+        <span class="k">for</span> <span class="n">l_file</span> <span class="ow">in</span> <span class="n">l_list</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">read_hwclock_from_file</span><span class="p">(</span><span class="n">l_file</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_set_hwclock_time</span><span class="p">(</span><span class="s2">&quot;2015-01-01 10:10:10&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_set_hwclock_time</span><span class="p">(</span><span class="s2">&quot;2016-01-01 20:20:20&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_hwclock_in_utc</span><span class="p">(</span><span class="s2">&quot;2017-01-01 10:10:10&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_hwclock_in_localtime</span><span class="p">(</span><span class="s2">&quot;2014-01-01 05:05:05&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_systime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">systime_to_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">systime_to_hwclock_in_utc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">systime_to_hwclock_in_localtime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hwclock_to_systime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_systime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hwclock_in_utc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hwclock_in_localtime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hwclock_predict</span><span class="p">(</span><span class="s2">&quot;2015-01-01 10:10:10&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hwclock_debug_mode</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hwclock_test_mode</span><span class="p">(</span><span class="s2">&quot;2018-01-01 10:10:10&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hwclock_adjust</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="FullRTC.read_hwclock_from_file"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.read_hwclock_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">read_hwclock_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_file</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function reads hwclock from special /dev/... file instead of default</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Reading the hwclock from special file /dev/ ...: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_file</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock -r -f </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_file</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;reading the hwclock from file failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.set_hwclock_in_utc"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.set_hwclock_in_utc">[docs]</a>    <span class="k">def</span> <span class="nf">set_hwclock_in_utc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function sets hwclock in UTC format</span>
+
+<span class="sd">        :param i_time: time to set hwclock e.g. &quot;2016-01-01 12:12:12&quot;</span>
+<span class="sd">        :type i_time: str</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the hwclock in UTC: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                <span class="s2">&quot;hwclock --set --date </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s2"> --utc&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Setting the hwclock in UTC failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.set_hwclock_in_localtime"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.set_hwclock_in_localtime">[docs]</a>    <span class="k">def</span> <span class="nf">set_hwclock_in_localtime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function sets hwclock in local time format</span>
+
+<span class="sd">        :param i_time: Time to set hwclock</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the hwclock in localtime: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                <span class="s2">&quot;hwclock --set --date </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s2"> --localtime&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Setting the hwclock in localtime failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.systime_to_hwclock"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.systime_to_hwclock">[docs]</a>    <span class="k">def</span> <span class="nf">systime_to_hwclock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function sets the time of hwclock from system time</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the hwclock from system time&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --systohc&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Setting the hwclock from system time failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.systime_to_hwclock_in_utc"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.systime_to_hwclock_in_utc">[docs]</a>    <span class="k">def</span> <span class="nf">systime_to_hwclock_in_utc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function sets the time of hwclock from system time in UTC format</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the hwclock from system time, in UTC format&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --systohc --utc&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Setting the hwclock from system time in UTC format failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.systime_to_hwclock_in_localtime"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.systime_to_hwclock_in_localtime">[docs]</a>    <span class="k">def</span> <span class="nf">systime_to_hwclock_in_localtime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function sets the time of hwclock from system time in local time format</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the hwclock from system time, in localtime format&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --systohc --localtime&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Setting the hwclock from system time in localtime format failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.hwclock_to_systime"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.hwclock_to_systime">[docs]</a>    <span class="k">def</span> <span class="nf">hwclock_to_systime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function sets the system time from hwclock.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting the system time from hwclock&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --hctosys&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Setting the system time from hwclock failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.hwclock_in_utc"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.hwclock_in_utc">[docs]</a>    <span class="k">def</span> <span class="nf">hwclock_in_utc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function keeps hwclock in UTC format.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Keeping the hwclock in UTC format&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --utc&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Keeping the hwclock in UTC is failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.hwclock_in_localtime"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.hwclock_in_localtime">[docs]</a>    <span class="k">def</span> <span class="nf">hwclock_in_localtime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function keeps hwclock in local time format.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Keeping the hwclock in localtime&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --localtime&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Keeping the hwclock in localtime is failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.hwclock_predict"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.hwclock_predict">[docs]</a>    <span class="k">def</span> <span class="nf">hwclock_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function predict RTC reading at time given with --date</span>
+
+<span class="sd">        :param i_time: time at which predict hwclock reading</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing the hwclock predict function to a time: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                <span class="s2">&quot;hwclock --predict --date </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;hwclock predict function failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.hwclock_debug_mode"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.hwclock_debug_mode">[docs]</a>    <span class="k">def</span> <span class="nf">hwclock_debug_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function tests hwclock debug mode.</span>
+<span class="sd">        In this mode setting hwclock from system time</span>
+<span class="sd">        and setting system time from hwclock</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing the hwclock debug mode&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --systohc --debug&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --hctosys --debug&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;hwclock debug mode failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.hwclock_test_mode"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.hwclock_test_mode">[docs]</a>    <span class="k">def</span> <span class="nf">hwclock_test_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function tests the hwclock test mode. In this mode setting the</span>
+<span class="sd">        hwclock time using ``--set`` option. Here it just execute but should</span>
+<span class="sd">        not set hwclock time.</span>
+
+<span class="sd">        :param i_time: time to set hwclock in test mode</span>
+<span class="sd">        :type i_time: str</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing the hwclock test mode, set time to: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                <span class="s2">&quot;hwclock --set --date </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s2"> --test&quot;</span> <span class="o">%</span> <span class="n">i_time</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;hwclock test function failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FullRTC.hwclock_adjust"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.FullRTC.hwclock_adjust">[docs]</a>    <span class="k">def</span> <span class="nf">hwclock_adjust</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function tests hwclock adjust functionality</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing the hwclock adjust function&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;hwclock --adjust&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">c</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;hwclock adjust function failed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;cat /etc/adjtime&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">l_res</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="BasicRTC"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.BasicRTC">[docs]</a><span class="k">class</span> <span class="nc">BasicRTC</span><span class="p">(</span><span class="n">FullRTC</span><span class="p">):</span>
+<div class="viewcode-block" id="BasicRTC.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.BasicRTC.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BasicRTC</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_read_systime</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="HostRTC"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.HostRTC">[docs]</a><span class="k">class</span> <span class="nc">HostRTC</span><span class="p">(</span><span class="n">FullRTC</span><span class="p">):</span>
+<div class="viewcode-block" id="HostRTC.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.HostRTC.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">HostRTC</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">RunFullRTC</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="SkirootRTC"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.SkirootRTC">[docs]</a><span class="k">class</span> <span class="nc">SkirootRTC</span><span class="p">(</span><span class="n">FullRTC</span><span class="p">):</span>
+<div class="viewcode-block" id="SkirootRTC.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestRTCdriver.SkirootRTC.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SkirootRTC</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_read_hwclock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_assume_hwclock_utc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_assume_hwclock_localtime</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_set_hwclock_time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_set_system_time</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.IpmiTorture &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.IpmiTorture</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">IPMI Torture</span>
+<span class="sd">------------</span>
+
+<span class="sd">Use several threads in `op-test` to poke IPMI concurrently in a number</span>
+<span class="sd">of &quot;safe&quot; ways, and see when the BMC explodes.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+
+
+<div class="viewcode-block" id="OobIpmiThread"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.OobIpmiThread">[docs]</a><span class="k">class</span> <span class="nc">OobIpmiThread</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threadID</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">execution_time</span><span class="p">):</span>
+        <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threadID</span> <span class="o">=</span> <span class="n">threadID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execution_time</span> <span class="o">=</span> <span class="n">execution_time</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+
+<div class="viewcode-block" id="OobIpmiThread.run"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.OobIpmiThread.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Starting &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oob_ipmi_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">execution_time</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Exiting &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">oob_ipmi_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threadName</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+        <span class="n">execution_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="mi">60</span><span class="o">*</span><span class="n">t</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Starting </span><span class="si">%s</span><span class="s2"> for oob-ipmi </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">threadName</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)))</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmitool</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">logcmd</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">execution_time</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InbandIpmiThread"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.InbandIpmiThread">[docs]</a><span class="k">class</span> <span class="nc">InbandIpmiThread</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threadID</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ipmi_method</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">execution_time</span><span class="p">):</span>
+        <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threadID</span> <span class="o">=</span> <span class="n">threadID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">=</span> <span class="n">ipmi_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execution_time</span> <span class="o">=</span> <span class="n">execution_time</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+
+<div class="viewcode-block" id="InbandIpmiThread.run"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.InbandIpmiThread.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Starting &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inband_ipmi_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cmd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">execution_time</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Exiting &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">inband_ipmi_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threadName</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+        <span class="n">execution_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="mi">60</span><span class="o">*</span><span class="n">t</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Starting </span><span class="si">%s</span><span class="s2"> for inband-ipmi </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">threadName</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)))</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">cmd</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">execution_time</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SolConsoleThread"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.SolConsoleThread">[docs]</a><span class="k">class</span> <span class="nc">SolConsoleThread</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threadID</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">test</span><span class="p">,</span> <span class="n">execution_time</span><span class="p">):</span>
+        <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threadID</span> <span class="o">=</span> <span class="n">threadID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="n">test</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execution_time</span> <span class="o">=</span> <span class="n">execution_time</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SolConsoleThread.run"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.SolConsoleThread.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Starting &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sol_console_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">execution_time</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Exiting &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">sol_console_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threadName</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="c1"># Enable kernel logging(printk) to console</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;echo 10 &gt; /proc/sys/kernel/printk&quot;</span><span class="p">)</span>
+        <span class="n">execution_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="mi">60</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">execution_time</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">((</span><span class="s2">&quot;Iteration </span><span class="si">%s</span><span class="s2">, SOL open/close&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+                <span class="c1"># Execute any host command(for console IO) if system is in runtime</span>
+                <span class="k">if</span> <span class="s2">&quot;runtime&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;ipmitool power status&quot;</span><span class="p">)</span>
+                        <span class="c1"># Enable console traffic by printing the processes/tasks to the console</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;echo t &gt; /proc/sysrq-trigger&quot;</span><span class="p">)</span>
+                    <span class="k">except</span><span class="p">:</span>
+                        <span class="k">pass</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">execution_time</span><span class="p">:</span>
+                <span class="k">break</span></div>
+
+
+<div class="viewcode-block" id="IpmiInterfaceTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.IpmiInterfaceTorture">[docs]</a><span class="k">class</span> <span class="nc">IpmiInterfaceTorture</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="IpmiInterfaceTorture.setUp"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.IpmiInterfaceTorture.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">torture_time</span> <span class="o">=</span> <span class="mi">2400</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_test</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># OOB IPMI Torture</span>
+        <span class="n">torture_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">torture_time</span>
+        <span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sdr list&quot;</span><span class="p">,</span> <span class="s2">&quot;fru print&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;sel list&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor list&quot;</span><span class="p">,</span> <span class="s2">&quot;power status&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">):</span>
+                <span class="n">num</span> <span class="o">=</span> <span class="n">j</span><span class="o">*</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">thread</span> <span class="o">=</span> <span class="n">OobIpmiThread</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="s2">&quot;Thread-</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                                       <span class="n">num</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">torture_time</span><span class="p">)</span>
+                <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">thread</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;skiroot&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;standby&quot;</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># In-band IPMI Torture (Open Interface)</span>
+        <span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sdr list&quot;</span><span class="p">,</span> <span class="s2">&quot;fru print&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;sel list&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor list&quot;</span><span class="p">,</span> <span class="s2">&quot;power status&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">):</span>
+                <span class="n">num</span> <span class="o">=</span> <span class="n">j</span><span class="o">*</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">thread</span> <span class="o">=</span> <span class="n">InbandIpmiThread</span><span class="p">(</span>
+                    <span class="n">num</span><span class="p">,</span> <span class="s2">&quot;Thread-</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_OPEN</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">torture_time</span><span class="p">)</span>
+                <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">thread</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># In-band IPMI Torture (USB Interface)</span>
+        <span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sdr list&quot;</span><span class="p">,</span> <span class="s2">&quot;fru print&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;sel list&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor list&quot;</span><span class="p">,</span> <span class="s2">&quot;power status&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">):</span>
+            <span class="n">thread</span> <span class="o">=</span> <span class="n">InbandIpmiThread</span><span class="p">(</span>
+                <span class="n">idx</span><span class="p">,</span> <span class="s2">&quot;Thread-</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">idx</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_USB</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">torture_time</span><span class="p">)</span>
+            <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">thread</span><span class="p">)</span>
+
+<div class="viewcode-block" id="IpmiInterfaceTorture.tearDown"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.IpmiInterfaceTorture.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># wait for all the threads to finish</span>
+        <span class="k">for</span> <span class="n">thread</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="p">:</span>
+            <span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="ConsoleIpmiTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.ConsoleIpmiTorture">[docs]</a><span class="k">class</span> <span class="nc">ConsoleIpmiTorture</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="ConsoleIpmiTorture.setUp"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.ConsoleIpmiTorture.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">torture_time</span> <span class="o">=</span> <span class="mi">2400</span></div>
+
+    <span class="k">def</span> <span class="nf">ipmi_interface_torture</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># OOB IPMI Torture</span>
+        <span class="n">torture_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">torture_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sdr list&quot;</span><span class="p">,</span> <span class="s2">&quot;fru print&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;sel list&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor list&quot;</span><span class="p">,</span> <span class="s2">&quot;power status&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">):</span>
+                <span class="n">num</span> <span class="o">=</span> <span class="n">j</span><span class="o">*</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">thread</span> <span class="o">=</span> <span class="n">OobIpmiThread</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="s2">&quot;Thread-</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                                       <span class="n">num</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">torture_time</span><span class="p">)</span>
+                <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">thread</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;standby&quot;</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="s2">&quot;skiroot&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">return</span>  <span class="c1"># Don&#39;t enable below inband ipmi torture, console and ssh sessions make the o/p clutter</span>
+        <span class="c1"># In-band IPMI Torture</span>
+        <span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;sdr list&quot;</span><span class="p">,</span> <span class="s2">&quot;fru print&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;sel list&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor list&quot;</span><span class="p">,</span> <span class="s2">&quot;power status&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">):</span>
+                <span class="n">num</span> <span class="o">=</span> <span class="n">j</span><span class="o">*</span><span class="p">(</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">thread</span> <span class="o">=</span> <span class="n">InbandIpmiThread</span><span class="p">(</span>
+                    <span class="n">num</span><span class="p">,</span> <span class="s2">&quot;Thread-</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">num</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_OPEN</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">torture_time</span><span class="p">)</span>
+                <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">thread</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">console_torture</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">thread</span> <span class="o">=</span> <span class="n">SolConsoleThread</span><span class="p">(</span>
+            <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;SOL-Thread&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">torture_time</span><span class="p">)</span>
+        <span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">thread</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_test</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_interface_torture</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">console_torture</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ConsoleIpmiTorture.tearDown"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.ConsoleIpmiTorture.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Wait for all the thread to finish</span>
+        <span class="k">for</span> <span class="n">thread</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">thread_list</span><span class="p">:</span>
+            <span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="SkirootConsoleTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.SkirootConsoleTorture">[docs]</a><span class="k">class</span> <span class="nc">SkirootConsoleTorture</span><span class="p">(</span><span class="n">ConsoleIpmiTorture</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot_runtime&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+
+<div class="viewcode-block" id="SkirootIpmiTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.SkirootIpmiTorture">[docs]</a><span class="k">class</span> <span class="nc">SkirootIpmiTorture</span><span class="p">(</span><span class="n">IpmiInterfaceTorture</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot_runtime&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+
+<div class="viewcode-block" id="RuntimeConsoleTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.RuntimeConsoleTorture">[docs]</a><span class="k">class</span> <span class="nc">RuntimeConsoleTorture</span><span class="p">(</span><span class="n">ConsoleIpmiTorture</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;runtime&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+
+<div class="viewcode-block" id="StandbyConsoleTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.StandbyConsoleTorture">[docs]</a><span class="k">class</span> <span class="nc">StandbyConsoleTorture</span><span class="p">(</span><span class="n">ConsoleIpmiTorture</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;standby&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+
+<div class="viewcode-block" id="RuntimeIpmiInterfaceTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.RuntimeIpmiInterfaceTorture">[docs]</a><span class="k">class</span> <span class="nc">RuntimeIpmiInterfaceTorture</span><span class="p">(</span><span class="n">IpmiInterfaceTorture</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;runtime&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+
+<div class="viewcode-block" id="StandbyIpmiInterfaceTorture"><a class="viewcode-back" href="../../tests.html#testcases.IpmiTorture.StandbyIpmiInterfaceTorture">[docs]</a><span class="k">class</span> <span class="nc">StandbyIpmiInterfaceTorture</span><span class="p">(</span><span class="n">IpmiInterfaceTorture</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;standby&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

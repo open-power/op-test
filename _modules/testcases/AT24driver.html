@@ -1,0 +1,303 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.AT24driver &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.AT24driver</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestAt24driver.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestAt24driver</span>
+<span class="sd">----------------</span>
+
+<span class="sd">At24(Atmel24) eeprom driver to support openpower platform</span>
+
+<span class="sd">This driver has following functionalities:</span>
+
+<span class="sd">- &#39;at24&#39; is the i2c client driver that interface the EEPROMs on the system.</span>
+<span class="sd">- In P8 system, EEPROM devices contain the system VPDs information and this</span>
+<span class="sd">  driver is capable of reading and programming the data to these devices.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">testcases.I2C</span> <span class="kn">import</span> <span class="n">I2C</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span><span class="p">,</span> <span class="n">KernelModuleNotLoaded</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">KernelConfigNotSet</span>
+<span class="kn">import</span> <span class="nn">difflib</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="AT24driver"><a class="viewcode-back" href="../../tests.html#testcases.AT24driver.AT24driver">[docs]</a><span class="k">class</span> <span class="nc">AT24driver</span><span class="p">(</span><span class="n">I2C</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="AT24driver.setUp"><a class="viewcode-back" href="../../tests.html#testcases.AT24driver.AT24driver.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span></div>
+
+    <span class="k">def</span> <span class="nf">at24_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Get OS level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_OS_Level</span><span class="p">()</span>
+
+        <span class="c1"># Check whether i2cdump and hexdump commands are available on host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_command</span><span class="p">(</span><span class="s2">&quot;i2cdump&quot;</span><span class="p">,</span> <span class="s2">&quot;hexdump&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get Kernel Version</span>
+        <span class="n">l_kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_kernel_version</span><span class="p">()</span>
+
+        <span class="n">mods</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;CONFIG_I2C_OPAL&quot;</span><span class="p">:</span> <span class="s2">&quot;i2c_opal&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CONFIG_I2C_CHARDEV&quot;</span><span class="p">:</span> <span class="s2">&quot;i2c_dev&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;CONFIG_EEPROM_AT24&quot;</span><span class="p">:</span> <span class="s2">&quot;at24&quot;</span><span class="p">}</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">mods</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module_based_on_config</span><span class="p">(</span><span class="n">l_kernel</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">KernelConfigNotSet</span> <span class="k">as</span> <span class="n">ns</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">ns</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">KernelModuleNotLoaded</span> <span class="k">as</span> <span class="n">km</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">km</span><span class="o">.</span><span class="n">module</span> <span class="o">==</span> <span class="s2">&quot;at24&quot;</span><span class="p">:</span>
+                <span class="c1"># We can fail if we don&#39;t load it, not all systems have it</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">km</span><span class="p">))</span>
+
+        <span class="c1"># Get infomtion of EEPROM chips</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_get_info_of_eeprom_chips</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AT24driver.runTest"><a class="viewcode-back" href="../../tests.html#testcases.AT24driver.AT24driver.runTest">[docs]</a>    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function has following test steps</span>
+
+<span class="sd">        1. Getting the host infromation(OS and kernel information)</span>
+<span class="sd">        2. Loading the necessary modules to test at24 device driver</span>
+<span class="sd">           functionalites (i2c_dev, i2c_opal and at24)</span>
+<span class="sd">        3. Getting the list of i2c buses and eeprom chip addresses</span>
+<span class="sd">        4. Accessing the registers visible through the i2cbus using i2cdump</span>
+<span class="sd">           utility</span>
+<span class="sd">        5. Getting the eeprom device data using hexdump utility in hex + Ascii</span>
+<span class="sd">           format</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;host&quot;</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Starting AT24driver in Host&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">at24_init</span><span class="p">()</span>
+
+        <span class="c1"># Get list of pairs of i2c bus and EEPROM device addresses in the host</span>
+        <span class="n">l_chips</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_get_list_of_eeprom_chips</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">has_host_accessible_eeprom</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l_chips</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                                <span class="s2">&quot;No EEPROMs detected, while OpTestSystem says &quot;</span>
+                                <span class="s2">&quot;there should be&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l_chips</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Getting the list of sysfs eeprom interfaces</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find /sys/ -name eeprom&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                             <span class="s2">&quot;EEPROM sysfs entries are not created&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">l_dev</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l_dev</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s2">&quot;eeprom&quot;</span><span class="p">):</span>
+                <span class="c1"># Getting the eeprom device data using hexdump utility in</span>
+                <span class="c1"># hex + Ascii format</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">host_hexdump</span><span class="p">(</span><span class="n">l_dev</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Completed AT24driver test&quot;</span><span class="p">)</span>
+        <span class="k">pass</span></div>
+
+    <span class="k">def</span> <span class="nf">diff_commands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmds</span><span class="p">,</span> <span class="n">i_dev</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="s2">&quot;Result doesn&#39;t match&quot;</span><span class="p">):</span>
+        <span class="n">last_r</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">last_cmd</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">cmds</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">+</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">r</span><span class="p">]</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                 <span class="s2">&quot;i2cdump failed on addr </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i_dev</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">last_r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">diff</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">difflib</span><span class="o">.</span><span class="n">unified_diff</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">last_r</span><span class="p">,</span>
+                                              <span class="n">fromfile</span><span class="o">=</span><span class="n">last_cmd</span><span class="p">,</span>
+                                              <span class="n">tofile</span><span class="o">=</span><span class="n">cmd</span><span class="p">):</span>
+                    <span class="n">diff</span> <span class="o">=</span> <span class="n">diff</span> <span class="o">+</span> <span class="n">l</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertMultiLineEqual</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">r</span><span class="p">),</span>
+                                          <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">last_r</span><span class="p">),</span>
+                                          <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="n">diff</span><span class="p">))</span>
+            <span class="n">last_r</span> <span class="o">=</span> <span class="n">r</span>
+            <span class="n">last_cmd</span> <span class="o">=</span> <span class="n">cmd</span>
+
+<div class="viewcode-block" id="AT24driver.host_hexdump"><a class="viewcode-back" href="../../tests.html#testcases.AT24driver.AT24driver.host_hexdump">[docs]</a>    <span class="k">def</span> <span class="nf">host_hexdump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_dev</span><span class="p">):</span>
+        <span class="n">cmds</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;hexdump -C </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_dev</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diff_commands</span><span class="p">(</span><span class="n">cmds</span><span class="p">,</span> <span class="n">i_dev</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="s2">&quot;hexdump of EEPROM doesn&#39;t match&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SkirootAT24"><a class="viewcode-back" href="../../tests.html#testcases.AT24driver.SkirootAT24">[docs]</a><span class="k">class</span> <span class="nc">SkirootAT24</span><span class="p">(</span><span class="n">AT24driver</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Run the same AT24driver test, but in skiroot environment.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="SkirootAT24.setUp"><a class="viewcode-back" href="../../tests.html#testcases.AT24driver.SkirootAT24.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot&quot;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Starting AT24driver test in Skiroot&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AT24driver</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,1019 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestOOBIPMI &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestOOBIPMI</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestOOBIPMI.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestOOBIPMI</span>
+<span class="sd">-------------</span>
+
+<span class="sd">Test the out-of-band ipmi fucntionality package for OpenPower platform.</span>
+
+<span class="sd">This class will test the functionality of following ipmi commands</span>
+
+<span class="sd">1. bmc, channel, chassis, dcmi, echo, event, exec, firewall, fru, lan</span>
+<span class="sd">   mc, pef, power, raw, sdr, sel, sensor, session, user</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpTestSystem</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OpTestOOBIPMIBase"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMIBase">[docs]</a><span class="k">class</span> <span class="nc">OpTestOOBIPMIBase</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestOOBIPMIBase.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMIBase.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">platform</span><span class="p">()</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMIBase.run_ipmi_cmd"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMIBase.run_ipmi_cmd">[docs]</a>    <span class="k">def</span> <span class="nf">run_ipmi_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_cmd</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the return code of ipmi command.</span>
+
+<span class="sd">        :param i_cmd: The ipmitool command, e.g. `chassis power on`</span>
+<span class="sd">        :type i_cmd: str</span>
+<span class="sd">        :returns: output of command</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="n">i_cmd</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmitool</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">l_cmd</span> <span class="o">+</span> <span class="s2">&quot;; echo $?&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;IPMI cmd: </span><span class="si">{}</span><span class="s2"> result: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">,</span> <span class="n">l_res</span><span class="p">))</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_res</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;IPMI: command failed </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">l_cmd</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">l_res</span></div></div>
+
+
+<div class="viewcode-block" id="OpTestOOBIPMI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI">[docs]</a><span class="k">class</span> <span class="nc">OpTestOOBIPMI</span><span class="p">(</span><span class="n">OpTestOOBIPMIBase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestOOBIPMI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OpTestOOBIPMI</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_oem_specific"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_oem_specific">[docs]</a>    <span class="k">def</span> <span class="nf">test_oem_specific</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test all Out-of-band ipmi commands.</span>
+<span class="sd">        bmc, channel, chassis, dcmi, echo, event, exec, firewall, fru, lan</span>
+<span class="sd">        mc, pef, power, raw, sdr, sel, sensor, session, user</span>
+
+<span class="sd">        FIXME: this may not be AMI specific.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_bmc_golden_side_version</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_pnor_partition_size</span><span class="p">(</span><span class="s2">&quot;NVRAM&quot;</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_pnor_partition_size</span><span class="p">(</span><span class="s2">&quot;GUARD&quot;</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_pnor_partition_size</span><span class="p">(</span><span class="s2">&quot;BOOTKERNEL&quot;</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_bmc_boot_completion_status</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fault_led_state</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_power_on_led_state</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_host_status_led_state</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_chassis_identify_led_state</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_enable_fan_control_task_command</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fan_control_task_state_command</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_disable_fan_control_task_command</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fan_control_task_state_command</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_bmc_golden_side_version"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_bmc_golden_side_version">[docs]</a>    <span class="k">def</span> <span class="nf">test_bmc_golden_side_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to get the bmc golden image version.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">          AMI BMC Specific</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Get BMC Golden side Version Test&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_BMC_GOLDEN_SIDE_VERSION</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_get_pnor_partition_size_cmd"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_get_pnor_partition_size_cmd">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_pnor_partition_size_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to get partition size of given PNOR Partition.</span>
+<span class="sd">        Currently added NVRAM,GUARD and BOOTKERNEL partitions.</span>
+<span class="sd">        TODO: Add all the necessary partitions to get the size.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC specific.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Get size of PNOR partition Test&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Getting the size of NVRAM partition&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_NVRAM_PARTITION_SIZE</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Getting the size of GUARD partition&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_GUARD_PARTITION_SIZE</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Getting the size of BOOTKERNEL partition&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_BOOTKERNEL_PARTITION_SIZE</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_read_pnor_partition_data"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_read_pnor_partition_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_read_pnor_partition_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to test reading of pnor partition data</span>
+<span class="sd">        via ipmitool command. Here it will currently read NVRAM</span>
+<span class="sd">        and FIRDATA partition&#39;s data of size 254 bytes.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC Specific.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_READ_NVRAM_PARTITION_DATA</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_READ_FIRDATA_PARTITION_DATA</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_bmc_boot_completed_cmd"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_bmc_boot_completed_cmd">[docs]</a>    <span class="k">def</span> <span class="nf">test_bmc_boot_completed_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to check whether BMC Completed Booting.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC Specific</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           This same functionality is provided elsewhere in `op-test`.</span>
+<span class="sd">           This code is a candidate for removal.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Get BMC boot completion status Test&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_HAS_BMC_BOOT_COMPLETED</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_get_led_state_cmd"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_get_led_state_cmd">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_led_state_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This command is used to get the State of below Supported LED.</span>
+
+<span class="sd">        LED Number Table:</span>
+
+<span class="sd">        ===================== ====</span>
+<span class="sd">        ===================== ====</span>
+<span class="sd">        Fault RollUP LED      0x00</span>
+<span class="sd">        Power ON LED          0x01</span>
+<span class="sd">        Host Status LED       0x02</span>
+<span class="sd">        Chassis Identify LED  0x03</span>
+<span class="sd">        ===================== ====</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC Specific</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Get state of various LED&#39;s&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LED: Fault RollUP LED      0x00&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_LED_STATE_FAULT_ROLLUP</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LED: Power ON LED          0x01&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_LED_STATE_POWER_ON</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LED: Host Status LED       0x02&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_LED_STATE_HOST_STATUS</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LED: Chassis Identify LED  0x03&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_GET_LED_STATE_CHASSIS_IDENTIFY</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_set_led_state_cmd"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_set_led_state_cmd">[docs]</a>    <span class="k">def</span> <span class="nf">test_set_led_state_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to test set LED state feature.</span>
+
+<span class="sd">        LED Number Table:</span>
+
+<span class="sd">        ===================== ====</span>
+<span class="sd">        ===================== ====</span>
+<span class="sd">        Fault RollUP LED      0x00</span>
+<span class="sd">        Power ON LED          0x01</span>
+<span class="sd">        Host Status LED       0x02</span>
+<span class="sd">        Chassis Identify LED  0x03</span>
+<span class="sd">        ===================== ====</span>
+
+<span class="sd">        LED State Table:</span>
+
+<span class="sd">        === ======================</span>
+<span class="sd">            LED State to be set.</span>
+<span class="sd">        === ======================</span>
+<span class="sd">        0x0 LED OFF</span>
+<span class="sd">        0x1 LED ON</span>
+<span class="sd">        0x2 LED Standby Blink Rate</span>
+<span class="sd">        0x3 LED Slow Blink rate.</span>
+<span class="sd">        === ======================</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">          AMI BMC Specific</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Set LED state of various LED&#39;s&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x00&quot;</span><span class="p">,</span> <span class="s2">&quot;0x0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fault_led_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x00&quot;</span><span class="p">,</span> <span class="s2">&quot;0x1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fault_led_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x00&quot;</span><span class="p">,</span> <span class="s2">&quot;0x2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fault_led_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x00&quot;</span><span class="p">,</span> <span class="s2">&quot;0x3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fault_led_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x01&quot;</span><span class="p">,</span> <span class="s2">&quot;0x0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_power_on_led_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x01&quot;</span><span class="p">,</span> <span class="s2">&quot;0x1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_power_on_led_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x01&quot;</span><span class="p">,</span> <span class="s2">&quot;0x2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_power_on_led_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_set_led_state</span><span class="p">(</span><span class="s2">&quot;0x01&quot;</span><span class="p">,</span> <span class="s2">&quot;0x3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_power_on_led_state</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_fan_control_algorithm_1"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_fan_control_algorithm_1">[docs]</a>    <span class="k">def</span> <span class="nf">test_fan_control_algorithm_1</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Step 1: Stop Fan Control Thread: ``ipmitool ... raw 0x3a 0x12 0x00``</span>
+<span class="sd">        Step 2: Fan Control STOPPED OEM SEL created: ::</span>
+
+<span class="sd">          ipmitool ... sel list |grep OEM</span>
+<span class="sd">          7b | 04/20/2015 | 03:03:14 | OEM record c0 | 000000 | 3a1100ffffff</span>
+
+<span class="sd">        Step 3: #Run IsFanRunning OEM Command ::</span>
+
+<span class="sd">          ipmitool ... raw 0x3a 0x13</span>
+<span class="sd">          00</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC Specific</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Testing Fan control disable functionality&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_enable_fan_control_task_command</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_sdr_clear</span><span class="p">()</span>
+        <span class="n">l_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fan_control_task_state_command</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FAN_CONTROL_THREAD_RUNNING</span><span class="p">)</span> <span class="ow">in</span> <span class="n">l_state</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_disable_fan_control_task_command</span><span class="p">()</span>
+            <span class="n">l_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fan_control_task_state_command</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FAN_CONTROL_THREAD_NOT_RUNNING</span><span class="p">)</span> <span class="ow">in</span> <span class="n">l_state</span><span class="p">:</span>
+                <span class="n">l_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_sel_list</span><span class="p">()</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_output</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;OEM&quot;</span> <span class="ow">in</span> <span class="n">l_output</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;IPMI: Disabling of fan control creates an OEM SEL event&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;IPMI: Disabling of fan control doesn&#39;t create an OEM SEL event&quot;</span>
+                    <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;IPMI: Fan control thread still running, disable failed&quot;</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;IPMI: Fan control thread still in not running state, enable failed&quot;</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_fan_control_algorithm_2"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_fan_control_algorithm_2">[docs]</a>    <span class="k">def</span> <span class="nf">test_fan_control_algorithm_2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Step 1: Start Fan Control Thread: ::</span>
+
+<span class="sd">          ipmitool -I lanplus -U admin -P admin -H &lt;BMC IP&gt; raw 0x3a 0x12 0x01</span>
+
+<span class="sd">        Step 2: Fan Control STOPPED OEM SEL created ::</span>
+
+<span class="sd">          ipmitool -I lanplus -U admin -P admin -H &lt;BMC IP&gt; sel list |grep OEM</span>
+<span class="sd">          7b | 04/20/2015 | 03:03:14 | OEM record c0 | 000000 | 3a1100ffffff</span>
+
+<span class="sd">        Step 3: #Run IsFanRunning OEM Command ::</span>
+
+<span class="sd">          ipmitool -I lanplus -U admin -P admin -H &lt;BMC IP&gt; raw 0x3a 0x13</span>
+<span class="sd">          01</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC Specific</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Testing Fan control enable functionality&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_disable_fan_control_task_command</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_sdr_clear</span><span class="p">()</span>
+        <span class="n">l_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fan_control_task_state_command</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">l_state</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FAN_CONTROL_THREAD_NOT_RUNNING</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_enable_fan_control_task_command</span><span class="p">()</span>
+            <span class="n">l_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_fan_control_task_state_command</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">l_state</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FAN_CONTROL_THREAD_RUNNING</span><span class="p">):</span>
+                <span class="n">l_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_get_sel_list</span><span class="p">()</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_output</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;OEM&quot;</span> <span class="ow">in</span> <span class="n">l_output</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;IPMI: Enabling of fan control creates an OEM SEL event&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;IPMI: Enabling of fan control doesn&#39;t create an OEM SEL event&quot;</span>
+                    <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;IPMI: Fan control thread still in not running state, enable failed&quot;</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;IPMI: Fan control thread still running, disable failed&quot;</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_channel"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_channel">[docs]</a>    <span class="k">def</span> <span class="nf">test_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will check basic channel functionalities: info and authentication</span>
+<span class="sd">        capabilities.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Channel Tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHANNEL_AUTHCAP</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHANNEL_INFO</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_chassis"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_chassis">[docs]</a>    <span class="k">def</span> <span class="nf">test_chassis</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi chassis &lt;cmd&gt; commands</span>
+<span class="sd">        cmd: status, poh, restart_cause, policy list and policy set</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Chassis tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_STATUS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_POH</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_RESTART_CAUSE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_POLICY_LIST</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_POLICY_ALWAYS_OFF</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_chassisIdentifytests"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_chassisIdentifytests">[docs]</a>    <span class="k">def</span> <span class="nf">test_chassisIdentifytests</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi chassis identify commands.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: chassis identify tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY_5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY_FORCE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_chassisBootdev"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_chassisBootdev">[docs]</a>    <span class="k">def</span> <span class="nf">test_chassisBootdev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the functionality of ipmi chassis bootdev &lt;dev&gt;</span>
+<span class="sd">        dev: none,pxe,cdrom,disk,bios,safe,diag,floppy and none.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: chassis bootdevice tests&quot;</span><span class="p">)</span>
+        <span class="n">boot_devices</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;none&quot;</span><span class="p">:</span> <span class="s2">&quot;No override&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;pxe&quot;</span><span class="p">:</span> <span class="s2">&quot;Force PXE&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;cdrom&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from CD/DVD&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;disk&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from default Hard-Drive&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;bios&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot into BIOS Setup&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;safe&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from default Hard-Drive, request Safe-Mode&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;diag&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from Diagnostic Partition&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;floppy&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from Floppy/primary removable media&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">bootdev</span><span class="p">,</span> <span class="n">ipmiresponse</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">boot_devices</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;chassis bootdev </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">bootdev</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_bootdev</span><span class="p">(</span><span class="n">bootdev</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.verify_bootdev"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.verify_bootdev">[docs]</a>    <span class="k">def</span> <span class="nf">verify_bootdev</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_dev</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will verify whether setting of given bootdevice is honoured or not</span>
+<span class="sd">        by reading chassis bootparam get 5.</span>
+
+<span class="sd">        :param i_dev: boot device name. e.g. `safe`, `disk`, `cdrom`</span>
+<span class="sd">        :type i_dev: str</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="s2">&quot;chassis bootparam get 5&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;safe&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Force Boot from default Hard-Drive, request Safe-Mode&quot;</span>
+        <span class="k">elif</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;disk&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Force Boot from default Hard-Drive&quot;</span>
+        <span class="k">elif</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;diag&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Force Boot from Diagnostic Partition&quot;</span>
+        <span class="k">elif</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;bios&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Force Boot into BIOS Setup&quot;</span>
+        <span class="k">elif</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;pxe&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Force PXE&quot;</span>
+        <span class="k">elif</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;cdrom&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Force Boot from CD/DVD&quot;</span>
+        <span class="k">elif</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;No override&quot;</span>
+        <span class="k">elif</span> <span class="n">i_dev</span> <span class="o">==</span> <span class="s2">&quot;floppy&quot;</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Force Boot from Floppy/primary removable media&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;pass proper bootdevice&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">l_line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l_line</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="n">l_msg</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Verifying bootdev is successfull for </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_dev</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Boot device is not set to </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_dev</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_Info"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_Info">[docs]</a>    <span class="k">def</span> <span class="nf">test_Info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi &lt;sdr/sel/mc/channel&gt; info related</span>
+<span class="sd">        commands.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: info tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHANNEL_INFO</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_INFO</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_INFO</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_INFO</span><span class="p">)</span></div>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sdr list &lt;all/fru/event/mcloc/compact/full/generic&gt;</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sdr_list_by_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_ALL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_FRU</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_EVENT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_MCLOC</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_COMPACT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_FULL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_GENERIC</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sdr elist &lt;all/fru/event/mcloc/compact/full/generic&gt;</span>
+    <span class="c1">#         commands</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sdr_elist_by_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_ALL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_FRU</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_EVENT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_MCLOC</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_COMPACT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_FULL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_GENERIC</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sdr type &lt;Temp/fan/Powersupply&gt; commands</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sdr_type_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_LIST</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_TEMPERATURE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_FAN</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_POWER_SUPPLY</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sdr get &lt;sensor-id&gt; command</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sdr_get_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">sdr_get_watchdog</span><span class="p">())</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi fru print command.</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_fru_print</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Fru tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FRU_PRINT</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi fru read command.</span>
+    <span class="c1">#         then the output file is displayed by hexdump</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_fru_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FRU_READ</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">getstatusoutput</span><span class="p">(</span><span class="s2">&quot;hexdump -C file_fru&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Failing to do hexdump for fru file&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sensor list functionality</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sensor_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Sensor tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SENSOR_LIST</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sensor get &lt;id&gt; functionality</span>
+    <span class="c1">#</span>
+    <span class="c1"># @param i_sensor @type string:sensor id to retrieve the data</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">sensor_byid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_sensor</span><span class="p">):</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sensor get </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_sensor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the management controller(mc) commands functionality</span>
+    <span class="c1">#         info-Displays information about the BMC hardware, including device revision,</span>
+    <span class="c1">#              firmware revision, IPMI version supported, manufacturer ID,  and  information</span>
+    <span class="c1">#               on additional device support</span>
+    <span class="c1">#         watchdog get-Show current Watchdog Timer settings and countdown state.</span>
+    <span class="c1">#         watchdog off-Turn off a currently running Watchdog countdown timer.</span>
+    <span class="c1">#         watchdog reset-Reset the Watchdog Timer to its most recent state and restart the countdown timer.</span>
+    <span class="c1">#         selftest- Check on the basic health of the BMC by executing the</span>
+    <span class="c1">#                   Get Self Test results command and report the results.</span>
+    <span class="c1">#         setenables-Enables  or disables the given option</span>
+    <span class="c1">#         getenables-Displays a list of the currently enabled options for the BMC.</span>
+    <span class="c1">#         getsysinfo-Retrieves system info from bmc for given argument</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_mc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: MC tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_INFO</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_WATCHDOG_GET</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SELFTEST</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SELFTEST</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SETENABLES_OEM_0_OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_GETENABLES</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SETENABLES_OEM_0_ON</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_GETENABLES</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_WATCHDOG_OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_WATCHDOG_RESET</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_GETSYS_INFO</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel info functionality</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sel_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: SEL tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_INFO</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test ipmi sel list functionality.</span>
+    <span class="c1">#         the entire contents of the System Event Log are displayed.</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sel_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_LIST</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel elist functionality</span>
+    <span class="c1">#         If invoked as elist (extended list) it will also use the</span>
+    <span class="c1">#         Sensor Data Record entries to display the sensor ID for</span>
+    <span class="c1">#           the sensor that caused each event.</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sel_elist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_ELIST</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel time get functionality</span>
+    <span class="c1">#         Displays the SEL clock&#39;s current time.</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sel_time_get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_TIME_GET</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">l_res</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel set &lt;time string&gt; functionality</span>
+    <span class="c1">#         Sets the SEL clock.  Future SEL entries will use the time set by this command.</span>
+    <span class="c1">#</span>
+    <span class="c1"># @param i_time @type string: the value to be set as a sel time</span>
+    <span class="c1">#               &lt;time string&gt; is of the form &quot;MM/DD/YYYY HH:MM:SS&quot;</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">sel_time_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_time</span><span class="p">):</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel time set </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel list first &lt;n entries&gt;</span>
+    <span class="c1">#</span>
+    <span class="c1"># @param i_num @type string:The num of entries of sel to be listed</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">sel_list_first_n_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_num</span><span class="p">):</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel list first </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_num</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel list last &lt;n entries&gt;</span>
+    <span class="c1">#</span>
+    <span class="c1"># @param i_num @type string:The num of entries of sel to be listed</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">sel_list_last_n_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_num</span><span class="p">):</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel list last </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_num</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel get &lt;id&gt; functionality</span>
+    <span class="c1">#</span>
+    <span class="c1"># @param i_sel_id @type string: for example 0x05, 0x06..</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">sel_get_byid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_sel_id</span><span class="p">):</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel get </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_sel_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel clear functionality</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sel_clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_CLEAR</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel get &lt;id&gt; functionality</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return BMC_CONST.FW_SUCCESS or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sel_get_functionality</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmitool</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="s2">&quot;sel list first 3 | awk &#39;{print $1}&#39;; echo $?&quot;</span><span class="p">)</span>
+        <span class="n">l_list</span> <span class="o">=</span> <span class="n">l_res</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">l_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l_res</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s2">&quot;SEL has no entries&quot;</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;There are No sel entries to fetch&quot;</span><span class="p">)</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">l_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">l_list</span><span class="p">:</span>
+                    <span class="n">l_id</span> <span class="o">=</span> <span class="s2">&quot;0x&quot;</span> <span class="o">+</span> <span class="n">l</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sel_get_byid</span><span class="p">(</span><span class="n">l_id</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Not able to get sel entries&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the ipmi sel clear functionality</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return BMC_CONST.FW_SUCCESS or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_sel_clear_functionality</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_sel_clear</span><span class="p">()</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmitool</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;sel list&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;SEL has no entries&quot;</span><span class="p">,</span> <span class="n">l_res</span><span class="p">,</span>
+                      <span class="s2">&quot;Sel clear function got cleared event entries&quot;</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the dcmi related ipmi commands.</span>
+    <span class="c1">#         discover-This command is used to discover supported capabilities in DCMI</span>
+    <span class="c1">#         Power reading-Get power related readings from the system.</span>
+    <span class="c1">#               get_limit-Get the configured power limits.</span>
+    <span class="c1">#         sensors-Prints the available DCMI sensors.</span>
+    <span class="c1">#         get_mc_id_string-Get management controller identifier string</span>
+    <span class="c1">#         get_temp_reading-Get Temperature Sensor Readings.</span>
+    <span class="c1">#         get_conf_param-Get DCMI Configuration Parameters.</span>
+    <span class="c1">#         oob_discover-Ping/Pong Message for DCMI Discovery</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_dcmi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: dcmi tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_DISCOVER</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_POWER_READING</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_POWER_GET_LIMIT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_SENSORS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_GET_MC_ID_STRING</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_GET_TEMP_READING</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_GET_CONF_PARAM</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_OOB_DISCOVER</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test the functionality of ipmi echo command.</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_echo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: echo tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_ECHO_DONE</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test event related commands to test sel functionality.</span>
+    <span class="c1">#         Send a pre-defined test event to the System Event Log.  The following</span>
+    <span class="c1">#         events are included as a means to test the functionality of  the  System</span>
+    <span class="c1">#         Event Log component of the BMC (an entry will be added each time the</span>
+    <span class="c1">#         event N command is executed)</span>
+    <span class="c1">#         Currently supported values for N are:</span>
+    <span class="c1">#         1    Temperature: Upper Critical: Going High</span>
+    <span class="c1">#         2    Voltage Threshold: Lower Critical: Going Low</span>
+    <span class="c1">#         3    Memory: Correctable ECC</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_event</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: event tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_EVENT_1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_EVENT_2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_EVENT_3</span><span class="p">)</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief  It will execute and test ipmi exec command.</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return l_res @type list: output of command or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">test_exec</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: exec tests&quot;</span><span class="p">)</span>
+        <span class="k">pass</span>
+        <span class="c1"># TODO: need to execute ipmi commands from a file</span>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_firewall"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_firewall">[docs]</a>    <span class="k">def</span> <span class="nf">test_firewall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test firmware firewall info command.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Firewall test&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FIREWALL_INFO</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_pef"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_pef">[docs]</a>    <span class="k">def</span> <span class="nf">test_pef</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test pef related commands:</span>
+
+<span class="sd">        info</span>
+<span class="sd">          This command will query the BMC and print information about the</span>
+<span class="sd">          PEF supported features.</span>
+<span class="sd">        status</span>
+<span class="sd">          This command prints the current PEF status</span>
+<span class="sd">        policy</span>
+<span class="sd">          This command lists the PEF policy table entries</span>
+<span class="sd">        list</span>
+<span class="sd">          This  command  lists  the PEF table entries.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: Pef tests&quot;</span><span class="p">)</span>
+        <span class="c1"># pef command output failed to print new line at the end of output</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_INFO</span> <span class="o">+</span> <span class="s2">&quot;; echo &#39;</span><span class="se">\n</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_STATUS</span> <span class="o">+</span> <span class="s2">&quot;; echo &#39;</span><span class="se">\n</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_POLICY</span> <span class="o">+</span> <span class="s2">&quot;; echo &#39;</span><span class="se">\n</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_LIST</span> <span class="o">+</span> <span class="s2">&quot;; echo &#39;</span><span class="se">\n</span><span class="s2">&#39;&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_raw"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_raw">[docs]</a>    <span class="k">def</span> <span class="nf">test_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This will test raw IPMI commands.</span>
+<span class="sd">        For example to query the POH counter with a raw command</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OOB IPMI: raw command execution tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmd</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_RAW_POH</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_sensor_get_host_status"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_sensor_get_host_status">[docs]</a>    <span class="k">def</span> <span class="nf">test_sensor_get_host_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sensor get &quot;Host Status&quot; functionality</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC Specific.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensor_byid</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">SENSOR_HOST_STATUS</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_sensor_get_os_boot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_sensor_get_os_boot">[docs]</a>    <span class="k">def</span> <span class="nf">test_sensor_get_os_boot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sensor get &quot;OS Boot&quot; functionality</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           AMI BMC Specific.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="s2">&quot;AMI&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP AMI BMC specific&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensor_byid</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">SENSOR_OS_BOOT</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">test_sensor_get_boot_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;SMC&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OP SMC BMC specific&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensor_byid</span><span class="p">(</span><span class="s2">&quot;Boot Progress&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_set_sel_time"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_set_sel_time">[docs]</a>    <span class="k">def</span> <span class="nf">test_set_sel_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel set &lt;time string&gt; functionality</span>
+<span class="sd">        Sets the SEL clock.  Future SEL entries will use the time set by this command.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_sel_time_get</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sel_time_set</span><span class="p">(</span><span class="n">l_res</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_sel_list_first_3_entries"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_sel_list_first_3_entries">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_list_first_3_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel list first &lt;3 entries&gt;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sel_list_first_n_entries</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_LIST_ENTRIES</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestOOBIPMI.test_sel_list_last_3_entries"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OpTestOOBIPMI.test_sel_list_last_3_entries">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_list_last_3_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel list last &lt;3 entries&gt;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sel_list_last_n_entries</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_LIST_ENTRIES</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="OOBIPMIStandby"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OOBIPMIStandby">[docs]</a><span class="k">class</span> <span class="nc">OOBIPMIStandby</span><span class="p">(</span><span class="n">OpTestOOBIPMI</span><span class="p">):</span>
+<div class="viewcode-block" id="OOBIPMIStandby.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OOBIPMIStandby.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OOBIPMIStandby</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OOBIPMIStandby.tearDownClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OOBIPMIStandby.tearDownClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="OOBIPMIRuntime"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OOBIPMIRuntime">[docs]</a><span class="k">class</span> <span class="nc">OOBIPMIRuntime</span><span class="p">(</span><span class="n">OpTestOOBIPMI</span><span class="p">):</span>
+<div class="viewcode-block" id="OOBIPMIRuntime.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OOBIPMIRuntime.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">load_ipmi_drivers</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OOBIPMIRuntime</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OOBIPMIRuntime.tearDownClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestOOBIPMI.OOBIPMIRuntime.tearDownClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">basic_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">OpTestOOBIPMI</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">standby_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">OOBIPMIStandby</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">runtime_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">OOBIPMIRuntime</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

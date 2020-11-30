@@ -1,0 +1,292 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.KernelLog &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.KernelLog</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Kernel Log</span>
+<span class="sd">----------</span>
+
+<span class="sd">Check the Linux kernel log in skiroot and the OS for warnings and errors,</span>
+<span class="sd">filtering for known benign problems (or problems that are just a Linux issue</span>
+<span class="sd">rather than a firmware issue).</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">KernelLog</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_test</span><span class="p">()</span>
+
+        <span class="n">log_entries</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Depending on where we&#39;re running, we may need to do all sorts of</span>
+        <span class="c1"># things to get a sane dmesg output. Urgh.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log_entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;dmesg --color=never -T --level=alert,crit,err,warn&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">log_entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;dmesg -T --level=alert,crit,err,warn&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">log_entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                        <span class="s2">&quot;dmesg -r|grep &#39;&lt;[4321]&gt;&#39;&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                    <span class="c1"># An exit code of 1 and no output can mean success.</span>
+                    <span class="c1"># as it means we&#39;re not successfully grepping out anything</span>
+                    <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">pass</span>
+
+        <span class="n">filter_out</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Unable to open file.* /etc/keys/x509&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;OF: reserved mem: not enough space all defined regions.&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;nvidia: loading out-of-tree module taints kernel&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;nvidia: module license &#39;NVIDIA&#39; taints kernel.&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;Disabling lock debugging due to kernel taint&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;NVRM: loading NVIDIA UNIX ppc64le Kernel Module&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;This architecture does not have kernel memory protection.&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;aacraid.* Comm Interface type3 enabled&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;mpt3sas_cm.* MSI-X vectors supported&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;i40e.*PCI-Express bandwidth available for this device may be insu&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;i40e.*Please move the device to a different PCI-e link with more&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;systemd.*Dependency failed for pNFS block layout mapping daemon.&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;NFSD.* Using .* as the NFSv4 state recovery directory&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;ipmi_si.* Unable to find any System Interface&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;mpt3sas.*invalid short VPD tag 00 at offset 1&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;synth uevent.*failed to send uevent&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;vio: uevent: failed to send synthetic uevent&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;pstore: decompression failed&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;NCQ Send/Recv Log not supported&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;output lines suppressed due to ratelimiting&quot;</span><span class="p">,</span>
+                      <span class="c1"># Nouveau not supporting our GPUs is expected, not OPAL bug.</span>
+                      <span class="s2">&quot;nouveau .* unknown chipset&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;nouveau: probe of .* failed with error -12&quot;</span><span class="p">,</span>
+                      <span class="c1"># The below xive message should go away when https://github.com/open-power/skiboot/issues/171 is resolved</span>
+                      <span class="s2">&quot;xive: Interrupt.*type mismatch, Linux says Level, FW says Edge&quot;</span><span class="p">,</span>
+                      <span class="c1"># This is why we can&#39;t have nice things.</span>
+                      <span class="s2">&quot;systemd-journald.*File.*corrupted or uncleanly shut down, renaming and replacing.&quot;</span><span class="p">,</span>
+                      <span class="c1"># Not having memory on all NUMA nodes isn&#39;t *necessarily* fatal or a problem</span>
+                      <span class="s2">&quot;Could not find start_pfn for node&quot;</span><span class="p">,</span>
+                      <span class="c1"># PNOR tests open a r/w window on a RO partition, currently fails like this</span>
+                      <span class="s2">&quot;mtd.*opal_flash_async_op\(op=1\) failed \(rc -6\)&quot;</span><span class="p">,</span>
+                      <span class="c1"># New warning, but aparrently harmless</span>
+                      <span class="s2">&quot;Cannot allocate SWIOTLB buffer&quot;</span><span class="p">,</span>
+                      <span class="c1"># Ignore a quirk that we hit on (at least some) Tuletas,</span>
+                      <span class="s2">&quot;TI XIO2000a quirk detected; secondary bus fast back-to-back transfers disabled&quot;</span><span class="p">,</span>
+                      <span class="c1"># SCSI is Fun, and for some reason likes being very severe about discovering disks,</span>
+                      <span class="s2">&quot;sd .* \[sd.*\] Assuming drive cache: write through&quot;</span><span class="p">,</span>
+                      <span class="c1"># SCSI is fun. Progress as dots</span>
+                      <span class="s2">&quot; \.$&quot;</span><span class="p">,</span>
+                      <span class="c1"># SCSI is fun, of course this is critically important event</span>
+                      <span class="s2">&quot;s[dr] .* Power-on or device reset occurred&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;.?ready$&quot;</span><span class="p">,</span>
+                      <span class="c1"># Mellanox!</span>
+                      <span class="s2">&quot;mlx4_en.* Port \d+: Using \d+ [TR]X rings&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;mlx4_en.* Port \d+: Initializing port&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;mlx4_core.*Old device ETS support detected&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;mlx4_core.*Consider upgrading device FW.&quot;</span><span class="p">,</span>
+                      <span class="c1"># Skiboot doesn&#39;t yet support secvars, but the Kernel looks for them</span>
+                      <span class="s2">&quot;secvar-sysfs: secvar: failed to retrieve secvar operations.&quot;</span><span class="p">,</span>
+                      <span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;qemu&#39;</span><span class="p">]:</span>
+            <span class="c1"># Qemu doesn&#39;t (yet) have pstate support, so ignore errors there.</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;powernv-cpufreq: ibm,pstate-min node not found&#39;</span><span class="p">)</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;nvram: Failed to find or create lnx,oops-log&#39;</span><span class="p">)</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;nvram: Failed to initialize oops partition!&#39;</span><span class="p">)</span>
+            <span class="c1"># some weird disk setups</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;vdb.*start.*is beyond EOD&#39;</span><span class="p">)</span>
+            <span class="c1"># urandom_read fun</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;urandom_read: \d+ callbacks suppressed&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;mambo&#39;</span><span class="p">]:</span>
+            <span class="c1"># We have a couple of things showing up in Mambo runs.</span>
+            <span class="c1"># We should probably fix this, but ignore for now.</span>
+            <span class="c1">#</span>
+            <span class="c1"># First, no pstates:</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;powernv-cpufreq: ibm,pstate-min node not found&#39;</span><span class="p">)</span>
+            <span class="c1"># Strange IMC failure</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;IMC PMU nest_mcs01_imc Register failed&#39;</span><span class="p">)</span>
+            <span class="c1"># urandom_read fun</span>
+            <span class="n">filter_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;urandom_read: \d+ callbacks suppressed&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filter_out</span><span class="p">:</span>
+            <span class="n">fre</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="n">log_entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">log_entries</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">fre</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">l</span><span class="p">)]</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">_f</span> <span class="k">for</span> <span class="n">_f</span> <span class="ow">in</span> <span class="n">log_entries</span> <span class="k">if</span> <span class="n">_f</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">log_entries</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="s2">&quot;Warnings/Errors in Kernel log:</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">msg</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Skiroot"><a class="viewcode-back" href="../../tests.html#testcases.KernelLog.Skiroot">[docs]</a><span class="k">class</span> <span class="nc">Skiroot</span><span class="p">(</span><span class="n">KernelLog</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+
+<div class="viewcode-block" id="Host"><a class="viewcode-back" href="../../tests.html#testcases.KernelLog.Host">[docs]</a><span class="k">class</span> <span class="nc">Host</span><span class="p">(</span><span class="n">KernelLog</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setup_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

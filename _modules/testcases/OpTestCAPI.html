@@ -1,0 +1,485 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestCAPI &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestCAPI</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestCAPI.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2018</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestCAPI</span>
+<span class="sd">----------</span>
+
+<span class="sd">CAPI tests for OpenPower testing.</span>
+
+<span class="sd">This class will test the functionality of CAPI</span>
+
+<span class="sd">Prerequisites:</span>
+
+<span class="sd">1. Host must have a CAPI FPGA card</span>
+<span class="sd">2. CAPI card must have been flashed with memcpy AFU</span>
+
+<span class="sd">Extra timebase sync tests prerequisite:</span>
+
+<span class="sd">3. PSL must support timebase sync</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OpTestCAPI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.OpTestCAPI">[docs]</a><span class="k">class</span> <span class="nc">OpTestCAPI</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestCAPI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.OpTestCAPI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">set_up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="c1"># Check that host has a CAPI FPGA card</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_has_capi_fpga_card</span><span class="p">()</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;No CAPI card available on host </span><span class="se">\</span>
+<span class="s2">                                     Skipping the CAPI tests&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_command</span><span class="p">(</span><span class="s2">&quot;git&quot;</span><span class="p">,</span> <span class="s2">&quot;gcc&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get OS level</span>
+        <span class="n">l_oslevel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_OS_Level</span><span class="p">()</span>
+
+        <span class="c1"># Get kernel version</span>
+        <span class="n">l_kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_kernel_version</span><span class="p">()</span>
+
+        <span class="c1"># Load module cxl based on config option</span>
+        <span class="n">l_config</span> <span class="o">=</span> <span class="s2">&quot;CONFIG_CXL&quot;</span>
+        <span class="n">l_module</span> <span class="o">=</span> <span class="s2">&quot;cxl&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module_based_on_config</span><span class="p">(</span><span class="n">l_kernel</span><span class="p">,</span> <span class="n">l_config</span><span class="p">,</span>
+                                                      <span class="n">l_module</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CxlDeviceFileTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.CxlDeviceFileTest">[docs]</a><span class="k">class</span> <span class="nc">CxlDeviceFileTest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then this test load the cxl module</span>
+<span class="sd">    if required and check that the cxl device files afu0.0m and afu0.0s exist</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="CxlDeviceFileTest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.CxlDeviceFileTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CxlDeviceFileTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="c1"># Check device files /dev/cxl/afu0.0{m,s} existence</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;ls -l /dev/cxl/afu0.0{m,s}&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;cxl device file tests fail&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SysfsABITest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.SysfsABITest">[docs]</a><span class="k">class</span> <span class="nc">SysfsABITest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then this test load the cxl module</span>
+<span class="sd">    if required and run the sysfs ABI tests from libcxl_tests</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="SysfsABITest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.SysfsABITest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SysfsABITest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="c1"># Check that cxl-tests binary and library are available</span>
+        <span class="c1"># If not, clone and build cxl-tests (along with libcxl)</span>
+        <span class="n">l_dir</span> <span class="o">=</span> <span class="s2">&quot;/tmp/cxl-tests&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl_tests&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl/libcxl.so&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clone_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_build_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+
+        <span class="c1"># Unconditionally unload incompatible module cxl_memcpy,</span>
+        <span class="c1"># then run sysfs abi tests</span>
+        <span class="n">l_exec</span> <span class="o">=</span> <span class="s2">&quot;libcxl_tests &gt;/tmp/libcxl_tests.log&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;rmmod cxl_memcpy; cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; LD_LIBRARY_PATH=libcxl ./</span><span class="si">%s</span><span class="s2">;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="n">l_exec</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;sysfs abi libcxl_tests pass&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;sysfs abi libcxl_tests have failed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MemCpyAFUTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.MemCpyAFUTest">[docs]</a><span class="k">class</span> <span class="nc">MemCpyAFUTest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then this test load the cxl module</span>
+<span class="sd">    if required and test the memcpy AFU with memcpy_afu_ctx</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="MemCpyAFUTest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.MemCpyAFUTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MemCpyAFUTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="c1"># Check that cxl-tests binary and library are available</span>
+        <span class="c1"># If not, clone and build cxl-tests (along with libcxl)</span>
+        <span class="n">l_dir</span> <span class="o">=</span> <span class="s2">&quot;/tmp/cxl-tests&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl/libcxl.so&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clone_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_build_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+
+        <span class="c1"># Run memcpy afu tests</span>
+        <span class="n">l_exec</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx -p0 -l10000 &gt;/tmp/memcpy_afu_ctx.log&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; LD_LIBRARY_PATH=libcxl ./</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="n">l_exec</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx tests pass&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx tests failed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MemCpyAFUIrqTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.MemCpyAFUIrqTest">[docs]</a><span class="k">class</span> <span class="nc">MemCpyAFUIrqTest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then this test load the cxl module</span>
+<span class="sd">    if required and test the memcpy AFU with memcpy_afu_ctx -i</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="MemCpyAFUIrqTest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.MemCpyAFUIrqTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MemCpyAFUIrqTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="c1"># Check that cxl-tests binary and library are available</span>
+        <span class="c1"># If not, clone and build cxl-tests (along with libcxl)</span>
+        <span class="n">l_dir</span> <span class="o">=</span> <span class="s2">&quot;/tmp/cxl-tests&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl/libcxl.so&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clone_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_build_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+
+        <span class="c1"># Run memcpy afu tests</span>
+        <span class="n">l_exec</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx -p100 -i5 -I5 -l10000 &gt;/tmp/memcpy_afu_ctx-i.log&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; LD_LIBRARY_PATH=libcxl ./</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="n">l_exec</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx -i tests pass&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx -i tests failed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MemCpyAFUReallocTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.MemCpyAFUReallocTest">[docs]</a><span class="k">class</span> <span class="nc">MemCpyAFUReallocTest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then this test load the cxl module</span>
+<span class="sd">    if required and test the memcpy AFU with memcpy_afu_ctx -r</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="MemCpyAFUReallocTest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.MemCpyAFUReallocTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MemCpyAFUReallocTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="c1"># Check that cxl-tests binary and library are available</span>
+        <span class="c1"># If not, clone and build cxl-tests (along with libcxl)</span>
+        <span class="n">l_dir</span> <span class="o">=</span> <span class="s2">&quot;/tmp/cxl-tests&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl/libcxl.so&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clone_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_build_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+
+        <span class="c1"># Run memcpy afu tests</span>
+        <span class="n">l_exec</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx -p0 -r -l3000 &gt;/tmp/memcpy_afu_ctx-r.log&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; LD_LIBRARY_PATH=libcxl ./</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="n">l_exec</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx -r tests pass&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx -r tests failed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TimeBaseSyncTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.TimeBaseSyncTest">[docs]</a><span class="k">class</span> <span class="nc">TimeBaseSyncTest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then this test load the cxl module</span>
+<span class="sd">    if required and also check if the card PSL supports timebase sync. If it</span>
+<span class="sd">    supports it, then test timebase sync with memcpy_afu_ctx -t</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="TimeBaseSyncTest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.TimeBaseSyncTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TimeBaseSyncTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="c1"># Check PSL timebase sync support</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;grep -q -w 1 /sys/class/cxl/card0/psl_timebase_synced;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;PSL does not support timebase sync; skipping test&quot;</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+
+        <span class="c1"># Check that cxl-tests binary and library are available</span>
+        <span class="c1"># If not, clone and build cxl-tests (along with libcxl)</span>
+        <span class="n">l_dir</span> <span class="o">=</span> <span class="s2">&quot;/tmp/cxl-tests&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl/libcxl.so&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clone_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_build_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+
+        <span class="c1"># Run timebase sync tests</span>
+        <span class="n">l_exec</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx -t -p1 -l1 &gt;/tmp/memcpy_afu_ctx-t.log&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; LD_LIBRARY_PATH=libcxl ./</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="n">l_exec</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;memcpy_afu_ctx -t tests pass&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx -t tests failed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelAPITest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.KernelAPITest">[docs]</a><span class="k">class</span> <span class="nc">KernelAPITest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then this test load the cxl and</span>
+<span class="sd">    the cxl_memcpy modules if required, and test the kernel API of memcpy</span>
+<span class="sd">    with memcpy_afu_ctx -K.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="KernelAPITest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.KernelAPITest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">KernelAPITest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="c1"># Check that cxl-tests binary and library are available</span>
+        <span class="c1"># If not, clone and build cxl-tests (along with libcxl)</span>
+        <span class="n">l_dir</span> <span class="o">=</span> <span class="s2">&quot;/tmp/cxl-tests&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl/libcxl.so&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clone_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_build_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+
+        <span class="c1"># Load module cxl_memcpy if required</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;lsmod | grep cxl_memcpy || (cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; (make cxl-memcpy.ko &amp;&amp; insmod ./cxl-memcpy.ko))&quot;</span> <span class="o">%</span> <span class="n">l_dir</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Could not load module cxl_memcpy&quot;</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+
+        <span class="c1"># Run memcpy kernel API tests</span>
+        <span class="n">l_exec</span> <span class="o">=</span> <span class="s2">&quot;memcpy_afu_ctx -K -p1 -l1 &gt;/tmp/memcpy_afu_ctx-K.log&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;(cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; LD_LIBRARY_PATH=libcxl ./</span><span class="si">%s</span><span class="s2">);&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="n">l_exec</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;memcpy_afu_ctx -K tests pass&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx -K tests failed&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CxlResetTest"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.CxlResetTest">[docs]</a><span class="k">class</span> <span class="nc">CxlResetTest</span><span class="p">(</span><span class="n">OpTestCAPI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    If a given system has a CAPI FPGA card, then load the cxl module</span>
+<span class="sd">    if required, and test reset with cxl_eeh_tests.sh and memcpy_afu_ctx.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="CxlResetTest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestCAPI.CxlResetTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CxlResetTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="c1"># Check that cxl-tests binary and library are available</span>
+        <span class="c1"># If not, clone and build cxl-tests (along with libcxl)</span>
+        <span class="n">l_dir</span> <span class="o">=</span> <span class="s2">&quot;/tmp/cxl-tests&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;memcpy_afu_ctx&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_binary</span><span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="s2">&quot;libcxl/libcxl.so&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clone_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_build_cxl_tests</span><span class="p">(</span><span class="n">l_dir</span><span class="p">)</span>
+
+        <span class="c1"># Run memcpy afu reset tests</span>
+        <span class="n">l_exec</span> <span class="o">=</span> <span class="s2">&quot;cxl_eeh_tests.sh -l10&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cd </span><span class="si">%s</span><span class="s2"> &amp;&amp; LD_LIBRARY_PATH=libcxl ./</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">l_dir</span><span class="p">,</span> <span class="n">l_exec</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;cxl reset tests pass&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;cxl reset tests failed&quot;</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">capi_test_suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">CxlDeviceFileTest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">SysfsABITest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">MemCpyAFUTest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">MemCpyAFUIrqTest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">MemCpyAFUReallocTest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">TimeBaseSyncTest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">KernelAPITest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">CxlResetTest</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

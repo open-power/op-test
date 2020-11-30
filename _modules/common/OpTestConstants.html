@@ -1,0 +1,576 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>common.OpTestConstants &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for common.OpTestConstants</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/common/OpTestConstants.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestConstants</span>
+<span class="sd">---------------</span>
+
+<span class="sd">BMC package which contains all BMC related constants</span>
+
+<span class="sd">This class encapsulates commands and constants which deals with the BMC in</span>
+<span class="sd">OpenPower systems</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">pexpect</span>
+
+
+<div class="viewcode-block" id="OpTestConstants"><a class="viewcode-back" href="../../programming.html#common.OpTestConstants.OpTestConstants">[docs]</a><span class="k">class</span> <span class="nc">OpTestConstants</span><span class="p">():</span>
+
+    <span class="c1"># Platforms</span>
+    <span class="n">HABANERO</span> <span class="o">=</span> <span class="s2">&quot;habanero&quot;</span>
+    <span class="n">FIRESTONE</span> <span class="o">=</span> <span class="s2">&quot;firestone&quot;</span>
+    <span class="n">PALMETTO</span> <span class="o">=</span> <span class="s2">&quot;palmetto&quot;</span>
+    <span class="n">GARRISON</span> <span class="o">=</span> <span class="s1">&#39;garrison&#39;</span>
+    <span class="n">P9DSU</span> <span class="o">=</span> <span class="s2">&quot;p9dsu&quot;</span>
+    <span class="n">WITHERSPOON</span> <span class="o">=</span> <span class="s2">&quot;witherspoon&quot;</span>
+    <span class="n">MIHAWK</span> <span class="o">=</span> <span class="s2">&quot;mihawk&quot;</span>
+
+    <span class="c1"># Platform power limits in watts for different platforms taken from MRW xml file</span>
+    <span class="n">HABANERO_POWER_LIMIT_LOW</span> <span class="o">=</span> <span class="s2">&quot;1000&quot;</span>
+    <span class="n">HABANERO_POWER_LIMIT_HIGH</span> <span class="o">=</span> <span class="s2">&quot;1100&quot;</span>
+    <span class="n">FIRESTONE_POWER_LIMIT_LOW</span> <span class="o">=</span> <span class="s2">&quot;1240&quot;</span>
+    <span class="n">FIRESTONE_POWER_LIMIT_HIGH</span> <span class="o">=</span> <span class="s2">&quot;1820&quot;</span>
+    <span class="n">GARRISON_POWER_LIMIT_LOW</span> <span class="o">=</span> <span class="s2">&quot;1240&quot;</span>
+    <span class="n">GARRISON_POWER_LIMIT_HIGH</span> <span class="o">=</span> <span class="s2">&quot;2880&quot;</span>
+    <span class="n">P9DSU_POWER_LIMIT_LOW</span> <span class="o">=</span> <span class="s2">&quot;1550&quot;</span>
+    <span class="n">P9DSU_POWER_LIMIT_HIGH</span> <span class="o">=</span> <span class="s2">&quot;1650&quot;</span>
+    <span class="n">WITHERSPOON_POWER_LIMIT_LOW</span> <span class="o">=</span> <span class="s2">&quot;1550&quot;</span>
+    <span class="n">WITHERSPOON_POWER_LIMIT_HIGH</span> <span class="o">=</span> <span class="s2">&quot;3050&quot;</span>
+    <span class="n">MIHAWK_POWER_LIMIT_LOW</span> <span class="o">=</span> <span class="s2">&quot;1945&quot;</span>
+    <span class="n">MIHAWK_POWER_LIMIT_HIGH</span> <span class="o">=</span> <span class="s2">&quot;2500&quot;</span>
+
+    <span class="n">PRIMARY_SIDE</span> <span class="o">=</span> <span class="s2">&quot;0x0080&quot;</span>
+    <span class="n">GOLDEN_SIDE</span> <span class="o">=</span> <span class="s2">&quot;0x0180&quot;</span>
+
+    <span class="c1"># BMC COMMANDS</span>
+    <span class="n">BMC_COLD_RESET</span> <span class="o">=</span> <span class="s2">&quot; mc reset cold&quot;</span>
+    <span class="n">BMC_PASS_COLD_RESET</span> <span class="o">=</span> <span class="s2">&quot;Sent cold reset command to MC&quot;</span>
+    <span class="n">BMC_WARM_RESET</span> <span class="o">=</span> <span class="s2">&quot; mc reset warm&quot;</span>
+    <span class="n">BMC_PASS_WARM_RESET</span> <span class="o">=</span> <span class="s2">&quot;Sent warm reset command to MC&quot;</span>
+    <span class="n">BMC_PRESRV_LAN</span> <span class="o">=</span> <span class="s2">&quot; raw 0x32 0xba 0x18 0x00&quot;</span>
+    <span class="n">BMC_MCHBLD</span> <span class="o">=</span> <span class="s2">&quot; raw 0x3a 0x0b 0x56 0x45 0x52 0x53 0x49 &quot;</span> \
+                 <span class="s2">&quot;0x4f 0x4e 0x00 0x00 0x00 0x00 0x00 0x00 &quot;</span> \
+                 <span class="s2">&quot;0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 | xxd -r -p&quot;</span>
+    <span class="n">BMC_MCHBLD</span> <span class="o">=</span> <span class="s2">&quot; raw 0x3a 0x0b 0x56 0x45 0x52 0x53 0x49 0x4f 0x4e 0x00 0x00 0x00 &quot;</span> \
+                 <span class="s2">&quot;0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 | xxd -r -p&quot;</span>
+    <span class="n">BMC_OCC_SENSOR</span> <span class="o">=</span> <span class="s2">&quot;raw 0x04 0x30 0x&quot;</span>
+    <span class="n">BMC_DISABLE_OCC</span> <span class="o">=</span> <span class="s2">&quot; 0x01 0x00 0x01&quot;</span>
+    <span class="n">BMC_ENABLE_OCC</span> <span class="o">=</span> <span class="s2">&quot; 0x01 0x00 0x02&quot;</span>
+    <span class="n">BMC_IPMITOOL_H</span> <span class="o">=</span> <span class="s2">&quot;ipmitool -H &quot;</span>
+    <span class="n">BMC_FLASH_IMAGE</span> <span class="o">=</span> <span class="s2">&quot;echo y | ipmitool -H &quot;</span>
+    <span class="n">BMC_FW_IMAGE_UPDATE</span> <span class="o">=</span> <span class="s2">&quot;component 1 -z 30000 force&quot;</span>
+    <span class="n">BMC_PNOR_IMAGE_UPDATE</span> <span class="o">=</span> <span class="s2">&quot;component 2 -z 30000&quot;</span>
+    <span class="n">BMC_FWANDPNOR_IMAGE_UPDATE</span> <span class="o">=</span> <span class="s2">&quot;-z 15000 force&quot;</span>
+    <span class="n">BMC_LANPLUS</span> <span class="o">=</span> <span class="s2">&quot; -I lanplus&quot;</span>
+    <span class="n">BMC_LANPLUS</span> <span class="o">=</span> <span class="s2">&quot; -I lanplus&quot;</span>
+    <span class="n">BMC_HPM_UPDATE</span> <span class="o">=</span> <span class="s2">&quot; hpm upgrade &quot;</span>
+    <span class="n">BMC_ACTIVE_SIDE</span> <span class="o">=</span> <span class="s2">&quot; sensor list|grep -i golden&quot;</span>
+    <span class="n">BMC_SOL_ACTIVATE</span> <span class="o">=</span> <span class="s2">&quot; sol activate&quot;</span>
+    <span class="n">BMC_SOL_DEACTIVATE</span> <span class="o">=</span> <span class="s2">&quot; sol deactivate&quot;</span>
+    <span class="n">BMC_SEL_LIST</span> <span class="o">=</span> <span class="s1">&#39;sel list&#39;</span>
+    <span class="n">BMC_SDR_ELIST</span> <span class="o">=</span> <span class="s1">&#39;sdr elist&#39;</span>
+    <span class="c1"># (replace xx with boot count sensor)</span>
+    <span class="n">BMC_BOOT_COUNT_2</span> <span class="o">=</span> <span class="s1">&#39;raw 0x04 0x30 xx 0x01 0x00 0x2 0x00&#39;</span>
+    <span class="c1"># Sets sensor to 0 (replace xx with bios golden sensor)</span>
+    <span class="n">BMC_BIOS_GOLDEN_SENSOR_TO_PRIMARY</span> <span class="o">=</span> <span class="s1">&#39;raw 0x04 0x30 xx 0x01 0x00 0x00 0 0 0 0 0 0&#39;</span>
+    <span class="c1"># Sets sensor to 1 (replace xx with bios golden sensor)</span>
+    <span class="n">BMC_BIOS_GOLDEN_SENSOR_TO_GOLDEN</span> <span class="o">=</span> <span class="s1">&#39;raw 0x04 0x30 xx 0x01 0x00 0x01 0 0 0 0 0 0&#39;</span>
+
+    <span class="c1"># Commands to be executed on the OS</span>
+    <span class="n">OS_GETSCOM_LIST</span> <span class="o">=</span> <span class="s2">&quot;/getscom -l&quot;</span>
+    <span class="n">OS_PUTSCOM_ERROR</span> <span class="o">=</span> <span class="s2">&quot;/putscom -c &quot;</span>
+    <span class="n">OS_READ_MSGLOG_CORE</span> <span class="o">=</span> <span class="s1">&#39;cat /sys/firmware/opal/msglog | grep -i chip | grep -i core&#39;</span>
+    <span class="n">OS_PRESERVE_NETWORK</span> <span class="o">=</span> <span class="s2">&quot;ipmitool -I usb raw 0x32 0xba 0x18 0x00&quot;</span>
+    <span class="n">HOST_COLD_RESET</span> <span class="o">=</span> <span class="s2">&quot;ipmitool -I usb mc reset cold&quot;</span>
+    <span class="n">HOST_WARM_RESET</span> <span class="o">=</span> <span class="s2">&quot;ipmitool -I usb mc reset warm&quot;</span>
+    <span class="n">SUDO_COMMAND</span> <span class="o">=</span> <span class="s1">&#39;sudo &#39;</span>
+    <span class="n">CLEAR_GARD_CMD</span> <span class="o">=</span> <span class="s1">&#39;/gard clear all&#39;</span>
+    <span class="n">LIST_GARD_CMD</span> <span class="o">=</span> <span class="s1">&#39;/gard list&#39;</span>
+    <span class="n">OPAL_MSG_LOG</span> <span class="o">=</span> <span class="s2">&quot;cat /sys/firmware/opal/msglog&quot;</span>
+    <span class="n">PROC_CMDLINE</span> <span class="o">=</span> <span class="s2">&quot;cat /proc/cmdline&quot;</span>
+    <span class="n">OPAL_DUMP_NODE</span> <span class="o">=</span> <span class="s2">&quot;/proc/device-tree/ibm,opal/dump/&quot;</span>
+    <span class="n">NVRAM_PRINT_CFG</span> <span class="o">=</span> <span class="s2">&quot;nvram --print-config&quot;</span>
+    <span class="n">NVRAM_UPDATE_CONFIG_TEST_DATA</span> <span class="o">=</span> <span class="s2">&quot;nvram --update-config test-name=test-value&quot;</span>
+    <span class="n">NVRAM_TEST_DATA</span> <span class="o">=</span> <span class="s2">&quot;test-name=test-value&quot;</span>
+    <span class="n">NVRAM_SET_FAST_RESET_MODE</span> <span class="o">=</span> <span class="s2">&quot;nvram -p ibm,skiboot --update-config experimental-fast-reset=feeling-lucky&quot;</span>
+    <span class="n">NVRAM_DISABLE_FAST_RESET_MODE</span> <span class="o">=</span> <span class="s2">&quot;nvram -p ibm,skiboot --update-config experimental-fast-reset=&quot;</span>
+    <span class="n">NVRAM_PRINT_FAST_RESET_VALUE</span> <span class="o">=</span> <span class="s2">&quot;nvram --print-config=experimental-fast-reset -p ibm,skiboot&quot;</span>
+    <span class="n">OCC_ENABLE</span> <span class="o">=</span> <span class="s2">&quot;opal-prd occ enable&quot;</span>
+    <span class="n">OCC_DISABLE</span> <span class="o">=</span> <span class="s2">&quot;opal-prd occ disable&quot;</span>
+    <span class="n">OCC_RESET</span> <span class="o">=</span> <span class="s2">&quot;opal-prd occ reset&quot;</span>
+    <span class="n">OCC_QUERY_RESET_COUNTS</span> <span class="o">=</span> <span class="s2">&quot;opal-prd --expert-mode htmgt-passthru 1&quot;</span>
+    <span class="n">OCC_SET_RESET_RELOAD_COUNT</span> <span class="o">=</span> <span class="s2">&quot;opal-prd --expert-mode htmgt-passthru 4&quot;</span>
+
+    <span class="c1"># Command to boot into PRIMARY and GOLDEN SIDE</span>
+    <span class="n">BMC_BOOT_PRIMARY</span> <span class="o">=</span> <span class="s2">&quot;/etc/init.d/boot_into_primary&quot;</span>
+    <span class="n">BMC_BOOT_GOLDEN</span> <span class="o">=</span> <span class="s2">&quot;/etc/init.d/boot_into_golden&quot;</span>
+
+    <span class="c1"># TIME DELAYS &amp; RETRIES</span>
+    <span class="n">BMC_WARM_RESET_DELAY</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">BMC_COLD_RESET_DELAY</span> <span class="o">=</span> <span class="mi">150</span>
+    <span class="n">HOST_BRINGUP_TIME</span> <span class="o">=</span> <span class="mi">80</span>
+    <span class="n">SHORT_WAIT_IPL</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">SHORT_WAIT_STANDBY_DELAY</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">LONG_WAIT_IPL</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">HOST_REBOOT_DELAY</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">WEB_UPDATE_DELAY</span> <span class="o">=</span> <span class="mi">600</span>
+    <span class="n">WEB_DRIVER_WAIT</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">OCC_RESET_RELOAD_COUNT</span> <span class="o">=</span> <span class="mi">15</span>
+    <span class="n">OCC_ENABLE_WAIT</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">OS_TELNET_WAIT</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">CHECKSTOP_ERROR_DELAY</span> <span class="o">=</span> <span class="mi">150</span>
+    <span class="n">SYSTEM_STANDBY_STATE_DELAY</span> <span class="o">=</span> <span class="mi">120</span>
+    <span class="n">PETITBOOT_TIMEOUT</span> <span class="o">=</span> <span class="mi">1500</span>
+    <span class="n">HTTP_RETRY</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="n">PING_RETRY_POWERCYCLE</span> <span class="o">=</span> <span class="mi">7</span>
+    <span class="n">PING_RETRY_FOR_STABILITY</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">CMD_RETRY_BMC</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="c1"># RETURN MESSAGES</span>
+    <span class="n">BMC_PASS_COLD_RESET</span> <span class="o">=</span> <span class="s2">&quot;Sent cold reset command to MC&quot;</span>
+    <span class="n">BMC_ERROR_LAN</span> <span class="o">=</span> <span class="s2">&quot;Unable to establish LAN session&quot;</span>
+    <span class="n">HOST_CONNECTION_LOST</span> <span class="o">=</span> <span class="s2">&quot;closed by remote host&quot;</span>
+    <span class="n">ERROR_SELENIUM_HEADLESS</span> <span class="o">=</span> <span class="s2">&quot;Host doesn&#39;t have selenium installed&quot;</span>
+    <span class="n">POWER_ACTIVATE_SUCCESS</span> <span class="o">=</span> <span class="s2">&quot;Power limit successfully activated&quot;</span>
+    <span class="n">POWER_DEACTIVATE_SUCCESS</span> <span class="o">=</span> <span class="s2">&quot;Power limit successfully deactivated&quot;</span>
+    <span class="n">CHASSIS_POWER_ON</span> <span class="o">=</span> <span class="s1">&#39;Chassis Power is on&#39;</span>
+    <span class="n">CHASSIS_POWER_OFF</span> <span class="o">=</span> <span class="s1">&#39;Chassis Power is off&#39;</span>
+    <span class="n">GARD_CLEAR_SUCCESSFUL</span> <span class="o">=</span> <span class="s1">&#39;Clearing the entire gard partition...done&#39;</span>
+    <span class="n">NO_GARD_RECORDS</span> <span class="o">=</span> <span class="s1">&#39;No GARD entries to display&#39;</span>
+    <span class="n">CMD_NOT_FOUND</span> <span class="o">=</span> <span class="s1">&#39;command not found&#39;</span>
+    <span class="n">CHASSIS_POWER_RESET</span> <span class="o">=</span> <span class="s2">&quot;Chassis Power Control: Reset&quot;</span>
+    <span class="n">CHASSIS_SOFT_OFF</span> <span class="o">=</span> <span class="s1">&#39;S5/G2: soft-off&#39;</span>
+    <span class="n">OS_BOOT_COMPLETE</span> <span class="o">=</span> <span class="s1">&#39;boot completed&#39;</span>
+    <span class="n">OCC_DEVICE_ENABLED</span> <span class="o">=</span> <span class="s2">&quot;Device Enabled&quot;</span>
+
+    <span class="c1"># BMC ACTIVE SIDES</span>
+    <span class="n">PRIMARY_SIDE</span> <span class="o">=</span> <span class="s2">&quot;0x0080&quot;</span>
+    <span class="n">GOLDEN_SIDE</span> <span class="o">=</span> <span class="s2">&quot;0x0180&quot;</span>
+
+    <span class="c1"># Framework Constants</span>
+    <span class="n">FW_SUCCESS</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">FW_FAILED</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">FW_INVALID</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">FW_PARAMETER</span> <span class="o">=</span> <span class="mi">4</span>
+
+    <span class="c1"># PingFunc Constants</span>
+    <span class="n">PING_FAILED</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">PING_UNDETERMINED</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">PING_SUCCESS</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="c1"># UPDATE_OPTIONS</span>
+    <span class="n">UPDATE_BMC</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">UPDATE_PNOR</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">UPDATE_BMCANDPNOR</span> <span class="o">=</span> <span class="mi">3</span>
+
+    <span class="c1"># Energy Scale constants</span>
+    <span class="n">ACTIVATE_POWER_LIMIT</span> <span class="o">=</span> <span class="s2">&quot; dcmi power activate &quot;</span>
+    <span class="n">SET_POWER_LIMIT</span> <span class="o">=</span> <span class="s2">&quot; dcmi power set_limit limit &quot;</span>
+    <span class="n">ACTIVATE_POWER_LIMIT_SUCCESS</span> <span class="o">=</span> <span class="s2">&quot;Power limit successfully activated&quot;</span>
+    <span class="n">GET_POWER_LIMIT</span> <span class="o">=</span> <span class="s2">&quot; dcmi power get_limit &quot;</span>
+    <span class="n">DCMI_POWER_DEACTIVATE</span> <span class="o">=</span> <span class="s2">&quot;dcmi power deactivate&quot;</span>
+    <span class="n">DCMI_POWER_ACTIVATE</span> <span class="o">=</span> <span class="s2">&quot;dcmi power activate&quot;</span>
+    <span class="n">OP_CHECK_OCC</span> <span class="o">=</span> <span class="s2">&quot;sdr elist |grep -i &#39;OCC&#39;&quot;</span>
+    <span class="n">OP_CHECK_PROCESSOR</span> <span class="o">=</span> <span class="s2">&quot;sensor list|grep -i proc&quot;</span>
+    <span class="n">OP_CHECK_CPU</span> <span class="o">=</span> <span class="s2">&quot;sensor list|grep -i cpu&quot;</span>
+    <span class="n">OP_CHECK_DIMM</span> <span class="o">=</span> <span class="s2">&quot;sensor list|grep -i dimm&quot;</span>
+    <span class="n">OP_CHECK_FAN</span> <span class="o">=</span> <span class="s2">&quot;sensor list|grep -i fan&quot;</span>
+    <span class="n">OP_CHECK_SENSOR_LIST</span> <span class="o">=</span> <span class="s2">&quot;sensor list&quot;</span>
+    <span class="n">OP_GET_TEMP</span> <span class="o">=</span> <span class="s2">&quot;dcmi get_temp_reading&quot;</span>
+    <span class="n">OP_GET_POWER</span> <span class="o">=</span> <span class="s2">&quot;dcmi power reading&quot;</span>
+
+    <span class="n">POWER_ACTIVATE_SUCCESS</span> <span class="o">=</span> <span class="s2">&quot;Power limit successfully activated&quot;</span>
+    <span class="n">POWER_DEACTIVATE_SUCCESS</span> <span class="o">=</span> <span class="s2">&quot;Power limit successfully deactivated&quot;</span>
+
+    <span class="c1"># CPU states</span>
+    <span class="n">CPU_ENABLE_STATE</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+    <span class="n">CPU_DISABLE_STATE</span> <span class="o">=</span> <span class="s1">&#39;1&#39;</span>
+
+    <span class="n">CPU_IDLEMODE_STATE1</span> <span class="o">=</span> <span class="s1">&#39;/sys/devices/system/cpu/cpu*/cpuidle/state1/disable&#39;</span>
+    <span class="n">CPU_IDLEMODE_STATE2</span> <span class="o">=</span> <span class="s1">&#39;/sys/devices/system/cpu/cpu*/cpuidle/state2/disable&#39;</span>
+
+    <span class="c1"># SCP functionality constants</span>
+    <span class="n">SCP_TO_REMOTE</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">SCP_TO_LOCAL</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="c1"># Constants related to ipmi console interfaces</span>
+    <span class="n">IPMI_SOL_ACTIVATE_TIME</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">IPMI_SOL_DEACTIVATE_TIME</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="n">IPMI_SOL_CONSOLE_ACTIVATE_OUTPUT</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[SOL Session operational.  Use ~? for help]</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">,</span>
+                                        <span class="s2">&quot;Error: Unable to establish IPMI v2 / RMCP+ session&quot;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">]</span>
+    <span class="n">IPMI_CONSOLE_EXPECT_ENTER_OUTPUT</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;login: &quot;</span><span class="p">,</span> <span class="s2">&quot;#&quot;</span><span class="p">,</span> <span class="s2">&quot;/ #&quot;</span><span class="p">,</span> <span class="s2">&quot;Petitboot&quot;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">,</span> <span class="s2">&quot;$&quot;</span><span class="p">]</span>
+    <span class="n">IPMI_CONSOLE_EXPECT_LOGIN</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">IPMI_CONSOLE_EXPECT_PASSWORD</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">IPMI_CONSOLE_EXPECT_PETITBOOT</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="n">IPMI_CONSOLE_EXPECT_RANDOM_STATE</span> <span class="o">=</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+
+    <span class="c1"># HMI Test case constants</span>
+    <span class="n">HMI_PROC_RECV_DONE</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">HMI_PROC_RECV_ERROR_MASKED</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">HMI_MALFUNCTION_ALERT</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">HMI_HYPERVISOR_RESOURCE_ERROR</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">HMI_TEST_CASE_SLEEP_TIME</span> <span class="o">=</span> <span class="mi">30</span>
+
+    <span class="c1"># Timer facility constants</span>
+    <span class="n">TOD_ERROR_REG</span> <span class="o">=</span> <span class="mi">40031</span>
+    <span class="n">TOD_ERRORS</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="c1"># PSS Hamming Distance</span>
+    <span class="n">PSS_HAMMING_DISTANCE</span> <span class="o">=</span> <span class="s2">&quot;0000200000000000&quot;</span>
+    <span class="c1"># internal path: delay, step check components: parity error</span>
+    <span class="n">INTERNAL_PATH_OR_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0000020000000000&quot;</span>
+    <span class="c1"># internal path: delay, step check components: parity error</span>
+    <span class="c1"># TOD Reg 0x10 data parity error</span>
+    <span class="n">TOD_DATA_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0000000080000000&quot;</span>
+    <span class="c1"># TOD Sync Check error</span>
+    <span class="n">TOD_SYNC_CHECK_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0000000040000000&quot;</span>
+    <span class="c1"># FSM state parity error</span>
+    <span class="n">FSM_STATE_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0000000020000000&quot;</span>
+    <span class="c1"># Master path control register (0x00): data parity error</span>
+    <span class="n">MASTER_PATH_CONTROL_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;8000000000000000&quot;</span>
+    <span class="c1"># port-0 primary configuration register (0x01): data parity error</span>
+    <span class="n">PORT_0_PRIMARY_CONFIGURATION_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;1000000000000000&quot;</span>
+    <span class="c1"># port-1 primary configuration register (0x02): data parity error</span>
+    <span class="n">PORT_1_PRIMARY_CONFIGURATION_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0800000000000000&quot;</span>
+    <span class="c1"># port-0 secondary configuration register (0x03): data parity error</span>
+    <span class="n">PORT_0_SECONDARY_CONFIGURATION_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0400000000000000&quot;</span>
+    <span class="c1"># port-1 secondary configuration register (0x04): data parity error</span>
+    <span class="n">PORT_1_SECONDARY_CONFIGURATION_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0200000000000000&quot;</span>
+    <span class="c1"># slave path control register (0x05): data parity error</span>
+    <span class="n">SLAVE_PATH_CONTROL_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0100000000000000&quot;</span>
+    <span class="c1"># internal path control register (0x06): data parity error</span>
+    <span class="n">INTERNAL_PATH_CONTROL_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0080000000000000&quot;</span>
+    <span class="c1"># primary/secondary master/slave control register(0x07); data parity error</span>
+    <span class="n">PR_SC_MS_SL_CONTROL_REGISTER</span> <span class="o">=</span> <span class="s2">&quot;0040000000000000&quot;</span>
+    <span class="n">TFMR_ERRORS</span> <span class="o">=</span> <span class="mi">6</span>
+    <span class="n">TB_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0003080000000000&quot;</span>
+    <span class="n">TFMR_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0001080000000000&quot;</span>
+    <span class="n">TFMR_HDEC_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0002080000000000&quot;</span>
+    <span class="n">TFMR_DEC_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0006080000000000&quot;</span>
+    <span class="n">TFMR_PURR_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0004080000000000&quot;</span>
+    <span class="n">TFMR_SPURR_PARITY_ERROR</span> <span class="o">=</span> <span class="s2">&quot;0005080000000000&quot;</span>
+
+    <span class="c1"># CPU sleep states constants</span>
+    <span class="n">GET_CPU_SLEEP_STATE2</span> <span class="o">=</span> <span class="s2">&quot;cat /sys/devices/system/cpu/cpu*/cpuidle/state2/disable&quot;</span>
+    <span class="n">GET_CPU_SLEEP_STATE1</span> <span class="o">=</span> <span class="s2">&quot;cat /sys/devices/system/cpu/cpu*/cpuidle/state1/disable&quot;</span>
+    <span class="n">GET_CPU_SLEEP_STATE0</span> <span class="o">=</span> <span class="s2">&quot;cat /sys/devices/system/cpu/cpu*/cpuidle/state0/disable&quot;</span>
+
+    <span class="n">DISABLE_CPU_SLEEP_STATE1</span> <span class="o">=</span> <span class="s2">&quot;for i in /sys/devices/system/cpu/cpu*/cpuidle/state1/disable; do echo 1 &gt; $i; done&quot;</span>
+    <span class="n">DISABLE_CPU_SLEEP_STATE2</span> <span class="o">=</span> <span class="s2">&quot;for i in /sys/devices/system/cpu/cpu*/cpuidle/state2/disable; do echo 1 &gt; $i; done&quot;</span>
+
+    <span class="c1"># PBAFIR_OCI_APAR_ERR: OCI Address Parity Error Det Address parity</span>
+    <span class="c1"># error detected by PBA OCI Slave logic for any valid address.</span>
+    <span class="n">FAULT_ISOLATION_REGISTER_CONTENT</span> <span class="o">=</span> <span class="s2">&quot;0000000000000000&quot;</span>
+
+    <span class="c1"># Tools, repository and utility paths</span>
+    <span class="n">CLONE_SKIBOOT_DIR</span> <span class="o">=</span> <span class="s2">&quot;/tmp/skiboot&quot;</span>
+    <span class="n">PFLASH_TOOL_DIR</span> <span class="o">=</span> <span class="s2">&quot;/tmp/&quot;</span>
+    <span class="n">GARD_TOOL_DIR</span> <span class="o">=</span> <span class="s2">&quot;/tmp/skiboot/external/gard&quot;</span>
+    <span class="n">SKIBOOT_WORKING_DIR</span> <span class="o">=</span> <span class="s2">&quot;/root/skiboot&quot;</span>
+
+    <span class="c1"># IPMI commands</span>
+    <span class="n">IPMITOOL_USB</span> <span class="o">=</span> <span class="s2">&quot;ipmitool -I usb &quot;</span>
+    <span class="n">IPMITOOL_OPEN</span> <span class="o">=</span> <span class="s2">&quot;ipmitool &quot;</span>
+    <span class="c1"># IPMI White listed commands</span>
+    <span class="n">HOST_GET_DEVICE_ID</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x01&quot;</span>
+    <span class="n">HOST_GET_DEVICE_GUID</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x08&quot;</span>
+    <span class="n">HOST_GET_SYSTEM_GUID</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x37&quot;</span>
+    <span class="n">HOST_RESET_WATCHDOG</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x22&quot;</span>
+    <span class="n">HOST_GET_SEL_INFO</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x0a 0x40&quot;</span>
+    <span class="n">HOST_GET_SEL_TIME_RAW</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x0a 0x48&quot;</span>
+    <span class="n">HOST_GET_LAN_PARAMETERS</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x0c 0x02 0x01 0x00 0x00 0x00&quot;</span>
+    <span class="n">HOST_GET_SYSTEM_BOOT_OPTIONS</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x00 0x09 0x05 0x00 0x00&quot;</span>
+    <span class="n">HOST_SET_SYTEM_BOOT_OPTIONS</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x00 0x08 0x05&quot;</span>
+    <span class="n">HOST_RESERVE_SEL</span> <span class="o">=</span> <span class="s2">&quot;ipmitool  raw 0x0a 0x42&quot;</span>
+    <span class="n">HOST_GET_SEL_TIME</span> <span class="o">=</span> <span class="s2">&quot;ipmitool sel time get&quot;</span>
+    <span class="n">HOST_SET_SEL_TIME</span> <span class="o">=</span> <span class="s2">&quot;ipmitool sel time set&quot;</span>
+    <span class="n">HOST_GET_BMC_GLOBAL_ENABLES</span> <span class="o">=</span> <span class="s2">&quot;ipmitool mc getenables&quot;</span>
+    <span class="n">HOST_GET_BMC_GLOBAL_ENABLES_RAW</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x2f&quot;</span>
+    <span class="n">HOST_SET_BMC_GLOBAL_ENABLES_SEL_OFF</span> <span class="o">=</span> <span class="s2">&quot;ipmitool mc setenables system_event_log=off&quot;</span>
+    <span class="n">HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON</span> <span class="o">=</span> <span class="s2">&quot;ipmitool mc setenables system_event_log=on&quot;</span>
+    <span class="n">HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x57 0x00&quot;</span>
+    <span class="n">HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x57 0x01&quot;</span>
+    <span class="n">HOST_GET_MESSAGE_FLAGS</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x31&quot;</span>
+    <span class="n">HOST_GET_BT_CAPABILITIES</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x36&quot;</span>
+    <span class="n">HOST_CLEAR_MESSAGE_FLAGS</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x30 0xeb&quot;</span>
+    <span class="n">HOST_PNOR_ACCESS_STATUS_DENY</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x3a 0x07 0x00&quot;</span>
+    <span class="n">HOST_PNOR_ACCESS_STATUS_GRANT</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x3a 0x07 0x01&quot;</span>
+    <span class="n">HOST_PNOR_ACCESS_RESPONSE</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x3a 0x08&quot;</span>
+    <span class="n">HOST_ADD_SEL_ENTRY</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x0a 0x44 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00&quot;</span>
+    <span class="n">HOST_SET_ACPI_POWER_STATE</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x06 0xaa 0x00&quot;</span>
+    <span class="n">HOST_GET_ACPI_POWER_STATE</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x07&quot;</span>
+    <span class="n">HOST_SET_WATCHDOG</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x24 0x44 0x00 0x00 0x10 0xc8 0x00&quot;</span>
+    <span class="n">HOST_GET_SENSOR_TYPE_FOR_WATCHDOG</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x04 0x2f&quot;</span>
+    <span class="n">HOST_GET_SENSOR_READING</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x04 0x2d&quot;</span>
+    <span class="n">HOST_PLATFORM_EVENT</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x04 0x02 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00&quot;</span>
+    <span class="n">HOST_CHASSIS_POWER_ON</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x00 0x02 0x01&quot;</span>
+    <span class="n">HOST_GET_CHANNEL_AUTH_CAP</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x06 0x38 0x81 0x04&quot;</span>
+    <span class="n">HOST_IPMI_REPROVISION_REQUEST</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x3A 0x1C&quot;</span>
+    <span class="n">HOST_IPMI_REPROVISION_PROGRESS</span> <span class="o">=</span> <span class="s2">&quot;ipmitool raw 0x3A 0x1D&quot;</span>
+
+    <span class="c1"># Kernel Config Options</span>
+    <span class="n">CONFIG_IPMI_DEVICE_INTERFACE</span> <span class="o">=</span> <span class="s2">&quot;CONFIG_IPMI_DEVICE_INTERFACE&quot;</span>
+    <span class="n">CONFIG_IPMI_POWERNV</span> <span class="o">=</span> <span class="s2">&quot;CONFIG_IPMI_POWERNV&quot;</span>
+    <span class="n">CONFIG_IPMI_HANDLER</span> <span class="o">=</span> <span class="s2">&quot;CONFIG_IPMI_HANDLER&quot;</span>
+
+    <span class="c1"># Module Names</span>
+    <span class="n">IPMI_DEV_INTF</span> <span class="o">=</span> <span class="s2">&quot;ipmi_devintf&quot;</span>
+    <span class="n">IPMI_POWERNV</span> <span class="o">=</span> <span class="s2">&quot;ipmi_powernv&quot;</span>
+    <span class="n">IPMI_MSG_HANDLER</span> <span class="o">=</span> <span class="s2">&quot;ipmi_msghandler&quot;</span>
+
+    <span class="c1"># OOB IPMI commands</span>
+    <span class="n">IPMI_CHASSIS_POH</span> <span class="o">=</span> <span class="s2">&quot;chassis poh&quot;</span>
+    <span class="n">IPMI_CHASSIS_STATUS</span> <span class="o">=</span> <span class="s2">&quot;chassis status&quot;</span>
+    <span class="n">IPMI_CHASSIS_RESTART_CAUSE</span> <span class="o">=</span> <span class="s2">&quot;chassis restart_cause&quot;</span>
+    <span class="n">IPMI_CHASSIS_POLICY_LIST</span> <span class="o">=</span> <span class="s2">&quot;chassis policy list&quot;</span>
+    <span class="n">IPMI_CHASSIS_POLICY_ALWAYS_ON</span> <span class="o">=</span> <span class="s2">&quot;chassis policy always-on&quot;</span>
+    <span class="n">IPMI_CHASSIS_POLICY_ALWAYS_OFF</span> <span class="o">=</span> <span class="s2">&quot;chassis policy always-off&quot;</span>
+    <span class="n">IPMI_CHASSIS_IDENTIFY</span> <span class="o">=</span> <span class="s2">&quot;chassis identify&quot;</span>
+    <span class="n">IPMI_CHASSIS_IDENTIFY_5</span> <span class="o">=</span> <span class="s2">&quot;chassis identify 5&quot;</span>
+    <span class="n">IPMI_CHASSIS_IDENTIFY_FORCE</span> <span class="o">=</span> <span class="s2">&quot;chassis identify force&quot;</span>
+    <span class="n">IPMI_CHANNEL_INFO</span> <span class="o">=</span> <span class="s2">&quot;channel info&quot;</span>
+    <span class="n">IPMI_MC_INFO</span> <span class="o">=</span> <span class="s2">&quot;mc info&quot;</span>
+    <span class="n">IPMI_SEL_INFO</span> <span class="o">=</span> <span class="s2">&quot;sel info&quot;</span>
+    <span class="n">IPMI_SDR_INFO</span> <span class="o">=</span> <span class="s2">&quot;sdr info&quot;</span>
+    <span class="n">IPMI_SDR_LIST</span> <span class="o">=</span> <span class="s2">&quot;sdr list&quot;</span>
+    <span class="n">IPMI_SDR_LIST_ALL</span> <span class="o">=</span> <span class="s2">&quot;sdr list all&quot;</span>
+    <span class="n">IPMI_SDR_LIST_FRU</span> <span class="o">=</span> <span class="s2">&quot;sdr list fru&quot;</span>
+    <span class="n">IPMI_SDR_LIST_EVENT</span> <span class="o">=</span> <span class="s2">&quot;sdr list event&quot;</span>
+    <span class="n">IPMI_SDR_LIST_MCLOC</span> <span class="o">=</span> <span class="s2">&quot;sdr list mcloc&quot;</span>
+    <span class="n">IPMI_SDR_LIST_COMPACT</span> <span class="o">=</span> <span class="s2">&quot;sdr list compact&quot;</span>
+    <span class="n">IPMI_SDR_LIST_FULL</span> <span class="o">=</span> <span class="s2">&quot;sdr list full&quot;</span>
+    <span class="n">IPMI_SDR_LIST_GENERIC</span> <span class="o">=</span> <span class="s2">&quot;sdr list generic&quot;</span>
+    <span class="n">IPMI_SDR_ELIST</span> <span class="o">=</span> <span class="s2">&quot;sdr elist&quot;</span>
+    <span class="n">IPMI_SDR_ELIST_ALL</span> <span class="o">=</span> <span class="s2">&quot;sdr elist all&quot;</span>
+    <span class="n">IPMI_SDR_ELIST_FRU</span> <span class="o">=</span> <span class="s2">&quot;sdr elist fru&quot;</span>
+    <span class="n">IPMI_SDR_ELIST_EVENT</span> <span class="o">=</span> <span class="s2">&quot;sdr elist event&quot;</span>
+    <span class="n">IPMI_SDR_ELIST_MCLOC</span> <span class="o">=</span> <span class="s2">&quot;sdr elist mcloc&quot;</span>
+    <span class="n">IPMI_SDR_ELIST_COMPACT</span> <span class="o">=</span> <span class="s2">&quot;sdr elist compact&quot;</span>
+    <span class="n">IPMI_SDR_ELIST_FULL</span> <span class="o">=</span> <span class="s2">&quot;sdr elist full&quot;</span>
+    <span class="n">IPMI_SDR_ELIST_GENERIC</span> <span class="o">=</span> <span class="s2">&quot;sdr elist generic&quot;</span>
+    <span class="n">IPMI_FRU_PRINT</span> <span class="o">=</span> <span class="s2">&quot;fru print&quot;</span>
+    <span class="n">IPMI_SDR_TYPE_LIST</span> <span class="o">=</span> <span class="s2">&quot;sdr type list&quot;</span>
+    <span class="n">IPMI_SDR_TYPE_TEMPERATURE</span> <span class="o">=</span> <span class="s2">&quot;sdr type Temperature&quot;</span>
+    <span class="n">IPMI_SDR_TYPE_FAN</span> <span class="o">=</span> <span class="s2">&quot;sdr type Fan&quot;</span>
+    <span class="n">IPMI_SDR_TYPE_POWER_SUPPLY</span> <span class="o">=</span> <span class="s2">&quot;sdr type &#39;Power Supply&#39;&quot;</span>
+    <span class="n">IPMI_FRU_READ</span> <span class="o">=</span> <span class="s2">&quot;fru read 0 file_fru&quot;</span>
+    <span class="n">IPMI_CHASSIS_STATUS</span> <span class="o">=</span> <span class="s2">&quot;chassis status&quot;</span>
+    <span class="n">IPMI_SENSOR_LIST</span> <span class="o">=</span> <span class="s2">&quot;sensor list&quot;</span>
+    <span class="n">IPMI_MC_WATCHDOG_GET</span> <span class="o">=</span> <span class="s2">&quot;mc watchdog get&quot;</span>
+    <span class="n">IPMI_MC_WATCHDOG_OFF</span> <span class="o">=</span> <span class="s2">&quot;mc watchdog off&quot;</span>
+    <span class="n">IPMI_MC_WATCHDOG_RESET</span> <span class="o">=</span> <span class="s2">&quot;mc watchdog reset&quot;</span>
+    <span class="n">IPMI_MC_SELFTEST</span> <span class="o">=</span> <span class="s2">&quot;mc selftest&quot;</span>
+    <span class="n">IPMI_MC_GETENABLES</span> <span class="o">=</span> <span class="s2">&quot;mc getenables&quot;</span>
+    <span class="n">IPMI_MC_SETENABLES_OEM_0_ON</span> <span class="o">=</span> <span class="s2">&quot;mc setenables oem_0=on&quot;</span>
+    <span class="n">IPMI_MC_SETENABLES_OEM_0_OFF</span> <span class="o">=</span> <span class="s2">&quot;mc setenables oem_0=off&quot;</span>
+    <span class="n">IPMI_MC_GUID</span> <span class="o">=</span> <span class="s2">&quot;mc guid&quot;</span>
+    <span class="n">IPMI_MC_GETSYS_INFO</span> <span class="o">=</span> <span class="s2">&quot; mc getsysinfo system_name&quot;</span>
+    <span class="n">IPMI_LAN_PRINT</span> <span class="o">=</span> <span class="s2">&quot;lan print&quot;</span>
+    <span class="n">IPMI_LAN_STATS_GET</span> <span class="o">=</span> <span class="s2">&quot;lan stats get&quot;</span>
+    <span class="n">IPMI_SEL_INFO</span> <span class="o">=</span> <span class="s2">&quot;sel info&quot;</span>
+    <span class="n">IPMI_SEL_LIST</span> <span class="o">=</span> <span class="s2">&quot;sel list&quot;</span>
+    <span class="n">IPMI_SEL_LIST_ENTRIES</span> <span class="o">=</span> <span class="s2">&quot;3&quot;</span>
+    <span class="n">IPMI_SEL_ELIST</span> <span class="o">=</span> <span class="s2">&quot;sel elist&quot;</span>
+    <span class="n">IPMI_SEL_TIME_GET</span> <span class="o">=</span> <span class="s2">&quot;sel time get&quot;</span>
+    <span class="n">IPMI_SEL_CLEAR</span> <span class="o">=</span> <span class="s2">&quot;sel clear&quot;</span>
+    <span class="n">IPMI_CHANNEL_AUTHCAP</span> <span class="o">=</span> <span class="s2">&quot;channel authcap 1 4&quot;</span>
+    <span class="n">IPMI_DCMI_DISCOVER</span> <span class="o">=</span> <span class="s2">&quot;dcmi discover&quot;</span>
+    <span class="n">IPMI_DCMI_POWER_READING</span> <span class="o">=</span> <span class="s2">&quot;dcmi power reading&quot;</span>
+    <span class="n">IPMI_DCMI_POWER_GET_LIMIT</span> <span class="o">=</span> <span class="s2">&quot;dcmi power get_limit&quot;</span>
+    <span class="n">IPMI_DCMI_SENSORS</span> <span class="o">=</span> <span class="s2">&quot;dcmi sensors&quot;</span>
+    <span class="n">IPMI_DCMI_GET_MC_ID_STRING</span> <span class="o">=</span> <span class="s2">&quot;dcmi get_mc_id_string&quot;</span>
+    <span class="n">IPMI_DCMI_GET_TEMP_READING</span> <span class="o">=</span> <span class="s2">&quot;dcmi get_temp_reading&quot;</span>
+    <span class="n">IPMI_DCMI_GET_CONF_PARAM</span> <span class="o">=</span> <span class="s2">&quot;dcmi get_conf_param&quot;</span>
+    <span class="n">IPMI_DCMI_OOB_DISCOVER</span> <span class="o">=</span> <span class="s2">&quot;dcmi oob_discover&quot;</span>
+    <span class="n">IPMI_ECHO_DONE</span> <span class="o">=</span> <span class="s2">&quot;echo Done&quot;</span>
+    <span class="n">IPMI_EVENT_1</span> <span class="o">=</span> <span class="s2">&quot;event 1&quot;</span>
+    <span class="n">IPMI_EVENT_2</span> <span class="o">=</span> <span class="s2">&quot;event 2&quot;</span>
+    <span class="n">IPMI_EVENT_3</span> <span class="o">=</span> <span class="s2">&quot;event 3&quot;</span>
+    <span class="n">IPMI_FIREWALL_INFO</span> <span class="o">=</span> <span class="s2">&quot;firewall info channel 1 lun 0&quot;</span>
+    <span class="n">IPMI_PEF_INFO</span> <span class="o">=</span> <span class="s2">&quot;pef info&quot;</span>
+    <span class="n">IPMI_PEF_STATUS</span> <span class="o">=</span> <span class="s2">&quot;pef status&quot;</span>
+    <span class="n">IPMI_PEF_POLICY</span> <span class="o">=</span> <span class="s2">&quot;pef policy help&quot;</span>
+    <span class="n">IPMI_PEF_LIST</span> <span class="o">=</span> <span class="s2">&quot;pef policy list&quot;</span>
+    <span class="n">IPMI_RAW_POH</span> <span class="o">=</span> <span class="s2">&quot;-v raw 0x0 0xf&quot;</span>
+    <span class="n">IPMI_SDR_GET</span> <span class="o">=</span> <span class="s2">&quot;sdr get &quot;</span>
+
+    <span class="c1"># Power Architecture Specific IPMI Commands</span>
+    <span class="n">IPMI_GET_BMC_GOLDEN_SIDE_VERSION</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x1a&quot;</span>
+    <span class="n">IPMI_GET_NVRAM_PARTITION_SIZE</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x0c 0x4e 0x56 0x52 0x41 0x4d 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x0 0x0 0x0&quot;</span>
+    <span class="n">IPMI_GET_GUARD_PARTITION_SIZE</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x0c 0x47 0x55 0x41 0x52 0x44 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x0 0x0 0x0&quot;</span>
+    <span class="n">IPMI_GET_BOOTKERNEL_PARTITION_SIZE</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x0c 0x42 0x4f 0x4f 0x54 0x4b 0x45 0x52 0x4e 0x45 0x4c 0x00 0x00 0x00 0x00 0x0 0x0 0x0&quot;</span>
+    <span class="n">IPMI_READ_NVRAM_PARTITION_DATA</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x0b 0x4e 0x56 0x52 0x41 0x4d 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00&quot;</span>
+    <span class="n">IPMI_READ_FIRDATA_PARTITION_DATA</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x0b 0x46 0x49 0x52 0x44 0x41 0x54 0x41 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00&quot;</span>
+    <span class="n">IPMI_HAS_BMC_BOOT_COMPLETED</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x0a&quot;</span>
+    <span class="n">IPMI_GET_LED_STATE_FAULT_ROLLUP</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x02 0x00&quot;</span>
+    <span class="n">IPMI_GET_LED_STATE_POWER_ON</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x02 0x01&quot;</span>
+    <span class="n">IPMI_GET_LED_STATE_HOST_STATUS</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x02 0x02&quot;</span>
+    <span class="n">IPMI_GET_LED_STATE_CHASSIS_IDENTIFY</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x02 0x03&quot;</span>
+    <span class="n">IPMI_ENABLE_FAN_CONTROL_TASK_THREAD</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x12 0x01&quot;</span>
+    <span class="n">IPMI_DISABLE_FAN_CONTROL_TASK_THREAD</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x12 0x00&quot;</span>
+    <span class="n">IPMI_FAN_CONTROL_TASK_THREAD_STATE</span> <span class="o">=</span> <span class="s2">&quot;raw 0x3a 0x13&quot;</span>
+    <span class="n">IPMI_FAN_CONTROL_THREAD_RUNNING</span> <span class="o">=</span> <span class="s2">&quot;01&quot;</span>
+    <span class="n">IPMI_FAN_CONTROL_THREAD_NOT_RUNNING</span> <span class="o">=</span> <span class="s2">&quot;00&quot;</span>
+    <span class="n">PNOR_NVRAM_PART</span> <span class="o">=</span> <span class="s2">&quot;NVRAM&quot;</span>
+    <span class="n">PNOR_GUARD_PART</span> <span class="o">=</span> <span class="s2">&quot;GUARD&quot;</span>
+    <span class="n">PNOR_BOOTKERNEL_PART</span> <span class="o">=</span> <span class="s2">&quot;BOOTKERNEL&quot;</span>
+
+    <span class="c1"># Sensor names</span>
+    <span class="n">SENSOR_HOST_STATUS</span> <span class="o">=</span> <span class="s2">&quot;Host Status&quot;</span>
+    <span class="n">SENSOR_OS_BOOT</span> <span class="o">=</span> <span class="s2">&quot;OS Boot&quot;</span>
+    <span class="n">SENSOR_OCC_ACTIVE</span> <span class="o">=</span> <span class="s2">&quot;OCC Active&quot;</span>
+
+    <span class="n">OPAL_ELOG_DIR</span> <span class="o">=</span> <span class="s2">&quot;/var/log/opal-elog&quot;</span>
+    <span class="n">OPAL_DUMP_DIR</span> <span class="o">=</span> <span class="s2">&quot;/var/log/dump/&quot;</span>
+    <span class="n">OPAL_ELOG_SYSFS_DIR</span> <span class="o">=</span> <span class="s2">&quot;/sys/firmware/opal/elog&quot;</span>
+    <span class="n">OPAL_DUMP_SYSFS_DIR</span> <span class="o">=</span> <span class="s2">&quot;/sys/firmware/opal/dump&quot;</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,583 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.DeviceTreeValidation &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.DeviceTreeValidation</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># DeviceTreeValidation</span>
+<span class="c1"># In this testcase we can validate different DT nodes and properties</span>
+<span class="c1"># of different OPAL subcomponents. And also we can validate the DT</span>
+<span class="c1"># of skiroot against host.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">DeviceTreeValidation</span>
+<span class="sd">--------------------</span>
+
+<span class="sd">Check a bunch of device tree properties and structure for validity,</span>
+<span class="sd">and compare device tree in host and skiroot environments.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">difflib</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+<span class="kn">from</span> <span class="nn">common.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">import</span> <span class="nn">common.OpTestQemu</span> <span class="k">as</span> <span class="nn">OpTestQemu</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">MAX_PSTATES</span> <span class="o">=</span> <span class="mi">256</span>
+<span class="n">CPUIDLE_STATE_MAX</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="c1"># We use some globals to keep state between IPLs</span>
+<span class="c1"># Which means we can save an IPL in running full test suite</span>
+<span class="n">prop_val_pair_skiroot</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">prop_val_pair_host</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<div class="viewcode-block" id="DeviceTreeValidation"><a class="viewcode-back" href="../../tests.html#testcases.DeviceTreeValidation.DeviceTreeValidation">[docs]</a><span class="k">class</span> <span class="nc">DeviceTreeValidation</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="n">DO_FULL_TEST</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="DeviceTreeValidation.setUp"><a class="viewcode-back" href="../../tests.html#testcases.DeviceTreeValidation.DeviceTreeValidation.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">node</span> <span class="o">=</span> <span class="s2">&quot;/proc/device-tree/ibm,opal/&quot;</span></div>
+
+    <span class="c1"># Checks for monotonocity/strictly increase/decrease of values</span>
+    <span class="k">def</span> <span class="nf">strictly_increasing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">L</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+    <span class="k">def</span> <span class="nf">strictly_decreasing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">L</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+    <span class="k">def</span> <span class="nf">non_increasing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">L</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+    <span class="k">def</span> <span class="nf">non_decreasing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">L</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;=</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+    <span class="c1"># two&#39;s complement of integers</span>
+<div class="viewcode-block" id="DeviceTreeValidation.twos_comp"><a class="viewcode-back" href="../../tests.html#testcases.DeviceTreeValidation.DeviceTreeValidation.twos_comp">[docs]</a>    <span class="k">def</span> <span class="nf">twos_comp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">bits</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;compute the 2&#39;s complement of int value val&quot;&quot;&quot;</span>
+        <span class="c1"># if sign bit is set e.g., 8bit: 128-255</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">val</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">bits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># compute negative value</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">val</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">bits</span><span class="p">)</span>
+        <span class="c1"># return positive value as is</span>
+        <span class="k">return</span> <span class="n">val</span></div>
+
+    <span class="c1"># 32 bit BE to LE Conversion</span>
+    <span class="k">def</span> <span class="nf">swap32</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s2">&quot;&lt;I&quot;</span><span class="p">,</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">&quot;&gt;I&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># 64 bit BE to LE Conversion</span>
+    <span class="k">def</span> <span class="nf">swap64</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s2">&quot;&lt;Q&quot;</span><span class="p">,</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s2">&quot;&gt;Q&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">dt_prop_read_str_arr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prop</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lsprop /proc/device-tree/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">prop</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;bytes total&quot;</span> <span class="ow">in</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">):</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;\(.*\)&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+            <span class="nb">list</span> <span class="o">=</span> <span class="nb">list</span> <span class="o">+</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t\r\n</span><span class="s2"> &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">list</span>
+
+    <span class="k">def</span> <span class="nf">dt_prop_read_u32_arr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prop</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hexdump -v -e </span><span class="se">\&#39;</span><span class="s2">1/4 </span><span class="se">\&quot;</span><span class="si">%%</span><span class="s2">08x</span><span class="se">\&quot;</span><span class="s2"> </span><span class="se">\&quot;\\</span><span class="s2">n</span><span class="se">\&quot;\&#39;</span><span class="s2">  &quot;</span>
+                                 <span class="s2">&quot;/proc/device-tree/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">prop</span><span class="p">)</span>
+        <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{:08x}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">swap32</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="mi">16</span><span class="p">))))</span>
+            <span class="nb">list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">list</span>
+
+    <span class="k">def</span> <span class="nf">dt_prop_read_u64_arr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prop</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hexdump -v -e </span><span class="se">\&#39;</span><span class="s2">2/4 </span><span class="se">\&quot;</span><span class="si">%%</span><span class="s2">08x</span><span class="se">\&quot;</span><span class="s2"> </span><span class="se">\&quot;\\</span><span class="s2">n</span><span class="se">\&quot;\&#39;</span><span class="s2">  &quot;</span>
+                                 <span class="s2">&quot;/proc/device-tree/</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">prop</span><span class="p">)</span>
+        <span class="nb">list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{:016x}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">swap64</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="mi">16</span><span class="p">))))</span>
+            <span class="nb">list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">list</span>
+
+    <span class="k">def</span> <span class="nf">validate_idle_state_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">idle_state_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_str_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-names&quot;</span><span class="p">)</span>
+        <span class="n">idle_state_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-flags&quot;</span><span class="p">)</span>
+        <span class="n">idle_state_latencies_ns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-latencies-ns&quot;</span><span class="p">)</span>
+        <span class="n">idle_state_residency_ns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-residency-ns&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">has_stop_inst</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">control_prop</span> <span class="o">=</span> <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-pmicr&quot;</span>
+            <span class="n">mask_prop</span> <span class="o">=</span> <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-pmicr-mask&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="n">has_stop_inst</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">control_prop</span> <span class="o">=</span> <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-psscr&quot;</span>
+            <span class="n">mask_prop</span> <span class="o">=</span> <span class="s2">&quot;ibm,opal/power-mgt/ibm,cpu-idle-state-psscr-mask&quot;</span>
+        <span class="n">idle_states_control_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u64_arr</span><span class="p">(</span><span class="n">control_prop</span><span class="p">)</span>
+        <span class="n">idle_states_mask_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u64_arr</span><span class="p">(</span><span class="n">mask_prop</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">               List of idle states: </span><span class="si">%s</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">               Idle state flags: </span><span class="si">%s</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">               Idle state latencies ns: </span><span class="si">%s</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">               Idle state residency ns: </span><span class="si">%s</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">               Idle state control property: </span><span class="si">%s</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">               Idle state mask property: </span><span class="si">%s</span><span class="se">\n</span><span class="s2"> &quot;</span> <span class="o">%</span>
+                  <span class="p">(</span><span class="n">idle_state_names</span><span class="p">,</span> <span class="n">idle_state_flags</span><span class="p">,</span> <span class="n">idle_state_latencies_ns</span><span class="p">,</span>
+                   <span class="n">idle_state_residency_ns</span><span class="p">,</span> <span class="n">idle_states_control_array</span><span class="p">,</span>
+                   <span class="n">idle_states_mask_array</span><span class="p">))</span>
+
+        <span class="c1"># Validate ibm,cpu-idle-state-flags property</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idle_state_flags</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                           <span class="s2">&quot;No idle states found in DT&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="n">CPUIDLE_STATE_MAX</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">idle_state_flags</span><span class="p">),</span>
+                           <span class="s2">&quot;More idle states found in DT than the expected&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Validate names, latencies and residency properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idle_state_flags</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">idle_state_names</span><span class="p">),</span>
+                         <span class="s2">&quot;Array size mismatch&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idle_state_flags</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">idle_state_latencies_ns</span><span class="p">),</span>
+                         <span class="s2">&quot;Array size mismatch&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idle_state_flags</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">idle_state_residency_ns</span><span class="p">),</span>
+                         <span class="s2">&quot;Array size mismatch&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idle_state_flags</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">idle_states_control_array</span><span class="p">),</span>
+                         <span class="s2">&quot;Array size mismatch&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">idle_state_flags</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">idle_states_mask_array</span><span class="p">),</span>
+                         <span class="s2">&quot;Array size mismatch&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Validate residency and latency counters are in increasing order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">strictly_increasing</span><span class="p">(</span><span class="n">idle_state_residency_ns</span><span class="p">),</span>
+                        <span class="s2">&quot;Non monotonicity observed for residency values&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">strictly_increasing</span><span class="p">(</span><span class="n">idle_state_latencies_ns</span><span class="p">),</span>
+                        <span class="s2">&quot;Non monotonicity observed for latency values&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">non_decreasing</span><span class="p">(</span><span class="n">idle_state_residency_ns</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">non_decreasing</span><span class="p">(</span><span class="n">idle_state_latencies_ns</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">validate_pstate_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pstate_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,pstate-ids&quot;</span><span class="p">)</span>
+        <span class="n">pstate_min</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,pstate-min&quot;</span><span class="p">)</span>
+        <span class="n">pstate_max</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,pstate-max&quot;</span><span class="p">)</span>
+        <span class="n">pstate_nominal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,pstate-nominal&quot;</span><span class="p">)</span>
+        <span class="n">pstate_turbo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,pstate-turbo&quot;</span><span class="p">)</span>
+        <span class="n">pstate_frequencies</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_u32_arr</span><span class="p">(</span>
+            <span class="s2">&quot;ibm,opal/power-mgt/ibm,pstate-frequencies-mhz&quot;</span><span class="p">)</span>
+        <span class="n">nr_pstates</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">twos_comp</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">pstate_max</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">16</span><span class="p">),</span> <span class="mi">32</span><span class="p">)</span> <span class="o">-</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">twos_comp</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">pstate_min</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">16</span><span class="p">),</span> <span class="mi">32</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                List of pstate_ids: </span><span class="si">{}</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                Minimum pstate: </span><span class="si">{}</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                Maximum pstate: </span><span class="si">{}</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                Nominal pstate: </span><span class="si">{}</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                Turbo pstate: </span><span class="si">{}</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                Pstate frequencies: </span><span class="si">{}</span><span class="se">\n</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                Number of pstates: </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pstate_ids</span><span class="p">,</span>
+                                                <span class="n">pstate_min</span><span class="p">,</span>
+                                                <span class="n">pstate_max</span><span class="p">,</span>
+                                                <span class="n">pstate_nominal</span><span class="p">,</span>
+                                                <span class="n">pstate_turbo</span><span class="p">,</span>
+                                                <span class="n">pstate_frequencies</span><span class="p">,</span>
+                                                <span class="n">nr_pstates</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">nr_pstates</span> <span class="o">&lt;=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">nr_pstates</span> <span class="o">&gt;</span> <span class="mi">128</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;pstates range </span><span class="si">{}</span><span class="s2"> is not valid&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">nr_pstates</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;More than 128 pstates found </span><span class="si">{}</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;in pstate table&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nr_pstates</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nr_pstates</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pstate_ids</span><span class="p">),</span>
+                         <span class="s2">&quot;Wrong number of pstates, &quot;</span>
+                         <span class="s2">&quot;Expected </span><span class="si">%s</span><span class="s2">, found </span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nr_pstates</span><span class="p">,</span>
+                                                        <span class="nb">len</span><span class="p">(</span><span class="n">pstate_ids</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">id_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">pstate_ids</span><span class="p">:</span>
+                <span class="n">id_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">twos_comp</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="mi">32</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">strictly_decreasing</span><span class="p">(</span><span class="n">id_list</span><span class="p">),</span>
+                            <span class="s2">&quot;Non monotonocity observed for pstate ids&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">strictly_increasing</span><span class="p">(</span><span class="n">pstate_ids</span><span class="p">),</span>
+                            <span class="s2">&quot;Non monotonocity observed for pstate ids&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">validate_firmware_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">fw_node</span> <span class="o">=</span> <span class="s2">&quot;/proc/device-tree/ibm,firmware-versions/&quot;</span>
+        <span class="c1"># Validate firmware version properties</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;OpenBMC&#39;</span><span class="p">,</span> <span class="s1">&#39;SMC&#39;</span><span class="p">,</span> <span class="s1">&#39;AMI&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                <span class="s2">&quot;ibm,firmware-versions DT node not available on this system&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;ls --color=never </span><span class="si">%s</span><span class="s2">/version&quot;</span> <span class="o">%</span> <span class="n">fw_node</span><span class="p">)</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt_prop_read_str_arr</span><span class="p">(</span>
+                    <span class="s2">&quot;ibm,firmware-versions/version&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">version</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;DT: Firmware version property is empty&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;DT: Firmware version property is missing&quot;</span><span class="p">)</span>
+
+        <span class="n">props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find </span><span class="si">%s</span><span class="s2"> -type f&quot;</span> <span class="o">%</span> <span class="n">fw_node</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">props</span><span class="p">:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lsprop </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">prop</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span>
+                    <span class="s2">&quot;DT: Firmware component (</span><span class="si">%s</span><span class="s2">) is empty&quot;</span> <span class="o">%</span> <span class="n">prop</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">check_dt_matches</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># allows the ability to filter for debug</span>
+        <span class="c1"># skip the parent(s) in the hierarchy</span>
+        <span class="c1"># leave as None to get checked</span>
+        <span class="c1"># setting to anything other than None will ignore</span>
+        <span class="n">ignore_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;/proc/device-tree/ibm,opal/&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="s2">&quot;/proc/device-tree/ibm,opal/sensor-groups&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="s2">&quot;/proc/device-tree/ibm,opal/sensors&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="s2">&quot;/proc/device-tree/ibm,opal/power-mgt&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="s2">&quot;/proc/device-tree/ibm,opal/fw-features&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                       <span class="p">}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">prop_val_pair_skiroot</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">prop_val_pair_host</span><span class="p">):</span>
+            <span class="n">unified_failed_props</span> <span class="o">=</span> <span class="n">missing_prop_in_skiroot</span> <span class="o">=</span> \
+                <span class="n">missing_prop_in_host</span> <span class="o">=</span> <span class="n">matched_prop_in_host</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">host_props</span> <span class="o">=</span> <span class="n">unified_diff_passed</span> <span class="o">=</span> \
+                <span class="n">skipped_props</span> <span class="o">=</span> <span class="n">skiroot_props</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">unified_failures</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">missing_in_host</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">missing_in_skiroot</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">matched_in_host</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">skiroot_check</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span>
+                                <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span><span class="p">)</span>
+            <span class="n">host_check</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span>
+                             <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span><span class="p">:</span>
+                <span class="n">host_props</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span><span class="p">:</span>
+                    <span class="c1"># these failures will show up in the host_check</span>
+                    <span class="c1"># log the specifics</span>
+                    <span class="n">missing_prop_in_skiroot</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">missing_in_skiroot</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s2">&quot;DT Node </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> found in host&quot;</span>
+                                               <span class="s2">&quot; but does NOT exist in skiroot&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prop</span><span class="p">)])</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;DT Node </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> found in host&quot;</span>
+                              <span class="s2">&quot; but does NOT exist in skiroot&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span><span class="p">:</span>
+                <span class="n">skiroot_props</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span><span class="p">:</span>
+                    <span class="n">check1_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">prop_val_pair_skiroot</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+                    <span class="n">check2_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">prop_val_pair_host</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+                    <span class="c1"># we need the debug to figure out why things fail</span>
+                    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span><span class="p">[</span><span class="n">prop</span><span class="p">]:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;skiroot elem=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">elem</span><span class="p">))</span>
+                    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span><span class="p">[</span><span class="n">prop</span><span class="p">]:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;host elem=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">elem</span><span class="p">))</span>
+                    <span class="n">check1_skiroot</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+                                         <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+                    <span class="n">check2_skiroot</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span>
+                                         <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span><span class="p">[</span><span class="n">prop</span><span class="p">])</span>
+                    <span class="c1"># if cross check good and same length (just in case</span>
+                    <span class="c1"># duplicate list items) trying to catch any mods)</span>
+                    <span class="c1"># if order of list content differs, the unified diff</span>
+                    <span class="c1"># always flags as difference even though</span>
+                    <span class="c1"># the elements match (just in a different order)</span>
+                    <span class="k">if</span> <span class="n">check1_skiroot</span> <span class="ow">and</span> <span class="n">check2_skiroot</span> \
+                            <span class="ow">and</span> <span class="p">(</span><span class="n">check1_len</span> <span class="o">==</span> <span class="n">check2_len</span><span class="p">):</span>
+                        <span class="n">matched_prop_in_host</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">matched_in_host</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s2">&quot;Skiroot DT Node </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> found&quot;</span>
+                                                <span class="s2">&quot; in skiroot and exists in host&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prop</span><span class="p">)])</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;DT Node </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> is the same in both&quot;</span>
+                                  <span class="s2">&quot; skiroot and host&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span>
+                        <span class="k">continue</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skiroot DT Node </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> appears &quot;</span>
+                              <span class="s2">&quot;to differ from the Host, ^^^ compare the debug output ^^^&quot;</span>
+                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;skiroot_len=</span><span class="si">{}</span><span class="s2"> host_len=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">check1_len</span><span class="p">,</span> <span class="n">check2_len</span><span class="p">))</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;skiroot_cross_check_to_host=</span><span class="si">{}</span><span class="s2"> host_cross_check_to_skiroot=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">check1_skiroot</span><span class="p">,</span> <span class="n">check2_skiroot</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">ignore_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">skipped_props</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">continue</span>
+                    <span class="n">unified_output</span> <span class="o">=</span> <span class="n">difflib</span><span class="o">.</span><span class="n">unified_diff</span><span class="p">(</span>
+                        <span class="p">[</span><span class="n">_f</span> <span class="k">for</span> <span class="n">_f</span> <span class="ow">in</span> <span class="n">prop_val_pair_skiroot</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="k">if</span> <span class="n">_f</span><span class="p">],</span>
+                        <span class="p">[</span><span class="n">_f</span> <span class="k">for</span> <span class="n">_f</span> <span class="ow">in</span> <span class="n">prop_val_pair_host</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="k">if</span> <span class="n">_f</span><span class="p">],</span>
+                        <span class="n">fromfile</span><span class="o">=</span><span class="s2">&quot;skiroot&quot;</span><span class="p">,</span>
+                        <span class="n">tofile</span><span class="o">=</span><span class="s2">&quot;host&quot;</span><span class="p">,</span>
+                        <span class="n">lineterm</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                    <span class="n">unified_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">unified_output</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unified_list</span><span class="p">):</span>
+                        <span class="n">unified_failed_props</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">unified_failures</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s2">&quot;&lt;----------&gt; Diff Failure #</span><span class="si">{}</span><span class="s2">: </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+                                                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unified_failed_props</span><span class="p">,</span> <span class="n">prop</span><span class="p">)])</span>
+                        <span class="n">unified_failures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">unified_list</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>  <span class="c1"># diff is OK, should not get here</span>
+                        <span class="c1"># good cases should have been filtered above</span>
+                        <span class="n">unified_diff_passed</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unexpected case unified_diff passed=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                                  <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prop</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># these failures will show up in the skiroot_check</span>
+                    <span class="c1"># log the specifics</span>
+                    <span class="n">missing_prop_in_host</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">missing_in_host</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s2">&quot;DT Node </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> does not&quot;</span>
+                                            <span class="s2">&quot; exist in the host OS&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prop</span><span class="p">)])</span>
+            <span class="k">if</span> <span class="n">unified_failed_props</span> \
+                    <span class="ow">or</span> <span class="p">(</span><span class="n">skiroot_props</span> <span class="o">!=</span> <span class="n">host_props</span><span class="p">)</span> \
+                    <span class="ow">or</span> <span class="ow">not</span> <span class="n">skiroot_check</span> \
+                    <span class="ow">or</span> <span class="ow">not</span> <span class="n">host_check</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">unified_failures</span><span class="p">:</span>
+                    <span class="n">line_num</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">i</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Failure Line #</span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line_num</span><span class="p">,</span>
+                                                               <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">j</span><span class="p">)))</span>
+                        <span class="n">line_num</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;DT Diff failures detected Total=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">SUMMARY:</span><span class="se">\n</span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Missing (found in skiroot not in host):</span><span class="se">\n</span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Missing (found in host not in skiroot):</span><span class="se">\n</span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Skipped Nodes (usually 0 or 1, the parent) = </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Cross Check matched (skiroot to host) = </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Skiroot Nodes = </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Host Nodes = </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Skiroot Nodes matched host Nodes = </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Host Nodes matched skiroot Nodes = </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Failures:</span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="n">unified_failed_props</span><span class="p">,</span>
+                                    <span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">unified_failures</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">f</span><span class="p">)),</span>
+                                    <span class="p">(</span><span class="kc">None</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">missing_in_host</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+                                     <span class="k">else</span> <span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">missing_in_host</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">f</span><span class="p">))),</span>
+                                    <span class="p">(</span><span class="kc">None</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">missing_in_skiroot</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+                                     <span class="k">else</span> <span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">missing_in_skiroot</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">f</span><span class="p">))),</span>
+                                    <span class="n">skipped_props</span><span class="p">,</span>
+                                    <span class="n">matched_prop_in_host</span><span class="p">,</span>
+                                    <span class="n">skiroot_props</span><span class="p">,</span>
+                                    <span class="n">host_props</span><span class="p">,</span>
+                                    <span class="n">skiroot_check</span><span class="p">,</span>
+                                    <span class="n">host_check</span><span class="p">,</span>
+                                    <span class="n">unified_failed_props</span><span class="p">,</span>
+                                <span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;DT Diff success&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Not meant to be run directly. &quot;</span>
+                      <span class="s2">&quot;Run skiroot/host variants&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DeviceTreeValidationSkiroot"><a class="viewcode-back" href="../../tests.html#testcases.DeviceTreeValidation.DeviceTreeValidationSkiroot">[docs]</a><span class="k">class</span> <span class="nc">DeviceTreeValidationSkiroot</span><span class="p">(</span><span class="n">DeviceTreeValidation</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># goto PS before running any commands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">,</span>
+                                                             <span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Unknown CPU type </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+
+        <span class="n">system_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">OpTestQemu</span><span class="o">.</span><span class="n">QemuConsole</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OpTestSystem running QEMU so comparing &quot;</span>
+                                <span class="s2">&quot;Skiroot to Host is not applicable&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_idle_state_properties</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_pstate_properties</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_firmware_version</span><span class="p">()</span>
+
+        <span class="c1"># Validate ibm,opal node DT content at skiroot against host</span>
+        <span class="c1"># We can extend for other nodes as well, which are suspicieous.</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find </span><span class="si">%s</span><span class="s2"> -type d&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">node</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">props</span><span class="p">:</span>
+            <span class="c1"># Not all distros consistently output lsprop (-R) so make it consistent</span>
+            <span class="c1"># Otherwise we get mismatches which get flagged as failures</span>
+            <span class="c1"># https://github.com/ibm-power-utilities/powerpc-utils</span>
+            <span class="n">prop_val_pair_skiroot</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;lsprop -R </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">prop</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_dt_matches</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="DeviceTreeValidationHost"><a class="viewcode-back" href="../../tests.html#testcases.DeviceTreeValidation.DeviceTreeValidationHost">[docs]</a><span class="k">class</span> <span class="nc">DeviceTreeValidationHost</span><span class="p">(</span><span class="n">DeviceTreeValidation</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># goto OS before running any commands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">,</span>
+                                                             <span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Unknown CPU type </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_idle_state_properties</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_pstate_properties</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate_firmware_version</span><span class="p">()</span>
+
+        <span class="n">props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;find </span><span class="si">%s</span><span class="s2"> -type d&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">node</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">props</span><span class="p">:</span>
+            <span class="c1"># Not all distros consistently output lsprop (-R) so make it consistent</span>
+            <span class="c1"># Otherwise we get mismatches which get flagged as failures</span>
+            <span class="c1"># https://github.com/ibm-power-utilities/powerpc-utils</span>
+            <span class="n">prop_val_pair_host</span><span class="p">[</span><span class="n">prop</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;lsprop -R </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">prop</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_dt_matches</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

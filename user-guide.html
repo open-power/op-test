@@ -1,0 +1,913 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>op-test User Guide &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The Tests" href="tests.html" />
+    <link rel="prev" title="Welcome to op-test-framework’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="op-test-user-guide">
+<span id="user-guide"></span><h1>op-test User Guide<a class="headerlink" href="#op-test-user-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="command-line-options">
+<span id="commandline"></span><h2>Command Line Options<a class="headerlink" href="#command-line-options" title="Permalink to this headline">¶</a></h2>
+<p>All configuration options can be specified via the command line or in a
+configuration file (see <a class="reference internal" href="#config-file"><span class="std std-ref">Configuration Files and Command Line Options</span></a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">op</span><span class="o">-</span><span class="n">test</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="nb">list</span><span class="o">-</span><span class="n">suites</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="nb">list</span><span class="o">-</span><span class="n">tests</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="nb">list</span><span class="o">-</span><span class="nb">all</span><span class="o">-</span><span class="n">tests</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">run</span><span class="o">-</span><span class="n">suite</span> <span class="n">RUN_SUITE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">run</span> <span class="n">RUN</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">f</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">quiet</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">machine</span><span class="o">-</span><span class="n">state</span> <span class="p">{</span><span class="n">UNKNOWN</span><span class="p">,</span><span class="n">UNKNOWN_BAD</span><span class="p">,</span><span class="n">OFF</span><span class="p">,</span><span class="n">PETITBOOT</span><span class="p">,</span><span class="n">PETITBOOT_SHELL</span><span class="p">,</span><span class="n">OS</span><span class="p">}]</span>
+               <span class="p">[</span><span class="o">-</span><span class="n">o</span> <span class="n">OUTPUT</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">l</span> <span class="n">LOGDIR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">suffix</span> <span class="n">SUFFIX</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span> <span class="n">HOST_NAME</span> <span class="o">|</span> <span class="o">--</span><span class="n">aes</span> <span class="n">ENV_NAME</span><span class="o">|</span><span class="n">Q</span><span class="o">|</span><span class="n">L</span><span class="o">|</span><span class="n">U</span> <span class="p">[</span><span class="n">ENV_NAME</span><span class="o">|</span><span class="n">Q</span><span class="o">|</span><span class="n">L</span><span class="o">|</span><span class="n">U</span> <span class="o">...</span><span class="p">]]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span><span class="o">-</span><span class="n">user</span> <span class="n">HOSTLOCKER_USER</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span><span class="o">-</span><span class="n">server</span> <span class="n">HOSTLOCKER_SERVER</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span><span class="o">-</span><span class="n">base</span><span class="o">-</span><span class="n">url</span> <span class="n">HOSTLOCKER_BASE_URL</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span><span class="o">-</span><span class="n">locktime</span> <span class="n">HOSTLOCKER_LOCKTIME</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span><span class="o">-</span><span class="n">keep</span><span class="o">-</span><span class="n">lock</span> <span class="n">HOSTLOCKER_KEEP_LOCK</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span><span class="o">-</span><span class="n">proxy</span> <span class="n">HOSTLOCKER_PROXY</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hostlocker</span><span class="o">-</span><span class="n">no</span><span class="o">-</span><span class="n">proxy</span><span class="o">-</span><span class="n">ips</span> <span class="n">HOSTLOCKER_NO_PROXY_IPS</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">search</span><span class="o">-</span><span class="n">args</span> <span class="n">AES_SEARCH_ARGS</span> <span class="p">[</span><span class="n">AES_SEARCH_ARGS</span> <span class="o">...</span><span class="p">]]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">user</span> <span class="n">AES_USER</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">server</span> <span class="n">AES_SERVER</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">base</span><span class="o">-</span><span class="n">url</span> <span class="n">AES_BASE_URL</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">rel</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">expire</span> <span class="n">AES_REL_ON_EXPIRE</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">keep</span><span class="o">-</span><span class="n">lock</span> <span class="n">AES_KEEP_LOCK</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">locker</span><span class="o">-</span><span class="n">wait</span> <span class="n">LOCKER_WAIT</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">add</span><span class="o">-</span><span class="n">locktime</span> <span class="n">AES_ADD_LOCKTIME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">proxy</span> <span class="n">AES_PROXY</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">aes</span><span class="o">-</span><span class="n">no</span><span class="o">-</span><span class="n">proxy</span><span class="o">-</span><span class="n">ips</span> <span class="n">AES_NO_PROXY_IPS</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="nb">type</span> <span class="p">{</span><span class="n">AMI</span><span class="p">,</span><span class="n">SMC</span><span class="p">,</span><span class="n">FSP</span><span class="p">,</span><span class="n">FSP_PHYP</span><span class="p">,</span><span class="n">OpenBMC</span><span class="p">,</span><span class="n">qemu</span><span class="p">,</span><span class="n">mambo</span><span class="p">}]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">ip</span> <span class="n">BMC_IP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">mac</span> <span class="n">BMC_MAC</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">username</span> <span class="n">BMC_USERNAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">password</span> <span class="n">BMC_PASSWORD</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">usernameipmi</span> <span class="n">BMC_USERNAMEIPMI</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">passwordipmi</span> <span class="n">BMC_PASSWORDIPMI</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">prompt</span> <span class="n">BMC_PROMPT</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">smc</span><span class="o">-</span><span class="n">presshipmicmd</span> <span class="n">SMC_PRESSHIPMICMD</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">qemu</span><span class="o">-</span><span class="n">binary</span> <span class="n">QEMU_BINARY</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">mambo</span><span class="o">-</span><span class="n">binary</span> <span class="n">MAMBO_BINARY</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">mambo</span><span class="o">-</span><span class="n">initial</span><span class="o">-</span><span class="n">run</span><span class="o">-</span><span class="n">script</span> <span class="n">MAMBO_INITIAL_RUN_SCRIPT</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">mambo</span><span class="o">-</span><span class="n">autorun</span> <span class="n">MAMBO_AUTORUN</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">mambo</span><span class="o">-</span><span class="n">timeout</span><span class="o">-</span><span class="n">factor</span> <span class="n">MAMBO_TIMEOUT_FACTOR</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">ip</span> <span class="n">HOST_IP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">user</span> <span class="n">HOST_USER</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">password</span> <span class="n">HOST_PASSWORD</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">serial</span><span class="o">-</span><span class="n">console</span><span class="o">-</span><span class="n">command</span> <span class="n">HOST_SERIAL_CONSOLE_COMMAND</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">lspci</span> <span class="n">HOST_LSPCI</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">scratch</span><span class="o">-</span><span class="n">disk</span> <span class="n">HOST_SCRATCH_DISK</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">qemu</span><span class="o">-</span><span class="n">scratch</span><span class="o">-</span><span class="n">disk</span> <span class="n">QEMU_SCRATCH_DISK</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">prompt</span> <span class="n">HOST_PROMPT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">name</span> <span class="n">HOST_NAME</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">gateway</span> <span class="n">HOST_GATEWAY</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">submask</span> <span class="n">HOST_SUBMASK</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">mac</span> <span class="n">HOST_MAC</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">dns</span> <span class="n">HOST_DNS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">proxy</span> <span class="n">PROXY</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">cmd</span> <span class="n">HOST_CMD</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">cmd</span><span class="o">-</span><span class="n">file</span> <span class="n">HOST_CMD_FILE</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">cmd</span><span class="o">-</span><span class="n">timeout</span> <span class="n">HOST_CMD_TIMEOUT</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">cmd</span><span class="o">-</span><span class="n">resultpath</span> <span class="n">HOST_CMD_RESULTPATH</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">platform</span> <span class="p">{</span><span class="n">unknown</span><span class="p">,</span><span class="n">habanero</span><span class="p">,</span><span class="n">firestone</span><span class="p">,</span><span class="n">garrison</span><span class="p">,</span><span class="n">firenze</span><span class="p">,</span><span class="n">p9dsu</span><span class="p">,</span><span class="n">witherspoon</span><span class="p">,</span><span class="n">mihawk</span><span class="p">}]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">os</span><span class="o">-</span><span class="n">cdrom</span> <span class="n">OS_CDROM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">os</span><span class="o">-</span><span class="n">repo</span> <span class="n">OS_REPO</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">os</span><span class="o">-</span><span class="n">reinstall</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">git</span><span class="o">-</span><span class="n">repo</span> <span class="n">GIT_REPO</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">git</span><span class="o">-</span><span class="n">repoconfigpath</span> <span class="n">GIT_REPOCONFIGPATH</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">git</span><span class="o">-</span><span class="n">repoconfig</span> <span class="n">GIT_REPOCONFIG</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">git</span><span class="o">-</span><span class="n">branch</span> <span class="n">GIT_BRANCH</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">git</span><span class="o">-</span><span class="n">home</span> <span class="n">GIT_HOME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">git</span><span class="o">-</span><span class="n">patch</span> <span class="n">GIT_PATCH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">use</span><span class="o">-</span><span class="n">kexec</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">append</span><span class="o">-</span><span class="n">kernel</span><span class="o">-</span><span class="n">cmdline</span> <span class="n">APPEND_KERNEL_CMDLINE</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">bmc</span><span class="o">-</span><span class="n">image</span> <span class="n">BMC_IMAGE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">pnor</span> <span class="n">HOST_PNOR</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">hpm</span> <span class="n">HOST_HPM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">host</span><span class="o">-</span><span class="n">img</span><span class="o">-</span><span class="n">url</span> <span class="n">HOST_IMG_URL</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">flash</span><span class="o">-</span><span class="n">skiboot</span> <span class="n">FLASH_SKIBOOT</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">flash</span><span class="o">-</span><span class="n">kernel</span> <span class="n">FLASH_KERNEL</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">flash</span><span class="o">-</span><span class="n">initramfs</span> <span class="n">FLASH_INITRAMFS</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">flash</span><span class="o">-</span><span class="n">part</span> <span class="n">PART</span> <span class="n">name</span> <span class="nb">bin</span> <span class="n">file</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">noflash</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">only</span><span class="o">-</span><span class="n">flash</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">pflash</span> <span class="n">PFLASH</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">pupdate</span> <span class="n">PUPDATE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">pdbg</span> <span class="n">PDBG</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">un</span><span class="o">-</span><span class="n">signed</span><span class="o">-</span><span class="n">pnor</span> <span class="n">UN_SIGNED_PNOR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">signed</span><span class="o">-</span><span class="n">pnor</span> <span class="n">SIGNED_PNOR</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">signed</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">pnor</span> <span class="n">SIGNED_TO_PNOR</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">key</span><span class="o">-</span><span class="n">transition</span><span class="o">-</span><span class="n">pnor</span> <span class="n">KEY_TRANSITION_PNOR</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">test</span><span class="o">-</span><span class="n">container</span> <span class="n">PART</span> <span class="n">name</span> <span class="nb">bin</span> <span class="n">file</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">secure</span><span class="o">-</span><span class="n">mode</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">trusted</span><span class="o">-</span><span class="n">mode</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">add</span><span class="o">-</span><span class="n">kernel</span><span class="o">-</span><span class="n">args</span> <span class="n">ADD_KERNEL_ARGS</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">remove</span><span class="o">-</span><span class="n">kernel</span><span class="o">-</span><span class="n">args</span> <span class="n">REMOVE_KERNEL_ARGS</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">release</span> <span class="n">CRONUS_RELEASE</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">product</span> <span class="n">CRONUS_PRODUCT</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">system</span><span class="o">-</span><span class="nb">type</span> <span class="n">CRONUS_SYSTEM_TYPE</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">code</span><span class="o">-</span><span class="n">level</span> <span class="n">CRONUS_CODE_LEVEL</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">hdct</span> <span class="n">CRONUS_HDCT</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">dump</span><span class="o">-</span><span class="n">directory</span> <span class="n">CRONUS_DUMP_DIRECTORY</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">dump</span><span class="o">-</span><span class="n">suffix</span> <span class="n">CRONUS_DUMP_SUFFIX</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">cronus</span><span class="o">-</span><span class="n">smart</span><span class="o">-</span><span class="n">path</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hmc</span><span class="o">-</span><span class="n">ip</span> <span class="n">HMC_IP</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">hmc</span><span class="o">-</span><span class="n">username</span> <span class="n">HMC_USERNAME</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">hmc</span><span class="o">-</span><span class="n">password</span> <span class="n">HMC_PASSWORD</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">system</span><span class="o">-</span><span class="n">name</span> <span class="n">SYSTEM_NAME</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">lpar</span><span class="o">-</span><span class="n">name</span> <span class="n">LPAR_NAME</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">lpar</span><span class="o">-</span><span class="n">prof</span> <span class="n">LPAR_PROF</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">lpar</span><span class="o">-</span><span class="n">vios</span> <span class="n">LPAR_VIOS</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">check</span><span class="o">-</span><span class="n">ssh</span><span class="o">-</span><span class="n">keys</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">known</span><span class="o">-</span><span class="n">hosts</span><span class="o">-</span><span class="n">file</span> <span class="n">KNOWN_HOSTS_FILE</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">accept</span><span class="o">-</span><span class="n">unknown</span><span class="o">-</span><span class="n">args</span><span class="p">]</span>
+               <span class="p">[</span><span class="o">--</span><span class="n">secvar</span><span class="o">-</span><span class="n">payload</span><span class="o">-</span><span class="n">url</span> <span class="n">SECVAR_PAYLOAD_URL</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Named Arguments">
+<h3>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>-c, --config-file</kbd></dt>
+<dd><p>Configuration File</p>
+</dd>
+<dt><kbd>--machine-state</kbd></dt>
+<dd><p>Possible choices: UNKNOWN, UNKNOWN_BAD, OFF, PETITBOOT, PETITBOOT_SHELL, OS</p>
+<p>Current machine state</p>
+</dd>
+<dt><kbd>-o, --output</kbd></dt>
+<dd><p>Output directory for test reports.  Can also be set via OP_TEST_OUTPUT env variable.</p>
+</dd>
+<dt><kbd>-l, --logdir</kbd></dt>
+<dd><p>Output directory for log files.  Can also be set via OP_TEST_LOGDIR env variable.</p>
+</dd>
+<dt><kbd>--suffix</kbd></dt>
+<dd><p>Suffix to add to all reports.  Default is current time.</p>
+</dd>
+<dt><kbd>--hostlocker</kbd></dt>
+<dd><p>Hostlocker host name to checkout, see HOSTLOCKER GROUP below for more options</p>
+</dd>
+<dt><kbd>--aes</kbd></dt>
+<dd><p>AES environment name to checkout or Q|L|U for query|lock|unlock of AES environment, refine by adding –aes-search-args, see AES GROUP below for more options</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Test">
+<h3>Test<a class="headerlink" href="#Test" title="Permalink to this headline">¶</a></h3>
+<p>Tests to run</p>
+<dl class="option-list">
+<dt><kbd>--list-suites</kbd></dt>
+<dd><p>List available suites to run</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--list-tests</kbd></dt>
+<dd><p>List each test that would have been run</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--list-all-tests</kbd></dt>
+<dd><p>List all defined tests</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--run-suite</kbd></dt>
+<dd><p>Run a test suite(s)</p>
+</dd>
+<dt><kbd>--run</kbd></dt>
+<dd><p>Run individual tests</p>
+</dd>
+<dt><kbd>-f, --failfast</kbd></dt>
+<dd><p>Stop on first failure</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--quiet</kbd></dt>
+<dd><p>Don’t splat lots of things to the console</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="HOSTLOCKER GROUP">
+<h3>HOSTLOCKER GROUP<a class="headerlink" href="#HOSTLOCKER GROUP" title="Permalink to this headline">¶</a></h3>
+<p>Options for HostLocker (see above optional arguments –hostlocker, mutually exclusive with –aes)</p>
+<dl class="option-list">
+<dt><kbd>--hostlocker-user</kbd></dt>
+<dd><p>UID login for HostLocker, uses OS UID if not specified, you must have logged in at least once via the web prior to running</p>
+</dd>
+<dt><kbd>--hostlocker-server</kbd></dt>
+<dd><p>Override URL for HostLocker Server</p>
+</dd>
+<dt><kbd>--hostlocker-base-url</kbd></dt>
+<dd><p>Override Base URL for HostLocker</p>
+</dd>
+<dt><kbd>--hostlocker-locktime</kbd></dt>
+<dd><p>Time duration (see web for formats) to lock the host, never is the default, it will unlock post test</p>
+</dd>
+<dt><kbd>--hostlocker-keep-lock</kbd></dt>
+<dd><p>Release the lock once the test finishes, defaults to False to always release the lock post test</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--hostlocker-proxy</kbd></dt>
+<dd><p>socks5 proxy server setup, defaults to use localhost port 1080, you must have the SSH tunnel open during tests</p>
+</dd>
+<dt><kbd>--hostlocker-no-proxy-ips</kbd></dt>
+<dd><p>Allows dynamic determination if you are on proxy network then no proxy will be used</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="AES GROUP">
+<h3>AES GROUP<a class="headerlink" href="#AES GROUP" title="Permalink to this headline">¶</a></h3>
+<p>Options for AES (see above optional arguments –aes, mutually exclusive with –hostlocker)</p>
+<dl class="option-list">
+<dt><kbd>--aes-search-args</kbd></dt>
+<dd><p>AES allowable, match done by regex like –aes-search-args Environment_Name=wl2, run –aes Q for more info</p>
+</dd>
+<dt><kbd>--aes-user</kbd></dt>
+<dd><p>UID login for AES, uses OS UID if not specified, you must have logged in at least once via the web prior to running</p>
+</dd>
+<dt><kbd>--aes-server</kbd></dt>
+<dd><p>Override URL for AES Server</p>
+</dd>
+<dt><kbd>--aes-base-url</kbd></dt>
+<dd><p>Override Base URL for AES</p>
+</dd>
+<dt><kbd>--aes-rel-on-expire</kbd></dt>
+<dd><p>AES setting related to aes-add-locktime when making the initial reservation, defaults to True, does not affect already existing reservations</p>
+<p>Default: True</p>
+</dd>
+<dt><kbd>--aes-keep-lock</kbd></dt>
+<dd><p>Release the AES reservation once the test finishes, defaults to False to always release the reservation post test</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--locker-wait</kbd></dt>
+<dd><p>Time in minutes to try for the lock, default does not retry</p>
+<p>Default: 0</p>
+</dd>
+<dt><kbd>--aes-add-locktime</kbd></dt>
+<dd><p>Time in hours (float value) of how long to reserve the environment, reservation defaults to never expire but will release the environment post test, if a reservation already exists for UID then extra time will be attempted to be added, this does NOT work on NEVER expiring reservations, be sure to add –aes-keep-lock or else the reservation will be given up after the test, use –aes L option to manage directly and –aes U option to manage directly without running a test</p>
+<p>Default: 0</p>
+</dd>
+<dt><kbd>--aes-proxy</kbd></dt>
+<dd><p>socks5 proxy server setup, defaults to use localhost port 1080, you must have the SSH tunnel open during tests</p>
+</dd>
+<dt><kbd>--aes-no-proxy-ips</kbd></dt>
+<dd><p>Allows dynamic determination if you are on proxy network then no proxy will be used</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="BMC">
+<h3>BMC<a class="headerlink" href="#BMC" title="Permalink to this headline">¶</a></h3>
+<p>Options for Service Processor</p>
+<dl class="option-list">
+<dt><kbd>--bmc-type</kbd></dt>
+<dd><p>Possible choices: AMI, SMC, FSP, FSP_PHYP, OpenBMC, qemu, mambo</p>
+<p>Type of service processor</p>
+</dd>
+<dt><kbd>--bmc-ip</kbd></dt>
+<dd><p>BMC address</p>
+</dd>
+<dt><kbd>--bmc-mac</kbd></dt>
+<dd><p>BMC MAC address</p>
+</dd>
+<dt><kbd>--bmc-username</kbd></dt>
+<dd><p>SSH username for BMC</p>
+</dd>
+<dt><kbd>--bmc-password</kbd></dt>
+<dd><p>SSH password for BMC</p>
+</dd>
+<dt><kbd>--bmc-usernameipmi</kbd></dt>
+<dd><p>IPMI username for BMC</p>
+</dd>
+<dt><kbd>--bmc-passwordipmi</kbd></dt>
+<dd><p>IPMI password for BMC</p>
+</dd>
+<dt><kbd>--bmc-prompt</kbd></dt>
+<dd><p>Prompt for BMC ssh session</p>
+<p>Default: “#”</p>
+</dd>
+<dt><kbd>--smc-presshipmicmd</kbd></dt>
+<dd></dd>
+<dt><kbd>--qemu-binary</kbd></dt>
+<dd><p>[QEMU Only] qemu simulator binary</p>
+<p>Default: “qemu-system-ppc64”</p>
+</dd>
+<dt><kbd>--mambo-binary</kbd></dt>
+<dd><p>[Mambo Only] mambo simulator binary, defaults to /opt/ibm/systemsim-p9/run/p9/power9</p>
+<p>Default: “/opt/ibm/systemsim-p9/run/p9/power9”</p>
+</dd>
+<dt><kbd>--mambo-initial-run-script</kbd></dt>
+<dd><p>[Mambo Only] mambo simulator initial run script, defaults to skiboot.tcl</p>
+<p>Default: “skiboot.tcl”</p>
+</dd>
+<dt><kbd>--mambo-autorun</kbd></dt>
+<dd><p>[Mambo Only] mambo autorun, defaults to ‘1’ to autorun</p>
+<p>Default: “1”</p>
+</dd>
+<dt><kbd>--mambo-timeout-factor</kbd></dt>
+<dd><p>[Mambo Only] factor to multiply all timeouts by, defaults to 2</p>
+<p>Default: 2</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Host">
+<h3>Host<a class="headerlink" href="#Host" title="Permalink to this headline">¶</a></h3>
+<p>Installed OS information</p>
+<dl class="option-list">
+<dt><kbd>--host-ip</kbd></dt>
+<dd><p>Host address</p>
+</dd>
+<dt><kbd>--host-user</kbd></dt>
+<dd><p>SSH username for Host</p>
+</dd>
+<dt><kbd>--host-password</kbd></dt>
+<dd><p>SSH password for Host</p>
+</dd>
+<dt><kbd>--host-serial-console-command</kbd></dt>
+<dd><p>Command to get serial console for host.Used instead of IPMI SoL. Useful for buggy BMCs.</p>
+</dd>
+<dt><kbd>--host-lspci</kbd></dt>
+<dd><p>Known ‘lspci -n -m’ for host</p>
+</dd>
+<dt><kbd>--host-scratch-disk</kbd></dt>
+<dd><p>A block device we can erase</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--qemu-scratch-disk</kbd></dt>
+<dd><p>A block device for qemu</p>
+</dd>
+<dt><kbd>--host-prompt</kbd></dt>
+<dd><p>Prompt for Host SSH session</p>
+<p>Default: “#”</p>
+</dd>
+<dt><kbd>--platform</kbd></dt>
+<dd><p>Possible choices: unknown, habanero, firestone, garrison, firenze, p9dsu, witherspoon, mihawk</p>
+<p>Platform (used for EnergyScale tests)</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Host OS Install">
+<h3>Host OS Install<a class="headerlink" href="#Host OS Install" title="Permalink to this headline">¶</a></h3>
+<p>Options for installing an OS on the Host</p>
+<dl class="option-list">
+<dt><kbd>--host-name</kbd></dt>
+<dd><p>Host name</p>
+<p>Default: “localhost”</p>
+</dd>
+<dt><kbd>--host-gateway</kbd></dt>
+<dd><p>Host Gateway</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--host-submask</kbd></dt>
+<dd><p>Host Subnet Mask</p>
+<p>Default: “255.255.255.0”</p>
+</dd>
+<dt><kbd>--host-mac</kbd></dt>
+<dd><p>Host Mac address (used by OS installer to set up OS on the host)</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--host-dns</kbd></dt>
+<dd><p>Host DNS Servers (used by OS installer to set up OS on the host)</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--proxy</kbd></dt>
+<dd><p>proxy for the Host to access the internet. Only needed for tests that install an OS</p>
+<p>Default: “”</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Host Run Commands">
+<h3>Host Run Commands<a class="headerlink" href="#Host Run Commands" title="Permalink to this headline">¶</a></h3>
+<p>Options for Running custom commands on the Host</p>
+<dl class="option-list">
+<dt><kbd>--host-cmd</kbd></dt>
+<dd><p>Command to run</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--host-cmd-file</kbd></dt>
+<dd><p>Commands to run from file</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--host-cmd-timeout</kbd></dt>
+<dd><p>Timeout for command</p>
+<p>Default: 1000</p>
+</dd>
+<dt><kbd>--host-cmd-resultpath</kbd></dt>
+<dd><p>Result path from host</p>
+<p>Default: “”</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="OS Images">
+<h3>OS Images<a class="headerlink" href="#OS Images" title="Permalink to this headline">¶</a></h3>
+<p>OS Images to boot/install</p>
+<dl class="option-list">
+<dt><kbd>--os-cdrom</kbd></dt>
+<dd><p>OS CD/DVD install image</p>
+</dd>
+<dt><kbd>--os-repo</kbd></dt>
+<dd><p>OS repo</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--no-os-reinstall</kbd></dt>
+<dd><p>If set, don’t run OS Install test</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="git repo">
+<h3>git repo<a class="headerlink" href="#git repo" title="Permalink to this headline">¶</a></h3>
+<p>Git repository details for upstream kernel install/boot</p>
+<dl class="option-list">
+<dt><kbd>--git-repo</kbd></dt>
+<dd><p>Kernel git repository</p>
+</dd>
+<dt><kbd>--git-repoconfigpath</kbd></dt>
+<dd><p>Kernel config file to be used</p>
+</dd>
+<dt><kbd>--git-repoconfig</kbd></dt>
+<dd><p>Kernel config to be used</p>
+<p>Default: “ppc64le_defconfig”</p>
+</dd>
+<dt><kbd>--git-branch</kbd></dt>
+<dd><p>git branch to be used</p>
+<p>Default: “master”</p>
+</dd>
+<dt><kbd>--git-home</kbd></dt>
+<dd><p>home path for git repository</p>
+<p>Default: “/home/ci”</p>
+</dd>
+<dt><kbd>--git-patch</kbd></dt>
+<dd><p>patch to be applied on top of the git repository</p>
+</dd>
+<dt><kbd>--use-kexec</kbd></dt>
+<dd><p>Use kexec to boot to new kernel</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--append-kernel-cmdline</kbd></dt>
+<dd><p>Append kernel commandline while booting with kexec</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Images">
+<h3>Images<a class="headerlink" href="#Images" title="Permalink to this headline">¶</a></h3>
+<p>Firmware LIDs/images to flash</p>
+<dl class="option-list">
+<dt><kbd>--bmc-image</kbd></dt>
+<dd><p>BMC image to flash(<a href="#id1"><span class="problematic" id="id2">*</span></a>.tar in OpenBMC, <a href="#id3"><span class="problematic" id="id4">*</span></a>.bin in SMC)</p>
+</dd>
+<dt><kbd>--host-pnor</kbd></dt>
+<dd><p>PNOR image to flash</p>
+</dd>
+<dt><kbd>--host-hpm</kbd></dt>
+<dd><p>HPM image to flash</p>
+</dd>
+<dt><kbd>--host-img-url</kbd></dt>
+<dd><p>URL to Host Firmware image to flash on FSP systems (Must be URL accessible petitboot shell on the host)</p>
+</dd>
+<dt><kbd>--flash-skiboot</kbd></dt>
+<dd><p>skiboot to use/flash. Depending on platform, may need to be xz compressed</p>
+</dd>
+<dt><kbd>--flash-kernel</kbd></dt>
+<dd><p>petitboot zImage.epapr to use/flash.</p>
+</dd>
+<dt><kbd>--flash-initramfs</kbd></dt>
+<dd><p>petitboot rootfs to use/flash. Not all platforms support this option</p>
+</dd>
+<dt><kbd>--flash-part</kbd></dt>
+<dd><p>PNOR partition to flash, Ex: –flash-part OCC occ.bin</p>
+</dd>
+<dt><kbd>--noflash, --no-flash</kbd></dt>
+<dd><p>Even if images are specified, don’t flash them</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--only-flash</kbd></dt>
+<dd><p>Only flash, don’t run any tests (even if specified)</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--pflash</kbd></dt>
+<dd><p>pflash to copy to BMC (if needed)</p>
+</dd>
+<dt><kbd>--pupdate</kbd></dt>
+<dd><p>pupdate to flash PNOR for Supermicro systems</p>
+</dd>
+<dt><kbd>--pdbg</kbd></dt>
+<dd><p>pdbg binary to be executed on BMC</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="STB">
+<h3>STB<a class="headerlink" href="#STB" title="Permalink to this headline">¶</a></h3>
+<p>Secure and Trusted boot parameters</p>
+<dl class="option-list">
+<dt><kbd>--un-signed-pnor</kbd></dt>
+<dd><p>Unsigned or improperly signed PNOR</p>
+</dd>
+<dt><kbd>--signed-pnor</kbd></dt>
+<dd><p>Properly signed PNOR image(imprint)</p>
+</dd>
+<dt><kbd>--signed-to-pnor</kbd></dt>
+<dd><p>Properly signed PNOR image(imprint or production)</p>
+</dd>
+<dt><kbd>--key-transition-pnor</kbd></dt>
+<dd><p>Key transition PNOR image</p>
+</dd>
+<dt><kbd>--test-container</kbd></dt>
+<dd><p>PNOR partition container to flash, Ex: –test-container CAPP capp_unsigned.bin</p>
+</dd>
+<dt><kbd>--secure-mode</kbd></dt>
+<dd><p>Secureboot mode</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--trusted-mode</kbd></dt>
+<dd><p>Trustedboot mode</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Kernel cmdline options">
+<h3>Kernel cmdline options<a class="headerlink" href="#Kernel cmdline options" title="Permalink to this headline">¶</a></h3>
+<p>add/remove kernel commandline arguments</p>
+<dl class="option-list">
+<dt><kbd>--add-kernel-args</kbd></dt>
+<dd><p>Kernel commandline option to be added</p>
+<p>Default: “”</p>
+</dd>
+<dt><kbd>--remove-kernel-args</kbd></dt>
+<dd><p>Kernel commandline option to be removed</p>
+<p>Default: “”</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Cronus">
+<h3>Cronus<a class="headerlink" href="#Cronus" title="Permalink to this headline">¶</a></h3>
+<p>Cronus Config options</p>
+<dl class="option-list">
+<dt><kbd>--cronus-release</kbd></dt>
+<dd><p>Cronus Release</p>
+<p>Default: “auto”</p>
+</dd>
+<dt><kbd>--cronus-product</kbd></dt>
+<dd><p>Cronus Product</p>
+<p>Default: “p9”</p>
+</dd>
+<dt><kbd>--cronus-system-type</kbd></dt>
+<dd><p>Cronus System Type</p>
+<p>Default: “witherspoon”</p>
+</dd>
+<dt><kbd>--cronus-code-level</kbd></dt>
+<dd><p>Cronus Code Level</p>
+<p>Default: “dev”</p>
+</dd>
+<dt><kbd>--cronus-hdct</kbd></dt>
+<dd><p>Cronus Hardware Dump Content Table file</p>
+<p>Default: “HDCT.txt”</p>
+</dd>
+<dt><kbd>--cronus-dump-directory</kbd></dt>
+<dd><p>Cronus dump file directory</p>
+</dd>
+<dt><kbd>--cronus-dump-suffix</kbd></dt>
+<dd><p>Cronus dump file suffix</p>
+<p>Default: “optest”</p>
+</dd>
+<dt><kbd>--cronus-smart-path</kbd></dt>
+<dd><p>Cronus path added after /usr/bin</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="HMC">
+<h3>HMC<a class="headerlink" href="#HMC" title="Permalink to this headline">¶</a></h3>
+<p>HMC CLI commands</p>
+<dl class="option-list">
+<dt><kbd>--hmc-ip</kbd></dt>
+<dd><p>HMC address</p>
+</dd>
+<dt><kbd>--hmc-username</kbd></dt>
+<dd><p>SSH username for HMC</p>
+</dd>
+<dt><kbd>--hmc-password</kbd></dt>
+<dd><p>SSH password for HMC</p>
+</dd>
+<dt><kbd>--system-name</kbd></dt>
+<dd><p>Managed system/server name in HMC</p>
+</dd>
+<dt><kbd>--lpar-name</kbd></dt>
+<dd><p>Lpar name as provided in HMC</p>
+</dd>
+<dt><kbd>--lpar-prof</kbd></dt>
+<dd><p>Lpar profile provided in HMC</p>
+</dd>
+<dt><kbd>--lpar-vios</kbd></dt>
+<dd><p>Lpar VIOS to boot before other LPARS</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Misc">
+<h3>Misc<a class="headerlink" href="#Misc" title="Permalink to this headline">¶</a></h3>
+<dl class="option-list">
+<dt><kbd>--check-ssh-keys</kbd></dt>
+<dd><p>Check remote host keys when using SSH (auto-yes on new)</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--known-hosts-file</kbd></dt>
+<dd><p>Specify a custom known_hosts file</p>
+</dd>
+<dt><kbd>--accept-unknown-args</kbd></dt>
+<dd><p>Don’t exit if we find unknown command line arguments</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--secvar-payload-url</kbd></dt>
+<dd><p>Specify a URL for the secvar test data payload</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="configuration-files-and-command-line-options">
+<span id="config-file"></span><h2>Configuration Files and Command Line Options<a class="headerlink" href="#configuration-files-and-command-line-options" title="Permalink to this headline">¶</a></h2>
+<p>When working with <cite>op-test</cite>, you can specify every configuration option on
+the command line, or you can save some in a configuration file. Typically,
+you may keep a configuration file per-machine you test against, to save on
+typing out all the IP addresses and login credentials.</p>
+<p>For example, this <code class="docutils literal notranslate"><span class="pre">witherspoon.conf</span></code> file will connect to a Witherspoon
+machine:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[op-test]</span>
+<span class="na">bmc_type</span><span class="o">=</span><span class="s">OpenBMC</span>
+<span class="na">bmc_ip</span><span class="o">=</span><span class="s">10.0.0.1</span>
+<span class="na">bmc_username</span><span class="o">=</span><span class="s">root</span>
+<span class="na">bmc_password</span><span class="o">=</span><span class="s">0penBmc</span>
+<span class="na">host_ip</span><span class="o">=</span><span class="s">10.0.0.2</span>
+<span class="na">host_user</span><span class="o">=</span><span class="s">root</span>
+<span class="na">host_password</span><span class="o">=</span><span class="s">abc123</span>
+</pre></div>
+</div>
+<p>It can be used as such:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./op-test --config-file witherspoon.conf
+</pre></div>
+</div>
+<p>Other options can also be specified on the commandline, such as <code class="docutils literal notranslate"><span class="pre">--host-pnor</span></code>
+which is documented in <a class="reference internal" href="#flashing-firmware"><span class="std std-ref">Flashing Firmware with op-test</span></a>.</p>
+<p>There is also a <em>per user</em> configuration file, at <code class="docutils literal notranslate"><span class="pre">~/.op-test-framework.conf</span></code>
+where you can store global options, for example:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[op-test]</span>
+<span class="na">smc_presshipmicmd</span><span class="o">=</span><span class="s">foo</span>
+<span class="na">pupdate</span><span class="o">=</span><span class="s">~/pupdate</span>
+<span class="na">pflash</span><span class="o">=</span><span class="s">~/pflash</span>
+<span class="na">ubuntu-cdrom</span><span class="o">=</span><span class="s">~/ubuntu-18.04-ppc64el.iso</span>
+</pre></div>
+</div>
+<p>This per user configuration file will be loaded in <em>addition</em> to the config
+file provided on the command line.</p>
+</div>
+<div class="section" id="flashing-firmware-with-op-test">
+<span id="flashing-firmware"></span><h2>Flashing Firmware with op-test<a class="headerlink" href="#flashing-firmware-with-op-test" title="Permalink to this headline">¶</a></h2>
+<p>In the future, there may be some standard interface for flashing firmware
+onto OpenPOWER machines. We are not yet in that future, so the method of
+flashing firmware varies somewhat between platforms.</p>
+<p>There is code in <cite>op-test</cite> to hide these differences from you, and just
+provide easy ways to say “flash this firmware and run the test suite”. This
+functionality is <em>primarily</em> focused towards firmware developers.</p>
+<p>By default, <cite>op-test</cite> will flash any firmware provided <em>before</em> running
+any tests. You can change this behaviour with the <code class="docutils literal notranslate"><span class="pre">--no-flash</span></code> or
+<cite>-only-flash`</cite> command line options (which should be fairly self-explanatory).</p>
+<p>To flash a full PNOR image, you will need one in the correct format:</p>
+<dl class="simple">
+<dt>AMI BMC based systems (e.g. Palmetto, Habanero, Firestone and Garrison)</dt><dd><p>A raw PNOR file (<cite>palmetto.pnor</cite>, <cite>habanero.pnor</cite> etc) as produced by
+<cite>op-build</cite> should be provided to the <code class="docutils literal notranslate"><span class="pre">--host-pnor</span></code> command line option.
+<cite>op-test</cite> will use this with <cite>pflash</cite> on the BMC to write the whole PNOR
+image to flash. It will <strong>NOT</strong> preserve <em>anything</em> from what was previously
+flashed (e.g. NVRAM, GUARD records).
+Since most AMI BMCs do not ship with <cite>pflash</cite> you will need to tell <cite>op-test</cite>
+where to find a pflash binary compiled for the BMC with the <code class="docutils literal notranslate"><span class="pre">--pflash</span></code>
+option</p>
+</dd>
+<dt>IBM FSP based systems (e.g. Tuleta, ZZ)</dt><dd><p>The only current method that <cite>op-test</cite> supports for flashing a full FSP
+image is in-band, fetching the image over the network.
+You need to specify the URL to the full firmware image to the
+<code class="docutils literal notranslate"><span class="pre">--host-image-url</span></code> command line option.</p>
+</dd>
+<dt>OpenBMC based systems (e.g. Witherspoon, Romulus)</dt><dd><p>There are two ways for OpenBMC systems to store PNOR, either using the
+full NOR chip for the PNOR, or using the vPNOR (Virtual PNOR) method.
+The normal PNOR method needs a <code class="docutils literal notranslate"><span class="pre">.pnor</span></code> file, e.g. <code class="docutils literal notranslate"><span class="pre">romulus.pnor</span></code>.
+The vPNOR method needs a <code class="docutils literal notranslate"><span class="pre">.squashfs.tar</span></code> file,
+e.g. <code class="docutils literal notranslate"><span class="pre">witherspoon.pnor.squashfs.tar</span></code>.
+If you provide the incorrect format, <cite>op-test</cite> will error out.</p>
+</dd>
+</dl>
+<p>For <em>BMC</em> firmware, you also need the machine specific BMC firmware image
+format to supply to the <code class="docutils literal notranslate"><span class="pre">--bmc-image</span></code> command line option. For some BMCs,
+you may need an external utility. For example, Supermicro (SMC) BMCs need
+the <code class="docutils literal notranslate"><span class="pre">pUpdate</span></code> utility, which you can point <cite>op-test</cite> at with the <code class="docutils literal notranslate"><span class="pre">--pupdate</span></code>
+command line option.</p>
+<div class="section" id="openbmc-witherspoon-examples">
+<h3>OpenBMC/Witherspoon Examples<a class="headerlink" href="#openbmc-witherspoon-examples" title="Permalink to this headline">¶</a></h3>
+<p>These examples are for the Witherspoon system, which uses OpenBMC as a BMC
+and the vPNOR implementation. For Romulus (which does not use vPNOR), instead
+of <cite>witherspoon.pnor.squashfs.tar</cite> you may need to use <cite>witherspoon.pnor</cite>.</p>
+<p><strong>FIXME</strong> Confirm details on Romulus.</p>
+<p>For example, this command will use the <code class="docutils literal notranslate"><span class="pre">witherspoon.conf</span></code> configuration file
+(see <a class="reference internal" href="#config-file"><span class="std std-ref">Configuration Files and Command Line Options</span></a>) for login credentials to a Witherspoon machine, and
+will flash <em>host</em> firmware before running the default test suite:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./op-test --config-file witherspoon.conf <span class="se">\</span>
+--host-pnor ~/op-build/output/images/witherspoon.pnor.squashfs.tar
+</pre></div>
+</div>
+<p>In this example we’ve provided the <em>full</em> path to a witherspoon firmware image
+that we’ve built using <cite>op-build</cite>.</p>
+<p>If you <em>also</em> want to flash BMC firmware, you can do that with the addition of the <code class="docutils literal notranslate"><span class="pre">--bmc-image</span></code> command line option:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./op-test --config-file witherspoon.conf <span class="se">\</span>
+--bmc-image obmc-phosphor-image-witherspoon.ubi.mtd.tar <span class="se">\</span>
+--host-pnor ~/op-build/output/images/witherspoon.pnor.squashfs.tar
+</pre></div>
+</div>
+<p>In this example, <cite>op-test</cite> will first update the BMC firmware, then update the host firmware and <em>then</em> run the test suite.</p>
+<p>If you’re a skiboot/OPAL developer and wanting to test your latest code when
+applied on top of a known-good BMC and PNOR image, you can use the
+<code class="docutils literal notranslate"><span class="pre">--flash-skiboot</span></code> command line option to instruct <cite>op-test</cite> to, as a final
+step, overwrite the <cite>PAYLOAD</cite> partition with your skiboot:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./op-test --config-file witherspoon.conf <span class="se">\</span>
+--bmc-image obmc-phosphor-image-witherspoon.ubi.mtd.tar <span class="se">\</span>
+--host-pnor ~/op-build/output/images/witherspoon.pnor.squashfs.tar <span class="se">\</span>
+--flash-skiboot ~/skiboot/skiboot.lid.xz.stb
+</pre></div>
+</div>
+<p>In this case, if “field mode” is enabled on the BMC, <cite>op-test</cite> will disable
+it for you to allow for overriding host firmware with the skiboot image you
+aksed it to use.</p>
+<p>Since the Witherspoon platform has Secure Boot enabled, you will need the
+<cite>.stb</cite> variant of skiboot (i.e. with the Secure and Trusted Boot header),
+and since we’re an OpenPOWER system, we need the <cite>.xz</cite> compressed version,
+and this is why we provide <cite>skiboot.lid.xz.stb</cite> to <cite>op-test</cite> for this system.</p>
+<p><strong>Note</strong> that with Secure Boot enabled, by default we only sign with <em>imprint</em>
+keys.</p>
+</div>
+<div class="section" id="ami-bmc-power8-openpower-sytems-examples">
+<h3>AMI BMC/POWER8 OpenPOWER sytems examples<a class="headerlink" href="#ami-bmc-power8-openpower-sytems-examples" title="Permalink to this headline">¶</a></h3>
+<p>For machines such as Palmetto, Habanero, Firestone and Garrison.</p>
+<p><strong>TODO</strong> Document BMC flashing.</p>
+<p>These systems have an AMI BMC and <cite>op-test</cite> will use <cite>pflash</cite> on the BMC
+to write host firmware. You will need to point <cite>op-test</cite> towards a <cite>pflash</cite>
+binary compiled for the BMC for <cite>op-test</cite> to copy over and use to flash
+firmware.</p>
+<p><strong>TODO</strong> Document HPM flashing.</p>
+<p>An example of flashing a full <cite>habanero.pnor</cite> image and running the default
+test suite is:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./op-test --config-file hab4.conf <span class="se">\</span>
+--host-pnor ~/op-build/output/images/habanero.pnor
+</pre></div>
+</div>
+<p>Just like on other systems, if you’re an OPAL/skiboot developer and you want
+to test your changes along with a known-good full PNOR image, you’d do that
+the same way, using the <code class="docutils literal notranslate"><span class="pre">--flash-skiboot</span></code> parameter:</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+<p>./op-test –config-file hab4.conf –host-pnor ~/op-build/output/images/habanero.pnor –flash-skiboot ~/skiboot/skiboot.lid.xz</p>
+</div></blockquote>
+<p>We need to provide the <cite>skiboot.lid.xz</cite> file as all POWER8 OpenPOWER systems
+need the compressed payload in order to fit in flash. It is only <em>very</em> old
+Hostboots that do not support this and require the raw <cite>skiboot.lid</cite>.</p>
+</div>
+<div class="section" id="ibm-fsp-system-examples">
+<h3>IBM FSP System examples<a class="headerlink" href="#ibm-fsp-system-examples" title="Permalink to this headline">¶</a></h3>
+<p>For machines such as Tuleta and ZZ (firenze class).</p>
+<p>Your FSP must have an NFS mount and be configured correctly for this operation.</p>
+<p>Currently, flashing a full FSP image is only supported by doing it from
+the host. In future, we may support out of band methods.</p>
+<p>The primary use <cite>op-test</cite> on Tuleta/ZZ is for flashing new OPAL LIDs onto
+an existing FSP image. Unlike OpenPOWER machines, the kernel and initramfs
+are split up into two separate LIDs, and must be pointed to separately.</p>
+<p>This example will run the stest suite against our ZZ machine <em>after</em> flashing
+our skiboot, kernel and initramfs built fresh from <cite>op-build</cite> (with the
+configuration <cite>zz_defconfig</cite>).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./op-test --config-file zz.conf <span class="se">\</span>
+--flash-skiboot ~/op-build/output/images/skiboot.lid <span class="se">\</span>
+--flash-kernel ~/op-build/output/images/zImage.epapr <span class="se">\</span>
+--flash-initramfs ~/op-build/output/images/rootfs.cpio.xz
+</pre></div>
+</div>
+<p>For FSP based systems, the <em>uncompressed</em> <cite>skiboot.lid</cite> is needed, as the FSP
+will load this image directly into memory and start executing it.</p>
+</div>
+</div>
+<div class="section" id="op-test-and-qemu">
+<h2>op-test and Qemu<a class="headerlink" href="#op-test-and-qemu" title="Permalink to this headline">¶</a></h2>
+<p>You can use the ‘qemu’ BMC type to run many tests using the qemu simulator.
+This can be useful for test development/debug as well as testing the qemu
+simulator itself.</p>
+<p>It may be useful to keep a configuration file with your qemu configuration
+in it for running tests. An example of such a configuration file is below:</p>
+<div class="highlight-ini notranslate"><div class="highlight"><pre><span></span><span class="k">[op-test]</span>
+<span class="na">bmc_type</span><span class="o">=</span><span class="s">qemu</span>
+<span class="na">qemu_binary</span><span class="o">=</span><span class="s">~/qemu/ppc64-softmmu/qemu-system-ppc64</span>
+<span class="na">host_pnor</span><span class="o">=</span><span class="s">palmetto.pnor</span>
+<span class="na">flash_skiboot</span><span class="o">=</span><span class="s">~/skiboot/skiboot.lid</span>
+<span class="na">flash_kernel</span><span class="o">=</span><span class="s">zImage.epapr</span>
+<span class="na">flash_initramfs</span><span class="o">=</span><span class="s">rootfs.cpio</span>
+<span class="na">host_user</span><span class="o">=</span><span class="s">ubuntu</span>
+<span class="na">host_password</span><span class="o">=</span><span class="s">abc123</span>
+<span class="na">ubuntu_cdrom</span><span class="o">=</span><span class="s">osimages/ubuntu-17.10-server-ppc64el.iso</span>
+</pre></div>
+</div>
+<p>Note that for <cite>qemu</cite> we want the <em>uncompressed</em> <cite>skiboot.lid</cite> for <cite>qemu</cite> to
+load, and while it’s not <em>required</em>, using the uncompressed <cite>rootfs.cpio</cite>
+does <em>significantly</em> improve boot time to Petitboot.</p>
+<p>In this configuration file example, we point to a <cite>qemu</cite> development tree
+rather than using the system default <cite>qemu-system-ppc64</cite> binary. We also
+specify a <code class="docutils literal notranslate"><span class="pre">--host-pnor</span></code> file so that <cite>qemu</cite> can mount an NVRAM partition.</p>
+<p>To run the “boot to petitboot” test in qemu with the above configuration file,
+you can do so like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./op-test --config-file qemu.conf <span class="se">\</span>
+--run testcases.BasicIPL.BootToPetitbootShell
+</pre></div>
+</div>
+<p>Not all tests currently pass in <cite>qemu</cite>, and running tests in <cite>qemu</cite> should be
+considered somewhat experimental.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">op-test User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#command-line-options">Command Line Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration-files-and-command-line-options">Configuration Files and Command Line Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#flashing-firmware-with-op-test">Flashing Firmware with op-test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#op-test-and-qemu">op-test and Qemu</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to op-test-framework’s documentation!</a></li>
+      <li>Next: <a href="tests.html" title="next chapter">The Tests</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/user-guide.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

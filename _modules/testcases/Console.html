@@ -1,0 +1,405 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.Console &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.Console</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Console tests</span>
+<span class="sd">-------------</span>
+
+<span class="sd">A bunch of really simple console tests that have managed to break *every*</span>
+<span class="sd">BMC implementation we&#39;ve ever thrown it at. Since we&#39;re highly reliant</span>
+<span class="sd">on the BMC providing a reliable host console, if these tests fail at all,</span>
+<span class="sd">then we&#39;re likely going to get spurious failures elsewhere in the test suite.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+<span class="kn">import</span> <span class="nn">common.OpTestMambo</span> <span class="k">as</span> <span class="nn">OpTestMambo</span>
+<span class="kn">import</span> <span class="nn">common.OpTestQemu</span> <span class="k">as</span> <span class="nn">OpTestQemu</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Console"><a class="viewcode-back" href="../../tests.html#testcases.Console.Console">[docs]</a><span class="k">class</span> <span class="nc">Console</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Run the full class of Console tests</span>
+
+<span class="sd">    --run testcases.Console</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">8</span>
+
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">util</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">get_host_console</span><span class="p">()</span>
+        <span class="n">adjustment</span> <span class="o">=</span> <span class="mi">3</span>  <span class="c1"># mambo echo now disabled in initial setup</span>
+        <span class="n">bs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bs</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">((</span><span class="n">bs</span> <span class="o">*</span> <span class="n">count</span><span class="p">)</span> <span class="o">%</span> <span class="mi">16</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="s2">&quot;Bug in test writer. Must be multiple of 16 bytes: &quot;</span>
+                        <span class="s2">&quot;bs </span><span class="si">{}</span><span class="s2"> count </span><span class="si">{}</span><span class="s2"> / 16 = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span>
+                                                          <span class="p">(</span><span class="n">bs</span> <span class="o">*</span> <span class="n">count</span><span class="p">)</span> <span class="o">%</span> <span class="mi">16</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># timeout is longer to trace if the console *ever* comes back</span>
+            <span class="n">zeros</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;dd if=/dev/zero bs=</span><span class="si">{}</span><span class="s2"> count=</span><span class="si">{}</span><span class="s2">|hexdump -C -v&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span>
+                                                                      <span class="n">count</span><span class="p">),</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="mi">240</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="n">adjustment</span> <span class="o">+</span> <span class="p">(</span><span class="n">count</span> <span class="o">*</span> <span class="n">bs</span><span class="p">)</span> <span class="o">/</span> <span class="mi">16</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">zeros</span><span class="p">)</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;bad len(zeros)=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">zeros</span><span class="p">)))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;expected=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">expected</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">zeros</span><span class="p">)):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;bad line </span><span class="si">{}</span><span class="s2">=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">zeros</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">zeros</span><span class="p">)</span> <span class="o">==</span> <span class="n">expected</span><span class="p">,</span>
+                        <span class="s2">&quot;Unexpected length of zeros </span><span class="si">{}</span><span class="s2"> != </span><span class="si">{}</span><span class="s2">, check the debug log for details&quot;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">zeros</span><span class="p">),</span> <span class="n">expected</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Console8k"><a class="viewcode-back" href="../../tests.html#testcases.Console.Console8k">[docs]</a><span class="k">class</span> <span class="nc">Console8k</span><span class="p">(</span><span class="n">Console</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    hexdump 8kb of zeros and check we get all the lines of hexdump output on</span>
+<span class="sd">    the console.</span>
+
+<span class="sd">    --run testcases.Console.Console8k</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">8</span></div>
+
+<div class="viewcode-block" id="Console16k"><a class="viewcode-back" href="../../tests.html#testcases.Console.Console16k">[docs]</a><span class="k">class</span> <span class="nc">Console16k</span><span class="p">(</span><span class="n">Console</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    hexdump 16kb of zeros and check we get all the lines of hexdump output on</span>
+<span class="sd">    the console.</span>
+
+<span class="sd">    --run testcases.Console.Console16k</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">16</span></div>
+
+<div class="viewcode-block" id="Console32k"><a class="viewcode-back" href="../../tests.html#testcases.Console.Console32k">[docs]</a><span class="k">class</span> <span class="nc">Console32k</span><span class="p">(</span><span class="n">Console</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    hexdump 32kb of zeros and check we get all the lines of hexdump output on</span>
+<span class="sd">    the console. The idea is that console buffers on BMCs are likely to be less</span>
+<span class="sd">    than 32kb, so we&#39;ll be able to catch any silent wrapping of it.</span>
+
+<span class="sd">    --run testcases.Console.Console32k</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">32</span></div>
+
+<div class="viewcode-block" id="ControlC"><a class="viewcode-back" href="../../tests.html#testcases.Console.ControlC">[docs]</a><span class="k">class</span> <span class="nc">ControlC</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Start a process that does a bunch of console output, and then try and</span>
+<span class="sd">    &#39;control-c&#39; it to stop the process and get a prompt back.</span>
+
+<span class="sd">    --run testcases.Console.ControlC</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">CONTROL</span> <span class="o">=</span> <span class="s1">&#39;c&#39;</span>
+    <span class="n">COUNTER</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">bad_connections</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="ControlC.setUp"><a class="viewcode-back" href="../../tests.html#testcases.Console.ControlC.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">util</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">build_prompt</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">get_host_console</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="p">,</span> <span class="n">OpTestMambo</span><span class="o">.</span><span class="n">OpTestMambo</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;Mambo so skipping Control-C/Z tests&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">COUNTER</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="c1"># we run the date command here to smoke test that something</span>
+            <span class="c1"># didn&#39;t mess up the run_command interface, this assures</span>
+            <span class="c1"># us the ctrl-x tests are not leaving the environment tainted</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;TIMEOUT&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-</span><span class="si">{}</span><span class="s2"> test encountered a problem with running a command, &quot;</span>
+                          <span class="s2">&quot; this will be added to the threshold tolerances&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bad_connections</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1"># we need a new pty each time since we clobber it later</span>
+            <span class="n">raw_pty</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+            <span class="c1"># we use the sendline, not run_command to test out ctrl-c</span>
+            <span class="c1"># run_command uses ctrl-c to recover, so that will not work here</span>
+            <span class="c1"># if ctrl-c fails, we have to power off</span>
+            <span class="c1"># log the timings of when the commands happen to see if any issues</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z sendline find /&quot;</span><span class="p">)</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;find /&quot;</span><span class="p">)</span>
+            <span class="c1"># https://github.com/open-power/boston-openpower/issues/1413</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z sendcontrol </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">))</span>
+            <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendcontrol</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">)</span>
+            <span class="c1"># control-z will stop the process, but it will later give pexpect.EOF</span>
+            <span class="c1"># the timeout needs to be long enough so the pty spawn object has time</span>
+            <span class="c1"># to figure out the sockets are dead, we&#39;ve seen like 40-50 secs</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z back from sendcontrol </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">))</span>
+            <span class="c1"># We&#39;re using an oversized timeout due to LTC Bug 186797 (OpenBMC)</span>
+            <span class="n">rc</span> <span class="o">=</span> <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">prompt</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">180</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z rc=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rc</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">raw_pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">raw_pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Unable to Control-</span><span class="si">{}</span><span class="s2"> the running command, &quot;</span>
+                            <span class="s2">&quot;we were in loop </span><span class="si">{}</span><span class="s2"> of </span><span class="si">{}</span><span class="s2">, we will have to power off to try to recover,&quot;</span>
+                            <span class="s2">&quot; this will be added to the threshold tolerances&quot;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">COUNTER</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+                <span class="c1"># we have to power off in case this is the last test,</span>
+                <span class="c1"># otherwise it leaves the system bad for the next test run</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bad_connections</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-</span><span class="si">{}</span><span class="s2"> caused an EOF running the command, this should fix itself&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">))</span>
+            <span class="c1"># we use info to output to the user watching</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Console Control-</span><span class="si">{}</span><span class="s2"> Completed LOOP=</span><span class="si">{}</span><span class="s2"> Total will be=</span><span class="si">{}</span><span class="s2">, bad_connections=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">COUNTER</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bad_connections</span><span class="p">))</span>
+            <span class="c1"># ctrl-c to the pty spawn object closes down the sockets</span>
+            <span class="c1"># explicitly close the term object to allow the follow-on run_command&#39;s to succeed</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="p">,</span> <span class="n">OpTestQemu</span><span class="o">.</span><span class="n">OpTestQemu</span><span class="p">)):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z CLOSING console&quot;</span><span class="p">)</span>
+                <span class="n">console</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bad_connections</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;Control-</span><span class="si">{}</span><span class="s2"> tests, &quot;</span>
+                          <span class="s2">&quot;we were in loop </span><span class="si">{}</span><span class="s2"> of </span><span class="si">{}</span><span class="s2">, we reached the threshold of bad_connections=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTROL</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">COUNTER</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bad_connections</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ControlZ"><a class="viewcode-back" href="../../tests.html#testcases.Console.ControlZ">[docs]</a><span class="k">class</span> <span class="nc">ControlZ</span><span class="p">(</span><span class="n">ControlC</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Run a console output heavy task, try to control-z it, then kill it,</span>
+<span class="sd">    the try_recover logic in OpTestUtil should recover the prompt</span>
+
+<span class="sd">    --run testcases.Console.ControlZ</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">CONTROL</span> <span class="o">=</span> <span class="s1">&#39;z&#39;</span>
+    <span class="n">COUNTER</span> <span class="o">=</span> <span class="mi">5</span>
+
+    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">get_host_console</span><span class="p">()</span>
+        <span class="c1"># why this changed from earlier revisions</span>
+        <span class="c1"># it seems that after the control z stops the process,</span>
+        <span class="c1"># then when the kill command gets sent, but gets EOF before completion</span>
+        <span class="c1"># we previously ignored the failure and then subsequently</span>
+        <span class="c1"># got a new pty object and then we fg&#39;d the still pending</span>
+        <span class="c1"># stopped job, the one we just control z&#39;d</span>
+        <span class="c1"># on who knows what old pty object that died (this really messes with</span>
+        <span class="c1"># pexpect, it even fg something else ? (spins and never advances),</span>
+        <span class="c1"># could never kill op-test, would have to kill -9 op-test by PID</span>
+        <span class="c1"># so catch the failed kill and try to recover</span>
+        <span class="c1">#/proc/165/task/165/ns</span>
+        <span class="c1">#/proc/165/task/165/ns/mnt</span>
+        <span class="c1">#^Z[1]+  Stopped                    find /</span>
+        <span class="c1">#[console-expect]#kill %1</span>
+        <span class="c1">#Error sending SOL data: FAIL</span>
+        <span class="c1">#SOL session closed by BMC</span>
+        <span class="c1">#^M~.</span>
+        <span class="c1">#~.[SOL Session operational.  Use ~? for help]</span>
+        <span class="c1">#fg</span>
+        <span class="c1">#find /</span>
+        <span class="c1">#/proc/165/task/165/net</span>
+        <span class="c1">#/proc/165/task/165/net/arp</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z cleanup&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;kill %1&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z cleanup succeeded&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z cleanup problem, some unexpected results may follow&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z cleanup Exception=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="c1"># try one last time</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;kill %1&quot;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z Exception kill succeeded&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z 2nd Exception=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="s2">&quot;kill %1&quot;</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z 2 Exception kill succeeded&quot;</span><span class="p">)</span>
+        <span class="c1"># TODO: It seems busybox jobs does not properly clear the killed job</span>
+        <span class="c1"># from the jobs output, but yet the process is gone and fg shows</span>
+        <span class="c1"># it is terminated</span>
+        <span class="n">kill_output</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="s2">&quot;jobs -p&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z jobs kill_output=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kill_output</span><span class="p">))</span>
+        <span class="c1"># make sure they are gone</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kill_output</span><span class="p">)):</span>
+            <span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="s2">&quot;kill -9 </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kill_output</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+        <span class="n">fg_output</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="s2">&quot;fg&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Control-C/Z jobs fg_output=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fg_output</span><span class="p">))</span></div>
+
+<span class="k">def</span> <span class="nf">suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">Console32k</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">ControlZ</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">ControlC</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

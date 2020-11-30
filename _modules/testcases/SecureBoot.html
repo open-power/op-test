@@ -1,0 +1,452 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.SecureBoot &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.SecureBoot</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Secureboot IPL Tests</span>
+<span class="sd">--------------------</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+<span class="kn">from</span> <span class="nn">testcases.OpTestFlash</span> <span class="kn">import</span> <span class="n">PNORFLASH</span>
+<span class="kn">from</span> <span class="nn">testcases.OpTestFlash</span> <span class="kn">import</span> <span class="n">OpalLidsFLASH</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SecureBoot"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.SecureBoot">[docs]</a><span class="k">class</span> <span class="nc">SecureBoot</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="SecureBoot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.SecureBoot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_REST</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">get_rest_api</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pupdate_binary</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pupdate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pflash</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pflash</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pupdate</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">pupdate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">securemode</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">secure_mode</span></div>
+
+    <span class="k">def</span> <span class="nf">verify_boot_pass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">verify_boot_fail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_power_on</span><span class="p">()</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="n">boot</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="n">count</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;ISTEP&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+                <span class="n">boot</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">:</span>
+                <span class="n">count</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">boot</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">wait_for_secureboot_enforce</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_power_on</span><span class="p">()</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;STB: secure mode enforced, aborting.&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;secondary_wait&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;host_voltage_config&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">wait_for_sb_kt_start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+            <span class="s2">&quot;sbe|Performing Secure Boot key transition&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">wait_for_shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;shutdown complete&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">verify_opal_sb</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;grep &#39;^cpu&#39; /proc/cpuinfo |uniq|sed -e &#39;s/^.*: //;s/[,]* .*//;&#39;&quot;</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="n">part_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CAPP&quot;</span><span class="p">,</span> <span class="s2">&quot;IMA_CATALOG&quot;</span><span class="p">,</span> <span class="s2">&quot;BOOTKERNEL&quot;</span><span class="p">,</span> <span class="s2">&quot;VERSION&quot;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">]:</span>
+            <span class="n">part_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CAPP&quot;</span><span class="p">,</span> <span class="s2">&quot;BOOTKERNEL&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OPAL SB test not supported on </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;cat /sys/firmware/opal/msglog | grep -i stb&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">securemode</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="s2">&quot;secure mode on&quot;</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                    <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;OPAL-SB: Secure mode is detected as OFF&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">part_list</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;STB: </span><span class="si">%s</span><span class="s2"> verified&quot;</span> <span class="o">%</span> <span class="n">part</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">msg</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                    <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;OPAL-SB: </span><span class="si">%s</span><span class="s2"> verification failed or not happened&quot;</span> <span class="o">%</span> <span class="n">part</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">verify_dt_sb</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+
+        <span class="c1"># Check for STB support - /ibm,secureboot DT node should exist</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">securemode</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                    <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;OPAL-SB: ibm,secureboot DT node not created&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Secureboot not supported on this system&quot;</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lsprop /proc/device-tree/ibm,secureboot&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">securemode</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/secure-enabled&quot;</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/compatible&quot;</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash&quot;</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/name&quot;</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;cat /proc/device-tree/ibm,secureboot/compatible&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;ibm,secureboot-v2&quot;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/hw-key-hash-size&quot;</span><span class="p">)</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc&quot;</span><span class="p">)</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/compatible&quot;</span><span class="p">)</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/ibm,cvc/memory-region&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;ibm,secureboot-v1&quot;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;ls --color=never /proc/device-tree/ibm,secureboot/hash-algo&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="VerifyOPALSecureboot"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.VerifyOPALSecureboot">[docs]</a><span class="k">class</span> <span class="nc">VerifyOPALSecureboot</span><span class="p">(</span><span class="n">SecureBoot</span><span class="p">):</span>
+<div class="viewcode-block" id="VerifyOPALSecureboot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.VerifyOPALSecureboot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">VerifyOPALSecureboot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_dt_sb</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_opal_sb</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="UnSignedPNOR"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.UnSignedPNOR">[docs]</a><span class="k">class</span> <span class="nc">UnSignedPNOR</span><span class="p">(</span><span class="n">SecureBoot</span><span class="p">,</span> <span class="n">PNORFLASH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Secure boot IPL test: Ensure prevention of boot with improperly signed PNOR.</span>
+
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    SB Mode sign mode Boot result</span>
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    ON      Unsigned  Fail</span>
+<span class="sd">    OFF     Unsigned  Pass</span>
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="UnSignedPNOR.setUp"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.UnSignedPNOR.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">un_signed_pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">UnSignedPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Un-signed/improper signed PNOR image not provided&quot;</span><span class="p">)</span>
+        <span class="n">PNORFLASH</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">UnSignedPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">runTest</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">securemode</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_boot_pass</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_dt_sb</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_opal_sb</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">verify_boot_fail</span><span class="p">(),</span> <span class="s2">&quot;Unexpected system boot&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SignedPNOR"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.SignedPNOR">[docs]</a><span class="k">class</span> <span class="nc">SignedPNOR</span><span class="p">(</span><span class="n">SecureBoot</span><span class="p">,</span> <span class="n">PNORFLASH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Secure boot IPL test: Ensure successful boot with properly signed PNOR.</span>
+
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    SB Mode sign mode Boot result</span>
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    ON      Signed    Pass</span>
+<span class="sd">    OFF     Signed    Pass</span>
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="SignedPNOR.setUp"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.SignedPNOR.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">signed_pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SignedPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;signed PNOR image not provided&quot;</span><span class="p">)</span>
+        <span class="n">PNORFLASH</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SignedPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">runTest</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_boot_pass</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_dt_sb</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_opal_sb</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="SignedToPNOR"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.SignedToPNOR">[docs]</a><span class="k">class</span> <span class="nc">SignedToPNOR</span><span class="p">(</span><span class="n">SecureBoot</span><span class="p">,</span> <span class="n">PNORFLASH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Secure boot IPL test: Ensure successful boot with properly</span>
+<span class="sd">    signed to PNOR(To match the keys which are got replaced after</span>
+<span class="sd">    KeyTransitionPNOR flash test).</span>
+
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    SB Mode sign mode Boot result</span>
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    ON      Signed    Pass</span>
+<span class="sd">    OFF     Signed    Pass</span>
+<span class="sd">    ======= ========= ===========</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="SignedToPNOR.setUp"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.SignedToPNOR.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">signed_to_pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SignedToPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;signed PNOR image not provided&quot;</span><span class="p">)</span>
+        <span class="n">PNORFLASH</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SignedToPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">runTest</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_boot_pass</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_dt_sb</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_opal_sb</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="KeyTransitionPNOR"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.KeyTransitionPNOR">[docs]</a><span class="k">class</span> <span class="nc">KeyTransitionPNOR</span><span class="p">(</span><span class="n">SecureBoot</span><span class="p">,</span> <span class="n">PNORFLASH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Secure boot key transition test: Ensure successful key transition in SEEPROM</span>
+<span class="sd">    Types of Key Transition PNOR images:</span>
+
+<span class="sd">    - dev to dev</span>
+<span class="sd">    - dev to prod</span>
+<span class="sd">    - prod to dev</span>
+<span class="sd">    - prod to prod</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="KeyTransitionPNOR.setUp"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.KeyTransitionPNOR.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kt_pnor</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">key_transition_pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">KeyTransitionPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">kt_pnor</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No key transition PNOR image is provided&quot;</span><span class="p">)</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="n">PNORFLASH</span><span class="o">.</span><span class="n">pnor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kt_pnor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">KeyTransitionPNOR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">runTest</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_power_on</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">IPLing</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_sb_kt_start</span><span class="p">()</span>
+        <span class="c1"># system should power off automatically after key transition finishes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">POWERING_OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_shutdown</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;set state, going to off&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OPALContainerTest"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.OPALContainerTest">[docs]</a><span class="k">class</span> <span class="nc">OPALContainerTest</span><span class="p">(</span><span class="n">SecureBoot</span><span class="p">,</span> <span class="n">OpalLidsFLASH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    System having Signed PNOR(either production or developement mode)</span>
+<span class="sd">    Flash signed containers with wrong keys</span>
+<span class="sd">    Secureboot verify should fail and boot should abort</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="OPALContainerTest.setUp"><a class="viewcode-back" href="../../tests.html#testcases.SecureBoot.OPALContainerTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiboot</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_kernel</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skiroot_initramfs</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_containers</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">test_container</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OPALContainerTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">test_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_containers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No test containers provided&quot;</span><span class="p">)</span>
+        <span class="n">known_part_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;BOOTKERNEL&quot;</span><span class="p">,</span> <span class="s2">&quot;CAPP&quot;</span><span class="p">,</span> <span class="s2">&quot;IMA_CATALOG&quot;</span><span class="p">,</span> <span class="s2">&quot;VERSION&quot;</span><span class="p">]</span>
+        <span class="c1"># sort list with known order list</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">known_part_list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_containers</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="n">test_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">container</span> <span class="ow">in</span> <span class="n">test_list</span><span class="p">:</span>
+            <span class="n">OpalLidsFLASH</span><span class="o">.</span><span class="n">flash_part_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">container</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">OPALContainerTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">runTest</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">securemode</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_secureboot_enforce</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">secureboot_suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">UnSignedPNOR</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">SignedPNOR</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">OPALContainerTest</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">SignedPNOR</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">KeyTransitionPNOR</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">SignedToPNOR</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

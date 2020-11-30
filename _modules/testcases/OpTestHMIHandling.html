@@ -1,0 +1,873 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestHMIHandling &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestHMIHandling</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestHMIHandling.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestHMIHandling</span>
+<span class="sd">-----------------</span>
+
+<span class="sd">HMI Handling package for OpenPower testing.</span>
+
+<span class="sd">This class will test the functionality of following.</span>
+
+<span class="sd">1. HMI Non-recoverable errors - Core checkstop and Hypervisor resource error</span>
+<span class="sd">2. HMI Recoverable errors- proc_recv_done, proc_recv_error_masked and proc_recv_again</span>
+<span class="sd">3. TFMR error injections</span>
+<span class="sd">4. chip TOD error injections</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSSH</span> <span class="kn">import</span> <span class="n">ConsoleState</span> <span class="k">as</span> <span class="n">SSHConnectionState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestIPMI</span> <span class="kn">import</span> <span class="n">IPMIConsoleState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span><span class="p">,</span> <span class="n">UnknownStateTransition</span><span class="p">,</span> <span class="n">PlatformError</span><span class="p">,</span> <span class="n">HostbootShutdown</span><span class="p">,</span> <span class="n">StoppingSystem</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OpTestHMIHandling"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.OpTestHMIHandling">[docs]</a><span class="k">class</span> <span class="nc">OpTestHMIHandling</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestHMIHandling.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.OpTestHMIHandling.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_FSP</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">util</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">util</span></div>
+
+<div class="viewcode-block" id="OpTestHMIHandling.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.OpTestHMIHandling.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clear_stop</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clearGardEntries</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_enable_all_cores</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;grep &#39;^cpu&#39; /proc/cpuinfo |uniq|sed -e &#39;s/^.*: //;s/[,]* .*//;&#39;&quot;</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">revision</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;grep &#39;^revision&#39; /proc/cpuinfo |uniq|sed -e &#39;s/^.*: //;s/ (.*)//;&#39;&quot;</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">supported</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">revision</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span> <span class="s2">&quot;2.1&quot;</span><span class="p">,</span> <span class="s2">&quot;2.2&quot;</span><span class="p">,</span> <span class="s2">&quot;2.3&quot;</span><span class="p">]:</span>
+            <span class="n">supported</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9P&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">revision</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;1.0&quot;</span><span class="p">]:</span>
+            <span class="n">supported</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">supported</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skipping, HMIHandling NOT supported on CPU=</span><span class="si">{}</span><span class="s2"> Revision=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">revision</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;HMIHandling not supported on CPU=</span><span class="si">{}</span><span class="s2"> Revision=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">revision</span><span class="p">))</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Setting up to run HMIHandling on CPU=</span><span class="si">{}</span><span class="s2"> Revision=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">revision</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">clear_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">stop</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">clearGardEntries</span><span class="p">()</span>
+                <span class="k">break</span>
+            <span class="k">except</span> <span class="p">(</span><span class="n">UnknownStateTransition</span><span class="p">,</span> <span class="n">PlatformError</span><span class="p">,</span> <span class="n">HostbootShutdown</span><span class="p">,</span> <span class="n">StoppingSystem</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="se">\n\n\n</span><span class="s2">OpTestSystem OpTestHMIHandling clear_stop counter i=</span><span class="si">{}</span><span class="s2"> (i=0 or i=1 can be seen recovering from failed test) Exception=</span><span class="si">{}</span><span class="se">\n\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">stop</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">UNKNOWN_BAD</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;OpTestHMIHandling failed to recover from previous OpSystemState.UNKNOWN_BAD&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">handle_ipl</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;ISTEP&quot;</span><span class="p">,</span> <span class="s2">&quot;istep&quot;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">180</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">rc</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">IPLing</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+                    <span class="k">break</span>
+                <span class="k">except</span> <span class="p">(</span><span class="n">UnknownStateTransition</span><span class="p">,</span> <span class="n">PlatformError</span><span class="p">,</span> <span class="n">HostbootShutdown</span><span class="p">,</span> <span class="n">StoppingSystem</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;</span><span class="se">\n\n\n</span><span class="s2">OpTestSystem OpTestHMIHandling handle_ipl counter i=</span><span class="si">{}</span><span class="s2"> (i=0 or i=1 are common test results) Exception=</span><span class="si">{}</span><span class="se">\n\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">stop</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">clear_stop</span><span class="p">()</span>  <span class="c1"># set the machine to recover for whatever comes next</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                    <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;OpTestHMIHandling failed to normally recover after Error Injection&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clear_stop</span><span class="p">()</span>  <span class="c1"># set the machine to recover for whatever comes next</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;OpTestHMIHandling failed to get ISTEP/istep after Error Injection&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">verify_proc_recovery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">l_res</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Processor Recovery done&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">)</span> <span class="ow">and</span> \
+                <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Harmless Hypervisor Maintenance interrupt [Recovered]&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Processor recovery done&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;HMI handling failed to log message: for proc_recv_done&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">verify_timer_facility_recovery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">l_res</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Timer facility experienced an error&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">)</span> <span class="ow">and</span> \
+                <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Severe Hypervisor Maintenance interrupt [Recovered]&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Timer facility experienced an error and got recovered&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;HMI handling failed to log message&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">init_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">l_chips</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_list_of_chips</span><span class="p">(</span>
+            <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># [&#39;00000000&#39;, &#39;00000001&#39;, &#39;00000010&#39;]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">l_chips</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Getscom failed to list processor chip ids&quot;</span><span class="p">)</span>
+
+        <span class="n">l_cores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_cores</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">l_cores</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to get list of core id&#39;s&quot;</span><span class="p">)</span>
+
+        <span class="c1"># {0: [&#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;], 1: [&#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;], 10: [&#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;]}</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_cores</span><span class="p">)</span>
+        <span class="c1"># Remove master core where injecting core checkstop leads to IPL expected failures</span>
+        <span class="c1"># after 2 failures system will starts boot in Golden side of PNOR</span>
+        <span class="n">l_cores</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_cores</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">tup</span> <span class="ow">in</span> <span class="n">l_cores</span><span class="p">:</span>
+            <span class="n">new_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">l_chips</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">tup</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_list</span><span class="p">)</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">)</span>
+        <span class="c1"># self.l_dic is a list of chip id&#39;s, core id&#39;s . and is of below format</span>
+        <span class="c1"># [[&#39;00000000&#39;, [&#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;]], [&#39;00000001&#39;, [&#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;]], [&#39;00000010&#39;, [&#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;]]]</span>
+
+        <span class="c1"># In-order to inject HMI errors on cpu&#39;s, cpu should be running, so disabling the sleep states 1 and 2 of all CPU&#39;s</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disable_cpu_idle_states</span><span class="p">()</span>
+
+        <span class="c1"># Disable kdump to check behaviour of IPL caused due to kernel panic after injection of core/system checkstop</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disable_kdump_service</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">disable_kdump_service</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">l_oslevel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_OS_Level</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;Ubuntu&quot;</span> <span class="ow">in</span> <span class="n">l_oslevel</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;service kdump-tools stop&quot;</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;service kdump stop&quot;</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="c1"># kdump may not be enabled, so it&#39;s not a failure to stop it</span>
+                <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">enable_idle_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_idle</span><span class="p">):</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;for i in /sys/devices/system/cpu/cpu*/cpuidle/state</span><span class="si">%s</span><span class="s2">/disable; do echo 0 &gt; $i; done&quot;</span> <span class="o">%</span> <span class="n">i_idle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">disable_idle_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_idle</span><span class="p">):</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;for i in /sys/devices/system/cpu/cpu*/cpuidle/state</span><span class="si">%s</span><span class="s2">/disable; do echo 1 &gt; $i; done&quot;</span> <span class="o">%</span> <span class="n">i_idle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Disable all CPU idle states except snooze state</span>
+    <span class="k">def</span> <span class="nf">disable_cpu_idle_states</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d&#39;/&#39; -f8 | sort -u | sed -e &#39;s/^state//&#39;&quot;</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">states</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="s2">&quot;0&quot;</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                        <span class="s2">&quot;cpupower idle-set -e 0&quot;</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">enable_idle_state</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;cpupower idle-set -d </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">state</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">disable_idle_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">form_scom_addr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">core</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">addr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">core</span><span class="p">)</span><span class="o">+</span><span class="n">addr</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="nb">hex</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="s2">&quot;0x</span><span class="si">%s</span><span class="s2"> | (((</span><span class="si">%s</span><span class="s2"> &amp; 0x1f) + 0x20) &lt;&lt; 24)&quot;</span> <span class="o">%</span>
+                           <span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">core</span><span class="p">,</span> <span class="mi">16</span><span class="p">))))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">val</span>
+
+    <span class="k">def</span> <span class="nf">clearGardEntries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="n">expect_prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">build_prompt</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">PingFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">ip</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PING_RETRY_POWERCYCLE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="c1"># maybe add gard --dg to first check if None to skip power cycle ?</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fspc</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;gard --clr all&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Success in clearing Gard Data&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span>
+                          <span class="s2">&quot;Failed to clear GARD entries&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fspc</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;gard --gc cpu&quot;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">my_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+            <span class="n">my_pty</span> <span class="o">=</span> <span class="n">my_term</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+            <span class="c1"># just need to run to get console setup</span>
+            <span class="n">my_term</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;date&quot;</span><span class="p">)</span>
+            <span class="n">cmd_list_all</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH opal-gard list all&quot;</span>
+            <span class="n">my_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="n">cmd_list_all</span><span class="p">)</span>
+            <span class="n">rc</span> <span class="o">=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">expect_prompt</span><span class="p">,</span> <span class="s2">&quot;Clear the entire GUARD&quot;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;rc=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rc</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;list before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;list after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">output</span> <span class="o">+=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\r\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">del</span> <span class="n">output</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># remove command from the list</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">pass</span>  <span class="c1"># nothing there</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LIST output=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+                <span class="k">if</span> <span class="s2">&quot;No GARD entries to display&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No GARD, so keep on&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>  <span class="c1"># all good so keep on</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GOT GARD to clear&quot;</span><span class="p">)</span>
+                    <span class="n">cmd_clear_all</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH opal-gard clear all&quot;</span>
+                    <span class="n">my_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="n">cmd_clear_all</span><span class="p">)</span>
+                    <span class="n">rc</span> <span class="o">=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+                        <span class="p">[</span><span class="n">expect_prompt</span><span class="p">,</span> <span class="s2">&quot;Clear the entire GUARD&quot;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD Clear rc=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rc</span><span class="p">))</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD Clear before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD Clear after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="n">output</span> <span class="o">+=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                            <span class="s2">&quot;</span><span class="se">\r\r\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="k">del</span> <span class="n">output</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># remove command from the list</span>
+                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                            <span class="k">pass</span>  <span class="c1"># nothing there</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD Clear output=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">my_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span>
+                        <span class="n">rc</span> <span class="o">=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+                            <span class="p">[</span><span class="n">expect_prompt</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD Clear Y rc=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rc</span><span class="p">))</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                            <span class="s2">&quot;GARD Clear Y before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD Clear Y after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+                        <span class="k">if</span> <span class="n">rc</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                                <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;We failed to clear the GARD, review the debug log.&quot;</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD CLEAR Y completed.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">rc</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">my_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span>
+                <span class="n">rc</span> <span class="o">=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">expect_prompt</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LIST rc=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rc</span><span class="p">))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LIST before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;LIST after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">rc</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                        <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;We tried to clear the GARD, but did not get the prompt back&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;GARD LIST Clear Y completed.&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">rc</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]:</span>  <span class="c1"># we timed out, so we got something other than what we expected</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                    <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;We timed out or EOF from trying to clear the GARD, review the debug log.&quot;</span><span class="p">)</span>
+
+            <span class="n">cmd_list_all</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH opal-gard list all&quot;</span>
+            <span class="n">my_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="n">cmd_list_all</span><span class="p">)</span>
+            <span class="n">rc</span> <span class="o">=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">expect_prompt</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">],</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;FINAL GARD LIST rc=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rc</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;FINAL before=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;FINAL after=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">my_pty</span><span class="o">.</span><span class="n">after</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">output</span> <span class="o">+=</span> <span class="n">my_pty</span><span class="o">.</span><span class="n">before</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\r\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">del</span> <span class="n">output</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># remove command from the list</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">pass</span>  <span class="c1"># nothing there</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;FINAL output=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+                <span class="k">if</span> <span class="s2">&quot;No GARD entries to display&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                        <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;We failed to get the prompt back from trying to clear the GARD entries&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>  <span class="c1"># we had something to clear and confirmed we cleared, but now we reboot</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;ALL confirmed clear GARD&quot;</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;We must have had GARD cleared, so we are going to Power OFF, then boot to OS&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_testHMIHandling</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_test</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function executes HMI test case based on the i_test value, Before test starts</span>
+<span class="sd">        disabling kdump service to make sure system reboots, after injecting non-recoverable errors.</span>
+
+<span class="sd">        i_test (type int): this is the type of test case want to execute</span>
+
+<span class="sd">        BMC_CONST.HMI_PROC_RECV_DONE</span>
+<span class="sd">          Processor recovery done</span>
+<span class="sd">        BMC_CONST.HMI_PROC_RECV_ERROR_MASKED</span>
+<span class="sd">          proc_recv_error_masked</span>
+<span class="sd">        BMC_CONST.HMI_MALFUNCTION_ALERT</span>
+<span class="sd">          malfunction_alert</span>
+<span class="sd">        BMC_CONST.HMI_HYPERVISOR_RESOURCE_ERROR</span>
+<span class="sd">          hypervisor resource error</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_test</span> <span class="o">=</span> <span class="n">i_test</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_test</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">PingFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">ip</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PING_RETRY_POWERCYCLE</span><span class="p">)</span>
+
+        <span class="n">l_con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uname -a&quot;</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat /etc/os-release&quot;</span><span class="p">)</span>
+        <span class="c1"># bug https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1732865</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lscpu&quot;</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -D&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">l_test</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_PROC_RECV_DONE</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_test_proc_recv_done</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">l_test</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_PROC_RECV_ERROR_MASKED</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_test_proc_recv_error_masked</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">l_test</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_MALFUNCTION_ALERT</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_test_malfunction_alert</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">l_test</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_HYPERVISOR_RESOURCE_ERROR</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_test_hyp_resource_err</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">l_test</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TOD_ERRORS</span><span class="p">:</span>
+            <span class="c1"># TOD Error recovery works on systems having more than one chip TOD</span>
+            <span class="c1"># Skip this test on single chip systems(as recovery fails on 1S systems)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;This is a single chip system, TOD Error recovery won&#39;t work&quot;</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PSS_HAMMING_DISTANCE</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">INTERNAL_PATH_OR_PARITY_ERROR</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TOD_DATA_PARITY_ERROR</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TOD_SYNC_CHECK_ERROR</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FSM_STATE_PARITY_ERROR</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">MASTER_PATH_CONTROL_REGISTER</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span>
+                    <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PORT_0_PRIMARY_CONFIGURATION_REGISTER</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span>
+                    <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PORT_1_PRIMARY_CONFIGURATION_REGISTER</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span>
+                    <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PORT_0_SECONDARY_CONFIGURATION_REGISTER</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span>
+                    <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PORT_1_SECONDARY_CONFIGURATION_REGISTER</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">SLAVE_PATH_CONTROL_REGISTER</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">INTERNAL_PATH_CONTROL_REGISTER</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_tod_errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PR_SC_MS_SL_CONTROL_REGISTER</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Getting Chip information failed&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">l_test</span> <span class="o">==</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TFMR_ERRORS</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_testTFMR_Errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TB_PARITY_ERROR</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_testTFMR_Errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TFMR_PARITY_ERROR</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_testTFMR_Errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TFMR_HDEC_PARITY_ERROR</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_testTFMR_Errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TFMR_DEC_PARITY_ERROR</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_testTFMR_Errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TFMR_PURR_PARITY_ERROR</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_testTFMR_Errors</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TFMR_SPURR_PARITY_ERROR</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Please provide valid test case&quot;</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -C&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_test_proc_recv_done</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to test HMI: processor recovery done</span>
+<span class="sd">        and also this function injecting error on all the cpus one by one and</span>
+<span class="sd">        verify whether cpu is recovered or not.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;20010A40&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;10013100&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">for</span> <span class="n">l_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">:</span>
+            <span class="n">l_chip</span> <span class="o">=</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">l_core</span> <span class="ow">in</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">l_reg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">form_scom_addr</span><span class="p">(</span><span class="n">scom_addr</span><span class="p">,</span> <span class="n">l_core</span><span class="p">)</span>
+                <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> 0000000000100000&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">l_chip</span><span class="p">,</span> <span class="n">l_reg</span><span class="p">)</span>
+                <span class="c1"># recoverable errors may not succeed all the time and</span>
+                <span class="c1"># ssh may terminate due to soft/hard lockups so use console</span>
+                <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+                <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -C&quot;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                    <span class="n">l_res</span> <span class="o">=</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span>
+                    <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Kernel panic - not syncing&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;Processor recovery failed: Kernel got panic&quot;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Petitboot&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;System reached petitboot:Processor recovery failed&quot;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;ISTEP&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;System started booting: Processor recovery failed&quot;</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;Failed to inject thread hang recoverable error </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">verify_proc_recovery</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_test_proc_recv_error_masked</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to test HMI: proc_recv_error_masked</span>
+<span class="sd">        Processor went through recovery for an error which is actually masked for reporting</span>
+<span class="sd">        this function also injecting the error on all the cpu&#39;s one-by-one.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;10013100&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">for</span> <span class="n">l_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">:</span>
+            <span class="n">l_chip</span> <span class="o">=</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">l_core</span> <span class="ow">in</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">l_reg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">form_scom_addr</span><span class="p">(</span><span class="n">scom_addr</span><span class="p">,</span> <span class="n">l_core</span><span class="p">)</span>
+                <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> 0000000000080000&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">l_chip</span><span class="p">,</span> <span class="n">l_reg</span><span class="p">)</span>
+                <span class="c1"># recoverable errors may not succeed all the time and</span>
+                <span class="c1"># ssh may terminate due to soft/hard lockups so use console</span>
+                <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+                <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -C&quot;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                    <span class="n">l_res</span> <span class="o">=</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span>
+                    <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Kernel panic - not syncing&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;Processor recovery failed: Kernel got panic&quot;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Petitboot&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;System reached petitboot:Processor recovery failed&quot;</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;ISTEP&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;System started booting: Processor recovery failed&quot;</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;Failed to inject thread hang recoverable error </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">verify_proc_recovery</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_test_malfunction_alert</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to test hmi malfunction alert:Core checkstop</span>
+<span class="sd">        A processor core in the system has to be checkstopped (failed recovery).</span>
+<span class="sd">        Injecting core checkstop on random core of random chip</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;20010A40&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;10013100&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Get random pair of chip vs cores</span>
+        <span class="n">l_pair</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">)</span>
+        <span class="c1"># Get random chip id</span>
+        <span class="n">l_chip</span> <span class="o">=</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Get random core number</span>
+        <span class="n">l_core</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">l_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">l_reg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">form_scom_addr</span><span class="p">(</span><span class="n">scom_addr</span><span class="p">,</span> <span class="n">l_core</span><span class="p">)</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> 1000000000000000&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">l_chip</span><span class="p">,</span> <span class="n">l_reg</span><span class="p">)</span>
+
+        <span class="c1"># Core checkstop will lead to system IPL, so we will wait for certain time for IPL</span>
+        <span class="c1"># to finish</span>
+        <span class="c1"># recoverable errors may not succeed all the time and</span>
+        <span class="c1"># ssh may terminate due to soft/hard lockups so use console</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="c1"># perform any command to make sure console is logged in</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uname -a&quot;</span><span class="p">)</span>
+
+        <span class="c1"># now can send raw pexpect commands which assume log in</span>
+        <span class="n">console</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle_ipl</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_test_hyp_resource_err</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to test HMI: Hypervisor resource error</span>
+<span class="sd">        Injecting Hypervisor resource error on random core of random chip</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;20010A40&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;10013100&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Get random pair of chip vs cores</span>
+        <span class="n">l_pair</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">)</span>
+        <span class="c1"># Get random chip id</span>
+        <span class="n">l_chip</span> <span class="o">=</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># Get random core number</span>
+        <span class="n">l_core</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">l_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">l_reg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">form_scom_addr</span><span class="p">(</span><span class="n">scom_addr</span><span class="p">,</span> <span class="n">l_core</span><span class="p">)</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> 0000000000008000&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">l_chip</span><span class="p">,</span> <span class="n">l_reg</span><span class="p">)</span>
+
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="c1"># perform any command to make sure console is logged in</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uname -a&quot;</span><span class="p">)</span>
+
+        <span class="c1"># now can send raw pexpect commands which assume log in</span>
+        <span class="n">console</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handle_ipl</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_testTFMR_Errors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_error</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function tests timer facility related error injections and check</span>
+<span class="sd">        the corresponding error got recovered. And this process is repeated</span>
+<span class="sd">        for all the active cores in all the chips.</span>
+
+<span class="sd">        `i_error` string: this is the type of error want to inject</span>
+
+<span class="sd">        - BMC_CONST.TB_PARITY_ERROR</span>
+<span class="sd">        - BMC_CONST.TFMR_PARITY_ERROR</span>
+<span class="sd">        - BMC_CONST.TFMR_HDEC_PARITY_ERROR</span>
+<span class="sd">        - BMC_CONST.TFMR_DEC_PARITY_ERROR</span>
+<span class="sd">        - BMC_CONST.TFMR_PURR_PARITY_ERROR</span>
+<span class="sd">        - BMC_CONST.TFMR_SPURR_PARITY_ERROR</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER9&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER9P&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;20010A84&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc_gen</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="n">scom_addr</span> <span class="o">=</span> <span class="s2">&quot;10013281&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">l_error</span> <span class="o">=</span> <span class="n">i_error</span>
+        <span class="k">for</span> <span class="n">l_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">:</span>
+            <span class="n">l_chip</span> <span class="o">=</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">l_core</span> <span class="ow">in</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">l_reg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">form_scom_addr</span><span class="p">(</span><span class="n">scom_addr</span><span class="p">,</span> <span class="n">l_core</span><span class="p">)</span>
+                <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">l_chip</span><span class="p">,</span> <span class="n">l_reg</span><span class="p">,</span> <span class="n">l_error</span><span class="p">)</span>
+                <span class="c1"># recoverable errors may not succeed all the time and</span>
+                <span class="c1"># ssh may terminate due to soft/hard lockups so use console</span>
+                <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+                <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -C&quot;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                    <span class="n">l_res</span> <span class="o">=</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span>
+                    <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Kernel panic - not syncing&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;TFMR error injection: Kernel got panic&quot;</span>
+                        <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Petitboot&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;System reached petitboot:TFMR error injection recovery failed&quot;</span>
+                        <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;ISTEP&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;System started booting: TFMR error injection recovery failed&quot;</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s2">&quot;Failed to inject TFMR error </span><span class="si">%s</span><span class="s2"> &quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+                <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">verify_timer_facility_recovery</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_test_tod_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_error</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function tests chip TOD related error injections and check</span>
+<span class="sd">        the corresponding error got recovered. And this error injection</span>
+<span class="sd">        happening on a random chip. This tod errors should test on systems</span>
+<span class="sd">        having more than one processor socket(chip). On single chip system</span>
+<span class="sd">        TOD error recovery won&#39;t work.</span>
+
+<span class="sd">        @param i_error @type string: this is the type of error want to inject</span>
+<span class="sd">                               These errors represented in common/OpTestConstants.py file.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_error</span> <span class="o">=</span> <span class="n">i_error</span>
+        <span class="n">l_pair</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">l_dic</span><span class="p">)</span>
+        <span class="c1"># Get random chip id</span>
+        <span class="n">l_chip</span> <span class="o">=</span> <span class="n">l_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;PATH=/usr/local/sbin:$PATH putscom -c </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">l_chip</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TOD_ERROR_REG</span><span class="p">,</span> <span class="n">l_error</span><span class="p">)</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -C&quot;</span><span class="p">)</span>
+
+        <span class="c1"># As of now putscom command to TOD register will fail with return code -1.</span>
+        <span class="c1"># putscom indirectly call getscom to read the value again.</span>
+        <span class="c1"># But getscom to TOD error reg there is no access</span>
+        <span class="c1"># TOD Error reg has only WO access and there is no read access</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span>
+            <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Kernel panic - not syncing&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;TOD ERROR Injection-kernel got panic&quot;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;login:&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;System booted to host OS without any kernel panic message&quot;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;Petitboot&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;System reached petitboot without any kernel panic message&quot;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;ISTEP&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                        <span class="s2">&quot;System started booting without any kernel panic message&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;TOD: PSS Hamming distance error injection failed </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verify_timer_facility_recovery</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="HMI_TFMR_ERRORS"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.HMI_TFMR_ERRORS">[docs]</a><span class="k">class</span> <span class="nc">HMI_TFMR_ERRORS</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testHMIHandling</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TFMR_ERRORS</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TOD_ERRORS"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.TOD_ERRORS">[docs]</a><span class="k">class</span> <span class="nc">TOD_ERRORS</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testHMIHandling</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TOD_ERRORS</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SingleCoreTOD_ERRORS"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.SingleCoreTOD_ERRORS">[docs]</a><span class="k">class</span> <span class="nc">SingleCoreTOD_ERRORS</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+<div class="viewcode-block" id="SingleCoreTOD_ERRORS.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.SingleCoreTOD_ERRORS.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SingleCoreTOD_ERRORS</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_enable_single_core</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testHMIHandling</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">TOD_ERRORS</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PROC_RECOV_DONE"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.PROC_RECOV_DONE">[docs]</a><span class="k">class</span> <span class="nc">PROC_RECOV_DONE</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testHMIHandling</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_PROC_RECV_DONE</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PROC_RECV_ERROR_MASKED"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.PROC_RECV_ERROR_MASKED">[docs]</a><span class="k">class</span> <span class="nc">PROC_RECV_ERROR_MASKED</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testHMIHandling</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_PROC_RECV_ERROR_MASKED</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MalfunctionAlert"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.MalfunctionAlert">[docs]</a><span class="k">class</span> <span class="nc">MalfunctionAlert</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testHMIHandling</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_MALFUNCTION_ALERT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clearGardEntries</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="HypervisorResourceError"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.HypervisorResourceError">[docs]</a><span class="k">class</span> <span class="nc">HypervisorResourceError</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testHMIHandling</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HMI_HYPERVISOR_RESOURCE_ERROR</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clearGardEntries</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ClearGard"><a class="viewcode-back" href="../../tests.html#testcases.OpTestHMIHandling.ClearGard">[docs]</a><span class="k">class</span> <span class="nc">ClearGard</span><span class="p">(</span><span class="n">OpTestHMIHandling</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clearGardEntries</span><span class="p">()</span></div>
+
+
+<span class="k">def</span> <span class="nf">unrecoverable_suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">MalfunctionAlert</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">HypervisorResourceError</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">ClearGard</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+
+
+<span class="k">def</span> <span class="nf">suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">HMI_TFMR_ERRORS</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">PROC_RECOV_DONE</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">PROC_RECV_ERROR_MASKED</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">TOD_ERRORS</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+
+
+<span class="k">def</span> <span class="nf">experimental_suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">TOD_ERRORS</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">SingleCoreTOD_ERRORS</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

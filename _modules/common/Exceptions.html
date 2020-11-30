@@ -1,0 +1,644 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>common.Exceptions &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for common.Exceptions</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">op-test Exceptions</span>
+<span class="sd">------------------</span>
+
+<span class="sd">These exceptions are used throughout op-test to help testing error</span>
+<span class="sd">conditions as well as failing tests when unexpected errors occur.</span>
+
+<span class="sd">When subclassing Exceptions be aware to use &#39;message&#39; as the</span>
+<span class="sd">embedded variable so that e.message can be retrieved and</span>
+<span class="sd">searched for filtering if desired in future use cases.</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+
+<div class="viewcode-block" id="CommandFailed"><a class="viewcode-back" href="../../programming.html#common.Exceptions.CommandFailed">[docs]</a><span class="k">class</span> <span class="nc">CommandFailed</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Running a command (BMC or Host) failed with non-zero exit code.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">exitcode</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">command</span> <span class="o">=</span> <span class="n">command</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">output</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">=</span> <span class="n">exitcode</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Command &#39;</span><span class="si">{}</span><span class="s2">&#39; exited with &#39;</span><span class="si">{}</span><span class="s2">&#39;.</span><span class="se">\n</span><span class="s2">Output</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SSHSessionDisconnected"><a class="viewcode-back" href="../../programming.html#common.Exceptions.SSHSessionDisconnected">[docs]</a><span class="k">class</span> <span class="nc">SSHSessionDisconnected</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    SSH session/console was disconnected unexpectedly. e.g. it may have crashed</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notice</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">notice</span> <span class="o">=</span> <span class="n">notice</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;SSH session/console disconnected due to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">notice</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BMCDisconnected"><a class="viewcode-back" href="../../programming.html#common.Exceptions.BMCDisconnected">[docs]</a><span class="k">class</span> <span class="nc">BMCDisconnected</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    BMC Cosnole was disconnected unexpectedly. e.g. it may have crashed</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notice</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">notice</span> <span class="o">=</span> <span class="n">notice</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;BMC console disconnected due to &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">notice</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NoKernelConfig"><a class="viewcode-back" href="../../programming.html#common.Exceptions.NoKernelConfig">[docs]</a><span class="k">class</span> <span class="nc">NoKernelConfig</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We needed to grep host kernel config for a config option, but could not</span>
+<span class="sd">    find the needed config file</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">kernel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;kernel config for </span><span class="si">{}</span><span class="s2"> not found, looked for </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelModuleNotLoaded"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelModuleNotLoaded">[docs]</a><span class="k">class</span> <span class="nc">KernelModuleNotLoaded</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Kernel module needed to run test wasn&#39;t loaded</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">module</span> <span class="o">=</span> <span class="n">module</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel module &#39;</span><span class="si">{}</span><span class="s2">&#39; not loaded&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">module</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelConfigNotSet"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelConfigNotSet">[docs]</a><span class="k">class</span> <span class="nc">KernelConfigNotSet</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    A kernel config option needed by the test was not set for the running</span>
+<span class="sd">    kernel.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opt</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opt</span> <span class="o">=</span> <span class="n">opt</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel config &#39;</span><span class="si">{}</span><span class="s2">&#39; not present&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">opt</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelSoftLockup"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelSoftLockup">[docs]</a><span class="k">class</span> <span class="nc">KernelSoftLockup</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We caught a soft lockup. Mostly this will mean we need to fail the test</span>
+<span class="sd">    and reboot.</span>
+<span class="sd">    Some test cases may *intentionally* cause these, so they can catch them</span>
+<span class="sd">    and act appropriately.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Soft lockup (machine in state &#39;</span><span class="si">{}</span><span class="s2">&#39;): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelHardLockup"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelHardLockup">[docs]</a><span class="k">class</span> <span class="nc">KernelHardLockup</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We detected a hard lockup from the running kernel.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Hard lockup (machine in state &#39;</span><span class="si">{}</span><span class="s2">&#39;): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelOOPS"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelOOPS">[docs]</a><span class="k">class</span> <span class="nc">KernelOOPS</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We detected a kernel OOPS. Mostly this will mean we need to fail the test</span>
+<span class="sd">    and reboot.</span>
+<span class="sd">    Some test cases may *intentionally* cause these, so they can catch them</span>
+<span class="sd">    and act appropriately.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel OOPS (machine in state &#39;</span><span class="si">{}</span><span class="s2">&#39;): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelKdump"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelKdump">[docs]</a><span class="k">class</span> <span class="nc">KernelKdump</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We observe a Kdump kernel booting after a kernel crash, to dump vmcore</span>
+<span class="sd">    for debug.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel Kdump (machine in state &#39;</span><span class="si">{}</span><span class="s2">&#39;): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelFADUMP"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelFADUMP">[docs]</a><span class="k">class</span> <span class="nc">KernelFADUMP</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We observe a kernel crash and follwed by MPIPL boot to dump opalcore/vmcore for debug.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel FADUMP/MPIPL (machine in state &#39;</span><span class="si">{}</span><span class="s2">&#39;): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelCrashUnknown"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelCrashUnknown">[docs]</a><span class="k">class</span> <span class="nc">KernelCrashUnknown</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Kernel crashed but it didn&#39;t reach the end failure condition</span>
+<span class="sd">    (i.e a timeout occured)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel crash unknown state (machine in state &#39;</span><span class="si">{}</span><span class="s2">&#39;): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelBug"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelBug">[docs]</a><span class="k">class</span> <span class="nc">KernelBug</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel bug in state &#39;</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SkibootAssert"><a class="viewcode-back" href="../../programming.html#common.Exceptions.SkibootAssert">[docs]</a><span class="k">class</span> <span class="nc">SkibootAssert</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We detected an assert from OPAL (skiboot) firmware.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Hit skiboot assert in state &#39;</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SkibootException"><a class="viewcode-back" href="../../programming.html#common.Exceptions.SkibootException">[docs]</a><span class="k">class</span> <span class="nc">SkibootException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We detected an exception from OPAL (skiboot) firmware.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Hit skiboot unexpected exception in state &#39;</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KernelPanic"><a class="viewcode-back" href="../../programming.html#common.Exceptions.KernelPanic">[docs]</a><span class="k">class</span> <span class="nc">KernelPanic</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Kernel got panic due to high seveirty conditions</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Kernel panic in state &#39;</span><span class="si">{}</span><span class="s2">&#39;: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PlatformError"><a class="viewcode-back" href="../../programming.html#common.Exceptions.PlatformError">[docs]</a><span class="k">class</span> <span class="nc">PlatformError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We detected a system reboot due to platform error (i.e checkstop,</span>
+<span class="sd">    machine check, MCE, etc)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Platform error at state &#39;</span><span class="si">{}</span><span class="s2">&#39;. Log: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HostbootShutdown"><a class="viewcode-back" href="../../programming.html#common.Exceptions.HostbootShutdown">[docs]</a><span class="k">class</span> <span class="nc">HostbootShutdown</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We detected that Hostboot got an IPMI shutdown request.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Detected hostboot got IPMI shutdown request&quot;</span></div>
+
+
+<div class="viewcode-block" id="UnexpectedCase"><a class="viewcode-back" href="../../programming.html#common.Exceptions.UnexpectedCase">[docs]</a><span class="k">class</span> <span class="nc">UnexpectedCase</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We detected something we should not have.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Something unexpected happened in State=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span>
+                <span class="s1">&#39; Review the following for more details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="WaitForIt"><a class="viewcode-back" href="../../programming.html#common.Exceptions.WaitForIt">[docs]</a><span class="k">class</span> <span class="nc">WaitForIt</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We need special handling per case so give back desired data.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;expect_dict&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;reconnect_count&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Waiting for &quot;</span><span class="si">{}</span><span class="s1">&quot; did not succeed, check the loop_max if &#39;</span>
+                <span class="s1">&#39;needing to wait longer (number of reconnect attempts &#39;</span>
+                <span class="s1">&#39;were </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;expect_dict&#39;</span><span class="p">],</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;reconnect_count&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="RecoverFailed"><a class="viewcode-back" href="../../programming.html#common.Exceptions.RecoverFailed">[docs]</a><span class="k">class</span> <span class="nc">RecoverFailed</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We tried to recover and did not succeed.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;before&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;after&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;msg&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Unable to get the proper prompt, probably just retry&#39;</span>
+                <span class="s1">&#39; review the following for more details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Expect Before Buffer=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;\n</span><span class="s1">Expect After Buffer=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;before&#39;</span><span class="p">],</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;after&#39;</span><span class="p">],</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;msg&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="UnknownStateTransition"><a class="viewcode-back" href="../../programming.html#common.Exceptions.UnknownStateTransition">[docs]</a><span class="k">class</span> <span class="nc">UnknownStateTransition</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We tried to transition to UNKNOWN, something happened.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Something happened system state=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1"> and we &#39;</span>
+                <span class="s1">&#39;transitioned to UNKNOWN state. &#39;</span>
+                <span class="s1">&#39; Review the following for more details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">],</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="HostLocker"><a class="viewcode-back" href="../../programming.html#common.Exceptions.HostLocker">[docs]</a><span class="k">class</span> <span class="nc">HostLocker</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We tried to setup with HostLocker and something happened.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Something happened setting up HostLocker. &#39;</span>
+                <span class="s1">&#39; Review the following for more details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="HTTPCheck"><a class="viewcode-back" href="../../programming.html#common.Exceptions.HTTPCheck">[docs]</a><span class="k">class</span> <span class="nc">HTTPCheck</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    HTTP Server related and something happened.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Something happened with the HTTP Server. &#39;</span>
+                <span class="s1">&#39; Review the following for more details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="OpExit"><a class="viewcode-back" href="../../programming.html#common.Exceptions.OpExit">[docs]</a><span class="k">class</span> <span class="nc">OpExit</span><span class="p">(</span><span class="ne">SystemExit</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We are exiting and want to set an exit code.</span>
+<span class="sd">    SystemExit will bubble up and out.</span>
+<span class="sd">    Callers must use atexit to register cleanup</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;code&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;code&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="AES"><a class="viewcode-back" href="../../programming.html#common.Exceptions.AES">[docs]</a><span class="k">class</span> <span class="nc">AES</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We tried to setup with Automated Environment Sharing (AES)</span>
+<span class="sd">    and something happened.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Something happened setting up Automated &#39;</span>
+                <span class="s1">&#39;Environment Sharing (AES). &#39;</span>
+                <span class="s1">&#39; Review the following for more details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="ParameterCheck"><a class="viewcode-back" href="../../programming.html#common.Exceptions.ParameterCheck">[docs]</a><span class="k">class</span> <span class="nc">ParameterCheck</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We think something is not properly setup.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Something does not appear to be configured&#39;</span>
+                <span class="s1">&#39; or setup properly. &#39;</span>
+                <span class="s1">&#39; Review the following for more details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="StoppingSystem"><a class="viewcode-back" href="../../programming.html#common.Exceptions.StoppingSystem">[docs]</a><span class="k">class</span> <span class="nc">StoppingSystem</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We have either set the system to stop for some condition or reached the</span>
+<span class="sd">    kill_cord limit and stopping.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;System has either set the stop flag for some condition or &quot;</span>\
+            <span class="s2">&quot;reached the kill_cord limit on trying to continue, check that &quot;</span>\
+            <span class="s2">&quot;your system is operational&quot;</span></div>
+
+
+<div class="viewcode-block" id="ConsoleSettings"><a class="viewcode-back" href="../../programming.html#common.Exceptions.ConsoleSettings">[docs]</a><span class="k">class</span> <span class="nc">ConsoleSettings</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    We need special handling per case so give back desired data.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">default_vals</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;before&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;after&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;msg&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">default_vals</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_vals</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;Setting the prompt or logging in for the console was not &quot;</span>
+                <span class="s2">&quot;successful, check credentials and review the following&quot;</span>
+                <span class="s2">&quot; for more details</span><span class="se">\n</span><span class="s2">Expect Before Buffer=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;Expect After Buffer=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> </span><span class="se">\n</span><span class="s2">Message=</span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;before&#39;</span><span class="p">],</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;after&#39;</span><span class="p">],</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;msg&#39;</span><span class="p">]))</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

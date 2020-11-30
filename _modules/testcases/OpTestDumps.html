@@ -1,0 +1,400 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestDumps &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestDumps</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015,2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestDumps</span>
+<span class="sd">-----------</span>
+
+<span class="sd">Different dumps for fsp platforms:</span>
+
+<span class="sd">- fipsdump</span>
+<span class="sd">- system dump</span>
+
+<span class="sd">  host_dump_boottime</span>
+<span class="sd">    Trigger dump when kernel boots(either Petitboot or OS kernel)</span>
+<span class="sd">  host_dump_runtime</span>
+<span class="sd">    Trigger dump when system is in OS or already booted to OS</span>
+<span class="sd">  nmi_dump</span>
+<span class="sd">    Trigger system dump by sending NMI interrupts to processors</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">common.OpTestIPMI</span> <span class="kn">import</span> <span class="n">OpTestIPMI</span>
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">from</span> <span class="nn">common.OpTestError</span> <span class="kn">import</span> <span class="n">OpTestError</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">OpTestDumps</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">bmc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">util</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">platform</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_opal_msg_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_kernel_log</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">trigger_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;nmi_dump&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_power_diag</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="s2">&quot;host_dump&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">trigger_system_dump</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unknown test type&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">fipsdump_initiate_from_host</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">dumpname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;fipsdump -l | sed &#39;s/\ .*//&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s1">&#39;echo 1 &gt; /sys/firmware/opal/dump/initiate_dump&#39;</span><span class="p">)</span>
+        <span class="n">dumping</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Wait for fips dump to finish</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">36</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;fipsdump -l&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;fipsdump -l&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;Dump In Progress&quot;</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+                <span class="n">dumping</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">dumping</span> <span class="ow">and</span> <span class="s2">&quot;Dump Was Invalidated&quot;</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="c1"># Dump not started case</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">dumping</span><span class="p">,</span>
+                        <span class="s2">&quot;fipsdump initation from host failed to initiate&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Timeout case(Usually it is taking less than one minute(around 40s))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">tries</span><span class="p">,</span> <span class="s2">&quot;FipS dump taking more than 3 mins&quot;</span><span class="p">)</span>
+        <span class="n">new_dumpname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;fipsdump -l | sed &#39;s/\ .*//&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">dumpname</span><span class="p">,</span> <span class="n">new_dumpname</span><span class="p">,</span>
+                            <span class="s2">&quot;fipsdump initation from host failed to initiate&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Wait for fipsdump to transfer to host</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="p">):</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s1">&#39;ls /var/log/dump&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">)</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="n">new_dumpname</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;fips dump transfered to host&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">new_dumpname</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span>
+                      <span class="s2">&quot;fips dump file transfer to host is failed when initiates from host&quot;</span><span class="p">)</span>
+        <span class="n">size_fsp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;fipsdump -l | awk &#39;{print $2}&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_dumpname</span><span class="p">,</span> <span class="n">size_fsp</span>
+
+    <span class="k">def</span> <span class="nf">verify_fipsdump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dumpname</span><span class="p">,</span> <span class="n">size_fsp</span><span class="p">):</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="p">):</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s1">&#39;ls /var/log/dump&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">)</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="n">dumpname</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;FipS dump transfered to Host&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">dumpname</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">),</span>
+                      <span class="s2">&quot;fips dump file transfer to host is failed when initiates from host&quot;</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;ls /var/log/dump/</span><span class="si">%s</span><span class="s2"> -l| awk &#39;{print $5}&#39;&quot;</span> <span class="o">%</span> <span class="n">dumpname</span>
+        <span class="n">size_host</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">size_fsp</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="n">size_host</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Total size of FSP dump file transfered to host from fsp&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span>
+                <span class="s2">&quot;Total size of FSP dump file is not transfered to host from fsp&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SYSTEM_DUMP"><a class="viewcode-back" href="../../tests.html#testcases.OpTestDumps.SYSTEM_DUMP">[docs]</a><span class="k">class</span> <span class="nc">SYSTEM_DUMP</span><span class="p">(</span><span class="n">OpTestDumps</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This function tests system dump functionality</span>
+
+<span class="sd">    1. Boot the system to runtime(Atleast to petitboot)</span>
+<span class="sd">    2. Trigger system dump from FSP</span>
+<span class="sd">    3. Wait for dump to finish &amp; IPL to reach runtime</span>
+<span class="sd">    4. Check for system dump files in host</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FSP Platform OPAL specific dump tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_command</span><span class="p">(</span><span class="s2">&quot;opal-dump-parse&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;rm -rf /var/log/dump/SYSDUMP*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;rm -rf /var/log/dump/Opal-log*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;rm -rf /var/log/dump/HostBoot-Runtime-log*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;rm -rf /var/log/dump/printk*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_get_console</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">mount_exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Please mount NFS and retry the test&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_run_command</span><span class="p">(</span><span class="s2">&quot;smgr mfgState&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">enable_system_dump</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">clear_fsp_errors</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;host_dump_boottime&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">power_off_sys</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">power_on_sys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">PingFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">ip</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PING_RETRY_POWERCYCLE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trigger_dump</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">wait_for_systemdump_to_finish</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">wait_for_runtime</span><span class="p">()</span>
+        <span class="n">raw_pty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">()</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;login:&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
+        <span class="n">raw_pty</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">ssh</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">PingFunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">ip</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">PING_RETRY_POWERCYCLE</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;ls /var/log/dump&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;opal-dump-parse -l /var/log/dump/SYSDUMP*&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Opal&quot;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">),</span>
+                      <span class="s2">&quot;sysdump test failed in dumping Opal-log section&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;HostBoot-Runtime-log&quot;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">),</span>
+                      <span class="s2">&quot;sysdump test failed in dumping HBRT section&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;printk&quot;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">),</span>
+                      <span class="s2">&quot;sysdump test failed in dumping printk section&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;cd /var/log/dump/&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;opal-dump-parse -s 1 /var/log/dump/SYSDUMP*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;cat Opal-log*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;opal-dump-parse -s 2  /var/log/dump/SYSDUMP*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;cat HostBoot-Runtime-log*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span>
+            <span class="s2">&quot;opal-dump-parse -s 128 /var/log/dump/SYSDUMP*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_run_command</span><span class="p">(</span><span class="s2">&quot;cat printk*&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FIPS_DUMP"><a class="viewcode-back" href="../../tests.html#testcases.OpTestDumps.FIPS_DUMP">[docs]</a><span class="k">class</span> <span class="nc">FIPS_DUMP</span><span class="p">(</span><span class="n">OpTestDumps</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+    <span class="c1">##</span>
+    <span class="c1"># @brief This function tests fipsdump functionality</span>
+    <span class="c1">#        1. Generate from FSP &amp; verify against host data</span>
+    <span class="c1">#        2. Generate from Host &amp; verify against fsp data</span>
+    <span class="c1">#</span>
+    <span class="c1"># @return BMC_CONST.FW_SUCCESS or raise OpTestError</span>
+    <span class="c1">#</span>
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;FSP Platform OPAL specific dump tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">fsp_get_console</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">mount_exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Please mount NFS and retry the test&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">list_all_fipsdumps_in_fsp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">clear_all_fipsdumps_in_fsp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_clear_all_dumps</span><span class="p">()</span>
+        <span class="c1"># Check the status of opal_errd daemon.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_status_of_opal_errd_daemon</span><span class="p">():</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Opal_errd daemon is running&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="s2">&quot;Opal_errd daemon is not running in host OS&quot;</span><span class="p">)</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span><span class="p">(</span><span class="n">count</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;===========================Iteration : </span><span class="si">%d</span><span class="s2">===============================&quot;</span> <span class="o">%</span> <span class="n">count</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;======================fipsdump initiation from FSP=========================&quot;</span><span class="p">)</span>
+            <span class="n">dumpname</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_FSP</span><span class="o">.</span><span class="n">trigger_fipsdump_in_fsp</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_fipsdump</span><span class="p">(</span><span class="n">dumpname</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+            <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;========================fipsdump initiation from HOST============================&quot;</span><span class="p">)</span>
+            <span class="n">dumpname</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fipsdump_initiate_from_host</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_fipsdump</span><span class="p">(</span><span class="n">dumpname</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="HOST_DUMP_BOOTTIME"><a class="viewcode-back" href="../../tests.html#testcases.OpTestDumps.HOST_DUMP_BOOTTIME">[docs]</a><span class="k">class</span> <span class="nc">HOST_DUMP_BOOTTIME</span><span class="p">(</span><span class="n">SYSTEM_DUMP</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">set_up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host_dump_boottime&quot;</span></div>
+
+
+<div class="viewcode-block" id="HOST_DUMP_RUNTIME"><a class="viewcode-back" href="../../tests.html#testcases.OpTestDumps.HOST_DUMP_RUNTIME">[docs]</a><span class="k">class</span> <span class="nc">HOST_DUMP_RUNTIME</span><span class="p">(</span><span class="n">SYSTEM_DUMP</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">set_up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host_dump_runtime&quot;</span></div>
+
+
+<div class="viewcode-block" id="NMI_DIAG_DUMP"><a class="viewcode-back" href="../../tests.html#testcases.OpTestDumps.NMI_DIAG_DUMP">[docs]</a><span class="k">class</span> <span class="nc">NMI_DIAG_DUMP</span><span class="p">(</span><span class="n">SYSTEM_DUMP</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">set_up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;nmi_dump&quot;</span></div>
+
+
+<span class="k">def</span> <span class="nf">suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">FIPS_DUMP</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">HOST_DUMP_RUNTIME</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">NMI_DIAG_DUMP</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">HOST_DUMP_BOOTTIME</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

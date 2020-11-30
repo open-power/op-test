@@ -1,0 +1,1004 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestInbandIPMI &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestInbandIPMI</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestInbandIPMI.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestInbandIPMI</span>
+<span class="sd">----------------</span>
+
+<span class="sd">Test the inband ipmi{OPEN Interface} fucntionality package for OpenPower</span>
+<span class="sd">platform.</span>
+
+<span class="sd">This class will test the functionality of following commands</span>
+
+<span class="sd">1. bmc, channel, chassis, dcmi, echo, event, exec, firewall, fru, lan</span>
+<span class="sd">   mc, pef, power, raw, sdr, sel, sensor, session, user</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.OpTestIPMI</span> <span class="kn">import</span> <span class="n">IPMIConsoleState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+<span class="kn">import</span> <span class="nn">common.OpTestMambo</span> <span class="k">as</span> <span class="nn">OpTestMambo</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="UnexpectedBootDevice"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.UnexpectedBootDevice">[docs]</a><span class="k">class</span> <span class="nc">UnexpectedBootDevice</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">actual</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expected</span> <span class="o">=</span> <span class="n">expected</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">actual</span> <span class="o">=</span> <span class="n">actual</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Expected to set </span><span class="si">%s</span><span class="s2"> but instead got </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expected</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">actual</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">OpTestInbandIPMIBase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">bmc</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="p">,</span> <span class="n">OpTestMambo</span><span class="o">.</span><span class="n">OpTestMambo</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span><span class="s2">&quot;Mambo so skipping InbandIPMI tests&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;skiroot&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">==</span> <span class="s2">&quot;host&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">load_ipmi_drivers</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unknown test type&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span>
+
+    <span class="k">def</span> <span class="nf">run_ipmi_cmds</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">cmds</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Run a list of IPMI commands, skipping the test if we can determine that the</span>
+<span class="sd">        command wouldn&#39;t be supported on the current system (e.g. system doesn&#39;t</span>
+<span class="sd">        support the inband USB interface).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">cmds</span><span class="p">:</span>
+                <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="n">my_responses</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Invalid command&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Error loading interface usb&quot;</span><span class="p">]</span>
+            <span class="n">matching</span> <span class="o">=</span> <span class="p">[</span><span class="n">xs</span> <span class="k">for</span> <span class="n">xs</span> <span class="ow">in</span> <span class="n">my_responses</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+                <span class="n">xs</span> <span class="ow">in</span> <span class="n">xa</span> <span class="k">for</span> <span class="n">xa</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Invalid command or Error loading interface usb&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+
+
+<div class="viewcode-block" id="BasicInbandIPMI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.BasicInbandIPMI">[docs]</a><span class="k">class</span> <span class="nc">BasicInbandIPMI</span><span class="p">(</span><span class="n">OpTestInbandIPMIBase</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="BasicInbandIPMI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.BasicInbandIPMI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipmi_method</span><span class="o">=</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_OPEN</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">=</span> <span class="n">ipmi_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BasicInbandIPMI</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="BasicInbandIPMI.test_sensor_list"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.BasicInbandIPMI.test_sensor_list">[docs]</a>    <span class="k">def</span> <span class="nf">test_sensor_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Run a fast and simple test (on IPMI sensors) to test base functionality</span>
+<span class="sd">        of the inband IPMI interface.</span>
+
+<span class="sd">        This test is designed an a smoke test rather than for completeness.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Sensor tests&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SENSOR_LIST</span><span class="p">])</span></div></div>
+
+
+<div class="viewcode-block" id="OpTestInbandIPMI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI">[docs]</a><span class="k">class</span> <span class="nc">OpTestInbandIPMI</span><span class="p">(</span><span class="n">OpTestInbandIPMIBase</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    A more complete test of inband IPMI functionality.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipmi_method</span><span class="o">=</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_OPEN</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">=</span> <span class="n">ipmi_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OpTestInbandIPMI</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">test_chassis_poh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+                <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_POH</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;Get Chassis Power-On-Hours failed: Invalid command&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OpenBMC doesn&#39;t implement POH yet&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">test_chassis</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Chassis tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+                <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_RESTART_CAUSE</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;Get Chassis Restart Cause failed: Invalid command&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OpenBMC doesn&#39;t implement restart_cause yet&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;Get Chassis Restart Cause failed: Unspecified error&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OpenBMC does implement restart_cause, but D-BUS backend doesn&#39;t&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_POLICY_LIST</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_POLICY_ALWAYS_OFF</span><span class="p">])</span>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_chassis_identifytests"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_chassis_identifytests">[docs]</a>    <span class="k">def</span> <span class="nf">test_chassis_identifytests</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi chassis identify commands</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Chassis Identify tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY_5</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY_FORCE</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHASSIS_IDENTIFY</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_chassis_bootdev"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_chassis_bootdev">[docs]</a>    <span class="k">def</span> <span class="nf">test_chassis_bootdev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the functionality of</span>
+<span class="sd">        `ipmi chassis bootdev &lt;dev&gt;` where dev is</span>
+<span class="sd">        none,pxe,cdrom,disk,bios,safe,diag,floppy, and none.</span>
+
+<span class="sd">        See the implementation for how nothing is as simple as it seems</span>
+<span class="sd">        and we need weird exceptions.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Chassis Bootdevice tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">boot_devices</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;none&quot;</span><span class="p">:</span> <span class="s2">&quot;No override&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;pxe&quot;</span><span class="p">:</span> <span class="s2">&quot;Force PXE&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;cdrom&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from CD/DVD&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;disk&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from default Hard-Drive&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;bios&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot into BIOS Setup&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;safe&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from default Hard-Drive, request Safe-Mode&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;diag&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from Diagnostic Partition&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;floppy&quot;</span><span class="p">:</span> <span class="s2">&quot;Force Boot from Floppy/primary removable media&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">bootdev</span><span class="p">,</span> <span class="n">ipmiresponse</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">boot_devices</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span>
+                                      <span class="s1">&#39;chassis bootdev </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bootdev</span><span class="p">))</span>
+                <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s1">&#39;Error loading interface usb&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No USB IPMI interface&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_inband_bootdev</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Does not support inband bootdev&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s2">&quot;Could not set boot device </span><span class="si">%s</span><span class="s2">. Errored with </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                        <span class="n">bootdev</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">verify_bootdev</span><span class="p">(</span><span class="n">bootdev</span><span class="p">,</span> <span class="n">ipmiresponse</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">UnexpectedBootDevice</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># allow floppy to fail, as realistically,</span>
+                <span class="c1"># there&#39;s never a floppy and this is insane.</span>
+                <span class="c1"># We know that OpenBMC doesn&#39;t accept &#39;floppy&#39;</span>
+                <span class="c1"># due to https://github.com/openbmc/phosphor-dbus-interfaces/blob/master/xyz/openbmc_project/Control/Boot/Source.interface.yaml</span>
+                <span class="c1"># not having a mapping for it.</span>
+                <span class="c1"># The same for diag: there&#39;s no current mapping.</span>
+                <span class="k">if</span> <span class="n">bootdev</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;floppy&quot;</span><span class="p">,</span> <span class="s2">&quot;diag&quot;</span><span class="p">]:</span>
+                    <span class="k">continue</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="c1"># reset to bootdev none</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="s1">&#39;chassis bootdev none&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_bootdev</span><span class="p">(</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="n">boot_devices</span><span class="p">[</span><span class="s2">&quot;none&quot;</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">UnexpectedBootDevice</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">pass</span></div>
+
+    <span class="k">def</span> <span class="nf">verify_bootdev</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_dev</span><span class="p">,</span> <span class="n">l_msg</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="s2">&quot;chassis bootparam get 5&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">l_line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l_line</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="n">l_msg</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Verifying bootdev is successfull for </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_dev</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">FW_SUCCESS</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">UnexpectedBootDevice</span><span class="p">(</span><span class="n">i_dev</span><span class="p">,</span> <span class="n">l_res</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sdr_list_by_type"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sdr_list_by_type">[docs]</a>    <span class="k">def</span> <span class="nf">test_sdr_list_by_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the</span>
+<span class="sd">        ipmi sdr list &lt;all/fru/event/mcloc/compact/full/generic&gt;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SDR list tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_ALL</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_FRU</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_EVENT</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_MCLOC</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_COMPACT</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_FULL</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_LIST_GENERIC</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sdr_elist_by_type"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sdr_elist_by_type">[docs]</a>    <span class="k">def</span> <span class="nf">test_sdr_elist_by_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the commands:</span>
+<span class="sd">        ipmi sdr elist &lt;all/fru/event/mcloc/compact/full/generic&gt;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SDR elist tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_ALL</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_FRU</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_EVENT</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_MCLOC</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_COMPACT</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_FULL</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_ELIST_GENERIC</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sdr_type_list"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sdr_type_list">[docs]</a>    <span class="k">def</span> <span class="nf">test_sdr_type_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sdr type &lt;Temp/fan/Powersupply&gt;</span>
+<span class="sd">        commands</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SDR type list tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_LIST</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_TEMPERATURE</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_FAN</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_TYPE_POWER_SUPPLY</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sdr_get_id"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sdr_get_id">[docs]</a>    <span class="k">def</span> <span class="nf">test_sdr_get_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sdr get &lt;sensor-id&gt; command</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SDR get tests&quot;</span><span class="p">)</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="s2">&quot;sdr get </span><span class="se">\&#39;</span><span class="s2">Watchdog</span><span class="se">\&#39;</span><span class="s2">&quot;</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="n">l_cmd</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_fru_print"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_fru_print">[docs]</a>    <span class="k">def</span> <span class="nf">test_fru_print</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi fru print command.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: FRU Print Test&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FRU_PRINT</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_fru_read"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_fru_read">[docs]</a>    <span class="k">def</span> <span class="nf">test_fru_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi fru read command.</span>
+<span class="sd">        then the output file is displayed by hexdump</span>
+
+<span class="sd">        A FIXME is to check the *content* of the FRU for sanity.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: FRU Read Test&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="c1"># Not every system has FRU0. But if nothing all the way up to 100, probably a bug.</span>
+        <span class="n">fru_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">found_one</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">nr_sequential_fail</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">fru_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">nr_sequential_fail</span> <span class="o">&gt;</span> <span class="mi">25</span><span class="p">:</span>
+                <span class="c1"># If we don&#39;t see one for a while, there&#39;s probably no more</span>
+                <span class="k">break</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+                    <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="s2">&quot;fru print </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">fru_id</span><span class="p">])</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;FRU </span><span class="si">{}</span><span class="s2"> failed: </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">fru_id</span><span class="p">,</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span><span class="p">,</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">nr_sequential_fail</span> <span class="o">=</span> <span class="n">nr_sequential_fail</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="k">continue</span>
+                <span class="n">nr_sequential_fail</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="n">found_one</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+                <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="s2">&quot;fru read </span><span class="si">%d</span><span class="s2"> /tmp/file_fru&quot;</span> <span class="o">%</span> <span class="n">fru_id</span><span class="p">])</span>
+            <span class="c1"># TODO: Check for file output</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;hexdump -C /tmp/file_fru&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">found_one</span><span class="p">,</span> <span class="s2">&quot;Didn&#39;t find any FRUs&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_mc"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_mc">[docs]</a>    <span class="k">def</span> <span class="nf">test_mc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the management controller(mc) commands functionality.</span>
+
+<span class="sd">        info</span>
+<span class="sd">          Displays information about the BMC hardware, including device</span>
+<span class="sd">          revision, firmware revision, IPMI version supported,</span>
+<span class="sd">          manufacturer ID, and information on additional device support.</span>
+<span class="sd">        watchdog get</span>
+<span class="sd">          Show current Watchdog Timer settings and countdown state.</span>
+<span class="sd">        watchdog off</span>
+<span class="sd">          Turn off a currently running Watchdog countdown timer.</span>
+<span class="sd">        watchdog reset</span>
+<span class="sd">          Reset the Watchdog Timer to its most recent state and restart the</span>
+<span class="sd">          countdown timer.</span>
+<span class="sd">        selftest</span>
+<span class="sd">          Check on the basic health of the BMC by executing the</span>
+<span class="sd">          Get Self Test results command and report the results.</span>
+<span class="sd">        setenables</span>
+<span class="sd">          Enables  or disables the given option</span>
+<span class="sd">        getenables</span>
+<span class="sd">          Displays a list of the currently enabled options for the BMC.</span>
+<span class="sd">        getsysinfo</span>
+<span class="sd">          Retrieves system info from bmc for given argument</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: MC tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_INFO</span><span class="p">])</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+                <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_WATCHDOG_GET</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_WATCHDOG_OFF</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_WATCHDOG_RESET</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;Get Watchdog Timer command failed: Unspecified error&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SETENABLES_OEM_0_OFF</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_GETENABLES</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SETENABLES_OEM_0_ON</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_GETENABLES</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="c1"># It&#39;s valid to fail these tests</span>
+            <span class="k">if</span> <span class="s1">&#39;Get Global Enables command failed: Invalid command&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">pass</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_GETSYS_INFO</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SELFTEST</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_SELFTEST</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="c1"># It&#39;s valid to not implement selftest, so let&#39;s not fail things on it.</span>
+            <span class="k">if</span> <span class="s1">&#39;Selftest: not implemented&#39;</span> <span class="ow">in</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">cf</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_info"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_info">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel info functionality</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SEL Info test&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_INFO</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_list"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_list">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test ipmi sel list functionality.</span>
+<span class="sd">        the entire contents of the System Event Log are displayed.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SEL List test&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_LIST</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_elist"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_elist">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_elist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel elist functionality</span>
+<span class="sd">        If invoked as elist (extended list) it will also use the</span>
+<span class="sd">        Sensor Data Record entries to display the sensor ID for</span>
+<span class="sd">        the sensor that caused each event.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SEL elist test&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+                <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_ELIST</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_time_get"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_time_get">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_time_get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel time get functionality</span>
+<span class="sd">        Displays the SEL clock&#39;s current time.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SEL Time get test&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_TIME_GET</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;Error loading interface usb&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No USB IPMI interface&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">cf</span>
+        <span class="k">except</span> <span class="n">OpTestError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;IPMI: Insufficient resources&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">l_res</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_list_first_n_entries"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_list_first_n_entries">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_list_first_n_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_num</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel list first &lt;n entries&gt;</span>
+
+<span class="sd">        :param i_num: The number of SELs to list</span>
+<span class="sd">        :type i_num: int</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel list first </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_num</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">l_cmd</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="c1"># odd failure I&#39;ve seen a few times</span>
+            <span class="c1"># we had opened up a different problem where ipmitool gave back bad rc</span>
+            <span class="c1"># https://github.com/open-power/boston-openpower/issues/1396</span>
+            <span class="c1"># Traceback (most recent call last):</span>
+            <span class="c1">#  File &quot;/home/debmc/test/testcases/OpTestInbandIPMI.py&quot;, line 458, in test_sel_list_first_n_entries</span>
+            <span class="c1">#    raise cf</span>
+            <span class="c1"># CommandFailed: Command &#39;ipmitool sel list first 1&#39; exited with &#39;1&#39;.</span>
+            <span class="c1"># Output</span>
+            <span class="c1">#[&#39;ipmitool sel list first 1&#39;, &#39;SEL has no entries&#39;]</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;sel_list_first_n_entries i_num=</span><span class="si">{}</span><span class="s2"> cf=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i_num</span><span class="p">,</span> <span class="n">cf</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s2">&quot;SEL has no entries&quot;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_list_last_n_entries"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_list_last_n_entries">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_list_last_n_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_num</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel list last &lt;n entries&gt;</span>
+
+<span class="sd">        :param i_num: The number of last SEL entries to list.</span>
+<span class="sd">        :type i_num: int</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel list last </span><span class="si">%i</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">i_num</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">l_cmd</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="c1"># odd failure I&#39;ve seen a few times</span>
+            <span class="c1"># we had opened up a different problem where ipmitool gave back bad rc</span>
+            <span class="c1"># https://github.com/open-power/boston-openpower/issues/1396</span>
+            <span class="c1"># Traceback (most recent call last):</span>
+            <span class="c1">#  File &quot;/home/debmc/test/testcases/OpTestInbandIPMI.py&quot;, line 705, in test_sel_list_last_3_entries</span>
+            <span class="c1">#    self.test_sel_list_last_n_entries(BMC_CONST.IPMI_SEL_LIST_ENTRIES)</span>
+            <span class="c1">#  File &quot;/home/debmc/test/testcases/OpTestInbandIPMI.py&quot;, line 475, in test_sel_list_last_n_entries</span>
+            <span class="c1">#    raise cf</span>
+            <span class="c1"># CommandFailed: Command &#39;ipmitool sel list last 3&#39; exited with &#39;1&#39;.</span>
+            <span class="c1"># Output</span>
+            <span class="c1">#[&#39;ipmitool sel list last 3&#39;, &#39;SEL has no entries&#39;]</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;sel_list_last_n_entries i_num=</span><span class="si">{}</span><span class="s2"> cf=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i_num</span><span class="p">,</span> <span class="n">cf</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s2">&quot;SEL has no entries&quot;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_clear"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_clear">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute the ipmi sel clear command.</span>
+
+<span class="sd">        Not all BMCs support this (notably simulators such as Qemu). In that</span>
+<span class="sd">        case, we try anyway and skip the test rather than fail.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+                <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_CLEAR</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_get_functionality"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_get_functionality">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_get_functionality</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel get &lt;id&gt; functionality.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="s2">&quot;sel list first 3 | awk &#39;{print $1}&#39;&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s2">&quot;SEL has no entries&quot;</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;IPMI: There are no sel entries to fetch&quot;</span><span class="p">)</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">l_id</span> <span class="o">=</span> <span class="s2">&quot;0x&quot;</span> <span class="o">+</span> <span class="n">entry</span>
+                    <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel get </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">l_id</span>
+                    <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">l_cmd</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;Error loading interface usb&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No USB IPMI interface&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_clear_functionality"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_clear_functionality">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_clear_functionality</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel clear functionality.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_sel_clear</span><span class="p">()</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;ipmitool sel list&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">l_line</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l_line</span><span class="o">.</span><span class="fm">__contains__</span><span class="p">(</span><span class="s2">&quot;SEL has no entries&quot;</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Sel clear function got cleared event entries&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;Inband IPMI[OPEN]: sel clear function failing in clearing entries&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">OpTestError</span><span class="p">(</span><span class="n">l_msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.sensor_byid"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.sensor_byid">[docs]</a>    <span class="k">def</span> <span class="nf">sensor_byid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_sensor</span><span class="o">=</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">SENSOR_HOST_STATUS</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sensor get &lt;id&gt; functionality</span>
+
+<span class="sd">        :param i_sensor: sensor ID to retrieve data from</span>
+<span class="sd">        :type i_sensor: str</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="s2">&quot;sensor get </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_sensor</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">l_cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_dcmi"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_dcmi">[docs]</a>    <span class="k">def</span> <span class="nf">test_dcmi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the dcmi related ipmi commands.</span>
+
+<span class="sd">        discover</span>
+<span class="sd">          This command is used to discover supported capabilities in DCMI</span>
+<span class="sd">        Power reading</span>
+<span class="sd">          Get power related readings from the system.</span>
+<span class="sd">        get_limit</span>
+<span class="sd">          Get the configured power limits.</span>
+<span class="sd">        sensors</span>
+<span class="sd">          Prints the available DCMI sensors.</span>
+<span class="sd">        get_mc_id_string</span>
+<span class="sd">          Get management controller identifier string</span>
+<span class="sd">        get_temp_reading</span>
+<span class="sd">          Get Temperature Sensor Readings.</span>
+<span class="sd">        get_conf_param</span>
+<span class="sd">          Get DCMI Configuration Parameters.</span>
+<span class="sd">        oob_discover</span>
+<span class="sd">          Ping/Pong Message for DCMI Discovery</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: dcmi tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_DISCOVER</span><span class="p">,</span>
+                                   <span class="c1"># disable for now, unreliable at best</span>
+                                   <span class="c1"># self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_READING,</span>
+                                   <span class="c1"># opened ipmitool inband issue for dcmi get_limit</span>
+                                   <span class="c1"># https://github.com/open-power/boston-openpower/issues/1396</span>
+                                   <span class="c1"># self.ipmi_method + BMC_CONST.IPMI_DCMI_POWER_GET_LIMIT,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_GET_MC_ID_STRING</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_GET_TEMP_READING</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_GET_CONF_PARAM</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DCMI_SENSORS</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">supports_ipmi_dcmi</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                    <span class="s2">&quot;BMC Implementation doesn&#39;t support DCMI commands&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_echo"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_echo">[docs]</a>    <span class="k">def</span> <span class="nf">test_echo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the functionality of ipmi echo command.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: echo tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_ECHO_DONE</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_event"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_event">[docs]</a>    <span class="k">def</span> <span class="nf">test_event</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test event related commands to test sel</span>
+<span class="sd">        functionality.</span>
+
+<span class="sd">        Send a pre-defined test event to the System Event Log.  The following</span>
+<span class="sd">        events are included as a means to test the functionality of  the  System</span>
+<span class="sd">        Event Log component of the BMC (an entry will be added each time the</span>
+<span class="sd">        event N command is executed)</span>
+
+<span class="sd">        Currently supported values for N are:</span>
+
+<span class="sd">        1. Temperature: Upper Critical: Going High</span>
+<span class="sd">        2. Voltage Threshold: Lower Critical: Going Low</span>
+<span class="sd">        3. Memory: Correctable ECC</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: event tests&quot;</span><span class="p">)</span>
+
+        <span class="n">events</span> <span class="o">=</span> <span class="p">[</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_EVENT_1</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_EVENT_2</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_EVENT_3</span><span class="p">]</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">event</span><span class="p">])</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s1">&#39;Platform Event Message command failed: Request data length invalid&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Synthetic event apparently not yet supported: &quot;</span> <span class="o">+</span> <span class="n">event</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OpenBMC doesn&#39;t support synthetic test events yet&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_exec"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_exec">[docs]</a>    <span class="k">def</span> <span class="nf">test_exec</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test ipmi exec command.</span>
+
+<span class="sd">        FIXME: not yet implemented.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: exec tests&quot;</span><span class="p">)</span>
+        <span class="k">pass</span></div>
+        <span class="c1"># TODO: need to execute ipmi commands from a file</span>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_firewall"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_firewall">[docs]</a>    <span class="k">def</span> <span class="nf">test_firewall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test firmware firewall info command.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Firewall test&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span>
+            <span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_FIREWALL_INFO</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_pef"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_pef">[docs]</a>    <span class="k">def</span> <span class="nf">test_pef</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test pef related commands:</span>
+
+<span class="sd">        info</span>
+<span class="sd">          This command will query the BMC and print information about the PEF</span>
+<span class="sd">          supported features.</span>
+<span class="sd">        status</span>
+<span class="sd">          This command prints the current PEF status</span>
+<span class="sd">        policy</span>
+<span class="sd">          This command lists the PEF policy table entries</span>
+<span class="sd">        list</span>
+<span class="sd">          This  command  lists  the PEF table entries.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Pef tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_INFO</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_STATUS</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_POLICY</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_PEF_LIST</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;IPMI command failed: Invalid command&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t implement PEF, this is valid.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_raw"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_raw">[docs]</a>    <span class="k">def</span> <span class="nf">test_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This will test raw IPMI commands. For example to query the POH counter</span>
+<span class="sd">        with a raw command.</span>
+
+<span class="sd">        Practically speaking, this tests ipmitool itself more than any firmware</span>
+<span class="sd">        or OS functionality (when compared to the non-raw test).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: raw command execution tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_RAW_POH</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;Unable to send RAW command (channel=0x0 netfn=0x0 lun=0x0 cmd=0xf rsp=0xc1): Invalid command&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;OpenBMC doesn&#39;t implement POH yet&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_set_time"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_set_time">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_set_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel set &lt;time string&gt; functionality</span>
+<span class="sd">        Sets the SEL clock.  Future SEL entries will use the time set by this command.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_sel_time_get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">l_res</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">i_time</span> <span class="o">=</span> <span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: SEL Time set test&quot;</span><span class="p">)</span>
+        <span class="n">l_cmd</span> <span class="o">=</span> <span class="s2">&quot;sel time set </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">i_time</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_ipmi_cmds</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">l_cmd</span><span class="p">])</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_ipmi_sel</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="n">cf</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;BMC doesn&#39;t support SEL (e.g. qemu)&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_list_first_3_entries"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_list_first_3_entries">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_list_first_3_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel list first &lt;3 entries&gt;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_sel_list_first_n_entries</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_LIST_ENTRIES</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sel_list_last_3_entries"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sel_list_last_3_entries">[docs]</a>    <span class="k">def</span> <span class="nf">test_sel_list_last_3_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sel list last &lt;3 entries&gt;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_sel_list_last_n_entries</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_LIST_ENTRIES</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sensor_get_host_status"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sensor_get_host_status">[docs]</a>    <span class="k">def</span> <span class="nf">test_sensor_get_host_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sensor get &quot;Host Status&quot; functionality.</span>
+
+<span class="sd">        Not all BMCs support this sensor, so if we think a BMC doesn&#39;t, and it</span>
+<span class="sd">        fails, we skip the test rather than failing it.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sensor_byid</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">SENSOR_HOST_STATUS</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_host_status_sensor</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s1">&#39;not found&#39;</span> <span class="ow">in</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Platform doesn&#39;t Sensor&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s1">&#39;Error loading interface usb&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No USB IPMI interface&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sensor_get_os_boot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sensor_get_os_boot">[docs]</a>    <span class="k">def</span> <span class="nf">test_sensor_get_os_boot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sensor get &quot;OS Boot&quot; functionality.</span>
+
+<span class="sd">        If the BMC doesn&#39;t support the &#39;OS Boot&#39; sensor, we try anyway and</span>
+<span class="sd">        skip the test.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sensor_byid</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">SENSOR_OS_BOOT</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_os_boot_sensor</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s1">&#39;not found&#39;</span> <span class="ow">in</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Platform doesn&#39;t Sensor&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s1">&#39;Error loading interface usb&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No USB IPMI interface&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpTestInbandIPMI.test_sensor_get_occ_active"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.OpTestInbandIPMI.test_sensor_get_occ_active">[docs]</a>    <span class="k">def</span> <span class="nf">test_sensor_get_occ_active</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi sensor get &quot;OCC Active&quot; functionality</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sensor_byid</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">SENSOR_OCC_ACTIVE</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_BMC</span><span class="o">.</span><span class="n">has_occ_active_sensor</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s1">&#39;not found&#39;</span> <span class="ow">in</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;Platform doesn&#39;t Sensor&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s1">&#39;Error loading interface usb&#39;</span> <span class="ow">in</span> <span class="n">cf</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s2">&quot;No USB IPMI interface&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cf</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="ExperimentalInbandIPMI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.ExperimentalInbandIPMI">[docs]</a><span class="k">class</span> <span class="nc">ExperimentalInbandIPMI</span><span class="p">(</span><span class="n">OpTestInbandIPMIBase</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="ExperimentalInbandIPMI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.ExperimentalInbandIPMI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipmi_method</span><span class="o">=</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_OPEN</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">=</span> <span class="n">ipmi_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;host&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ExperimentalInbandIPMI</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ExperimentalInbandIPMI.test_Info"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.ExperimentalInbandIPMI.test_Info">[docs]</a>    <span class="k">def</span> <span class="nf">test_Info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will execute and test the ipmi &lt;sdr/sel/mc/channel&gt; info related</span>
+<span class="sd">        commands.</span>
+
+<span class="sd">        Currently in the Experimental pool as the &quot;ipmitool BLAH info&quot; commands</span>
+<span class="sd">        seem to have random return codes, so failure is common.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Info tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHANNEL_INFO</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MC_INFO</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SEL_INFO</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_SDR_INFO</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ExperimentalInbandIPMI.test_channel"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.ExperimentalInbandIPMI.test_channel">[docs]</a>    <span class="k">def</span> <span class="nf">test_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        It will check basic channel functionalities: info and authentication</span>
+<span class="sd">        capabilities.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Inband IPMI[OPEN]: Channel tests&quot;</span><span class="p">)</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_up</span><span class="p">()</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHANNEL_AUTHCAP</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">+</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_CHANNEL_INFO</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SkirootBasicInbandIPMI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.SkirootBasicInbandIPMI">[docs]</a><span class="k">class</span> <span class="nc">SkirootBasicInbandIPMI</span><span class="p">(</span><span class="n">BasicInbandIPMI</span><span class="p">):</span>
+<div class="viewcode-block" id="SkirootBasicInbandIPMI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.SkirootBasicInbandIPMI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipmi_method</span><span class="o">=</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_OPEN</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">=</span> <span class="n">ipmi_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BasicInbandIPMI</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="SkirootFullInbandIPMI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.SkirootFullInbandIPMI">[docs]</a><span class="k">class</span> <span class="nc">SkirootFullInbandIPMI</span><span class="p">(</span><span class="n">OpTestInbandIPMI</span><span class="p">):</span>
+<div class="viewcode-block" id="SkirootFullInbandIPMI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestInbandIPMI.SkirootFullInbandIPMI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ipmi_method</span><span class="o">=</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMITOOL_OPEN</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipmi_method</span> <span class="o">=</span> <span class="n">ipmi_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="s2">&quot;skiroot&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OpTestInbandIPMI</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">full_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">OpTestInbandIPMI</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">basic_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">BasicInbandIPMI</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">skiroot_full_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">SkirootFullInbandIPMI</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">skiroot_basic_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">SkirootBasicInbandIPMI</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">experimental_suite</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">defaultTestLoader</span><span class="o">.</span><span class="n">loadTestsFromTestCase</span><span class="p">(</span><span class="n">ExperimentalInbandIPMI</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

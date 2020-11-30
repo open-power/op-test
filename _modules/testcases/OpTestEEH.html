@@ -1,0 +1,770 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestEEH &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestEEH</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestEEH.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2016</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestEEH</span>
+<span class="sd">---------</span>
+
+<span class="sd">This testcase basically tests all OPAL EEH Error injection tests.</span>
+
+<span class="sd">- fenced PHB</span>
+<span class="sd">- frozen PE</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">EEH_HIT</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">EEH_MISS</span> <span class="o">=</span> <span class="mi">1</span>
+
+
+<div class="viewcode-block" id="EEHRecoveryFailed"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.EEHRecoveryFailed">[docs]</a><span class="k">class</span> <span class="nc">EEHRecoveryFailed</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    EEH Recovery failed on thing for reason.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thing</span><span class="p">,</span> <span class="n">dev</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thing</span> <span class="o">=</span> <span class="n">thing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dev</span> <span class="o">=</span> <span class="n">dev</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> recovery failed: Log=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thing</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dev</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EEHRemoveFailed"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.EEHRemoveFailed">[docs]</a><span class="k">class</span> <span class="nc">EEHRemoveFailed</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    EEH Remove failed on thing for reason.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thing</span><span class="p">,</span> <span class="n">dev</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thing</span> <span class="o">=</span> <span class="n">thing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dev</span> <span class="o">=</span> <span class="n">dev</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> remove failed: Log=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thing</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dev</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EEHLocCodeFailed"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.EEHLocCodeFailed">[docs]</a><span class="k">class</span> <span class="nc">EEHLocCodeFailed</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Failed to log location code along with failure.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thing</span><span class="p">,</span> <span class="n">dev</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thing</span> <span class="o">=</span> <span class="n">thing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dev</span> <span class="o">=</span> <span class="n">dev</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> location code failure: Log=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thing</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dev</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OpTestEEH"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH">[docs]</a><span class="k">class</span> <span class="nc">OpTestEEH</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="OpTestEEH.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="c1"># By default test will run on all PHBs/PE&#39;s, if one want to skip certain ones mention in this format.</span>
+        <span class="c1"># [&#39;PCI0001&#39;, &#39;PCI0002&#39;, &#39;PCI0003&#39;, &#39;PCI0004&#39;, &#39;PCI0005&#39;, &#39;PCI0030&#39;, &#39;PCI0031&#39;, &#39;PCI0032&#39;]</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">skip_phbs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">skip_pes</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># [&#39;0002:00:00.0&#39;]</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_con_log_lev_crit</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_opal_msg_log</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_gather_kernel_log</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -D&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uname -a&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat /etc/os-release&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">get_test_pci_domains</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">root_domain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_root_phb</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">pci_domains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_list_of_pci_domains</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;Skipping the root phb </span><span class="si">%s</span><span class="s2"> for both fenced/frozen EEH Testcases&quot;</span> <span class="o">%</span> <span class="n">root_domain</span><span class="p">)</span>
+        <span class="n">pci_domains</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">root_domain</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skip_phbs</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skipping the known phbs </span><span class="si">%s</span><span class="s2"> from user&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_phbs</span><span class="p">)</span>
+            <span class="n">pci_domains</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">domain</span> <span class="k">for</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">pci_domains</span> <span class="k">if</span> <span class="n">domain</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_phbs</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">pci_domains</span>
+
+<div class="viewcode-block" id="OpTestEEH.prepare_logs"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.prepare_logs">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to prepare opal and kernel logs to</span>
+<span class="sd">        a reference point, so that we can compare logs for each EEH</span>
+<span class="sd">        iteration easily.</span>
+
+<span class="sd">        Basically, we throw logs in a temp file and diff them afterwards.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cat /sys/firmware/opal/msglog|grep &#39;,[0-4]\]&#39; &gt; /tmp/opal_msglog&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -C&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.gather_logs"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.gather_logs">[docs]</a>    <span class="k">def</span> <span class="nf">gather_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to gather opal and kernel logs</span>
+<span class="sd">        for each EEH iteration instead of full logs.</span>
+
+<span class="sd">        This should make it easier to debug problems as you&#39;ll have</span>
+<span class="sd">        the specific log messages that occured for each test.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;grep &#39;,[0-4]\]&#39; /sys/firmware/opal/msglog | diff - /tmp/opal_msglog&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.check_eeh_phb_recovery"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.check_eeh_phb_recovery">[docs]</a>    <span class="k">def</span> <span class="nf">check_eeh_phb_recovery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i_domain</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to actually check the PHB recovery</span>
+<span class="sd">        after an EEH Fenced PHB Error Injection.</span>
+
+<span class="sd">        We scrape the kernel log for the correct strings.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dmesg  | grep -i &#39;EEH: Notify device driver to resume&#39;; echo $?&quot;</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">60</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Waiting for PHB </span><span class="si">%s</span><span class="s2"> EEH Completion: (</span><span class="si">%d</span><span class="s2">/</span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span>
+                          <span class="p">(</span><span class="n">i_domain</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">tries</span><span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="n">EEHRecoveryFailed</span><span class="p">(</span><span class="s2">&quot;EEH recovery failed&quot;</span><span class="p">,</span> <span class="n">i_domain</span><span class="p">)</span>
+
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">30</span>
+        <span class="n">domain</span> <span class="o">=</span> <span class="n">i_domain</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;PCI&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="nb">list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_list_of_pci_devices</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.get_list_of_pci_devices"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.get_list_of_pci_devices">[docs]</a>    <span class="k">def</span> <span class="nf">get_list_of_pci_devices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function is used to get list of PCI devices</span>
+<span class="sd">        available at that instant of time.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;ls /sys/bus/pci/devices&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.get_dic_of_pe_vs_addr"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.get_dic_of_pe_vs_addr">[docs]</a>    <span class="k">def</span> <span class="nf">get_dic_of_pe_vs_addr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Get dictionary of pe vs config addr.</span>
+<span class="sd">        e.g.</span>
+
+<span class="sd">        ::</span>
+
+<span class="sd">          {&#39;0001:0c:00.2&#39;: &#39;2&#39;, &#39;0001:0b:00.0&#39;: &#39;fb&#39;, &#39;0001:0c:00.0&#39;: &#39;2&#39;}</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">pe_dic</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Get list of PE&#39;s</span>
+        <span class="n">console</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;ls /sys/bus/pci/devices/ | awk {&#39;print $1&#39;}&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">skip_pes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skipping the known PE&#39;s </span><span class="si">%s</span><span class="s2"> from user&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_pes</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">pe</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">pe</span> <span class="ow">or</span> <span class="n">pe</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_pes</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cat /sys/bus/pci/devices/</span><span class="si">%s</span><span class="s2">/eeh_pe_config_addr&quot;</span> <span class="o">%</span> <span class="n">pe</span>
+            <span class="n">addr</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">pe_dic</span><span class="p">[</span><span class="n">pe</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">addr</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">))[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">pe_dic</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.run_pe_4"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.run_pe_4">[docs]</a>    <span class="k">def</span> <span class="nf">run_pe_4</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">phb</span><span class="p">,</span> <span class="n">pe</span><span class="p">,</span> <span class="n">con</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Inject error and check for recovery, finally gather logs.</span>
+
+<span class="sd">        Returns True if PE recovers, False if failed to recover.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prepare_logs</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inject_error</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">phb</span><span class="p">,</span> <span class="n">pe</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cf</span><span class="o">.</span><span class="n">exitcode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Skipping verification as command failed&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">EEH_MISS</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_hit</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">EEH_MISS</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;PE </span><span class="si">%s</span><span class="s2"> EEH hit success&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">EEH_HIT</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.inject_error"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.inject_error">[docs]</a>    <span class="k">def</span> <span class="nf">inject_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">phb</span><span class="p">,</span> <span class="n">pe</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Inject error:</span>
+
+<span class="sd">        addr</span>
+<span class="sd">          PE address</span>
+<span class="sd">        e</span>
+<span class="sd">          0</span>
+<span class="sd">            32 bit errors</span>
+<span class="sd">          1</span>
+<span class="sd">            64 bit errors</span>
+<span class="sd">        f (Function)</span>
+<span class="sd">          0</span>
+<span class="sd">            MMIO read</span>
+<span class="sd">          4</span>
+<span class="sd">            CFG read</span>
+<span class="sd">          6</span>
+<span class="sd">            MMIO write</span>
+<span class="sd">          10</span>
+<span class="sd">            CFG write</span>
+<span class="sd">        phb</span>
+<span class="sd">          PHB Index</span>
+<span class="sd">        pe</span>
+<span class="sd">          PE BDF address</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;echo </span><span class="si">%s</span><span class="s2">:</span><span class="si">%s</span><span class="s2">:</span><span class="si">%s</span><span class="s2">:0:0 &gt; /sys/kernel/debug/powerpc/PCI</span><span class="si">%s</span><span class="s2">/err_injct &amp;&amp; lspci -ns </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">addr</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">phb</span><span class="p">,</span> <span class="n">pe</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.check_eeh_slot_resets"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.check_eeh_slot_resets">[docs]</a>    <span class="k">def</span> <span class="nf">check_eeh_slot_resets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Check for EEH Slot Reset count. i.e. ::</span>
+
+<span class="sd">          $ cat /proc/powerpc/eeh | tail -n 1</span>
+<span class="sd">          eeh_slot_resets=10</span>
+
+<span class="sd">        Returns integer (in above example &#39;10&#39;).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;cat /proc/powerpc/eeh | tail -n 1&quot;</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">(</span><span class="n">count</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">))[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">output</span></div>
+
+<div class="viewcode-block" id="OpTestEEH.check_eeh_pe_recovery"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.check_eeh_pe_recovery">[docs]</a>    <span class="k">def</span> <span class="nf">check_eeh_pe_recovery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pe</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        return True if PE is available in the system</span>
+<span class="sd">        else return False. Which will be useful for</span>
+<span class="sd">        checking the PE after injecting the EEH error</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;dmesg  | grep -i &#39;EEH: Notify device driver to resume&#39;; echo $?&quot;</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">60</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Waiting for PE </span><span class="si">%s</span><span class="s2"> EEH Completion: (</span><span class="si">%d</span><span class="s2">/</span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span>
+                          <span class="p">(</span><span class="n">pe</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">tries</span><span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="n">EEHRecoveryFailed</span><span class="p">(</span><span class="s2">&quot;EEH recovery failed&quot;</span><span class="p">,</span> <span class="n">pe</span><span class="p">)</span>
+
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">30</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="nb">list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_list_of_pci_devices</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">pe</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+    <span class="k">def</span> <span class="nf">check_eeh_hit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg | grep &#39;EEH: Frozen&#39;&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">return</span> <span class="kc">True</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">check_eeh_removed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">60</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg | grep &#39;permanently disabled&#39;&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">return</span> <span class="kc">True</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="OpTestEEH.set_con_log_lev_crit"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEH.set_con_log_lev_crit">[docs]</a>    <span class="k">def</span> <span class="nf">set_con_log_lev_crit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        EEH verbose is enabled in P9. Until we have a capable of setting console log level in runtime,</span>
+<span class="sd">        or EEH verbose is disabled in P9, we need to disable the console logging to make tests run.</span>
+<span class="sd">        (But at the cost of one additional IPL execution overhead)</span>
+
+<span class="sd">        TODO: Remove this once we have a way of disabling console log level in runtime without</span>
+<span class="sd">        having an additional IPL.</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_proc_gen</span><span class="p">(</span><span class="n">console</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;POWER8&quot;</span><span class="p">,</span> <span class="s2">&quot;POWER8E&quot;</span><span class="p">]:</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;nvram -p ibm,skiboot --print-config=log-level-driver&quot;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="n">level</span> <span class="o">=</span> <span class="s2">&quot;5&quot;</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">==</span> <span class="s2">&quot;2&quot;</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;nvram -p ibm,skiboot --update-config log-level-driver=2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">verify_location_code_logging</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pe</span><span class="p">):</span>
+        <span class="n">tries</span> <span class="o">=</span> <span class="mi">60</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">tries</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                    <span class="s2">&quot;dmesg | grep -i --color=never &#39;EEH: PE location:&#39;&quot;</span><span class="p">)</span>
+                <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">found</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">EEHLocCodeFailed</span><span class="p">(</span>
+                <span class="s2">&quot;PE &quot;</span><span class="p">,</span> <span class="n">pe</span><span class="p">,</span> <span class="s2">&quot;Kernel failed to log the location codes for a PCI EEH error&quot;</span><span class="p">)</span>
+
+        <span class="n">matchObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span>
+            <span class="s2">&quot;(.*) EEH: PE location: (.*), PHB.*&quot;</span><span class="p">,</span> <span class="n">res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">re</span><span class="o">.</span><span class="n">I</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matchObj</span><span class="p">:</span>
+            <span class="n">loc_code</span> <span class="o">=</span> <span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">loc_code</span> <span class="o">==</span> <span class="s1">&#39;N/A&#39;</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;FW/Kernel failed to log the pcie slot/device location code&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OpTestEEHbasic_fenced_phb"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEHbasic_fenced_phb">[docs]</a><span class="k">class</span> <span class="nc">OpTestEEHbasic_fenced_phb</span><span class="p">(</span><span class="n">OpTestEEH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This testcase has below steps:</span>
+
+<span class="sd">    1. Get the list of pci PHB domains</span>
+<span class="sd">    2. Get the root PHB domain where the root file system</span>
+<span class="sd">       is installed(We need to skip this as EEH recovery will</span>
+<span class="sd">       fail on root PHB).</span>
+<span class="sd">    3. Start injecting the fenced PHB errors in a for loop</span>
+<span class="sd">       Only one time basic check whether PHB recovered or not</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pci_domains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_test_pci_domains</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">pci_domains</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prepare_logs</span><span class="p">()</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;echo 0x8000000000000000 &gt; /sys/kernel/debug/powerpc/</span><span class="si">%s</span><span class="s2">/err_injct_outbound; lspci;&quot;</span> <span class="o">%</span> <span class="n">domain</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;=================Injecting the fenced PHB error on PHB: </span><span class="si">%s</span><span class="s2">=================&quot;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="c1"># Give some time to EEH PCI Error recovery</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_phb_recovery</span><span class="p">(</span><span class="n">domain</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;PHB </span><span class="si">%s</span><span class="s2"> recovery successful&quot;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span>
+                <span class="k">raise</span> <span class="n">EEHRecoveryFailed</span><span class="p">(</span><span class="s2">&quot;PHB domain&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="OpTestEEHmax_fenced_phb"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEHmax_fenced_phb">[docs]</a><span class="k">class</span> <span class="nc">OpTestEEHmax_fenced_phb</span><span class="p">(</span><span class="n">OpTestEEH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This testcase has below steps:</span>
+
+<span class="sd">    1. Get the list of pci PHB domains</span>
+<span class="sd">    2. Get the root PHB domain where the root file system</span>
+<span class="sd">       is installed(We need to skip this as EEH recovery will</span>
+<span class="sd">       fail on root PHB).</span>
+<span class="sd">    3. Set the MAX EEH Freeze count to 1 so that we can</span>
+<span class="sd">       test max EEH Recovery capacity within less for loop executions</span>
+<span class="sd">       By default it is 6,</span>
+<span class="sd">    4. Start injecting the fenced PHB errors two times across all PHB domains</span>
+<span class="sd">       except root PHB.( As we set max EEH Freeze count to 1).</span>
+<span class="sd">       So expectation is first time it should recover and second time</span>
+<span class="sd">       EEH should properly remove the device and OS should not crash.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pci_domains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_test_pci_domains</span><span class="p">()</span>
+        <span class="c1"># Set the max EEH freeze count to 1</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;echo 1 &gt; /sys/kernel/debug/powerpc/eeh_max_freezes&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">domain</span> <span class="ow">in</span> <span class="n">pci_domains</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">prepare_logs</span><span class="p">()</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;echo 0x8000000000000000 &gt; /sys/kernel/debug/powerpc/</span><span class="si">%s</span><span class="s2">/err_injct_outbound; lspci;&quot;</span> <span class="o">%</span> <span class="n">domain</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;=================Injecting the fenced PHB error on PHB: </span><span class="si">%s</span><span class="s2">=================&quot;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="c1"># Give some time to EEH PCI Error recovery</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_phb_recovery</span><span class="p">(</span><span class="n">domain</span><span class="p">):</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;PHB </span><span class="si">%s</span><span class="s2"> recovery successful&quot;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span>
+                        <span class="k">raise</span> <span class="n">EEHRecoveryFailed</span><span class="p">(</span><span class="s2">&quot;PHB domain&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_removed</span><span class="p">():</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                            <span class="s2">&quot;PHB domain </span><span class="si">%s</span><span class="s2"> removed successfully&quot;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span>
+                        <span class="k">raise</span> <span class="n">EEHRemoveFailed</span><span class="p">(</span><span class="s2">&quot;PHB domain&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="OpTestEEHbasic_frozen_pe"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEHbasic_frozen_pe">[docs]</a><span class="k">class</span> <span class="nc">OpTestEEHbasic_frozen_pe</span><span class="p">(</span><span class="n">OpTestEEH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This testcase has below steps</span>
+
+<span class="sd">    1. Get the list of pci PHB domains</span>
+<span class="sd">    2. Get the root PHB domain where the root file system</span>
+<span class="sd">       is installed(We need to skip this as EEH recovery will</span>
+<span class="sd">       fail on root PHB).</span>
+<span class="sd">    3. get dictionary of pe vs config addr.</span>
+
+<span class="sd">       Ex: ::</span>
+
+<span class="sd">         {&#39;0001:0c:00.2&#39;: &#39;2&#39;, &#39;0001:0b:00.0&#39;: &#39;fb&#39;, &#39;0001:0c:00.0&#39;: &#39;2&#39;}</span>
+
+<span class="sd">    4. Prepare below command &amp; Start inject frozenPE errors on all PE&#39;s ::</span>
+
+<span class="sd">        echo &quot;PE_number:&lt;0,1&gt;:&lt;function&gt;:0:0&quot; &gt; /sys/kernel/debug/powerpc/PCIxxxx/err_injct</span>
+
+<span class="sd">    5. Gather necssary logs(dmesg &amp; OPAL) and check the device(PE) got</span>
+<span class="sd">       recovered or not.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pci_domains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_test_pci_domains</span><span class="p">()</span>
+        <span class="n">pe_dic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_dic_of_pe_vs_addr</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;==================Testing frozen PE error injection=====================&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Frequently used function</span>
+        <span class="c1"># 0 : MMIO read</span>
+        <span class="c1"># 4 : CFG read</span>
+        <span class="c1"># 6 : MMIO write</span>
+        <span class="c1"># 10: CFG write</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span>
+        <span class="n">ERROR</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># &quot;pe_no:0:function:address:mask&quot; - 32-bit PCI errors</span>
+        <span class="c1"># &quot;pe_no:1:function:address:mask&quot; - 64-bit PCI errors</span>
+
+        <span class="c1"># Ex: echo &quot;PE_number:&lt;0,1&gt;:&lt;function&gt;:0:0&quot; &gt; /sys/kernel/debug/powerpc/PCIxxxx/err_injct</span>
+        <span class="c1"># echo 2:0:4:0:0 &gt; /sys/kernel/debug/powerpc/PCI0001/err_injct &amp;&amp; lspci -ns 0001:0c:00.0; echo $?</span>
+        <span class="c1"># Inject error on every PE</span>
+        <span class="k">for</span> <span class="n">pe</span><span class="p">,</span> <span class="n">addr</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">pe_dic</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">recover</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">ERROR</span><span class="p">:</span>
+                <span class="n">phb</span> <span class="o">=</span> <span class="p">(</span><span class="n">pe</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">5</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">recover</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="c1"># Skip the PE&#39;s under root PHB</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">phb</span> <span class="ow">in</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">pci_domains</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">func</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                            <span class="s2">&quot;===================Running error injection on pe </span><span class="si">%s</span><span class="s2"> func </span><span class="si">%s</span><span class="s2">===================&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pe</span><span class="p">,</span> <span class="n">f</span><span class="p">))</span>
+                        <span class="n">rc</span> <span class="o">=</span> <span class="mi">1</span>
+                        <span class="n">rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_pe_4</span><span class="p">(</span>
+                            <span class="n">addr</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">phb</span><span class="p">,</span> <span class="n">pe</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="n">EEH_MISS</span><span class="p">:</span>
+                            <span class="k">continue</span>
+                        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">if</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>  <span class="c1"># Upto five times check for recovery</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_pe_recovery</span><span class="p">(</span><span class="n">pe</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span>
+                            <span class="k">except</span> <span class="n">EEHRecoveryFailed</span><span class="p">:</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                    <span class="s2">&quot;EEH_FAIL: PE </span><span class="si">%s</span><span class="s2"> recovery failed after </span><span class="si">%d</span><span class="s2"> EEH error&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pe</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
+                                <span class="n">recover</span> <span class="o">=</span> <span class="kc">False</span>
+                                <span class="k">break</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="n">ret</span><span class="p">:</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                    <span class="s2">&quot;EEH_FAIL: PE </span><span class="si">%s</span><span class="s2"> recovery failed after </span><span class="si">%d</span><span class="s2"> EEH error&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pe</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
+                                <span class="n">recover</span> <span class="o">=</span> <span class="kc">False</span>
+                                <span class="k">break</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                                <span class="s2">&quot;PE </span><span class="si">%s</span><span class="s2"> recovered after </span><span class="si">%d</span><span class="s2"> EEH error&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pe</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
+                        <span class="k">elif</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>  <span class="c1"># sixth time check for removal</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_removed</span><span class="p">():</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                    <span class="s2">&quot;EEH_FAIL: PE </span><span class="si">%s</span><span class="s2"> remove failed after 6th EEH hit&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                                    <span class="s2">&quot;PE </span><span class="si">%s</span><span class="s2"> removed successfully after 6th EEH hit&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_slot_resets</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">verify_location_code_logging</span><span class="p">(</span><span class="n">pe</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OpTestEEHmax_frozen_pe"><a class="viewcode-back" href="../../tests.html#testcases.OpTestEEH.OpTestEEHmax_frozen_pe">[docs]</a><span class="k">class</span> <span class="nc">OpTestEEHmax_frozen_pe</span><span class="p">(</span><span class="n">OpTestEEH</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This testcase has below steps</span>
+
+<span class="sd">    1. Get the list of pci PHB domains</span>
+<span class="sd">    2. Get the root PHB domain where the root file system</span>
+<span class="sd">       is installed(We need to skip this as EEH recovery will</span>
+<span class="sd">       fail on root PHB).</span>
+<span class="sd">    3. get dictionary of pe vs config addr. Ex: ::</span>
+
+<span class="sd">         {&#39;0001:0c:00.2&#39;: &#39;2&#39;, &#39;0001:0b:00.0&#39;: &#39;fb&#39;, &#39;0001:0c:00.0&#39;: &#39;2&#39;}</span>
+
+<span class="sd">    4. Prepare below command &amp; Start inject frozenPE errors on all PE&#39;s ::</span>
+
+<span class="sd">        echo &quot;PE_number:&lt;0,1&gt;:&lt;function&gt;:0:0&quot; &gt; /sys/kernel/debug/powerpc/PCIxxxx/err_injct</span>
+
+<span class="sd">    5. Gather necssary logs(dmesg &amp; OPAL) and check the device(PE) got</span>
+<span class="sd">       recovered or not.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pci_domains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_test_pci_domains</span><span class="p">()</span>
+        <span class="c1"># Set the max EEH freeze count to 1</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;echo 1 &gt; /sys/kernel/debug/powerpc/eeh_max_freezes&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="n">pe_dic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_dic_of_pe_vs_addr</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;======================Testing frozen PE error injection===========================&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Frequently used function</span>
+        <span class="c1"># 0 : MMIO read</span>
+        <span class="c1"># 4 : CFG read</span>
+        <span class="c1"># 6 : MMIO write</span>
+        <span class="c1"># 10: CFG write</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span>
+        <span class="n">ERROR</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># &quot;pe_no:0:function:address:mask&quot; - 32-bit PCI errors</span>
+        <span class="c1"># &quot;pe_no:1:function:address:mask&quot; - 64-bit PCI errors</span>
+
+        <span class="c1"># Ex: echo &quot;PE_number:&lt;0,1&gt;:&lt;function&gt;:0:0&quot; &gt; /sys/kernel/debug/powerpc/PCIxxxx/err_injct</span>
+        <span class="c1"># echo 2:0:4:0:0 &gt; /sys/kernel/debug/powerpc/PCI0001/err_injct &amp;&amp; lspci -ns 0001:0c:00.0; echo $?</span>
+        <span class="c1"># Inject error on every PE</span>
+        <span class="k">for</span> <span class="n">pe</span><span class="p">,</span> <span class="n">addr</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">pe_dic</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">recover</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">ERROR</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">recover</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="n">phb</span> <span class="o">=</span> <span class="p">(</span><span class="n">pe</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># Skip the PE&#39;s under root PHB</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">phb</span> <span class="ow">in</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">pci_domains</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">func</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                            <span class="s2">&quot;=====================Running error injection on pe </span><span class="si">%s</span><span class="s2"> func </span><span class="si">%s</span><span class="s2">====================&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pe</span><span class="p">,</span> <span class="n">f</span><span class="p">))</span>
+                        <span class="n">rc</span> <span class="o">=</span> <span class="mi">1</span>
+                        <span class="n">rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_pe_4</span><span class="p">(</span>
+                            <span class="n">addr</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">phb</span><span class="p">,</span> <span class="n">pe</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="n">EEH_MISS</span><span class="p">:</span>
+                            <span class="k">continue</span>
+                        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># First time check for recovery</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_pe_recovery</span><span class="p">(</span><span class="n">pe</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">gather_logs</span><span class="p">()</span>
+                            <span class="k">except</span> <span class="n">EEHRecoveryFailed</span><span class="p">:</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                    <span class="s2">&quot;EEH_FAIL: PE </span><span class="si">%s</span><span class="s2"> recovery failed after first EEH error&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+                                <span class="n">recover</span> <span class="o">=</span> <span class="kc">False</span>
+                                <span class="k">break</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="n">ret</span><span class="p">:</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                    <span class="s2">&quot;EEH_FAIL: PE </span><span class="si">%s</span><span class="s2"> recovery failed after first EEH error&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+                                <span class="n">recover</span> <span class="o">=</span> <span class="kc">False</span>
+                                <span class="k">break</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                                    <span class="s2">&quot;PE </span><span class="si">% r</span><span class="s2">ecovered after first EEH error&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># Second time check for removal</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_removed</span><span class="p">():</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;EEH_FAIL: PE </span><span class="si">%s</span><span class="s2"> remove failed&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;PE </span><span class="si">%s</span><span class="s2"> removed successfully&quot;</span> <span class="o">%</span> <span class="n">pe</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">check_eeh_slot_resets</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">verify_location_code_logging</span><span class="p">(</span><span class="n">pe</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">suite</span><span class="p">():</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">OpTestEEHbasic_fenced_phb</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">OpTestEEHmax_fenced_phb</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">OpTestEEHbasic_frozen_pe</span><span class="p">())</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">addTest</span><span class="p">(</span><span class="n">OpTestEEHmax_frozen_pe</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

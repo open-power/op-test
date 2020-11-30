@@ -1,0 +1,301 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>common.OPexpect &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for common.OPexpect</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The OPexpect module is a wrapper around the standard Python pexpect module</span>
+<span class="sd">that will *always* look for certain error conditions for OpenPOWER machines.</span>
+
+<span class="sd">This is to enable op-test test cases to fail *quickly* in the event of errors</span>
+<span class="sd">such as kernel panics, RCU stalls, machine checks, firmware crashes etc.</span>
+
+<span class="sd">In the event of error, the failure_callback function will be called, which</span>
+<span class="sd">typically will be set up to set the machine state to UNKNOWN, so that when</span>
+<span class="sd">the next test starts executing, we re-IPL the system to get back to a clean</span>
+<span class="sd">slate.</span>
+
+<span class="sd">When developing test cases, use OPexpect over pexpect. If you *intend* for</span>
+<span class="sd">certain error conditions to occur, you can catch the exceptions that OPexpect</span>
+<span class="sd">throws.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">from</span> <span class="nn">.Exceptions</span> <span class="kn">import</span> <span class="o">*</span>
+
+
+<div class="viewcode-block" id="spawn"><a class="viewcode-back" href="../../programming.html#common.OPexpect.spawn">[docs]</a><span class="k">class</span> <span class="nc">spawn</span><span class="p">(</span><span class="n">pexpect</span><span class="o">.</span><span class="n">spawn</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">[],</span> <span class="n">maxread</span><span class="o">=</span><span class="mi">8000</span><span class="p">,</span>
+                 <span class="n">searchwindowsize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logfile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">ignore_sighup</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">echo</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">preexec_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">,</span> <span class="n">codec_errors</span><span class="o">=</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">failure_callback</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">failure_callback_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">command</span> <span class="o">=</span> <span class="n">command</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failure_callback</span> <span class="o">=</span> <span class="n">failure_callback</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failure_callback_data</span> <span class="o">=</span> <span class="n">failure_callback_data</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span>
+                                    <span class="n">maxread</span><span class="o">=</span><span class="n">maxread</span><span class="p">,</span>
+                                    <span class="n">searchwindowsize</span><span class="o">=</span><span class="n">searchwindowsize</span><span class="p">,</span>
+                                    <span class="n">logfile</span><span class="o">=</span><span class="n">logfile</span><span class="p">,</span>
+                                    <span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
+                                    <span class="n">ignore_sighup</span><span class="o">=</span><span class="n">ignore_sighup</span><span class="p">,</span>
+                                    <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">,</span>
+                                    <span class="n">codec_errors</span><span class="o">=</span><span class="n">codec_errors</span><span class="p">)</span>
+
+<div class="viewcode-block" id="spawn.set_system"><a class="viewcode-back" href="../../programming.html#common.OPexpect.spawn.set_system">[docs]</a>    <span class="k">def</span> <span class="nf">set_system</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">op_test_system</span> <span class="o">=</span> <span class="n">system</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="spawn.expect"><a class="viewcode-back" href="../../programming.html#common.OPexpect.spawn.expect">[docs]</a>    <span class="k">def</span> <span class="nf">expect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">searchwindowsize</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">op_patterns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;qemu: could find kernel&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;INFO: rcu_sched self-detected stall on CPU&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;kernel BUG at&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;Kernel panic&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;Watchdog .* Hard LOCKUP&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;Oops: Kernel access of bad area&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;watchdog: .* detected hard LOCKUP on other CPUs&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;Watchdog .* detected Hard LOCKUP other CPUS&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;watchdog: BUG: soft lockup&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;\[[0-9. ]+,0\] Assert fail:&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;\[[0-9. ]+,[0-9]\] Unexpected exception&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;OPAL exiting with locks held&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;LOCK ERROR: Releasing lock we don&#39;t hold&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;OPAL: Reboot requested due to Platform error.&quot;</span>
+                       <span class="p">]</span>
+
+        <span class="n">patterns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">op_patterns</span><span class="p">)</span>  <span class="c1"># we want a *copy*</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">patterns</span> <span class="o">=</span> <span class="n">patterns</span> <span class="o">+</span> <span class="n">pattern</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">patterns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="n">patterns</span><span class="p">,</span>
+                                      <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+                                      <span class="n">searchwindowsize</span><span class="o">=</span><span class="n">searchwindowsize</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="p">[</span><span class="n">pexpect</span><span class="o">.</span><span class="n">EOF</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">r</span>
+
+        <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CommandFailed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command</span><span class="p">,</span> <span class="n">patterns</span><span class="p">[</span><span class="n">r</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">state</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">]:</span>
+            <span class="c1"># We set the system state to UNKNOWN_BAD as we want to have a path</span>
+            <span class="c1"># to recover and run the next test, which is going to be to IPL</span>
+            <span class="c1"># the box again.</span>
+            <span class="c1"># We do this via a callback rather than any other method as that&#39;s</span>
+            <span class="c1"># just a *lot* easier with current code structure</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">failure_callback</span><span class="p">:</span>
+                <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">failure_callback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">failure_callback_data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">]:</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">after</span><span class="p">)</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">while</span> <span class="n">l</span> <span class="o">!=</span> <span class="mi">8</span><span class="p">:</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s2">&quot;INFO: rcu_sched self-detected stall on CPU&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;Watchdog .* Hard LOCKUP&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;Sending IPI to other CPUs&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;:mon&gt;&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;Rebooting in \d+ seconds&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;Kernel panic - not syncing: Fatal exception&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;Kernel panic - not syncing: Hard LOCKUP&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;opal_cec_reboot2&quot;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">],</span>
+                                              <span class="n">timeout</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+                <span class="n">log</span> <span class="o">=</span> <span class="n">log</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">before</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">after</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">l</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">7</span><span class="p">]:</span>
+                    <span class="c1"># We know we have the end of the error message, so let&#39;s</span>
+                    <span class="c1"># stop here.</span>
+                    <span class="k">break</span>
+
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">8</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelSoftLockup</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelBug</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">6</span> <span class="ow">or</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">7</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelHardLockup</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelKdump</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">l</span> <span class="o">==</span> <span class="mi">7</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelFADUMP</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelPanic</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelOOPS</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">l</span> <span class="o">==</span> <span class="mi">8</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">KernelCrashUnknown</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">]:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">expect</span><span class="p">([</span><span class="s2">&quot;boot_entry.*</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">,</span>
+                                           <span class="s2">&quot;Initiated MPIPL&quot;</span><span class="p">,</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span><span class="p">],</span>
+                                          <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="n">log</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">before</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">9</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="n">SkibootAssert</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="mi">10</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SkibootException</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">13</span><span class="p">]:</span>
+            <span class="c1"># Reboot due to HW core checkstop</span>
+            <span class="c1"># Let&#39;s attempt to capture Hostboot output</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">before</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;================================================&quot;</span><span class="p">,</span>
+                                              <span class="n">timeout</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>
+                <span class="n">log</span> <span class="o">=</span> <span class="n">log</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">before</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span>
+                    <span class="s2">&quot;System checkstop occurred during runtime on previous boot&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+                <span class="n">log</span> <span class="o">=</span> <span class="n">log</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">before</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;================================================&quot;</span><span class="p">,</span>
+                                              <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+                <span class="n">log</span> <span class="o">=</span> <span class="n">log</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">before</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">spawn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">expect</span><span class="p">(</span><span class="s2">&quot;ISTEP&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+                <span class="n">log</span> <span class="o">=</span> <span class="n">log</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">before</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">after</span>
+            <span class="k">except</span> <span class="n">pexpect</span><span class="o">.</span><span class="n">TIMEOUT</span> <span class="k">as</span> <span class="n">t</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">raise</span> <span class="n">PlatformError</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">r</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">op_patterns</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

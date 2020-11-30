@@ -1,0 +1,249 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to op-test-framework’s documentation! &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="op-test User Guide" href="user-guide.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-op-test-framework-s-documentation">
+<h1>Welcome to op-test-framework’s documentation!<a class="headerlink" href="#welcome-to-op-test-framework-s-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-guide.html">op-test User Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="user-guide.html#command-line-options">Command Line Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user-guide.html#configuration-files-and-command-line-options">Configuration Files and Command Line Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user-guide.html#flashing-firmware-with-op-test">Flashing Firmware with op-test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user-guide.html#op-test-and-qemu">op-test and Qemu</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tests.html">The Tests</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestat24driver">OpTestAt24driver</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#basic-ipl-and-reboot-tests">Basic IPL and reboot tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#bmcresettorture">BMCResetTorture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#boottorture">BootTorture:</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#console-bug-150765">Console Bug 150765</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#console-tests">Console tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#cpu-hotplug-testcase">CPU Hotplug Testcase</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#devicetreevalidation">DeviceTreeValidation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#devicetreewarnings">DeviceTreeWarnings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#delayed-power-off-dpo">Delayed Power Off (DPO)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#energyscale-baseline">EnergyScale_BaseLine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#epow-emergency-power-off">EPOW (Emergency POWer off)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#fspresetreload">fspresetReload</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#fsp-tod-corruption">FSP TOD Corruption</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#fwts">FWTS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#gcov">gcov</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#helloworld">HelloWorld</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#i2c-tests">I2C tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#install-hostos">Install HostOS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#install-rhel">Install RHEL</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#install-ubuntu">Install Ubuntu</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#ipl-params">IPL Params</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#ipmi-torture">IPMI Torture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#kernel-log">Kernel Log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#lightpathdiagnostics">LightPathDiagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#opalerrorlog">OpalErrorLog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#opal-gard">opal-gard</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#opal-log-test">OPAL log test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#opal-sysfs-tests">OPAL sysfs Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#opalutils">OpalUtils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestcapi">OpTestCAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestdumps">OpTestDumps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optesteeh">OpTestEEH</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestem">OpTestEM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestenergyscale">OpTestEnergyScale</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestexample-an-example-test-case">OpTestExample: An example test case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestfastreboot">OpTestFastReboot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestheartbeat">OpTestHeartbeat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optesthmihandling">OpTestHMIHandling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestinbandipmi">OpTestInbandIPMI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestinbandusbinterface">OpTestInbandUsbInterface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestipmilockmode">OpTestIPMILockMode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestipmireprovision">OpTestIPMIReprovision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestmtdpnordriver">OpTestMtdPnorDriver</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestnvram">OpTestNVRAM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestocc">OpTestOCC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestopencapi">OpTestOpenCAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestoobipmi">OpTestOOBIPMI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestpci-pci-checks">OpTestPCI: PCI checks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestpnor">OpTestPNOR</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestprddaemon">OpTestPrdDaemon</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestprddriver">OpTestPrdDriver</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestreboottimeout">OpTestRebootTimeout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestrtcdriver">OpTestRTCdriver</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestsensors">OpTestSensors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestswitchendiansyscall">OpTestSwitchEndianSyscall</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#optestsystembootsequence">OpTestSystemBootSequence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#pci-slot-location-codes">PCI Slot/Location Codes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#petitboot-dropbear-server">Petitboot Dropbear Server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#petitboot-internationalization-i8n">Petitboot Internationalization (i8n)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#runhosttest">RunHostTest</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#sbepassthrough">SbePassThrough</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#secureboot-ipl-tests">Secureboot IPL Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#system-login">System Login</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#test-openbmc-rest-api">Test OpenBMC REST API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tests.html#trustedboot-ipl-tests">Trustedboot IPL Tests</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="programming-reference">
+<h1>Programming Reference<a class="headerlink" href="#programming-reference" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#generic-classes-modules">Generic Classes/Modules</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.Exceptions">Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OPexpect">OPExpect</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#optestsystem">OpTestSystem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestConstants">OpTestConstants</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestHost">OpTestHost</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestIPMI">OpTestIPMI</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#bmc-machine-specific">BMC/Machine Specific</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestASM">OPTestASM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestBMC">OpTestBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestOpenBMC">OpTestOpenBMC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestFSP">OpTestFSP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#module-common.OpTestQemu">OpTestQemu</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#module-testcases.OpTestFlash">Firmware Flashing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="programming.html#optestflash">OpTestFlash</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="user-guide.html" title="next chapter">op-test User Guide</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

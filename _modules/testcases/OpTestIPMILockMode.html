@@ -1,0 +1,444 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestIPMILockMode &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestIPMILockMode</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestIPMILockMode.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestIPMILockMode</span>
+<span class="sd">------------------</span>
+
+<span class="sd">It will test in-band ipmi white-listed commands when ipmi is in locked mode</span>
+
+<span class="sd">IPMI whitelist</span>
+<span class="sd">These are the commands that will be available over an unauthenticated</span>
+<span class="sd">interface when the BMC is in IPMI lockdown mode.</span>
+
+<span class="sd">Generally one can access all in-band ipmi commands, But if we issue ipmi</span>
+<span class="sd">lock command then one can access only specific whitelisted in-band ipmi commands.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">common.OpTestConstants</span> <span class="kn">import</span> <span class="n">OpTestConstants</span> <span class="k">as</span> <span class="n">BMC_CONST</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OpTestIPMILockMode"><a class="viewcode-back" href="../../tests.html#testcases.OpTestIPMILockMode.OpTestIPMILockMode">[docs]</a><span class="k">class</span> <span class="nc">OpTestIPMILockMode</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This test case will cover following test steps:</span>
+
+<span class="sd">    1. It will get the OS level installed on power platform</span>
+<span class="sd">    2. It will check for kernel version installed on the Open Power Machine</span>
+<span class="sd">    3. It will check for ipmitool command existence and ipmitool package</span>
+<span class="sd">    4. Load the necessary ipmi modules based on config values</span>
+<span class="sd">    5. Issue a ipmi lock command through out-of-band authenticated interface</span>
+<span class="sd">    6. Now BMC IPMI is in locked mode, at this point only white listed</span>
+<span class="sd">       in-band ipmi commands sholud work(No other in-band ipmi command should</span>
+<span class="sd">       work)</span>
+<span class="sd">    7. Execute and test the functionality of whitelisted in-band ipmi</span>
+<span class="sd">       commands in locked mode</span>
+<span class="sd">    8. At the end of test issue a ipmi unlock command to revert the</span>
+<span class="sd">       availablity of all in-band ipmi commands in unlocked mode.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="OpTestIPMILockMode.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestIPMILockMode.OpTestIPMILockMode.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">ipmi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">platform</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">runTest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># FIXME: detect and don&#39;t hardcode</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;habanero&#39;</span><span class="p">,</span> <span class="s1">&#39;firestone&#39;</span><span class="p">,</span> <span class="s1">&#39;garrison&#39;</span><span class="p">,</span> <span class="s1">&#39;p9dsu&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="n">unittest</span><span class="o">.</span><span class="n">SkipTest</span><span class="p">(</span>
+                <span class="s2">&quot;Platform </span><span class="si">%s</span><span class="s2"> doesn&#39;t support IPMI Lockdown mode&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">platform</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+
+        <span class="c1"># Get OS level</span>
+        <span class="n">l_oslevel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_OS_Level</span><span class="p">()</span>
+
+        <span class="c1"># Get kernel version</span>
+        <span class="n">l_kernel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_get_kernel_version</span><span class="p">()</span>
+
+        <span class="c1"># Checking for ipmitool command and lm_sensors package</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_command</span><span class="p">(</span><span class="s2">&quot;ipmitool&quot;</span><span class="p">)</span>
+
+        <span class="n">l_pkg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_check_pkg_for_utility</span><span class="p">(</span><span class="n">l_oslevel</span><span class="p">,</span> <span class="s2">&quot;ipmitool&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Installed package: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">l_pkg</span><span class="p">)</span>
+
+        <span class="c1"># loading below ipmi modules based on config option</span>
+        <span class="c1"># ipmi_devintf, ipmi_powernv and ipmi_masghandler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module_based_on_config</span><span class="p">(</span><span class="n">l_kernel</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">CONFIG_IPMI_DEVICE_INTERFACE</span><span class="p">,</span>
+                                                      <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_DEV_INTF</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module_based_on_config</span><span class="p">(</span><span class="n">l_kernel</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">CONFIG_IPMI_POWERNV</span><span class="p">,</span>
+                                                      <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_POWERNV</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module_based_on_config</span><span class="p">(</span><span class="n">l_kernel</span><span class="p">,</span> <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">CONFIG_IPMI_HANDLER</span><span class="p">,</span>
+                                                      <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">IPMI_MSG_HANDLER</span><span class="p">)</span>
+
+        <span class="c1"># Issue a ipmi lock command through authenticated interface</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Issuing ipmi lock command through authenticated interface&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">enter_ipmi_lockdown_mode</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_inband_ipmi_whitelisted_cmds</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">l_msg</span> <span class="o">=</span> <span class="s2">&quot;One of white listed in-band ipmi command execution failed&quot;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c1"># Issue a ipmi unlock command at the end of test.</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Issuing ipmi unlock command through authenticated interface&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">exit_ipmi_lockdown_mode</span><span class="p">()</span>
+
+<div class="viewcode-block" id="OpTestIPMILockMode.run_inband_ipmi_whitelisted_cmds"><a class="viewcode-back" href="../../tests.html#testcases.OpTestIPMILockMode.OpTestIPMILockMode.run_inband_ipmi_whitelisted_cmds">[docs]</a>    <span class="k">def</span> <span class="nf">run_inband_ipmi_whitelisted_cmds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This function will execute whitelisted in-band ipmi commands</span>
+<span class="sd">        and test the functionality in locked mode.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">l_con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uname -a&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Test IPMI white listed commands those should be allowed through un-authenticated</span>
+        <span class="c1"># in-band interface</span>
+        <span class="c1"># 1.[App] Get Device ID</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get Device ID command&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_DEVICE_ID</span><span class="p">)</span>
+
+        <span class="c1"># 2.[App] Get Device GUID</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get Device GUID&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_DEVICE_GUID</span><span class="p">)</span>
+
+        <span class="c1"># 3.[App] Get System GUID</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get system GUID&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SYSTEM_GUID</span><span class="p">)</span>
+
+        <span class="c1"># 4.[Storage] Get SEL info</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get SEL info&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SEL_INFO</span><span class="p">)</span>
+
+        <span class="c1"># 5.[Storage] Get SEL time</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get SEL time&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SEL_TIME_RAW</span><span class="p">)</span>
+
+        <span class="c1"># 6. [Storage] Reserve SEL</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Reserve SEL&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_RESERVE_SEL</span><span class="p">)</span>
+
+        <span class="c1"># 7. [Storage] Set SEL time (required for RTC)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Set SEL time&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SEL_TIME</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_SET_SEL_TIME</span> <span class="o">+</span> <span class="s2">&quot; </span><span class="se">\&#39;</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">l_res</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\&#39;</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SEL_TIME</span><span class="p">)</span>
+
+        <span class="c1"># 8. [Transport] Get LAN parameters</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get LAN parameters&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_LAN_PARAMETERS</span><span class="p">)</span>
+
+        <span class="c1"># 9.[Chassis] Get System Boot Options</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get System Boot Options&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SYSTEM_BOOT_OPTIONS</span><span class="p">)</span>
+
+        <span class="c1"># 10.[Chassis] Set System Boot Options</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Set System Boot Options&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_SET_SYTEM_BOOT_OPTIONS</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SYSTEM_BOOT_OPTIONS</span><span class="p">)</span>
+
+        <span class="c1"># 11. [App] Get BMC Global Enables</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get BMC Global Enables&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_BMC_GLOBAL_ENABLES_RAW</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_BMC_GLOBAL_ENABLES</span><span class="p">)</span>
+
+        <span class="c1"># 12. [App] Set BMC Global Enables</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Set BMC Global Enables&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_SET_BMC_GLOBAL_ENABLES_SEL_OFF</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_BMC_GLOBAL_ENABLES</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON</span><span class="p">)</span>
+
+        <span class="c1"># 13.[App] Get System Interface Capabilities</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;p9dsu&#39;</span><span class="p">]:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get System Interface Capabilities&quot;</span><span class="p">)</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF</span><span class="p">)</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_KCS</span><span class="p">)</span>
+
+        <span class="c1"># 14.[App] Get Message Flags</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get Message Flags&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_MESSAGE_FLAGS</span><span class="p">)</span>
+
+        <span class="c1"># 15. [App] Get BT Capabilities</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get BT Capabilities&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_BT_CAPABILITIES</span><span class="p">)</span>
+
+        <span class="c1"># 16. [App] Clear Message Flags</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Clear Message Flags&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command_ignore_fail</span><span class="p">(</span>
+            <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_CLEAR_MESSAGE_FLAGS</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;p9dsu&#39;</span><span class="p">]:</span>
+            <span class="c1"># 17. [OEM] PNOR Access Status</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing the PNOR Access Status&quot;</span><span class="p">)</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_PNOR_ACCESS_STATUS_DENY</span><span class="p">)</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_PNOR_ACCESS_STATUS_GRANT</span><span class="p">)</span>
+
+        <span class="c1"># 18. [Storage] Add SEL Entry</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Add SEL Entry&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Clearing the SEL list&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_sdr_clear</span><span class="p">()</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_ADD_SEL_ENTRY</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">last_sel</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Checking for Reserved entry creation in SEL&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;eserved&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;IPMI: Add SEL Entry command, doesn&#39;t create an SEL event&quot;</span><span class="p">)</span>
+
+        <span class="c1"># 19. [App] Set Power State</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Set Power State&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_SET_ACPI_POWER_STATE</span><span class="p">)</span>
+
+        <span class="c1"># 20.[Sensor/Event] Platform Event (0x02)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Platform Event&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_sdr_clear</span><span class="p">()</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_PLATFORM_EVENT</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">last_sel</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;eserved&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;IPMI: Platform Event command failed to log SEL event&quot;</span><span class="p">)</span>
+
+        <span class="c1"># 21.[Chassis] Chassis Control</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing chassis power on&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_CHASSIS_POWER_ON</span><span class="p">)</span>
+
+        <span class="c1"># 22. [App] Get ACPI Power State (0x06)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get ACPI Power State&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_ACPI_POWER_STATE</span><span class="p">)</span>
+
+        <span class="c1"># 23. [App] Set watchdog</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Set watchdog&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_SET_WATCHDOG</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">mc_get_watchdog</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;p9dsu&#39;</span><span class="p">]:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># 24. [Sensor/Event] Get Sensor Type</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get Sensor Type&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">sdr_get_watchdog</span><span class="p">()</span>
+        <span class="n">matchObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;Watchdog \((0x\d{1,})\)&quot;</span><span class="p">,</span> <span class="n">l_res</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matchObj</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Got sensor Id for watchdog: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to get sensor id for watchdog sensor&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SENSOR_TYPE_FOR_WATCHDOG</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># 25.[Sensor/Event] Get Sensor Reading</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get Sensor Reading&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">sdr_get_watchdog</span><span class="p">()</span>
+        <span class="n">matchObj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;Watchdog \((0x\d{1,})\)&quot;</span><span class="p">,</span> <span class="n">l_res</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matchObj</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Got sensor Id for watchdog: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to get sensor id for watchdog sensor&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_SENSOR_READING</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">matchObj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># 26. [OEM] PNOR Access Response (0x08)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing PNOR Access Response&quot;</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_PNOR_ACCESS_STATUS_GRANT</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_PNOR_ACCESS_RESPONSE</span><span class="p">)</span>
+        <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_PNOR_ACCESS_STATUS_DENY</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_PNOR_ACCESS_RESPONSE</span><span class="p">)</span>
+
+        <span class="c1"># 27.[App] 0x38 Get Channel Authentication Cap</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing Get Channel Authentication Capabilities&quot;</span><span class="p">)</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_GET_CHANNEL_AUTH_CAP</span><span class="p">)</span>
+
+        <span class="c1"># 28.[App] Reset Watchdog (0x22)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Testing reset watchdog&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">ipmi_sdr_clear</span><span class="p">()</span>
+        <span class="n">l_res</span> <span class="o">=</span> <span class="n">l_con</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">BMC_CONST</span><span class="o">.</span><span class="n">HOST_RESET_WATCHDOG</span><span class="p">)</span>
+
+        <span class="n">l_res</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">25</span><span class="p">):</span>
+            <span class="c1"># Reset watchdog should create a SEL event log</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;# Looking for Watchdog SEL event try </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">x</span><span class="p">)</span>
+            <span class="n">l_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_IPMI</span><span class="o">.</span><span class="n">last_sel</span><span class="p">()</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">l_res</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;Watchdog&quot;</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;Watchdog&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">l_res</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;IPMI: Reset Watchdog command, doesn&#39;t create an SEL event&quot;</span><span class="p">)</span></div></div>
+
+        <span class="c1"># Below commands will effect sensors and fru values and some care to be taken for</span>
+        <span class="c1"># executing.</span>
+        <span class="c1"># 29.[Storage] Write FRU</span>
+        <span class="c1"># 30.[Sensor/Event] Set Sensor Reading</span>
+        <span class="c1"># 31. [OEM] Partial Add ESEL (0xF0)</span>
+        <span class="c1"># This is testsed by kernel itself, it will send messages to BMC internally</span>
+        <span class="c1"># 32.[App] Send Message</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

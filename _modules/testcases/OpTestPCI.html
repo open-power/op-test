@@ -1,0 +1,1061 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>testcases.OpTestPCI &#8212; op-test-framework pre-v1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for testcases.OpTestPCI</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># IBM_PROLOG_BEGIN_TAG</span>
+<span class="c1"># This is an automatically generated prolog.</span>
+<span class="c1">#</span>
+<span class="c1"># $Source: op-test-framework/testcases/OpTestPCI.py $</span>
+<span class="c1">#</span>
+<span class="c1"># OpenPOWER Automated Test Project</span>
+<span class="c1">#</span>
+<span class="c1"># Contributors Listed Below - COPYRIGHT 2015,2017</span>
+<span class="c1"># [+] International Business Machines Corp.</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or</span>
+<span class="c1"># implied. See the License for the specific language governing</span>
+<span class="c1"># permissions and limitations under the License.</span>
+<span class="c1">#</span>
+<span class="c1"># IBM_PROLOG_END_TAG</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">OpTestPCI: PCI checks</span>
+<span class="sd">-------------------------------</span>
+
+<span class="sd">Perform various PCI validations and checks</span>
+
+<span class="sd">--run-suite BasicPCI (includes skiroot_suite and host_suite)</span>
+<span class="sd">--run-suite pci-regression</span>
+
+<span class="sd">Sample naming conventions below, see each test method for</span>
+<span class="sd">the applicable options per method.</span>
+
+<span class="sd">--run testcases.OpTestPCI.PCISkiroot.pcie_link_errors</span>
+<span class="sd">      ^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^ ^^^^^^^^^^^^^^^^</span>
+<span class="sd">          module name      subclass    test method</span>
+
+<span class="sd">--run testcases.OpTestPCI.PCIHost.pcie_link_errors</span>
+<span class="sd">      ^^^^^^^^^^^^^^^^^^^ ^^^^^^^ ^^^^^^^^^^^^^^^^</span>
+<span class="sd">          module name     subclass   test method</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">pexpect</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">difflib</span>
+<span class="kn">from</span> <span class="nn">distutils.version</span> <span class="kn">import</span> <span class="n">LooseVersion</span>
+
+<span class="kn">import</span> <span class="nn">OpTestConfiguration</span>
+<span class="kn">import</span> <span class="nn">OpTestLogger</span>
+<span class="kn">from</span> <span class="nn">common.OpTestSystem</span> <span class="kn">import</span> <span class="n">OpSystemState</span>
+<span class="kn">from</span> <span class="nn">common.Exceptions</span> <span class="kn">import</span> <span class="n">CommandFailed</span><span class="p">,</span> <span class="n">UnexpectedCase</span>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">OpTestLogger</span><span class="o">.</span><span class="n">optest_logger_glob</span><span class="o">.</span><span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">skiroot_done</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">host_done</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">skiroot_lspci</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">host_lspci</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">reset_console</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<div class="viewcode-block" id="OpClassPCI"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI">[docs]</a><span class="k">class</span> <span class="nc">OpClassPCI</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Main Parent class</span>
+
+<span class="sd">    We cannot guarantee a soft boot entry, so need to force to PS or OS</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="OpClassPCI.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">desired</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">power_cycle</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Main setUpClass, this is shared across all subclasses.</span>
+<span class="sd">        This is called once when the subclass is instantiated.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="n">desired</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">=</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">=</span> <span class="n">desired</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">power_cycle</span> <span class="o">=</span> <span class="n">power_cycle</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span> <span class="o">=</span> <span class="n">OpTestConfiguration</span><span class="o">.</span><span class="n">conf</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">system</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_HOST</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">host</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">my_connect</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">power_cycle</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OFF</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">power_cycle</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">desired</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">:</span>
+                <span class="c1"># set bootdev for reboot cases</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_set_bootdev_no_override</span><span class="p">()</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">host</span><span class="p">()</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">sys_set_bootdev_setup</span><span class="p">()</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">pty</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">get_console</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unable to find cls.desired, probably a test code problem&quot;</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.tearDownClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.tearDownClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Main tearDownClass, this is shared across all subclasses.</span>
+<span class="sd">        This is called once when the subclass is taken down.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">global</span> <span class="n">skiroot_done</span>
+        <span class="k">global</span> <span class="n">host_done</span>
+        <span class="k">global</span> <span class="n">skiroot_lspci</span>
+        <span class="k">global</span> <span class="n">host_lspci</span>
+        <span class="k">global</span> <span class="n">reset_console</span>
+        <span class="k">if</span> <span class="n">reset_console</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">refresh_console</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.set_console"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.set_console">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">set_console</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This method allows setting the shared class console to the real</span>
+<span class="sd">        console when needed, i.e. driver_bind tests which unbind the</span>
+<span class="sd">        ethernet drivers.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.refresh_console"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.refresh_console">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">refresh_console</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This method is used to set the shared class console back to the proper</span>
+<span class="sd">        object (this gets set to the real console when we unbind the ethernet)</span>
+<span class="sd">        in the driver_bind test as an example.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># this done after a reboot</span>
+        <span class="k">global</span> <span class="n">reset_console</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">console</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">host</span><span class="p">()</span><span class="o">.</span><span class="n">get_ssh_connection</span><span class="p">()</span>
+        <span class="n">reset_console</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        All variables common to a subclass need to be defined here since</span>
+<span class="sd">        this method gets called before each subclass test</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.tearDown"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This is done at the end of each subclass test.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">global</span> <span class="n">reset_console</span>
+        <span class="k">if</span> <span class="n">reset_console</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refresh_console</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.get_lspci"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.get_lspci">[docs]</a>    <span class="k">def</span> <span class="nf">get_lspci</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Usually used internally, can be run for query of system</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.get_lspci</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.get_lspci</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.get_lspci</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.get_lspci</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.get_lspci</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.get_lspci</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">lspci_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lspci -mm -n&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">lspci_data</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.check_commands"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.check_commands">[docs]</a>    <span class="k">def</span> <span class="nf">check_commands</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Checks for general capability to run commands</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.check_commands</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.check_commands</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.check_commands</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.check_commands</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.check_commands</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.check_commands</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">list_pci_devices_commands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;lspci -mm -n&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;lspci -m&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;lspci -t&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;lspci -n&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;lspci -nn&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;cat /proc/bus/pci/devices&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;ls --color=never /sys/bus/pci/devices/ -l&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;lspci -vvxxx&quot;</span><span class="p">,</span>
+                                     <span class="p">]</span>
+        <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">list_pci_devices_commands</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+
+        <span class="n">list_usb_devices_commands</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;lsusb&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;lsusb -t&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;lsusb -v&quot;</span><span class="p">,</span>
+                                     <span class="p">]</span>
+        <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">list_usb_devices_commands</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+        <span class="c1"># Test that we do not EEH on reading all config space</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="s2">&quot;hexdump -C /sys/bus/pci/devices/*/config&quot;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.get_lspci_file"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.get_lspci_file">[docs]</a>    <span class="k">def</span> <span class="nf">get_lspci_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Usually used internally, can be run for query of system</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.get_lspci_file</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.get_lspci_file</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.get_lspci_file</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.get_lspci_file</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.get_lspci_file</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.get_lspci_file</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">lspci_file</span><span class="p">():</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">lspci_file</span><span class="p">(),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">file_content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;file_content=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_content</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">file_content</span></div>
+
+    <span class="k">def</span> <span class="nf">_diff_my_devices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                         <span class="n">listA</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">listA_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">listB</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">listB_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Performs unified diff of two lists</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">unified_output</span> <span class="o">=</span> <span class="n">difflib</span><span class="o">.</span><span class="n">unified_diff</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">_f</span> <span class="k">for</span> <span class="n">_f</span> <span class="ow">in</span> <span class="n">listA</span> <span class="k">if</span> <span class="n">_f</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">_f</span> <span class="k">for</span> <span class="n">_f</span> <span class="ow">in</span> <span class="n">listB</span> <span class="k">if</span> <span class="n">_f</span><span class="p">],</span>
+            <span class="n">fromfile</span><span class="o">=</span><span class="n">listA_name</span><span class="p">,</span>
+            <span class="n">tofile</span><span class="o">=</span><span class="n">listB_name</span><span class="p">,</span>
+            <span class="n">lineterm</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">unified_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">unified_output</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;unified_list=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unified_list</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">unified_list</span>
+
+<div class="viewcode-block" id="OpClassPCI.compare_boot_devices"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.compare_boot_devices">[docs]</a>    <span class="k">def</span> <span class="nf">compare_boot_devices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        This is best leveraged in the suite pci-regression,</span>
+<span class="sd">        where both the skiroot/host softboot and the</span>
+<span class="sd">        skiroot/host hardboot get done in the same wave,</span>
+<span class="sd">        so that the global variables carry over to compare.</span>
+
+<span class="sd">        If both skiroot and host lspci completed, will</span>
+<span class="sd">        compare lspci results.</span>
+
+<span class="sd">        If you want to compare against an input file, use</span>
+<span class="sd">        compare_live_devices.</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.compare_boot_devices</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.compare_boot_devices</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.compare_boot_devices</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.compare_boot_devices</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.compare_boot_devices</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.compare_boot_devices</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">global</span> <span class="n">skiroot_done</span>
+        <span class="k">global</span> <span class="n">host_done</span>
+        <span class="k">global</span> <span class="n">skiroot_lspci</span>
+        <span class="k">global</span> <span class="n">host_lspci</span>
+        <span class="n">lspci_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lspci</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">:</span>
+            <span class="n">skiroot_lspci</span> <span class="o">=</span> <span class="n">lspci_output</span>
+            <span class="n">skiroot_done</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">host_lspci</span> <span class="o">=</span> <span class="n">lspci_output</span>
+            <span class="n">host_done</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">host_done</span> <span class="ow">and</span> <span class="n">skiroot_done</span><span class="p">:</span>
+            <span class="n">compare_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_diff_my_devices</span><span class="p">(</span><span class="n">listA</span><span class="o">=</span><span class="n">skiroot_lspci</span><span class="p">,</span>
+                                                    <span class="n">listA_name</span><span class="o">=</span><span class="s2">&quot;skiroot_lspci&quot;</span><span class="p">,</span>
+                                                    <span class="n">listB</span><span class="o">=</span><span class="n">host_lspci</span><span class="p">,</span>
+                                                    <span class="n">listB_name</span><span class="o">=</span><span class="s2">&quot;host_lspci&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">compare_results</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">compare_results</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                                 <span class="s2">&quot;skiroot_lspci and host_lspci devices differ:</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span>
+                                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">lspci_file</span><span class="p">(),</span> <span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">compare_results</span><span class="p">))))</span>
+            <span class="c1"># refresh so next pair can be matched up, i.e. soft or hard</span>
+            <span class="n">skiroot_done</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">host_done</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">skiroot_lspci</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">host_lspci</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.compare_live_devices"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.compare_live_devices">[docs]</a>    <span class="k">def</span> <span class="nf">compare_live_devices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Compares the live system lspci against an input file, host-lspci</span>
+<span class="sd">        provided either in conf file or via command line.</span>
+
+<span class="sd">        &quot;ssh user@host lspci -mm -n &gt; host-lspci.txt&quot;</span>
+
+<span class="sd">        --host-lspci host-lspci.txt on command line</span>
+<span class="sd">                         or</span>
+<span class="sd">        host_lspci=host-lspci.txt in conf file</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.compare_live_devices</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.compare_live_devices</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.compare_live_devices</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.compare_live_devices</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.compare_live_devices</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.compare_live_devices</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">active_lspci</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lspci</span><span class="p">()</span>
+        <span class="n">file_lspci</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lspci_file</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">file_lspci</span><span class="p">:</span>
+            <span class="n">compare_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_diff_my_devices</span><span class="p">(</span><span class="n">listA</span><span class="o">=</span><span class="n">file_lspci</span><span class="p">,</span>
+                                                    <span class="n">listA_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">lspci_file</span><span class="p">(),</span>
+                                                    <span class="n">listB</span><span class="o">=</span><span class="n">active_lspci</span><span class="p">,</span>
+                                                    <span class="n">listB_name</span><span class="o">=</span><span class="s2">&quot;Live System&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;compare_results=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">compare_results</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">compare_results</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">compare_results</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                                 <span class="s2">&quot;Stored (</span><span class="si">{}</span><span class="s2">) and Active PCI devices differ:</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span>
+                                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">lspci_file</span><span class="p">(),</span> <span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">compare_results</span><span class="p">))))</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.pcie_link_errors"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.pcie_link_errors">[docs]</a>    <span class="k">def</span> <span class="nf">pcie_link_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Checks for link errors</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.pcie_link_errors</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.pcie_link_errors</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.pcie_link_errors</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.pcie_link_errors</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.pcie_link_errors</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.pcie_link_errors</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">total_entries</span> <span class="o">=</span> <span class="n">link_down_entries</span> <span class="o">=</span> <span class="n">timeout_entries</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">link_down_entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;grep &#39;,[432]\].*PHB#.* Link down&#39; /sys/firmware/opal/msglog&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">if</span> <span class="n">link_down_entries</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;link_down_entries=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">link_down_entries</span><span class="p">))</span>
+            <span class="n">total_entries</span> <span class="o">=</span> <span class="n">total_entries</span> <span class="o">+</span> <span class="n">link_down_entries</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;total_entries with link_down_entries=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">total_entries</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">timeout_entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="s2">&quot;grep &#39;,[432]\].*Timeout waiting for&#39; /sys/firmware/opal/msglog&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">if</span> <span class="n">timeout_entries</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;timeout_entries=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">timeout_entries</span><span class="p">))</span>
+            <span class="n">total_entries</span> <span class="o">=</span> <span class="n">total_entries</span> <span class="o">+</span> <span class="n">timeout_entries</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;total_entries with timeout_entries=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">total_entries</span><span class="p">))</span>
+        <span class="n">platform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;cat /proc/device-tree/compatible&quot;</span><span class="p">)</span>
+
+        <span class="n">filter_out</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;PHB#00(00|30|33|34)\[(0|8):(0|4|3)\]: LINK: Timeout waiting for link up&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Timeout waiting for downstream link&#39;</span><span class="p">,</span>
+        <span class="p">]</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;STARTING total_entries=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">total_entries</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;p9dsu&#39;</span><span class="p">,</span> <span class="n">platform</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="c1"># No presence detect on some p9dsu slots :/</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filter_out</span><span class="p">:</span>
+                <span class="n">fre</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="n">total_entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">total_entries</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">fre</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">l</span><span class="p">)]</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;P9DSU FILTERED OUT total_entries=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">total_entries</span><span class="p">))</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">_f</span> <span class="k">for</span> <span class="n">_f</span> <span class="ow">in</span> <span class="n">total_entries</span> <span class="k">if</span> <span class="n">_f</span><span class="p">])</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;total_entries=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">total_entries</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">total_entries</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="s2">&quot;pcie link down/timeout Errors in OPAL log:</span><span class="se">\n</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_list_of_pci_devices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;ls --color=never /sys/bus/pci/devices/ | awk {&#39;print $1&#39;}&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">_get_driver</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pe</span><span class="p">):</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;lspci -ks </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pe</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s1">&#39;Kernel driver in use:&#39;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_get_list_of_slots</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;ls --color=never /sys/bus/pci/slots/ -1&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">_get_root_pe_address</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;df -h /boot | awk &#39;END {print $1}&#39;&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="n">boot_disk</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/dev/&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">boot_disk</span> <span class="o">=</span> <span class="n">boot_disk</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">awk_string</span> <span class="o">=</span> <span class="s2">&quot;awk &#39;{print $(NF-2)}&#39;&quot;</span>
+        <span class="n">pre_cmd</span> <span class="o">=</span> <span class="s2">&quot;ls --color=never -l /dev/disk/by-path/ | grep </span><span class="si">{}</span><span class="s2"> | &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">boot_disk</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">pre_cmd</span> <span class="o">+</span> <span class="n">awk_string</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="n">root_pe</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">root_pe</span>
+
+    <span class="k">def</span> <span class="nf">_gather_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Gather all errors from kernel and opal logs</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -r|grep &#39;&lt;[4321]&gt;&#39;&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;grep &#39;,[0-4]\]&#39; /sys/firmware/opal/msglog&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CommandFailed</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+<div class="viewcode-block" id="OpClassPCI.driver_bind"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.driver_bind">[docs]</a>    <span class="k">def</span> <span class="nf">driver_bind</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Unbind and then bind the devices</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.driver_bind</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.driver_bind</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.driver_bind</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.driver_bind</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.driver_bind</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.driver_bind</span>
+
+<span class="sd">        Special note on unbinding shared bmc ethernet ports, caution.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># since we will be unbinding ethernet drivers, override the console</span>
+        <span class="k">global</span> <span class="n">reset_console</span>
+        <span class="n">reset_console</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_console</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span> <span class="o">==</span> <span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">:</span>
+            <span class="n">root_pe</span> <span class="o">=</span> <span class="s2">&quot;xxxx&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">root_pe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_root_pe_address</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -D&quot;</span><span class="p">)</span>
+        <span class="nb">list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_list_of_pci_devices</span><span class="p">()</span>
+        <span class="n">failure_list</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">slot</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="n">rc</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">driver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_driver</span><span class="p">(</span><span class="n">slot</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">root_pe</span> <span class="ow">in</span> <span class="n">slot</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">driver</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">driver</span><span class="p">,</span> <span class="n">slot</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;echo -n </span><span class="si">{}</span><span class="s2"> &gt; /sys/bus/pci/drivers/</span><span class="si">{}</span><span class="s2">/unbind&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">slot</span><span class="p">,</span> <span class="n">driver</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;unbind driver=</span><span class="si">{}</span><span class="s2"> slot=</span><span class="si">{}</span><span class="s2"> cmd=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">driver</span><span class="p">,</span> <span class="n">slot</span><span class="p">,</span> <span class="n">cmd</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Driver unbind operation failed for driver </span><span class="si">{}</span><span class="s2">, slot </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">slot</span><span class="p">,</span> <span class="n">driver</span><span class="p">)</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;ls --color=never /sys/bus/pci/drivers/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">driver</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;/sys/bus/pci/drivers/</span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">driver</span><span class="p">,</span> <span class="n">slot</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;test -d </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+                <span class="n">rc</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;echo -n </span><span class="si">{}</span><span class="s2"> &gt; /sys/bus/pci/drivers/</span><span class="si">{}</span><span class="s2">/bind&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">slot</span><span class="p">,</span> <span class="n">driver</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;bind driver=</span><span class="si">{}</span><span class="s2"> slot=</span><span class="si">{}</span><span class="s2"> cmd=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">driver</span><span class="p">,</span> <span class="n">slot</span><span class="p">,</span> <span class="n">cmd</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Driver bind operation failed for driver </span><span class="si">{}</span><span class="s2">, slot </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">slot</span><span class="p">,</span> <span class="n">driver</span><span class="p">)</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;ls --color=never /sys/bus/pci/drivers/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">driver</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;test -d </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">rc</span> <span class="o">=</span> <span class="mi">2</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_gather_errors</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> not unbound for driver </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slot</span><span class="p">,</span> <span class="n">driver</span><span class="p">)</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+
+            <span class="k">if</span> <span class="n">rc</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> not bound back for driver </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slot</span><span class="p">,</span> <span class="n">driver</span><span class="p">)</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">failure_list</span><span class="p">,</span> <span class="p">{},</span>
+                         <span class="s2">&quot;Driver bind/unbind failures </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">failure_list</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.hot_plug_host"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.hot_plug_host">[docs]</a>    <span class="k">def</span> <span class="nf">hot_plug_host</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        NEEDS TESTING</span>
+<span class="sd">        Case A --run testcases.OpTestPCI.PCIHost.hot_plug_host</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCIHostSoftboot.hot_plug_host</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCIHostHardboot.hot_plug_host</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Currently this feature enabled only for fsp systems</span>
+        <span class="k">if</span> <span class="s2">&quot;FSP&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">conf</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">bmc_type</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Skipping test, currently only OPAL FSP Platform supported for hot_plug_host&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                <span class="s2">&quot;Skipping test, currently only OPAL FSP Platform supported for hot_plug_host&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;uname -r&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">LooseVersion</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">LooseVersion</span><span class="p">(</span><span class="s2">&quot;4.10.0&quot;</span><span class="p">):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="s2">&quot;Skipping test, Kernel does not support hotplug </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">res</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span>
+                <span class="s2">&quot;Skipping test, Kernel does not support hotplug=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">res</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_HOST</span><span class="o">.</span><span class="n">host_load_module</span><span class="p">(</span><span class="s2">&quot;pnv_php&quot;</span><span class="p">)</span>
+        <span class="n">device_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_list_of_pci_devices</span><span class="p">()</span>
+        <span class="n">root_pe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_root_pe_address</span><span class="p">()</span>
+        <span class="n">slot_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_list_of_slots</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;dmesg -D&quot;</span><span class="p">)</span>
+        <span class="n">pair</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># Pair of device vs slot location code</span>
+        <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">device_list</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;lspci -k -s </span><span class="si">{}</span><span class="s2"> -vmm&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+                <span class="c1"># if &quot;PhySlot:\t&quot; in line:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;PhySlot:</span><span class="se">\t</span><span class="s1">(.*)&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">obj</span><span class="p">:</span>
+                    <span class="n">pair</span><span class="p">[</span><span class="n">device</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">failure_list</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">device</span><span class="p">,</span> <span class="n">phy_slot</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">pair</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">root_pe</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">phy_slot</span><span class="p">)</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;/sys/bus/pci/slots/</span><span class="si">{}</span><span class="s2">/power&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">phy_slot</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;test -f </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Slot </span><span class="si">{}</span><span class="s2"> does not support hotplug&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">phy_slot</span><span class="p">))</span>
+                <span class="k">continue</span>  <span class="c1"># slot does not support hotplug</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;echo 0 &gt; </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;PCI device/slot power off operation failed&quot;</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;lspci -k -s </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">device</span> <span class="ow">in</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;PCI device failed to remove after power off operation&quot;</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;echo 1 &gt; </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">CommandFailed</span> <span class="k">as</span> <span class="n">cf</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;PCI device/slot power on operation failed&quot;</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">device</span> <span class="ow">not</span> <span class="ow">in</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">res</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;PCI device failed to attach back after power on operation&quot;</span>
+                <span class="n">failure_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">msg</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_gather_errors</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">failure_list</span><span class="p">,</span> <span class="p">{},</span>
+                         <span class="s2">&quot;PCI Hotplug failures </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">failure_list</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpClassPCI.pci_link_check"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.OpClassPCI.pci_link_check">[docs]</a>    <span class="k">def</span> <span class="nf">pci_link_check</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        PCI link checks</span>
+
+<span class="sd">        Case A --run testcases.OpTestPCI.PCISkiroot.pci_link_check</span>
+<span class="sd">        Case B --run testcases.OpTestPCI.PCISkirootSoftboot.pci_link_check</span>
+<span class="sd">        Case C --run testcases.OpTestPCI.PCISkirootHardboot.pci_link_check</span>
+<span class="sd">        Case D --run testcases.OpTestPCI.PCIHost.pci_link_check</span>
+<span class="sd">        Case E --run testcases.OpTestPCI.PCIHostSoftboot.pci_link_check</span>
+<span class="sd">        Case F --run testcases.OpTestPCI.PCIHostHardboot.pci_link_check</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">lspci_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lspci&quot;</span><span class="p">)</span>
+
+        <span class="c1"># List of devices that won&#39;t be checked</span>
+        <span class="n">blacklist</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;Broadcom Limited NetXtreme BCM5719 Gigabit Ethernet PCIe (rev 01)&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Populating device id list</span>
+        <span class="n">device_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lspci_output</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+                <span class="n">device_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">class</span> <span class="nc">Device</span><span class="p">:</span>
+            <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device_info</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">domain</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">primary</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slotfunc</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">secondary</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">capability</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">capspeed</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">capwidth</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">staspeed</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stawidth</span> <span class="o">=</span> <span class="mi">0</span>
+
+                <span class="c1"># 0000:00:00.0 PCI bridge: IBM Device 03dc</span>
+                <span class="n">id_components</span> <span class="o">=</span> <span class="n">device_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">domain</span> <span class="o">=</span> <span class="n">id_components</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">primary</span> <span class="o">=</span> <span class="n">id_components</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slotfunc</span> <span class="o">=</span> <span class="n">id_components</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">id_components</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">device_info</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                    <span class="k">if</span> <span class="n">line</span><span class="p">:</span>
+                        <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="s2">&quot;Bus:&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;secondary=&quot;</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">secondary</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">][:</span><span class="mi">2</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="s2">&quot;Express (v&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">capability</span> <span class="o">=</span> <span class="s2">&quot;Endpoint&quot;</span>
+                            <span class="k">if</span> <span class="s2">&quot;Root Port&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">capability</span> <span class="o">=</span> <span class="s2">&quot;Root&quot;</span>
+                            <span class="k">if</span> <span class="s2">&quot;Upstream&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">capability</span> <span class="o">=</span> <span class="s2">&quot;Upstream&quot;</span>
+                            <span class="k">if</span> <span class="s2">&quot;Downstream&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">capability</span> <span class="o">=</span> <span class="s2">&quot;Downstream&quot;</span>
+                        <span class="k">if</span> <span class="s2">&quot;LnkCap:&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                            <span class="c1"># LnkCap:   Port #0, Speed 8GT/s, Width x16, ASPM L0s, Exit Latency L0s unlimited, L1 unlimited</span>
+                            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;GT/s, Width x&quot;</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">capspeed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">capwidth</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="k">if</span> <span class="s2">&quot;LnkSta:&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                            <span class="c1"># LnkSta:   Speed 8GT/s, Width x8, TrErr- Train- SlotClk+ DLActive+ BWMgmt- ABWMgmt+</span>
+                            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;GT/s, Width x&quot;</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">staspeed</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">stawidth</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+            <span class="k">def</span> <span class="nf">get_details</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">, capability=</span><span class="si">{}</span><span class="s2">, secondary=</span><span class="si">{}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span>
+                       <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_id</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">secondary</span><span class="p">))</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="p">(</span><span class="s2">&quot;capspeed=</span><span class="si">{}</span><span class="s2">, capwidth=</span><span class="si">{}</span><span class="s2">, staspeed=</span><span class="si">{}</span><span class="s2">, stawidth=</span><span class="si">{}</span><span class="s2">&quot;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">capspeed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">capwidth</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">staspeed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stawidth</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">msg</span>
+
+            <span class="k">def</span> <span class="nf">get_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">:</span><span class="si">{}</span><span class="s2">:</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">domain</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">primary</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slotfunc</span><span class="p">)</span>
+
+        <span class="c1"># Checking if two devices are linked together</span>
+        <span class="k">def</span> <span class="nf">devicesLinked</span><span class="p">(</span><span class="n">upstream</span><span class="p">,</span> <span class="n">downstream</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">domain</span> <span class="o">==</span> <span class="n">downstream</span><span class="o">.</span><span class="n">domain</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">secondary</span> <span class="o">==</span> <span class="n">downstream</span><span class="o">.</span><span class="n">primary</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capability</span> <span class="o">==</span> <span class="s2">&quot;Root&quot;</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capability</span> <span class="o">==</span> <span class="s2">&quot;Upstream&quot;</span><span class="p">:</span>
+                            <span class="k">return</span> <span class="kc">True</span>
+                        <span class="k">if</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capability</span> <span class="o">==</span> <span class="s2">&quot;Endpoint&quot;</span><span class="p">:</span>
+                            <span class="k">return</span> <span class="kc">True</span>
+                    <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capability</span> <span class="o">==</span> <span class="s2">&quot;Downstream&quot;</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capability</span> <span class="o">==</span> <span class="s2">&quot;Endpoint&quot;</span><span class="p">:</span>
+                            <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="c1"># Checking if LnkSta matches LnkCap - speed</span>
+        <span class="k">def</span> <span class="nf">optimalSpeed</span><span class="p">(</span><span class="n">upstream</span><span class="p">,</span> <span class="n">downstream</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capspeed</span> <span class="o">&gt;</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capspeed</span><span class="p">:</span>
+                <span class="n">optimal_speed</span> <span class="o">=</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capspeed</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">optimal_speed</span> <span class="o">=</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capspeed</span>
+            <span class="k">if</span> <span class="n">optimal_speed</span> <span class="o">&gt;</span> <span class="n">upstream</span><span class="o">.</span><span class="n">staspeed</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="c1"># Checking if LnkSta matches LnkCap - width</span>
+        <span class="k">def</span> <span class="nf">optimalWidth</span><span class="p">(</span><span class="n">upstream</span><span class="p">,</span> <span class="n">downstream</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capwidth</span> <span class="o">&gt;</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capwidth</span><span class="p">:</span>
+                <span class="n">optimal_width</span> <span class="o">=</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capwidth</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">optimal_width</span> <span class="o">=</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capwidth</span>
+            <span class="k">if</span> <span class="n">optimal_width</span> <span class="o">&gt;</span> <span class="n">upstream</span><span class="o">.</span><span class="n">stawidth</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="n">device_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Filling device objects&#39; details</span>
+        <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">device_ids</span><span class="p">:</span>
+            <span class="n">device_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span><span class="s2">&quot;lspci -s </span><span class="si">{}</span><span class="s2"> -vv&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device</span><span class="p">))</span>
+            <span class="n">device_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Device</span><span class="p">(</span><span class="n">device_info</span><span class="p">))</span>
+
+        <span class="n">checked_devices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">suboptimal_links</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">blacklist_links</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="c1"># Returns a string containing details of the suboptimal link</span>
+        <span class="k">def</span> <span class="nf">subLinkInfo</span><span class="p">(</span><span class="n">upstream</span><span class="p">,</span> <span class="n">downstream</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Suboptimal link between </span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2"> - &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">upstream</span><span class="o">.</span><span class="n">get_id</span><span class="p">(),</span> <span class="n">downstream</span><span class="o">.</span><span class="n">get_id</span><span class="p">())</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">optimalSpeed</span><span class="p">(</span><span class="n">upstream</span><span class="p">,</span> <span class="n">downstream</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capspeed</span> <span class="o">&gt;</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capspeed</span><span class="p">:</span>
+                    <span class="n">optimal_speed</span> <span class="o">=</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capspeed</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">optimal_speed</span> <span class="o">=</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capspeed</span>
+                <span class="n">actual_speed</span> <span class="o">=</span> <span class="n">upstream</span><span class="o">.</span><span class="n">staspeed</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;Link speed capability is </span><span class="si">{}</span><span class="s2">GT/s but status was </span><span class="si">{}</span><span class="s2">GT/s. &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">optimal_speed</span><span class="p">,</span> <span class="n">actual_speed</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">optimalWidth</span><span class="p">(</span><span class="n">upstream</span><span class="p">,</span> <span class="n">downstream</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capwidth</span> <span class="o">&gt;</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capwidth</span><span class="p">:</span>
+                    <span class="n">optimal_width</span> <span class="o">=</span> <span class="n">downstream</span><span class="o">.</span><span class="n">capwidth</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">optimal_width</span> <span class="o">=</span> <span class="n">upstream</span><span class="o">.</span><span class="n">capwidth</span>
+                <span class="n">actual_width</span> <span class="o">=</span> <span class="n">upstream</span><span class="o">.</span><span class="n">stawidth</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s2">&quot;Link width capability is x</span><span class="si">{}</span><span class="s2"> but status was x</span><span class="si">{}</span><span class="s2">. &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">optimal_width</span><span class="p">,</span> <span class="n">actual_width</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">msg</span>
+
+        <span class="c1"># Searching through devices to check for links and testing to see if they&#39;re optimal</span>
+        <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">device_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">device</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">checked_devices</span><span class="p">:</span>
+                <span class="n">checked_devices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">endpoint</span> <span class="ow">in</span> <span class="n">device_list</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">endpoint</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">checked_devices</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">devicesLinked</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">):</span>
+                            <span class="n">checked_devices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">endpoint</span><span class="p">)</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;checking link between </span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">device</span><span class="o">.</span><span class="n">get_id</span><span class="p">(),</span> <span class="n">endpoint</span><span class="o">.</span><span class="n">get_id</span><span class="p">()))</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">device</span><span class="o">.</span><span class="n">get_details</span><span class="p">())</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">endpoint</span><span class="o">.</span><span class="n">get_details</span><span class="p">())</span>
+                            <span class="k">if</span> <span class="n">endpoint</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">blacklist</span><span class="p">:</span>
+                                <span class="n">no_check_msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Link between </span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2"> not checked as </span><span class="si">{}</span><span class="s2"> is in the list of blacklisted devices&quot;</span>
+                                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">device</span><span class="o">.</span><span class="n">get_id</span><span class="p">(),</span> <span class="n">endpoint</span><span class="o">.</span><span class="n">get_id</span><span class="p">(),</span> <span class="n">endpoint</span><span class="o">.</span><span class="n">get_id</span><span class="p">()))</span>
+                                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">no_check_msg</span><span class="p">)</span>
+                                <span class="n">blacklist_links</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">no_check_msg</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="k">if</span><span class="p">(</span><span class="ow">not</span> <span class="n">optimalSpeed</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">))</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">optimalWidth</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">)):</span>
+                                    <span class="n">suboptimal_links</span> <span class="o">+=</span> <span class="n">subLinkInfo</span><span class="p">(</span>
+                                        <span class="n">device</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">)</span>
+                            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Finished testing links&quot;</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;blacklist_links=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">blacklist_links</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;suboptimal_links=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">suboptimal_links</span><span class="p">))</span>
+        <span class="c1"># Assert suboptimal list is empty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">suboptimal_links</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">suboptimal_links</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="PCISkirootSoftboot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootSoftboot">[docs]</a><span class="k">class</span> <span class="nc">PCISkirootSoftboot</span><span class="p">(</span><span class="n">OpClassPCI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Class allows to run parent classes with unique setup</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="PCISkirootSoftboot.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootSoftboot.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCISkirootSoftboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">()</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;reboot&quot;</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">IPLing</span><span class="p">)</span>
+        <span class="c1"># clear the states since we rebooted outside the state machine</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">clear_state</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">PETITBOOT_SHELL</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PCISkirootSoftboot.tearDownClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootSoftboot.tearDownClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCISkirootSoftboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">tearDownClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PCISkirootSoftboot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootSoftboot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this left as placeholder for per test setUp</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCISkirootSoftboot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="PCISkirootHardboot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootHardboot">[docs]</a><span class="k">class</span> <span class="nc">PCISkirootHardboot</span><span class="p">(</span><span class="n">OpClassPCI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Class allows to run parent classes with unique setup</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="PCISkirootHardboot.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootHardboot.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCISkirootHardboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">(</span><span class="n">power_cycle</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PCISkirootHardboot.tearDownClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootHardboot.tearDownClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCISkirootHardboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">tearDownClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PCISkirootHardboot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkirootHardboot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this left as placeholder for per test setUp</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCISkirootHardboot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="PCISkiroot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkiroot">[docs]</a><span class="k">class</span> <span class="nc">PCISkiroot</span><span class="p">(</span><span class="n">OpClassPCI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Class allows to run parent classes with unique setup</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="PCISkiroot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCISkiroot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this left as placeholder for per test setUp</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCISkiroot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="PCIHostSoftboot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostSoftboot">[docs]</a><span class="k">class</span> <span class="nc">PCIHostSoftboot</span><span class="p">(</span><span class="n">OpClassPCI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Class allows to run parent classes with unique setup</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="PCIHostSoftboot.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostSoftboot.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHostSoftboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">(</span><span class="n">desired</span><span class="o">=</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">pty</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="s2">&quot;reboot&quot;</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">BOOTING</span><span class="p">)</span>
+        <span class="c1"># clear the states since we rebooted outside the state machine</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">clear_state</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">cv_SYSTEM</span><span class="o">.</span><span class="n">goto_state</span><span class="p">(</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PCIHostSoftboot.tearDownClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostSoftboot.tearDownClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHostSoftboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">tearDownClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PCIHostSoftboot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostSoftboot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this left as placeholder for per test setUp</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHostSoftboot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="PCIHostHardboot"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostHardboot">[docs]</a><span class="k">class</span> <span class="nc">PCIHostHardboot</span><span class="p">(</span><span class="n">OpClassPCI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Class allows to run parent classes with unique setup</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="PCIHostHardboot.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostHardboot.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHostHardboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">(</span>
+            <span class="n">desired</span><span class="o">=</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">,</span> <span class="n">power_cycle</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PCIHostHardboot.tearDownClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostHardboot.tearDownClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHostHardboot</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">tearDownClass</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PCIHostHardboot.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHostHardboot.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this left as placeholder for per test setUp</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHostHardboot</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="PCIHost"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHost">[docs]</a><span class="k">class</span> <span class="nc">PCIHost</span><span class="p">(</span><span class="n">OpClassPCI</span><span class="p">,</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Class allows to run parent classes with unique setup</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="PCIHost.setUpClass"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHost.setUpClass">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHost</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="n">setUpClass</span><span class="p">(</span><span class="n">desired</span><span class="o">=</span><span class="n">OpSystemState</span><span class="o">.</span><span class="n">OS</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PCIHost.setUp"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.PCIHost.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this left as placeholder for per test setUp</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PCIHost</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setUp</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="skiroot_softboot_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.skiroot_softboot_suite">[docs]</a><span class="k">def</span> <span class="nf">skiroot_softboot_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run-suite pci-regression</span>
+<span class="sd">    --run testcases.OpTestPCI.skiroot_softboot_suite</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;pci_link_check&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_boot_devices&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCISkirootSoftboot</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="skiroot_hardboot_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.skiroot_hardboot_suite">[docs]</a><span class="k">def</span> <span class="nf">skiroot_hardboot_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run-suite pci-regression</span>
+<span class="sd">    --run testcases.OpTestPCI.skiroot_hardboot_suite</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;pci_link_check&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_boot_devices&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCISkirootHardboot</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="skiroot_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.skiroot_suite">[docs]</a><span class="k">def</span> <span class="nf">skiroot_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run-suite BasicPCI</span>
+<span class="sd">    --run testcases.OpTestPCI.skiroot_suite</span>
+
+<span class="sd">    This suite does not care on soft vs hard boot</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCISkiroot</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="skiroot_full_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.skiroot_full_suite">[docs]</a><span class="k">def</span> <span class="nf">skiroot_full_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run testcases.OpTestPCI.skiroot_full_suite</span>
+
+<span class="sd">    This suite does not care on soft vs hard boot</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;pci_link_check&#39;</span><span class="p">,</span> <span class="s1">&#39;driver_bind&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCISkiroot</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="host_softboot_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.host_softboot_suite">[docs]</a><span class="k">def</span> <span class="nf">host_softboot_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run-suite pci-regression</span>
+<span class="sd">    --run testcases.OpTestPCI.host_softboot_suite</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">,</span> <span class="s1">&#39;pci_link_check&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;compare_boot_devices&#39;</span><span class="p">,</span> <span class="s1">&#39;driver_bind&#39;</span><span class="p">,</span> <span class="s1">&#39;hot_plug_host&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCIHostSoftboot</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="host_hardboot_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.host_hardboot_suite">[docs]</a><span class="k">def</span> <span class="nf">host_hardboot_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run-suite pci-regression</span>
+<span class="sd">    --run testcases.OpTestPCI.host_hardboot_suite</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">,</span> <span class="s1">&#39;pci_link_check&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;compare_boot_devices&#39;</span><span class="p">,</span> <span class="s1">&#39;driver_bind&#39;</span><span class="p">,</span> <span class="s1">&#39;hot_plug_host&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCIHostHardboot</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="host_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.host_suite">[docs]</a><span class="k">def</span> <span class="nf">host_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run-suite BasicPCI</span>
+<span class="sd">    --run testcases.OpTestPCI.host_suite</span>
+
+<span class="sd">    This suite does not care on soft vs hard boot</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCIHost</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="host_full_suite"><a class="viewcode-back" href="../../tests.html#testcases.OpTestPCI.host_full_suite">[docs]</a><span class="k">def</span> <span class="nf">host_full_suite</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Function used to prepare a test suite (see op-test)</span>
+<span class="sd">    --run testcases.OpTestPCI.host_full_suite</span>
+
+<span class="sd">    This suite does not care on soft vs hard boot</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">tests</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pcie_link_errors&#39;</span><span class="p">,</span> <span class="s1">&#39;compare_live_devices&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;pci_link_check&#39;</span><span class="p">,</span> <span class="s1">&#39;driver_bind&#39;</span><span class="p">,</span> <span class="s1">&#39;hot_plug_host&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">unittest</span><span class="o">.</span><span class="n">TestSuite</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">PCIHost</span><span class="p">,</span> <span class="n">tests</span><span class="p">)))</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">op-test-framework</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=open-power&repo=op-test-framework&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/open-power/op-test-framework">
+    <img
+        alt="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+        src="https://secure.travis-ci.org/open-power/op-test-framework.svg?branch=master"
+    />
+</a>
+</p>
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-guide.html">op-test User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tests.html">The Tests</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Programming Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html">Programming Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#generic-classes-modules">Generic Classes/Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#bmc-machine-specific">BMC/Machine Specific</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../programming.html#module-testcases.OpTestFlash">Firmware Flashing</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, OpenPOWER Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/open-power/op-test-framework" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>
