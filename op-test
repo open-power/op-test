@@ -231,8 +231,7 @@ class SkirootSuite():
         self.s.addTest(OpTestPCI.skiroot_suite())
         self.s.addTest(PetitbootDropbearServer.PetitbootDropbearServer())
         self.s.addTest(Petitbooti18n.Petitbooti18n())
-        # disabling temporarily
-#        self.s.addTest(OpTestFastReboot.OpTestFastReboot())
+        self.s.addTest(OpTestFastReboot.OpTestFastReboot())
         self.s.addTest(OpTestHeartbeat.HeartbeatSkiroot())
         self.s.addTest(OpTestNVRAM.SkirootNVRAM())
         self.s.addTest(Console.suite())
