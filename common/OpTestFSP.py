@@ -58,11 +58,11 @@ class OpTestFSP():
     Contains most of the common methods to interface with FSP.
     '''
 
-    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, ipmi=None, hmc=None, rest=None):
+    def __init__(self, i_fspIP, i_fspUser, i_fspPasswd, ipmi=None, hmc=None, rest=None, prompt="$"):
         self.host_name = i_fspIP
         self.user_name = i_fspUser
         self.password = i_fspPasswd
-        self.prompt = "$"
+        self.prompt = prompt
         self.cv_ASM = OpTestASM(i_fspIP, i_fspUser, i_fspPasswd)
         self.cv_IPMI = ipmi
         self.cv_HMC = hmc
