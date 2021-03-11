@@ -789,6 +789,7 @@ class OpTestConfiguration():
                                 self.args.bmc_username,
                                 self.args.bmc_password,
                                 ipmi=ipmi,
+                                prompt=self.args.fsp_prompt if hasattr(self.args, 'fsp_prompt') else "$",
                                 )
                 self.op_system = common.OpTestSystem.OpTestFSPSystem(
                     state=self.startState,
@@ -830,6 +831,7 @@ class OpTestConfiguration():
                                 self.args.bmc_username,
                                 self.args.bmc_password,
                                 hmc=hmc,
+                                prompt=self.args.fsp_prompt if hasattr(self.args, 'fsp_prompt') else "$",
                                 )
                 self.op_system = common.OpTestSystem.OpTestLPARSystem(
                     state=self.startState,
