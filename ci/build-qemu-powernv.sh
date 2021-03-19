@@ -2,7 +2,7 @@
 set -e
 set -vx
 
-git clone --depth=1 -b powernv-5.1 https://github.com/legoater/qemu
+git clone --depth=1 -b powernv-6.0 https://github.com/legoater/qemu
 cd qemu
 git submodule update --init dtc
 export CC="ccache gcc"
