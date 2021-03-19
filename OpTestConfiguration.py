@@ -427,6 +427,12 @@ def get_parser():
     misc_group.add_argument("--secvar-payload-url",
                             help="Specify a URL for the secvar test data payload")
 
+    monitorgroup = parser.add_argument_group('Monitor',
+                                              'Monitor enable commands')
+    monitorgroup.add_argument("--enable-monitors", help="If set, monitors will be enabled",
+                               action='store_true', default=False)
+    monitorgroup.add_argument("--monitor-file", help="provide the monitors file, monitors given in the file will be enabled",
+                               default="./monitors")
     return parser
 
 
