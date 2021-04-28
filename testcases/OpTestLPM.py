@@ -35,6 +35,8 @@ import OpTestConfiguration
 import OpTestLogger
 from common import OpTestHMC
 from common.OpTestSystem import OpSystemState
+from common.OpTestError import OpTestError
+from common.Exceptions import CommandFailed
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -44,11 +46,45 @@ class OpTestLPM(unittest.TestCase):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
         self.console = self.cv_SYSTEM.console
+        self.cv_HOST = conf.host()
         self.cv_HMC = self.cv_SYSTEM.hmc
         self.src_mg_sys = self.cv_HMC.mg_system
         self.dest_mg_sys = self.cv_HMC.tgt_mg_system
+        self.oslevel = None
+
+    def check_pkg_installation(self):
+        pkg_found = True
+        pkg_notfound= []
+        self.oslevel = self.cv_HOST.host_get_OS_Level()
+        lpm_pkg_list = ["src", "rsct.core", "rsct.core.utils", "rsct.basic", "rsct.opt.storagerm", "DynamicRM"]
+        for pkg in lpm_pkg_list:
+            pkg_status = self.cv_HOST.host_check_pkg_installed(self.oslevel, pkg)
+            if not pkg_status:
+                pkg_found = False
+                pkg_notfound.append(pkg)
+        if pkg_found:
+            return True
+        raise OpTestError("Install the required packages : %s" % pkg_notfound)
+
+    def lpm_setup(self):
+        try:
+            self.cv_HOST.host_run_command("systemctl status firewalld.service")
+            self.firewall_status = True
+        except CommandFailed as cf:
+            if cf.exitcode == 3:
+                self.firewall_status = False
+        if self.firewall_status:
+             self.cv_HOST.host_run_command("systemctl stop firewalld.service")
+        rc = self.cv_HOST.host_run_command("lssrc -a")
+        if "inoperative" in str(rc):
+            self.cv_HOST.host_run_command("startsrc -g rsct_rm; startsrc -g rsct")
+            rc = self.cv_HOST.host_run_command("lssrc -a")
+            if "inoperative" in str(rc):
+                raise OpTestError("LPM cannot continue as some of rsct services are not active")
 
     def lpar_migrate_test(self):
+        self.check_pkg_installation()
+        self.lpm_setup()
         if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys):
             raise OpTestError("Lpar Migration failed")
         log.debug("Wait for 5 minutes before migrating lpar back") 
@@ -59,3 +95,7 @@ class OpTestLPM(unittest.TestCase):
 
     def runTest(self):
         self.lpar_migrate_test()
+
+    def tearDown(self):
+        if self.firewall_status:
+            self.cv_HOST.host_run_command("systemctl start firewalld.service")
