@@ -95,15 +95,16 @@ class InstallUpstreamKernel(unittest.TestCase):
                             (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
             con.run_command("cd %s" % linux_path)
             if self.patch:
-                patch_file = self.patch.split("/")[-1]
-                if is_url(self.patch):
-                    con.run_command("wget %s -O %s" % (self.patch, patch_file))
-                else:
-                    self.cv_HOST.copy_test_file_to_host(
-                        self.patch, dstdir=linux_path)
-                log.debug("Applying given patch")
-                con.run_command("git am %s" %
-                                os.path.join(linux_path, patch_file))
+                for p in self.patch.split():
+                    patch_file = p.split("/")[-1]
+                    if is_url(p):
+                        con.run_command("wget %s -O %s" % (self.patch, patch_file))
+                    else:
+                        self.cv_HOST.copy_test_file_to_host(
+                            p, dstdir=linux_path)
+                    log.debug("Applying given patch")
+                    con.run_command("git am %s" %
+                                    os.path.join(linux_path, patch_file))
             log.debug("Downloading linux kernel config")
             if self.config_path:
                 if is_url(self.config_path):
