@@ -60,6 +60,7 @@ import os
 import pexpect
 import unittest
 import time
+import tempfile
 
 import OpTestConfiguration
 from common import OpTestInstallUtil
@@ -96,9 +97,12 @@ class PowerNVDump(unittest.TestCase):
             self.lpar_name = conf.args.lpar_name
             self.system_name = conf.args.system_name
             self.cv_HMC = self.cv_SYSTEM.hmc
+            self.cpu_resource = conf.args.cpu_resource
+            self.mem_resource = conf.args.mem_resource
         self.server_ip = conf.args.server_ip
         self.server_pw = conf.args.server_pw
         self.net_path = conf.args.net_path
+        self.url = conf.args.url
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         res = self.c.run_command("cat /etc/os-release")
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
@@ -190,7 +194,7 @@ class PowerNVDump(unittest.TestCase):
         else:
             msg = "Dump directory not created"
             raise OpTestError(msg)
-        self.c.run_command("rm -rf /var/crash/%s" % self.crash_content[0])
+        self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
 
     def verify_fadump_reg(self):
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
@@ -643,6 +647,10 @@ class SkirootKernelCrash(PowerNVDump, unittest.TestCase):
 
 class KernelCrash_KdumpNetwork(PowerNVDump):
 
+    # This test verifies kdump/fadump over ssh ans nfs.
+    # Need to pass --server-ip and --server-pw in command line.
+    # Needs passwordless authentication setup between test machine and ssh/nfs server.
+
     def setup_ssh(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
@@ -724,11 +732,13 @@ class KernelCrash_KdumpNetwork(PowerNVDump):
 
 class KernelCrash_KdumpSMT(PowerNVDump):
 
+    #This test tests kdump/fadump with smt=1,2,4
+
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         for i in ["off", "2", "4"]:
             self.setup_test()
-            self.c.run_command("ppc64_cpu --smt=%s" % i)
+            self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=600)
             self.c.run_command("ppc64_cpu --smt")
             print("=============== Testing kdump/fadump with smt=%s ===============" % i)
             boot_type = self.kernel_crash()
@@ -748,19 +758,93 @@ class KernelCrash_KdumpSMT(PowerNVDump):
         if self.is_lpar:
             for i in ["off", "2", "4", "on"]:
                 self.setup_test()
-                self.c.run_command("ppc64_cpu --smt=%s" % i)
+                self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=600)
                 self.c.run_command("ppc64_cpu --smt")
                 print("=============== Testing kdump/fadump with smt=%s and dumprestart from HMC ===============" % i)
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
+class KernelCrash_KdumpDLPAR(PowerNVDump):
+
+    # This test verifies kdump/fadump after cpu and memory add/remove.
+    # Amount od cpu/memory to be added/removed must be defined in ~/.op-test-framework.conf
+    # Ex: cpu_resource=1
+    #     mem_resource=2048
+
+    def dlpar(self, resource, opp):
+        self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s" %
+                                   (resource, self.system_name, self.lpar_name))
+        if resource == "proc":
+            self.cv_HMC.run_command("chhwres -r proc -m %s -o %s -p %s --procs %s" %
+                                   (self.system_name, opp, self.lpar_name, self.cpu_resource))
+        if resource == "mem":
+            self.cv_HMC.run_command("chhwres -r mem -m %s -o %s -p %s -q %s" %
+                                   (self.system_name, opp, self.lpar_name, self.mem_resource))
+        self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s" %
+                                   (resource, self.system_name, self.lpar_name))
+
+    def runTest(self):
+        if not (self.cpu_resource or self.cpu_resource):
+            raise self.skipTest("Provide cpu_resource and mem_resource [MB] in op-test-framework.conf"
+                                "for dumps after dlpar")
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        self.dlpar("proc", "r")
+        print("=============== Testing kdump/fadump after cpu remove ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.dlpar("proc", "a")
+        print("=============== Testing kdump/fadump after cpu add ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.dlpar("mem", "a")
+        print("=============== Testing kdump/fadump after memory add ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.dlpar("mem", "r")
+        print("=============== Testing kdump/fadump after memory remove ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+
+class KernelCrash_KdumpWorkLoad(PowerNVDump):
+
+    # This test verifies kdump/fadump after running ebizzy.
+    # ebizzy url needs to be given in ~/.op-test-framework.conf.
+    # Ex: url=http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz
+
+
+    def runTest(self):
+        if not self.url:
+            raise self.skipTest("Provide ebizzy url in op-test-framework.conf")
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        self.c.run_command("cd /tmp")
+        self.c.run_command("wget %s" % self.url)
+        self.c.run_command("tar -xf ebizzy*.tar.gz")
+        self.c.run_command("cd /tmp/ebizzy*/")
+        self.c.run_command("./configure")
+        self.c.run_command("make")
+        self.c.run_command("./ebizzy -S 60&")
+        time.sleep(10)
+        self.c.run_command("ps -ef|grep ebizzy")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.c.run_command("rm -rf /tmp/ebizzy*")
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
+    s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpNetwork())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
+    s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpNetwork())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
