@@ -99,6 +99,7 @@ class PowerNVDump(unittest.TestCase):
         self.server_ip = conf.args.server_ip
         self.server_pw = conf.args.server_pw
         self.net_path = conf.args.net_path
+        self.dev_path = conf.args.dev_path
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         res = self.c.run_command("cat /etc/os-release")
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
@@ -120,6 +121,9 @@ class PowerNVDump(unittest.TestCase):
         if dump_place == "net":
             self.crash_content = self.c.run_command(
                 "ssh root@%s \"ls -l /var/crash | grep '^d'\" | awk '{print $9}'" % self.server_ip)
+        if dump_place == "san":
+            self.crash_content = self.c.run_command(
+                "ls -l /mnt/var/crash | grep '^d'| awk '{print $9}'")
 
     # Verify fadump command line parameter
     def is_fadump_param_enabled(self):
@@ -166,12 +170,17 @@ class PowerNVDump(unittest.TestCase):
             self.c.run_command("lsprop %s/mpipl-boot" % BMC_CONST.OPAL_DUMP_NODE)
 
     def verify_dump_file(self, boot_type=BootType.NORMAL, dump_place="local"):
+        dump_path = "/var/crash"
         if dump_place == "local":
             crash_content_after = self.c.run_command(
-                "ls -l /var/crash | grep '^d'| awk '{print $9}'")
+                "ls -l %s | grep '^d'| awk '{print $9}'" % dump_path)
         if dump_place == "net":
             crash_content_after = self.c.run_command(
-                "ssh root@%s \"ls -l /var/crash | grep '^d'\" | awk '{print $9}'" % self.server_ip)
+                "ssh root@%s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (dump_path, self.server_ip))
+        if dump_place == "san":
+            dump_path = "/mnt/var/crash"
+            crash_content_after = self.c.run_command(
+                "ls -l %s | grep '^d'| awk '{print $9}'" % dump_path)
         self.crash_content = list(
             set(crash_content_after) - set(self.crash_content))
         if len(self.crash_content):
@@ -179,18 +188,21 @@ class PowerNVDump(unittest.TestCase):
                 self.c.run_command('scp -r root@%s://var/crash/%s /var/crash/' %
                                   (self.server_ip, self.crash_content[0]), timeout=600)
             if self.distro == "ubuntu":
-                self.c.run_command("ls /var/crash/%s/dump*" %
-                                   self.crash_content[0])
+                self.c.run_command("ls %s/%s/dump*" %
+                                   (dump_path, self.crash_content[0]))
+            elif dump_place == "san":
+                self.c.run_command("ls %s/%s/vmcore*" %
+                                   (dump_path, self.crash_content[0]))
             else:
-                self.c.run_command("ls /var/crash/%s/vmcore*" %
-                                   self.crash_content[0])
+                self.c.run_command("ls %s/%s/vmcore*" %
+                                   (dump_path, self.crash_content[0]))
             if boot_type == BootType.MPIPL:
                 self.c.run_command("ls /var/crash/%s/opalcore*" %
                                    self.crash_content[0])
         else:
             msg = "Dump directory not created"
             raise OpTestError(msg)
-        self.c.run_command("rm -rf /var/crash/%s" % self.crash_content[0])
+        self.c.run_command("rm -rf %s/%s" % (dump_path, self.crash_content[0]))
 
     def verify_fadump_reg(self):
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
@@ -754,6 +766,31 @@ class KernelCrash_KdumpSMT(PowerNVDump):
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
+class KernelCrash_KdumpSAN(PowerNVDump):
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        if self.distro == "rhel":
+            print("========== Deleting all partition(s) from %s ==========" % self.dev_path)
+            self.c.run_command("sfdisk --delete %s" % self.dev_path)
+            start, end = self.c.run_command("sfdisk -F %s |awk 'END{print $1;print $2}'" % self.dev_path)
+            self.c.run_command("echo \"%s1 : start=%s, size=%s, Id=83\" > /tmp/dd.layout" % (self.dev_path, start, end))
+            print("========== Create a single partition on %s ==========" % self.dev_path)
+            self.c.run_command("sfdisk --force %s < /tmp/dd.layout" % self.dev_path)
+            self.c.run_command("mkfs.xfs -f %s1" % self.dev_path)
+            self.c.run_command("sed -e '/^path/ i xfs %s1' -i /etc/kdump.conf;" % self.dev_path)
+            self.c.run_command("sed -i -e '$a%s1 /mnt xfs defaults 0 0' /etc/fstab" % self.dev_path)
+            self.c.run_command("mount /mnt && mkdir -p /mnt/var/crash")
+            self.c.run_command("systemctl restart kdump.service; sync", timeout=600)
+            boot_type = self.kernel_crash()
+            self.verify_dump_file(boot_type, dump_place="san")
+            self.c.run_command("umount /mnt")
+            self.c.run_command("sed -e '/^xfs/d' -i /etc/kdump.conf;")
+            self.c.run_command("sed '/\/mnt xfs/d' -i /etc/fstab")
+            self.c.run_command("systemctl restart kdump.service; sync", timeout=600)
+
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
@@ -762,6 +799,7 @@ def crash_suite():
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpNetwork())
+    s.addTest(KernelCrash_KdumpSAN())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
