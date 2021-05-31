@@ -176,7 +176,7 @@ class PowerNVDump(unittest.TestCase):
                 "ls -l %s | grep '^d'| awk '{print $9}'" % dump_path)
         if dump_place == "net":
             crash_content_after = self.c.run_command(
-                "ssh root@%s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (dump_path, self.server_ip))
+                "ssh root@%s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.server_ip, dump_path))
         if dump_place == "san":
             dump_path = "/mnt/var/crash"
             crash_content_after = self.c.run_command(
