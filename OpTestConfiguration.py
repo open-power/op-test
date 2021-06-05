@@ -385,6 +385,17 @@ def get_parser():
     kernelcmdgroup.add_argument("--remove-kernel-args",
                                 help="Kernel commandline option to be removed",
                                 default="")
+    kdumpgroup = parser.add_argument_group("Kdump group",
+                                           "Ipaddress username and password of remote server")
+    kdumpgroup.add_argument("--server-ip",
+                           help="IP address of remote server where dump will be stored",
+                           default="")
+    kdumpgroup.add_argument("--server-pw",
+                           help="Password of remote server where dump will be stored",
+                           default="")
+    kdumpgroup.add_argument("--net-path",
+                           help="Directory path of remote server where dump will be stored",
+                           default="/var/crash")
     cronusgroup = parser.add_argument_group("Cronus", "Cronus Config options")
     cronusgroup.add_argument(
         "--cronus-release", default="auto", help="Cronus Release")
