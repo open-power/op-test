@@ -74,7 +74,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             if urlparse(path).scheme in valid_schemes:
                 return True
             return False
-
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.console_thread.start()
         try:
@@ -134,7 +134,7 @@ class InstallUpstreamKernel(unittest.TestCase):
                 kern_rel_str = con.run_command(
                     "cat %s/include/config/kernel.release" % linux_path)[-1]
                 initrd_file = con.run_command(
-                    "ls -l /boot/initr*-%s*" % kern_rel_str)[-1].split(" ")[-1]
+                    "ls -l /boot/initr*-%s.img" % kern_rel_str)[-1].split(" ")[-1]
                 kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinuz-%s -l" % (
                     initrd_file, cmdline, kern_rel_str)
                 # Let's makesure we set the default boot index to current kernel
