@@ -100,13 +100,15 @@ class HMCUtil():
                  logfile=sys.stdout, managed_system=None, lpar_name=None, prompt=None,
                  block_setup_term=None, delaybeforesend=None, timeout_factor=None,
                  lpar_prof=None, lpar_vios=None, lpar_user=None, lpar_password=None,
-                 check_ssh_keys=False, known_hosts_file=None, tgt_managed_system=None):
+                 check_ssh_keys=False, known_hosts_file=None, tgt_managed_system=None,
+                 tgt_lpar=None):
         self.hmc_ip = hmc_ip
         self.user = user_name
         self.passwd = password
         self.logfile = logfile
         self.mg_system = managed_system
         self.tgt_mg_system = tgt_managed_system
+        self.tgt_lpar = tgt_lpar
         self.check_ssh_keys = check_ssh_keys
         self.known_hosts_file = known_hosts_file
         self.lpar_name = lpar_name
@@ -246,24 +248,24 @@ class HMCUtil():
             if count > 60:
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
-    def is_lpar_in_managed_system(self, mg_system=None):
+    def is_lpar_in_managed_system(self, mg_system=None, lpar_name=None):
         lpar_list = self.ssh.run_command(
                    'lssyscfg -r lpar -m %s -F name' % mg_system)
-        if self.lpar_name in lpar_list:
-            log.info("%s lpar found in managed system %s" % (mg_system, self.lpar_name))
+        if lpar_name in lpar_list:
+            log.info("%s lpar found in managed system %s" % (mg_system, lpar_name))
             return True
         return False
 
     def migrate_lpar(self, src_mg_system=None, dest_mg_system=None):
         if src_mg_system == None or dest_mg_system == None:
             raise OpTestError("Source and Destination Managed System required for LPM")
-        if not self.is_lpar_in_managed_system(src_mg_system):
+        if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name):
             raise OpTestError("Lpar %s not found in managed system %s" % (self.lpar_name, src_mg_system))
         self.ssh.run_command(
             'migrlpar -o v -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name))
         self.ssh.run_command(
             'migrlpar -o m -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name))
-        if self.is_lpar_in_managed_system(dest_mg_system):
+        if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
             log.info("Migration of lpar %s from %s to %s is successfull" % 
                      (self.lpar_name, src_mg_system, dest_mg_system))
             self.mg_system = dest_mg_system
@@ -290,12 +292,14 @@ class OpTestHMC(HMCUtil):
                  logfile=sys.stdout, managed_system=None, lpar_name=None, prompt=None,
                  block_setup_term=None, delaybeforesend=None, timeout_factor=1,
                  lpar_prof=None, lpar_vios=None, lpar_user=None, lpar_password=None,
-                 check_ssh_keys=False, known_hosts_file=None, tgt_managed_system=None):
+                 check_ssh_keys=False, known_hosts_file=None, tgt_managed_system=None,
+                 tgt_lpar=None):
         super(OpTestHMC, self).__init__(hmc_ip, user_name, password, scratch_disk,
                                         proxy, logfile, managed_system, lpar_name, prompt,
                                         block_setup_term, delaybeforesend, timeout_factor,
                                         lpar_prof, lpar_vios, lpar_user, lpar_password,
-                                        check_ssh_keys, known_hosts_file, tgt_managed_system)
+                                        check_ssh_keys, known_hosts_file, tgt_managed_system,
+                                        tgt_lpar)
 
         self.console = HMCConsole(hmc_ip, user_name, password, managed_system, lpar_name,
                                   lpar_vios, lpar_prof, lpar_user, lpar_password)

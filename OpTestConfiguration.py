@@ -418,6 +418,8 @@ def get_parser():
         "--lpar-vios", help="Lpar VIOS to boot before other LPARS", default=None)
     hmcgroup.add_argument(
         "--target-system-name", help="Target managed system/server name in HMC", default=None)
+    hmcgroup.add_argument(
+        "--target-lpar-name", help="Target lpar name in target managed system", default=None)
 
     misc_group = parser.add_argument_group("Misc")
     misc_group.add_argument("--check-ssh-keys", action='store_true', default=False,
@@ -821,6 +823,7 @@ class OpTestConfiguration():
                                     managed_system=self.args.system_name,
                                     tgt_managed_system=self.args.target_system_name,
                                     lpar_name=self.args.lpar_name,
+                                    tgt_lpar=self.args.target_lpar_name,
                                     lpar_vios=self.args.lpar_vios,
                                     lpar_prof=self.args.lpar_prof,
                                     lpar_user=self.args.host_user,
