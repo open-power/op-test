@@ -39,7 +39,7 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 WAITTIME = 15
 BOOTTIME = 500
-STALLTIME = 3
+STALLTIME = 5
 
 
 class OpHmcState():
