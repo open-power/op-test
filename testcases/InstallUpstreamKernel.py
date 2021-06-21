@@ -90,7 +90,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             con.run_command("[ -d %s ] || mkdir -p %s" %
                             (self.home, self.home))
             con.run_command("if [ -d %s ];then rm -rf %s;fi" %
-                            (linux_path, linux_path))
+                            (linux_path, linux_path), timeout=120))
             con.run_command("cd %s && git clone --depth 1  %s -b %s linux" %
                             (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
             con.run_command("cd %s" % linux_path)
