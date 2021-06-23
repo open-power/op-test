@@ -60,6 +60,7 @@ import os
 import pexpect
 import unittest
 import time
+import tempfile
 
 import OpTestConfiguration
 from common import OpTestInstallUtil
@@ -96,9 +97,18 @@ class PowerNVDump(unittest.TestCase):
             self.lpar_name = conf.args.lpar_name
             self.system_name = conf.args.system_name
             self.cv_HMC = self.cv_SYSTEM.hmc
-        self.server_ip = conf.args.server_ip
-        self.server_pw = conf.args.server_pw
-        self.net_path = conf.args.net_path
+            try: self.cpu_resource = conf.args.cpu_resource
+            except AttributeError:
+                self.cpu_resource = 1
+            try: self.mem_resource = conf.args.mem_resource
+            except AttributeError:
+                self.mem_resource = 2048
+        self.dump_server_ip = conf.args.dump_server_ip
+        self.dump_server_pw = conf.args.dump_server_pw
+        self.dump_path = conf.args.dump_path
+        try: self.url = conf.args.url
+        except AttributeError: 
+            self.url = "http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         res = self.c.run_command("cat /etc/os-release")
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
@@ -119,7 +129,7 @@ class PowerNVDump(unittest.TestCase):
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
         if dump_place == "net":
             self.crash_content = self.c.run_command(
-                "ssh root@%s \"ls -l /var/crash | grep '^d'\" | awk '{print $9}'" % self.server_ip)
+                "ssh root@%s \"ls -l /var/crash | grep '^d'\" | awk '{print $9}'" % self.dump_server_ip)
 
     # Verify fadump command line parameter
     def is_fadump_param_enabled(self):
@@ -171,13 +181,13 @@ class PowerNVDump(unittest.TestCase):
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
         if dump_place == "net":
             crash_content_after = self.c.run_command(
-                "ssh root@%s \"ls -l /var/crash | grep '^d'\" | awk '{print $9}'" % self.server_ip)
+                "ssh root@%s \"ls -l /var/crash | grep '^d'\" | awk '{print $9}'" % self.dump_server_ip)
         self.crash_content = list(
             set(crash_content_after) - set(self.crash_content))
         if len(self.crash_content):
             if dump_place == "net":
                 self.c.run_command('scp -r root@%s://var/crash/%s /var/crash/' %
-                                  (self.server_ip, self.crash_content[0]), timeout=600)
+                                  (self.dump_server_ip, self.crash_content[0]), timeout=300)
             if self.distro == "ubuntu":
                 self.c.run_command("ls /var/crash/%s/dump*" %
                                    self.crash_content[0])
@@ -517,10 +527,10 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
             self.c.run_command("sed -i '/KDUMP_FADUMP=\"no\"/c\KDUMP_FADUMP=\"yes\"' /etc/sysconfig/kdump")
-            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=600)
-            self.c.run_command("mkdumprd -f", timeout=600)
+            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
+            self.c.run_command("mkdumprd -f")
             self.c.run_command("update-bootloader --refresh")
-            self.c.run_command("zypper install -y ServiceReport; servicereport -r; echo $?", timeout=600)
+            self.c.run_command("zypper install -y ServiceReport; servicereport -r; echo $?", timeout=240)
             time.sleep(5)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -528,7 +538,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
     def runTest(self):
         self.setup_test()
         self.setup_fadump()
-        self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot", timeout=600)
+        self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot")
         if not self.is_lpar:
             if not self.is_mpipl_supported():
                 raise self.skipTest("MPIPL support is not found")
@@ -643,45 +653,49 @@ class SkirootKernelCrash(PowerNVDump, unittest.TestCase):
 
 class KernelCrash_KdumpNetwork(PowerNVDump):
 
+    # This test verifies kdump/fadump over network ( ssh and nfs).
+    # Need to pass --dump-server-ip and --dump-server-pw in command line.
+    # Needs passwordless authentication setup between test machine and ssh/nfs server.
+
     def setup_ssh(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.server_ip)
+            self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.dump_server_ip)
             self.c.run_command("sed -i '/sshkey \/root\/.ssh\/kdump_id_rsa/c\sshkey \/root\/.ssh\/id_rsa' /etc/kdump.conf; sync")
             self.c.run_command("sed -i 's/-l --message-level/-l -F --message-level/' /etc/kdump.conf; sync")
-            self.c.run_command("sed -i '/path \/var\/crash/c\path %s' /etc/kdump.conf; sync" % self.net_path)
-            self.c.run_command("cd /root; kdumpctl propagate", timeout=600)
-            self.c.run_command("kdumpctl restart", timeout=600)
-            self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot", timeout=600)
+            self.c.run_command("sed -i '/path \/var\/crash/c\path %s' /etc/kdump.conf; sync" % self.dump_path)
+            self.c.run_command("cd /root; kdumpctl propagate")
+            self.c.run_command("kdumpctl restart", timeout=180)
+            self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot")
             time.sleep(5)
             res = self.c.run_command("service kdump status | grep active")
             if 'dead' in res:
                 self.fail("Kdump service is not configured properly")
         elif self.distro == "ubuntu":
-            self.c.run_command("sed -i '/SSH=\"<user at server>\"/c\SSH=\"root@%s\"' /etc/default/kdump-tools" % self.server_ip)
+            self.c.run_command("sed -i '/SSH=\"<user at server>\"/c\SSH=\"root@%s\"' /etc/default/kdump-tools" % self.dump_server_ip)
             self.c.run_command("sed -i '/SSH_KEY=\"<path>\"/c\SSH_KEY=/root/.ssh/id_rsa' /etc/default/kdump-tools")
             self.c.run_command("kdump-config unload;")
             self.c.run_command("kdump-config load;")
             time.sleep(5)
         else:
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"ssh:\/\/root:%s@%s\/%s\"\' /etc/sysconfig/kdump;' % (self.server_pw, self.server_ip, self.net_path))
-            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=600)
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"ssh:\/\/root:%s@%s\/%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_pw, self.dump_server_ip, self.dump_path))
+            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             time.sleep(5)
 
 
     def setup_nfs(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.server_ip)
+            self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.dump_server_ip)
             self.c.run_command("sed -i '/sshkey \/root\/.ssh\/id_rsa/c\#sshkey \/root\/.ssh\/kdump_id_rsa' /etc/kdump.conf; sync")
-            self.c.run_command("yum -y install nfs-utils", timeout=600)
+            self.c.run_command("yum -y install nfs-utils", timeout=180)
             self.c.run_command("service nfs-server start")
-            self.c.run_command("echo 'nfs %s:%s' >> /etc/kdump.conf; sync" % (self.server_ip, self.net_path))
+            self.c.run_command("echo 'nfs %s:%s' >> /etc/kdump.conf;" % (self.dump_server_ip, self.dump_path))
             self.c.run_command("sed -i 's/-l -F --message-level/-l --message-level/' /etc/kdump.conf; sync")
             self.c.run_command("sed -i '/path \/var\/crash/c\path \/' /etc/kdump.conf; sync")
-            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.server_ip, self.net_path))
-            self.c.run_command("cd /root; kdumpctl restart", timeout=600)
-            self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot", timeout=600)
+            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_server_ip, self.dump_path))
+            self.c.run_command("cd /root; kdumpctl restart", timeout=180)
+            self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot")
             res = self.c.run_command("service kdump status | grep active")
             if 'dead' in res:
                 self.fail("Kdump service is not configured properly")
@@ -689,22 +703,22 @@ class KernelCrash_KdumpNetwork(PowerNVDump):
             self.c.run_command("apt-get install -y nfs-common;")
             self.c.run_command("apt-get install -y nfs-kernel-server;")
             self.c.run_command("service nfs-server start;")
-            self.c.run_command("mount -t nfs %s:%s /var/crash;" % (self.server_ip, self.net_path))
+            self.c.run_command("mount -t nfs %s:%s /var/crash;" % (self.dump_server_ip, self.dump_path))
             self.c.run_command("sed -e '/SSH/ s/^#*/#/' -i /etc/default/kdump-tools;")
-            self.c.run_command("sed -i '/NFS=\"<nfs mount>\"/c\\NFS=\"%s:%s\"' /etc/default/kdump-tools" % (self.server_ip, self.net_path))
+            self.c.run_command("sed -i '/NFS=\"<nfs mount>\"/c\\NFS=\"%s:%s\"' /etc/default/kdump-tools" % (self.dump_server_ip, self.dump_path))
             time.sleep(5)
         else:
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"nfs:\/\/%s\%s\"\' /etc/sysconfig/kdump;' % (self.server_ip, self.net_path))
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"nfs:\/\/%s\%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_ip, self.dump_path))
             self.c.run_command("zypper install -y nfs-kernel-server; service nfs start")
-            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.server_ip, self.net_path))
-            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=600)
+            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_server_ip, self.dump_path))
+            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             time.sleep(5)
 
     def runTest(self):
-        if not (self.server_ip or self.server_ip):
-            raise self.skipTest("Provide --server-ip and --server-pw "
+        if not (self.dump_server_ip or self.dump_server_ip):
+            raise self.skipTest("Provide --dump-server-ip and --dump-server-pw "
                                 "for network dumps")
-        pwd_less = self.c.run_command("ssh -o \"StrictHostKeyChecking no\" -o  \"NumberOfPasswordPrompts=0\" %s \"echo\"" % self.server_ip)
+        pwd_less = self.c.run_command("ssh -o \"StrictHostKeyChecking no\" -o  \"NumberOfPasswordPrompts=0\" %s \"echo\"" % self.dump_server_ip)
         if "Permission denied" in pwd_less or "Permission denied" in pwd_less[0]:
             raise self.skipTest("For Network dump cases please setup passwordless authentication between test machine and remote server")
         self.setup_test("net")
@@ -724,43 +738,123 @@ class KernelCrash_KdumpNetwork(PowerNVDump):
 
 class KernelCrash_KdumpSMT(PowerNVDump):
 
+    #This test tests kdump/fadump with smt=1,2,4 and kdump/fadump with smt=1,2,4 and dumprestart from HMC.
+
     def runTest(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         for i in ["off", "2", "4"]:
             self.setup_test()
-            self.c.run_command("ppc64_cpu --smt=%s" % i)
+            self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
             self.c.run_command("ppc64_cpu --smt")
             print("=============== Testing kdump/fadump with smt=%s ===============" % i)
             boot_type = self.kernel_crash()
             self.verify_dump_file(boot_type)
         self.setup_test()
-        self.c.run_command("ppc64_cpu --cores-on=1", timeout=600)
+        self.c.run_command("ppc64_cpu --cores-on=1", timeout=180)
         self.c.run_command("ppc64_cpu --cores-on")
         print("=============== Testing kdump/fadump with single core ===============")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         self.setup_test()
-        self.c.run_command("ppc64_cpu --cores-on=1", timeout=600)
-        self.c.run_command("ppc64_cpu --smt=off")
+        self.c.run_command("ppc64_cpu --cores-on=1", timeout=180)
+        self.c.run_command("ppc64_cpu --smt=off", timeout=180)
         print("=============== Testing kdump/fadump with single cpu ===============")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         if self.is_lpar:
             for i in ["off", "2", "4", "on"]:
                 self.setup_test()
-                self.c.run_command("ppc64_cpu --smt=%s" % i)
+                self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
                 self.c.run_command("ppc64_cpu --smt")
                 print("=============== Testing kdump/fadump with smt=%s and dumprestart from HMC ===============" % i)
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
+class KernelCrash_KdumpDLPAR(PowerNVDump):
+
+    # This test verifies kdump/fadump after cpu and memory add/remove.
+    # Amount od cpu/memory to be added/removed must be defined in ~/.op-test-framework.conf
+    # Ex: cpu_resource=1
+    #     mem_resource=2048
+
+    def dlpar(self, resource, opp):
+        self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s" %
+                                   (resource, self.system_name, self.lpar_name))
+        if resource == "proc":
+            self.cv_HMC.run_command("chhwres -r proc -m %s -o %s -p %s --procs %s" %
+                                   (self.system_name, opp, self.lpar_name, self.cpu_resource))
+        if resource == "mem":
+            self.cv_HMC.run_command("chhwres -r mem -m %s -o %s -p %s -q %s" %
+                                   (self.system_name, opp, self.lpar_name, self.mem_resource))
+        self.cv_HMC.run_command("lshwres -r %s -m %s --level lpar --filter lpar_names=%s" %
+                                   (resource, self.system_name, self.lpar_name))
+
+    def runTest(self):
+        if not (self.cpu_resource or self.cpu_resource):
+            raise self.skipTest("Provide cpu_resource and mem_resource [MB] in op-test-framework.conf"
+                                "for dumps after dlpar")
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        self.dlpar("proc", "r")
+        print("=============== Testing kdump/fadump after cpu remove ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.dlpar("proc", "a")
+        print("=============== Testing kdump/fadump after cpu add ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.dlpar("mem", "a")
+        print("=============== Testing kdump/fadump after memory add ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.dlpar("mem", "r")
+        print("=============== Testing kdump/fadump after memory remove ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+
+class KernelCrash_KdumpWorkLoad(PowerNVDump):
+
+    # This test verifies kdump/fadump after running ebizzy.
+    # ebizzy url needs to be given in ~/.op-test-framework.conf.
+    # Ex: url=http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz
+
+
+    def runTest(self):
+        if not self.url:
+            raise self.skipTest("Provide ebizzy url in op-test-framework.conf")
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        if self.distro == "rhel":
+            self.c.run_command("yum -y install make gcc wget; cd /tmp", timeout=120)
+        elif self.distro == "ubuntu":
+            self.c.run_command("apt-get install -y make gcc wget; cd /tmp", timeout=120)
+        else:
+            self.c.run_command("zypper install -y make gcc wget; cd /tmp", timeout=120)
+        self.c.run_command("wget %s" % self.url)
+        self.c.run_command("tar -xf ebizzy*.tar.gz")
+        self.c.run_command("cd /tmp/ebizzy*/")
+        self.c.run_command("./configure; make")
+        self.c.run_command("./ebizzy -S 60&")
+        time.sleep(10)
+        self.c.run_command("ps -ef|grep ebizzy")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.c.run_command("rm -rf /tmp/ebizzy*")
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
+    s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpNetwork())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
+    s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpNetwork())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
