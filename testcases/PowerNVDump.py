@@ -190,7 +190,7 @@ class PowerNVDump(unittest.TestCase):
         else:
             msg = "Dump directory not created"
             raise OpTestError(msg)
-        self.c.run_command("rm -rf /var/crash/%s" % self.crash_content[0])
+        self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
 
     def verify_fadump_reg(self):
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
@@ -508,8 +508,8 @@ class KernelCrash_FadumpEnable(PowerNVDump):
     def setup_fadump(self):
         self.cv_SYSTEM.set_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf;")
-            self.c.run_command("sed -i 's/path \//path \/var\/crash/' /etc/kdump.conf;")
+            self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf; sync")
+            self.c.run_command("sed -i 's/path \//path \/var\/crash/' /etc/kdump.conf; sync")
             obj = OpTestInstallUtil.InstallUtil()
             if not obj.update_kernel_cmdline(self.distro, args="fadump=on crashkernel=2G-128G:2048M,128G-:8192M",
                                              reboot=True, reboot_cmd=True):
@@ -646,10 +646,10 @@ class KernelCrash_KdumpNetwork(PowerNVDump):
     def setup_ssh(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf" % self.server_ip)
-            self.c.run_command("sed -i '/sshkey \/root\/.ssh\/kdump_id_rsa/c\sshkey \/root\/.ssh\/id_rsa' /etc/kdump.conf")
-            self.c.run_command("sed -i 's/-l --message-level/-l -F --message-level/' /etc/kdump.conf;")
-            self.c.run_command("sed -i '/path \/var\/crash/c\path %s' /etc/kdump.conf;" % self.net_path)
+            self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.server_ip)
+            self.c.run_command("sed -i '/sshkey \/root\/.ssh\/kdump_id_rsa/c\sshkey \/root\/.ssh\/id_rsa' /etc/kdump.conf; sync")
+            self.c.run_command("sed -i 's/-l --message-level/-l -F --message-level/' /etc/kdump.conf; sync")
+            self.c.run_command("sed -i '/path \/var\/crash/c\path %s' /etc/kdump.conf; sync" % self.net_path)
             self.c.run_command("cd /root; kdumpctl propagate", timeout=600)
             self.c.run_command("kdumpctl restart", timeout=600)
             self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot", timeout=600)
@@ -672,13 +672,13 @@ class KernelCrash_KdumpNetwork(PowerNVDump):
     def setup_nfs(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf" % self.server_ip)
-            self.c.run_command("sed -i '/sshkey \/root\/.ssh\/id_rsa/c\#sshkey \/root\/.ssh\/kdump_id_rsa' /etc/kdump.conf")
+            self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.server_ip)
+            self.c.run_command("sed -i '/sshkey \/root\/.ssh\/id_rsa/c\#sshkey \/root\/.ssh\/kdump_id_rsa' /etc/kdump.conf; sync")
             self.c.run_command("yum -y install nfs-utils", timeout=600)
             self.c.run_command("service nfs-server start")
-            self.c.run_command("echo 'nfs %s:%s' >> /etc/kdump.conf;" % (self.server_ip, self.net_path))
-            self.c.run_command("sed -i 's/-l -F --message-level/-l --message-level/' /etc/kdump.conf;")
-            self.c.run_command("sed -i '/path \/var\/crash/c\path \/' /etc/kdump.conf;")
+            self.c.run_command("echo 'nfs %s:%s' >> /etc/kdump.conf; sync" % (self.server_ip, self.net_path))
+            self.c.run_command("sed -i 's/-l -F --message-level/-l --message-level/' /etc/kdump.conf; sync")
+            self.c.run_command("sed -i '/path \/var\/crash/c\path \/' /etc/kdump.conf; sync")
             self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.server_ip, self.net_path))
             self.c.run_command("cd /root; kdumpctl restart", timeout=600)
             self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot", timeout=600)
@@ -718,7 +718,7 @@ class KernelCrash_KdumpNetwork(PowerNVDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type, dump_place="net")
         if self.distro == "rhel":
-            self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf;")
+            self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf; sync")
         elif self.distro == "ubuntu":
             self.c.run_command("sed -e '/NFS/ s/^#*/#/' -i /etc/default/kdump-tools;")
 
