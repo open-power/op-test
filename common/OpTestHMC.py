@@ -25,6 +25,7 @@ import os
 import sys
 import time
 import pexpect
+import shlex
 
 import OpTestLogger
 from common.OpTestError import OpTestError
@@ -38,6 +39,7 @@ from .OpTestConstants import OpTestConstants as BMC_CONST
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 WAITTIME = 15
+SYS_WAITTIME = 200
 BOOTTIME = 500
 STALLTIME = 5
 
@@ -204,6 +206,26 @@ class HMCUtil():
                          (self.mg_system, self.lpar_name))
         self.wait_lpar_state()
 
+    def get_lpar_cfg(self):
+        out = self.ssh.run_command("lssyscfg -r prof -m %s --filter 'lpar_names=%s'" %
+                (self.mg_system, self.lpar_name))[-1]
+        cfg_dict = {}
+        splitter = shlex.shlex(out)
+        splitter.whitespace += ','
+        splitter.whitespace_split = True
+        for values in list(splitter):
+            data = values.split("=")
+            key = data[0]
+            value = data[1]
+            cfg_dict[key] = value
+        return cfg_dict
+
+    def set_lpar_cfg(self, arg_str):
+        if not self.lpar_prof:
+            raise OpTestError("Profile needs to be defined to use this method")
+        self.ssh.run_command("chsyscfg -r prof -m %s -p %s -i 'lpar_name=%s,name=%s,%s' --force" %
+                (self.mg_system, self.lpar_name, self.lpar_name, self.lpar_prof,arg_str))
+
     def get_lpar_state(self, vios=False):
         lpar_name = self.lpar_name
         if vios:
@@ -235,7 +257,7 @@ class HMCUtil():
             if count > 120:
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
-    def wait_system_state(self, exp_state=OpManagedState.OPERATING, timeout=WAITTIME):
+    def wait_system_state(self, exp_state=OpManagedState.OPERATING, timeout=SYS_WAITTIME):
         state = self.get_system_state()
         count = 0
         while state != exp_state:
