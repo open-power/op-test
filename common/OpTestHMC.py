@@ -513,7 +513,7 @@ class HMCConsole(HMCUtil):
             self.util.clear_state(self)
             self.connect(logger=logger)
             time.sleep(STALLTIME)
-            l_rc = self.pty.expect(["login:", pexpect.TIMEOUT], timeout=WAITTIME)
+            l_rc = self.pty.expect(["login:", pexpect.TIMEOUT], timeout=30)
             if l_rc == 0:
                 self.pty.send('\r')
             else:
