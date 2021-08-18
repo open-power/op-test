@@ -40,14 +40,19 @@ class OpTestKernelArg(unittest.TestCase):
 
     def setUp(self):
         self.conf = OpTestConfiguration.conf
+        self.cv_HOST = self.conf.host()
         self.kernel_add_args = self.conf.args.add_kernel_args
         self.kernel_remove_args = self.conf.args.remove_kernel_args
+        self.use_reboot_cmd = self.conf.args.use_reboot
         if not (self.kernel_add_args or self.kernel_remove_args):
             self.fail("Provide either --add-kernel-args and "
                       "--remove-kernel-args option")
 
     def runTest(self):
         obj = OpTestInstallUtil.InstallUtil()
-        if not obj.update_kernel_cmdline(self.kernel_add_args,
-                                         self.kernel_remove_args):
+        if not obj.update_kernel_cmdline(self.cv_HOST.host_get_OS_Level(),
+                                         self.kernel_add_args,
+                                         self.kernel_remove_args,
+                                         reboot=True,
+                                         reboot_cmd=self.use_reboot_cmd):
             self.fail("KernelArgTest failed to update kernel args")

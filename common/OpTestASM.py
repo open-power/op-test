@@ -202,3 +202,14 @@ class OpTestASM:
         form = "form=56"
         self.submit(form, param)
         self.logout()
+
+    def configure_hugepages(self, no_hp):
+        if not self.login():
+            raise OpTestError("Failed to login ASM page")
+        param = {'form':  '71',
+                 'submit': 'Save settings',
+                 'CSRF_TOKEN': '',
+                 'smps_pg_cnt': no_hp}
+        form = "form=71"
+        self.submit(form, param)
+        self.logout()

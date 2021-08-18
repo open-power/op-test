@@ -1281,7 +1281,7 @@ class OpTestUtil():
                 pty.sendline(my_pwd)
                 time.sleep(0.5)
                 rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~ #",
-                                 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                                 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                 if rc not in [1, 2, 3, 4]:
                     if term_obj.setup_term_quiet == 0:
                         log.warning("OpTestSystem Problem with the login and/or password prompt,"
