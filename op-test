@@ -102,6 +102,7 @@ from testcases import OpTestSensors
 from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestHostboot
 from testcases import OpTestExample
+from testcases import OpTestDlparIO
 import OpTestConfiguration
 import sys
 import time
@@ -632,6 +633,13 @@ class CrashSuite():
         return PowerNVDump.crash_suite()
 
 
+class DlparIOSuite():
+    '''DlparIO Test Suite'''
+
+    def suite(self):
+        return OpTestDlparIO.DlparIO_suite()
+
+
 class FspOpalSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
@@ -842,6 +850,7 @@ suites = {
     'capi': CAPISuite(),
     'opencapi': OpenCAPISuite(),
     'crash-suite': CrashSuite(),
+    'DlparIO-suite': DlparIOSuite(),
     'system-ipl': SystemIPLSuite(),
     'fsp-opal-suite':  FspOpalSuite(),
     'full': FullSuite(),
