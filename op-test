@@ -103,6 +103,7 @@ from testcases import OpTestSwitchEndianSyscall
 from testcases import OpTestHostboot
 from testcases import OpTestExample
 from testcases import OpTestDlparIO
+from testcases import OpTestLPM
 import OpTestConfiguration
 import sys
 import time
@@ -639,6 +640,11 @@ class DlparIOSuite():
     def suite(self):
         return OpTestDlparIO.DlparIO_suite()
 
+class LPMSuite():
+    '''LPM Test Suite'''
+
+    def suite(self):
+        return OpTestLPM.LPM_suite()
 
 class FspOpalSuite():
     def __init__(self):
@@ -851,6 +857,7 @@ suites = {
     'opencapi': OpenCAPISuite(),
     'crash-suite': CrashSuite(),
     'DlparIO-suite': DlparIOSuite(),
+    'lpm-suite': LPMSuite(),
     'system-ipl': SystemIPLSuite(),
     'fsp-opal-suite':  FspOpalSuite(),
     'full': FullSuite(),
