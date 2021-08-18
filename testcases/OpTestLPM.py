@@ -99,3 +99,8 @@ class OpTestLPM(unittest.TestCase):
     def tearDown(self):
         if self.firewall_status:
             self.cv_HOST.host_run_command("systemctl start firewalld.service")
+
+def LPM_suite():
+    s = unittest.TestSuite()
+    s.addTest(OpTestLPM())
+    return s
