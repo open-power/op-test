@@ -70,6 +70,10 @@ class OpTestLPM(unittest.TestCase):
         try:
             self.cv_HOST.host_run_command("systemctl status firewalld.service")
             self.firewall_status = True
+            '''
+            Systemctl returns 3 if the service is in stopped state, Hence it is a false failure,
+            handling the same with exception with exitcode. 
+            '''
         except CommandFailed as cf:
             if cf.exitcode == 3:
                 self.firewall_status = False

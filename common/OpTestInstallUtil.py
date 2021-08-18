@@ -405,7 +405,8 @@ class InstallUtil():
                    (Err.command, Err.output)))
         return req_args.strip(), req_remove_args.strip()
 
-    def update_kernel_cmdline(self, args="", remove_args="", reboot=True):
+    def update_kernel_cmdline(self, distro, args="", remove_args="", reboot=True,
+                              reboot_cmd=False):
         """
         Update default Kernel cmdline arguments
 
@@ -415,6 +416,7 @@ class InstallUtil():
 
         :return: True on success and False on failure
         """
+        output = ""
         con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         req_args, req_remove_args = self.check_kernel_cmdline(args,
                                                               remove_args)
@@ -435,15 +437,15 @@ class InstallUtil():
         except CommandFailed:
             grub_key = "GRUB_CMDLINE_LINUX_DEFAULT"
             boot_cfg = self.get_boot_cfg()
-            cmd = ("cat %s | grep %s | awk -F '=' '{print $2}'" %
-                   (boot_cfg, grub_key))
+            cmd = "grep %s %s" % (grub_key, boot_cfg)
             try:
-                output = con.run_command(cmd, timeout=60)[0].strip("\"")
+                output = con.run_command(cmd, timeout=60)[0].replace("\"", "")
+                output = output.split("GRUB_CMDLINE_LINUX_DEFAULT=")[-1].strip()
                 if req_args:
                     output += " %s" % req_args
                 if req_remove_args:
                     for each_arg in req_remove_args.split():
-                        output = output.strip(each_arg).strip()
+                        output = output.replace(each_arg, "")
             except CommandFailed as Err:
                 print(("Failed to get the kernel commandline - %s: %s" %
                        (Err.command, Err.output)))
@@ -453,15 +455,23 @@ class InstallUtil():
                     cmd = "sed -i 's/%s=.*/%s=\"%s\"/g' %s" % (grub_key, grub_key,
                                                                output, boot_cfg)
                     con.run_command(cmd, timeout=60)
-                    con.run_command("update-grub")
+                    if 'Ubuntu' in distro:
+                        con.run_command('update-grub')
+                    else:
+                        con.run_command('grub2-mkconfig -o /boot/grub2/grub.cfg')
                 except CommandFailed as Err:
                     print(("Failed to update kernel commandline - %s: %s" %
                            (Err.command, Err.output)))
                     return False
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            if reboot_cmd:
+                raw_pty = self.cv_SYSTEM.console.get_console()
+                raw_pty.sendline("reboot")
+                raw_pty.expect("login:", timeout=900)
+            else:
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
             # check for added/removed args in /proc/cmdline
             req_args, req_remove_args = self.check_kernel_cmdline(args,

@@ -74,7 +74,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             if urlparse(path).scheme in valid_schemes:
                 return True
             return False
-
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.console_thread.start()
         try:
@@ -90,7 +90,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             con.run_command("[ -d %s ] || mkdir -p %s" %
                             (self.home, self.home))
             con.run_command("if [ -d %s ];then rm -rf %s;fi" %
-                            (linux_path, linux_path))
+                            (linux_path, linux_path), timeout=120)
             con.run_command("cd %s && git clone --depth 1  %s -b %s linux" %
                             (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
             con.run_command("cd %s" % linux_path)
@@ -134,7 +134,7 @@ class InstallUpstreamKernel(unittest.TestCase):
                 kern_rel_str = con.run_command(
                     "cat %s/include/config/kernel.release" % linux_path)[-1]
                 initrd_file = con.run_command(
-                    "ls -l /boot/initr*-%s*" % kern_rel_str)[-1].split(" ")[-1]
+                    "ls -l /boot/initr*-%s.img" % kern_rel_str)[-1].split(" ")[-1]
                 kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinuz-%s -l" % (
                     initrd_file, cmdline, kern_rel_str)
                 # Let's makesure we set the default boot index to current kernel

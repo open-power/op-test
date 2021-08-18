@@ -4,3 +4,4 @@ ptyprocess
 requests
 pysocks
 unittest2
+ninja
