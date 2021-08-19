@@ -65,7 +65,7 @@ from testcases import fspTODCorruption
 from testcases import OpalUtils
 from testcases import OpTestPrdDaemon
 from testcases import fspresetReload
-from testcases import PowerNVDump
+from testcases import OpTestHostdump
 from testcases import EPOW
 from testcases import DPO
 from testcases import LightPathDiagnostics
@@ -630,7 +630,7 @@ class CrashSuite():
     '''Crash Test Suite'''
 
     def suite(self):
-        return PowerNVDump.crash_suite()
+        return OpTestHostdump.crash_suite()
 
 
 class DlparIOSuite():
@@ -731,7 +731,7 @@ class OpTestHostbootSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestHostboot.skiroot_full_suite())
         self.s.addTest(OpTestHostboot.host_full_suite())
-        self.s.addTest(PowerNVDump.SBECrash_MPIPL())
+        self.s.addTest(OpTestHostdump.SBECrash_MPIPL())
 
     def suite(self):
         return self.s

@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-test-framework/testcases/PowerNVDump.py $
+# $Source: op-test-framework/testcases/OpTestHostdump.py $
 #
 # OpenPOWER Automated Test Project
 #
@@ -24,7 +24,7 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package PowerNVDump.py
+#  @package OpTestHostdump.py
 #  This module can contain testcases related to Firmware & Kernel dump feature
 #  including kdump, fadump aka MPIPL, opaldump, etc.
 #
@@ -77,7 +77,7 @@ class BootType():
     INVALID = 4
 
 
-class PowerNVDump(unittest.TestCase):
+class OpTestHostdump(unittest.TestCase):
 
     def setUp(self):
         conf = OpTestConfiguration.conf
@@ -342,7 +342,7 @@ class PowerNVDump(unittest.TestCase):
         return boot_type
 
 
-class OPALCrash_MPIPL(PowerNVDump):
+class OPALCrash_MPIPL(OpTestHostdump):
     '''
     OPAL initiated MPIPL flow validation. This will verify whether OPAL
     supports MPIPL or not and then triggers OPAL assert. This will verify
@@ -418,7 +418,7 @@ class OPALCrash_MPIPL(PowerNVDump):
         return boot_type
 
 
-class SBECrash_MPIPL(PowerNVDump):
+class SBECrash_MPIPL(OpTestHostdump):
     '''
     Testcase to test SBE and hostboot part of MPIPL code.
     This test would trigger SBE S0 interrupt directly to initiate MPIPL.
@@ -519,7 +519,7 @@ class SBECrash_MPIPL(PowerNVDump):
         self.c.run_command(r_cmd)
 
 
-class KernelCrash_FadumpEnable(PowerNVDump):
+class KernelCrash_FadumpEnable(OpTestHostdump):
 
     def setup_fadump(self):
         self.cv_SYSTEM.set_state(OpSystemState.OS)
@@ -573,7 +573,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         self.verify_dump_file(boot_type)
 
 
-class KernelCrash_OnlyKdumpEnable(PowerNVDump):
+class KernelCrash_OnlyKdumpEnable(OpTestHostdump):
 
     def runTest(self):
         self.setup_test()
@@ -598,7 +598,7 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
             self.verify_dump_file(boot_type)
 
 
-class KernelCrash_DisableAll(PowerNVDump):
+class KernelCrash_DisableAll(OpTestHostdump):
 
     def runTest(self):
         self.setup_test()
@@ -619,7 +619,7 @@ class KernelCrash_DisableAll(PowerNVDump):
             raise OpTestError(msg)
 
 
-class SkirootKernelCrash(PowerNVDump, unittest.TestCase):
+class SkirootKernelCrash(OpTestHostdump, unittest.TestCase):
 
     def setup_test(self):
         self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -657,7 +657,7 @@ class SkirootKernelCrash(PowerNVDump, unittest.TestCase):
         self.cv_SYSTEM.sys_set_bootdev_no_override()
         self.kernel_crash()
 
-class KernelCrash_KdumpSSH(PowerNVDump):
+class KernelCrash_KdumpSSH(OpTestHostdump):
 
     # This test verifies kdump/fadump over ssh.
     # Need to pass --dump-server-ip and --dump-server-pw in command line.
@@ -703,7 +703,7 @@ class KernelCrash_KdumpSSH(PowerNVDump):
         self.verify_dump_file(boot_type, dump_place="net")
         self.setup_test("net")
 
-class KernelCrash_KdumpNFS(PowerNVDump):
+class KernelCrash_KdumpNFS(OpTestHostdump):
 
     # This test verifies kdump/fadump over nfs.
     # Need to pass --dump-server-ip and --dump-server-pw in command line.
@@ -757,7 +757,7 @@ class KernelCrash_KdumpNFS(PowerNVDump):
         elif self.distro == "ubuntu":
             self.c.run_command("sed -e '/NFS/ s/^#*/#/' -i /etc/default/kdump-tools;")
 
-class KernelCrash_KdumpSMT(PowerNVDump):
+class KernelCrash_KdumpSMT(OpTestHostdump):
 
     #This test tests kdump/fadump with smt=1,2,4 and kdump/fadump with smt=1,2,4 and dumprestart from HMC.
 
