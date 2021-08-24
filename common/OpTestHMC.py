@@ -274,7 +274,7 @@ class HMCUtil():
         lpar_list = self.ssh.run_command(
                    'lssyscfg -r lpar -m %s -F name' % mg_system)
         if lpar_name in lpar_list:
-            log.info("%s lpar found in managed system %s" % (mg_system, lpar_name))
+            log.info("%s lpar found in managed system %s" % (lpar_name, mg_system))
             return True
         return False
 
@@ -286,7 +286,7 @@ class HMCUtil():
         self.ssh.run_command(
             'migrlpar -o v -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name))
         self.ssh.run_command(
-            'migrlpar -o m -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name))
+            'migrlpar -o m -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name), timeout=300)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
             log.info("Migration of lpar %s from %s to %s is successfull" % 
                      (self.lpar_name, src_mg_system, dest_mg_system))
