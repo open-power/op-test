@@ -856,7 +856,7 @@ suites = {
     'capi': CAPISuite(),
     'opencapi': OpenCAPISuite(),
     'crash-suite': CrashSuite(),
-    'DlparIO-suite': DlparIOSuite(),
+    'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
     'system-ipl': SystemIPLSuite(),
     'fsp-opal-suite':  FspOpalSuite(),
