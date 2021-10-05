@@ -791,16 +791,52 @@ class KernelCrash_KdumpSMT(PowerNVDump):
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
+class KernelCrash_KdumpWorkLoad(PowerNVDump):
+
+    # This test verifies kdump/fadump after running ebizzy.
+    # ebizzy url needs to be given in ~/.op-test-framework.conf.
+    # Ex: url=http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz
+
+
+    def runTest(self):
+        if not self.url:
+            raise self.skipTest("Provide ebizzy url in op-test-framework.conf")
+        self.setup_test()
+        if self.distro == "rhel":
+            self.c.run_command("yum -y install make gcc wget; cd /tmp", timeout=120)
+        elif self.distro == "ubuntu":
+            self.c.run_command("apt-get install -y make gcc wget; cd /tmp", timeout=120)
+        else:
+            self.c.run_command("zypper install -y make gcc wget; cd /tmp", timeout=120)
+        try:
+            self.c.run_command("wget %s" % self.url)
+        except CommandFailed:
+            self.fail("Failed to download ebizzy tar")
+        self.c.run_command("tar -xf ebizzy*.tar.gz")
+        self.c.run_command("cd /tmp/ebizzy*/")
+        try:
+            self.c.run_command("./configure; make")
+        except CommandFailed:
+            self.fail("Failed to compile ebizzy")
+        self.c.run_command("./ebizzy -S 60&")
+        time.sleep(10)
+        self.c.run_command("ps -ef|grep ebizzy")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.c.run_command("rm -rf /tmp/ebizzy*")
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
+    s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
+    s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
