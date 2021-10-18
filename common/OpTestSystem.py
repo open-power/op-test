@@ -556,6 +556,8 @@ class OpTestSystem(object):
             # check console type and pass 5 to skip SMS menu when booting an LPAR
             if isinstance(self.console, OpTestHMC.HMCConsole) and x == 1:
                 sys_pty.sendline('5')
+                sys_pty.sendline()
+                time.sleep(80)
             r = sys_pty.expect(expect_seq, kwargs['timeout'])
             # if we have a stale buffer and we are still timing out
             if (previous_before == sys_pty.before) and ((r + 1) in range(len(base_seq))):
