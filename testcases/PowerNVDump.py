@@ -286,7 +286,7 @@ class PowerNVDump(unittest.TestCase):
             self.c.pty.sendline("echo c > /proc/sysrq-trigger")
         elif crash_type == "hmc":
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -n %s -o dumprestart" %
-                                   (self.system_name, self.lpar_name))
+                                   (self.system_name, self.lpar_name), timeout=300)
         done = False
         boot_type = BootType.NORMAL
         rc = -1
