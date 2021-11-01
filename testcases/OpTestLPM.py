@@ -27,6 +27,30 @@ OpTestLPM
 
 This test is to preform and validate basic Live Partition Mobility(LPM)  migration
 from source to destination managed system
+
+Example Conf file for LPM
+[op-test]
+bmc_type=FSP_PHYP
+bmc_ip=<fsp-ip>
+bmc_username=<fsp userid>
+bmc_password=<fsp password>
+host_ip=<host ip>
+host_user=<host userid>
+host_password=<host password>
+hmc_ip=<hmc ip or domin name>
+hmc_username=<hmc userid>
+hmc_password=<hmc password>
+system_name=<managed system name>
+lpar_name=<source lparname>
+lpar_prof=default
+host_cmd_timeout=36000
+git_home=/home/linux_src
+use_kexec=True
+machine_state=OS
+target_system_name=<target managed system name>
+
+To Run LPM Test
+./op-test --run-suite LPM_suite -c lpm.conf
 '''
 
 import unittest

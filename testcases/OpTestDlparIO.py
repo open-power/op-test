@@ -24,6 +24,40 @@ OpTestDlpar
 ---------
 
 This test is to preform and validate dlpar commands on SRIOV and Physical adapters
+
+Example Conf file for dlpar
+[op-test]
+bmc_type=FSP_PHYP
+bmc_ip=<fsp-ip>
+bmc_username=<fsp userid>
+bmc_password=<fsp password>
+host_ip=<host ip>
+host_user=<host userid>
+host_password=<host password>
+hmc_ip=<hmc ip or domin name>
+hmc_username=<hmc userid>
+hmc_password=<hmc password>
+system_name=<managed system name>
+lpar_name=<source lparname>
+lpar_prof=default
+host_cmd_timeout=36000
+git_home=/home/linux_src
+use_kexec=True
+machine_state=OS
+target_lpar=<target lparname>
+pci_device=<pci id> (example : 4007:01:00.0)
+sriov=<yes / no >
+num_of_dlpar=<no of iterations>
+
+Executing dlpar tests
+./op-test --run-suite ${test}-suite -c test_conf
+
+To run all scenarios part of the suite. 
+./op-test --run-suite DlparIO-suite -c dlpar.conf
+
+To run individual test.
+/op-test --run testcases.OpTestDlparIO.OpTestDlpar -c dlpar.conf
+
 '''
 
 import unittest
