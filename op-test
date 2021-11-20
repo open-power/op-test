@@ -633,6 +633,16 @@ class CrashSuite():
     def suite(self):
         return PowerNVDump.crash_suite()
 
+class OSdumpSuite():
+    '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
+        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
+        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+
+    def suite(self):
+        return self.s
 
 class DlparIOSuite():
     '''DlparIO Test Suite'''
@@ -856,6 +866,7 @@ suites = {
     'capi': CAPISuite(),
     'opencapi': OpenCAPISuite(),
     'crash-suite': CrashSuite(),
+    'osdump-suite': OSdumpSuite(),
     'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
     'system-ipl': SystemIPLSuite(),
