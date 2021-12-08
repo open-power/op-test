@@ -278,23 +278,42 @@ class HMCUtil():
             return True
         return False
 
-    def migrate_lpar(self, src_mg_system=None, dest_mg_system=None):
+    def migrate_lpar(self, src_mg_system=None, dest_mg_system=None, options=None, param=""):
         if src_mg_system == None or dest_mg_system == None:
             raise OpTestError("Source and Destination Managed System required for LPM")
         if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name):
             raise OpTestError("Lpar %s not found in managed system %s" % (self.lpar_name, src_mg_system))
         self.ssh.run_command(
             'migrlpar -o v -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name))
-        self.ssh.run_command(
-            'migrlpar -o m -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name), timeout=300)
+        cmd = 'migrlpar -o m -m %s -t %s -p %s %s' % (src_mg_system, dest_mg_system, self.lpar_name, param)
+        if options:
+            cmd = "%s %s" % (cmd, options)
+        self.ssh.run_command(cmd, timeout=300)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
-            log.info("Migration of lpar %s from %s to %s is successfull" % 
+            log.info("Migration of lpar %s from %s to %s is successfull" %
                      (self.lpar_name, src_mg_system, dest_mg_system))
             self.mg_system = dest_mg_system
             return True
-        log.info("Migration of lpar %s from %s to %s failed" % 
+        log.info("Migration of lpar %s from %s to %s failed" %
                  (self.lpar_name, src_mg_system, dest_mg_system))
         return False
+
+    def get_adapter_id(self, mg_system, loc_code):
+        cmd = 'lshwres -m {} -r sriov --rsubtype adapter -F phys_loc:adapter_id'.format(mg_system)
+        adapter_id_output = self.ssh.run_command(cmd)
+        for line in adapter_id_output:
+            if str(loc_code) in line:
+                return line.split(':')[1]
+        return ''
+
+    def get_lpar_id(self, mg_system, l_lpar_name):
+        cmd = 'lssyscfg -m %s -r lpar --filter lpar_names=%s -F lpar_id' % (mg_system, l_lpar_name)
+        lpar_id_output = self.ssh.run_command(cmd)
+        for line in lpar_id_output:
+            if l_lpar_name in line:
+                return 0
+            return line
+        return 0
 
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.ssh.run_command_ignore_fail(command, timeout*self.timeout_factor, retry)

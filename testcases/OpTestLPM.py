@@ -40,6 +40,7 @@ from common.Exceptions import CommandFailed
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class OpTestLPM(unittest.TestCase):
 
     def setUp(self):
@@ -51,10 +52,35 @@ class OpTestLPM(unittest.TestCase):
         self.src_mg_sys = self.cv_HMC.mg_system
         self.dest_mg_sys = self.cv_HMC.tgt_mg_system
         self.oslevel = None
+        self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
+        self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
+        self.slot_num = None
+        self.options = None
+        if 'slot_num' in conf.args:
+            self.slot_num = conf.args.slot_num
+        if self.slot_num:
+            self.bandwidth = conf.args.bandwidth
+            self.options = conf.args.options
+            self.adapters = conf.args.adapters.split(",")
+            self.target_adapters = conf.args.target_adapters.split(",")
+            self.ports = conf.args.ports.split(",")
+            self.target_ports = conf.args.target_ports.split(",")
+            self.vios_id = []
+            for vios_name in self.src_lpar_vios:
+                self.vios_id.append(self.cv_HMC.get_lpar_id(self.src_mg_sys, vios_name))
+            self.target_vios_id = []
+            for vios_name in self.dest_lpar_vios:
+                self.target_vios_id.append(self.cv_HMC.get_lpar_id(self.dest_mg_sys, vios_name))
+            self.adapter_id = []
+            for adapter in self.adapters:
+                self.adapter_id.append(self.cv_HMC.get_adapter_id(self.src_mg_sys, adapter))
+            self.target_adapter_id = []
+            for adapter in self.target_adapters:
+                self.target_adapter_id.append(self.cv_HMC.get_adapter_id(self.dest_mg_sys, adapter))
 
     def check_pkg_installation(self):
         pkg_found = True
-        pkg_notfound= []
+        pkg_notfound = []
         self.oslevel = self.cv_HOST.host_get_OS_Level()
         lpm_pkg_list = ["src", "rsct.core", "rsct.core.utils", "rsct.basic", "rsct.opt.storagerm", "DynamicRM"]
         for pkg in lpm_pkg_list:
@@ -72,13 +98,13 @@ class OpTestLPM(unittest.TestCase):
             self.firewall_status = True
             '''
             Systemctl returns 3 if the service is in stopped state, Hence it is a false failure,
-            handling the same with exception with exitcode. 
+            handling the same with exception with exitcode.
             '''
         except CommandFailed as cf:
             if cf.exitcode == 3:
                 self.firewall_status = False
         if self.firewall_status:
-             self.cv_HOST.host_run_command("systemctl stop firewalld.service")
+            self.cv_HOST.host_run_command("systemctl stop firewalld.service")
         rc = self.cv_HOST.host_run_command("lssrc -a | grep 'rsct \| rsct_rm'")
         if "inoperative" in str(rc):
             self.cv_HOST.host_run_command("startsrc -g rsct_rm; startsrc -g rsct")
@@ -86,15 +112,53 @@ class OpTestLPM(unittest.TestCase):
             if "inoperative" in str(rc):
                 raise OpTestError("LPM cannot continue as some of rsct services are not active")
 
+    def vnic_options(self, remote=''):
+        '''
+        Form the vnic_mappings param based on the adapters' details
+        provided.
+        '''
+        if int(self.slot_num) < 3 or int(self.slot_num) > 2999:
+            return ""
+        if remote:
+            cmd = []
+            for index in range(0, len(self.adapters)):
+                l_cmd = []
+                for param in [self.slot_num, 'ded', self.src_lpar_vios[index],
+                              self.vios_id[index], self.adapter_id[index],
+                              self.ports[index], self.bandwidth,
+                              self.target_adapter_id[index],
+                              self.target_ports[index]]:
+                    l_cmd.append(param)
+                cmd.append("/".join(l_cmd))
+        else:
+            cmd = []
+            for index in range(0, len(self.adapters)):
+                l_cmd = []
+                for param in [self.slot_num, 'ded',
+                              self.dest_lpar_vios[index],
+                              self.target_vios_id[index],
+                              self.target_adapter_id[index],
+                              self.target_ports[index], self.bandwidth,
+                              self.adapter_id[index], self.ports[index]]:
+                    l_cmd.append(param)
+                cmd.append("/".join(l_cmd))
+
+        return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
+
     def lpar_migrate_test(self):
         self.check_pkg_installation()
         self.lpm_setup()
-        if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys):
+        cmd = ''
+        if self.slot_num:
+            cmd = self.vnic_options()
+        if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options, cmd):
             raise OpTestError("Lpar Migration failed")
-        log.debug("Wait for 5 minutes before migrating lpar back") 
-        time.sleep(300) #delay of 5 mins after migration.
+        log.debug("Wait for 5 minutes before migrating lpar back")
+        time.sleep(300)  # delay of 5 mins after migration.
+        if self.slot_num:
+            cmd = self.vnic_options('remote')
         log.debug("Migrating lpar back to original managed system")
-        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys,  self.src_mg_sys):
+        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys,  self.src_mg_sys, self.options, cmd):
             raise OpTestError("Migrating lpar back failed")
 
     def runTest(self):
@@ -103,6 +167,7 @@ class OpTestLPM(unittest.TestCase):
     def tearDown(self):
         if self.firewall_status:
             self.cv_HOST.host_run_command("systemctl start firewalld.service")
+
 
 def LPM_suite():
     s = unittest.TestSuite()
