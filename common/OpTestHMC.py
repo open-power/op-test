@@ -255,7 +255,7 @@ class HMCUtil():
             state = self.get_lpar_state(vios)
             log.info("Current state: %s", state)
             time.sleep(timeout)
-            count = 1
+            count += 1
             if count > 120:
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
@@ -266,7 +266,7 @@ class HMCUtil():
             state = self.get_system_state()
             log.info("Current state: %s", state)
             time.sleep(timeout)
-            count = 1
+            count += 1
             if count > 60:
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
