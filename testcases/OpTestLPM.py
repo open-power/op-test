@@ -56,6 +56,9 @@ class OpTestLPM(unittest.TestCase):
         self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
         self.slot_num = None
         self.options = None
+        if conf.args.lpar_vios and 'remote_lpar_vios' in conf.args:
+            self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
+            self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
         if 'slot_num' in conf.args:
             self.slot_num = conf.args.slot_num
         if self.slot_num:
