@@ -43,6 +43,12 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestLPM(unittest.TestCase):
 
+
+    @staticmethod
+    def errMsg(vios_name, mg_system):
+        raise OpTestError("Mover Service Partition (MSP) for VIOS %s" \
+        " (in managed system %s) not enabled" % (vios_name, mg_system))
+
     def setUp(self):
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
@@ -52,10 +58,17 @@ class OpTestLPM(unittest.TestCase):
         self.src_mg_sys = self.cv_HMC.mg_system
         self.dest_mg_sys = self.cv_HMC.tgt_mg_system
         self.oslevel = None
-        self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
-        self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
         self.slot_num = None
         self.options = None
+        if conf.args.lpar_vios and 'remote_lpar_vios' in conf.args:
+            self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
+            self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
+            for vios_name in self.src_lpar_vios:
+                if not self.cv_HMC.is_msp_enabled(self.src_mg_sys, vios_name):
+                    self.errMsg(vios_name, self.src_mg_sys)
+            for vios_name in self.dest_lpar_vios:
+                if not self.cv_HMC.is_msp_enabled(self.dest_mg_sys, vios_name):
+                    self.errMsg(vios_name, self.dest_mg_sys)
         if 'slot_num' in conf.args:
             self.slot_num = conf.args.slot_num
         if self.slot_num:
