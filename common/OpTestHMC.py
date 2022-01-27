@@ -315,6 +315,18 @@ class HMCUtil():
             return line
         return 0
 
+    def is_msp_enabled(self, mg_system, vios_name):
+        '''
+        The function checks if the moving service option is enabled
+        on the given lpar partition.
+        '''
+        cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F msp" % (
+                mg_system, vios_name)
+        msp_output = self.ssh.run_command(cmd)
+        if int(msp_output[0]) != 1:
+            return False
+        return True
+
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.ssh.run_command_ignore_fail(command, timeout*self.timeout_factor, retry)
 
