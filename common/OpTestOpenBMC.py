@@ -350,41 +350,48 @@ class HostManagement():
         '''
         Current Boot Device Info
         GET
-        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/BootMode
+        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/
+
+        GET
+        https://bmcip/xyz/openbmc_project/control/host0/boot
         '''
-        uri = "/xyz/openbmc_project/control/host0/boot/attr/BootMode"
+        uri = "/xyz/openbmc_project/control/host0/boot/one_time"
         r = self.conf.util_bmc_server.get(uri=uri, minutes=minutes)
         json_data = r.json().get('data')
+        if (json_data.get('Enabled') == 0):
+            uri = "/xyz/openbmc_project/control/host0/boot"
+            r = self.conf.util_bmc_server.get(uri=uri, minutes=minutes)
+            json_data = r.json().get('data')
         bootmode = ""
-        if "Setup" in json_data:
+        if "Setup" in json_data.get('BootMode'):
             bootmode = "Setup"
-        elif "Regular" in json_data:
+        elif "Regular" in json_data.get('BootMode'):
             bootmode = "Regular"
         return bootmode
 
     def set_bootdev_to_setup(self, minutes=BMC_CONST.HTTP_RETRY):
         '''
-        Set boot device to setup
+        Temporarily set boot device to setup (should clear itself once reaches runtime)
         PUT
-        https://bmcip/xyz/openbmc_project/control/host0/boot/attr/BootMode
+        https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/BootMode
         "data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Setup"
 
         https://bmcip/xyz/openbmc_project/control/host0/boot/one_time/attr/Enabled
-        "data": 0
+        "data": 1
         '''
-        uri = "/xyz/openbmc_project/control/host0/boot/attr/BootMode"
+        uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/BootMode"
         payload = {"data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Setup"}
         r = self.conf.util_bmc_server.put(
             uri=uri, json=payload, minutes=minutes)
 
         uri = "/xyz/openbmc_project/control/host0/boot/one_time/attr/Enabled"
-        payload = {"data": 0}
+        payload = {"data": 1}
         r = self.conf.util_bmc_server.put(
             uri=uri, json=payload, minutes=minutes)
 
     def set_bootdev_to_none(self, minutes=BMC_CONST.HTTP_RETRY):
         '''
-        Set boot device to regular/default
+        Set boot device to regular/default (clear any overrides)
         PUT
         https://bmcip/xyz/openbmc_project/control/host0/boot/attr/BootMode
         "data": "xyz.openbmc_project.Control.Boot.Mode.Modes.Regular"
