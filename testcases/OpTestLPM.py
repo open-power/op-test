@@ -59,6 +59,10 @@ class OpTestLPM(unittest.TestCase):
         if conf.args.lpar_vios and 'remote_lpar_vios' in conf.args:
             self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
             self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
+            for vios_name in self.src_lpar_vios:
+                self.cv_HMC.is_msp_enabled(self.src_mg_sys, vios_name)
+            for vios_name in self.dest_lpar_vios:
+                self.cv_HMC.is_msp_enabled(self.dest_mg_sys, vios_name)
         if 'slot_num' in conf.args:
             self.slot_num = conf.args.slot_num
         if self.slot_num:
