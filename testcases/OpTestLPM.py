@@ -37,6 +37,7 @@ from common import OpTestHMC
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
+from common.OpTestUtil import OpTestUtil
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -158,16 +159,51 @@ class OpTestLPM(unittest.TestCase):
 
         return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
 
+    def is_RMC_active(self, mg_system):
+        '''
+        Get the state of the RMC connection for the given parition
+        '''
+        cmd = "diagrmc -m %s --ip %s -p %s --autocorrect" % (
+            mg_system, self.cv_HOST.ip, self.cv_HMC.lpar_name)
+        output = self.cv_HMC.ssh.run_command(cmd)
+        for line in output:
+            if "%s has RMC connection." % self.cv_HOST.ip in line:
+                return True
+        return False
+
+    def rmc_service_start(self, mg_system):
+        '''
+        Start RMC services which is needed for LPM migration
+        '''
+        for svc in ["-z", "-A", "-p"]:
+            self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl %s' % svc, timeout=120)
+        if not OpTestUtil.wait_for(self.is_RMC_active, timeout=60, args=[mg_system]):
+            self.cv_HOST.host_run_command('/usr/sbin/rsct/install/bin/recfgct', timeout=120)
+            self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl -p', timeout=120)
+            if not OpTestUtil.wait_for(self.is_RMC_active, timeout=300, args=[mg_system]):
+                raise OpTestError("RMC connection is down!!")
+
     def lpar_migrate_test(self):
         self.check_pkg_installation()
         self.lpm_setup()
+
+        if not self.is_RMC_active(self.src_mg_sys):
+            log.info("RMC service is inactive..!")
+            self.rmc_service_start(self.src_mg_sys)
+
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
         if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options, cmd):
             raise OpTestError("Lpar Migration failed")
+
         log.debug("Wait for 5 minutes before migrating lpar back")
         time.sleep(300)  # delay of 5 mins after migration.
+
+        if not self.is_RMC_active(self.dest_mg_sys):
+            log.info("RMC service is inactive..!")
+            self.rmc_service_start(self.dest_mg_sys)
+
         if self.slot_num:
             cmd = self.vnic_options('remote')
         log.debug("Migrating lpar back to original managed system")
