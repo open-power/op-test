@@ -298,7 +298,10 @@ class HMCUtil():
                  (self.lpar_name, src_mg_system, dest_mg_system))
         return False
 
-    def recover_lpar(self, src_mg_system, dest_mg_system):
+    def recover_lpar(self, src_mg_system, dest_mg_system, stop_lpm=False):
+        if stop_lpm:
+            self.ssh.run_command("migrlpar -o s -m %s -p %s" % (
+                src_mg_system, self.lpar_name), timeout=300)
         self.ssh.run_command("migrlpar -o r -m %s -p %s" % (
                 src_mg_system, self.lpar_name), timeout=300)
         if not self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
