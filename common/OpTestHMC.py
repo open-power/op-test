@@ -289,6 +289,8 @@ class HMCUtil():
         if options:
             cmd = "%s %s" % (cmd, options)
         self.ssh.run_command(cmd, timeout=300)
+        log.debug("Waiting for 5 minutes.")
+        time.sleep(300)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
             log.info("Migration of lpar %s from %s to %s is successfull" %
                      (self.lpar_name, src_mg_system, dest_mg_system))

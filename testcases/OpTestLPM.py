@@ -197,9 +197,6 @@ class OpTestLPM(unittest.TestCase):
         if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options, cmd):
             raise OpTestError("Lpar Migration failed")
 
-        log.debug("Wait for 5 minutes before migrating lpar back")
-        time.sleep(300)  # delay of 5 mins after migration.
-
         if not self.is_RMC_active(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
             self.rmc_service_start(self.dest_mg_sys)
