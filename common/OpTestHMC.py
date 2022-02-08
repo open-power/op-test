@@ -292,10 +292,15 @@ class HMCUtil():
         log.debug("Waiting for 5 minutes.")
         time.sleep(300)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
-            log.info("Migration of lpar %s from %s to %s is successfull" %
-                     (self.lpar_name, src_mg_system, dest_mg_system))
-            self.mg_system = dest_mg_system
-            return True
+            cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F state" % (
+                   dest_mg_system, self.lpar_name)
+            lpar_state = self.ssh.run_command(cmd)[0]
+            if lpar_state not in ['Migrating - Running', 'Migrating - Not Activated']:
+                log.info("Migration of lpar %s from %s to %s is successfull" %
+                         (self.lpar_name, src_mg_system, dest_mg_system))
+                self.mg_system = dest_mg_system
+                return True
+            self.recover_lpar(src_mg_system, dest_mg_system, stop_lpm=True)
         log.info("Migration of lpar %s from %s to %s failed" %
                  (self.lpar_name, src_mg_system, dest_mg_system))
         return False
