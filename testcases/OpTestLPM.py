@@ -183,6 +183,14 @@ class OpTestLPM(unittest.TestCase):
             if not OpTestUtil().wait_for(self.is_RMCActive, timeout=300, args=[mg_system]):
                 raise OpTestError("RMC connection is down!!")
 
+    def lpm_failed_error(self, mg_system):
+        if self.cv_HMC.is_lpar_in_managed_system(mg_system, self.cv_HMC.lpar_name):
+            cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F state" % (
+                   mg_system, self.cv_HMC.lpar_name)
+            lpar_state = self.cv_HMC.ssh.run_command(cmd)[0]
+            raise OpTestError("LPAR migration failed. LPAR is in %s state." % lpar_state)
+        raise OpTestError("LPAR migration failed.")
+
     def lpar_migrate_test(self):
         self.check_pkg_installation()
         self.lpm_setup()
@@ -195,7 +203,7 @@ class OpTestLPM(unittest.TestCase):
         if self.slot_num:
             cmd = self.vnic_options()
         if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options, cmd):
-            raise OpTestError("Lpar Migration failed")
+            self.lpm_failed_error(self.src_mg_sys)
 
         if not self.is_RMCActive(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
@@ -204,8 +212,8 @@ class OpTestLPM(unittest.TestCase):
         if self.slot_num:
             cmd = self.vnic_options('remote')
         log.debug("Migrating lpar back to original managed system")
-        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys,  self.src_mg_sys, self.options, cmd):
-            raise OpTestError("Migrating lpar back failed")
+        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options, cmd):
+            self.lpm_failed_error(self.dest_mg_sys)
 
     def runTest(self):
         self.lpar_migrate_test()
