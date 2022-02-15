@@ -298,6 +298,15 @@ class HMCUtil():
                  (self.lpar_name, src_mg_system, dest_mg_system))
         return False
 
+    def recover_lpar(self, src_mg_system, dest_mg_system):
+        self.ssh.run_command("migrlpar -o r -m %s -p %s" % (
+                src_mg_system, self.lpar_name), timeout=300)
+        if not self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
+            log.info("LPAR recovered at managed system %s" % src_mg_system)
+            return True
+        log.info("LPAR failed to recover at managed system %s" % src_mg_system)
+        return False
+
     def get_adapter_id(self, mg_system, loc_code):
         cmd = 'lshwres -m {} -r sriov --rsubtype adapter -F phys_loc:adapter_id'.format(mg_system)
         adapter_id_output = self.ssh.run_command(cmd)
