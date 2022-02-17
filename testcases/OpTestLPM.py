@@ -51,52 +51,16 @@ class OpTestLPM(unittest.TestCase):
         " (in managed system %s) not enabled" % (vios_name, mg_system))
 
     def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_SYSTEM = conf.system()
+        self.conf = OpTestConfiguration.conf
+        self.cv_SYSTEM = self.conf.system()
         self.console = self.cv_SYSTEM.console
-        self.cv_HOST = conf.host()
+        self.cv_HOST = self.conf.host()
         self.cv_HMC = self.cv_SYSTEM.hmc
         self.src_mg_sys = self.cv_HMC.mg_system
         self.dest_mg_sys = self.cv_HMC.tgt_mg_system
         self.oslevel = None
         self.slot_num = None
         self.options = None
-        # The following variables needs to be defined in
-        # ~/.op-test-framework.conf
-        self.target_hmc_ip = conf.args.target_hmc_ip
-        self.target_hmc_username = conf.args.target_hmc_username
-        self.target_hmc_password = conf.args.target_hmc_password
-
-        if conf.args.lpar_vios and 'remote_lpar_vios' in conf.args:
-            self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
-            self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
-            for vios_name in self.src_lpar_vios:
-                if not self.cv_HMC.is_msp_enabled(self.src_mg_sys, vios_name):
-                    self.errMsg(vios_name, self.src_mg_sys)
-            for vios_name in self.dest_lpar_vios:
-                if not self.cv_HMC.is_msp_enabled(self.dest_mg_sys, vios_name):
-                    self.errMsg(vios_name, self.dest_mg_sys)
-        if 'slot_num' in conf.args:
-            self.slot_num = conf.args.slot_num
-        if self.slot_num:
-            self.bandwidth = conf.args.bandwidth
-            self.options = conf.args.options
-            self.adapters = conf.args.adapters.split(",")
-            self.target_adapters = conf.args.target_adapters.split(",")
-            self.ports = conf.args.ports.split(",")
-            self.target_ports = conf.args.target_ports.split(",")
-            self.vios_id = []
-            for vios_name in self.src_lpar_vios:
-                self.vios_id.append(self.cv_HMC.get_lpar_id(self.src_mg_sys, vios_name))
-            self.target_vios_id = []
-            for vios_name in self.dest_lpar_vios:
-                self.target_vios_id.append(self.cv_HMC.get_lpar_id(self.dest_mg_sys, vios_name))
-            self.adapter_id = []
-            for adapter in self.adapters:
-                self.adapter_id.append(self.cv_HMC.get_adapter_id(self.src_mg_sys, adapter))
-            self.target_adapter_id = []
-            for adapter in self.target_adapters:
-                self.target_adapter_id.append(self.cv_HMC.get_adapter_id(self.dest_mg_sys, adapter))
 
     def check_pkg_installation(self):
         pkg_found = True
@@ -132,39 +96,6 @@ class OpTestLPM(unittest.TestCase):
             if "inoperative" in str(rc):
                 raise OpTestError("LPM cannot continue as some of rsct services are not active")
 
-    def vnic_options(self, remote=''):
-        '''
-        Form the vnic_mappings param based on the adapters' details
-        provided.
-        '''
-        if int(self.slot_num) < 3 or int(self.slot_num) > 2999:
-            return ""
-        if remote:
-            cmd = []
-            for index in range(0, len(self.adapters)):
-                l_cmd = []
-                for param in [self.slot_num, 'ded', self.src_lpar_vios[index],
-                              self.vios_id[index], self.adapter_id[index],
-                              self.ports[index], self.bandwidth,
-                              self.target_adapter_id[index],
-                              self.target_ports[index]]:
-                    l_cmd.append(param)
-                cmd.append("/".join(l_cmd))
-        else:
-            cmd = []
-            for index in range(0, len(self.adapters)):
-                l_cmd = []
-                for param in [self.slot_num, 'ded',
-                              self.dest_lpar_vios[index],
-                              self.target_vios_id[index],
-                              self.target_adapter_id[index],
-                              self.target_ports[index], self.bandwidth,
-                              self.adapter_id[index], self.ports[index]]:
-                    l_cmd.append(param)
-                cmd.append("/".join(l_cmd))
-
-        return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
-
     def is_RMCActive(self, mg_system, remote_hmc=None):
         '''
         Get the state of the RMC connection for the given parition
@@ -198,6 +129,77 @@ class OpTestLPM(unittest.TestCase):
             raise OpTestError("LPAR migration failed. LPAR is in %s state." % lpar_state)
         raise OpTestError("LPAR migration failed.")
 
+
+class OpTestLPM_LocalHMC(OpTestLPM):
+
+
+    def setUp(self):
+        super(OpTestLPM_LocalHMC, self).setUp()
+
+        if self.conf.args.lpar_vios and 'remote_lpar_vios' in self.conf.args:
+            self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
+            self.dest_lpar_vios = self.conf.args.remote_lpar_vios.split(",")
+            for vios_name in self.src_lpar_vios:
+                if not self.cv_HMC.is_msp_enabled(self.src_mg_sys, vios_name):
+                    self.errMsg(vios_name, self.src_mg_sys)
+            for vios_name in self.dest_lpar_vios:
+                if not self.cv_HMC.is_msp_enabled(self.dest_mg_sys, vios_name):
+                    self.errMsg(vios_name, self.dest_mg_sys)
+        if 'slot_num' in self.conf.args:
+            self.slot_num = self.conf.args.slot_num
+        if self.slot_num:
+            self.bandwidth = self.conf.args.bandwidth
+            self.options = self.conf.args.options
+            self.adapters = self.conf.args.adapters.split(",")
+            self.target_adapters = self.conf.args.target_adapters.split(",")
+            self.ports = self.conf.args.ports.split(",")
+            self.target_ports = self.conf.args.target_ports.split(",")
+            self.vios_id = []
+            for vios_name in self.src_lpar_vios:
+                self.vios_id.append(self.cv_HMC.get_lpar_id(self.src_mg_sys, vios_name))
+            self.target_vios_id = []
+            for vios_name in self.dest_lpar_vios:
+                self.target_vios_id.append(self.cv_HMC.get_lpar_id(self.dest_mg_sys, vios_name))
+            self.adapter_id = []
+            for adapter in self.adapters:
+                self.adapter_id.append(self.cv_HMC.get_adapter_id(self.src_mg_sys, adapter))
+            self.target_adapter_id = []
+            for adapter in self.target_adapters:
+                self.target_adapter_id.append(self.cv_HMC.get_adapter_id(self.dest_mg_sys, adapter))
+
+    def vnic_options(self, remote=''):
+        '''
+        Form the vnic_mappings param based on the adapters' details
+        provided.
+        '''
+        if int(self.slot_num) < 3 or int(self.slot_num) > 2999:
+            return ""
+        if remote:
+            cmd = []
+            for index in range(0, len(self.adapters)):
+                l_cmd = []
+                for param in [self.slot_num, 'ded', self.src_lpar_vios[index],
+                              self.vios_id[index], self.adapter_id[index],
+                              self.ports[index], self.bandwidth,
+                              self.target_adapter_id[index],
+                              self.target_ports[index]]:
+                    l_cmd.append(param)
+                cmd.append("/".join(l_cmd))
+        else:
+            cmd = []
+            for index in range(0, len(self.adapters)):
+                l_cmd = []
+                for param in [self.slot_num, 'ded',
+                              self.dest_lpar_vios[index],
+                              self.target_vios_id[index],
+                              self.target_adapter_id[index],
+                              self.target_ports[index], self.bandwidth,
+                              self.adapter_id[index], self.ports[index]]:
+                    l_cmd.append(param)
+                cmd.append("/".join(l_cmd))
+
+        return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
+
     def lpar_migrate_test(self):
         self.check_pkg_installation()
         self.lpm_setup()
@@ -221,6 +223,22 @@ class OpTestLPM(unittest.TestCase):
         log.debug("Migrating lpar back to original managed system")
         if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options, cmd):
             self.lpm_failed_error(self.dest_mg_sys)
+
+    def runTest(self):
+        self.lpar_migrate_test()
+
+
+class OpTestLPM_CrossHMC(OpTestLPM):
+
+
+    def setUp(self):
+        super(OpTestLPM_CrossHMC, self).setUp()
+
+        # The following variables needs to be defined in
+        # ~/.op-test-framework.conf
+        self.target_hmc_ip = self.conf.args.target_hmc_ip
+        self.target_hmc_username = self.conf.args.target_hmc_username
+        self.target_hmc_password = self.conf.args.target_hmc_password
 
     def cross_hmc_migrate_test(self):
         self.check_pkg_installation()
@@ -256,14 +274,11 @@ class OpTestLPM(unittest.TestCase):
         )
 
     def runTest(self):
-        self.lpar_migrate_test()
-
-    def tearDown(self):
-        if self.firewall_status:
-            self.cv_HOST.host_run_command("systemctl start firewalld.service")
+        self.cross_hmc_migrate_test()
 
 
 def LPM_suite():
     s = unittest.TestSuite()
-    s.addTest(OpTestLPM())
+    s.addTest(OpTestLPM_LocalHMC())
+    s.addTest(OpTestLPM_CrossHMC())
     return s
