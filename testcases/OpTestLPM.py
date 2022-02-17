@@ -233,6 +233,26 @@ class OpTestLPM(unittest.TestCase):
                 self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
                 self.target_hmc_username, self.target_hmc_password
         )
+        
+        log.debug("Waiting for 5 minutes.")
+        time.sleep(300)
+
+        remote_hmc = OpTestHMC.OpTestHMC(self.target_hmc_ip,
+                                         self.target_hmc_username,
+                                         self.target_hmc_password,
+                                         managed_system=self.dest_mg_sys,
+                                         lpar_name=self.cv_HMC.lpar_name,
+                                         logfile=self.cv_HMC.logfile)
+        remote_hmc.set_system(self.cv_SYSTEM)
+
+        if not self.is_RMCActive(self.dest_mg_sys, remote_hmc):
+            log.info("RMC service is inactive..!")
+            self.rmc_service_start(self.dest_mg_sys, remote_hmc)
+
+        self.cv_HMC.cross_hmc_migration(
+                self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
+                self.cv_HMC.user, self.cv_HMC.passwd, remote_hmc
+        )
 
     def runTest(self):
         self.lpar_migrate_test()
