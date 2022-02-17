@@ -165,28 +165,29 @@ class OpTestLPM(unittest.TestCase):
 
         return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
 
-    def is_RMCActive(self, mg_system):
+    def is_RMCActive(self, mg_system, remote_hmc=None):
         '''
         Get the state of the RMC connection for the given parition
         '''
+        hmc = remote_hmc if remote_hmc else self.cv_HMC
         cmd = "diagrmc -m %s --ip %s -p %s --autocorrect" % (
             mg_system, self.cv_HOST.ip, self.cv_HMC.lpar_name)
-        output = self.cv_HMC.ssh.run_command(cmd, timeout=300)
+        output = hmc.ssh.run_command(cmd, timeout=300)
         for line in output:
             if "%s has RMC connection." % self.cv_HOST.ip in line:
                 return True
         return False
 
-    def rmc_service_start(self, mg_system):
+    def rmc_service_start(self, mg_system, remote_hmc=None):
         '''
         Start RMC services which is needed for LPM migration
         '''
         for svc in ["-z", "-A", "-p"]:
             self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl %s' % svc, timeout=120)
-        if not OpTestUtil().wait_for(self.is_RMCActive, timeout=60, args=[mg_system]):
+        if not OpTestUtil().wait_for(self.is_RMCActive, timeout=60, args=[mg_system, remote_hmc]):
             self.cv_HOST.host_run_command('/usr/sbin/rsct/install/bin/recfgct', timeout=120)
             self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl -p', timeout=120)
-            if not OpTestUtil().wait_for(self.is_RMCActive, timeout=300, args=[mg_system]):
+            if not OpTestUtil().wait_for(self.is_RMCActive, timeout=300, args=[mg_system, remote_hmc]):
                 raise OpTestError("RMC connection is down!!")
 
     def lpm_failed_error(self, mg_system):
