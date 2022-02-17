@@ -318,6 +318,34 @@ class HMCUtil():
             except CommandFailed as cf:
                 raise cf
 
+    def cross_hmc_migration(self, src_mg_system=None, dest_mg_system=None,
+                            target_hmc_ip=None, target_hmc_user=None, target_hmc_passwd=None,
+                            remote_hmc=None, options=None, param=""):
+        hmc = remote_hmc if remote_hmc else self
+
+        if src_mg_system == None or dest_mg_system == None:
+            raise OpTestError("Source and Destination Managed System "\
+            "required for Cross HMC LPM")
+        if target_hmc_ip == None or target_hmc_user == None or target_hmc_passwd == None:
+            raise OpTestError("Destination HMC IP, Username, and Password "\
+            "required for Cross HMC LPM")
+        if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name, remote_hmc):
+            raise OpTestError("Lpar %s not found in managed system %s" % (
+            self.lpar_name, src_mg_system))
+
+        self.set_ssh_key_auth(target_hmc_ip, target_hmc_user,
+                              target_hmc_passwd, remote_hmc)
+
+        cmd = "migrlpar -o v -m %s -t %s -p %s -u %s --ip %s" % (
+        src_mg_system, dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip)
+        hmc.ssh.run_command(cmd, timeout=300)
+        
+        cmd = "migrlpar -o m -m %s -t %s -p %s -u %s --ip %s %s" % (src_mg_system,
+        dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip, param)
+        if options:
+            cmd = "%s %s" % (cmd, options)
+        hmc.ssh.run_command(cmd, timeout=300)
+
     def recover_lpar(self, src_mg_system, dest_mg_system, stop_lpm=False):
         if stop_lpm:
             self.ssh.run_command("migrlpar -o s -m %s -p %s" % (
