@@ -305,6 +305,19 @@ class HMCUtil():
                  (self.lpar_name, src_mg_system, dest_mg_system))
         return False
 
+    def set_ssh_key_auth(self, hmc_ip, hmc_user, hmc_passwd, remote_hmc=None):
+        hmc = remote_hmc if remote_hmc else self
+        try:
+            cmd = "mkauthkeys -u %s --ip %s --test" % (hmc_user, hmc_ip)
+            hmc.run_command(cmd, timeout=120)
+        except CommandFailed:
+            try:
+                cmd = "mkauthkeys -u %s --ip %s --passwd %s" % (
+                       hmc_user, hmc_ip, hmc_passwd)
+                hmc.run_command(cmd, timeout=120)
+            except CommandFailed as cf:
+                raise cf
+
     def recover_lpar(self, src_mg_system, dest_mg_system, stop_lpm=False):
         if stop_lpm:
             self.ssh.run_command("migrlpar -o s -m %s -p %s" % (
