@@ -270,8 +270,9 @@ class HMCUtil():
             if count > 60:
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
-    def is_lpar_in_managed_system(self, mg_system=None, lpar_name=None):
-        lpar_list = self.ssh.run_command(
+    def is_lpar_in_managed_system(self, mg_system=None, lpar_name=None, remote_hmc=None):
+        hmc = remote_hmc if remote_hmc else self
+        lpar_list = hmc.ssh.run_command(
                    'lssyscfg -r lpar -m %s -F name' % mg_system)
         if lpar_name in lpar_list:
             log.info("%s lpar found in managed system %s" % (lpar_name, mg_system))
