@@ -1096,6 +1096,16 @@ class OpTestUtil():
                     var[name] = str(value).rstrip()
                     return var[name]
 
+    def get_interface(self, pci_device, cv_HOST):
+        """
+        Get Interface mapped to PCI device
+        """
+        cmd_output = cv_HOST.host_run_command("ls -la /sys/class/net/")
+        pattern = "{}".format(pci_device)
+        matching_lines = [line for line in cmd_output if pattern in line]
+        interface = re.search(r'\benP\w+', str(matching_lines), re.I).group()
+        return interface
+
     def build_prompt(self, prompt=None):
         if prompt:
             built_prompt = prompt
