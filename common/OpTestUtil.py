@@ -1116,6 +1116,16 @@ class OpTestUtil():
         except CommandFailed as cf:
             log.debug("configure ip to interface  CommandFailed={}".format(cf))
 
+    def ping_test(self, interface, peer_IP, cv_HOST):
+        """
+        ping test to peer IP address
+        """
+        try:
+            ping_cmd = "ping -I {} {} -c 5".format(interface, peer_IP)
+            cv_HOST.host_run_command(ping_cmd)
+        except CommandFailed as cf:
+            log.debug("ping check to peerIP failed   CommandFailed={}".format(cf))
+
     def build_prompt(self, prompt=None):
         if prompt:
             built_prompt = prompt
