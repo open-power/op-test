@@ -1106,12 +1106,14 @@ class OpTestUtil():
         interface = re.search(r'\benP\w+', str(matching_lines), re.I).group()
         return interface
 
-    def configure_host_ip(self, interface, ip, cv_HOST):
+    def configure_host_ip(self, interface, ip, netmask, cv_HOST):
         """
         Configure IP address on host
         """
         try:
-            ip_config = "ip addr add {}/24 dev {}".format(ip, interface)
+            flush_interface = "ip addr flush {}".format(interface)
+            cv_HOST.host_run_command(flush_interface)
+            ip_config = "ip addr add {}/{} dev {}".format(ip, netmask, interface)
             cv_HOST.host_run_command(ip_config)
         except CommandFailed as cf:
             log.debug("configure ip to interface  CommandFailed={}".format(cf))
@@ -1123,8 +1125,10 @@ class OpTestUtil():
         try:
             ping_cmd = "ping -I {} {} -c 5".format(interface, peer_IP)
             cv_HOST.host_run_command(ping_cmd)
+            return True
         except CommandFailed as cf:
             log.debug("ping check to peerIP failed   CommandFailed={}".format(cf))
+            return False
 
     def build_prompt(self, prompt=None):
         if prompt:
