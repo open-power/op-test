@@ -1082,6 +1082,20 @@ class OpTestUtil():
             return False
         return True
 
+    def get_pci_type(self, pci_device, cv_HOST):
+        """
+        Get PCI device type
+        """
+        device_file = "cat /sys/class/pci_bus/{}/device/{}/uevent".format(pci_device[0:7], pci_device)
+        device_info = cv_HOST.host_run_command(device_file)
+        var = {}
+        for line in device_info:
+            if "=" in line:
+                name, value = line.split("=")
+                if name == "OF_TYPE":
+                    var[name] = str(value).rstrip()
+                    return var[name]
+
     def build_prompt(self, prompt=None):
         if prompt:
             built_prompt = prompt
