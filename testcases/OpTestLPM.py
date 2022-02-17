@@ -61,6 +61,12 @@ class OpTestLPM(unittest.TestCase):
         self.oslevel = None
         self.slot_num = None
         self.options = None
+        # The following variables needs to be defined in
+        # ~/.op-test-framework.conf
+        self.target_hmc_ip = conf.args.target_hmc_ip
+        self.target_hmc_username = conf.args.target_hmc_username
+        self.target_hmc_password = conf.args.target_hmc_password
+
         if conf.args.lpar_vios and 'remote_lpar_vios' in conf.args:
             self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
             self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
@@ -214,6 +220,19 @@ class OpTestLPM(unittest.TestCase):
         log.debug("Migrating lpar back to original managed system")
         if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options, cmd):
             self.lpm_failed_error(self.dest_mg_sys)
+
+    def cross_hmc_migrate_test(self):
+        self.check_pkg_installation()
+        self.lpm_setup()
+
+        if not self.is_RMCActive(self.src_mg_sys):
+            log.info("RMC service is inactive..!")
+            self.rmc_service_start(self.src_mg_sys)
+
+        self.cv_HMC.cross_hmc_migration(
+                self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
+                self.target_hmc_username, self.target_hmc_password
+        )
 
     def runTest(self):
         self.lpar_migrate_test()
