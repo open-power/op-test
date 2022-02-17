@@ -1106,6 +1106,16 @@ class OpTestUtil():
         interface = re.search(r'\benP\w+', str(matching_lines), re.I).group()
         return interface
 
+    def configure_host_ip(self, interface, ip, cv_HOST):
+        """
+        Configure IP address on host
+        """
+        try:
+            ip_config = "ip addr add {}/24 dev {}".format(ip, interface)
+            cv_HOST.host_run_command(ip_config)
+        except CommandFailed as cf:
+            log.debug("configure ip to interface  CommandFailed={}".format(cf))
+
     def build_prompt(self, prompt=None):
         if prompt:
             built_prompt = prompt
