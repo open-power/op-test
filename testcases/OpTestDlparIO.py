@@ -50,6 +50,10 @@ class OpTestDlparIO(unittest.TestCase):
         self.pci_device = conf.args.pci_device
         self.sriov = conf.args.sriov
         self.num_of_dlpar = int(conf.args.num_of_dlpar)
+        self.util = conf.util
+        self.test_ip = conf.args.test_ip
+        self.peer_ip = conf.args.peer_ip
+        self.netmask = conf.args.netmask
 
         if not self.cv_HMC.is_lpar_in_managed_system(self.mg_system, self.cv_HMC.lpar_name):
             raise OpTestError("Lpar %s not found in managed system %s" % (
@@ -66,6 +70,20 @@ class OpTestDlparIO(unittest.TestCase):
             self.dest_lpar_id =  output[0]
         self.loc_code = self.get_slot_from_sysfs(self.pci_device)
         self.get_slot_hw_details()
+
+    def adapter_check(self):
+        """
+        Check device type , configure ip and perform ping test
+        """
+        self.pci_device_type = self.util.get_pci_type(self.pci_device, self.cv_HOST)
+        log.info("Type of PCI device is \"%s\"", self.pci_device_type)
+        if self.pci_device_type == "network":
+            self_get_interface = self.util.get_interface(self.pci_device, self.cv_HOST)
+            log.info("PCI device mapped to interface: \"%s\"", self_get_interface)
+            self.util.configure_host_ip(self_get_interface, self.test_ip, self.netmask, self.cv_HOST)
+            if self.util.ping_test(self_get_interface, self.peer_ip, self.cv_HOST):
+                return True
+        return False
 
     def check_pkg_installation(self):
         """
@@ -299,6 +317,8 @@ class OpTestDlpar(OpTestDlparIO):
         for _ in range(self.num_of_dlpar):
             self.dlpar_remove()
             self.dlpar_add()
+            if not self.util.wait_for(self.adapter_check, 60, first=10):
+                raise OpTestError("adapter_check failed!!")
             self.dlpar_move()
 
 class OpTestdrmgr_pci(OpTestDlparIO):
@@ -312,6 +332,8 @@ class OpTestdrmgr_pci(OpTestDlparIO):
         for _ in range(self.num_of_dlpar):
             self.do_drmgr_pci('r')
             self.do_drmgr_pci('a')
+            if not self.util.wait_for(self.adapter_check, 60, first=10):
+                raise OpTestError("adapter_check failed!!")
         for _ in range(self.num_of_dlpar):
             self.do_drmgr_pci('R')
 
@@ -325,6 +347,8 @@ class OpTestdrmgr_phb(OpTestDlparIO):
         for _ in range(self.num_of_dlpar):
             self.do_drmgr_phb('r')
             self.do_drmgr_phb('a')
+            if not self.util.wait_for(self.adapter_check, 60, first=10):
+                raise OpTestError("adapter_check failed!!")
 
 def DlparIO_suite():
     s = unittest.TestSuite()
