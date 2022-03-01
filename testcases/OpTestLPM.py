@@ -61,6 +61,7 @@ class OpTestLPM(unittest.TestCase):
         self.oslevel = None
         self.slot_num = None
         self.options = None
+        self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
 
     def check_pkg_installation(self):
         pkg_found = True
@@ -211,7 +212,8 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
-        if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options, cmd):
+        if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
+          cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.src_mg_sys)
 
         if not self.is_RMCActive(self.dest_mg_sys):
@@ -221,7 +223,8 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         if self.slot_num:
             cmd = self.vnic_options('remote')
         log.debug("Migrating lpar back to original managed system")
-        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options, cmd):
+        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options,
+          cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.dest_mg_sys)
 
     def runTest(self):
@@ -250,11 +253,11 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
         self.cv_HMC.cross_hmc_migration(
                 self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
-                self.target_hmc_username, self.target_hmc_password
+                self.target_hmc_username, self.target_hmc_password, timeout=self.lpm_timeout
         )
         
-        log.debug("Waiting for 5 minutes.")
-        time.sleep(300)
+        log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
+        time.sleep(self.lpm_timeout)
 
         remote_hmc = OpTestHMC.OpTestHMC(self.target_hmc_ip,
                                          self.target_hmc_username,
@@ -270,7 +273,7 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
         self.cv_HMC.cross_hmc_migration(
                 self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
-                self.cv_HMC.user, self.cv_HMC.passwd, remote_hmc
+                self.cv_HMC.user, self.cv_HMC.passwd, remote_hmc, timeout=self.lpm_timeout
         )
 
     def runTest(self):
