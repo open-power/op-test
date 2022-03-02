@@ -51,46 +51,17 @@ class OpTestLPM(unittest.TestCase):
         " (in managed system %s) not enabled" % (vios_name, mg_system))
 
     def setUp(self):
-        conf = OpTestConfiguration.conf
-        self.cv_SYSTEM = conf.system()
+        self.conf = OpTestConfiguration.conf
+        self.cv_SYSTEM = self.conf.system()
         self.console = self.cv_SYSTEM.console
-        self.cv_HOST = conf.host()
+        self.cv_HOST = self.conf.host()
         self.cv_HMC = self.cv_SYSTEM.hmc
         self.src_mg_sys = self.cv_HMC.mg_system
         self.dest_mg_sys = self.cv_HMC.tgt_mg_system
         self.oslevel = None
         self.slot_num = None
         self.options = None
-        if conf.args.lpar_vios and 'remote_lpar_vios' in conf.args:
-            self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
-            self.dest_lpar_vios = conf.args.remote_lpar_vios.split(",")
-            for vios_name in self.src_lpar_vios:
-                if not self.cv_HMC.is_msp_enabled(self.src_mg_sys, vios_name):
-                    self.errMsg(vios_name, self.src_mg_sys)
-            for vios_name in self.dest_lpar_vios:
-                if not self.cv_HMC.is_msp_enabled(self.dest_mg_sys, vios_name):
-                    self.errMsg(vios_name, self.dest_mg_sys)
-        if 'slot_num' in conf.args:
-            self.slot_num = conf.args.slot_num
-        if self.slot_num:
-            self.bandwidth = conf.args.bandwidth
-            self.options = conf.args.options
-            self.adapters = conf.args.adapters.split(",")
-            self.target_adapters = conf.args.target_adapters.split(",")
-            self.ports = conf.args.ports.split(",")
-            self.target_ports = conf.args.target_ports.split(",")
-            self.vios_id = []
-            for vios_name in self.src_lpar_vios:
-                self.vios_id.append(self.cv_HMC.get_lpar_id(self.src_mg_sys, vios_name))
-            self.target_vios_id = []
-            for vios_name in self.dest_lpar_vios:
-                self.target_vios_id.append(self.cv_HMC.get_lpar_id(self.dest_mg_sys, vios_name))
-            self.adapter_id = []
-            for adapter in self.adapters:
-                self.adapter_id.append(self.cv_HMC.get_adapter_id(self.src_mg_sys, adapter))
-            self.target_adapter_id = []
-            for adapter in self.target_adapters:
-                self.target_adapter_id.append(self.cv_HMC.get_adapter_id(self.dest_mg_sys, adapter))
+        self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
 
     def check_pkg_installation(self):
         pkg_found = True
@@ -126,6 +97,77 @@ class OpTestLPM(unittest.TestCase):
             if "inoperative" in str(rc):
                 raise OpTestError("LPM cannot continue as some of rsct services are not active")
 
+    def is_RMCActive(self, mg_system, remote_hmc=None):
+        '''
+        Get the state of the RMC connection for the given parition
+        '''
+        hmc = remote_hmc if remote_hmc else self.cv_HMC
+        cmd = "diagrmc -m %s --ip %s -p %s --autocorrect" % (
+            mg_system, self.cv_HOST.ip, self.cv_HMC.lpar_name)
+        output = hmc.ssh.run_command(cmd, timeout=300)
+        for line in output:
+            if "%s has RMC connection." % self.cv_HOST.ip in line:
+                return True
+        return False
+
+    def rmc_service_start(self, mg_system, remote_hmc=None):
+        '''
+        Start RMC services which is needed for LPM migration
+        '''
+        for svc in ["-z", "-A", "-p"]:
+            self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl %s' % svc, timeout=120)
+        if not OpTestUtil().wait_for(self.is_RMCActive, timeout=60, args=[mg_system, remote_hmc]):
+            self.cv_HOST.host_run_command('/usr/sbin/rsct/install/bin/recfgct', timeout=120)
+            self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl -p', timeout=120)
+            if not OpTestUtil().wait_for(self.is_RMCActive, timeout=300, args=[mg_system, remote_hmc]):
+                raise OpTestError("RMC connection is down!!")
+
+    def lpm_failed_error(self, mg_system):
+        if self.cv_HMC.is_lpar_in_managed_system(mg_system, self.cv_HMC.lpar_name):
+            cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F state" % (
+                   mg_system, self.cv_HMC.lpar_name)
+            lpar_state = self.cv_HMC.ssh.run_command(cmd)[0]
+            raise OpTestError("LPAR migration failed. LPAR is in %s state." % lpar_state)
+        raise OpTestError("LPAR migration failed.")
+
+
+class OpTestLPM_LocalHMC(OpTestLPM):
+
+
+    def setUp(self):
+        super(OpTestLPM_LocalHMC, self).setUp()
+
+        if self.conf.args.lpar_vios and 'remote_lpar_vios' in self.conf.args:
+            self.src_lpar_vios = self.cv_HMC.lpar_vios.split(",")
+            self.dest_lpar_vios = self.conf.args.remote_lpar_vios.split(",")
+            for vios_name in self.src_lpar_vios:
+                if not self.cv_HMC.is_msp_enabled(self.src_mg_sys, vios_name):
+                    self.errMsg(vios_name, self.src_mg_sys)
+            for vios_name in self.dest_lpar_vios:
+                if not self.cv_HMC.is_msp_enabled(self.dest_mg_sys, vios_name):
+                    self.errMsg(vios_name, self.dest_mg_sys)
+        if 'slot_num' in self.conf.args:
+            self.slot_num = self.conf.args.slot_num
+        if self.slot_num:
+            self.bandwidth = self.conf.args.bandwidth
+            self.options = self.conf.args.options
+            self.adapters = self.conf.args.adapters.split(",")
+            self.target_adapters = self.conf.args.target_adapters.split(",")
+            self.ports = self.conf.args.ports.split(",")
+            self.target_ports = self.conf.args.target_ports.split(",")
+            self.vios_id = []
+            for vios_name in self.src_lpar_vios:
+                self.vios_id.append(self.cv_HMC.get_lpar_id(self.src_mg_sys, vios_name))
+            self.target_vios_id = []
+            for vios_name in self.dest_lpar_vios:
+                self.target_vios_id.append(self.cv_HMC.get_lpar_id(self.dest_mg_sys, vios_name))
+            self.adapter_id = []
+            for adapter in self.adapters:
+                self.adapter_id.append(self.cv_HMC.get_adapter_id(self.src_mg_sys, adapter))
+            self.target_adapter_id = []
+            for adapter in self.target_adapters:
+                self.target_adapter_id.append(self.cv_HMC.get_adapter_id(self.dest_mg_sys, adapter))
+
     def vnic_options(self, remote=''):
         '''
         Form the vnic_mappings param based on the adapters' details
@@ -159,30 +201,6 @@ class OpTestLPM(unittest.TestCase):
 
         return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
 
-    def is_RMCActive(self, mg_system):
-        '''
-        Get the state of the RMC connection for the given parition
-        '''
-        cmd = "diagrmc -m %s --ip %s -p %s --autocorrect" % (
-            mg_system, self.cv_HOST.ip, self.cv_HMC.lpar_name)
-        output = self.cv_HMC.ssh.run_command(cmd, timeout=300)
-        for line in output:
-            if "%s has RMC connection." % self.cv_HOST.ip in line:
-                return True
-        return False
-
-    def rmc_service_start(self, mg_system):
-        '''
-        Start RMC services which is needed for LPM migration
-        '''
-        for svc in ["-z", "-A", "-p"]:
-            self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl %s' % svc, timeout=120)
-        if not OpTestUtil().wait_for(self.is_RMCActive, timeout=60, args=[mg_system]):
-            self.cv_HOST.host_run_command('/usr/sbin/rsct/install/bin/recfgct', timeout=120)
-            self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl -p', timeout=120)
-            if not OpTestUtil().wait_for(self.is_RMCActive, timeout=300, args=[mg_system]):
-                raise OpTestError("RMC connection is down!!")
-
     def lpar_migrate_test(self):
         self.check_pkg_installation()
         self.lpm_setup()
@@ -194,11 +212,9 @@ class OpTestLPM(unittest.TestCase):
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
-        if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options, cmd):
-            raise OpTestError("Lpar Migration failed")
-
-        log.debug("Wait for 5 minutes before migrating lpar back")
-        time.sleep(300)  # delay of 5 mins after migration.
+        if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
+          cmd, timeout=self.lpm_timeout):
+            self.lpm_failed_error(self.src_mg_sys)
 
         if not self.is_RMCActive(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
@@ -207,18 +223,65 @@ class OpTestLPM(unittest.TestCase):
         if self.slot_num:
             cmd = self.vnic_options('remote')
         log.debug("Migrating lpar back to original managed system")
-        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys,  self.src_mg_sys, self.options, cmd):
-            raise OpTestError("Migrating lpar back failed")
+        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options,
+          cmd, timeout=self.lpm_timeout):
+            self.lpm_failed_error(self.dest_mg_sys)
 
     def runTest(self):
         self.lpar_migrate_test()
 
-    def tearDown(self):
-        if self.firewall_status:
-            self.cv_HOST.host_run_command("systemctl start firewalld.service")
+
+class OpTestLPM_CrossHMC(OpTestLPM):
+
+
+    def setUp(self):
+        super(OpTestLPM_CrossHMC, self).setUp()
+
+        # The following variables needs to be defined in
+        # ~/.op-test-framework.conf
+        self.target_hmc_ip = self.conf.args.target_hmc_ip
+        self.target_hmc_username = self.conf.args.target_hmc_username
+        self.target_hmc_password = self.conf.args.target_hmc_password
+
+    def cross_hmc_migrate_test(self):
+        self.check_pkg_installation()
+        self.lpm_setup()
+
+        if not self.is_RMCActive(self.src_mg_sys):
+            log.info("RMC service is inactive..!")
+            self.rmc_service_start(self.src_mg_sys)
+
+        self.cv_HMC.cross_hmc_migration(
+                self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
+                self.target_hmc_username, self.target_hmc_password, timeout=self.lpm_timeout
+        )
+        
+        log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
+        time.sleep(self.lpm_timeout)
+
+        remote_hmc = OpTestHMC.OpTestHMC(self.target_hmc_ip,
+                                         self.target_hmc_username,
+                                         self.target_hmc_password,
+                                         managed_system=self.dest_mg_sys,
+                                         lpar_name=self.cv_HMC.lpar_name,
+                                         logfile=self.cv_HMC.logfile)
+        remote_hmc.set_system(self.cv_SYSTEM)
+
+        if not self.is_RMCActive(self.dest_mg_sys, remote_hmc):
+            log.info("RMC service is inactive..!")
+            self.rmc_service_start(self.dest_mg_sys, remote_hmc)
+
+        self.cv_HMC.cross_hmc_migration(
+                self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
+                self.cv_HMC.user, self.cv_HMC.passwd, remote_hmc, timeout=self.lpm_timeout
+        )
+
+    def runTest(self):
+        self.cross_hmc_migrate_test()
 
 
 def LPM_suite():
     s = unittest.TestSuite()
-    s.addTest(OpTestLPM())
+    s.addTest(OpTestLPM_LocalHMC())
+    s.addTest(OpTestLPM_CrossHMC())
     return s

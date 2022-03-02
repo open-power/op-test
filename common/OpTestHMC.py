@@ -270,15 +270,16 @@ class HMCUtil():
             if count > 60:
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
-    def is_lpar_in_managed_system(self, mg_system=None, lpar_name=None):
-        lpar_list = self.ssh.run_command(
+    def is_lpar_in_managed_system(self, mg_system=None, lpar_name=None, remote_hmc=None):
+        hmc = remote_hmc if remote_hmc else self
+        lpar_list = hmc.ssh.run_command(
                    'lssyscfg -r lpar -m %s -F name' % mg_system)
         if lpar_name in lpar_list:
             log.info("%s lpar found in managed system %s" % (lpar_name, mg_system))
             return True
         return False
 
-    def migrate_lpar(self, src_mg_system=None, dest_mg_system=None, options=None, param=""):
+    def migrate_lpar(self, src_mg_system=None, dest_mg_system=None, options=None, param="", timeout=300):
         if src_mg_system == None or dest_mg_system == None:
             raise OpTestError("Source and Destination Managed System required for LPM")
         if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name):
@@ -288,14 +289,74 @@ class HMCUtil():
         cmd = 'migrlpar -o m -m %s -t %s -p %s %s' % (src_mg_system, dest_mg_system, self.lpar_name, param)
         if options:
             cmd = "%s %s" % (cmd, options)
-        self.ssh.run_command(cmd, timeout=300)
+        self.ssh.run_command(cmd, timeout=timeout)
+        log.debug("Waiting for %.2f minutes." % (timeout/60))
+        time.sleep(timeout)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
-            log.info("Migration of lpar %s from %s to %s is successfull" %
-                     (self.lpar_name, src_mg_system, dest_mg_system))
-            self.mg_system = dest_mg_system
-            return True
+            cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F state" % (
+                   dest_mg_system, self.lpar_name)
+            lpar_state = self.ssh.run_command(cmd)[0]
+            if lpar_state not in ['Migrating - Running', 'Migrating - Not Activated']:
+                log.info("Migration of lpar %s from %s to %s is successfull" %
+                         (self.lpar_name, src_mg_system, dest_mg_system))
+                self.mg_system = dest_mg_system
+                return True
+            self.recover_lpar(src_mg_system, dest_mg_system, stop_lpm=True, timeout=timeout)
         log.info("Migration of lpar %s from %s to %s failed" %
                  (self.lpar_name, src_mg_system, dest_mg_system))
+        return False
+
+    def set_ssh_key_auth(self, hmc_ip, hmc_user, hmc_passwd, remote_hmc=None):
+        hmc = remote_hmc if remote_hmc else self
+        try:
+            cmd = "mkauthkeys -u %s --ip %s --test" % (hmc_user, hmc_ip)
+            hmc.run_command(cmd, timeout=120)
+        except CommandFailed:
+            try:
+                cmd = "mkauthkeys -u %s --ip %s --passwd %s" % (
+                       hmc_user, hmc_ip, hmc_passwd)
+                hmc.run_command(cmd, timeout=120)
+            except CommandFailed as cf:
+                raise cf
+
+    def cross_hmc_migration(self, src_mg_system=None, dest_mg_system=None,
+                            target_hmc_ip=None, target_hmc_user=None, target_hmc_passwd=None,
+                            remote_hmc=None, options=None, param="", timeout=300):
+        hmc = remote_hmc if remote_hmc else self
+
+        if src_mg_system == None or dest_mg_system == None:
+            raise OpTestError("Source and Destination Managed System "\
+            "required for Cross HMC LPM")
+        if target_hmc_ip == None or target_hmc_user == None or target_hmc_passwd == None:
+            raise OpTestError("Destination HMC IP, Username, and Password "\
+            "required for Cross HMC LPM")
+        if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name, remote_hmc):
+            raise OpTestError("Lpar %s not found in managed system %s" % (
+            self.lpar_name, src_mg_system))
+
+        self.set_ssh_key_auth(target_hmc_ip, target_hmc_user,
+                              target_hmc_passwd, remote_hmc)
+
+        cmd = "migrlpar -o v -m %s -t %s -p %s -u %s --ip %s" % (
+        src_mg_system, dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip)
+        hmc.ssh.run_command(cmd, timeout=timeout)
+        
+        cmd = "migrlpar -o m -m %s -t %s -p %s -u %s --ip %s %s" % (src_mg_system,
+        dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip, param)
+        if options:
+            cmd = "%s %s" % (cmd, options)
+        hmc.ssh.run_command(cmd, timeout=timeout)
+
+    def recover_lpar(self, src_mg_system, dest_mg_system, stop_lpm=False, timeout=300):
+        if stop_lpm:
+            self.ssh.run_command("migrlpar -o s -m %s -p %s" % (
+                src_mg_system, self.lpar_name), timeout=timeout)
+        self.ssh.run_command("migrlpar -o r -m %s -p %s" % (
+                src_mg_system, self.lpar_name), timeout=timeout)
+        if not self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
+            log.info("LPAR recovered at managed system %s" % src_mg_system)
+            return True
+        log.info("LPAR failed to recover at managed system %s" % src_mg_system)
         return False
 
     def get_adapter_id(self, mg_system, loc_code):
