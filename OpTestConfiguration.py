@@ -245,6 +245,7 @@ def get_parser():
     bmcgroup.add_argument("--bmc-password", help="SSH password for BMC")
     bmcgroup.add_argument("--bmc-usernameipmi", help="IPMI username for BMC")
     bmcgroup.add_argument("--bmc-passwordipmi", help="IPMI password for BMC")
+    bmcgroup.add_argument("--bmc-ntp-server", help="NTP Server for OpenBMC")
     bmcgroup.add_argument("--bmc-prompt", default="#",
                           help="Prompt for BMC ssh session")
     bmcgroup.add_argument("--smc-presshipmicmd")
@@ -884,6 +885,22 @@ class OpTestConfiguration():
                     conf=self,
                 )
                 bmc.set_system(self.op_system)
+                try:
+                    if self.args.bmc_ntp_server in [None, ""]:
+                        self.args.bmc_ntp_server = "216.239.35.4"
+                    bmc.run_command("busctl set-property xyz.openbmc_project.Network "
+                                    "/xyz/openbmc_project/network/eth0 "
+                                    "xyz.openbmc_project.Network.EthernetInterface NTPServers as 1 {}"
+                                    .format(self.args.bmc_ntp_server), retry=10)
+                    OpTestLogger.optest_logger_glob.optest_logger.debug("Set Network for OpenBMC NTP server")
+                    bmc.run_command("busctl set-property xyz.openbmc_project.Settings "
+                                    "/xyz/openbmc_project/time/sync_method "
+                                    "xyz.openbmc_project.Time.Synchronization TimeSyncMethod s "
+                                    "xyz.openbmc_project.Time.Synchronization.Method.NTP", retry=10)
+                    OpTestLogger.optest_logger_glob.optest_logger.debug("Set TimeSync for OpenBMC NTP server")
+                except Exception as e:
+                    OpTestLogger.optest_logger_glob.optest_logger.debug("Problem encountered with setting OpenBMC NTP server,"
+                        "Exception {}".format(e))
             elif self.args.bmc_type in ['qemu']:
                 print((repr(self.args)))
                 bmc = OpTestQemu(conf=self,
