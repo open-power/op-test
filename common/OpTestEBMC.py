@@ -20,7 +20,10 @@
 
 import time
 import requests
+import json
 
+from .OpTestSSH import OpTestSSH
+from .OpTestBMC import OpTestBMC
 from .Exceptions import HTTPCheck
 from .OpTestConstants import OpTestConstants as BMC_CONST
 
@@ -122,3 +125,54 @@ class EBMCHostManagement():
                                key=['Status', 'State'],
                                minutes=timeout)
         return status
+
+
+class OpTestEBMC():
+
+    def __init__(self, ip=None, username=None, password=None, ipmi=None,
+                 rest_api=None, hmc=None, logfile=sys.stdout,
+                 check_ssh_keys=False, known_hosts_file=None):
+        self.hostname = ip
+        self.username = username
+        self.password = password
+        self.ipmi = ipmi
+        self.hmc = hmc
+        self.rest_api = rest_api
+        self.has_vpnor = None
+        self.logfile = logfile
+        if not self.hmc:
+            self.console = OpTestSSH(ip, username, password, port=2200,
+                                     logfile=self.logfile, check_ssh_keys=check_ssh_keys,
+                                     known_hosts_file=known_hosts_file)
+
+            self.bmc = OpTestBMC(ip=self.hostname,
+                                 username=self.username,
+                                 password=self.password,
+                                 logfile=self.logfile,
+                                 check_ssh_keys=check_ssh_keys,
+                                 known_hosts_file=known_hosts_file)
+
+    def set_system(self, system):
+        self.console.set_system(system)
+        self.bmc.set_system(system)
+
+    def bmc_host(self):
+        return self.hostname
+
+    def get_ipmi(self):
+        return self.ipmi
+
+    def get_hmc(self):
+        return self.hmc
+
+    def get_host_console(self):
+        if self.hmc:
+            return self.hmc.get_host_console()
+        else:
+            return self.console
+
+    def get_rest_api(self):
+        return self.rest_api
+
+    def run_command(self, command, timeout=10, retry=0):
+        return self.bmc.run_command(command, timeout, retry)
