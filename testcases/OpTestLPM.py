@@ -207,6 +207,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
 
     def lpar_migrate_test(self):
+        self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
 
@@ -257,6 +258,7 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         self.target_hmc_password = self.conf.args.target_hmc_password
 
     def cross_hmc_migrate_test(self):
+        self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
 

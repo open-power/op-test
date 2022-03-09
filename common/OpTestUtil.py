@@ -1913,6 +1913,10 @@ class OpTestUtil():
             time.sleep(step)
         return None
 
+    def clear_dmesg(self):
+        host = self.conf.host()
+        host.host_run_command("dmesg -C")
+
     def gather_os_logs(self, list_of_files=[], list_of_commands=[], output_dirname=None):
         host = self.conf.host()
         if not output_dirname:
