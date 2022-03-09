@@ -99,6 +99,15 @@ class OpTestLPM(unittest.TestCase):
             if "inoperative" in str(rc):
                 raise OpTestError("LPM cannot continue as some of rsct services are not active")
 
+    def check_dmesg_errors(self, output_file=None):
+        skip_errors = ['uevent: failed to send synthetic uevent',
+                       'failed to send uevent',
+                       'registration failed',
+                       'Power-on or device reset occurred',
+                       'mobility: Failed lookup: phandle']
+
+        self.util.collect_errors_by_level(output_file=output_file, skip_errors=skip_errors)
+
     def is_RMCActive(self, mg_system, remote_hmc=None):
         '''
         Get the state of the RMC connection for the given parition
@@ -225,6 +234,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             self.lpm_failed_error(self.src_mg_sys)
 
         self.util.gather_os_logs(output_dirname=os.path.join("TestLogs", "PostForwardLPM"))
+        self.check_dmesg_errors(output_file="PostForwardLPM")
 
         if not self.is_RMCActive(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
@@ -238,6 +248,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             self.lpm_failed_error(self.dest_mg_sys)
 
         self.util.gather_os_logs(output_dirname=os.path.join("TestLogs", "PostBackwardLPM"))
+        self.check_dmesg_errors(output_file="PostBackwardLPM")
 
     def runTest(self):
         self.util.gather_os_logs(output_dirname="PreTestLogs")
@@ -272,11 +283,12 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
                 self.target_hmc_username, self.target_hmc_password, timeout=self.lpm_timeout
         )
-        
+
         log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
         time.sleep(self.lpm_timeout)
 
         self.util.gather_os_logs(output_dirname=os.path.join("TestLogs", "PostForwardLPM"))
+        self.check_dmesg_errors(output_file="PostForwardLPM")
 
         remote_hmc = OpTestHMC.OpTestHMC(self.target_hmc_ip,
                                          self.target_hmc_username,
@@ -296,11 +308,13 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         )
 
         self.util.gather_os_logs(output_dirname=os.path.join("TestLogs", "PostBackwardLPM"))
+        self.check_dmesg_errors(output_file="PostBackwardLPM")
 
     def runTest(self):
         self.util.gather_os_logs(output_dirname="PreTestLogs")
         self.cross_hmc_migrate_test()
         self.util.gather_os_logs(output_dirname="PostTestLogs")
+
 
 def LPM_suite():
     s = unittest.TestSuite()

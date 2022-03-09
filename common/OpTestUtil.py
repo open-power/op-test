@@ -1917,6 +1917,66 @@ class OpTestUtil():
         host = self.conf.host()
         host.host_run_command("dmesg -C")
 
+    def collect_errors_by_level(self, output_file=None, level_check=5, skip_errors=None):
+        """
+        Verify dmesg having severity level of OS issue(s).
+
+        :param output_file: The file used to save dmesg
+        :type output_file: str
+        :param level_check: level of severity of issues to be checked
+                            1 - emerg
+                            2 - emerg,alert
+                            3 - emerg,alert,crit
+                            4 - emerg,alert,crit,err
+                            5 - emerg,alert,crit,err,warn
+        :type level_check: int
+        :skip_errors: list of dmesg error messages which want skip
+        :type skip_errors: list
+        """
+        host = self.conf.host()
+        dmsg_log = out = ""
+        cmd = "dmesg -T -l %s|grep ." % ",".join(map(str, range(0, int(level_check))))
+        try:
+            out = '\n'.join(host.host_run_command(cmd, timeout=30))
+        except CommandFailed as cmd_failed:
+            if cmd_failed.exitcode == 1 and len(cmd_failed.output) == 0:
+                pass
+            else:
+                raise cmd_failed
+        dmsg_log = self.skip_dmesg_messages(out, skip_errors) if skip_errors else out
+        if dmsg_log:
+            if output_file:
+                output_dir = os.path.join(host.results_dir, "DmesgErrorLogs")
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                output_file = os.path.join(output_dir, output_file)
+                with open(output_file, "w+", encoding='utf-8') as log_f:
+                    log_f.write(dmsg_log)
+                err = "Found failures in dmesg. Please check dmesg log %s." % (output_file)
+            else:
+                err = "Found failures in dmesg. Please check debug log."
+                log.debug(dmsg_log)
+            self.gather_os_logs(output_dirname="TestFailLogs")
+            raise OpTestError("Test failed. {}".format(err))
+
+    def skip_dmesg_messages(self, dmesg, skip_messages):
+        """
+        Remove some messages from a dmesg buffer.
+
+        This method will remove some lines in a dmesg buffer if some strings are
+        present. Returning the same buffer, but with less lines (in case of match).
+
+        :dmesg: dmesg messages from which filter should be applied. This
+                must be a decoded output buffer with new lines.
+        :type dmesg: str
+        :skip_messages: list of strings to be removed
+        :type skip_messages: list
+        """
+        def filter_strings(line):
+            return not any([string in line for string in skip_messages])
+
+        return '\n'.join(filter(None, filter(filter_strings, dmesg.splitlines())))
+
     def gather_os_logs(self, list_of_files=[], list_of_commands=[], output_dirname=None):
         host = self.conf.host()
         if not output_dirname:
