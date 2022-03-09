@@ -1913,6 +1913,48 @@ class OpTestUtil():
             time.sleep(step)
         return None
 
+    def gather_os_logs(self, list_of_files=[], list_of_commands=[], output_dirname=None):
+        host = self.conf.host()
+        if not output_dirname:
+            output_dirname = "Logs_%s" % (time.asctime(time.localtime())).replace(" ", "_")
+        output_dir = os.path.join(host.results_dir, output_dirname)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        self.__gather_files_log(list_of_files, output_dir)
+        self.__gather_command_log(list_of_commands, output_dir)
+
+    def __gather_files_log(self, list_of_files=[], output_dir=None):
+        host = self.conf.host()
+        default_files = ['/var/log/messages', '/var/log/boot.log']
+        list_of_files.extend(default_files)
+
+        try:
+            host.host_run_command("mkdir -p fileLogs")
+            for file in set(list_of_files):
+                fn = "%s.log" % '-'.join(file.strip(os.path.sep).split(os.path.sep))
+                host.host_run_command("cp %s fileLogs/%s" % (file, fn))
+            host.copy_files_from_host(sourcepath=output_dir, destpath="fileLogs")   
+            host.host_run_command("rm -rf fileLogs")
+            return True
+        except CommandFailed as cmd_failed:
+            raise cmd_failed
+
+    def __gather_command_log(self, list_of_commands=[], output_dir=None):
+        host = self.conf.host()
+        default_commands = ['dmesg', 'journalctl -a']
+        list_of_commands.extend(default_commands)
+
+        try:
+            host.host_run_command("mkdir -p cmdLogs")
+            for cmd in set(list_of_commands):
+                fn = "%s.log" % '-'.join((re.sub(r'[^a-zA-Z0-9]', ' ', cmd)).split())
+                host.host_run_command("%s > cmdLogs/%s" % (cmd, fn))
+            host.copy_files_from_host(sourcepath=output_dir, destpath="cmdLogs")   
+            host.host_run_command("rm -rf cmdLogs")
+            return True
+        except CommandFailed as cmd_failed:
+            raise cmd_failed
+
 
 class Server(object):
     '''
