@@ -33,6 +33,7 @@ from common.OpTestSSH import OpTestSSH
 from common.OpTestUtil import OpTestUtil
 from common.Exceptions import CommandFailed
 from common import OPexpect
+from common import OpTestSOL
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
 
@@ -289,7 +290,12 @@ class HMCUtil():
         cmd = 'migrlpar -o m -m %s -t %s -p %s %s' % (src_mg_system, dest_mg_system, self.lpar_name, param)
         if options:
             cmd = "%s %s" % (cmd, options)
+
+        thread1 = OpTestSOL.OpSOLMonitorThread(1, "console")
+        thread1.start()
         self.ssh.run_command(cmd, timeout=timeout)
+        thread1.console_terminate()
+
         log.debug("Waiting for %.2f minutes." % (timeout/60))
         time.sleep(timeout)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
@@ -300,6 +306,8 @@ class HMCUtil():
                 log.info("Migration of lpar %s from %s to %s is successfull" %
                          (self.lpar_name, src_mg_system, dest_mg_system))
                 self.mg_system = dest_mg_system
+                self.ssh.connect() #used self.ssh.get_console() also
+                time.sleep(30)
                 return True
             self.recover_lpar(src_mg_system, dest_mg_system, stop_lpm=True, timeout=timeout)
         log.info("Migration of lpar %s from %s to %s failed" %

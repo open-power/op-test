@@ -34,9 +34,9 @@ import pexpect
 import os
 
 import OpTestConfiguration
-from .OpTestSystem import OpSystemState
+from . import OpTestSystem
 from .Exceptions import CommandFailed
-from .OpTestIPMI import IPMIConsoleState
+from . import OpTestIPMI
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -57,7 +57,7 @@ class OpSOLMonitorThread(threading.Thread):
         self.execution_time = execution_time
         conf = OpTestConfiguration.conf
         self.system = conf.system()
-        self.system.goto_state(OpSystemState.OS)
+        self.system.goto_state(OpTestSystem.OpSystemState.OS)
         logfile = os.path.join(conf.output, "console.log")
         self.sol_logger(logfile)
         self.c = self.system.console.get_console(logger=self.logger)
