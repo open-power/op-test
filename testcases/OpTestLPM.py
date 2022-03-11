@@ -216,6 +216,16 @@ class OpTestLPM_LocalHMC(OpTestLPM):
           cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.src_mg_sys)
 
+        new_hmc = OpTestHMC.OpTestHMC(self.cv_HMC.hmc_ip,
+                                      self.cv_HMC.user,
+                                      self.cv_HMC.passwd,
+                                      managed_system=self.dest_mg_sys,
+                                      lpar_name=self.cv_HMC.lpar_name,
+                                      logfile=self.cv_HMC.logfile)
+        new_hmc.set_system(self.cv_SYSTEM)
+        new_hmc.ssh.connect() #used new_hmc.ssh.get_console() also
+        time.sleep(30)
+
         if not self.is_RMCActive(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
             self.rmc_service_start(self.dest_mg_sys)
