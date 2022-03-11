@@ -38,6 +38,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil
+from common.OpTestSOL import OpSOLMonitorThread
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -209,6 +210,9 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             log.info("RMC service is inactive..!")
             self.rmc_service_start(self.src_mg_sys)
 
+        thread1 = OpSOLMonitorThread(1, "console")
+        thread1.start()
+
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
@@ -216,9 +220,14 @@ class OpTestLPM_LocalHMC(OpTestLPM):
           cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.src_mg_sys)
 
+        thread1.console_terminate()
+
         if not self.is_RMCActive(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
             self.rmc_service_start(self.dest_mg_sys)
+
+        thread2 = OpSOLMonitorThread(2, "console")
+        thread2.start()
 
         if self.slot_num:
             cmd = self.vnic_options('remote')
@@ -226,6 +235,8 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options,
           cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.dest_mg_sys)
+
+        thread2.console_terminate()
 
     def runTest(self):
         self.lpar_migrate_test()
