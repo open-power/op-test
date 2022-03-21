@@ -11,6 +11,8 @@ The end goal is to have a collection of tests that can be run against any
 OpenPower system to validate it's function. The tests are automation/jenkins
 ready.
 
+THIS UPDATE IS ONLY A DUMMY ONE.
+
 For full documentation, visit http://open-power.github.io/op-test/
 
 ### Quick Start ###
