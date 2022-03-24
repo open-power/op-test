@@ -53,6 +53,7 @@ from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
 from .Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
 from .Exceptions import HostLocker, AES, ParameterCheck, HTTPCheck, UnexpectedCase
+from .OpTestVIOS import OpTestVIOS
 
 import logging
 import OpTestLogger
@@ -2019,10 +2020,23 @@ class OpTestUtil():
         except CommandFailed as cmd_failed:
             raise cmd_failed
 
+    def gather_vios_logs(self, vios_ip, vios_username, vios_password, list_of_commands=[], output_dir=None):
+        vios = OpTestVIOS(vios_ip, vios_username, vios_password, conf=self.conf)
+        vios.set_system(self.conf.system())
+        vios.gather_logs(output_dir=output_dir)
+
     def gather_hmc_logs(self, list_of_files=[], list_of_commands=[],
                         remote_hmc=None, hmc_hscpe_password=None, output_dir=None):
         hmc = self.conf.hmc()
         hmc.gather_logs(list_of_files, list_of_commands, hmc_hscpe_password, remote_hmc, output_dir)
+
+    def gather_os_vios_hmc_logs(self, vios_ip, vios_username, vios_password, list_of_vios_commands=[],
+                                list_of_os_files=[], list_of_os_commands=[],
+                                list_of_hmc_files=[], list_of_hmc_commands=[], remote_hmc=None,
+                                hmc_hscpe_password=None, output_dir=None):
+        self.gather_os_logs(list_of_os_files, list_of_os_commands, output_dir=output_dir)
+        self.gather_vios_logs(vios_ip, vios_username, vios_password, output_dir=output_dir)
+        self.gather_hmc_logs(list_of_hmc_files, list_of_hmc_commands, remote_hmc, hmc_hscpe_password, output_dir)
 
 
 class Server(object):
