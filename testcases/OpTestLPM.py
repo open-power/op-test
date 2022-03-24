@@ -31,6 +31,7 @@ from source to destination managed system
 
 import unittest
 import time
+import os
 import OpTestConfiguration
 import OpTestLogger
 from common import OpTestHMC
@@ -63,6 +64,12 @@ class OpTestLPM(unittest.TestCase):
         self.options = None
         self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
         self.util = OpTestUtil(OpTestConfiguration.conf)
+        if 'hmc_hscpe_password' in self.conf.args:
+            self.hmc_hscpe_password = self.conf.args.hmc_hscpe_password
+        if all(v in self.conf.args for v in ['vios_ip', 'vios_username', 'vios_password']):
+            self.vios_ip = self.conf.args.vios_ip
+            self.vios_username = self.conf.args.vios_username
+            self.vios_password = self.conf.args.vios_password
 
     def check_pkg_installation(self):
         pkg_found = True
@@ -130,6 +137,7 @@ class OpTestLPM(unittest.TestCase):
             self.cv_HOST.host_run_command('/usr/sbin/rsct/install/bin/recfgct', timeout=120)
             self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl -p', timeout=120)
             if not self.util.wait_for(self.is_RMCActive, timeout=300, args=[mg_system, remote_hmc]):
+                self.util.gather_os_logs(output_dir=os.path.join("logs", "testFail"))
                 raise OpTestError("RMC connection is down!!")
 
     def lpm_failed_error(self, mg_system):
@@ -137,7 +145,9 @@ class OpTestLPM(unittest.TestCase):
             cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F state" % (
                    mg_system, self.cv_HMC.lpar_name)
             lpar_state = self.cv_HMC.ssh.run_command(cmd)[0]
+            self.util.gather_os_logs(output_dir=os.path.join("logs", "testFail"))
             raise OpTestError("LPAR migration failed. LPAR is in %s state." % lpar_state)
+        self.util.gather_os_logs(output_dir=os.path.join("logs", "testFail"))
         raise OpTestError("LPAR migration failed.")
 
 
@@ -212,6 +222,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
 
     def lpar_migrate_test(self):
+        self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
 
@@ -219,12 +230,22 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             log.info("RMC service is inactive..!")
             self.rmc_service_start(self.src_mg_sys)
 
+        self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                          self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                          output_dir=os.path.join("logs", "test", "preForwardLPM"))
+        self.check_dmesg_errors(output_file="preForwardLPM")
+
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
         if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
           cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.src_mg_sys)
+
+        self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                          self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                          output_dir=os.path.join("logs", "test", "postForwardLPM"))
+        self.check_dmesg_errors(output_file="postForwardLPM")
 
         if not self.is_RMCActive(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
@@ -237,8 +258,21 @@ class OpTestLPM_LocalHMC(OpTestLPM):
           cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.dest_mg_sys)
 
+        self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                          self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                          output_dir=os.path.join("logs", "test", "postBackwardLPM"))
+        self.check_dmesg_errors(output_file="postBackwardLPM")
+
     def runTest(self):
+        if self.conf.args.collect_pre_post_test_logs:
+            self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                              self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                              output_dir=os.path.join("logs", "pre"))
         self.lpar_migrate_test()
+        if self.conf.args.collect_pre_post_test_logs:
+            self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                              self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                              output_dir=os.path.join("logs", "post"))
 
 
 class OpTestLPM_CrossHMC(OpTestLPM):
@@ -252,14 +286,27 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         self.target_hmc_ip = self.conf.args.target_hmc_ip
         self.target_hmc_username = self.conf.args.target_hmc_username
         self.target_hmc_password = self.conf.args.target_hmc_password
+        if 'remote_hmc_hscpe_password' in self.conf.args:
+            self.remote_hmc_hscpe_password = self.conf.args.remote_hmc_hscpe_password
+        if all(v in self.conf.args for v in ['remote_vios_ip', 'remote_vios_username',
+                                             'remote_vios_password']):
+            self.remote_vios_ip = self.conf.args.remote_vios_ip
+            self.remote_vios_username = self.conf.args.remote_vios_username
+            self.remote_vios_password = self.conf.args.remote_vios_password
 
     def cross_hmc_migrate_test(self):
+        self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
 
         if not self.is_RMCActive(self.src_mg_sys):
             log.info("RMC service is inactive..!")
             self.rmc_service_start(self.src_mg_sys)
+
+        self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                          self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                          output_dir=os.path.join("logs", "test", "preForwardLPM"))
+        self.check_dmesg_errors(output_file="preForwardLPM")
 
         self.cv_HMC.cross_hmc_migration(
                 self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
@@ -277,6 +324,12 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                                          logfile=self.cv_HMC.logfile)
         remote_hmc.set_system(self.cv_SYSTEM)
 
+        self.util.gather_os_vios_hmc_logs(self.remote_vios_ip, self.remote_vios_username,
+                                          self.remote_vios_password, remote_hmc=remote_hmc,
+                                          hmc_hscpe_password=self.remote_hmc_hscpe_password,
+                                          output_dir=os.path.join("logs", "test", "postForwardLPM"))
+        self.check_dmesg_errors(output_file="postForwardLPM")
+
         if not self.is_RMCActive(self.dest_mg_sys, remote_hmc):
             log.info("RMC service is inactive..!")
             self.rmc_service_start(self.dest_mg_sys, remote_hmc)
@@ -286,8 +339,21 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 self.cv_HMC.user, self.cv_HMC.passwd, remote_hmc, timeout=self.lpm_timeout
         )
 
+        self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                          self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                          output_dir=os.path.join("logs", "test", "postBackwardLPM"))
+        self.check_dmesg_errors(output_file="postBackwardLPM")
+
     def runTest(self):
+        if self.conf.args.collect_pre_post_test_logs:
+            self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                              self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                              output_dir=os.path.join("logs", "pre"))
         self.cross_hmc_migrate_test()
+        if self.conf.args.collect_pre_post_test_logs:
+            self.util.gather_os_vios_hmc_logs(self.vios_ip, self.vios_username,
+                                              self.vios_password, hmc_hscpe_password=self.hmc_hscpe_password,
+                                              output_dir=os.path.join("logs", "post"))
 
 
 def LPM_suite():

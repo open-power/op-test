@@ -173,6 +173,8 @@ def get_parser():
                         help="Stop on first failure")
     tgroup.add_argument("--quiet", action='store_true', default=False,
                         help="Don't splat lots of things to the console")
+    tgroup.add_argument("--collect-pre-post-test-logs", action="store_true",
+                        help="Collect logs before and after test")
 
     parser.add_argument("--machine-state", help="Current machine state",
                         choices=['UNKNOWN', 'UNKNOWN_BAD', 'OFF', 'PETITBOOT',
