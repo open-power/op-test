@@ -1984,6 +1984,53 @@ class OpTestUtil():
 
         return '\n'.join(filter(None, filter(filter_strings, dmesg.splitlines())))
 
+    def gather_os_logs(self, list_of_files=[], list_of_commands=[], collect_sosreport=False, output_dir=None):
+        host = self.conf.host()
+        if not output_dir:
+            output_dir = "OS_Logs_%s" % (time.asctime(time.localtime())).replace(" ", "_")
+        output_dir = os.path.join(host.results_dir, output_dir, "os")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        self.__gather_os_files_logs(list_of_files, output_dir)
+        self.__gather_os_command_logs(list_of_commands, collect_sosreport, output_dir)
+
+    def __gather_os_files_logs(self, list_of_files=[], output_dir=None):
+        host = self.conf.host()
+        default_files = ['/var/log/messages', '/var/log/boot.log']
+        list_of_files.extend(default_files)
+
+        try:
+            host.host_run_command("mkdir -p files")
+            for file in set(list_of_files):
+                fn = "%s.log" % '-'.join(file.strip(os.path.sep).split(os.path.sep))
+                host.host_run_command("cp %s files/%s" % (file, fn))
+            host.copy_files_from_host(sourcepath=output_dir, destpath="files")
+            host.host_run_command("rm -rf files")
+            return True
+        except CommandFailed as cmd_failed:
+            raise cmd_failed
+
+    def __gather_os_command_logs(self, list_of_commands=[], collect_sosreport=False, output_dir=None):
+        host = self.conf.host()
+        default_commands = ['dmesg', 'journalctl -a']
+        list_of_commands.extend(default_commands)
+
+        try:
+            host.host_run_command("mkdir -p commands")
+            for cmd in set(list_of_commands):
+                fn = "%s.log" % '-'.join((re.sub(r'[^a-zA-Z0-9]', ' ', cmd)).split())
+                host.host_run_command("%s > commands/%s" % (cmd, fn))
+            host.copy_files_from_host(sourcepath=output_dir, destpath="commands")
+            host.host_run_command("rm -rf commands")
+
+            if collect_sosreport:
+                output = host.host_run_command('yes "" | sos report')
+                path = output[output.index("Your sosreport has been generated and saved in:")+1].strip()
+                host.copy_files_from_host(sourcepath=output_dir, destpath=path)
+            return True
+        except CommandFailed as cmd_failed:
+            raise cmd_failed
+
 
 class Server(object):
     '''
