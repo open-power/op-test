@@ -2031,6 +2031,10 @@ class OpTestUtil():
         except CommandFailed as cmd_failed:
             raise cmd_failed
 
+    def gather_hmc_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
+        hmc = self.conf.hmc()
+        hmc.gather_logs(list_of_commands, remote_hmc, output_dir)
+
 
 class Server(object):
     '''

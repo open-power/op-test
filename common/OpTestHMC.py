@@ -26,6 +26,7 @@ import sys
 import time
 import pexpect
 import shlex
+import re
 
 import OpTestLogger
 from common.OpTestError import OpTestError
@@ -387,6 +388,28 @@ class HMCUtil():
         if int(msp_output[0]) != 1:
             return False
         return True
+
+    def gather_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
+        hmc = remote_hmc if remote_hmc else self
+        if not output_dir:
+            output_dir = "HMC_Logs_%s" % (time.asctime(time.localtime())).replace(" ", "_")
+        output_dir = os.path.join(self.system.cv_HOST.results_dir, output_dir, "hmc-"+hmc.hmc_ip)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        default_commands = ['lshmc -V', 'pedbg -c -q 4']
+        list_of_commands.extend(default_commands)
+
+        try:
+            for cmd in set(list_of_commands):
+                output = "\n".join(hmc.run_command(r"%s" % cmd, timeout=1800))
+                filename = "%s.log" % '-'.join((re.sub(r'[^a-zA-Z0-9]', ' ', cmd)).split())
+                filepath = os.path.join(output_dir, filename)
+                with open(filepath, 'w') as f:
+                    f.write(output)
+            return True
+        except CommandFailed as cmd_failed:
+            raise cmd_failed
 
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         return self.ssh.run_command_ignore_fail(command, timeout*self.timeout_factor, retry)
