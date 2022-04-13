@@ -31,6 +31,7 @@ from source to destination managed system
 
 import unittest
 import time
+import os
 import OpTestConfiguration
 import OpTestLogger
 from common import OpTestHMC
@@ -63,6 +64,15 @@ class OpTestLPM(unittest.TestCase):
         self.options = None
         self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
         self.util = OpTestUtil(OpTestConfiguration.conf)
+        if all(v in self.conf.args for v in ['vios_ip', 'vios_username', 'vios_password']):
+            self.vios_ip = self.conf.args.vios_ip
+            self.vios_username = self.conf.args.vios_username
+            self.vios_password = self.conf.args.vios_password
+        if all(v in self.conf.args for v in ['remote_vios_ip', 'remote_vios_username',
+                                             'remote_vios_password']):
+            self.remote_vios_ip = self.conf.args.remote_vios_ip
+            self.remote_vios_username = self.conf.args.remote_vios_username
+            self.remote_vios_password = self.conf.args.remote_vios_password
 
     def check_pkg_installation(self):
         pkg_found = True
@@ -131,7 +141,7 @@ class OpTestLPM(unittest.TestCase):
                 return True
         return False
 
-    def rmc_service_start(self, mg_system, remote_hmc=None):
+    def rmc_service_start(self, mg_system, remote_hmc=None, output_dir=None):
         '''
         Start RMC services which is needed for LPM migration
         '''
@@ -141,15 +151,29 @@ class OpTestLPM(unittest.TestCase):
             self.cv_HOST.host_run_command('/usr/sbin/rsct/install/bin/recfgct', timeout=120)
             self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl -p', timeout=120)
             if not self.util.wait_for(self.is_RMCActive, timeout=300, args=[mg_system, remote_hmc]):
+                self.collect_logs_test_fail(remote_hmc, output_dir)
                 raise OpTestError("RMC connection is down!!")
 
-    def lpm_failed_error(self, mg_system):
+    def lpm_failed_error(self, mg_system, remote_hmc=None, output_dir=None):
         if self.cv_HMC.is_lpar_in_managed_system(mg_system, self.cv_HMC.lpar_name):
             cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F state" % (
                    mg_system, self.cv_HMC.lpar_name)
             lpar_state = self.cv_HMC.ssh.run_command(cmd)[0]
+            self.collect_logs_test_fail(remote_hmc, output_dir)
             raise OpTestError("LPAR migration failed. LPAR is in %s state." % lpar_state)
+        self.collect_logs_test_fail(remote_hmc, output_dir)
         raise OpTestError("LPAR migration failed.")
+
+    def collect_logs_test_fail(self, remote_hmc=None, output_dir=''):
+        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'], collect_sosreport=True,
+                                 output_dir=os.path.join(output_dir, "testFail"))
+        self.util.gather_vios_logs(self.src_lpar_vios[0], self.vios_ip, self.vios_username,
+                                   self.vios_password, output_dir=os.path.join(output_dir, "testFail"))
+        self.util.gather_vios_logs(self.dest_lpar_vios[0], self.remote_vios_ip, self.remote_vios_username,
+                                   self.remote_vios_password, output_dir=os.path.join(output_dir, "testFail"))
+        self.util.gather_hmc_logs(output_dir=os.path.join(output_dir, "testFail"))
+        if remote_hmc:
+            self.util.gather_hmc_logs(remote_hmc=remote_hmc, output_dir=os.path.join(output_dir, "testFail"))
 
 
 class OpTestLPM_LocalHMC(OpTestLPM):
@@ -223,30 +247,43 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
 
     def lpar_migrate_test(self):
+        self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
 
         if not self.is_RMCActive(self.src_mg_sys):
             log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.src_mg_sys)
+            self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs", "preForwardLPM"))
+
+        self.check_dmesg_errors(output_dir=os.path.join("logs", "preForwardLPM"))
+        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+                                 output_dir=os.path.join("logs", "preForwardLPM"))
 
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
         if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
           cmd, timeout=self.lpm_timeout):
-            self.lpm_failed_error(self.src_mg_sys)
+            self.lpm_failed_error(self.src_mg_sys, output_dir=os.path.join("logs", "postForwardLPM"))
+
+        self.check_dmesg_errors(output_dir=os.path.join("logs", "postForwardLPM"))
+        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+                                 output_dir=os.path.join("logs", "postForwardLPM"))
 
         if not self.is_RMCActive(self.dest_mg_sys):
             log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.dest_mg_sys)
+            self.rmc_service_start(self.dest_mg_sys, output_dir=os.path.join("logs", "postForwardLPM"))
 
         if self.slot_num:
             cmd = self.vnic_options('remote')
         log.debug("Migrating lpar back to original managed system")
         if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options,
           cmd, timeout=self.lpm_timeout):
-            self.lpm_failed_error(self.dest_mg_sys)
+            self.lpm_failed_error(self.dest_mg_sys, output_dir=os.path.join("logs", "postBackwardLPM"))
+
+        self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"))
+        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+                                 output_dir=os.path.join("logs", "postBackwardLPM"))
 
     def runTest(self):
         self.lpar_migrate_test()
@@ -265,12 +302,18 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         self.target_hmc_password = self.conf.args.target_hmc_password
 
     def cross_hmc_migrate_test(self):
+        self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
 
         if not self.is_RMCActive(self.src_mg_sys):
             log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.src_mg_sys)
+            self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs", "preForwardLPM"))
+
+        self.check_dmesg_errors(output_dir=os.path.join("logs", "preForwardLPM"),
+                                remote_hmc=self.remote_hmc)
+        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+                                 output_dir=os.path.join("logs", "preForwardLPM"))
 
         self.cv_HMC.cross_hmc_migration(
                 self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
@@ -280,6 +323,11 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
         time.sleep(self.lpm_timeout)
 
+        self.check_dmesg_errors(output_dir=os.path.join("logs", "postForwardLPM"),
+                                remote_hmc=self.remote_hmc)
+        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+                                 output_dir=os.path.join("logs", "postForwardLPM"))
+
         remote_hmc = OpTestHMC.OpTestHMC(self.target_hmc_ip,
                                          self.target_hmc_username,
                                          self.target_hmc_password,
@@ -288,14 +336,20 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                                          logfile=self.cv_HMC.logfile)
         remote_hmc.set_system(self.cv_SYSTEM)
 
-        if not self.is_RMCActive(self.dest_mg_sys, remote_hmc):
+        if not self.is_RMCActive(self.dest_mg_sys, self.remote_hmc):
             log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.dest_mg_sys, remote_hmc)
+            self.rmc_service_start(self.dest_mg_sys, self.remote_hmc,
+                                   output_dir=os.path.join("logs", "postForwardLPM"))
 
         self.cv_HMC.cross_hmc_migration(
                 self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
                 self.cv_HMC.user, self.cv_HMC.passwd, remote_hmc, timeout=self.lpm_timeout
         )
+
+        self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"),
+                                remote_hmc=self.remote_hmc)
+        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+                                 output_dir=os.path.join("logs", "postBackwardLPM"))
 
     def runTest(self):
         self.cross_hmc_migrate_test()
