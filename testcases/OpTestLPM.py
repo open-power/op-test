@@ -62,6 +62,7 @@ class OpTestLPM(unittest.TestCase):
         self.slot_num = None
         self.options = None
         self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
+        self.util = OpTestUtil(OpTestConfiguration.conf)
 
     def check_pkg_installation(self):
         pkg_found = True
@@ -97,6 +98,26 @@ class OpTestLPM(unittest.TestCase):
             if "inoperative" in str(rc):
                 raise OpTestError("LPM cannot continue as some of rsct services are not active")
 
+    def check_dmesg_errors(self, remote_hmc=None, output_dir=None):
+        skip_errors = ['uevent: failed to send synthetic uevent',
+                       'failed to send uevent',
+                       'registration failed',
+                       'Power-on or device reset occurred',
+                       'mobility: Failed lookup: phandle',
+                       'Send warning',
+                       'Unknown NUMA node; performance will be reduced',
+                       'No hypervisor support for SR-IOV on this device, IOV BARs disabled',
+                       'log_max_qp value in current profile',
+                       'tc ct offload not supported',
+                       'send_subcrq_indirect failed']
+                       
+        warn_errors = ['Invalid request detected while CRQ is inactive, possible device state change during reset']
+
+        err = self.util.collect_errors_by_level(output_dir=output_dir, skip_errors=skip_errors, warn_errors=warn_errors)
+        if err:
+            self.collect_logs_test_fail(remote_hmc, output_dir)
+            raise OpTestError("Test failed. {}".format(err))
+
     def is_RMCActive(self, mg_system, remote_hmc=None):
         '''
         Get the state of the RMC connection for the given parition
@@ -116,10 +137,10 @@ class OpTestLPM(unittest.TestCase):
         '''
         for svc in ["-z", "-A", "-p"]:
             self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl %s' % svc, timeout=120)
-        if not OpTestUtil().wait_for(self.is_RMCActive, timeout=60, args=[mg_system, remote_hmc]):
+        if not self.util.wait_for(self.is_RMCActive, timeout=60, args=[mg_system, remote_hmc]):
             self.cv_HOST.host_run_command('/usr/sbin/rsct/install/bin/recfgct', timeout=120)
             self.cv_HOST.host_run_command('/opt/rsct/bin/rmcctrl -p', timeout=120)
-            if not OpTestUtil().wait_for(self.is_RMCActive, timeout=300, args=[mg_system, remote_hmc]):
+            if not self.util.wait_for(self.is_RMCActive, timeout=300, args=[mg_system, remote_hmc]):
                 raise OpTestError("RMC connection is down!!")
 
     def lpm_failed_error(self, mg_system):
@@ -255,7 +276,7 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
                 self.target_hmc_username, self.target_hmc_password, timeout=self.lpm_timeout
         )
-        
+
         log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
         time.sleep(self.lpm_timeout)
 
