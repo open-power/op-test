@@ -285,12 +285,12 @@ class HMCUtil():
             raise OpTestError("Source and Destination Managed System required for LPM")
         if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name):
             raise OpTestError("Lpar %s not found in managed system %s" % (self.lpar_name, src_mg_system))
-        self.ssh.run_command(
-            'migrlpar -o v -m %s -t %s -p %s' % (src_mg_system, dest_mg_system, self.lpar_name))
-        cmd = 'migrlpar -o m -m %s -t %s -p %s %s' % (src_mg_system, dest_mg_system, self.lpar_name, param)
-        if options:
-            cmd = "%s %s" % (cmd, options)
-        self.ssh.run_command(cmd, timeout=timeout)
+        for mode in ['v', 'm']:
+            cmd = 'migrlpar -o %s -m %s -t %s -p %s %s' % (
+                   mode, src_mg_system, dest_mg_system, self.lpar_name, param)
+            if options:
+                cmd = "%s %s" % (cmd, options)
+            self.ssh.run_command(cmd, timeout=timeout)
         log.debug("Waiting for %.2f minutes." % (timeout/60))
         time.sleep(timeout)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
@@ -338,15 +338,12 @@ class HMCUtil():
         self.set_ssh_key_auth(target_hmc_ip, target_hmc_user,
                               target_hmc_passwd, remote_hmc)
 
-        cmd = "migrlpar -o v -m %s -t %s -p %s -u %s --ip %s" % (
-        src_mg_system, dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip)
-        hmc.ssh.run_command(cmd, timeout=timeout)
-        
-        cmd = "migrlpar -o m -m %s -t %s -p %s -u %s --ip %s %s" % (src_mg_system,
-        dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip, param)
-        if options:
-            cmd = "%s %s" % (cmd, options)
-        hmc.ssh.run_command(cmd, timeout=timeout)
+        for mode in ['v', 'm']:
+            cmd = "migrlpar -o %s -m %s -t %s -p %s -u %s --ip %s %s" % (mode, src_mg_system,
+                   dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip, param)
+            if options:
+                cmd = "%s %s" % (cmd, options)
+            hmc.ssh.run_command(cmd, timeout=timeout)
 
     def recover_lpar(self, src_mg_system, dest_mg_system, stop_lpm=False, timeout=300):
         if stop_lpm:
@@ -360,31 +357,34 @@ class HMCUtil():
         log.info("LPAR failed to recover at managed system %s" % src_mg_system)
         return False
 
-    def get_adapter_id(self, mg_system, loc_code):
+    def get_adapter_id(self, mg_system, loc_code, remote_hmc=None):
+        hmc = remote_hmc if remote_hmc else self
         cmd = 'lshwres -m {} -r sriov --rsubtype adapter -F phys_loc:adapter_id'.format(mg_system)
-        adapter_id_output = self.ssh.run_command(cmd)
+        adapter_id_output = hmc.ssh.run_command(cmd)
         for line in adapter_id_output:
             if str(loc_code) in line:
                 return line.split(':')[1]
         return ''
 
-    def get_lpar_id(self, mg_system, l_lpar_name):
+    def get_lpar_id(self, mg_system, l_lpar_name, remote_hmc=None):
+        hmc = remote_hmc if remote_hmc else self
         cmd = 'lssyscfg -m %s -r lpar --filter lpar_names=%s -F lpar_id' % (mg_system, l_lpar_name)
-        lpar_id_output = self.ssh.run_command(cmd)
+        lpar_id_output = hmc.ssh.run_command(cmd)
         for line in lpar_id_output:
             if l_lpar_name in line:
                 return 0
             return line
         return 0
 
-    def is_msp_enabled(self, mg_system, vios_name):
+    def is_msp_enabled(self, mg_system, vios_name, remote_hmc=None):
         '''
         The function checks if the moving service option is enabled
         on the given lpar partition.
         '''
+        hmc = remote_hmc if remote_hmc else self
         cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F msp" % (
                 mg_system, vios_name)
-        msp_output = self.ssh.run_command(cmd)
+        msp_output = hmc.ssh.run_command(cmd)
         if int(msp_output[0]) != 1:
             return False
         return True
