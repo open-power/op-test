@@ -64,6 +64,13 @@ class OpTestLPM(unittest.TestCase):
         self.options = self.conf.args.options if 'options' in self.conf.args else None
         self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
         self.util = OpTestUtil(OpTestConfiguration.conf)
+        if 'os_file_logs' in self.conf.args:
+            self.os_file_logs = self.conf.args.os_file_logs.split(",")+['/var/log/drmgr']
+        else:
+            self.os_file_logs = ['/var/log/drmgr']
+        self.os_cmd_logs = self.conf.args.os_cmd_logs.split(",") if 'os_cmd_logs' in self.conf.args else []
+        self.vios_logs = self.conf.args.vios_logs.split(",") if 'vios_logs' in self.conf.args else []
+        self.hmc_logs = self.conf.args.hmc_logs.split(",") if 'hmc_logs' in self.conf.args else []
         if all(v in self.conf.args for v in ['vios_ip', 'vios_username', 'vios_password']):
             self.vios_ip = self.conf.args.vios_ip
             self.vios_username = self.conf.args.vios_username
@@ -229,15 +236,15 @@ class OpTestLPM(unittest.TestCase):
         raise OpTestError("LPAR migration failed.")
 
     def collect_logs_test_fail(self, remote_hmc=None, output_dir=''):
-        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'], collect_sosreport=True,
+        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs, collect_sosreport=True,
                                  output_dir=os.path.join(output_dir, "testFail"))
         self.util.gather_vios_logs(self.src_lpar_vios[0], self.vios_ip, self.vios_username,
-                                   self.vios_password, output_dir=os.path.join(output_dir, "testFail"))
+                                   self.vios_password, self.vios_logs, os.path.join(output_dir, "testFail"))
         self.util.gather_vios_logs(self.dest_lpar_vios[0], self.remote_vios_ip, self.remote_vios_username,
-                                   self.remote_vios_password, output_dir=os.path.join(output_dir, "testFail"))
-        self.util.gather_hmc_logs(output_dir=os.path.join(output_dir, "testFail"))
+                                   self.remote_vios_password, self.vios_logs, os.path.join(output_dir, "testFail"))
+        self.util.gather_hmc_logs(self.hmc_logs, output_dir=os.path.join(output_dir, "testFail"))
         if remote_hmc:
-            self.util.gather_hmc_logs(remote_hmc=remote_hmc, output_dir=os.path.join(output_dir, "testFail"))
+            self.util.gather_hmc_logs(self.hmc_logs, remote_hmc, os.path.join(output_dir, "testFail"))
 
 
 class OpTestLPM_LocalHMC(OpTestLPM):
@@ -256,7 +263,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs", "preForwardLPM"))
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "preForwardLPM"))
-        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                  output_dir=os.path.join("logs", "preForwardLPM"))
 
         cmd = ''
@@ -267,7 +274,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             self.lpm_failed_error(self.src_mg_sys, output_dir=os.path.join("logs", "postForwardLPM"))
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "postForwardLPM"))
-        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                  output_dir=os.path.join("logs", "postForwardLPM"))
 
         if not self.is_RMCActive(self.dest_mg_sys):
@@ -282,7 +289,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             self.lpm_failed_error(self.dest_mg_sys, output_dir=os.path.join("logs", "postBackwardLPM"))
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"))
-        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                  output_dir=os.path.join("logs", "postBackwardLPM"))
 
     def runTest(self):
@@ -323,7 +330,7 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "preForwardLPM"),
                                 remote_hmc=self.remote_hmc)
-        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                  output_dir=os.path.join("logs", "preForwardLPM"))
 
         cmd = ''
@@ -340,7 +347,7 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "postForwardLPM"),
                                 remote_hmc=self.remote_hmc)
-        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                  output_dir=os.path.join("logs", "postForwardLPM"))
 
         if not self.is_RMCActive(self.dest_mg_sys, self.remote_hmc):
@@ -358,7 +365,7 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"),
                                 remote_hmc=self.remote_hmc)
-        self.util.gather_os_logs(list_of_files=['/var/log/drmgr'],
+        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                  output_dir=os.path.join("logs", "postBackwardLPM"))
 
     def runTest(self):
