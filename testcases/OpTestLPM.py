@@ -99,6 +99,11 @@ class OpTestLPM(unittest.TestCase):
             self.target_adapters = self.conf.args.target_adapters.split(",")
             self.ports = self.conf.args.ports.split(",")
             self.target_ports = self.conf.args.target_ports.split(",")
+            self.interface = self.conf.args.interface
+            self.interface_ip = self.conf.args.interface_ip
+            self.netmask = self.conf.args.netmask
+            self.peer_ip = self.conf.args.peer_ip
+
             self.vios_id = []
             for vios_name in self.src_lpar_vios:
                 self.vios_id.append(self.cv_HMC.get_lpar_id(self.src_mg_sys, vios_name))
@@ -179,6 +184,11 @@ class OpTestLPM(unittest.TestCase):
 
         return " -i \"vnic_mappings=%s\" " % ",".join(cmd)
 
+    def vnic_ping_test(self, output_dir=None):
+        if not self.util.ping_test(self.interface, self.peer_ip, self.cv_HOST):
+            self.collect_logs_test_fail(output_dir=output_dir, hmc_logs=False)
+            raise OpTestError("Ping test to peer IP failed.")
+
     def check_dmesg_errors(self, remote_hmc=None, output_dir=None):
         skip_errors = ['uevent: failed to send synthetic uevent',
                        'failed to send uevent',
@@ -235,16 +245,19 @@ class OpTestLPM(unittest.TestCase):
         self.collect_logs_test_fail(remote_hmc, output_dir)
         raise OpTestError("LPAR migration failed.")
 
-    def collect_logs_test_fail(self, remote_hmc=None, output_dir=''):
-        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs, collect_sosreport=True,
-                                 output_dir=os.path.join(output_dir, "testFail"))
-        self.util.gather_vios_logs(self.src_lpar_vios[0], self.vios_ip, self.vios_username,
-                                   self.vios_password, self.vios_logs, os.path.join(output_dir, "testFail"))
-        self.util.gather_vios_logs(self.dest_lpar_vios[0], self.remote_vios_ip, self.remote_vios_username,
-                                   self.remote_vios_password, self.vios_logs, os.path.join(output_dir, "testFail"))
-        self.util.gather_hmc_logs(self.hmc_logs, output_dir=os.path.join(output_dir, "testFail"))
-        if remote_hmc:
-            self.util.gather_hmc_logs(self.hmc_logs, remote_hmc, os.path.join(output_dir, "testFail"))
+    def collect_logs_test_fail(self, remote_hmc=None, output_dir='', os_logs=True, vios_logs=True, hmc_logs=True):
+        if os_logs:
+            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs, collect_sosreport=True,
+                                     output_dir=os.path.join(output_dir, "testFail"))
+        if vios_logs:
+            self.util.gather_vios_logs(self.src_lpar_vios[0], self.vios_ip, self.vios_username,
+                                       self.vios_password, self.vios_logs, os.path.join(output_dir, "testFail"))
+            self.util.gather_vios_logs(self.dest_lpar_vios[0], self.remote_vios_ip, self.remote_vios_username,
+                                       self.remote_vios_password, self.vios_logs, os.path.join(output_dir, "testFail"))
+        if hmc_logs:
+            self.util.gather_hmc_logs(self.hmc_logs, output_dir=os.path.join(output_dir, "testFail"))
+            if remote_hmc:
+                self.util.gather_hmc_logs(self.hmc_logs, remote_hmc, os.path.join(output_dir, "testFail"))
 
 
 class OpTestLPM_LocalHMC(OpTestLPM):
@@ -269,6 +282,9 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
+            self.util.configure_host_ip(self.interface, self.interface_ip, self.netmask, self.cv_HOST)
+            self.vnic_ping_test(output_dir=os.path.join("logs", "preForwardLPM"))
+
         if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
           cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.src_mg_sys, output_dir=os.path.join("logs", "postForwardLPM"))
@@ -283,10 +299,15 @@ class OpTestLPM_LocalHMC(OpTestLPM):
 
         if self.slot_num:
             cmd = self.vnic_options('remote')
+            self.vnic_ping_test(output_dir=os.path.join("logs", "postForwardLPM"))
+
         log.debug("Migrating lpar back to original managed system")
         if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options,
           cmd, timeout=self.lpm_timeout):
             self.lpm_failed_error(self.dest_mg_sys, output_dir=os.path.join("logs", "postBackwardLPM"))
+
+        if self.slot_num:
+            self.vnic_ping_test(output_dir=os.path.join("logs", "postBackwardLPM"))
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"))
         self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
@@ -336,6 +357,9 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         cmd = ''
         if self.slot_num:
             cmd = self.vnic_options()
+            self.util.configure_host_ip(self.interface, self.interface_ip, self.netmask, self.cv_HOST)
+            self.vnic_ping_test(output_dir=os.path.join("logs", "preForwardLPM"))
+
         self.cv_HMC.cross_hmc_migration(
                 self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
                 self.target_hmc_username, self.target_hmc_password,
@@ -357,11 +381,16 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
         if self.slot_num:
             cmd = self.vnic_options('remote')
+            self.vnic_ping_test(output_dir=os.path.join("logs", "postForwardLPM"))
+
         self.cv_HMC.cross_hmc_migration(
                 self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
                 self.cv_HMC.user, self.cv_HMC.passwd, self.remote_hmc,
                 options=self.options, param=cmd, timeout=self.lpm_timeout
         )
+
+        if self.slot_num:
+            self.vnic_ping_test(output_dir=os.path.join("logs", "postBackwardLPM"))
 
         self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"),
                                 remote_hmc=self.remote_hmc)
