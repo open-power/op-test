@@ -148,7 +148,7 @@ class InstallUpstreamKernel(unittest.TestCase):
                 con.run_command(kexec_cmdline)
                 con.close()
                 raw_pty = self.cv_SYSTEM.console.get_console()
-                raw_pty.sendline("kexec -e")
+                raw_pty.sendline("reboot")
                 raw_pty.expect("login:", timeout=600)
             con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
             res = con.run_command("uname -r")
