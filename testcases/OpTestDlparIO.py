@@ -31,6 +31,7 @@ import re
 import OpTestConfiguration
 import OpTestLogger
 from common import OpTestHMC
+from common.OpTestSOL import OpSOLMonitorThread
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
@@ -54,6 +55,8 @@ class OpTestDlparIO(unittest.TestCase):
         self.test_ip = conf.args.test_ip
         self.peer_ip = conf.args.peer_ip
         self.netmask = conf.args.netmask
+        self.console_thread = OpSOLMonitorThread(1, "console")
+        self.console_thread.start()
 
         if not self.cv_HMC.is_lpar_in_managed_system(self.mg_system, self.cv_HMC.lpar_name):
             raise OpTestError("Lpar %s not found in managed system %s" % (
@@ -321,6 +324,10 @@ class OpTestDlpar(OpTestDlparIO):
                 raise OpTestError("adapter_check failed!!")
             self.dlpar_move()
 
+    def tearDown(self):
+        if self.console_thread.isAlive():
+            self.console_thread.console_terminate()
+
 class OpTestdrmgr_pci(OpTestDlparIO):
 
     def do_drmgr_pci(self, operation):
@@ -337,6 +344,10 @@ class OpTestdrmgr_pci(OpTestDlparIO):
         for _ in range(self.num_of_dlpar):
             self.do_drmgr_pci('R')
 
+    def tearDown(self):
+        if self.console_thread.isAlive():
+            self.console_thread.console_terminate()
+
 class OpTestdrmgr_phb(OpTestDlparIO):
 
     def do_drmgr_phb(self, operation):
@@ -349,6 +360,10 @@ class OpTestdrmgr_phb(OpTestDlparIO):
             self.do_drmgr_phb('a')
             if not self.util.wait_for(self.adapter_check, 60, first=10):
                 raise OpTestError("adapter_check failed!!")
+
+    def tearDown(self):
+        if self.console_thread.isAlive():
+            self.console_thread.console_terminate()
 
 def DlparIO_suite():
     s = unittest.TestSuite()
