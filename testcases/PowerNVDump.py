@@ -60,6 +60,7 @@ import os
 import pexpect
 import unittest
 import time
+import re
 import tempfile
 
 import OpTestConfiguration
@@ -103,9 +104,9 @@ class PowerNVDump(unittest.TestCase):
             try: self.mem_resource = conf.args.mem_resource
             except AttributeError:
                 self.mem_resource = 2048
-        self.dump_server_ip = conf.args.dump_server_ip
-        self.dump_server_pw = conf.args.dump_server_pw
-        self.dump_path = conf.args.dump_path
+        self.dump_server_ip = conf.args.dump_server_ip if 'dump_server_ip' in conf.args else ''
+        self.dump_server_pw = conf.args.dump_server_pw if 'dump_server_pw' in conf.args else ''
+        self.dump_path = conf.args.dump_path if 'dump_path' in conf.args else ''
         try: self.url = conf.args.url
         except AttributeError: 
             self.url = "http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz"
@@ -190,6 +191,7 @@ class PowerNVDump(unittest.TestCase):
                 "ssh root@%s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.dump_server_ip, self.dump_path))
         self.crash_content = list(
             set(crash_content_after) - set(self.crash_content))
+        self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
         if len(self.crash_content):
             if dump_place == "net":
                 self.c.run_command('scp -r root@%s:/%s/%s /var/crash/' %
@@ -663,11 +665,22 @@ class KernelCrash_KdumpSSH(PowerNVDump):
     # Need to pass --dump-server-ip and --dump-server-pw in command line.
     # Needs passwordless authentication setup between test machine and ssh server.
 
+    def setUp(self):
+        super(KernelCrash_KdumpSSH, self).setUp()
+
+        conf = OpTestConfiguration.conf
+        self.dump_location = self.dump_server_ip
+        self.dump_server_private_ip = conf.args.dump_server_private_ip if 'dump_server_private_ip' in conf.args else None
+        if self.dump_server_private_ip:
+            self.interface = conf.args.interface
+            self.interface_ip = conf.args.interface_ip
+            self.netmask = conf.args.netmask
+            self.dump_location = self.dump_server_private_ip
 
     def setup_ssh(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.dump_server_ip)
+            self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.dump_location)
             self.c.run_command("sed -i '/sshkey \/root\/.ssh\/kdump_id_rsa/c\sshkey \/root\/.ssh\/id_rsa' /etc/kdump.conf; sync")
             self.c.run_command("sed -i 's/-l --message-level/-l -F --message-level/' /etc/kdump.conf; sync")
             self.c.run_command("sed -i '/path \/var\/crash/c\path %s' /etc/kdump.conf; sync" % self.dump_path)
@@ -679,13 +692,13 @@ class KernelCrash_KdumpSSH(PowerNVDump):
             if 'dead' in res:
                 self.fail("Kdump service is not configured properly")
         elif self.distro == "ubuntu":
-            self.c.run_command("sed -i '/SSH=\"<user at server>\"/c\SSH=\"root@%s\"' /etc/default/kdump-tools" % self.dump_server_ip)
+            self.c.run_command("sed -i '/SSH=\"<user at server>\"/c\SSH=\"root@%s\"' /etc/default/kdump-tools" % self.dump_location)
             self.c.run_command("sed -i '/SSH_KEY=\"<path>\"/c\SSH_KEY=/root/.ssh/id_rsa' /etc/default/kdump-tools")
             self.c.run_command("kdump-config unload;")
             self.c.run_command("kdump-config load;")
             time.sleep(5)
         else:
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"ssh:\/\/root:%s@%s\/%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_pw, self.dump_server_ip, self.dump_path))
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"ssh:\/\/root:%s@%s\/%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_pw, self.dump_location, self.dump_path))
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             time.sleep(5)
 
@@ -693,7 +706,7 @@ class KernelCrash_KdumpSSH(PowerNVDump):
         if not (self.dump_server_ip or self.dump_server_ip):
             raise self.skipTest("Provide --dump-server-ip and --dump-server-pw "
                                 "for network dumps")
-        pwd_less = self.c.run_command("ssh -o \"StrictHostKeyChecking no\" -o  \"NumberOfPasswordPrompts=0\" %s \"echo\"" % self.dump_server_ip)
+        pwd_less = self.c.run_command('ssh -o "StrictHostKeyChecking no" -o "NumberOfPasswordPrompts=0" %s "echo"' % self.dump_location)
         if "Permission denied" in pwd_less or "Permission denied" in pwd_less[0]:
             raise self.skipTest("For Network dump cases please setup passwordless authentication between test machine and remote server")
         self.setup_test("net")
@@ -709,17 +722,29 @@ class KernelCrash_KdumpNFS(PowerNVDump):
     # Need to pass --dump-server-ip and --dump-server-pw in command line.
     # Needs passwordless authentication setup between test machine and nfs server.
 
+    def setUp(self):
+        super(KernelCrash_KdumpNFS, self).setUp()
+
+        conf = OpTestConfiguration.conf
+        self.dump_location = self.dump_server_ip
+        self.dump_server_private_ip = conf.args.dump_server_private_ip if 'dump_server_private_ip' in conf.args else None
+        if self.dump_server_private_ip:
+            self.interface = conf.args.interface
+            self.interface_ip = conf.args.interface_ip
+            self.netmask = conf.args.netmask
+            self.dump_location = self.dump_server_private_ip
+
     def setup_nfs(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.dump_server_ip)
+            self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.dump_location)
             self.c.run_command("sed -i '/sshkey \/root\/.ssh\/id_rsa/c\#sshkey \/root\/.ssh\/kdump_id_rsa' /etc/kdump.conf; sync")
             self.c.run_command("yum -y install nfs-utils", timeout=180)
             self.c.run_command("service nfs-server start")
-            self.c.run_command("echo 'nfs %s:%s' >> /etc/kdump.conf;" % (self.dump_server_ip, self.dump_path))
+            self.c.run_command("echo 'nfs %s:%s' >> /etc/kdump.conf;" % (self.dump_location, self.dump_path))
             self.c.run_command("sed -i 's/-l -F --message-level/-l --message-level/' /etc/kdump.conf; sync")
             self.c.run_command("sed -i '/path \/var\/crash/c\path \/' /etc/kdump.conf; sync")
-            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_server_ip, self.dump_path))
+            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_location, self.dump_path))
             self.c.run_command("cd /root; kdumpctl restart", timeout=180)
             self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot")
             res = self.c.run_command("service kdump status | grep active")
@@ -729,14 +754,14 @@ class KernelCrash_KdumpNFS(PowerNVDump):
             self.c.run_command("apt-get install -y nfs-common;")
             self.c.run_command("apt-get install -y nfs-kernel-server;")
             self.c.run_command("service nfs-server start;")
-            self.c.run_command("mount -t nfs %s:%s /var/crash;" % (self.dump_server_ip, self.dump_path))
+            self.c.run_command("mount -t nfs %s:%s /var/crash;" % (self.dump_location, self.dump_path))
             self.c.run_command("sed -e '/SSH/ s/^#*/#/' -i /etc/default/kdump-tools;")
-            self.c.run_command("sed -i '/NFS=\"<nfs mount>\"/c\\NFS=\"%s:%s\"' /etc/default/kdump-tools" % (self.dump_server_ip, self.dump_path))
+            self.c.run_command("sed -i '/NFS=\"<nfs mount>\"/c\\NFS=\"%s:%s\"' /etc/default/kdump-tools" % (self.dump_location, self.dump_path))
             time.sleep(5)
         else:
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"nfs:\/\/%s\%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_ip, self.dump_path))
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"nfs:\/\/%s\%s\"\' /etc/sysconfig/kdump;' % (self.dump_location, self.dump_path))
             self.c.run_command("zypper install -y nfs-kernel-server; service nfs start")
-            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_server_ip, self.dump_path))
+            self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_location, self.dump_path))
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             time.sleep(5)
 
@@ -744,7 +769,7 @@ class KernelCrash_KdumpNFS(PowerNVDump):
         if not (self.dump_server_ip or self.dump_server_ip):
             raise self.skipTest("Provide --dump-server-ip and --dump-server-pw "
                                 "for network dumps")
-        pwd_less = self.c.run_command("ssh -o \"StrictHostKeyChecking no\" -o  \"NumberOfPasswordPrompts=0\" %s \"echo\"" % self.dump_server_ip)
+        pwd_less = self.c.run_command('ssh -o "StrictHostKeyChecking no" -o "NumberOfPasswordPrompts=0" %s "echo"' % self.dump_location)
         if "Permission denied" in pwd_less or "Permission denied" in pwd_less[0]:
             raise self.skipTest("For Network dump cases please setup passwordless authentication between test machine and remote server")
         self.setup_test("net")
