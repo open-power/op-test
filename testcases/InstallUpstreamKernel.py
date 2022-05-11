@@ -110,7 +110,7 @@ class InstallUpstreamKernel(unittest.TestCase):
                     con.run_command("wget %s -O .config" % self.config_path)
                 else:
                     self.cv_HOST.copy_test_file_to_host(
-                        self.config_path, dstdir=os.path.join(linux_path, ".config"))
+                        self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules && make modules_install && make install" %
