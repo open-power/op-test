@@ -21,6 +21,17 @@
 #  This class can contain common functions which are useful for
 #  FSP_PHYP (HMC) platforms
 
+'''
+OpTestHMC
+---------
+
+Hardware Management Console (HMC) package contains all HMC related
+interfaces/functions.
+
+This package encapsulates all HMC functions required to manage/control IBM Power
+server running PowerVM hypervisor.
+'''
+
 import os
 import sys
 import time
@@ -149,16 +160,25 @@ class HMCUtil():
         self.SUDO_set = -1
 
     def deactivate_lpar_console(self):
+        '''
+        Deactivate/disconnect the LPAR Console
+        '''
         self.ssh.run_command("rmvterm -m %s -p %s" %
                          (self.mg_system, self.lpar_name), timeout=10)
 
     def poweroff_system(self):
+        '''
+        PowerOFF the managed system
+        '''
         if self.get_system_state() != OpManagedState.OPERATING:
             raise OpTestError('Managed Systen not in Operating state')
         self.ssh.run_command("chsysstate -m %s -r sys -o off" % self.mg_system)
         self.wait_system_state(OpManagedState.OFF)
 
     def poweron_system(self):
+        '''
+        PowerON the managed system
+        '''
         if self.get_system_state() != OpManagedState.OFF:
             raise OpTestError('Managed Systen not is Power off state!')
         self.ssh.run_command("chsysstate -m %s -r sys -o on" % self.mg_system)
@@ -168,6 +188,9 @@ class HMCUtil():
             self.poweron_lpar(vios=True)
 
     def poweroff_lpar(self):
+        '''
+        PowerOFF the LPAR
+        '''
         if self.get_lpar_state() in [OpHmcState.NOT_ACTIVE, OpHmcState.NA]:
             log.info('LPAR Already powered-off!')
             return
@@ -176,6 +199,12 @@ class HMCUtil():
         self.wait_lpar_state(OpHmcState.NOT_ACTIVE)
 
     def poweron_lpar(self, vios=False):
+        '''
+        PowerON the LPAR
+
+        :param vios: Boolean, to identify VIOS partition
+        :returns: BMC_CONST.FW_SUCCESS up on success
+        '''
         if self.get_lpar_state(vios) == OpHmcState.RUNNING:
             log.info('LPAR Already powered on!')
             return BMC_CONST.FW_SUCCESS
@@ -194,6 +223,9 @@ class HMCUtil():
         return BMC_CONST.FW_SUCCESS
 
     def dumprestart_lpar(self):
+        '''
+        Capture dump and restart the LPAR
+        '''
         if self.get_lpar_state() in [OpHmcState.NOT_ACTIVE, OpHmcState.NA]:
             log.info('LPAR Already powered-off!')
             return
@@ -202,6 +234,9 @@ class HMCUtil():
         self.wait_lpar_state()
 
     def restart_lpar(self):
+        '''
+        Restart LPAR immediately
+        '''
         if self.get_lpar_state() in [OpHmcState.NOT_ACTIVE, OpHmcState.NA]:
             log.info('LPAR Already powered-off!')
             return
@@ -210,6 +245,11 @@ class HMCUtil():
         self.wait_lpar_state()
 
     def get_lpar_cfg(self):
+        '''
+        Get LPAR configuration parameters
+
+        :returns: LPAR configuration parameters in key, value pair
+        '''
         out = self.ssh.run_command("lssyscfg -r prof -m %s --filter 'lpar_names=%s'" %
                 (self.mg_system, self.lpar_name))[-1]
         cfg_dict = {}
@@ -224,12 +264,24 @@ class HMCUtil():
         return cfg_dict
 
     def set_lpar_cfg(self, arg_str):
+        '''
+        Set LPAR configuration parameter values
+
+        :param arg_str: configuration values in key, value pair seperated by
+                        comma
+        '''
         if not self.lpar_prof:
             raise OpTestError("Profile needs to be defined to use this method")
         self.ssh.run_command("chsyscfg -r prof -m %s -p %s -i 'lpar_name=%s,name=%s,%s' --force" %
                 (self.mg_system, self.lpar_name, self.lpar_name, self.lpar_prof,arg_str))
 
     def get_lpar_state(self, vios=False):
+        '''
+        Get current state of LPAR
+
+        :param vios: Boolean, to identify VIOS partition
+        :returns: the current status of the LPAR e.g 'Running' or 'Booting'
+        '''
         lpar_name = self.lpar_name
         if vios:
             lpar_name = self.lpar_vios
@@ -245,11 +297,24 @@ class HMCUtil():
         return state
 
     def get_system_state(self):
+        '''
+        Get current state of managed system
+
+        :returns: the current status of the managed system
+        '''
         state = self.ssh.run_command(
             'lssyscfg -m %s -r sys -F state' % self.mg_system)
         return state[-1]
 
     def wait_lpar_state(self, exp_state=OpHmcState.RUNNING, vios=False, timeout=WAITTIME):
+        '''
+        Wait for a particular state of LPAR
+
+        :param exp_state: constant, expected HMC STATE, default is OpHmcState.RUNNING
+        :param vios: Boolean, to identify VIOS partition
+        :param timeout: number, Wait time in seconds
+        :raises: :class:`common.OpTestError` when the timeout happens
+        '''
         state = self.get_lpar_state(vios)
         count = 0
         while state != exp_state:
@@ -261,6 +326,13 @@ class HMCUtil():
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
     def wait_system_state(self, exp_state=OpManagedState.OPERATING, timeout=SYS_WAITTIME):
+        '''
+        Wait for a particular state of managed system
+
+        :param exp_state: constatn, expected STATE, default is OpManagedState.OPERATING
+        :param timeout: number, Wait time in seconds
+        :raises: :class:`common.OpTestError` when the timeout happens
+        '''
         state = self.get_system_state()
         count = 0
         while state != exp_state:
@@ -272,6 +344,15 @@ class HMCUtil():
                 raise OpTestError("Time exceeded for reaching %s" % exp_state)
 
     def is_lpar_in_managed_system(self, mg_system=None, lpar_name=None, remote_hmc=None):
+        '''
+        Check if LPAR is available on a managed system
+
+        :param mg_system: string, managed system name
+        :param lpar_name: string, LPAR name
+        :param remote_hmc: object, remote HMC instance
+        :returns: True  - when the LPAR is in managed system
+                  False - when the LPAR is not in managed system
+        '''
         hmc = remote_hmc if remote_hmc else self
         lpar_list = hmc.ssh.run_command(
                    'lssyscfg -r lpar -m %s -F name' % mg_system)
@@ -281,6 +362,18 @@ class HMCUtil():
         return False
 
     def migrate_lpar(self, src_mg_system=None, dest_mg_system=None, options=None, param="", timeout=300):
+        '''
+        Migrate the LPAR from source managed system to the destination managed
+        system
+
+        :param src_mg_system: string, source managed system name
+        :param dest_mg_system: string, destination manages system name
+        :param options: string, options for migration
+        :param param: string, required parameters for migration
+        :param timeout: number, time out value in seconds, default 300
+        :returns: True  - when LPAR migration success
+                  False - when LPAR migration unsuccess
+        '''
         if src_mg_system == None or dest_mg_system == None:
             raise OpTestError("Source and Destination Managed System required for LPM")
         if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name):
@@ -308,6 +401,15 @@ class HMCUtil():
         return False
 
     def set_ssh_key_auth(self, hmc_ip, hmc_user, hmc_passwd, remote_hmc=None):
+        '''
+        Set SSH authentication keys
+
+        :param hmc_ip: number, in ip address format
+        :param hmc_user: string, HMC user name
+        :param hmc_passwd: string, HMC user password
+        :param remote_hmc: object, remote HMC instance
+        :raises: `CommandFailed`
+        '''
         hmc = remote_hmc if remote_hmc else self
         try:
             cmd = "mkauthkeys -u %s --ip %s --test" % (hmc_user, hmc_ip)
@@ -323,6 +425,19 @@ class HMCUtil():
     def cross_hmc_migration(self, src_mg_system=None, dest_mg_system=None,
                             target_hmc_ip=None, target_hmc_user=None, target_hmc_passwd=None,
                             remote_hmc=None, options=None, param="", timeout=300):
+        '''
+        migration of LPAR across HMC
+
+        :param src_mg_system: string, Source managed system
+        :param dest_mg_system: string, Destination managed system
+        :param target_hmc_ip: number, in IP address format
+        :param target_hmc_user: string, target HMC user name
+        :param target_hmc_passwd: string, target HMC user password
+        :param remote_hmc: object, remote HMC instance
+        :param options: string, migration options
+        :param param: string, migration parameters
+        :param timeout: number, time in seconds
+        '''
         hmc = remote_hmc if remote_hmc else self
 
         if src_mg_system == None or dest_mg_system == None:
@@ -346,6 +461,16 @@ class HMCUtil():
             hmc.ssh.run_command(cmd, timeout=timeout)
 
     def recover_lpar(self, src_mg_system, dest_mg_system, stop_lpm=False, timeout=300):
+        '''
+        Recover LPAR
+
+        :param src_mg_system: string, Source managed system
+        :param dest_mg_system: string, Destination managed system
+        :param stop_lpm: Boolean, to stop migration, default False
+        :param timeout: number, time in seconds
+        :returns: True  - when LPAR recovery success
+                  False - when LPAR recovery unsuccess
+        '''
         if stop_lpm:
             self.ssh.run_command("migrlpar -o s -m %s -p %s" % (
                 src_mg_system, self.lpar_name), timeout=timeout)
@@ -358,6 +483,14 @@ class HMCUtil():
         return False
 
     def get_adapter_id(self, mg_system, loc_code, remote_hmc=None):
+        '''
+        Get SRIOV adapter id
+
+        :param mg_system: string, Source managed system
+        :param loc_code: string, adapater
+        :param remote_hmc: object, remote HMC instance
+        :returns: string, adapter id
+        '''
         hmc = remote_hmc if remote_hmc else self
         cmd = 'lshwres -m {} -r sriov --rsubtype adapter -F phys_loc:adapter_id'.format(mg_system)
         adapter_id_output = hmc.ssh.run_command(cmd)
@@ -367,6 +500,14 @@ class HMCUtil():
         return ''
 
     def get_lpar_id(self, mg_system, l_lpar_name, remote_hmc=None):
+        '''
+        Get LPAR id
+
+        :param mg_system: string, Source managed system
+        :param l_lpar_name: string, LPAR name
+        :param remote_hmc: object, remote HMC instance
+        :returns: number, LPAR id on success, 0 on failure
+        '''
         hmc = remote_hmc if remote_hmc else self
         cmd = 'lssyscfg -m %s -r lpar --filter lpar_names=%s -F lpar_id' % (mg_system, l_lpar_name)
         lpar_id_output = hmc.ssh.run_command(cmd)
@@ -380,6 +521,11 @@ class HMCUtil():
         '''
         The function checks if the moving service option is enabled
         on the given lpar partition.
+
+        :param mg_system: string, Source managed system
+        :param vios_name: string, VIOS name
+        :param remote_hmc: object, remote HMC instance
+        :returns: Boolean, True on success, False on failure
         '''
         hmc = remote_hmc if remote_hmc else self
         cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F msp" % (
@@ -390,6 +536,15 @@ class HMCUtil():
         return True
 
     def gather_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
+        '''
+        Gather the logs for the commands at the given directory
+
+        :param list_of_commands: list, list of commands
+        :param remote_hmc: object, remote HMC instance
+        :param output_dir: string, dir to store logs
+        :returns: Boolean, True on success, False on failure
+        :raises: `CommandFailed`
+        '''
         hmc = remote_hmc if remote_hmc else self
         if not output_dir:
             output_dir = "HMC_Logs_%s" % (time.asctime(time.localtime())).replace(" ", "_")
@@ -412,9 +567,22 @@ class HMCUtil():
             raise cmd_failed
 
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
+        '''
+        Wrapper function for `ssh.run_command_ignore_fail`
+
+        :param command: string, command
+        :param timeout: number, time out in seconds
+        :param retry: number, number of retries
+        '''
         return self.ssh.run_command_ignore_fail(command, timeout*self.timeout_factor, retry)
 
     def run_command(self, i_cmd, timeout=15):
+        '''
+        Wrapper function for `ssh.run_command`
+
+        :param i_cmd: string, command
+        :param timeout: number, time out in seconds
+        '''
         return self.ssh.run_command(i_cmd, timeout)
 
 
@@ -515,50 +683,114 @@ class HMCConsole(HMCUtil):
                                          check_ssh_keys, known_hosts_file)
 
     def set_system(self, system):
+        '''
+        Set system values
+        '''
         self.ssh.set_system(system)
         self.system = system
         self.pty = self.get_console()
         self.pty.set_system(system)
 
     def get_host_console(self):
+        '''
+        Get host console
+
+        :returns: string, Host console name
+        '''
         return self.pty
 
     def set_system_setup_term(self, flag):
+        '''
+        Set system setup terminal
+
+        :param flag: string, value to set system setup terminal
+        '''
         self.system.block_setup_term = flag
 
     def get_system_setup_term(self):
+        '''
+        Get system setup terminal
+
+        :returns: string, system setup terminal
+        '''
         return self.system.block_setup_term
 
     def get_scratch_disk(self):
+        '''
+        Get scratch disk name
+
+        :returns: string, scratch disk name
+        '''
         return self.scratch_disk
 
     def get_proxy(self):
+        '''
+        Get proxy name
+
+        :returns: string, proxy name
+        '''
         return self.proxy
 
     def hostname(self):
+        '''
+        Get HMC IP address
+
+        :returns: number, in IP format
+        '''
         return self.hmc_ip
 
     def username(self):
+        '''
+        Get HMC user name
+
+        :returns: string, HMC user name
+        '''
         return self.user
 
     def password(self):
+        '''
+        Get HMC password
+
+        :returns: string, HMC password
+        '''
         return self.passwd
 
     def set_block_setup_term(self, flag):
+        '''
+        Set block setup terminal
+
+        :param flag: string, to set block setup terminal
+        '''
         self.block_setup_term = flag
 
     def get_block_setup_term(self):
+        '''
+        Get block setup terminal
+
+        :returns: string, block setup terminal name
+        '''
         return self.block_setup_term
 
     def enable_setup_term_quiet(self):
+        '''
+        Enable terminal quiet values
+        '''
         self.setup_term_quiet = 1
         self.setup_term_disable = 0
 
     def disable_setup_term_quiet(self):
+        '''
+        Disable terminal quiet values
+        '''
         self.setup_term_quiet = 0
         self.setup_term_disable = 0
 
     def close(self):
+        '''
+        Close HMC console
+
+        :raises: `pexpect.ExceptionPexpect`
+        '''
         self.util.clear_state(self)
         try:
             self.pty.close()
@@ -576,6 +808,13 @@ class HMCConsole(HMCUtil):
         log.debug("HMC close -> TERMINATE")
 
     def connect(self, logger=None):
+        '''
+        Gets LPAR console using mkvterm
+
+        :param logger: string, name of the logger to use other than default log
+        :raises: `CommandFailed`
+        :returns: object, LPAR console using mkvterm
+        '''
         if self.state == ConsoleState.CONNECTED:
             return self.pty
         self.util.clear_state(self)  # clear when coming in DISCONNECTED
@@ -625,9 +864,21 @@ class HMCConsole(HMCUtil):
         return self.pty
 
     def check_state(self):
+        '''
+        Get HMC state
+
+        :returns: string, HMC state
+        '''
         return self.state
 
     def get_console(self, logger=None):
+        '''
+        Get HMC console from 'connect' API, wait till the Operating System boot
+        complete and set the command prompt.
+
+        :param logger: string, name of the logger to use other than default log
+        :returns: object, HMC console with command prompt set
+        '''
         if self.state == ConsoleState.DISCONNECTED:
             self.util.clear_state(self)
             self.connect(logger=logger)
@@ -658,6 +909,11 @@ class HMCConsole(HMCUtil):
         return self.pty
 
     def get_login_prompt(self):
+        '''
+        Get login prompt
+
+        :returns: string, HMC console prompt
+        '''
         # Assuming 'Normal' boot set in LPAR profile
         # We wait for upto 500 seconds for LPAR to boot to OS
         self.pty.send('\r')
@@ -678,5 +934,8 @@ class HMCConsole(HMCUtil):
         return self.pty
 
     def run_command(self, i_cmd, timeout=15):
+        '''
+        Wrapper command for run_command from util
+        '''
         return self.util.run_command(self, i_cmd, timeout)
 

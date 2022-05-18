@@ -83,6 +83,13 @@ OpTestFSP
    :members:
    :undoc-members:
 
+OpTestHMC
+---------
+
+.. automodule:: common.OpTestHMC
+   :members:
+   :undoc-members:
+
 OpTestQemu
 ----------
 
