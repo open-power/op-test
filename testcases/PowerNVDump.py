@@ -785,6 +785,50 @@ class KernelCrash_KdumpNFS(PowerNVDump):
         self.verify_dump_file(boot_type, dump_place="net")
         self.setup_test("net")
 
+
+class KernelCrash_KdumpSAN(PowerNVDump):
+
+    def setUp(self):
+        super(KernelCrash_KdumpSAN, self).setUp()
+
+        conf = OpTestConfiguration.conf
+        self.dev_path = conf.args.dev_path
+        self.filesystem = conf.args.filesystem if 'filesystem' in conf.args else ''
+
+    def setup_san(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        if self.distro == "rhel":
+            self.c.run_command("sfdisk --delete %s" % self.dev_path)
+            self.c.run_command("echo , | sfdisk --force %s" % self.dev_path, timeout=120)
+            try: self.c.run_command("umount %s1" % self.dev_path)
+            except: pass
+            self.c.run_command("dd if=/dev/zero bs=512 count=512 of=%s1" % self.dev_path)
+            if self.filesystem:
+                self.c.run_command("yes | mkfs.%s %s1" % (self.filesystem, self.dev_path))
+                self.c.run_command("sed -i '/^path/ s/^#*/#/' /etc/kdump.conf; echo 'path /' >> /etc/kdump.conf; sync")
+                self.c.run_command("sed -i '/^%s/ s/^#*/#/' /etc/kdump.conf; echo '%s %s1' >> /etc/kdump.conf; sync" % (
+                                   self.filesystem, self.filesystem, self.dev_path))
+                self.c.run_command("sed -i '/\/var\/crash %s/d' /etc/fstab;"
+                                   "echo '%s1 /var/crash %s defaults 0 0' >> /etc/fstab; sync" % (
+                                   self.filesystem, self.dev_path, self.filesystem))
+                self.c.run_command("mount -t %s %s1 /var/crash" % (self.filesystem, self.dev_path))
+            else:
+                self.c.run_command("sed -i 's/-l --message-level/-l -F --message-level/' /etc/kdump.conf; sync")
+                self.c.run_command("sed -i '/^raw/ s/^#*/#/' /etc/kdump.conf;"
+                                   "echo 'raw %s1' >> /etc/kdump.conf; sync" % (self.dev_path))
+                self.c.run_command("sed -i '/^path/ s/^#*/#/' /etc/kdump.conf; sync")
+            self.c.run_command("systemctl restart kdump.service; sync", timeout=600)
+
+    def runTest(self):
+        self.setup_test()
+        self.setup_san()
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        if self.filesystem:
+            self.c.run_command("sed -i '/\/var\/crash %s/d' /etc/fstab; sync" % self.filesystem)
+
+
 class KernelCrash_KdumpSMT(PowerNVDump):
 
     #This test tests kdump/fadump with smt=1,2,4 and kdump/fadump with smt=1,2,4 and dumprestart from HMC.
@@ -825,10 +869,12 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
+    s.addTest(KernelCrash_KdumpSAN())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
+    s.addTest(KernelCrash_KdumpSAN())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
