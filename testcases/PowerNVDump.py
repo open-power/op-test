@@ -923,6 +923,40 @@ class KernelCrash_KdumpSMT(PowerNVDump):
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
+class KernelCrash_KdumpDLPAR(PowerNVDump, testcases.OpTestDlpar.OpTestDlpar):
+
+    # This test verifies kdump/fadump after cpu and memory add/remove.
+    # cpu_resource and mem_resource must be defined in ~/.op-test-framework.conf.
+    # cpu_resource - max number of CPU
+    # mem_resource - max memory in MB
+    # Ex: cpu_resource=4
+    #     mem_resource=2048
+
+    def runTest(self):
+        self.extended = {'loop':0,'wkld':0,'smt':8}
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        self.AddRemove("proc","--procs","r",self.cpu_resource)
+        print("=============== Testing kdump/fadump after cpu remove ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.AddRemove("proc","--procs","a",self.cpu_resource)
+        print("=============== Testing kdump/fadump after cpu add ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.AddRemove("mem", "-q", "a", self.mem_resource)
+        print("=============== Testing kdump/fadump after memory add ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        self.setup_test()
+        self.AddRemove("mem", "-q", "r", self.mem_resource)
+        print("=============== Testing kdump/fadump after memory remove ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
@@ -930,6 +964,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
     s.addTest(KernelCrash_KdumpSAN())
+    s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
