@@ -83,7 +83,7 @@ class OpTestDlpar(unittest.TestCase):
       if (res_type == "mem"):
           res_mem = int(res_num/1024)
           #for x in range(res_mem):
-          res_num = (random.randint(1,res_mem))*1024
+          res_num = (randint(1,res_mem))*1024
           log.debug("Random number of memory generated for MEM is %s"%res_num)
       if(self.extended['loop'] != 1):
           log.debug("Loop is not on")
