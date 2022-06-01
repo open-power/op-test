@@ -55,6 +55,8 @@
 #      and verify boot progress and collected dump components
 #      (vmcore and opalcore).
 #
+#   NOTE: For remote kdump, network to be configured manually via static sysfs IP, before test starts.
+#
 
 import os
 import pexpect
