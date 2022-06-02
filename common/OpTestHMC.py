@@ -562,6 +562,7 @@ class HMCUtil():
                 filepath = os.path.join(output_dir, filename)
                 with open(filepath, 'w') as f:
                     f.write(output)
+            log.warn("Please collect the pedbg logs immediately. At risk of being overwritten.")
             return True
         except CommandFailed as cmd_failed:
             raise cmd_failed

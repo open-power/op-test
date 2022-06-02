@@ -63,7 +63,7 @@ class OpTestVIOS():
                     f.write(output)
             snap_backup_filename = time.strftime("%d_%m_%Y_%H_%M_%S") + "_snap.pax.Z"
             self.run_command("mv snap.pax.Z %s" % snap_backup_filename)
-            log.info("snap.pax.Z renamed to %s" % snap_backup_filename)
+            log.warn("Please collect the snap logs. snap.pax.Z renamed to %s." % snap_backup_filename)
             return True
         except CommandFailed as cmd_failed:
             raise cmd_failed
