@@ -25,8 +25,12 @@
 OpTestLPM
 ---------
 
-This test is to preform and validate basic Live Partition Mobility(LPM)  migration
+This test is to perform and validate basic Live Partition Mobility(LPM)  migration
 from source to destination managed system
+
+TODO: Monitor the console for forward and backward LPM logs.
+      The console is lost during migration, and hence, backward LPM logs are not
+      captured, and forward LPM logs are partially captured.
 '''
 
 import unittest
@@ -39,6 +43,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil
+from common.OpTestSOL import OpSOLMonitorThread
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -281,6 +286,9 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                      output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
+            fwd_lpm_logs_monitor_thread = OpSOLMonitorThread(1, "console")
+            fwd_lpm_logs_monitor_thread.start()
+
             cmd = ''
             if self.slot_num:
                 cmd = self.vnic_options()
@@ -290,6 +298,8 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
               cmd, timeout=self.lpm_timeout):
                 self.lpm_failed_error(self.src_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
+
+            fwd_lpm_logs_monitor_thread.console_terminate()
 
             self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
             self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
@@ -357,6 +367,9 @@ class OpTestLPM_CrossHMC(OpTestLPM):
             self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                      output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
+            fwd_lpm_logs_monitor_thread = OpSOLMonitorThread(1, "console")
+            fwd_lpm_logs_monitor_thread.start()
+
             cmd = ''
             if self.slot_num:
                 cmd = self.vnic_options()
@@ -371,6 +384,8 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
             log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
             time.sleep(self.lpm_timeout)
+
+            fwd_lpm_logs_monitor_thread.console_terminate()
 
             self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"),
                                     remote_hmc=self.remote_hmc)
