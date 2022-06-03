@@ -97,6 +97,13 @@ OpTestQemu
    :members:
    :undoc-members:
 
+OpTestVIOS
+----------
+
+.. automodule:: common.OpTestVIOS
+   :members:
+   :undoc-members:
+
 Firmware Flashing
 =================
 

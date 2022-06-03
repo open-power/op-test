@@ -21,6 +21,9 @@
 # IBM_PROLOG_END_TAG
 #
 
+# @package OpTestVIOS
+# This class contains common functions for Virtual IO Server(VIOS)
+
 import os
 import re
 import time
@@ -31,6 +34,9 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestVIOS():
+    '''
+    Utility and functions of Virtual I/O Server(VIOS) object
+    '''
 
 
     def __init__(self, vios_name, vios_ip, vios_username, vios_password, conf=None):
@@ -45,6 +51,15 @@ class OpTestVIOS():
         self.ssh.set_system(system)
 
     def gather_logs(self, list_of_commands=[], output_dir=None):
+        '''
+        Gather logs - this function gathers default information like version,
+        ioslevel, errlog, snap and custom commands given through parameter
+        'list of commands'
+
+        :param list_of_commands: list, of commands for which output to be logged
+        :output_dir: string, to store the gatherd logs
+        :returns: True on success, Command Failed exception on failed
+        '''
         if not output_dir:
             output_dir = "Vios_Logs_%s" % (time.asctime(time.localtime())).replace(" ", "_")
         output_dir = os.path.join(self.conf.host().results_dir, output_dir, self.name)
@@ -69,4 +84,10 @@ class OpTestVIOS():
             raise cmd_failed
 
     def run_command(self, cmd, timeout=60):
+        '''
+        Wrapper for running ssh.run_command
+
+        :param cmd: string, command to run
+        :param timeout: number, number of seconds for timeout
+        '''
         return self.ssh.run_command(cmd, timeout)
