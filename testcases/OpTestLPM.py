@@ -25,8 +25,12 @@
 OpTestLPM
 ---------
 
-This test is to preform and validate basic Live Partition Mobility(LPM)  migration
+This test is to perform and validate basic Live Partition Mobility(LPM)  migration
 from source to destination managed system
+
+TODO: Monitor the console for forward and backward LPM logs.
+      The console is lost during migration, and hence, backward LPM logs are not
+      captured, and forward LPM logs are partially captured.
 '''
 
 import unittest
@@ -39,6 +43,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil
+from common.OpTestSOL import OpSOLMonitorThread
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -63,6 +68,7 @@ class OpTestLPM(unittest.TestCase):
         self.slot_num = None
         self.options = self.conf.args.options if 'options' in self.conf.args else None
         self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
+        self.iterations = int(self.conf.args.iterations) if 'iterations' in self.conf.args else 1
         self.util = OpTestUtil(OpTestConfiguration.conf)
         if 'os_file_logs' in self.conf.args:
             self.os_file_logs = self.conf.args.os_file_logs.split(",")+['/var/log/drmgr']
@@ -271,47 +277,53 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         self.check_pkg_installation()
         self.lpm_setup()
 
-        if not self.is_RMCActive(self.src_mg_sys):
-            log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs", "preForwardLPM"))
+        for iteration in range(1, self.iterations + 1):
+            if not self.is_RMCActive(self.src_mg_sys):
+                log.info("RMC service is inactive..!")
+                self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
-        self.check_dmesg_errors(output_dir=os.path.join("logs", "preForwardLPM"))
-        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                 output_dir=os.path.join("logs", "preForwardLPM"))
+            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
+            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                     output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
-        cmd = ''
-        if self.slot_num:
-            cmd = self.vnic_options()
-            self.util.configure_host_ip(self.interface, self.interface_ip, self.netmask, self.cv_HOST)
-            self.vnic_ping_test(output_dir=os.path.join("logs", "preForwardLPM"))
+            fwd_lpm_logs_monitor_thread = OpSOLMonitorThread(1, "console")
+            fwd_lpm_logs_monitor_thread.start()
 
-        if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
-          cmd, timeout=self.lpm_timeout):
-            self.lpm_failed_error(self.src_mg_sys, output_dir=os.path.join("logs", "postForwardLPM"))
+            cmd = ''
+            if self.slot_num:
+                cmd = self.vnic_options()
+                self.util.configure_host_ip(self.interface, self.interface_ip, self.netmask, self.cv_HOST)
+                self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
-        self.check_dmesg_errors(output_dir=os.path.join("logs", "postForwardLPM"))
-        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                 output_dir=os.path.join("logs", "postForwardLPM"))
+            if not self.cv_HMC.migrate_lpar(self.src_mg_sys, self.dest_mg_sys, self.options,
+              cmd, timeout=self.lpm_timeout):
+                self.lpm_failed_error(self.src_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
-        if not self.is_RMCActive(self.dest_mg_sys):
-            log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.dest_mg_sys, output_dir=os.path.join("logs", "postForwardLPM"))
+            fwd_lpm_logs_monitor_thread.console_terminate()
 
-        if self.slot_num:
-            cmd = self.vnic_options('remote')
-            self.vnic_ping_test(output_dir=os.path.join("logs", "postForwardLPM"))
+            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
+            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                     output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
-        log.debug("Migrating lpar back to original managed system")
-        if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options,
-          cmd, timeout=self.lpm_timeout):
-            self.lpm_failed_error(self.dest_mg_sys, output_dir=os.path.join("logs", "postBackwardLPM"))
+            if not self.is_RMCActive(self.dest_mg_sys):
+                log.info("RMC service is inactive..!")
+                self.rmc_service_start(self.dest_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
-        if self.slot_num:
-            self.vnic_ping_test(output_dir=os.path.join("logs", "postBackwardLPM"))
+            if self.slot_num:
+                cmd = self.vnic_options('remote')
+                self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
-        self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"))
-        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                 output_dir=os.path.join("logs", "postBackwardLPM"))
+            log.debug("Migrating lpar back to original managed system")
+            if not self.cv_HMC.migrate_lpar(self.dest_mg_sys, self.src_mg_sys, self.options,
+              cmd, timeout=self.lpm_timeout):
+                self.lpm_failed_error(self.dest_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+
+            if self.slot_num:
+                self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+
+            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                     output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
 
     def runTest(self):
         self.lpar_migrate_test()
@@ -345,57 +357,66 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         self.check_pkg_installation()
         self.lpm_setup()
 
-        if not self.is_RMCActive(self.src_mg_sys):
-            log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs", "preForwardLPM"))
+        for iteration in range(1, self.iterations + 1):
+            if not self.is_RMCActive(self.src_mg_sys):
+                log.info("RMC service is inactive..!")
+                self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
-        self.check_dmesg_errors(output_dir=os.path.join("logs", "preForwardLPM"),
-                                remote_hmc=self.remote_hmc)
-        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                 output_dir=os.path.join("logs", "preForwardLPM"))
+            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"),
+                                    remote_hmc=self.remote_hmc)
+            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                     output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
-        cmd = ''
-        if self.slot_num:
-            cmd = self.vnic_options()
-            self.util.configure_host_ip(self.interface, self.interface_ip, self.netmask, self.cv_HOST)
-            self.vnic_ping_test(output_dir=os.path.join("logs", "preForwardLPM"))
+            fwd_lpm_logs_monitor_thread = OpSOLMonitorThread(1, "console")
+            fwd_lpm_logs_monitor_thread.start()
 
-        self.cv_HMC.cross_hmc_migration(
-                self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
-                self.target_hmc_username, self.target_hmc_password,
-                options=self.options, param=cmd, timeout=self.lpm_timeout
-        )
+            cmd = ''
+            if self.slot_num:
+                cmd = self.vnic_options()
+                self.util.configure_host_ip(self.interface, self.interface_ip, self.netmask, self.cv_HOST)
+                self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
-        log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
-        time.sleep(self.lpm_timeout)
+            self.cv_HMC.cross_hmc_migration(
+                    self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
+                    self.target_hmc_username, self.target_hmc_password,
+                    options=self.options, param=cmd, timeout=self.lpm_timeout
+            )
 
-        self.check_dmesg_errors(output_dir=os.path.join("logs", "postForwardLPM"),
-                                remote_hmc=self.remote_hmc)
-        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                 output_dir=os.path.join("logs", "postForwardLPM"))
+            log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
+            time.sleep(self.lpm_timeout)
 
-        if not self.is_RMCActive(self.dest_mg_sys, self.remote_hmc):
-            log.info("RMC service is inactive..!")
-            self.rmc_service_start(self.dest_mg_sys, self.remote_hmc,
-                                   output_dir=os.path.join("logs", "postForwardLPM"))
+            fwd_lpm_logs_monitor_thread.console_terminate()
 
-        if self.slot_num:
-            cmd = self.vnic_options('remote')
-            self.vnic_ping_test(output_dir=os.path.join("logs", "postForwardLPM"))
+            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"),
+                                    remote_hmc=self.remote_hmc)
+            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                     output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
-        self.cv_HMC.cross_hmc_migration(
-                self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
-                self.cv_HMC.user, self.cv_HMC.passwd, self.remote_hmc,
-                options=self.options, param=cmd, timeout=self.lpm_timeout
-        )
+            if not self.is_RMCActive(self.dest_mg_sys, self.remote_hmc):
+                log.info("RMC service is inactive..!")
+                self.rmc_service_start(self.dest_mg_sys, self.remote_hmc,
+                                       output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
-        if self.slot_num:
-            self.vnic_ping_test(output_dir=os.path.join("logs", "postBackwardLPM"))
+            if self.slot_num:
+                cmd = self.vnic_options('remote')
+                self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
-        self.check_dmesg_errors(output_dir=os.path.join("logs", "postBackwardLPM"),
-                                remote_hmc=self.remote_hmc)
-        self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                 output_dir=os.path.join("logs", "postBackwardLPM"))
+            self.cv_HMC.cross_hmc_migration(
+                    self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
+                    self.cv_HMC.user, self.cv_HMC.passwd, self.remote_hmc,
+                    options=self.options, param=cmd, timeout=self.lpm_timeout
+            )
+
+            log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
+            time.sleep(self.lpm_timeout)
+
+            if self.slot_num:
+                self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+
+            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"),
+                                    remote_hmc=self.remote_hmc)
+            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                     output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
 
     def runTest(self):
         self.cross_hmc_migrate_test()
