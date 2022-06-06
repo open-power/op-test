@@ -48,7 +48,7 @@ class OpSSHThreadLinearVar1(threading.Thread):
     Runs a list of commands in a loop with equal sleep times in linear order
     '''
 
-    def __init__(self, threadID, name, cmd_list, sleep_time, execution_time, ignore_fail=False):
+    def __init__(self, threadID, name, cmd_list, sleep_time, execution_time, ignore_fail=False, cmd_timeout=60):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.name = name
@@ -56,32 +56,39 @@ class OpSSHThreadLinearVar1(threading.Thread):
         self.sleep_time = sleep_time
         self.execution_time = execution_time
         self.ignore_fail = ignore_fail
+        self.cmd_timeout = cmd_timeout
         conf = OpTestConfiguration.conf
         self.host = conf.host()
         self.c = self.host.get_new_ssh_connection(name)
+        self.c_terminate = False
 
     def run(self):
         log.debug("Starting %s" % self.name)
         self.inband_child_thread(
-            self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail)
+            self.name, self.cmd_list, self.sleep_time, self.execution_time, self.ignore_fail, self.cmd_timeout)
         log.debug("Exiting %s" % self.name)
 
-    def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail):
+    def inband_child_thread(self, threadName, cmd_list, sleep_time, torture_time, ignore_fail, cmd_timeout):
         execution_time = time.time() + 60*torture_time
         log.debug("Starting %s for new SSH thread %s" % (threadName, cmd_list))
         while True:
             for cmd in cmd_list:
                 if ignore_fail:
                     try:
-                        self.c.run_command(cmd)
+                        self.c.run_command(cmd, timeout=cmd_timeout)
                     except CommandFailed as cf:
                         pass
                 else:
-                    self.c.run_command(cmd)
+                    self.c.run_command(cmd, timeout=cmd_timeout)
                 time.sleep(sleep_time)
             if time.time() > execution_time:
                 break
+            if self.c_terminate:
+                break
         log.debug("Thread exiting after run for desired time")
+
+    def console_terminate(self):
+        self.c_terminate = True
 
 
 class OpSSHThreadLinearVar2(threading.Thread):

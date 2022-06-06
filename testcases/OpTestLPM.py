@@ -28,6 +28,13 @@ OpTestLPM
 This test is to perform and validate basic Live Partition Mobility(LPM)  migration
 from source to destination managed system
 
+For running stress-ng test in parallel with LPM:
+    - Tune the stress-ng command parameters according to the resources available
+      on the system under test.
+    - Provide the "--timeout" in the stress-ng command in minutes.
+    - The stress-ng test command is run only once (across all iterations of LPM);
+      provide the "--timeout" value accordingly.
+
 TODO: Monitor the console for forward and backward LPM logs.
       The console is lost during migration, and hence, backward LPM logs are not
       captured, and forward LPM logs are partially captured.
@@ -36,6 +43,7 @@ TODO: Monitor the console for forward and backward LPM logs.
 import unittest
 import time
 import os
+import re
 import OpTestConfiguration
 import OpTestLogger
 from common import OpTestHMC
@@ -43,6 +51,7 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil
+from common.OpTestThread import OpSSHThreadLinearVar1
 from common.OpTestSOL import OpSOLMonitorThread
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -69,6 +78,7 @@ class OpTestLPM(unittest.TestCase):
         self.options = self.conf.args.options if 'options' in self.conf.args else None
         self.lpm_timeout = int(self.conf.args.lpm_timeout) if 'lpm_timeout' in self.conf.args else 300
         self.iterations = int(self.conf.args.iterations) if 'iterations' in self.conf.args else 1
+        self.stressng_command = self.conf.args.stressng_command if 'stressng_command' in self.conf.args else None
         self.util = OpTestUtil(OpTestConfiguration.conf)
         if 'os_file_logs' in self.conf.args:
             self.os_file_logs = self.conf.args.os_file_logs.split(",")+['/var/log/drmgr']
@@ -208,7 +218,10 @@ class OpTestLPM(unittest.TestCase):
                        'tc ct offload not supported',
                        'send_subcrq_indirect failed']
                        
-        warn_errors = ['Invalid request detected while CRQ is inactive, possible device state change during reset']
+        warn_errors = ['Invalid request detected while CRQ is inactive, possible device state change during reset',
+                       'rejecting I/O to offline device',
+                       'blk_update_request: I/O error',
+                       'device-mapper: multipath']
 
         err = self.util.collect_errors_by_level(output_dir=output_dir, skip_errors=skip_errors, warn_errors=warn_errors)
         if err:
@@ -240,6 +253,16 @@ class OpTestLPM(unittest.TestCase):
             if not self.util.wait_for(self.is_RMCActive, timeout=300, args=[mg_system, remote_hmc]):
                 self.collect_logs_test_fail(remote_hmc, output_dir)
                 raise OpTestError("RMC connection is down!!")
+
+    def execute_stressng(self):
+        stress_ng_timeout = re.search('(?:--timeout|-t) (\d+[mM])', self.stressng_command)
+        if stress_ng_timeout:
+            thread_timeout = int(stress_ng_timeout.group(1)[:-1])
+        else:
+            raise OpTestError("Specify --timeout parameter in stress-ng command in minutes.")
+        self.thread_stressng = OpSSHThreadLinearVar1(1, 'stressng-thread', [self.stressng_command],
+                                                     5, thread_timeout, True, (thread_timeout+1)*60)
+        self.thread_stressng.start()
 
     def lpm_failed_error(self, mg_system, remote_hmc=None, output_dir=None):
         if self.cv_HMC.is_lpar_in_managed_system(mg_system, self.cv_HMC.lpar_name):
@@ -276,6 +299,9 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
+
+        if self.stressng_command:
+            self.execute_stressng()
 
         for iteration in range(1, self.iterations + 1):
             if not self.is_RMCActive(self.src_mg_sys):
@@ -328,6 +354,11 @@ class OpTestLPM_LocalHMC(OpTestLPM):
     def runTest(self):
         self.lpar_migrate_test()
 
+    def tearDown(self):
+        if self.stressng_command and self.thread_stressng.isAlive():
+            self.cv_HOST.host_run_command('pkill -x "stress-ng"')
+            self.thread_stressng.console_terminate()
+
 
 class OpTestLPM_CrossHMC(OpTestLPM):
 
@@ -356,6 +387,9 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
+
+        if self.stressng_command:
+            self.execute_stressng()
 
         for iteration in range(1, self.iterations + 1):
             if not self.is_RMCActive(self.src_mg_sys):
@@ -420,6 +454,11 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
     def runTest(self):
         self.cross_hmc_migrate_test()
+
+    def tearDown(self):
+        if self.stressng_command and self.thread_stressng.isAlive():
+            self.cv_HOST.host_run_command('pkill -x "stress-ng"')
+            self.thread_stressng.console_terminate()
 
 
 def LPM_suite():
