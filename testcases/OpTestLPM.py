@@ -236,7 +236,7 @@ class OpTestLPM(unittest.TestCase):
         hmc = remote_hmc if remote_hmc else self.cv_HMC
         cmd = "diagrmc -m %s --ip %s -p %s --autocorrect" % (
             mg_system, self.cv_HOST.ip, self.cv_HMC.lpar_name)
-        output = hmc.ssh.run_command(cmd, timeout=300)
+        output = hmc.ssh.run_command(cmd, timeout=600)
         for line in output:
             if "%s has RMC connection." % self.cv_HOST.ip in line:
                 return True
