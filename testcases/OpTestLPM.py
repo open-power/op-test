@@ -397,7 +397,8 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                                               managed_system=self.conf.args.target_system_name,
                                               lpar_name=self.conf.args.remote_lpar_vios,
                                               lpar_user=self.conf.args.remote_vios_username,
-                                              lpar_password=self.conf.args.remote_vios_password)
+                                              lpar_password=self.conf.args.remote_vios_password,
+                                              lpar_vios=self.conf.args.remote_lpar_vios)
         self.remote_hmc.set_system(self.conf.system())
 
         super(OpTestLPM_CrossHMC, self).setUp(self.remote_hmc)
@@ -415,10 +416,11 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 log.info("RMC service is inactive..!")
                 self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
-            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"),
-                                    remote_hmc=self.remote_hmc)
-            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                     output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
+            if not self.inactive_lpm:
+                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"),
+                                        remote_hmc=self.remote_hmc)
+                self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                         output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
             fwd_lpm_logs_monitor_thread = OpSOLMonitorThread(1, "console")
             fwd_lpm_logs_monitor_thread.start()
@@ -428,6 +430,9 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 cmd = self.vnic_options()
                 self.util.configure_host_ip(self.interface, self.interface_ip, self.netmask, self.cv_HOST)
                 self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
+
+            if self.inactive_lpm:
+                self.cv_HMC.poweroff_lpar()
 
             self.cv_HMC.cross_hmc_migration(
                     self.src_mg_sys, self.dest_mg_sys, self.target_hmc_ip,
@@ -440,10 +445,15 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
             fwd_lpm_logs_monitor_thread.console_terminate()
 
-            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"),
-                                    remote_hmc=self.remote_hmc)
-            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                     output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
+            if self.inactive_lpm:
+                self.cv_HMC.poweron_lpar(remote_hmc=self.remote_hmc)
+                time.sleep(60)
+
+            if not self.inactive_lpm:
+                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"),
+                                        remote_hmc=self.remote_hmc)
+                self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                         output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
             if not self.is_RMCActive(self.dest_mg_sys, self.remote_hmc):
                 log.info("RMC service is inactive..!")
@@ -454,6 +464,9 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 cmd = self.vnic_options('remote')
                 self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
+            if self.inactive_lpm:
+                self.cv_HMC.poweroff_lpar(remote_hmc=self.remote_hmc)
+
             self.cv_HMC.cross_hmc_migration(
                     self.dest_mg_sys, self.src_mg_sys, self.cv_HMC.hmc_ip,
                     self.cv_HMC.user, self.cv_HMC.passwd, self.remote_hmc,
@@ -463,13 +476,17 @@ class OpTestLPM_CrossHMC(OpTestLPM):
             log.debug("Waiting for %.2f minutes." % (self.lpm_timeout/60))
             time.sleep(self.lpm_timeout)
 
+            if self.inactive_lpm:
+                self.cv_HMC.poweron_lpar()
+
             if self.slot_num:
                 self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
 
-            self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"),
-                                    remote_hmc=self.remote_hmc)
-            self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
-                                     output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+            if not self.inactive_lpm:
+                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"),
+                                        remote_hmc=self.remote_hmc)
+                self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
+                                         output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
 
     def runTest(self):
         self.cross_hmc_migrate_test()

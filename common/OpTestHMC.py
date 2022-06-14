@@ -187,38 +187,43 @@ class HMCUtil():
             log.debug("Starting VIOS %s", self.lpar_vios)
             self.poweron_lpar(vios=True)
 
-    def poweroff_lpar(self):
+    def poweroff_lpar(self, remote_hmc=None):
         '''
         PowerOFF the LPAR
+
+        :param remote_hmc: object, remote HMC instance
         '''
-        if self.get_lpar_state() in [OpHmcState.NOT_ACTIVE, OpHmcState.NA]:
+        hmc = remote_hmc if remote_hmc else self
+        if self.get_lpar_state(remote_hmc=remote_hmc) in [OpHmcState.NOT_ACTIVE, OpHmcState.NA]:
             log.info('LPAR Already powered-off!')
             return
-        self.ssh.run_command("chsysstate -m %s -r lpar -n %s -o shutdown --immed" %
-                         (self.mg_system, self.lpar_name))
-        self.wait_lpar_state(OpHmcState.NOT_ACTIVE)
+        hmc.ssh.run_command("chsysstate -m %s -r lpar -n %s -o shutdown --immed" %
+                         (hmc.mg_system, self.lpar_name))
+        self.wait_lpar_state(OpHmcState.NOT_ACTIVE, remote_hmc=remote_hmc)
 
-    def poweron_lpar(self, vios=False):
+    def poweron_lpar(self, vios=False, remote_hmc=None):
         '''
         PowerON the LPAR
 
         :param vios: Boolean, to identify VIOS partition
+        :param remote_hmc: object, remote HMC instance
         :returns: BMC_CONST.FW_SUCCESS up on success
         '''
-        if self.get_lpar_state(vios) == OpHmcState.RUNNING:
+        hmc = remote_hmc if remote_hmc else self
+        if self.get_lpar_state(vios, remote_hmc=remote_hmc) == OpHmcState.RUNNING:
             log.info('LPAR Already powered on!')
             return BMC_CONST.FW_SUCCESS
         lpar_name = self.lpar_name
         if vios:
-            lpar_name = self.lpar_vios
-        cmd = "chsysstate -m %s -r lpar -n %s -o on" % (self.mg_system, lpar_name)
+            lpar_name = hmc.lpar_vios
+        cmd = "chsysstate -m %s -r lpar -n %s -o on" % (hmc.mg_system, lpar_name)
 
         if self.lpar_prof:
             cmd = "%s -f %s" % (cmd, self.lpar_prof)
 
-        self.wait_lpar_state(OpHmcState.NOT_ACTIVE, vios=vios)
-        self.ssh.run_command(cmd)
-        self.wait_lpar_state(vios=vios)
+        self.wait_lpar_state(OpHmcState.NOT_ACTIVE, vios=vios, remote_hmc=remote_hmc)
+        hmc.ssh.run_command(cmd)
+        self.wait_lpar_state(vios=vios, remote_hmc=remote_hmc)
         time.sleep(STALLTIME)
         return BMC_CONST.FW_SUCCESS
 
@@ -275,20 +280,22 @@ class HMCUtil():
         self.ssh.run_command("chsyscfg -r prof -m %s -p %s -i 'lpar_name=%s,name=%s,%s' --force" %
                 (self.mg_system, self.lpar_name, self.lpar_name, self.lpar_prof,arg_str))
 
-    def get_lpar_state(self, vios=False):
+    def get_lpar_state(self, vios=False, remote_hmc=None):
         '''
         Get current state of LPAR
 
         :param vios: Boolean, to identify VIOS partition
+        :param remote_hmc: object, remote HMC instance
         :returns: the current status of the LPAR e.g 'Running' or 'Booting'
         '''
+        hmc = remote_hmc if remote_hmc else self
         lpar_name = self.lpar_name
         if vios:
-            lpar_name = self.lpar_vios
-        state = self.ssh.run_command(
-            'lssyscfg -m %s -r lpar --filter lpar_names=%s -F state' % (self.mg_system, lpar_name))[-1]
-        ref_code = self.ssh.run_command(
-            'lsrefcode -m %s -r lpar --filter lpar_names=%s -F refcode' % (self.mg_system, lpar_name))[-1]
+            lpar_name = hmc.lpar_vios
+        state = hmc.ssh.run_command(
+            'lssyscfg -m %s -r lpar --filter lpar_names=%s -F state' % (hmc.mg_system, lpar_name))[-1]
+        ref_code = hmc.ssh.run_command(
+            'lsrefcode -m %s -r lpar --filter lpar_names=%s -F refcode' % (hmc.mg_system, lpar_name))[-1]
         if state == 'Running':
             if 'Linux' in ref_code or not ref_code:
                 return 'Running'
@@ -306,19 +313,20 @@ class HMCUtil():
             'lssyscfg -m %s -r sys -F state' % self.mg_system)
         return state[-1]
 
-    def wait_lpar_state(self, exp_state=OpHmcState.RUNNING, vios=False, timeout=WAITTIME):
+    def wait_lpar_state(self, exp_state=OpHmcState.RUNNING, vios=False, timeout=WAITTIME, remote_hmc=None):
         '''
         Wait for a particular state of LPAR
 
         :param exp_state: constant, expected HMC STATE, default is OpHmcState.RUNNING
         :param vios: Boolean, to identify VIOS partition
         :param timeout: number, Wait time in seconds
+        :param remote_hmc: object, remote HMC instance
         :raises: :class:`common.OpTestError` when the timeout happens
         '''
-        state = self.get_lpar_state(vios)
+        state = self.get_lpar_state(vios, remote_hmc=remote_hmc)
         count = 0
         while state != exp_state:
-            state = self.get_lpar_state(vios)
+            state = self.get_lpar_state(vios, remote_hmc=remote_hmc)
             log.info("Current state: %s", state)
             time.sleep(timeout)
             count += 1
