@@ -499,8 +499,6 @@ class OpTestLPM_CrossHMC(OpTestLPM):
 
 def LPM_suite():
     s = unittest.TestSuite()
-    if conf.args.target_hmc_ip:
-        s.addTest(OpTestLPM_CrossHMC())
-    else:
-        s.addTest(OpTestLPM_LocalHMC())
+    s.addTest(OpTestLPM_LocalHMC())
+    s.addTest(OpTestLPM_CrossHMC())
     return s
