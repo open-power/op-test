@@ -495,10 +495,3 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         if self.stressng_command and self.thread_stressng.isAlive():
             self.cv_HOST.host_run_command('pkill -x "stress-ng"')
             self.thread_stressng.console_terminate()
-
-
-def LPM_suite():
-    s = unittest.TestSuite()
-    s.addTest(OpTestLPM_LocalHMC())
-    s.addTest(OpTestLPM_CrossHMC())
-    return s

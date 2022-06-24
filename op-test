@@ -657,9 +657,17 @@ class DlparIOSuite():
 
 class LPMSuite():
     '''LPM Test Suite'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        if 'target_hmc_ip' in OpTestConfiguration.conf.args:
+            optestlog.info('Running Remote HMC tests')
+            self.s.addTest(OpTestLPM.OpTestLPM_CrossHMC())
+        else:
+            optestlog.info('Running Local HMC tests')
+            self.s.addTest(OpTestLPM.OpTestLPM_LocalHMC())
 
     def suite(self):
-        return OpTestLPM.LPM_suite()
+        return self.s
 
 class FspOpalSuite():
     def __init__(self):
