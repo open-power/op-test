@@ -2004,7 +2004,8 @@ class OpTestUtil():
             host.host_run_command("mkdir -p files")
             for file in set(list_of_files):
                 fn = "%s.log" % '-'.join(file.strip(os.path.sep).split(os.path.sep))
-                host.host_run_command("cp %s files/%s" % (file, fn))
+                host.host_run_command("[ -f %s ] && { cp %s files/%s; } || "
+                                      "echo 'File does not exist'" % (file, file, fn))
             host.copy_files_from_host(sourcepath=output_dir, destpath="files")
             host.host_run_command("rm -rf files")
             return True
