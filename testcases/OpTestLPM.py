@@ -138,7 +138,7 @@ class OpTestLPM(unittest.TestCase):
         pkg_found = True
         pkg_notfound = []
         self.oslevel = self.cv_HOST.host_get_OS_Level()
-        lpm_pkg_list = ["src", "rsct.core", "rsct.core.utils", "rsct.basic", "rsct.opt.storagerm", "DynamicRM"]
+        lpm_pkg_list = ["src", "rsct.core", "rsct.core.utils", "rsct.basic", "rsct.opt.storagerm", "DynamicRM", "stress-ng"]
         for pkg in lpm_pkg_list:
             pkg_status = self.cv_HOST.host_check_pkg_installed(self.oslevel, pkg)
             if not pkg_status:
