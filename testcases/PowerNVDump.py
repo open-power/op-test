@@ -640,6 +640,8 @@ class KernelCrash_FadumpEnable(PowerNVDump):
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
+        elif self.distro == "sles":
+            self.cv_HOST.host_check_command("kdumptool")
         os_level = self.cv_HOST.host_get_OS_Level()
         self.verify_fadump_unreg()
         self.verify_fadump_reg()
@@ -670,6 +672,8 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
+        elif self.distro == "sles":
+            self.cv_HOST.host_check_command("kdumptool")
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
@@ -694,6 +698,8 @@ class KernelCrash_DisableAll(PowerNVDump):
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
+        elif self.distro == "sles":
+            self.cv_HOST.host_check_command("kdumptool")
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_disable_kdump_service(os_level)
