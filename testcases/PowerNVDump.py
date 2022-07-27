@@ -606,8 +606,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
             self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf; sync")
             self.c.run_command("sed -i 's/path \//path \/var\/crash/' /etc/kdump.conf; sync")
             obj = OpTestInstallUtil.InstallUtil()
-            if not obj.update_kernel_cmdline(self.distro, args="fadump=on crashkernel=2G-128G:2048M,128G-:8192M",
-                                             reboot=True, reboot_cmd=True):
+            if not obj.update_kernel_cmdline(self.distro, args="fadump=on", reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
@@ -615,7 +614,8 @@ class KernelCrash_FadumpEnable(PowerNVDump):
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             self.c.run_command("mkdumprd -f")
             self.c.run_command("update-bootloader --refresh")
-            self.c.run_command("zypper install -y ServiceReport; servicereport -r; echo $?", timeout=240)
+            self.c.run_command("servicereport -r; echo $?", timeout=240)
+            self.c.run_command("update-bootloader --refresh")
             time.sleep(5)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -672,8 +672,17 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
+            obj = OpTestInstallUtil.InstallUtil()
+            if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
+                                             reboot=True, reboot_cmd=True):
+                self.fail("KernelArgTest failed to update kernel args")
         elif self.distro == "sles":
             self.cv_HOST.host_check_command("kdumptool")
+            self.c.run_command("zypper install -y ServiceReport; servicereport -r; echo $?", timeout=240)
+            self.c.run_command("update-bootloader --refresh")
+            time.sleep(5)
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
