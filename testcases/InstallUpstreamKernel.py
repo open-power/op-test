@@ -113,14 +113,12 @@ class InstallUpstreamKernel(unittest.TestCase):
                         self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
             log.debug("Compile and install linux kernel")
-            con.run_command("make -j %d -s && make modules && make modules_install && make install" %
+            con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
                 con.run_command(
                     "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
-                con.run_command(
-                    'grub2-set-default /boot/vmlinu*-`cat include/config/kernel.release 2> /dev/null`')
                 log.debug("Rebooting after kernel install...")
                 self.console_thread.console_terminate()
                 con.close()
@@ -132,7 +130,7 @@ class InstallUpstreamKernel(unittest.TestCase):
                 if self.append_kernel_cmdline:
                     cmdline += " %s" % self.append_kernel_cmdline
                 kern_rel_str = con.run_command(
-                    "cat %s/include/config/kernel.release" % linux_path)[-1]
+                     "cat %s/include/config/kernel.release" % linux_path)[-1]
                 try:
                     initrd_file = con.run_command(
                         "ls -l /boot/initr*-%s.img" % kern_rel_str)[-1].split(" ")[-1]
@@ -143,8 +141,20 @@ class InstallUpstreamKernel(unittest.TestCase):
                     initrd_file, cmdline, kern_rel_str)
                 # Let's makesure we set the default boot index to current kernel
                 # to avoid leaving host in unstable state incase boot failure
+                res = con.run_command("cat /etc/os-release")
+                if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
+                    con.run_command(
+                        'grubby --set-default /boot/vmlinu*-`uname -r`')
+                elif 'Red Hat' in res[0] or 'Red Hat' in res[1]:
+                    con.run_command(
+                        'grubby --set-default /boot/vmlinu*-`uname -r`')
+                elif 'SLES' in res[0] or 'SLES' in res[1]:
+                    con.run_command(
+                        'grub2-set-default /boot/vmlinu*-`uname -r`')
+                else:
+                    raise self.skipTest("Unsupported OS")
                 con.run_command(
-                    'grub2-set-default /boot/vmlinu*-`uname -r 2> /dev/null`')
+                    "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
                 con.run_command(kexec_cmdline)
                 con.close()
                 raw_pty = self.cv_SYSTEM.console.get_console()
