@@ -104,6 +104,7 @@ from testcases import OpTestHostboot
 from testcases import OpTestExample
 from testcases import OpTestDlparIO
 from testcases import OpTestLPM
+from testcases import OpTestKexec
 import OpTestConfiguration
 import sys
 import time
@@ -650,6 +651,12 @@ class OSdumpSuite():
 
     def suite(self):
         return self.s
+
+class KexecSuite():
+    '''Kexec Test Suite'''
+
+    def suite(self):
+        return OpTestKexec.exec_suite()
 
 class DlparIOSuite():
     '''DlparIO Test Suite'''
