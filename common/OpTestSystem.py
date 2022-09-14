@@ -1393,7 +1393,6 @@ class OpTestLPARSystem(OpTestSystem):
                  bmc=None,
                  conf=None,
                  state=OpSystemState.UNKNOWN):
-        bmc.fsp_get_console()
         self.hmc = bmc.get_hmc()
         super(OpTestLPARSystem, self).__init__(host=host,
                                               bmc=bmc,
