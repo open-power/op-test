@@ -104,7 +104,7 @@ class OpTestKexec(unittest.TestCase):
         """
         This function first tests kexec load and then exec(-e) 
         """
-        self.kexec_load()
+        self.kexec_load_unload("l")
         cmd="kexec -e"
         self.get_raw_pty_console(cmd)
 
