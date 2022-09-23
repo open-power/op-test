@@ -55,13 +55,6 @@ class OpTestKexec(unittest.TestCase):
         self.kernel_image = conf.args.kernel_image
         self.initrd_image = conf.args.initrd_image
         self.linux_src_dir = conf.args.linux_src_dir
-        if not (self.kernel_image and self.initrd_image):
-            if self.linux_src_dir:
-                kernel_release = self.cv_HOST.host_run_command("cd {} && make kernelrelease".format(self.linux_src_dir))[0]
-            else:
-                kernel_release = self.cv_HOST.host_run_command("uname -r")[0]
-            self.kernel_image = "vmlinuz-{}".format(kernel_release)
-            self.initrd_image = "initramfs-{}.img".format(kernel_release)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         res = self.c.run_command("cat /etc/os-release")
         if "Ubuntu" in (res[0] or res[1]):
@@ -72,7 +65,26 @@ class OpTestKexec(unittest.TestCase):
             self.distro = 'SLES'
         else:
             raise self.skipTest("Test currently supported only on Ubuntu, SLES and RHEL")
- 
+
+        if not (self.kernel_image and self.initrd_image):
+            if self.linux_src_dir:
+                kernel_release = self.cv_HOST.host_run_command("cd {} && make kernelrelease".format(self.linux_src_dir))[0]
+            else:
+                kernel_release = self.cv_HOST.host_run_command("uname -r")[0]
+
+            #Get proper kernel images based on distros
+            if self.distro == "RHEL":
+                self.kernel_image = "vmlinuz-{}".format(kernel_release)
+                self.initrd_image = "initramfs-{}.img".format(kernel_release)
+            elif self.distro == "SLES":
+                self.kernel_image = "vmlinux-{}".format(kernel_release)
+                self.initrd_image = "initrd-{}".format(kernel_release)
+            elif self.distro == "Ubuntu":
+                self.kernel_image = "vmlinux-{}".format(kernel_release)
+                self.initrd_image = "initrd.img-{}".format(kernel_release)
+            else:
+                log.info("Distro not supported")
+
     def get_raw_pty_console(self,cmd):
         """
         This function executes the command in raw_pty console 
