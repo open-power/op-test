@@ -604,18 +604,18 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         self.cv_SYSTEM.set_state(OpSystemState.OS)
         if self.distro == "rhel":
             self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf; sync")
-            self.c.run_command("sed -i 's/path \//path \/var\/crash/' /etc/kdump.conf; sync")
             obj = OpTestInstallUtil.InstallUtil()
-            if not obj.update_kernel_cmdline(self.distro, args="fadump=on", reboot=True, reboot_cmd=True):
+            if not obj.update_kernel_cmdline(self.distro, args="fadump=on crashkernel=2G-128G:2048M,128G-:8192M",
+                                             reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
             self.c.run_command("sed -i '/KDUMP_FADUMP=\"no\"/c\KDUMP_FADUMP=\"yes\"' /etc/sysconfig/kdump")
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
-            self.c.run_command("mkdumprd -f")
+            self.c.run_command("mkdumprd -f", timeout=120)
             self.c.run_command("update-bootloader --refresh")
-            self.c.run_command("servicereport -r; echo $?", timeout=240)
-            self.c.run_command("update-bootloader --refresh")
+            self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
+                               "update-bootloader --refresh", timeout=240)
             time.sleep(5)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
@@ -678,8 +678,8 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
                 self.fail("KernelArgTest failed to update kernel args")
         elif self.distro == "sles":
             self.cv_HOST.host_check_command("kdumptool")
-            self.c.run_command("zypper install -y ServiceReport; servicereport -r; echo $?", timeout=240)
-            self.c.run_command("update-bootloader --refresh")
+            self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
+                               "update-bootloader --refresh", timeout=240)
             time.sleep(5)
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
