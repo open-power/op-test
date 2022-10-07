@@ -72,6 +72,7 @@ from common.OpTestSystem import OpSystemState
 from common.Exceptions import KernelOOPS, KernelPanic, KernelCrashUnknown, KernelKdump, KernelFADUMP, PlatformError, CommandFailed, SkibootAssert
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
+import testcases.OpTestDlpar
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -957,6 +958,29 @@ class KernelCrash_KdumpSMT(PowerNVDump):
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
+class KernelCrash_KdumpDLPAR(PowerNVDump, testcases.OpTestDlpar.OpTestDlpar):
+
+    # This test verifies kdump/fadump after cpu and memory add/remove.
+    # cpu_resource and mem_resource must be defined in ~/.op-test-framework.conf.
+    # cpu_resource - max number of CPU
+    # mem_resource - max memory in MB
+    # Ex: cpu_resource=4
+    #     mem_resource=2048
+
+    def runTest(self):
+        self.extended = {'loop':0,'wkld':0,'smt':8}
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        for component in ['proc', 'mem']:
+            for operation in ['a', 'r']:
+                self.setup_test()
+                if component == "proc":
+                    self.AddRemove("proc", "--procs", operation, self.cpu_resource)
+                else:
+                    self.AddRemove("mem", "-q", operation, self.mem_resource)
+                log.info("=============== Testing kdump/fadump after %s %s ===============" % (component, operation))
+                boot_type = self.kernel_crash()
+                self.verify_dump_file(boot_type)
+
 
 def crash_suite():
     s = unittest.TestSuite()
@@ -965,11 +989,13 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
     s.addTest(KernelCrash_KdumpSAN())
+    s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
     s.addTest(KernelCrash_KdumpSAN())
+    s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
