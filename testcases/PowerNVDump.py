@@ -1028,6 +1028,46 @@ class KernelCrash_KdumpWorkLoad(PowerNVDump):
         self.verify_dump_file(boot_type)
         self.c.run_command("rm -rf /tmp/ebizzy*")
 
+class KernelCrash_hugepage_checks(PowerNVDump):
+    '''
+    This test checks hugepage size set after kdump/fadump
+    '''
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        log.info("=============== Testing kdump/fadump with default hugepage size ===============")
+        hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+        log.info("Hugepage size is {} kB".format(hugepage_size))
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+        log.info("After dump/restart, Hugepage size is {} kB".format(hugepage_size))
+        if hugepage_size != '2048' :
+            raise OpTestError("Failed to set  default hugepage size 2MB")
+        else:
+            log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
+
+        mmu = self.c.run_command("awk '$1 == \"MMU\" {print $3}' /proc/cpuinfo")[0]
+        log.debug(" MMU '{}'".format(mmu))
+        if mmu == "Radix":
+            log.info("=============== Testing kdump/fadump with 1GB hugepage size ===============")
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.setup_test()
+            obj = OpTestInstallUtil.InstallUtil()
+            if not obj.update_kernel_cmdline(self.distro, args="default_hugepagesz=1GB hugepagesz=1GB hugepages=80",
+                                             reboot=True, reboot_cmd=True):
+                self.fail("KernelArgTest failed to update kernel args")
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            boot_type = self.kernel_crash()
+            self.verify_dump_file(boot_type)
+            hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+            log.info("After dump/restart , Hugepage size set is {}".format(hugepage_size))
+            if hugepage_size != '1048576' :
+                raise OpTestError("Failed to set hugepage size to 1GB")
+            else:
+                log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
 
 def crash_suite():
     s = unittest.TestSuite()
@@ -1038,6 +1078,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpSAN())
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_hugepage_checks())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
@@ -1045,6 +1086,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpSAN())
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_hugepage_checks())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
