@@ -234,7 +234,8 @@ def get_parser():
     bmcgroup = parser.add_argument_group('BMC',
                                          'Options for Service Processor')
     # The default supported BMC choices in --bmc-type
-    bmcChoices = ['AMI', 'SMC', 'FSP', 'FSP_PHYP', 'OpenBMC', 'EBMC_PHYP', 'qemu', 'mambo']
+    bmcChoices = ['AMI', 'SMC', 'FSP', 'FSP_PHYP',
+                  'OpenBMC', 'EBMC_PHYP', 'qemu', 'mambo']
     # Loop through any addons let it append the extra bmcChoices
     for opt in optAddons:
         bmcChoices = optAddons[opt].addBMCType(bmcChoices)
@@ -392,14 +393,14 @@ def get_parser():
     kdumpgroup = parser.add_argument_group("Kdump group",
                                            "Ipaddress username and password of remote server")
     kdumpgroup.add_argument("--dump-server-ip",
-                           help="IP address of remote server where dump will be stored",
-                           default="")
+                            help="IP address of remote server where dump will be stored",
+                            default="")
     kdumpgroup.add_argument("--dump-server-pw",
-                           help="Password of remote server where dump will be stored",
-                           default="")
+                            help="Password of remote server where dump will be stored",
+                            default="")
     kdumpgroup.add_argument("--dump-path",
-                           help="Directory path of remote server where dump will be stored",
-                           default="/var/crash")
+                            help="Directory path of remote server where dump will be stored",
+                            default="/var/crash")
     cronusgroup = parser.add_argument_group("Cronus", "Cronus Config options")
     cronusgroup.add_argument(
         "--cronus-release", default="auto", help="Cronus Release")
@@ -488,7 +489,6 @@ class OpTestConfiguration():
             # attribute errors thrown in cleanup, e.g. ./op-test -h
             self.util.cleanup()
 
-
     def parse_config_file(self, filename, optional=False):
         config = configparser.ConfigParser()
 
@@ -502,7 +502,8 @@ class OpTestConfiguration():
         if config.has_section('op-test'):
             d = dict(config.items('op-test'))
         else:
-            msg = "{} is missing an an [op-test] section header".format(filename)
+            msg = "{} is missing an an [op-test] section header".format(
+                filename)
             raise configparser.NoSectionError(msg)
 
         return dict(config.items('op-test'))
@@ -530,7 +531,7 @@ class OpTestConfiguration():
         # of args makes the default usage string... unwieldy
         if len(self.remaining_args) > 0 and not self.args.accept_unknown_args:
             raise Exception("Unknown command line argument(s): {}"
-                                .format(str(self.remaining_args)))
+                            .format(str(self.remaining_args)))
 
         args_dict = vars(self.args)
 
@@ -545,7 +546,6 @@ class OpTestConfiguration():
         for key in default_val:
             if args_dict.get(key) is None:
                 args_dict[key] = default_val[key]
-
 
         # Some quick sanity checking
         if self.args.known_hosts_file and not self.args.check_ssh_keys:
@@ -565,7 +565,7 @@ class OpTestConfiguration():
                         'PETITBOOT':        OpSystemState.PETITBOOT,
                         'PETITBOOT_SHELL':  OpSystemState.PETITBOOT_SHELL,
                         'OS':               OpSystemState.OS
-            }
+                        }
             self.startState = stateMap[self.args.machine_state]
         return self.args, self.remaining_args
 
@@ -663,9 +663,11 @@ class OpTestConfiguration():
 
         # MTU Check here post handler and logging setup
         try:
-          self.util.PingMTUCheck(self.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+            self.util.PingMTUCheck(
+                self.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
         except Exception as e:
-            OpTestLogger.optest_logger_glob.optest_logger.warning("Check that the BMC is healthy, maybe the Broadcom bug, Exception={}".format(e))
+            OpTestLogger.optest_logger_glob.optest_logger.warning(
+                "Check that the BMC is healthy, maybe the Broadcom bug, Exception={}".format(e))
 
         # setup AES and Hostlocker configs after the logging is setup
         locker_timeout = time.time() + 60*self.args.locker_wait
@@ -808,7 +810,8 @@ class OpTestConfiguration():
                                 self.args.bmc_username,
                                 self.args.bmc_password,
                                 ipmi=ipmi,
-                                prompt=self.args.fsp_prompt if hasattr(self.args, 'fsp_prompt') else "$",
+                                prompt=self.args.fsp_prompt if hasattr(
+                                    self.args, 'fsp_prompt') else "$",
                                 )
                 self.op_system = common.OpTestSystem.OpTestFSPSystem(
                     state=self.startState,
@@ -819,16 +822,16 @@ class OpTestConfiguration():
                 ipmi.set_system(self.op_system)
             elif self.args.bmc_type in ['FSP_PHYP']:
                 host = common.OpTestHost.OpTestLPAR(self.args.host_ip,
-                                                self.args.host_user,
-                                                self.args.host_password,
-                                                self.args.bmc_ip,
-                                                self.output,
-                                                scratch_disk=self.args.host_scratch_disk,
-                                                proxy=self.args.proxy,
-                                                logfile=self.logfile,
-                                                check_ssh_keys=self.args.check_ssh_keys,
-                                                known_hosts_file=self.args.known_hosts_file,
-                                                conf=self)
+                                                    self.args.host_user,
+                                                    self.args.host_password,
+                                                    self.args.bmc_ip,
+                                                    self.output,
+                                                    scratch_disk=self.args.host_scratch_disk,
+                                                    proxy=self.args.proxy,
+                                                    logfile=self.logfile,
+                                                    check_ssh_keys=self.args.check_ssh_keys,
+                                                    known_hosts_file=self.args.known_hosts_file,
+                                                    conf=self)
                 hmc = None
                 if all(v is not None for v in [self.args.hmc_ip, self.args.hmc_username, self.args.hmc_password,
                                                self.args.system_name, self.args.lpar_name]):
@@ -852,7 +855,8 @@ class OpTestConfiguration():
                                 self.args.bmc_username,
                                 self.args.bmc_password,
                                 hmc=hmc,
-                                prompt=self.args.fsp_prompt if hasattr(self.args, 'fsp_prompt') else "$",
+                                prompt=self.args.fsp_prompt if hasattr(
+                                    self.args, 'fsp_prompt') else "$",
                                 )
                 self.op_system = common.OpTestSystem.OpTestLPARSystem(
                     state=self.startState,
