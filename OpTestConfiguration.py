@@ -7,6 +7,7 @@ import common
 from common.OpTestBMC import OpTestBMC, OpTestSMC
 from common.OpTestFSP import OpTestFSP
 from common.OpTestOpenBMC import OpTestOpenBMC
+from common.OpTestEBMC import OpTestEBMC
 from common.OpTestQemu import OpTestQemu
 from common.OpTestMambo import OpTestMambo
 from common.OpTestSystem import OpSystemState
@@ -15,6 +16,7 @@ import common.OpTestHost
 from common.OpTestIPMI import OpTestIPMI, OpTestSMCIPMI
 from common.OpTestHMC import OpTestHMC
 from common.OpTestOpenBMC import HostManagement
+from common.OpTestEBMC import EBMCHostManagement
 from common.OpTestWeb import OpTestWeb
 from common.OpTestUtil import OpTestUtil
 from common.OpTestCronus import OpTestCronus
@@ -232,7 +234,7 @@ def get_parser():
     bmcgroup = parser.add_argument_group('BMC',
                                          'Options for Service Processor')
     # The default supported BMC choices in --bmc-type
-    bmcChoices = ['AMI', 'SMC', 'FSP', 'FSP_PHYP', 'OpenBMC', 'qemu', 'mambo']
+    bmcChoices = ['AMI', 'SMC', 'FSP', 'FSP_PHYP', 'OpenBMC', 'EBMC_PHYP', 'qemu', 'mambo']
     # Loop through any addons let it append the extra bmcChoices
     for opt in optAddons:
         bmcChoices = optAddons[opt].addBMCType(bmcChoices)
@@ -884,6 +886,56 @@ class OpTestConfiguration():
                     conf=self,
                 )
                 bmc.set_system(self.op_system)
+            elif self.args.bmc_type in ['EBMC_PHYP']:
+                host = common.OpTestHost.OpTestLPAR(self.args.host_ip,
+                                                    self.args.host_user,
+                                                    self.args.host_password,
+                                                    self.args.bmc_ip,
+                                                    self.output,
+                                                    scratch_disk=self.args.host_scratch_disk,
+                                                    proxy=self.args.proxy,
+                                                    logfile=self.logfile,
+                                                    check_ssh_keys=self.args.check_ssh_keys,
+                                                    known_hosts_file=self.args.known_hosts_file,
+                                                    conf=self)
+                hmc = None
+                if all(v is not None for v in [self.args.hmc_ip, self.args.hmc_username, self.args.hmc_password,
+                                               self.args.system_name, self.args.lpar_name]):
+                    hmc = OpTestHMC(self.args.hmc_ip,
+                                    self.args.hmc_username,
+                                    self.args.hmc_password,
+                                    managed_system=self.args.system_name,
+                                    tgt_managed_system=self.args.target_system_name,
+                                    lpar_name=self.args.lpar_name,
+                                    lpar_vios=self.args.lpar_vios,
+                                    lpar_prof=self.args.lpar_prof,
+                                    lpar_user=self.args.host_user,
+                                    lpar_password=self.args.host_password,
+                                    logfile=self.logfile
+                                    )
+                else:
+                    raise Exception(
+                        "HMC IP, username and password is required")
+                rest_api = EBMCHostManagement(conf=self,
+                                              ip=self.args.bmc_ip,
+                                              username=self.args.bmc_username,
+                                              password=self.args.bmc_password)
+                bmc = OpTestEBMC(ip=self.args.bmc_ip,
+                                 username=self.args.bmc_username,
+                                 password=self.args.bmc_password,
+                                 hmc=hmc,
+                                 rest_api=rest_api,
+                                 logfile=self.logfile,
+                                 check_ssh_keys=self.args.check_ssh_keys,
+                                 known_hosts_file=self.args.known_hosts_file)
+                self.op_system = common.OpTestSystem.OpTestLPARSystem(
+                    state=self.startState,
+                    bmc=bmc,
+                    bmc_type=self.args.bmc_type,
+                    host=host,
+                    conf=self,
+                )
+                hmc.set_system(self.op_system)
             elif self.args.bmc_type in ['qemu']:
                 print((repr(self.args)))
                 bmc = OpTestQemu(conf=self,
