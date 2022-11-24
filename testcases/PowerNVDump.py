@@ -1069,6 +1069,55 @@ class KernelCrash_hugepage_checks(PowerNVDump):
             else:
                 log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
 
+class KernelCrash_KdumpPMEM(PowerNVDump):
+    '''
+    This test verifies kdump/fadump on pmem device.
+    '''
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        if self.distro == "rhel":
+            cmd = "yum -y install ndctl"
+        if self.distro == "sles":
+            cmd = "zypper install -y ndctl"
+        self.c.run_command("%s; sync" % cmd, timeout=120)
+        if not self.c.run_command("ndctl list -Ru"):
+            self.skipTest("Please configure pmem from HMC and try again.")
+        try:
+            self.c.run_command("ndctl create-namespace -m fsdax -r region0")
+        except CommandFailed:
+            try: self.c.run_command("ndctl destroy-namespace all -f")
+            except CommandFailed: 
+                self.c.run_command("umount /pmem0")
+                self.c.run_command("ndctl destroy-namespace all -f")
+                self.c.run_command("ndctl create-namespace -m fsdax -r region0")
+        try: self.c.run_command("mkfs.xfs -f -b size=64k -s size=4k -m reflink=0 /dev/pmem0")
+        except CommandFailed: 
+            self.c.run_command("umount /pmem0")
+            self.c.run_command("mkfs.xfs -f -b size=64k -s size=4k -m reflink=0 /dev/pmem0")
+        self.c.run_command("mkdir -p /pmem0")
+        self.c.run_command("mount -o dax /dev/pmem0 /pmem0")
+        self.c.run_command("echo '/dev/pmem0 /pmem0                   xfs     defaults        0 0' >> /etc/fstab")
+        if self.distro == "rhel":
+            self.c.run_command("echo 'add_drivers+=\"papr_scm\"' > /etc/dracut.conf.d/99-pmem-workaround.conf")
+            self.c.run_command("sed -i 's/path \/var\/crash/path \/pmem0/' /etc/kdump.conf; sync")
+            self.c.run_command("kdumpctl restart", timeout=120)
+        if self.distro == "sles":
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/pmem0\"\' /etc/sysconfig/kdump;')
+            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync")
+        log.info("=============== Testing kdump/fadump over pmem ===============")
+        boot_type = self.kernel_crash()
+        self.c.run_command("cp -r /pmem0/* /var/crash")
+        self.c.run_command("umount /pmem0")
+        self.c.run_command("ndctl destroy-namespace all -f")
+        self.c.run_command("sed -i '$d' \/etc\/fstab")
+        if self.distro == "rhel":
+            self.c.run_command("sed -i 's/path \/pmem0/path \/var\/crash/' /etc/kdump.conf; sync")
+        if self.distro == "sles":
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
+        self.verify_dump_file(boot_type)
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
@@ -1079,6 +1128,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
@@ -1087,6 +1137,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
