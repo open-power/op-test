@@ -294,52 +294,68 @@ class OpTestUtil():
             self.conf.util_bmc_server.close()
 
         if self.conf.dump:
-            self.conf.dump = False # possible for multiple passes here
+            self.conf.dump = False  # possible for multiple passes here
             # currently only pulling OpenBMC logs
             marker_time = (time.asctime(time.localtime())).replace(" ", "_")
             if self.conf.args.bmc_type in ['OpenBMC']:
                 try:
-                    self.PingMTUCheck(self.conf.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
+                    self.PingMTUCheck(
+                        self.conf.args.bmc_ip, totalSleepTime=BMC_CONST.PING_RETRY_FOR_STABILITY)
                 except Exception as e:
-                    log.warning("Check that the BMC is healthy, maybe the Broadcom bug, Exception={}".format(e))
+                    log.warning(
+                        "Check that the BMC is healthy, maybe the Broadcom bug, Exception={}".format(e))
                 log.info("OpTestSystem Starting to Gather BMC logs")
                 try:
-                    journal_dmesg_outfile = "op-test-openbmc-journal-dmesg.{}".format(marker_time)
-                    journal_dmesg_entries = self.conf.bmc().run_command("journalctl -k --no-pager >/tmp/{}".format(journal_dmesg_outfile))
-                    journal_outfile = "op-test-openbmc-journal.{}".format(marker_time)
-                    journal_entries = self.conf.bmc().run_command("journalctl --no-pager >/tmp/{}".format(journal_outfile))
+                    journal_dmesg_outfile = "op-test-openbmc-journal-dmesg.{}".format(
+                        marker_time)
+                    journal_dmesg_entries = self.conf.bmc().run_command(
+                        "journalctl -k --no-pager >/tmp/{}".format(journal_dmesg_outfile))
+                    journal_outfile = "op-test-openbmc-journal.{}".format(
+                        marker_time)
+                    journal_entries = self.conf.bmc().run_command(
+                        "journalctl --no-pager >/tmp/{}".format(journal_outfile))
                     top_outfile = "op-test-openbmc-top.{}".format(marker_time)
-                    top_entries = self.conf.bmc().run_command("top -b -n 1 >/tmp/{}".format(top_outfile))
+                    top_entries = self.conf.bmc().run_command(
+                        "top -b -n 1 >/tmp/{}".format(top_outfile))
                     df_outfile = "op-test-openbmc-df.{}".format(marker_time)
                     df_entries = self.conf.bmc().run_command("df -h >/tmp/{}".format(df_outfile))
-                    uptime_outfile = "op-test-openbmc-uptime.{}".format(marker_time)
-                    uptime_entries = self.conf.bmc().run_command("uptime >/tmp/{}".format(uptime_outfile))
-                    console_outfile = "op-test-openbmc-console-log.{}".format(marker_time)
+                    uptime_outfile = "op-test-openbmc-uptime.{}".format(
+                        marker_time)
+                    uptime_entries = self.conf.bmc().run_command(
+                        "uptime >/tmp/{}".format(uptime_outfile))
+                    console_outfile = "op-test-openbmc-console-log.{}".format(
+                        marker_time)
                     # obmc-console.log will exist even if empty
                     console_entries = self.conf.bmc().run_command("cp /var/log/obmc-console.log /tmp/{}"
-                                          .format(console_outfile))
+                                                                  .format(console_outfile))
                     self.copyFilesFromDest(self.conf.args.bmc_username,
-                        self.conf.args.bmc_ip,
-                        "/tmp/op-test*",
-                        self.conf.args.bmc_password,
-                        self.conf.logdir)
+                                           self.conf.args.bmc_ip,
+                                           "/tmp/op-test*",
+                                           self.conf.args.bmc_password,
+                                           self.conf.logdir)
                 except Exception as e:
-                    log.debug("OpTestSystem encountered a problem trying to gather the BMC logs, Exception={}".format(e))
+                    log.debug(
+                        "OpTestSystem encountered a problem trying to gather the BMC logs, Exception={}".format(e))
                 # remove temp files
                 try:
                     self.conf.bmc().run_command("rm /tmp/op-test*")
                 except Exception as e:
-                    log.warning("OpTestSystem encountered a problem cleaning up BMC /tmp files, you may want to check.")
-                log.info("OpTestSystem Completed Gathering BMC logs, find them in the Log Location")
+                    log.warning(
+                        "OpTestSystem encountered a problem cleaning up BMC /tmp files, you may want to check.")
+                log.info(
+                    "OpTestSystem Completed Gathering BMC logs, find them in the Log Location")
             # this will get esels for all
             log.info("OpTestSystem Starting to Gather ESEL's")
             try:
                 esel_entries = self.conf.op_system.sys_sel_elist()
-                esel_outfile = "{}/op-test-esel.{}".format(self.conf.logdir, marker_time)
+                esel_outfile = "{}/op-test-esel.{}".format(
+                    self.conf.logdir, marker_time)
                 self.dump_list(entries=esel_entries, outfile=esel_outfile)
-                log.info("OpTestSystem Completed Gathering ESEL's, find them in the Log Location")
+                log.info(
+                    "OpTestSystem Completed Gathering ESEL's, find them in the Log Location")
             except Exception as e:
-                log.debug("OpTestSystem encountered a problem trying to gather ESEL's, Exception={}".format(e))
+                log.debug(
+                    "OpTestSystem encountered a problem trying to gather ESEL's, Exception={}".format(e))
             self.dump_versions()
             self.dump_nvram_opts()
 
@@ -364,12 +380,13 @@ class OpTestUtil():
         '''
         if entries is None or outfile is None:
             raise ParameterCheck(message="Check your call to dump_list, entries"
-                                     " and outfile need valid values")
+                                 " and outfile need valid values")
         if type(entries) == str:
             list_obj = entries.splitlines()
         else:
             list_obj = entries
-        list_obj.insert(0, "From BMC {} Host {}".format(self.conf.args.bmc_ip, self.conf.args.host_ip))
+        list_obj.insert(0, "From BMC {} Host {}".format(
+            self.conf.args.bmc_ip, self.conf.args.host_ip))
         with open(outfile, 'w') as f:
             for line in list_obj:
                 f.write("{}\n".format(line))
@@ -1006,8 +1023,8 @@ class OpTestUtil():
     def PingMTUCheck(self, i_ip, i_try=1, totalSleepTime=BMC_CONST.HOST_BRINGUP_TIME):
         if i_ip == None:
             raise ParameterCheck(message="PingMTUCheck has i_ip set to 'None', "
-                "check your configuration and setup")
-        sleepTime = 0;
+                                 "check your configuration and setup")
+        sleepTime = 0
         while(i_try != 0):
             p1 = subprocess.Popen(["ping", "-M", "do", "-s 1400", "-c 5", str(i_ip)],
                                   stdin=subprocess.PIPE,
@@ -1018,7 +1035,8 @@ class OpTestUtil():
             stdout_value, stderr_value = p1.communicate()
 
             if(stdout_value.__contains__("5 received")):
-                log.debug("Ping successfully verified MTU discovery check (prohibit fragmentation), ping -M do -s 1400 -c 5 {}".format(i_ip))
+                log.debug(
+                    "Ping successfully verified MTU discovery check (prohibit fragmentation), ping -M do -s 1400 -c 5 {}".format(i_ip))
                 return BMC_CONST.PING_SUCCESS
 
             else:
@@ -1030,7 +1048,7 @@ class OpTestUtil():
                          .format(i_ip, sleepTime, totalSleepTime, i_try))
                 log.debug("%s is not able to successfully verify MTU discovery (Waited %d of %d, %d more "
                           "loop cycles remaining)" % (i_ip, sleepTime,
-                          totalSleepTime, i_try))
+                                                      totalSleepTime, i_try))
                 time.sleep(1)
                 sleepTime += 1
                 if (sleepTime == totalSleepTime):
@@ -1038,9 +1056,9 @@ class OpTestUtil():
                     sleepTime = 0
 
         log.warning("'{}' is not able to successfully verify MTU discovery (prohibit fragmentation) and we tried many times, "
-                  "check your configuration and setup.".format(i_ip))
+                    "check your configuration and setup.".format(i_ip))
         raise ParameterCheck(message="PingMTUCheck fails to verify MTU discovery (prohibit fragmentation) '{}', "
-            "check your configuration and setup manually ".format(i_ip))
+                             "check your configuration and setup manually ".format(i_ip))
 
     def copyFilesToDest(self, hostfile, destid, destName, destPath, passwd):
         arglist = (
@@ -1087,7 +1105,8 @@ class OpTestUtil():
         """
         Get PCI device type
         """
-        device_file = "cat /sys/class/pci_bus/{}/device/{}/uevent".format(pci_device[0:7], pci_device)
+        device_file = "cat /sys/class/pci_bus/{}/device/{}/uevent".format(
+            pci_device[0:7], pci_device)
         device_info = cv_HOST.host_run_command(device_file)
         var = {}
         for line in device_info:
@@ -1114,7 +1133,8 @@ class OpTestUtil():
         try:
             flush_interface = "ip addr flush {}".format(interface)
             cv_HOST.host_run_command(flush_interface)
-            ip_config = "ip addr add {}/{} dev {}".format(ip, netmask, interface)
+            ip_config = "ip addr add {}/{} dev {}".format(
+                ip, netmask, interface)
             cv_HOST.host_run_command(ip_config)
         except CommandFailed as cf:
             log.debug("configure ip to interface  CommandFailed={}".format(cf))
@@ -1450,8 +1470,8 @@ class OpTestUtil():
         pty.sendline()
 
         if self.check_root(pty, prompt) is True:
-                # If we logged in as root or we're in the Petitboot shell we may
-                # already be root.
+            # If we logged in as root or we're in the Petitboot shell we may
+            # already be root.
             return 1, 1
 
         my_pwd = host.password()
@@ -1907,7 +1927,8 @@ class OpTestUtil():
         time.sleep(first)
         while time.monotonic() < end_time:
             if text:
-                log.debug("%s (%.9f secs)", text, (time.monotonic() - start_time))
+                log.debug("%s (%.9f secs)", text,
+                          (time.monotonic() - start_time))
             output = func(*args, **kwargs)
             if output:
                 return output
@@ -1938,7 +1959,8 @@ class OpTestUtil():
         """
         host = self.conf.host()
         dmsg_log = out = ""
-        cmd = "dmesg -T -l %s|grep ." % ",".join(map(str, range(0, int(level_check))))
+        cmd = "dmesg -T -l %s|grep ." % ",".join(
+            map(str, range(0, int(level_check))))
         try:
             out = '\n'.join(host.host_run_command(cmd, timeout=30))
         except CommandFailed as cmd_failed:
@@ -1946,7 +1968,8 @@ class OpTestUtil():
                 pass
             else:
                 raise cmd_failed
-        dmsg_log = self.skip_dmesg_messages(out, skip_errors, warn_errors) if skip_errors else out
+        dmsg_log = self.skip_dmesg_messages(
+            out, skip_errors, warn_errors) if skip_errors else out
         if dmsg_log:
             if output_dir:
                 output_dir = os.path.join(host.results_dir, output_dir)
@@ -1955,7 +1978,8 @@ class OpTestUtil():
                 output_file = os.path.join(output_dir, "dmesgError")
                 with open(output_file, "w+", encoding='utf-8') as log_f:
                     log_f.write(dmsg_log)
-                err = "Found failures in dmesg. Please check dmesg log %s." % (output_file)
+                err = "Found failures in dmesg. Please check dmesg log %s." % (
+                    output_file)
             else:
                 err = "Found failures in dmesg. Please check debug log."
                 log.debug(dmsg_log)
@@ -1978,7 +2002,8 @@ class OpTestUtil():
         :type warn_messages: list
         """
         def filter_strings(line):
-            contains_warn_messages = any([string in line for string in warn_messages])
+            contains_warn_messages = any(
+                [string in line for string in warn_messages])
             if contains_warn_messages:
                 log.warning(line)
             return not any([string in line for string in skip_messages+warn_messages])
@@ -1988,12 +2013,14 @@ class OpTestUtil():
     def gather_os_logs(self, list_of_files=[], list_of_commands=[], collect_sosreport=False, output_dir=None):
         host = self.conf.host()
         if not output_dir:
-            output_dir = "OS_Logs_%s" % (time.asctime(time.localtime())).replace(" ", "_")
+            output_dir = "OS_Logs_%s" % (time.asctime(
+                time.localtime())).replace(" ", "_")
         output_dir = os.path.join(host.results_dir, output_dir, "os")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         self.__gather_os_files_logs(list_of_files, output_dir)
-        self.__gather_os_command_logs(list_of_commands, collect_sosreport, output_dir)
+        self.__gather_os_command_logs(
+            list_of_commands, collect_sosreport, output_dir)
 
     def __gather_os_files_logs(self, list_of_files=[], output_dir=None):
         host = self.conf.host()
@@ -2020,21 +2047,25 @@ class OpTestUtil():
         try:
             host.host_run_command("mkdir -p commands")
             for cmd in set(list_of_commands):
-                fn = "%s.log" % '-'.join((re.sub(r'[^a-zA-Z0-9]', ' ', cmd)).split())
+                fn = "%s.log" % '-'.join(
+                    (re.sub(r'[^a-zA-Z0-9]', ' ', cmd)).split())
                 host.host_run_command("%s > commands/%s" % (cmd, fn))
-            host.copy_files_from_host(sourcepath=output_dir, destpath="commands")
+            host.copy_files_from_host(
+                sourcepath=output_dir, destpath="commands")
             host.host_run_command("rm -rf commands")
 
             if collect_sosreport:
                 output = host.host_run_command('yes "" | sos report')
-                path = output[output.index("Your sosreport has been generated and saved in:")+1].strip()
+                path = output[output.index(
+                    "Your sosreport has been generated and saved in:")+1].strip()
                 host.copy_files_from_host(sourcepath=output_dir, destpath=path)
             return True
         except CommandFailed as cmd_failed:
             raise cmd_failed
 
     def gather_vios_logs(self, vios_name, vios_ip, vios_username, vios_password, list_of_commands=[], output_dir=None):
-        vios = OpTestVIOS(vios_name, vios_ip, vios_username, vios_password, conf=self.conf)
+        vios = OpTestVIOS(vios_name, vios_ip, vios_username,
+                          vios_password, conf=self.conf)
         vios.set_system(self.conf.system())
         vios.gather_logs(list_of_commands, output_dir)
 
@@ -2045,8 +2076,10 @@ class OpTestUtil():
     def gather_os_vios_hmc_logs(self, vios_name, vios_ip, vios_username, vios_password, list_of_vios_commands=[],
                                 list_of_os_files=[], list_of_os_commands=[], collect_sosreport=False,
                                 list_of_hmc_commands=[], remote_hmc=None, output_dir=None):
-        self.gather_os_logs(list_of_os_files, list_of_os_commands, collect_sosreport, output_dir)
-        self.gather_vios_logs(vios_name, vios_ip, vios_username, vios_password, list_of_vios_commands, output_dir)
+        self.gather_os_logs(
+            list_of_os_files, list_of_os_commands, collect_sosreport, output_dir)
+        self.gather_vios_logs(vios_name, vios_ip, vios_username,
+                              vios_password, list_of_vios_commands, output_dir)
         self.gather_hmc_logs(list_of_hmc_commands, remote_hmc, output_dir)
 
 
