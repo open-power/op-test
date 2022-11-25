@@ -2082,6 +2082,18 @@ class OpTestUtil():
                               vios_password, list_of_vios_commands, output_dir)
         self.gather_hmc_logs(list_of_hmc_commands, remote_hmc, output_dir)
 
+    def distro_name(self):
+        host = self.conf.host()
+        res = host.run_command("cat /etc/os-release")
+        if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
+            return "ubuntu"
+        elif 'Red Hat' in res[0] or 'Red Hat' in res[1]:
+            return "rhel"
+        elif 'SLES' in res[0] or 'SLES' in res[1]:
+            return "sles"
+        else:
+            retun "unknown"
+
 
 class Server(object):
     '''
