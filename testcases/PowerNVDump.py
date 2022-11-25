@@ -166,7 +166,7 @@ class PowerNVDump(unittest.TestCase):
         else:
             cmd = "apt-get install -y sshpass"
         try:
-            self.c.run_command(cmd)
+            self.c.run_command(cmd, timeout=120)
         except CommandFailed:
             self.fail("sshpass package not available in Repository")
         try:
@@ -260,7 +260,7 @@ class PowerNVDump(unittest.TestCase):
         if len(self.crash_content):
             if dump_place == "net":
                 self.c.run_command('scp -i %s -r root@%s:/%s/%s /var/crash/' %
-                                  (self.rsa_path, self.dump_server_ip, self.dump_path, self.crash_content[0]), timeout=300)
+                                  (self.rsa_path, self.dump_server_ip, self.dump_path, self.crash_content[0]), timeout=1200)
             if self.distro == "ubuntu":
                 self.c.run_command("ls /var/crash/%s/dump*" %
                                    self.crash_content[0])
