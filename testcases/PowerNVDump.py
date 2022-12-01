@@ -1068,6 +1068,75 @@ class KernelCrash_hugepage_checks(PowerNVDump):
             else:
                 log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
 
+class OpTestMakedump(PowerNVDump):
+    '''
+    function will trigger crash kernel and  run the makedumpfile on collected vmcore
+    '''
+
+    def check_run(self, cmd, condition):
+        res = self.c.run_command(cmd)
+        for value in res:
+            if condition in value:
+                log.info("command %s works well" % cmd)
+                return
+        self.fail("commnd %s failed" % cmd)
+
+    def makedump_check(self):
+        '''
+        Function will verify all makdump options on already colleted vmcore
+        '''
+        res = self.c.run_command("ls -1 /var/crash/")
+        crash_dir = self.c.run_command("cd /var/crash/%s" % res[0])
+        res = self.c.run_command("ls")
+        if 'vmcore' not in res[0]:
+            self.fail("vmcore is not saved")
+        else:
+            log.info("vmcore is saved")
+        self.c.run_command("makedumpfile -v")
+        self.check_run("makedumpfile --split -d 31 -l vmcore dump3 dump4",
+                       "The dumpfiles are saved to dump3, and dump4")
+        self.check_run("makedumpfile --reassemble dump3 dump4 dump5",
+                       "The dumpfile is saved to dump5")
+        self.c.run_command("rm -rf dump*")
+        self.check_run("makedumpfile -b 8 -d 31 -l vmcore dump2",
+                       "The dumpfile is saved to dump2")
+        self.check_run("makedumpfile -f -d 31 -l vmcore dump6",
+                       "The dumpfile is saved to dump6")
+        self.check_run("makedumpfile --dump-dmesg vmcore log",
+                       "The dmesg log is saved to log")
+        self.c.run_command("rm -rf dump*")
+        self.c.run_command("rm -rf log")
+        self.check_run("makedumpfile --cyclic-buffer 1024 vmcore dump10",
+                       "The dumpfile is saved to dump10")
+        self.c.run_command("rm -rf dump*")
+        self.check_run("makedumpfile --split --splitblock-size 1024 vmcore dump12 dump13 dump14",
+                       "The dumpfiles are saved to dump12, dump13, and dump14")
+        self.c.run_command("rm -rf dump*")
+        self.check_run("makedumpfile --work-dir /tmp vmcore dump20",
+                       "The dumpfile is saved to dump20")
+        self.check_run("makedumpfile --non-mmap vmcore dump22",
+                       "The dumpfile is saved to dump22")
+        self.c.run_command("rm -rf dump*")
+        self.check_run("makedumpfile -D -d 31 -l vmcore dump1",
+                       "The dumpfile is saved to dump1")
+        self.check_run("makedumpfile -D -d 31 -l vmcore dump41 --num-threads 8",
+                       "The dumpfile is saved to dump41")
+        self.c.run_command("rm -rf dump*")
+        self.check_run("makedumpfile -d 31 -c vmcore dump42",
+                       "The dumpfile is saved to dump42")
+        self.check_run("makedumpfile -d 31 -p vmcore dump43",
+                       "The dumpfile is saved to dump43")
+        self.c.run_command("rm -rf dump*")
+        self.check_run("makedumpfile -d 31 -e vmcore --work-dir /tmp dump44",
+                       "The dumpfile is saved to dump44")
+        self.c.run_command(
+            "makedumpfile -d 31 -c vmcore dump51 --message-level 21")
+        self.c.run_command("rm -rf dump*")
+
+    def runTest(self):
+        self.kernel_crash()
+        self.makedump_check()
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
