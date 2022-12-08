@@ -1137,6 +1137,71 @@ class OpTestMakedump(PowerNVDump):
         self.kernel_crash()
         self.makedump_check()
 
+
+class KernelCrash_KdumpPMEM(PowerNVDump):
+    '''
+    This test verifies kdump/fadump on pmem device.
+    '''
+
+    def setUp(self):
+        super(KernelCrash_KdumpPMEM, self).setUp()
+
+        conf = OpTestConfiguration.conf
+        try: self.dev_pmem = conf.args.dev_pmem
+        except AttributeError:
+            log.info("Considering pmem0 as no pmem device is configured in config file.")
+            self.dev_pmem = "pmem0"
+        self.pmem_id = self.dev_pmem[len(self.dev_pmem)-1]
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        if self.distro == "rhel":
+            cmd = "yum -y install ndctl"
+        elif self.distro == "sles":
+            cmd = "zypper install -y ndctl"
+        try:
+            self.c.run_command(cmd, timeout=120)
+        except CommandFailed:
+            self.fail("ndctl package not available in Repository")
+        if not self.c.run_command("ndctl list -Ru"):
+            self.skipTest("Please configure pmem from HMC and try again.")
+        try:
+            self.c.run_command("ndctl create-namespace -m fsdax -r region%s" % self.pmem_id)
+        except CommandFailed:
+            try: self.c.run_command("ndctl destroy-namespace all -f")
+            except CommandFailed: 
+                self.c.run_command("umount /pmem%s" % self.pmem_id)
+                self.c.run_command("ndctl destroy-namespace all -f")
+                self.c.run_command("ndctl create-namespace -m fsdax -r region%s" % self.pmem_id)
+        try: self.c.run_command("mkfs.xfs -f -b size=64k -s size=4k -m reflink=0 /dev/pmem%s" % self.pmem_id)
+        except CommandFailed: 
+            self.c.run_command("umount /pmem%s" % self.pmem_id)
+            self.c.run_command("mkfs.xfs -f -b size=64k -s size=4k -m reflink=0 /dev/pmem%s" % self.pmem_id)
+        self.c.run_command("mkdir -p /pmem%s" % self.pmem_id)
+        self.c.run_command("mount -o dax /dev/pmem%s /pmem%s" % (self.pmem_id, self.pmem_id))
+        self.c.run_command("echo '/dev/pmem%s /pmem%s                   xfs     defaults        0 0' >> /etc/fstab"
+                           % (self.pmem_id, self.pmem_id))
+        if self.distro == "rhel":
+            self.c.run_command("echo 'add_drivers+=\"papr_scm\"' > /etc/dracut.conf.d/99-pmem-workaround.conf")
+            self.c.run_command("sed -i 's/path \/var\/crash/path \/pmem%s/' /etc/kdump.conf; sync" % self.pmem_id)
+            self.c.run_command("kdumpctl restart", timeout=120)
+        if self.distro == "sles":
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/pmem%s\"\' /etc/sysconfig/kdump;' % self.pmem_id)
+            self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync")
+        log.info("=============== Testing kdump/fadump over pmem ===============")
+        boot_type = self.kernel_crash()
+        self.c.run_command("cp -r /pmem%s/* /var/crash" % self.pmem_id)
+        self.c.run_command("umount /pmem%s" % self.pmem_id)
+        self.c.run_command("ndctl destroy-namespace all -f")
+        self.c.run_command("sed -i '$d' \/etc\/fstab")
+        if self.distro == "rhel":
+            self.c.run_command("sed -i 's/path \/pmem%s/path \/var\/crash/' /etc/kdump.conf; sync" % self.pmem_id)
+        if self.distro == "sles":
+            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
+        self.verify_dump_file(boot_type)
+
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
@@ -1147,6 +1212,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
@@ -1156,6 +1222,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
