@@ -1306,8 +1306,10 @@ class OpTestSystem(object):
             raw_pty.sendcontrol('c')  # to avoid incase nc command hangs
             time.sleep(2)  # give it time to recover
             try:
-                ip = subprocess.check_output(['hostname', '-i']).decode('utf-8').strip()
-                ip_lst = subprocess.check_output(['hostname', '-I']).decode('utf-8').strip().split()
+                ip = subprocess.check_output(
+                    ['hostname', '-i']).decode('utf-8').strip()
+                ip_lst = subprocess.check_output(
+                    ['hostname', '-I']).decode('utf-8').strip().split()
                 # Let's validate the IP
                 for item in ip_lst:
                     if item == ip:
@@ -1392,12 +1394,15 @@ class OpTestLPARSystem(OpTestSystem):
                  host=None,
                  bmc=None,
                  conf=None,
+                 bmc_type=None,
                  state=OpSystemState.UNKNOWN):
+        if bmc_type in ['FSP_PHYP']:
+            bmc.fsp_get_console()
         self.hmc = bmc.get_hmc()
         super(OpTestLPARSystem, self).__init__(host=host,
-                                              bmc=bmc,
-                                              conf=conf,
-                                              state=state)
+                                               bmc=bmc,
+                                               conf=conf,
+                                               state=state)
 
     def sys_wait_for_standby_state(self, i_timeout=20):
         return BMC_CONST.FW_SUCCESS
@@ -1517,7 +1522,8 @@ class OpTestOpenBMCSystem(OpTestSystem):
 
     def sys_sel_elist(self, dump=False):
         id_list, dict_list = self.rest.get_sel_ids(dump=dump)
-        output = self.rest.convert_esels_to_list(id_list=id_list, dict_list=dict_list)
+        output = self.rest.convert_esels_to_list(
+            id_list=id_list, dict_list=dict_list)
         return output
 
     def sys_sel_check(self):
