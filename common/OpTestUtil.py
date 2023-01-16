@@ -2092,7 +2092,7 @@ class OpTestUtil():
         elif 'SLES' in res[0] or 'SLES' in res[1]:
             return "sles"
         else:
-            retun "unknown"
+            return "unknown"
 
 
 class Server(object):
