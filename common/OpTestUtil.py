@@ -2055,9 +2055,14 @@ class OpTestUtil():
             host.host_run_command("rm -rf commands")
 
             if collect_sosreport:
-                output = host.host_run_command('yes "" | sos report')
-                path = output[output.index(
-                    "Your sosreport has been generated and saved in:")+1].strip()
+                if 'rhel' in self.distro_name():
+                    cmd = 'yes "" | sos report'
+                    str_msg = "Your sosreport has been generated and saved in:"
+                elif 'sles' in self.distro_name():
+                    cmd = 'supportconfig'
+                    str_msg = "Log file tar ball:"
+                output = host.host_run_command(cmd)
+                path = output[output.index(str_msg)+1].strip()
                 host.copy_files_from_host(sourcepath=output_dir, destpath=path)
             return True
         except CommandFailed as cmd_failed:
