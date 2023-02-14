@@ -2056,12 +2056,12 @@ class OpTestUtil():
 
             if collect_sosreport:
                 if 'rhel' in self.distro_name():
-                    cmd = 'yes "" | sos report'
+                    cmd = 'yes "" | sosreport'
                     str_msg = "Your sosreport has been generated and saved in:"
                 elif 'sles' in self.distro_name():
                     cmd = 'supportconfig'
-                    str_msg = "Log file tar ball:"
-                output = host.host_run_command(cmd)
+                    str_msg = "  Log file tar ball:"
+                output = host.host_run_command(cmd).split(',')
                 path = output[output.index(str_msg)+1].strip()
                 host.copy_files_from_host(sourcepath=output_dir, destpath=path)
             return True
@@ -2089,7 +2089,7 @@ class OpTestUtil():
 
     def distro_name(self):
         host = self.conf.host()
-        res = host.run_command("cat /etc/os-release")
+        res = host.host_run_command("cat /etc/os-release")
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
             return "ubuntu"
         elif 'Red Hat' in res[0] or 'Red Hat' in res[1]:
