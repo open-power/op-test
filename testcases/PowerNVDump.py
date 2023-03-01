@@ -101,7 +101,7 @@ class PowerNVDump(unittest.TestCase):
         self.pdbg = conf.args.pdbg
         self.basedir = conf.basedir
         self.c = self.cv_SYSTEM.console
-        if self.bmc_type == "FSP_PHYP":
+        if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP" :
             self.is_lpar = True
             self.hmc_user = conf.args.hmc_username
             self.hmc_password = conf.args.hmc_password
