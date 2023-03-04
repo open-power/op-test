@@ -112,6 +112,9 @@ class InstallUpstreamKernel(unittest.TestCase):
                     self.cv_HOST.copy_test_file_to_host(
                         self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
+            # Capture kernel version & release
+            res = con.run_command("make kernelrelease")
+            log.info("Upstream kernel version: %s", res[-1])
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
