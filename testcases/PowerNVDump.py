@@ -1202,6 +1202,28 @@ class KernelCrash_KdumpPMEM(PowerNVDump):
         self.verify_dump_file(boot_type)
 
 
+class KernelCrash_FadumpNocma(PowerNVDump):
+
+    # This test verifies fadump with nocma.
+
+    def runTest(self):
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, args="fadump=nocma", reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        log.info("=============== Testing fadump with nocma ===============")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        if self.distro == "rhel":
+            if not obj.update_kernel_cmdline(self.distro, args="fadump=on", reboot=True, reboot_cmd=True):
+                self.fail("KernelArgTest failed to update kernel args")
+        if self.distro == "sles":
+            if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
+                self.fail("KernelArgTest failed to update kernel args")
+
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(KernelCrash_OnlyKdumpEnable())
@@ -1223,6 +1245,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
     s.addTest(KernelCrash_KdumpPMEM())
+    s.addTest(KernelCrash_FadumpNocma())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
