@@ -1068,6 +1068,71 @@ class KernelCrash_hugepage_checks(PowerNVDump):
             else:
                 log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
 
+class KernelCrash_XIVE_off(PowerNVDump):
+    '''
+    This test checks kdump/fadump with kernel parameter option xive=off 
+    '''
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        log.info("=============== Testing kdump/fadump with xive=off ===============")
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, args="xive=off",
+                                         reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        kernel_boottime_arg = self.c.run_command("cat /proc/cmdline | grep -o 'xive=off'")[0]
+        if kernel_boottime_arg != 'xive=off' :
+            raise OpTestError("Failed to set kernel parameter xive=off")
+        else:
+            log.info("The kernel parameter was set to {}".format(kernel_boottime_arg))
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+
+        log.info("=============== cleanup XIVE=off to default setting===============")
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
+                                         reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+
+class KernelCrash_disable_radix(PowerNVDump):
+    '''
+    This test checks kdump/fadump with kernel parameter option disable_radix
+    '''
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        log.info("=============== Testing kdump/fadump with disable_radix ===============")
+        mmu = self.c.run_command("awk '$1 == \"MMU\" {print $3}' /proc/cpuinfo")[0]
+        log.debug(" MMU '{}'".format(mmu))
+        if mmu == "Radix":
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            obj = OpTestInstallUtil.InstallUtil()
+            if not obj.update_kernel_cmdline(self.distro, args="disable_radix",
+                                             reboot=True, reboot_cmd=True):
+                self.fail("KernelArgTest failed to update kernel args")
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            kernel_boottime_arg = self.c.run_command("cat /proc/cmdline | grep -o 'disable_radix'")[0]
+            if kernel_boottime_arg != 'disable_radix' :
+                raise OpTestError("Failed to set kernel parameter disable_radix")
+            else:
+                log.info("The kernel parameter was set to {}".format(kernel_boottime_arg))
+            boot_type = self.kernel_crash()
+            self.verify_dump_file(boot_type)
+
+            log.info("=============== cleanup disable_radix to default setting===============")
+            obj = OpTestInstallUtil.InstallUtil()
+            if not obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
+                                             reboot=True, reboot_cmd=True):
+                self.fail("KernelArgTest failed to update kernel args")
+        else:
+            raise self.skipTest("Hash MMU detected, skipping the test")
+
 class OpTestMakedump(PowerNVDump):
     '''
     function will trigger crash kernel and  run the makedumpfile on collected vmcore
@@ -1212,6 +1277,8 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_XIVE_off())
+    s.addTest(KernelCrash_disable_radix())
     s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_FadumpEnable())
@@ -1222,6 +1289,8 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_XIVE_off())
+    s.addTest(KernelCrash_disable_radix())
     s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_DisableAll())
