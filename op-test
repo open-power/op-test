@@ -105,6 +105,7 @@ from testcases import OpTestExample
 from testcases import OpTestDlparIO
 from testcases import OpTestLPM
 from testcases import OpTestKexec
+from testcases import OpTestGSBStaticKey
 import OpTestConfiguration
 import sys
 import time
@@ -678,6 +679,18 @@ class LPMSuite():
     def suite(self):
         return self.s
 
+class GuestSecureBootSuite():
+    '''Test Suite which enable secure boot , run Host specfic Test and revert Secure Boot Setting'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestGSBStaticKey.GSBStaticEnable())
+        self.s.addTest(RunHostTest.RunHostTest())
+        self.s.addTest(OpTestGSBStaticKey.GSBStaticDisable())
+        
+    def suite(self):
+        return self.s
+
+
 class FspOpalSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
@@ -891,6 +904,7 @@ suites = {
     'osdump-suite': OSdumpSuite(),
     'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
+    'GuestSecureBootSuite': GuestSecureBootSuite(),
     'system-ipl': SystemIPLSuite(),
     'fsp-opal-suite':  FspOpalSuite(),
     'full': FullSuite(),
