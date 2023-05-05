@@ -1071,6 +1071,7 @@ class KernelCrash_hugepage_checks(PowerNVDump):
 class KernelCrash_XIVE_off(PowerNVDump):
     '''
     This test checks kdump/fadump with kernel parameter option xive=off 
+    with different levels of SMT levels
     '''
 
     def runTest(self):
@@ -1092,11 +1093,22 @@ class KernelCrash_XIVE_off(PowerNVDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
 
-        log.info("=============== cleanup XIVE=off to default setting===============")
+        log.info("Test Kdump with xive=off along with different SMT levels")
+        for i in ["off", "2", "4", "on"]:
+            self.setup_test()
+            self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
+            self.c.run_command("ppc64_cpu --smt")
+            log.info("=============== Testing kdump/fadump with smt=%s and dumprestart from HMC ===============" % i)
+            boot_type = self.kernel_crash(crash_type="hmc")
+            self.verify_dump_file(boot_type)
+
+        log.info("=============== cleanup XIVE=off and SMT level to default setting===============")
         obj = OpTestInstallUtil.InstallUtil()
         if not obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
+        self.c.run_command("ppc64_cpu --smt=8", timeout=180)
+        self.c.run_command("ppc64_cpu --smt")
 
 class KernelCrash_disable_radix(PowerNVDump):
     '''
