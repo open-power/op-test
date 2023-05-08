@@ -41,6 +41,7 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestError import OpTestError
+from common.OpTestHMC import OpSecureBootUtilities
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -84,6 +85,10 @@ class OpTestKexec(unittest.TestCase):
                 self.initrd_image = "initrd.img-{}".format(kernel_release)
             else:
                 log.info("Distro not supported")
+
+        sb_utilities = OpSecureBootUtilities(self.c, self.distro)
+        self.kernel_signature = sb_utilities.check_kernel_signature()
+        self.os_level_secureboot = sb_utilities.check_os_level_secureboot_state()
 
     def get_raw_pty_console(self,cmd):
         """
