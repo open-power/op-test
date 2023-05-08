@@ -55,6 +55,43 @@ SYS_WAITTIME = 200
 BOOTTIME = 500
 STALLTIME = 5
 
+class OpSecureBootUtilities():
+    '''
+    This class addresses the secureboot related pre-requisites.
+    '''
+
+    def __init__(self, console=None, distro=None):
+        self.console = console
+        self.distro = distro
+
+    def check_kernel_signature(self):
+        '''
+        Check whether the kernel is signed or unsigned.
+        If, string - "Module signature appended" is found,
+        then the kernel is signed, else, the kernel is unsigned.
+        '''
+        vmlinux = "vmlinuz"  # RHEL
+        if self.distro == 'SLES' or self.distro == "suse":
+            vmlinux = "vmlinux"
+
+        cmd = "strings /boot/%s-$(uname -r) | tail -1" % vmlinux
+        output = self.console.run_command(cmd)
+        if "Module signature appended" in output[0]:
+            return "signed_kernel"
+        return "unsigned_kernel"
+
+    def check_os_level_secureboot_state(self):
+        '''
+        Check whether the secure-boot is enabled at os level.
+        To do this, check the entry of "00000002" in "/proc/device-tree/ibm,secure-boot" file.
+        If found, then secure-boot is enabled.
+        '''
+        cmd = "lsprop /proc/device-tree/ibm,secure-boot"
+        output = self.console.run_command(cmd)
+        for line in output:
+            if '00000002' in line:
+                return True
+        return False
 
 class OpHmcState():
     '''
