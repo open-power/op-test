@@ -932,6 +932,10 @@ class HMCConsole(HMCUtil):
             l_rc = self.pty.expect(["login:", pexpect.TIMEOUT], timeout=30)
             if l_rc == 0:
                 self.pty.send('\r')
+                # In case when OS reboot/multireboot test and we lose prompt, reset prompt
+                self.system.LOGIN_set = -1
+                self.system.PS1_set = -1
+                self.system.SUDO_set = -1
             else:
                 time.sleep(STALLTIME)
                 self.pty.send('\r')
