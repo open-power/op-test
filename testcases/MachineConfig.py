@@ -177,7 +177,9 @@ class LparConfig(MachineConfig):
                     self.fail("Failed to configure pmem")
 
 
-        self.cv_HMC.poweron_lpar()
+        self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
+                               (self.system_name, self.lpar_name, self.lpar_prof))
+        time.sleep(10)
         curr_proc_mode = self.cv_HMC.get_proc_mode()
         if proc_mode in curr_proc_mode:
             log.info("System booted with %s mode" % proc_mode)
