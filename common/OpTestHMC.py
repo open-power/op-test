@@ -314,7 +314,7 @@ class HMCUtil():
         '''
         if not self.lpar_prof:
             raise OpTestError("Profile needs to be defined to use this method")
-        self.ssh.run_command("chsyscfg -r prof -m %s -p %s -i 'lpar_name=%s,name=%s,%s' --force" %
+        self.ssh.run_command("chsyscfg -r prof -m %s -i 'lpar_name=%s,name=%s,%s' --force" %
                 (self.mg_system, self.lpar_name, self.lpar_name, self.lpar_prof,arg_str))
 
     def get_lpar_state(self, vios=False, remote_hmc=None):
