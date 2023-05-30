@@ -114,7 +114,9 @@ class InstallUpstreamKernel(unittest.TestCase):
             con.run_command("make %s" % self.config)
             # Capture kernel version & release
             res = con.run_command("make kernelrelease")
+            sha = con.run_command("git rev-parse --short HEAD")
             log.info("Upstream kernel version: %s", res[-1])
+            log.info("Upstream kernel commit-id: %s", sha[-1])
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
