@@ -140,22 +140,30 @@ class LparConfig(MachineConfig):
 
 
         if "vtpm=1" in self.lpar_config:
-            self.vtpm_mode = '1'
-            self.cv_HMC.enable_disable_vtpm(self.vtpm_mode)
             vtpm_enabled = self.cv_HMC.vtpm_state()
             if vtpm_enabled[0] == "1":
-                log.info("System booted with VTPM enabled")
+                log.info("System is already booted with VTPM enabled")
             else:
-                self.fail("Failed to boot with vtpm enabled")
+                self.vtpm_mode = '1'
+                self.cv_HMC.enable_disable_vtpm(self.vtpm_mode)
+                vtpm_enabled = self.cv_HMC.vtpm_state()
+                if vtpm_enabled[0] == "1":
+                    log.info("System booted with VTPM enabled")
+                else:
+                    self.fail("Failed to boot with vtpm enabled")
 
         elif "vtpm=0" in self.lpar_config:
-            self.vtpm_mode = '0'
-            self.cv_HMC.enable_disable_vtpm(self.vtpm_mode)
             vtpm_enabled = self.cv_HMC.vtpm_state()
             if vtpm_enabled[0] == "0":
-                log.info("System booted with VTPM disabled")
+                log.info("System is already booted with VTPM disabled")
             else:
-                self.fail("Failed to boot with vtpm disabled")
+                self.vtpm_mode = '0'
+                self.cv_HMC.enable_disable_vtpm(self.vtpm_mode)
+                vtpm_enabled = self.cv_HMC.vtpm_state()
+                if vtpm_enabled[0] == "0":
+                    log.info("System booted with VTPM disabled")
+                else:
+                    self.fail("Failed to boot with vtpm disabled")
 
 
         if "vpmem=1" in self.lpar_config:
@@ -231,15 +239,21 @@ class CecConfig(MachineConfig):
             self.lmb_size=128
         else:
             self.skipTest("Please pass valid LMB size in config file ex: 128,256,1024,2048,4096")
-        self.cv_HMC.configure_lmb(self.lmb_size)
-        self.cv_HMC.poweroff_system()
-        self.cv_HMC.poweron_system()
         current_lmb = self.cv_HMC.get_lmb_size()
         if int(current_lmb[0]) == int(self.lmb_size):
-            log.info("System booted with LMB %s" % self.lmb_size)
+            log.info("System is already booted with LMB %s" % self.lmb_size)
         else:
-            self.fail("Failed to boot with LMB %s" % self.lmb_size)
-        if self.cv_HMC.lpar_vios:
-            self.cv_HMC.poweron_lpar()
-        else:
-            log.info("Pass lpar_vios in config file to activate vios and lpar")
+            self.cv_HMC.configure_lmb(self.lmb_size)
+            self.cv_HMC.poweroff_system()
+            self.cv_HMC.poweron_system()
+            current_lmb = self.cv_HMC.get_lmb_size()
+            if int(current_lmb[0]) == int(self.lmb_size):
+                log.info("System booted with LMB %s" % self.lmb_size)
+            else:
+                self.fail("Failed to boot with LMB %s" % self.lmb_size)
+            if self.cv_HMC.lpar_vios:
+                self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
+                                       (self.system_name, self.lpar_name, self.lpar_prof))
+                time.sleep(10)
+            else:
+                log.info("Pass lpar_vios in config file to activate vios and lpar")
