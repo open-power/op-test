@@ -115,10 +115,11 @@ class InstallUpstreamKernel(unittest.TestCase):
             # Capture kernel version & release
             res = con.run_command("make kernelrelease")
             sha = con.run_command("git rev-parse HEAD")
-            tcommit = con.run_command("git show -s --format=%ci")
+            tcommit = con.run_command("export 'TERM=xterm-256color';git show -s --format=%ci")
+            tcommit = re.sub(r"\x1b\[[0-9;]*[mGKHF]", "", tcommit[1])
             log.info("Upstream kernel version: %s", res[-1])
             log.info("Upstream kernel commit-id: %s", sha[-1])
-            log.info("Upstream kernel commit-time: %s", tcommit[-1])
+            log.info("Upstream kernel commit-time: %s", tcommit)
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
