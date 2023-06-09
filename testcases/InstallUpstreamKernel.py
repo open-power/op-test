@@ -20,6 +20,7 @@
 
 import unittest
 import os
+import re
 
 try:
     from urllib.parse import urlparse
