@@ -1698,6 +1698,7 @@ class OpTestUtil():
         expect_prompt = self.build_prompt(term_obj.prompt) + "$"
         # if previous caller environment leaves buffer hung can show up here, e.g. PS2 prompt
         pty = term_obj.get_console()
+        pty.sendline("bind 'set enable-bracketed-paste off'")
         pty.sendline(command)
         if command == 'sudo -s':
             running_sudo_s = True
