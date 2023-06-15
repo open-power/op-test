@@ -644,11 +644,17 @@ class OSdumpSuite():
         self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
         if 'dev_path' in OpTestConfiguration.conf.args:
             self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
+        self.s.addTest(PowerNVDump.KernelCrash_hugepage_checks())
+        self.s.addTest(PowerNVDump.KernelCrash_XIVE_off())
+        self.s.addTest(PowerNVDump.KernelCrash_disable_radix())
         self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
         self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
         self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
         if 'dev_path' in OpTestConfiguration.conf.args:
             self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
+        self.s.addTest(PowerNVDump.KernelCrash_hugepage_checks())
+        self.s.addTest(PowerNVDump.KernelCrash_XIVE_off())
+        self.s.addTest(PowerNVDump.KernelCrash_disable_radix())
 
     def suite(self):
         return self.s
