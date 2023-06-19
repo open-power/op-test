@@ -48,6 +48,7 @@ from http.client import HTTPConnection
 # HTTPConnection.debuglevel = 1 # this will print some additional info to stdout
 import urllib3  # setUpChildLogger enables integrated logging with op-test
 import json
+import tempfile
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
@@ -2084,7 +2085,7 @@ class OpTestUtil():
 
     def distro_name(self):
         host = self.conf.host()
-        res = host.run_command("cat /etc/os-release")
+        res = host.host_run_command("cat /etc/os-release")
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
             return "ubuntu"
         elif 'Red Hat' in res[0] or 'Red Hat' in res[1]:
@@ -2093,6 +2094,80 @@ class OpTestUtil():
             return "sles"
         else:
             return "unknown"
+
+    def get_distro_src(self, package, dest_path, build_option=None):
+        
+        '''
+        Downloads the source package and prepares it in the given dest_path
+        to be ready to build.
+
+        :param package: name of the package
+        :param dest_path: destination_path
+        :param  build_option : rpmbuild option
+        :return path: build directory
+        '''
+        if dest_path is None:
+            log.error("Please provide a valid path")
+            return ""
+        host = self.conf.host()
+        if self.distro_name() == 'rhel':
+            path = tempfile.mkdtemp(prefix="optest_src")
+            for pkg in ["rpm-build", "yum-utils"]:
+                host.host_run_command("yum install %s -y" %pkg)
+            host.host_run_command(f"yumdownloader --assumeyes --verbose --source {package} --destdir {path}")
+            src_rpms = host.host_run_command(f"basename {path}/*")
+            if len(src_rpms) != 1:
+                log.error("Failed to get downloaded src.rpm")
+                return ""
+
+            cmd = f"rpm -i --nodeps {os.path.join(path, src_rpms[-1])}"
+            if host.host_run_command(cmd):
+                spec_path = host.host_run_command(f"echo `echo $HOME`/rpmbuild/SPECS/{package}.spec")
+                if host.host_run_command(f"yum-builddep -y {spec_path[0]}"):
+                    return self.prepare_source(spec_path[0], host, dest_path, package, build_option)
+                else:
+                    log.error("Installing build dependencies failed")
+                    return ""
+            else:
+                log.error("Installing source rpm failed")
+                return ""
+            log.error(details)
+            return ""
+
+        elif self.distro_name() == 'sles':
+            host.host_run_command("zypper install rpm-build -y")
+            s_cmd = f"zypper -n source-install {package}"
+            if host.host_run_command(s_cmd):
+                spec_path = f"/usr/src/packages/SPECS/{package}.spec"
+            else:
+               spec_path = None
+            if spec_path:
+                return self.prepare_source(spec_path,host, dest_path, package, build_option)
+            else:
+                log.error("Failed to install distro package")
+        else:
+            return ""
+
+
+    def prepare_source(self,spec_file, host, dest_path, package, build_option=None):
+        """
+        Rpmbuild the spec path and return build dir
+
+        :param spec_path: spec path to install
+        :param host: host object
+        :param dest_path: where to wnrap src rpm
+        :param package: src rpm name
+        :param  build_option : rpmbuild option
+        :return path: build directory
+        """
+        if build_option is None:
+            build_option = "-bp"
+        build_option += f" --define '_builddir {dest_path}'"
+        try:
+            host.host_run_command(f"rpmbuild {build_option} {spec_file}")
+            return host.host_run_command(f"ls -d -- {dest_path}/* | grep {package}")[0]
+        except OpTestError:
+            return ""
 
 
 class Server(object):
