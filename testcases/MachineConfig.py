@@ -28,6 +28,7 @@
 import os
 import unittest
 import time
+import re
 
 import OpTestConfiguration
 import OpTestLogger
@@ -60,24 +61,24 @@ class MachineConfig(unittest.TestCase):
 class LparConfig(MachineConfig):
 
     '''
-    pass lpar_config in config file indicating proc mode, vtpm and vpmem.
+    pass machine_config in config file indicating proc mode, vtpm and vpmem.
     valid values: cpu=shared or cpu=dedicated
                   vtpm=1 or vtpm=0
                   vpmem=0 or vpmem=1
-    Ex: lpar_config="cpu=dedicated,vtpm=1,vpmem=1"
+    Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1"
     ''' 
 
     def setUp(self):
         super(LparConfig, self).setUp()
         conf = OpTestConfiguration.conf
-        try: self.lpar_config = conf.args.lpar_config
+        try: self.machine_config = conf.args.machine_config
         except AttributeError:
-            self.lpar_config = "cpu=shared, vtpm=1, vpmem=1"
+            self.machine_config = "cpu=shared, vtpm=1, vpmem=1"
 
     def runTest(self):
 
         '''
-        If cpu=shared is passed in lpar_config lpar proc mode changes to shared mode.
+        If cpu=shared is passed in machine_config lpar proc mode changes to shared mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
         Ex:
         sharing_mode=uncap
@@ -87,7 +88,7 @@ class LparConfig(MachineConfig):
         overcommit_ratio=3
         '''
 
-        if "cpu=shared" in self.lpar_config:
+        if "cpu=shared" in self.machine_config:
             conf = OpTestConfiguration.conf
             try: self.sharing_mode = conf.args.sharing_mode
             except AttributeError:
@@ -114,7 +115,7 @@ class LparConfig(MachineConfig):
                                              self.desired_proc_units, self.max_proc_units, self.overcommit_ratio)
 
         '''
-        If cpu=dedicated is passed in lpar_config lpar proc mode changes to dedicated mode.
+        If cpu=dedicated is passed in machine_config lpar proc mode changes to dedicated mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
         Ex:
         sharing_mode=share_idle_procs
@@ -123,7 +124,7 @@ class LparConfig(MachineConfig):
         desired_proc_units=2
         '''
 
-        if "cpu=dedicated" in self.lpar_config:
+        if "cpu=dedicated" in self.machine_config:
             conf = OpTestConfiguration.conf
             try: self.sharing_mode = conf.args.sharing_mode
             except AttributeError:
@@ -147,7 +148,7 @@ class LparConfig(MachineConfig):
                                              self.desired_proc_units, self.max_proc_units)
 
 
-        if "vtpm=1" in self.lpar_config:
+        if "vtpm=1" in self.machine_config:
             vtpm_enabled = self.cv_HMC.vtpm_state()
             if vtpm_enabled[0] == "1":
                 log.info("System is already booted with VTPM enabled")
@@ -160,7 +161,7 @@ class LparConfig(MachineConfig):
                 else:
                     self.fail("Failed to boot with vtpm enabled")
 
-        elif "vtpm=0" in self.lpar_config:
+        elif "vtpm=0" in self.machine_config:
             vtpm_enabled = self.cv_HMC.vtpm_state()
             if vtpm_enabled[0] == "0":
                 log.info("System is already booted with VTPM disabled")
@@ -174,7 +175,7 @@ class LparConfig(MachineConfig):
                     self.fail("Failed to boot with vtpm disabled")
 
 
-        if "vpmem=1" in self.lpar_config:
+        if "vpmem=1" in self.machine_config:
             try: self.pmem_name = conf.args.pmem_name
             except AttributeError:
                 self.pmem_name = "vol1"
@@ -225,31 +226,27 @@ class RestoreLAPRConfig(MachineConfig):
 class CecConfig(MachineConfig):
 
     '''
-    This class configures LMB. Pass lmb_size to cec_config in config file.
-    Ex: cec_config="lmb=4GB, hugepage=16GB"
+    This class configures LMB. Pass lmb_size to machine_config in config file.
+    Ex: machine_config="lmb=4096, hugepage=16GB"
     Valid LMB values are "128,256,1024,2048,4096"
     '''
 
     def setUp(self):
         super(CecConfig, self).setUp()
         conf = OpTestConfiguration.conf
-        try: self.cec_config = conf.args.cec_config
+        try: self.machine_config = conf.args.machine_config
         except AttributeError:
-            self.cec_config="lmb=256"
+            self.machine_config="lmb=256"
 
     def runTest(self):
         if not self.cv_HMC.lpar_vios:
             self.skipTest("Please pass lpar_vios in config file.")
-        if "lmb=4GB" in self.cec_config or "lmb=4096" in self.cec_config:
-            self.lmb_size=4096
-        elif "lmb=2GB" in self.cec_config or "lmb=2048" in self.cec_config:
-            self.lmb_size=2048
-        elif "lmb=1GB" in self.cec_config or "lmb=1024" in self.cec_config:
-            self.lmb_size=1024
-        elif "lmb=256MB" in self.cec_config or "lmb=256" in self.cec_config:
-            self.lmb_size=256
-        elif "lmb=128MB" in self.cec_config or "lmb=128" in self.cec_config:
-            self.lmb_size=128
+        valid_size = [128, 256, 1024, 2048, 4096]
+        if "lmb" in self.machine_config:
+            self.lmb_size = re.findall('lmb=[0-9]+', self.machine_config)[0].split('=')[1]
+            if int(self.lmb_size) not in valid_size:
+                self.skipTest("%s is not valid lmb size, "
+                              "valid lmb sizes are 128, 256, 1024, 2048, 4096" % self.lmb_size)
         else:
             self.skipTest("Please pass valid LMB size in config file ex: 128,256,1024,2048,4096")
         current_lmb = self.cv_HMC.get_lmb_size()
