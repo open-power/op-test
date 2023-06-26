@@ -304,6 +304,9 @@ def get_parser():
         "--host-cmd-timeout", help="Timeout for command", type=int, default=1000)
     hostcmdgroup.add_argument("--host-cmd-resultpath",
                               help="Result path from host", default="")
+    hostcmdgroup.add_argument("--machine-config",
+                              help="lpar configuration values, "
+                                   "Ex: --lpar-config=\"cpu=dedicated,vtpm=1,vpmem=1\"")
 
     hostgroup.add_argument("--platform",
                            help="Platform (used for EnergyScale tests)",

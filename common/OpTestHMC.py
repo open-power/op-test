@@ -315,7 +315,103 @@ class HMCUtil():
         if not self.lpar_prof:
             raise OpTestError("Profile needs to be defined to use this method")
         self.ssh.run_command("chsyscfg -r prof -m %s -i 'lpar_name=%s,name=%s,%s' --force" %
-                (self.mg_system, self.lpar_name, self.lpar_name, self.lpar_prof,arg_str))
+                (self.mg_system, self.lpar_name, self.lpar_prof,arg_str))
+
+    def change_proc_mode(self, proc_mode, sharing_mode, min_proc_units, desired_proc_units, max_proc_units, overcommit_ratio=1):
+        '''
+        Sets processor mode to shared or dedicated based on proc_mode
+
+        :param proc_mode: "shared" or "ded", to change proc mode to shared or dedicated
+        :param sharing_mode: "cap", "uncap", "share_idle_procs" to specify the sharing mode.
+        :param min_proc_units: minimum number of processing units.
+        :param desired_proc_units: desired number of processing units
+        :param max_proc_units: maximum number of processing units
+        :param overcommit_ratio: overcommit ratio can be 1 to 5 for ideal cases
+        '''
+        if proc_mode == 'shared':
+            self.set_lpar_cfg("proc_mode=shared,sharing_mode=%s,min_proc_units=%s,max_proc_units=%s,"
+                              "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s" %
+                              (sharing_mode, min_proc_units, max_proc_units, desired_proc_units,
+                               overcommit_ratio*int(min_proc_units), overcommit_ratio*int(desired_proc_units),
+                               overcommit_ratio*int(max_proc_units)))
+        elif proc_mode == 'ded':
+            self.set_lpar_cfg("proc_mode=ded,sharing_mode=%s,min_procs=%s,max_procs=%s,desired_procs=%s" %
+                             (sharing_mode, min_proc_units, max_proc_units, desired_proc_units))
+        else:
+            log.info("Please pass valid proc_mode, \"shared\" or \"ded\"")
+
+    def get_proc_mode(self):
+        '''
+        Checks if the lpar is in shared mode or dedicated mode.
+
+        :returns: "shared" if lpar is in shared mode, "ded" if lpar is in dedicated mode.
+        '''
+        return self.run_command("lshwres -r proc -m %s --level lpar --filter lpar_names=%s -F curr_proc_mode" %
+                               (self.mg_system, self.lpar_name))
+
+    def enable_disable_vtpm(self, vtpm_mode):
+        '''
+        Enables or disables vtpm mode.
+
+        :param vtpm_mode: Enables vtpm if vtpm_mode is 1 and disables vtpm if vtpm_mode is 0
+        '''
+        self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=%s\"" %
+                               (self.mg_system, self.lpar_name, vtpm_mode))
+        time.sleep(5)
+
+    def vtpm_state(self):
+        '''
+        Get vtpm state for the lpar
+
+        :returns: 0 if vtpm is disabled, 1 if vtpm is enabled
+        '''
+        return self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F vtpm_enabled" %
+                                      (self.mg_system, self.lpar_name))
+
+    def vpmem_count(self):
+        '''
+        Get number of vpmem volumes configured for lpar
+
+        :returns: number of vpmem volumes on the lpar
+        '''
+        return self.run_command("lshwres -r pmem -m %s --level lpar --filter lpar_names=%s -F curr_num_volumes" %
+                                      (self.mg_system, self.lpar_name))
+
+    def configure_vpmem(self, pmem_name, pmem_size):
+        '''
+        Configures vpmem on lpar
+
+        :param pmem_name: name of vpmem volume
+        :param pmem_size: size of vpmem volume, should be multiple of lmb size
+        '''
+        self.run_command("chhwres -r pmem -m %s -o a --rsubtype volume --volume %s --device dram -p %s -a size=%s,affinity=1" %
+                               (self.mg_system, pmem_name, self.lpar_name, pmem_size)) 
+
+    def profile_bckup(self):
+        '''
+        Takes lpar profile backup
+        '''
+        self.run_command("mksyscfg -r prof -m %s -o save -p %s -n %s_bck --force" %
+                        (self.mg_system, self.lpar_name, self.lpar_prof))
+
+    def configure_lmb(self, lmb_size):
+        '''
+        Configures managed system with LMB size passed as argument
+
+        :param lmb_size: LMB size to configure on managed system
+         Valid LMB values are "128,256,1024,2048,4096"
+        '''
+        self.run_command("chhwres -m %s -r mem -o s -a pend_mem_region_size=%s" %
+                               (self.mg_system, lmb_size))
+        time.sleep(2)
+
+    def get_lmb_size(self):
+        '''
+        Get current LMB size
+
+        :returns: current lmb size of managed system
+        '''
+        return self.run_command("lshwres -r mem -m %s --level sys -F mem_region_size" % self.mg_system)
 
     def get_lpar_state(self, vios=False, remote_hmc=None):
         '''
