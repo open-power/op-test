@@ -54,6 +54,7 @@ class MachineConfig(unittest.TestCase):
             self.system_name = conf.args.system_name
             self.cv_HMC = self.cv_SYSTEM.hmc
             self.lpar_prof = conf.args.lpar_prof
+            self.add_remove_ioslots = conf.args.add_remove_ioslots
         else:
             self.skipTest("Functionality is supported only on LPAR")
 
@@ -264,3 +265,47 @@ class CecConfig(MachineConfig):
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                    (self.system_name, self.lpar_name, self.lpar_prof))
             time.sleep(5)
+
+
+class addOrRemoveIOSlots(MachineConfig):
+    '''
+    Class can be used to assign/remove an adapter from lpar
+    Removes slot from LPAR if already assigned slot is provided
+    Adds slot to LPAR if unassignrd adapter is provided
+    Execution gets terminated if slot already assigned to another LPAR
+    '''
+    def setUp(self):
+        super(addOrRemoveIOSlots, self).setUp()
+        conf = OpTestConfiguration.conf
+
+    def runTest(self):
+        if "," in self.add_remove_ioslots:
+            slot_number = self.add_remove_ioslots.split(",")
+            self.add_remove_ioslots = []
+        else:
+            slot_number = [self.add_remove_ioslots]
+            self.add_remove_ioslots = []
+        can_continue = True
+        for slot_no in slot_number:
+            out = self.cv_HMC.run_command(f"lshwres -r io -m {self.system_name} --rsubtype "
+                                           "slot -F drc_index:drc_name:description:lpar_name"
+                                          " | grep -i {slot_no}:")
+            if out[0].split(":")[-1] != self.lpar_name:
+                self.fail("Slot %s is already assigned to another lpar, "
+                          "Can't continue test" % slot_no)
+                can_continue = False
+                break
+            drc_in = out[0].split(":")[0]
+            self.add_remove_ioslots.append(drc_in+"/none/0")
+        if can_continue:
+            self.cv_HMC.add_or_remove_ioslot(",".join(self.add_remove_ioslots))
+            updated_io_slot = self.cv_HMC.add_or_remove_ioslot(self.add_remove_ioslots)
+            self.cv_SYSTEM.goto_state(OpSystemState.ON)
+            io_slots_ppu = self.ssh.run_command(f"lssyscfg -r prof -m {self.mg_system} --filter "
+                                                 "'lpar_names={self.lpar_name},profile_names="
+                                                 "{self.lpar_prof}' -F io_slots")
+            if updated_io_slot == io_slots_ppu[0].replace('"',""):
+                log.info("Profile update with adding/removing io slots is successful")
+            else:
+                log.info("Profile update is not successful with given set of adapters")
+

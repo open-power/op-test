@@ -317,6 +317,37 @@ class HMCUtil():
         self.ssh.run_command("chsyscfg -r prof -m %s -i 'lpar_name=%s,name=%s,%s' --force" %
                 (self.mg_system, self.lpar_name, self.lpar_prof,arg_str))
 
+    def add_or_remove_ioslot(self, add_remove_ioslot):
+        '''
+        Add or remove an adapter to lpar profile
+
+        :param add_remove_ioslot: adaper/adapter's seperated by comma
+        Add ioslot to profile if the adapter doesn't exist in list of adapters
+        Removes adapter if the adapter already exists in profile
+        Returns update list of adapters
+        '''
+        exisitng_io_slots = self.ssh.run_command("lssyscfg -r prof -m %s --filter 'lpar_names=%s,"
+                                                 "profile_names=%s' -F io_slots" %(self.mg_system,
+                                                 self.lpar_name, self.lpar_prof))
+        if exisitng_io_slots is "none":
+            exisitng_io_slots = []
+        else:
+            exisitng_io_slots = exisitng_io_slots[0].replace('"',"").split(",")
+        if "," in add_remove_ioslot:
+            add_remove_ioslot = add_remove_ioslot.split(",")
+            for iosl in set(exisitng_io_slots):
+                if iosl in exisitng_io_slots:
+                    exisitng_io_slots.remove(iosl)
+                    add_remove_ioslot.remove(iosl)
+        elif add_remove_ioslot in exisitng_io_slots:
+            exisitng_io_slots.remove(add_remove_ioslot)
+            add_remove_ioslot = []
+        else:
+            add_remove_ioslot = [add_remove_ioslot]
+        list_io_slots = add_remove_ioslot+exisitng_io_slots
+        self.set_lpar_cfg("io_slots="+",".join(add_remove_ioslot+exisitng_io_slots))
+        return ",".join(add_remove_ioslot+exisitng_io_slots)
+
     def change_proc_mode(self, proc_mode, sharing_mode, min_proc_units, desired_proc_units, max_proc_units, overcommit_ratio=1):
         '''
         Sets processor mode to shared or dedicated based on proc_mode
