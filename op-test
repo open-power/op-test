@@ -106,6 +106,8 @@ from testcases import OpTestDlparIO
 from testcases import OpTestLPM
 from testcases import OpTestKexec
 from testcases import OpTestGSBStaticKey
+from testcases import GcovSetup
+from testcases import Lcov
 import OpTestConfiguration
 import sys
 import time
@@ -713,6 +715,20 @@ class FspOpalSuite():
         return self.s
 
 
+class GcovSuite():
+    '''Simple Suite to run for Gcov, data coverage tool on distro kernel'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(GcovSetup.GcovBuild())
+        self.s.addTest(Lcov.LcovSetup())
+        self.s.addTest(Lcov.LcovCounterZero())
+        self.s.addTest(RunHostTest.RunHostTest())
+        self.s.addTest(Lcov.LcovGatherData())
+
+    def suite(self):
+        return self.s
+
+
 class KnownBugs():
     def __init__(self):
         self.s = unittest.TestSuite()
@@ -885,6 +901,7 @@ suites = {
     'mambo': MamboSuite(),
     'BasicIPL': BasicIPLSuite(),
     'BasicPCI': BasicPCISuite(),
+    'GcovSuite': GcovSuite(),
     'secure-boot': SBSuite(),
     'trusted-boot': TBSuite(),
     'em':       OpTestEMSuite(),
