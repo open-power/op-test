@@ -217,7 +217,13 @@ class OpTestLPM(unittest.TestCase):
                        'No hypervisor support for SR-IOV on this device, IOV BARs disabled',
                        'log_max_qp value in current profile',
                        'tc ct offload not supported',
-                       'send_subcrq_indirect failed']
+                       'send_subcrq_indirect failed',
+                       'LPAR Platform KeyStore is not supported',
+                       'node lid missing',
+                       'Failed to retrieve secvar operations',
+                       'CONFIG_IMA_DISABLE_HTABLE is disabled',
+                       'the capability attribute has been deprecated',
+                       'NULL argv: empty string added']
                        
         warn_errors = ['Invalid request detected while CRQ is inactive, possible device state change during reset',
                        'rejecting I/O to offline device',
