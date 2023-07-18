@@ -32,6 +32,7 @@ import re
 
 import OpTestConfiguration
 import OpTestLogger
+from common import OpTestInstallUtil
 from common.OpTestSystem import OpSystemState
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -44,7 +45,7 @@ class MachineConfig(unittest.TestCase):
 
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_HOST = conf.host()
         self.bmc_type = conf.args.bmc_type
         if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP" :
             self.hmc_user = conf.args.hmc_username
@@ -54,6 +55,9 @@ class MachineConfig(unittest.TestCase):
             self.system_name = conf.args.system_name
             self.cv_HMC = self.cv_SYSTEM.hmc
             self.lpar_prof = conf.args.lpar_prof
+            self.c = self.cv_HMC.get_host_console()
+            self.mmulist = self.c.run_command("tail /proc/cpuinfo | grep MMU")
+            self.mmu = str(self.mmulist[0]).split(':')[1].strip()
         else:
             self.skipTest("Functionality is supported only on LPAR")
 
@@ -70,6 +74,7 @@ class LparConfig(MachineConfig):
 
     def setUp(self):
         super(LparConfig, self).setUp()
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         conf = OpTestConfiguration.conf
         try: self.machine_config = conf.args.machine_config
         except AttributeError:
@@ -196,7 +201,6 @@ class LparConfig(MachineConfig):
                 else:
                     self.fail("Failed to configure pmem")
 
-
         self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                (self.system_name, self.lpar_name, self.lpar_prof))
         time.sleep(5)
@@ -205,6 +209,61 @@ class LparConfig(MachineConfig):
             log.info("System booted with %s mode" % proc_mode)
         else:
             self.fail("Failed to boot in %s mode" % proc_mode)
+
+
+class OsConfig(MachineConfig):
+    '''
+    This Class assign  huge page in the system   based on MMU either Radix or hash and validate
+    MMU is Radix : 2M or 1 GB Huge page
+    MMU HASH :  16M
+    pass hgpgsize to machine_config in config file
+    '''
+    def setUp(self):
+        super(OsConfig, self).setUp()
+        conf = OpTestConfiguration.conf
+        self.os_level = self.cv_HOST.host_get_OS_Level()
+        try: self.machine_config = conf.args.machine_config
+        except AttributeError:
+            self.machine_config = "hppgsize=1G"
+
+    def runTest(self):
+        self.obj = OpTestInstallUtil.InstallUtil()
+        exist_cfg = self.cv_HMC.get_lpar_cfg()
+        self.des_mem = int(exist_cfg.get('desired_mem'))
+        self.percentile = int(self.des_mem * 0.1)
+        if 'Radix' in self.mmu:
+            if "hppgsize=16M" in self.machine_config:
+                self.fail("16M is not supported in Radix")
+            elif "hgpgsize=2M" in self.machine_config:
+                self.size_hgpg = "2M"
+                self.no_hp = int(self.percentile / 2)
+            elif "hgpgsize=1G" in self.machine_config:
+                self.size_hgpg = "1G"
+                self.no_hp = int(self.percentile / 1024)
+
+        elif 'Hash' in self.mmu and "hgpgsize=16M" in self.machine_config:
+            self.size_hgpg = "16M"
+            self.no_hp = int(self.percentile / 16)
+        self.obj.update_kernel_cmdline(self.os_level,
+                                       "hugepagesz=%s hugepages=%s" % (
+                                       self.size_hgpg, self.no_hp),
+                                       "",
+                                       reboot=True,
+                                       reboot_cmd=True)
+        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+        filename_part1 = "cat /sys/kernel/mm/hugepages/hugepages-"
+        filename_part2 = "kB/nr_hugepages"
+        if self.size_hgpg == "2M":
+            assign_hp = con.run_command("%s%s%s" % (filename_part1,"2048",filename_part2))[0]
+        elif self.size_hgpg == "1G":
+            assign_hp = con.run_command("%s%s%s" % (filename_part1,"1048576",filename_part2))[0]
+        elif self.size_hgpg == "16M":
+            assign_hp = con.run_command("%s%s%s" % (filename_part1,"16777216",filename_part2))[0]
+        if str(self.no_hp) != assign_hp:
+            msg = "Expected %s: But found %s" % (self.no_hp, assign_hp)
+            self.fail(msg)
+        else:
+            log.info("%s Hugepage validation successful!" % self.size_hgpg)
 
 
 class RestoreLAPRConfig(MachineConfig):
