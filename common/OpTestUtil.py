@@ -2062,7 +2062,7 @@ class OpTestUtil():
                 elif 'sles' in self.distro_name():
                     cmd = 'supportconfig'
                     str_msg = "  Log file tar ball:"
-                output = host.host_run_command(cmd).split(',')
+                output = host.host_run_command(cmd)
                 path = output[output.index(str_msg)+1].strip()
                 host.copy_files_from_host(sourcepath=output_dir, destpath=path)
             return True

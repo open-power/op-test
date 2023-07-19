@@ -231,9 +231,7 @@ class OpTestLPM(unittest.TestCase):
                        'device-mapper: multipath']
 
         err = self.util.collect_errors_by_level(output_dir=output_dir, skip_errors=skip_errors, warn_errors=warn_errors)
-        if err:
-            self.collect_logs_test_fail(remote_hmc, output_dir)
-            raise OpTestError("Test failed. {}".format(err))
+        return err
 
     def is_RMCActive(self, mg_system, remote_hmc=None):
         '''
@@ -305,6 +303,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
         super(OpTestLPM_LocalHMC, self).setUp()
 
     def lpar_migrate_test(self):
+        error_list = []
         self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
@@ -318,7 +317,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
                 self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
             if not self.inactive_lpm:
-                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
+                error_list.append(self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM")))
                 self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                          output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
@@ -345,7 +344,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
                 time.sleep(60)
 
             if not self.inactive_lpm:
-                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
+                error_list.append(self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM")))
                 self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                          output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
@@ -372,9 +371,12 @@ class OpTestLPM_LocalHMC(OpTestLPM):
                 self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
 
             if not self.inactive_lpm:
-                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+                error_list.append(self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM")))
                 self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                          output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+        if error_list:
+            self.collect_logs_test_fail(output_dir=os.path.join("logs_postLPM_failtest"), remote_hmc=None)
+            raise OpTestError("Test failed. {}".format(err))
 
     def runTest(self):
         self.lpar_migrate_test()
@@ -410,6 +412,7 @@ class OpTestLPM_CrossHMC(OpTestLPM):
         super(OpTestLPM_CrossHMC, self).setUp(self.remote_hmc)
 
     def cross_hmc_migrate_test(self):
+        error_list = []
         self.util.clear_dmesg()
         self.check_pkg_installation()
         self.lpm_setup()
@@ -423,8 +426,8 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 self.rmc_service_start(self.src_mg_sys, output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
             if not self.inactive_lpm:
-                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"),
-                                        remote_hmc=self.remote_hmc)
+                error_list.append(self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"),
+                                        remote_hmc=self.remote_hmc))
                 self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                          output_dir=os.path.join("logs_itr"+str(iteration), "preForwardLPM"))
 
@@ -456,8 +459,8 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 time.sleep(60)
 
             if not self.inactive_lpm:
-                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"),
-                                        remote_hmc=self.remote_hmc)
+                error_list.append(self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"),
+                                        remote_hmc=self.remote_hmc))
                 self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                          output_dir=os.path.join("logs_itr"+str(iteration), "postForwardLPM"))
 
@@ -489,10 +492,13 @@ class OpTestLPM_CrossHMC(OpTestLPM):
                 self.vnic_ping_test(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
 
             if not self.inactive_lpm:
-                self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"),
-                                        remote_hmc=self.remote_hmc)
+                error_list.append(self.check_dmesg_errors(output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"),
+                                        remote_hmc=self.remote_hmc))
                 self.util.gather_os_logs(self.os_file_logs, self.os_cmd_logs,
                                          output_dir=os.path.join("logs_itr"+str(iteration), "postBackwardLPM"))
+        if error_list:
+            self.collect_logs_test_fail(output_dir=os.path.join("logs_postLPM_failtest"), remote_hmc=self.remote_hmc)
+            raise OpTestError("Test failed. {}".format(err))
 
     def runTest(self):
         self.cross_hmc_migrate_test()
