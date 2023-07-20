@@ -70,7 +70,7 @@ class LcovSetup(unittest.TestCase):
             self.c.run_command(cmd + " " + pkg + " -y")
         time.sleep(5)
         log.info("changing dir to /home")
-        self.c.run_command("cd /home/")
+        self.c.run_command("cd /home/; rm -rf lcov")
         url = 'git clone https://github.com/linux-test-project/lcov.git'
         self.c.run_command(url)
         log.info("changing dir to /lcov")
