@@ -153,8 +153,14 @@ class LparConfig(MachineConfig):
             if vtpm_enabled[0] == "1":
                 log.info("System is already booted with VTPM enabled")
             else:
-                self.vtpm_mode = '1'
-                self.cv_HMC.enable_disable_vtpm(self.vtpm_mode)
+                proc_compat_mode = self.cv_HMC.get_proc_compat_mode()
+                if "POWER10" in proc_compat_mode:
+                    self.vtpm_version = 2.0
+                elif proc_compat_mode[0] in ["POWER9_base", "POWER9", "POWER8"]:
+                    self.vtpm_version = 1.2
+                else:
+                    log.info("Unknown processor compact mode")
+                self.cv_HMC.enable_vtpm(self.vtpm_version)
                 vtpm_enabled = self.cv_HMC.vtpm_state()
                 if vtpm_enabled[0] == "1":
                     log.info("System booted with VTPM enabled")
@@ -167,7 +173,7 @@ class LparConfig(MachineConfig):
                 log.info("System is already booted with VTPM disabled")
             else:
                 self.vtpm_mode = '0'
-                self.cv_HMC.enable_disable_vtpm(self.vtpm_mode)
+                self.cv_HMC.disable_vtpm()
                 vtpm_enabled = self.cv_HMC.vtpm_state()
                 if vtpm_enabled[0] == "0":
                     log.info("System booted with VTPM disabled")
@@ -195,6 +201,17 @@ class LparConfig(MachineConfig):
                     log.info("Configured vpmem %s of %sMB" % (self.pmem_name, self.pmem_size))
                 else:
                     self.fail("Failed to configure pmem")
+
+        if "nx_gzip=1" in self.machine_config:
+            conf = OpTestConfiguration.conf
+            try: self.qos_credits =  int(conf.args.qos_credits)
+            except AttributeError:
+                self.qos_credits = "10"
+            proc_compat_mode = self.cv_HMC.get_proc_compat_mode()
+            if "POWER10" in proc_compat_mode:
+                self.cv_HMC.configure_gzip_qos(self.qos_credits)
+            else:
+                log.info("nx_gzip is supported only in Power10 mode")   
 
 
         self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %

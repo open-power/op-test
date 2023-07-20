@@ -349,14 +349,27 @@ class HMCUtil():
         return self.run_command("lshwres -r proc -m %s --level lpar --filter lpar_names=%s -F curr_proc_mode" %
                                (self.mg_system, self.lpar_name))
 
-    def enable_disable_vtpm(self, vtpm_mode):
+    def disable_vtpm(self):
         '''
-        Enables or disables vtpm mode.
+        disables vtpm mode.
 
-        :param vtpm_mode: Enables vtpm if vtpm_mode is 1 and disables vtpm if vtpm_mode is 0
         '''
-        self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=%s\"" %
-                               (self.mg_system, self.lpar_name, vtpm_mode))
+        self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=0\"" %
+                        (self.mg_system, self.lpar_name))
+        time.sleep(5)
+
+    def enable_vtpm(self, vtpm_version):
+        '''
+        Enables vtpm mode.
+
+        :param vtpm_version: Specifies vtpm version 1.2 or 2.0
+        '''
+        if vtpm_version == 2.0:
+            self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=1, vtpm_version=2.0, vtpm_encryption=Power10\"" %
+                            (self.mg_system, self.lpar_name))
+        if vtpm_version == 1.2:
+            self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=1, vtpm_version=1.2\"" %
+                            (self.mg_system, self.lpar_name))
         time.sleep(5)
 
     def vtpm_state(self):
@@ -385,7 +398,26 @@ class HMCUtil():
         :param pmem_size: size of vpmem volume, should be multiple of lmb size
         '''
         self.run_command("chhwres -r pmem -m %s -o a --rsubtype volume --volume %s --device dram -p %s -a size=%s,affinity=1" %
-                               (self.mg_system, pmem_name, self.lpar_name, pmem_size)) 
+                               (self.mg_system, pmem_name, self.lpar_name, pmem_size))
+
+    def get_proc_compat_mode(self):
+        '''
+        Get current processor compact mode.
+
+        :returns: current processor compact mode.
+        '''
+        return self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F curr_lpar_proc_compat_mode"
+                                % (self.mg_system, self.lpar_name))
+
+    def configure_gzip_qos(self, qos_credits):
+        '''
+        Configures nx_gzip QOS on lpar
+
+        :param qos_credits: Qos credits to alllocate.
+        '''
+        self.run_command("chhwres -r accel -m %s --rsubtype gzip -o s -p %s -q %s" %
+                        (self.mg_system, self.lpar_name, qos_credits))
+        time.sleep(5)
 
     def profile_bckup(self):
         '''
