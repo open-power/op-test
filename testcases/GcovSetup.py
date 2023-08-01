@@ -92,8 +92,8 @@ class GcovBuild(unittest.TestCase):
         if dest_path is None:
             log.error("Please provide a valid path")
             return ""
-        k_version = "".join(self.cv_HOST.host_run_command("uname -r"))
-        boot_conf_file = f"/boot/config-{k_version}"
+        boot_conf_file = self.cv_HOST.host_run_command(f"ls /boot/ | grep -i config-")[0]
+        boot_conf_file = f"/boot/{boot_conf_file}"
         src_conf_file = f"{dest_path}/.config"
         log.info(f"copying {boot_conf_file} {src_conf_file}")
         self.cv_HOST.host_run_command(f"cp {boot_conf_file} {src_conf_file}")
