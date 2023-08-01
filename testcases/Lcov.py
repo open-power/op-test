@@ -118,8 +118,8 @@ class LcovGatherData(LcovSetup):
         self.c.run_command(html_cmd, timeout=self.host_cmd_timeout)
         curr_dir = os.getcwd()
         log.info(f"\n\ncurrent_dir={curr_dir}, \ncreating dir here now")
-        self.cv_HOST.host_run_command("mkdir -p Lcov-result")
-        lcov_result_dir = os.path.join(curr_dir, "Lcov-result")
+        lcov_result_dir = curr_dir+'/Lcov-result'
+        os.system("mkdir -p %s" %lcov_result_dir)
         log.info(f"copying html files to this paths at source : {lcov_result_dir}")
         self.cv_HOST.copy_files_from_host(lcov_result_dir, "%s/*" %temp_dir)
         log.info("\ncopying done.....")
