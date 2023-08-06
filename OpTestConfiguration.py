@@ -306,7 +306,7 @@ def get_parser():
                               help="Result path from host", default="")
     hostcmdgroup.add_argument("--machine-config",
                               help="lpar configuration values, "
-                                   "Ex: --lpar-config=\"cpu=dedicated,vtpm=1,vpmem=1,nx_gzip\"")
+                                   "Ex: --machine-config=\"cpu=dedicated,vtpm=1,vpmem=1,nx_gzip\"")
 
     hostgroup.add_argument("--platform",
                            help="Platform (used for EnergyScale tests)",
