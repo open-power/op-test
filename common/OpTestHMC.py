@@ -398,7 +398,17 @@ class HMCUtil():
         '''
         return self.run_command("chhwres -r pmem -m %s -o r --rsubtype volume --volume %s -p %s" %
                                 (self.mg_system, pmem_name, self.lpar_name))
-    
+
+    def check_exiting_vpmemname(self, pmem_name):
+        '''
+        Configures vpmem on lpar
+
+        :param pmem_name: name of vpmem volume
+        '''
+        volume_name = self.run_command("lshwres -r pmem -m %s --rsubtype volume -F name" % (self.mg_system))
+        if pmem_name in volume_name:
+            return 1
+        return 0
 
     def configure_vpmem(self, pmem_name, pmem_size):
         '''
