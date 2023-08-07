@@ -390,6 +390,16 @@ class HMCUtil():
         return self.run_command("lshwres -r pmem -m %s --level lpar --filter lpar_names=%s -F curr_num_volumes" %
                                       (self.mg_system, self.lpar_name))
 
+    def remove_singlevpmem(self, pmem_name):
+        '''
+        remove vpmem on lpar
+
+        :param pmem_name: name of vpmem volume
+        '''
+        return self.run_command("chhwres -r pmem -m %s -o r --rsubtype volume --volume %s -p %s" %
+                                (self.mg_system, pmem_name, self.lpar_name))
+    
+
     def configure_vpmem(self, pmem_name, pmem_size):
         '''
         Configures vpmem on lpar
