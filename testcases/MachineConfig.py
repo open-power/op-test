@@ -218,19 +218,16 @@ class LparConfig():
             try: self.pmem_size = conf.args.pmem_size
             except AttributeError:
                 self.pmem_size = "8192"
+            self.cv_HMC.remove_vpmem()
+            current_lmb = self.cv_HMC.get_lmb_size()
+            if int(self.pmem_size) % int(current_lmb[0]) != 0:
+                self.fail("pmem_size should be multiple of %s" % current_lmb)
+            self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
             curr_num_volumes = self.cv_HMC.vpmem_count()
             if curr_num_volumes[0] >= "1":
-                log.info("System already have vpmem volume.")
+                log.info("Configured vpmem %s of %sMB" % (self.pmem_name, self.pmem_size))
             else:
-                current_lmb = self.cv_HMC.get_lmb_size()
-                if int(self.pmem_size) % int(current_lmb[0]) != 0:
-                    self.fail("pmem_size should be multiple of %s" % current_lmb)
-                self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
-                curr_num_volumes = self.cv_HMC.vpmem_count()
-                if curr_num_volumes[0] >= "1":
-                    log.info("Configured vpmem %s of %sMB" % (self.pmem_name, self.pmem_size))
-                else:
-                    return "Failed to configure pmem"
+                return "Failed to configure pmem"
 
         if "nx_gzip" in self.machine_config:
             conf = OpTestConfiguration.conf
