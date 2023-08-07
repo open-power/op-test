@@ -410,6 +410,16 @@ class HMCUtil():
             return 1
         return 0
 
+    def remove_vpmem(self):
+        '''
+        remove all  vpmem device from lpar
+        '''
+
+        volume_name = self.run_command("lshwres -r pmem -m %s --rsubtype volume --filter lpar_names=%s -F name" % (self.mg_system, self.lpar_name))
+        for pmem_name in volume_name:
+            self.remove_singlevpmem(pmem_name)
+
+
     def configure_vpmem(self, pmem_name, pmem_size):
         '''
         Configures vpmem on lpar
