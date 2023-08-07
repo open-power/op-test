@@ -218,7 +218,8 @@ class LparConfig():
             try: self.pmem_size = conf.args.pmem_size
             except AttributeError:
                 self.pmem_size = "8192"
-            self.cv_HMC.remove_vpmem()
+            if self.cv_HMC.vpmem_count() [0] >= "1":
+                self.cv_HMC.remove_vpmem()
             current_lmb = self.cv_HMC.get_lmb_size()
             if int(self.pmem_size) % int(current_lmb[0]) != 0:
                 self.fail("pmem_size should be multiple of %s" % current_lmb)

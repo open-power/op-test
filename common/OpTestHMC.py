@@ -38,6 +38,8 @@ import time
 import pexpect
 import shlex
 import re
+import string
+import random
 
 import OpTestLogger
 from common.OpTestError import OpTestError
@@ -427,6 +429,10 @@ class HMCUtil():
         :param pmem_name: name of vpmem volume
         :param pmem_size: size of vpmem volume, should be multiple of lmb size
         '''
+        if self.check_exiting_vpmemname(pmem_name):
+            ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4))
+            pmem_name = str(ran)
+
         self.run_command("chhwres -r pmem -m %s -o a --rsubtype volume --volume %s --device dram -p %s -a size=%s,affinity=1" %
                                (self.mg_system, pmem_name, self.lpar_name, pmem_size))
 
