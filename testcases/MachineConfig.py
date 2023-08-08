@@ -29,6 +29,7 @@ import os
 import unittest
 import time
 import re
+import  json
 
 import OpTestConfiguration
 import OpTestLogger
@@ -46,6 +47,7 @@ class MachineConfig(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.bmc_type = conf.args.bmc_type
+        self.machine_config = json.loads(conf.args.machine_config)
         if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP" :
             self.hmc_user = conf.args.hmc_username
             self.hmc_password = conf.args.hmc_password
@@ -57,8 +59,32 @@ class MachineConfig(unittest.TestCase):
         else:
             self.skipTest("Functionality is supported only on LPAR")
 
+    def runTest(self):
+        status=0
+        if self.machine_config.__contains__('lpar'):
+            status=LparConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,self.machine_config['lpar']).LparSetup()
+            if status:
+                self.fail(status)
+        if self.machine_config.__contains__('cec'):
+            if not self.cv_HMC.lpar_vios:
+                self.skipTest("Please pass lpar_vios in config file.")
+            config_value=self.machine_config['cec']
+            valid_size = [128, 256, 1024, 2048, 4096]
+            if "lmb" in config_value:
+                lmb_size = re.findall('lmb=[0-9]+', str(self.machine_config))[0].split('=')[1]
+                if int(lmb_size) not in valid_size:
+                    self.skipTest("%s is not valid lmb size, "
+                                  "valid lmb sizes are 128, 256, 1024, 2048, 4096" % lmb_size)
+                status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb_size).CecSetup_lmb()
+                if status:
+                    self.fail(status)
+            else:
+                self.skipTest("Not implemented for other CEC settings")
+        else:
+            self.skipTest("Not Supported Config")
 
-class LparConfig(MachineConfig):
+
+class LparConfig():
 
     '''
     pass machine_config in config file indicating proc mode, vtpm and vpmem.
@@ -66,17 +92,18 @@ class LparConfig(MachineConfig):
                   vtpm=1 or vtpm=0
                   vpmem=0 or vpmem=1
     Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1"
-    ''' 
+    '''
+    def __init__(self, cv_HMC=None, system_name= None,
+                 lpar_name=None, lpar_prof=None, machin_config =None):
+        self.cv_HMC = cv_HMC
+        self.system_name = system_name
+        self.lpar_name = lpar_name
+        self.lpar_prof = lpar_prof
+        self.machine_config=machin_config
 
-    def setUp(self):
-        super(LparConfig, self).setUp()
-        conf = OpTestConfiguration.conf
-        try: self.machine_config = conf.args.machine_config
-        except AttributeError:
-            self.machine_config = "cpu=shared, vtpm=1, vpmem=1"
 
-    def runTest(self):
 
+    def LparSetup(self):
         '''
         If cpu=shared is passed in machine_config lpar proc mode changes to shared mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
@@ -168,7 +195,7 @@ class LparConfig(MachineConfig):
                 if vtpm_enabled[0] == "1":
                     log.info("System booted with VTPM enabled")
                 else:
-                    self.fail("Failed to boot with vtpm enabled")
+                    return "Failed to boot with vtpm enabled"
 
         elif "vtpm=0" in self.machine_config:
             vtpm_enabled = self.cv_HMC.vtpm_state()
@@ -181,7 +208,7 @@ class LparConfig(MachineConfig):
                 if vtpm_enabled[0] == "0":
                     log.info("System booted with VTPM disabled")
                 else:
-                    self.fail("Failed to boot with vtpm disabled")
+                    return "Failed to boot with vtpm disabled"
 
 
         if "vpmem=1" in self.machine_config:
@@ -191,19 +218,17 @@ class LparConfig(MachineConfig):
             try: self.pmem_size = conf.args.pmem_size
             except AttributeError:
                 self.pmem_size = "8192"
+            if self.cv_HMC.vpmem_count() [0] >= "1":
+                self.cv_HMC.remove_vpmem()
+            current_lmb = self.cv_HMC.get_lmb_size()
+            if int(self.pmem_size) % int(current_lmb[0]) != 0:
+                self.fail("pmem_size should be multiple of %s" % current_lmb)
+            self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
             curr_num_volumes = self.cv_HMC.vpmem_count()
             if curr_num_volumes[0] >= "1":
-                log.info("System already have vpmem volume.")
+                log.info("Configured vpmem %s of %sMB" % (self.pmem_name, self.pmem_size))
             else:
-                current_lmb = self.cv_HMC.get_lmb_size()
-                if int(self.pmem_size) % int(current_lmb[0]) != 0:
-                    self.fail("pmem_size should be multiple of %s" % current_lmb)
-                self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
-                curr_num_volumes = self.cv_HMC.vpmem_count()
-                if curr_num_volumes[0] >= "1":
-                    log.info("Configured vpmem %s of %sMB" % (self.pmem_name, self.pmem_size))
-                else:
-                    self.fail("Failed to configure pmem")
+                return "Failed to configure pmem"
 
         if "nx_gzip" in self.machine_config:
             conf = OpTestConfiguration.conf
@@ -224,7 +249,7 @@ class LparConfig(MachineConfig):
         if proc_mode in curr_proc_mode:
             log.info("System booted with %s mode" % proc_mode)
         else:
-            self.fail("Failed to boot in %s mode" % proc_mode)
+            return "Failed to boot in %s mode" % proc_mode
 
 
 class RestoreLAPRConfig(MachineConfig):
@@ -243,32 +268,23 @@ class RestoreLAPRConfig(MachineConfig):
         self.cv_HMC.poweron_lpar()
 
 
-class CecConfig(MachineConfig):
+class CecConfig():
 
     '''
     This class configures LMB. Pass lmb_size to machine_config in config file.
     Ex: machine_config="lmb=4096, hugepage=16GB"
     Valid LMB values are "128,256,1024,2048,4096"
     '''
+    def __init__(self, cv_HMC=None, system_name= None,
+                 lpar_name=None, lpar_prof=None, lmb=None):
 
-    def setUp(self):
-        super(CecConfig, self).setUp()
-        conf = OpTestConfiguration.conf
-        try: self.machine_config = conf.args.machine_config
-        except AttributeError:
-            self.machine_config="lmb=256"
+        self.cv_HMC = cv_HMC
+        self.system_name = system_name
+        self.lpar_name = lpar_name
+        self.lpar_prof = lpar_prof
+        self.lmb_size = lmb
 
-    def runTest(self):
-        if not self.cv_HMC.lpar_vios:
-            self.skipTest("Please pass lpar_vios in config file.")
-        valid_size = [128, 256, 1024, 2048, 4096]
-        if "lmb" in self.machine_config:
-            self.lmb_size = re.findall('lmb=[0-9]+', self.machine_config)[0].split('=')[1]
-            if int(self.lmb_size) not in valid_size:
-                self.skipTest("%s is not valid lmb size, "
-                              "valid lmb sizes are 128, 256, 1024, 2048, 4096" % self.lmb_size)
-        else:
-            self.skipTest("Please pass valid LMB size in config file ex: 128,256,1024,2048,4096")
+    def CecSetup_lmb(self):
         current_lmb = self.cv_HMC.get_lmb_size()
         if int(current_lmb[0]) == int(self.lmb_size):
             log.info("System is already booted with LMB %s" % self.lmb_size)
@@ -280,7 +296,7 @@ class CecConfig(MachineConfig):
             if int(current_lmb[0]) == int(self.lmb_size):
                 log.info("System booted with LMB %s" % self.lmb_size)
             else:
-                self.fail("Failed to boot with LMB %s" % self.lmb_size)
+                return "Failed to boot with LMB %s" % self.lmb_size
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                    (self.system_name, self.lpar_name, self.lpar_prof))
             time.sleep(5)

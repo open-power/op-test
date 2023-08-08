@@ -38,6 +38,8 @@ import time
 import pexpect
 import shlex
 import re
+import string
+import random
 
 import OpTestLogger
 from common.OpTestError import OpTestError
@@ -390,6 +392,36 @@ class HMCUtil():
         return self.run_command("lshwres -r pmem -m %s --level lpar --filter lpar_names=%s -F curr_num_volumes" %
                                       (self.mg_system, self.lpar_name))
 
+    def remove_singlevpmem(self, pmem_name):
+        '''
+        remove vpmem on lpar
+
+        :param pmem_name: name of vpmem volume
+        '''
+        return self.run_command("chhwres -r pmem -m %s -o r --rsubtype volume --volume %s -p %s" %
+                                (self.mg_system, pmem_name, self.lpar_name))
+
+    def check_exiting_vpmemname(self, pmem_name):
+        '''
+        Configures vpmem on lpar
+
+        :param pmem_name: name of vpmem volume
+        '''
+        volume_name = self.run_command("lshwres -r pmem -m %s --rsubtype volume -F name" % (self.mg_system))
+        if pmem_name in volume_name:
+            return 1
+        return 0
+
+    def remove_vpmem(self):
+        '''
+        remove all  vpmem device from lpar
+        '''
+
+        volume_name = self.run_command("lshwres -r pmem -m %s --rsubtype volume --filter lpar_names=%s -F name" % (self.mg_system, self.lpar_name))
+        for pmem_name in volume_name:
+            self.remove_singlevpmem(pmem_name)
+
+
     def configure_vpmem(self, pmem_name, pmem_size):
         '''
         Configures vpmem on lpar
@@ -397,6 +429,10 @@ class HMCUtil():
         :param pmem_name: name of vpmem volume
         :param pmem_size: size of vpmem volume, should be multiple of lmb size
         '''
+        if self.check_exiting_vpmemname(pmem_name):
+            ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4))
+            pmem_name = str(ran)
+
         self.run_command("chhwres -r pmem -m %s -o a --rsubtype volume --volume %s --device dram -p %s -a size=%s,affinity=1" %
                                (self.mg_system, pmem_name, self.lpar_name, pmem_size))
 
