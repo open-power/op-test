@@ -2100,6 +2100,46 @@ class OpTestUtil():
         else:
             return "unknown"
 
+    def get_distro_details(self):
+        '''
+        1. Reads the contents of /etc/os-release
+        2. Formulates the same into a dictionary format.
+        3. Returns this dictionary in the format as below:
+        {
+            'NAME': ['"Red Hat Enterprise Linux"'], 
+            'VERSION': ['"8.8 (Ootpa)"'], 
+            'ID': ['"rhel"']
+            . . . .
+            . . . .
+        }
+
+        :param None
+        :return distro_details: contents in dictionary format
+        '''
+        temporary_list = []
+        distro_details = {}
+        host = self.conf.host()
+        res = host.host_run_command("cat /etc/os-release")
+
+        loop_count = 0
+        while loop_count < len(res):
+            temporary_list.append(res[loop_count].split("="))
+            loop_count = loop_count+1
+        
+        distro_details =  {loop_count[0] : loop_count[1:] for loop_count in temporary_list}
+        return distro_details
+    
+    def get_distro_version(self):
+        '''
+        Returns the distro version value from the dictionary, fetched
+        by calling get_distro_details()
+
+        :param None
+        :return distro_version
+        '''
+        res = self.get_distro_details()
+        return res.get('VERSION_ID')[0].strip("\"") 
+
     def get_distro_src(self, package, dest_path, build_option=None):
         
         '''
