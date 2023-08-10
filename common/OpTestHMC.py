@@ -481,6 +481,25 @@ class HMCUtil():
         '''
         return self.run_command("lshwres -r mem -m %s --level sys -F mem_region_size" % self.mg_system)
 
+    def configure_16gb_hugepage(self, num_hugepages):
+        '''
+        Configures managed system with 16gb hugepages passed as argument
+
+        :param num_hugepages: number of 16gb hugepages to configure on managed system
+        '''
+        self.run_command("chhwres -m %s -r mem -o s -a requested_num_sys_huge_pages=%s" %
+                               (self.mg_system, num_hugepages))
+        time.sleep(2)
+
+    def get_16gb_hugepage_size(self):
+        '''
+        Get current number of 16gb hugepages of managed system
+
+        :returns: current number of 16gb hugepages of managed system
+        '''
+        return self.run_command("lshwres -r mem -m %s --level sys -F configurable_num_sys_huge_pages" %
+                                self.mg_system)
+
     def get_lpar_state(self, vios=False, remote_hmc=None):
         '''
         Get current state of LPAR
