@@ -38,7 +38,7 @@ Activate LPAR
 import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-
+from common.OpTestUtil import OpTestUtil
 
 class OpTestGSBStaticKey(unittest.TestCase):
     """
@@ -51,15 +51,15 @@ class OpTestGSBStaticKey(unittest.TestCase):
         self.cv_HOST = conf.host()
         self.cv_HMC = self.cv_SYSTEM.hmc
         self.c = self.cv_HMC.get_host_console()
+        self.cs = self.cv_SYSTEM.console
         self.hmc_con = self.cv_HMC.ssh
         # Variables required for this test
         self.os_secureboot = False
         self.dt_secureboot = False
         self.lockdown = False
         self.sys_lockdown = ""
-        self.grubFilename = ""
         self.prepDisk = ""
-        self.signature = "~Module signature appended~"
+        self.backup_prep_filename = "/root/save-prep"
 
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         os_level = self.cv_HOST.host_get_OS_Level()
@@ -71,21 +71,12 @@ class OpTestGSBStaticKey(unittest.TestCase):
             raise self.skipTest("Test currently supported on "
                                 "SLES and RHEL releases")
 
-    def check_hmc_secureboot_state(self):
-        '''
-        Return
-        'True' in case of Secure boot enabled
-        'False' in case of Secure boot disabled
-        '''
-        # HMC command to know the current state of Secure Boot
-        cmd = ("lssyscfg -r lpar -m %s -F curr_secure_boot --filter "
-               "lpar_names=%s" %
-               (self.cv_HMC.mg_system, self.cv_HMC.lpar_name))
-        output = self.hmc_con.run_command(cmd, timeout=300)
-        if int(output[0]) == 2: # Value '2' means Secure Boot enabled
-            return True
-        elif int(output[0]) == 0: # Value '0' means Secure Boot disabled
-            return False
+        self.util = OpTestUtil(conf)
+        self.distro_version = self.util.get_distro_version()
+        self.kernel_signature = self.util.check_kernel_signature()
+        self.grub_filename = self.util.get_grub_file()
+        self.grub_signature = self.util.check_grub_signature(self.grub_filename)
+        self.dt_secureboot = self.util.check_os_level_secureboot_state()
 
     def hmc_secureboot_on_off(self, enable=True):
         '''
@@ -107,9 +98,10 @@ class OpTestGSBStaticKey(unittest.TestCase):
         # PowerON/Activate LPAR and Boot the Operating System
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+ 
         # Checking What Secure Boot state got set,
         # according to the required enable/disable
-        hmc_secureboot = self.check_hmc_secureboot_state()
+        hmc_secureboot = self.cv_HMC.check_lpar_secureboot_state(self.hmc_con)
         if enable and not hmc_secureboot:
                 self.fail("HMC: Failed to enable Secure Boot")
         elif not enable and hmc_secureboot:
@@ -127,87 +119,76 @@ class OpTestGSBStaticKey(unittest.TestCase):
                 break
         if not self.prepDisk:
             self.fail("%s: Failed to get PReP partition name" % self.distro)
-
-    def checkKernel(self):
-        vmlinux = "vmlinuz" # RHEL
-        if self.distro == 'sles':
-            vmlinux = "vmlinux"
-        # Checking whether the kernel is signed or not
-        cmd = "strings /boot/%s-$(uname -r) | tail -1" % vmlinux
-        out = self.c.run_command(cmd)
-        fail_msg = "%s - Kernel is not signed" % self.distro
-        self.assertIn(self.signature, out, fail_msg)
-
-    def checkGrub(self):
-        # Checking whether the grub is signed or not
-        cmd = "strings %s | tail -1" % self.grubFilename
-        out = self.c.run_command(cmd)
-        fail_msg = "Grub is not signed"
-        self.assertIn(self.signature, out, fail_msg)
-
-    def getRHELFiles(self):
-        '''
-        Get the signed grub file details, this is the manual step required for
-        RHEL OS
-        '''
-        cmd = "rpm -ql grub2-ppc64le"
-        out = self.c.run_command(cmd)
+    
+    def backup_restore_PRepDisk(self, action):
+        if action == "backup":
+            out = self.c.run_command("dd if=%s of=%s" % (self.prepDisk, self.backup_prep_filename))
+        if action == "restore":
+            out = self.c.run_command("dd if=%s of=%s" % (self.backup_prep_filename, self.prepDisk))
         for line in out:
-            if 'core.elf' in line:
-                self.grubFilename = line
-        if not self.grubFilename:
-            self.fail("%s: Failed to get grub file" % self.distro)
+            if "No" in line:
+                self.fail("Failed to %s the PRep partition." % (action))
 
     def os_secureboot_enable(self, enable=True):
         '''
         To enable/disable the Secure Boot at Operating System level.
         Parameter enable=True for enabling Secure Boot
         Parameter enable=False for disabling Secure Boot
-        '''        
-        self.checkKernel()
-        if self.distro == 'rhel' and enable:
-            # Get the PReP disk file
-            self.getPRePDisk()
-            # Get the all the required files
-            self.getRHELFiles()
-            self.checkGrub()
-            # Running grub2-install on PReP disk
-            out = self.c.run_command("grub2-install %s" % self.prepDisk)
-            if "Installation finished. No error reported." not in out:
-                self.fail("RHEL: Failed to install on PReP partition")
-            # Copy the signed grub in to the PReP disk using 'dd' command
-            out = self.c.run_command("dd if=%s of=%s || echo 'no'" %
-                                     (self.grubFilename, self.prepDisk))
-            if "no" in "".join(out):
-                self.fail("RHEL: Failed to copy to PReP partition")
-        elif self.distro == 'rhel' and not enable:
-            # Nothing to do for Secure Boot disable for RHEL at OS level
-            pass
-        bfile = "/etc/sysconfig/bootloader"
-        if self.distro == 'sles' and enable:
-            # Add SECURE_BOOT="yes" at file  /etc/sysconfig/bootloader
-            cmd = "sed -i '/SECURE_BOOT=\"no\"/c\SECURE_BOOT=\"yes\"' %s" % bfile
-            self.c.run_command(cmd)
-            out = self.c.run_command("pbl --install || echo 'no' ")
-            if "no" in "".join(out):
-                self.fail("SLES: Failed to enable Secure Boot")
-        elif self.distro == 'sles' and not enable:
-            # Add SECURE_BOOT="no" at file  /etc/sysconfig/bootloader
-            cmd = "sed -i '/SECURE_BOOT=\"yes\"/c\SECURE_BOOT=\"no\"' %s" % bfile
-            self.c.run_command(cmd)
-            out = self.c.run_command("pbl --install || echo 'no'")
-            if "no" in "".join(out):
-                self.fail("SLES: Failed to disable Secure Boot")
+        '''
+        if self.kernel_signature == True:
+            if self.distro == 'rhel' and enable:
+                # Check if Secure Boot is already enabled at HMC.
+                # If yes, then disable the same.
+                # This has to be done to handle the issue seen while copying core.elf into 
+                # PReP partition on RHEL8.x versions
+                if "8." in self.distro_version:
+                    hmc_secureboot = self.cv_HMC.check_lpar_secureboot_state(self.hmc_con)
+                    if hmc_secureboot:
+                        # disable the SB at hmc and then proceed ahead.
+                        enable = False
+                        self.hmc_secureboot_on_off(enable=enable)
+                        # now check if it has been disabled correctly.
+                        hmc_secureboot = self.cv_HMC.check_lpar_secureboot_state(self.hmc_con)
+                        enable = True
+                        if hmc_secureboot and not enable:
+                            self.fail("HMC: Failed to disable Secure Boot")
+
+                # Get the PReP disk file
+                self.getPRePDisk()
+                self.backup_restore_PRepDisk(action="backup")
+                #Proceed ahead only if the grub is signed
+                if self.grub_signature == True:
+                    # Running grub2-install on PReP disk
+                    out = self.c.run_command("grub2-install %s" % self.prepDisk)
+                    for line in out:
+                        if "Installation finished. No error reported." not in out:
+                            # Restore the PRep partition back to its original state
+                            self.backup_restore_PRepDisk(action="restore")
+                            self.fail("RHEL: Failed to install on PReP partition")
+                    
+                    out = self.c.run_command("dd if=%s of=%s; echo $?" % 
+                                             (self.grub_filename, self.prepDisk))
+                    if "0" not in out[3]:
+                        # Restore the PRep partition back to its original state
+                        self.backup_restore_PRepDisk(action="restore")
+                        self.fail("RHEL: Failed to copy to PReP partition")
+            elif self.distro == 'rhel' and not enable:
+                # Nothing to do for Secure Boot disable for RHEL at OS level
+                pass
+        else:
+            self.fail("%s - Kernel is not signed" % (self.distro))
 
     def collectData(self):
         self.c.run_command("uname -a")
         self.c.run_command("lsmcode")
         self.c.run_command("cat /etc/os-release")
+
         # Reset the global variables else these variables will contain 'true'
         # for secure boot disable case
         self.os_secureboot = False
         self.lockdown = False
         self.dt_secureboot = False
+
         # From 'dmesg' output collect Secure Boot and Lockdown status
         out = self.c.run_command("dmesg | grep -i 'secure boot\|lockdown'")
         '''
@@ -222,16 +203,10 @@ class OpTestGSBStaticKey(unittest.TestCase):
                     self.os_secureboot = True
             if 'locked down' in line:
                 self.lockdown = True
+
         # Reading the device tree property of Secure Boot        
-        out = self.c.run_command("lsprop  /proc/device-tree/ibm,secure-boot")
-        '''
-        Possible output:
-        /proc/device-tree/ibm,secure-boot
-		 00000002
-        '''
-        for line in out:
-            if '00000002' in line: # Value '2' indicates Secure Boot enabled.
-                self.dt_secureboot = True
+        self.dt_secureboot = self.util.check_os_level_secureboot_state()
+
         # Reading lockdown value
         out = self.c.run_command("cat /sys/kernel/security/lockdown")
         '''
@@ -249,7 +224,8 @@ class OpTestGSBStaticKey(unittest.TestCase):
 
     def validateData(self, enable=True):
         # Check the hmc secure boot state
-        hmc_secureboot = self.check_hmc_secureboot_state()
+        hmc_secureboot = self.cv_HMC.check_lpar_secureboot_state(self.hmc_con)
+
         if enable: # enable state
             fail_msg = ("Lockdown expected mode: 'integrity', actual mode: %s"
                         % self.sys_lockdown)

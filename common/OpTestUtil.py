@@ -89,6 +89,73 @@ class OpTestUtil():
                                            proxy=self.build_proxy(self.conf.args.hostlocker_proxy,
                                                                   self.conf.args.hostlocker_no_proxy_ips))
 
+    def is_signed(self, output):
+        if "Module signature appended" in output[0]:
+            return True
+        return False
+
+    def check_kernel_signature(self):
+        '''
+        Check whether the kernel is signed or unsigned.
+        If, string - "Module signature appended" is found,
+        then the kernel is signed, else, the kernel is unsigned.
+        '''
+        vmlinux = "vmlinuz"  # RHEL
+        if self.distro_name() == 'sles' or self.distro_name() == "suse":
+            vmlinux = "vmlinux"
+
+        cmd = "strings /boot/%s-$(uname -r) | tail -1" % vmlinux
+        output = self.conf.host().host_run_command(cmd)
+        if self.is_signed(output):
+            return True
+        return False
+
+    def get_grub_file(self):
+        '''
+        Fetch the grub-file based on the distro
+        '''
+        if self.distro_name() == 'rhel':
+            rpm_name = "grub2-ppc64le"
+            filename = "core.elf"
+        elif self.distro_name() == 'suse' or self.distro_name() == 'sles':
+            rpm_name = "grub2-powerpc-ieee1275"
+            filename = "grub.elf"
+        else:
+            raise self.skipTest("Test currently supported on SLES and RHEL releases only.")
+
+        cmd = ("rpm -ql %s" % (rpm_name))
+        output = self.conf.host().host_run_command(cmd)
+        for line in output:
+            if filename in line:
+                grub_filename = line
+        if not grub_filename:
+            self.fail("%s: Failed to get grub file" % (self.distro_name()))
+        return grub_filename
+
+    def check_grub_signature(self, grub_filename):
+        '''
+        Check whether the GRUB is signed or unsigned.
+        '''
+        cmd = "strings %s | tail -1" % grub_filename
+        output = self.conf.host().host_run_command(cmd)
+        if self.is_signed(output):
+            return True
+        else:
+            self.fail("Grub is not signed.")
+
+    def check_os_level_secureboot_state(self):
+        '''
+        Check whether the secure-boot is enabled at os level.
+        To do this, check the entry of "00000002" in "/proc/device-tree/ibm,secure-boot" file.
+        If found, then secure-boot is enabled.
+        '''
+        cmd = "lsprop /proc/device-tree/ibm,secure-boot"
+        output = self.conf.host().host_run_command(cmd)
+        for line in output:
+            if '00000002' in line:
+                return True
+        return False
+
     def check_lockers(self):
         if self.conf.args.hostlocker is not None:
             self.conf.util.hostlocker_lock(self.conf.args)
