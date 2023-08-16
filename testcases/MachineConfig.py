@@ -97,8 +97,6 @@ class MachineConfig(unittest.TestCase):
                     self.fail(status)
             else:
                 self.skipTest("Not implemented for other OS settings")
-        else:
-            self.skipTest("Not Supported Config")
 
 
 class LparConfig():
@@ -132,7 +130,7 @@ class LparConfig():
         desired_proc_units=2.0
         overcommit_ratio=3
         '''
-
+        proc_mode = None
         if "cpu=shared" in self.machine_config:
             conf = OpTestConfiguration.conf
             try: self.sharing_mode = conf.args.sharing_mode
@@ -264,10 +262,11 @@ class LparConfig():
                                (self.system_name, self.lpar_name, self.lpar_prof))
         time.sleep(5)
         curr_proc_mode = self.cv_HMC.get_proc_mode()
-        if proc_mode in curr_proc_mode:
-            log.info("System booted with %s mode" % proc_mode)
-        else:
-            return "Failed to boot in %s mode" % proc_mode
+        if proc_mode:
+            if proc_mode in curr_proc_mode:
+                log.info("System booted with %s mode" % proc_mode)
+            else:
+                return "Failed to boot in %s mode" % proc_mode
 
 
 class RestoreLAPRConfig(MachineConfig):
