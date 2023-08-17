@@ -33,6 +33,7 @@ import json
 
 import OpTestConfiguration
 import OpTestLogger
+from common import OpTestInstallUtil
 from common.OpTestSystem import OpSystemState
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -45,7 +46,6 @@ class MachineConfig(unittest.TestCase):
 
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.bmc_type = conf.args.bmc_type
         self.machine_config = json.loads(conf.args.machine_config)
         if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP" :
@@ -65,6 +65,7 @@ class MachineConfig(unittest.TestCase):
             status=LparConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,self.machine_config['lpar']).LparSetup()
             if status:
                 self.fail(status)
+
         if self.machine_config.__contains__('cec'):
             if not self.cv_HMC.lpar_vios:
                 self.skipTest("Please pass lpar_vios in config file.")
@@ -80,8 +81,22 @@ class MachineConfig(unittest.TestCase):
                     self.fail(status)
             else:
                 self.skipTest("Not implemented for other CEC settings")
-        else:
-            self.skipTest("Not Supported Config")
+
+        if self.machine_config.__contains__('os'):
+            config_value = self.machine_config['os']
+            valid_size = ['2M', '1G', '16M', '16G']
+            if 'hugepage' in config_value:
+                hugepage_size = re.findall(
+                    "hugepage=[0-9]+[A-Z]", str(self.machine_config))[0].split('=')[1]
+                if str(hugepage_size) not in valid_size:
+                    self.skipTest("%s is not valid hugepage size, "
+                                  "valid hugepage sizes are 1G, 2M, 16M, 16G" % hugepage_size)
+                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name,
+                                  self.lpar_prof, self.machine_config['os']).OsHugepageSetup()
+                if status:
+                    self.fail(status)
+            else:
+                self.skipTest("Not implemented for other OS settings")
 
 
 class LparConfig():
@@ -100,8 +115,9 @@ class LparConfig():
         self.lpar_name = lpar_name
         self.lpar_prof = lpar_prof
         self.machine_config=machin_config
-
-
+        conf = OpTestConfiguration.conf
+        self.cv_SYSTEM = conf.system()
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
 
     def LparSetup(self):
         '''
@@ -114,7 +130,7 @@ class LparConfig():
         desired_proc_units=2.0
         overcommit_ratio=3
         '''
-
+        proc_mode = None
         if "cpu=shared" in self.machine_config:
             conf = OpTestConfiguration.conf
             try: self.sharing_mode = conf.args.sharing_mode
@@ -255,10 +271,11 @@ class LparConfig():
                                (self.system_name, self.lpar_name, self.lpar_prof))
         time.sleep(5)
         curr_proc_mode = self.cv_HMC.get_proc_mode()
-        if proc_mode in curr_proc_mode:
-            log.info("System booted with %s mode" % proc_mode)
-        else:
-            return "Failed to boot in %s mode" % proc_mode
+        if proc_mode:
+            if proc_mode in curr_proc_mode:
+                log.info("System booted with %s mode" % proc_mode)
+            else:
+                return "Failed to boot in %s mode" % proc_mode
 
 
 class RestoreLAPRConfig(MachineConfig):
@@ -309,3 +326,101 @@ class CecConfig():
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                    (self.system_name, self.lpar_name, self.lpar_prof))
             time.sleep(5)
+
+
+class OsConfig():
+    '''
+    This Class assign  huge page in the system   based on MMU either Radix or hash and validate
+    MMU is Radix : 2M or 1 GB Huge page
+    MMU HASH :  16M or 16GB
+    pass hgpgsize to machine_config in config file
+    '''
+
+    def __init__(self, cv_HMC=None, system_name=None,
+                 lpar_name=None, lpar_prof=None, machine_config=None):
+        self.cv_HMC = cv_HMC
+        self.system_name = system_name
+        self.lpar_name = lpar_name
+        self.lpar_prof = lpar_prof
+        self.machine_config = machine_config
+        conf = OpTestConfiguration.conf
+        self.cv_SYSTEM = conf.system()
+        self.cv_HOST = conf.host()
+        self.c = self.cv_HMC.get_host_console()
+        self.mmulist = self.c.run_command("tail /proc/cpuinfo | grep MMU")
+        self.mmu = str(self.mmulist[0]).split(':')[1].strip()
+        self.obj = OpTestInstallUtil.InstallUtil()
+        self.os_level = self.cv_HOST.host_get_OS_Level()
+
+
+    def OsHugepageSetup(self):
+
+        filename_part1 = "cat /sys/kernel/mm/hugepages/hugepages-"
+        filename_part2 = "kB/nr_hugepages"
+        if "hugepage=16G" in self.machine_config:
+            self.size_hgpg = "16G"
+            self.num_hgpg = self.cv_HMC.get_16gb_hugepage_size()
+            self.no_hgpg = int(self.num_hgpg[0])
+            if self.no_hgpg != 0:
+                self.configure_os_16gb_hugepage()
+                con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+                assign_hp = con.run_command("%s%s%s" % (
+                    filename_part1, "16777216", filename_part2))[0]
+            else:
+                return "16gb hugepages are not configured in CEC"
+        else:
+            exist_cfg = self.cv_HMC.get_lpar_cfg()
+            self.des_mem = int(exist_cfg.get('desired_mem'))
+            self.percentile = int(self.des_mem * 0.1)
+            if 'Radix' in self.mmu:
+                if "hugepage=16M" in self.machine_config:
+                    self.fail("16M is not supported in Radix")
+                elif "hugepage=2M" in self.machine_config:
+                    self.size_hgpg = "2M"
+                    self.no_hgpg = int(self.percentile / 2)
+                elif "hugepage=1G" in self.machine_config:
+                    self.size_hgpg = "1G"
+                    self.no_hgpg = int(self.percentile / 1024)
+
+            elif 'Hash' in self.mmu and "hugepage=16M" in self.machine_config:
+                self.size_hgpg = "16M"
+                self.no_hgpg = int(self.percentile / 16)
+            self.obj.update_kernel_cmdline(self.os_level,
+                                           "hugepagesz=%s hugepages=%s" % (
+                                           self.size_hgpg, self.no_hgpg),
+                                           "",
+                                           reboot=True,
+                                           reboot_cmd=True)
+            con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            if self.size_hgpg == "2M":
+                assign_hp = con.run_command("%s%s%s" % (
+                    filename_part1, "2048", filename_part2))[0]
+            elif self.size_hgpg == "1G":
+                assign_hp = con.run_command("%s%s%s" % (
+                    filename_part1, "1048576", filename_part2))[0]
+            elif self.size_hgpg == "16M":
+                assign_hp = con.run_command("%s%s%s" % (
+                    filename_part1, "16384", filename_part2))[0]
+        if str(self.no_hgpg) != assign_hp:
+            msg = "Expected %s: But found %s" % (self.no_hgpg, assign_hp)
+            return msg
+        else:
+            log.info("%s Hugepage validation successful!" % self.size_hgpg)
+
+
+    def configure_os_16gb_hugepage(self):
+        if 'Radix' in self.mmu:
+            self.obj.update_kernel_cmdline(self.os_level,
+                                           "default_hugepagesz=16G hugepagesz=16G hugepages=%s disable_radix=1" % int(
+                                               self.num_hgpg[0]),
+                                           "",
+                                           reboot=True,
+                                           reboot_cmd=True)
+
+        elif 'Hash' in self.mmu:
+            self.obj.update_kernel_cmdline(self.os_level,
+                                           "default_hugepagesz=16G hugepagesz=16G hugepages=%s" % int(
+                                               self.num_hgpg[0]),
+                                           "",
+                                           reboot=True,
+                                           reboot_cmd=True)
