@@ -57,44 +57,6 @@ SYS_WAITTIME = 200
 BOOTTIME = 500
 STALLTIME = 5
 
-class OpSecureBootUtilities():
-    '''
-    This class addresses the secureboot related pre-requisites.
-    '''
-
-    def __init__(self, console=None, distro=None):
-        self.console = console
-        self.distro = distro
-
-    def check_kernel_signature(self):
-        '''
-        Check whether the kernel is signed or unsigned.
-        If, string - "Module signature appended" is found,
-        then the kernel is signed, else, the kernel is unsigned.
-        '''
-        vmlinux = "vmlinuz"  # RHEL
-        if self.distro == 'SLES' or self.distro == "suse":
-            vmlinux = "vmlinux"
-
-        cmd = "strings /boot/%s-$(uname -r) | tail -1" % vmlinux
-        output = self.console.run_command(cmd)
-        if "Module signature appended" in output[0]:
-            return "signed_kernel"
-        return "unsigned_kernel"
-
-    def check_os_level_secureboot_state(self):
-        '''
-        Check whether the secure-boot is enabled at os level.
-        To do this, check the entry of "00000002" in "/proc/device-tree/ibm,secure-boot" file.
-        If found, then secure-boot is enabled.
-        '''
-        cmd = "lsprop /proc/device-tree/ibm,secure-boot"
-        output = self.console.run_command(cmd)
-        for line in output:
-            if '00000002' in line:
-                return True
-        return False
-
 class OpHmcState():
     '''
     This class is used as an enum as to what state op-test *thinks* the LPAR is in.
@@ -197,6 +159,22 @@ class HMCUtil():
         self.PS1_set = -1
         self.LOGIN_set = -1
         self.SUDO_set = -1
+
+    def check_lpar_secureboot_state(self, hmc_con):
+        '''
+        Check whether the secure-boot is enabled for lpar.
+        Return:
+        'True' in case of Secure boot enabled
+        'False' in case of Secure boot disabled
+        '''
+        # HMC command to know the current state of Secure Boot
+        cmd = ("lssyscfg -r lpar -m %s -F curr_secure_boot --filter lpar_names=%s" 
+               % (self.mg_system, self.lpar_name))
+        output = hmc_con.run_command(cmd, timeout=300)
+        if int(output[0]) == 2: # Value '2' means Secure Boot enabled
+            return True
+        elif int(output[0]) == 0: # Value '0' means Secure Boot disabled
+            return False
 
     def deactivate_lpar_console(self):
         '''
@@ -307,17 +285,97 @@ class HMCUtil():
             cfg_dict[key] = value
         return cfg_dict
 
-    def set_lpar_cfg(self, arg_str):
+    def set_lpar_cfg(self, arg_str, lpar_profile = None):
         '''
         Set LPAR configuration parameter values
 
         :param arg_str: configuration values in key, value pair seperated by
                         comma
         '''
+        lpar_profile = self.lpar_prof if lpar_profile is None else lpar_profile
         if not self.lpar_prof:
             raise OpTestError("Profile needs to be defined to use this method")
         self.ssh.run_command("chsyscfg -r prof -m %s -i 'lpar_name=%s,name=%s,%s' --force" %
-                (self.mg_system, self.lpar_name, self.lpar_prof,arg_str))
+                (self.mg_system, self.lpar_name, lpar_profile, arg_str))
+
+    def add_ioslot(self, add_ioslot, lpar_profile = None):
+        """
+        Adds ioslots to lpar profile
+        :param add_ioslot: String, accepts drc name or drc names
+                           seperated by comma(,)
+        drc name example: U780C.ND0.WZS0042-P1-C2
+        :param lpar_profile: String, Defaults to class variable
+                             if not provided
+        """
+        lpar_profile = self.lpar_prof if lpar_profile is None else lpar_profile
+        exisitng_io_slots = self.get_ioslots_assigned_to_lpar(lpar_profile = lpar_profile)
+        drc_index_for_slots = [self.get_drc_index_for_ioslot(add_slot)
+                               for add_slot in add_ioslot.split(",")]
+        if None in drc_index_for_slots:
+            log.info(f"few slots among {add_ioslot} not found in {self.mg_system}")
+        new_slots = [slot+"/none/0" for slot in drc_index_for_slots if slot is not None]
+        if list(set(exisitng_io_slots).intersection(new_slots)):
+            log.info(f"Found slots which are already mapped:"
+                      f"{list(set(exisitng_io_slots).intersection(new_slots))}")
+        self.set_lpar_cfg("io_slots=\""+",".join(exisitng_io_slots+new_slots)+"\"",\
+                           lpar_profile = lpar_profile) if new_slots \
+                           else log.info("No new slots are added to lpar profile")
+
+    def remove_ioslot(self, remove_ioslot, lpar_profile = None):
+        """
+        Removes ioslots from lpar profile
+        :param remove_ioslot: String, accepts drc name or drc names
+                           seperated by comma(,)
+        drc name example: U780C.ND0.WZS0042-P1-C2
+        :optional_param lpar_profile: String, Defaults to class variable
+                             if not provided
+        """
+        lpar_profile = self.lpar_prof if lpar_profile is None else lpar_profile
+        exisitng_io_slots = self.get_ioslots_assigned_to_lpar(lpar_profile = lpar_profile)
+        drc_index_for_slots = [self.get_drc_index_for_ioslot(remove_slot)
+                               for remove_slot in remove_ioslot.split(",")]
+        if None in drc_index_for_slots:
+            log.info(f"few slots among {add_ioslot} not found in {self.mg_system}")
+        new_slots = [slot+"/none/0" for slot in drc_index_for_slots if slot is not None]
+        if [slot for slot in new_slots if slot not in exisitng_io_slots]:
+            log.info(f"provided slots {new_slots} not in {exisitng_io_slots} to remove")
+        self.set_lpar_cfg("io_slots=\""+",".join(set(exisitng_io_slots)-set(new_slots))+"\"",\
+                          lpar_profile = lpar_profile) if new_slots \
+                          else log.info("No new slots are removed from lpar profile")
+
+    def get_ioslots_assigned_to_lpar(self, lpar_profile = None):
+        """
+        :optional_param lpar_profile: String, Defaults to class variable
+                             if not provided
+        returns a list of assigned adapters to lpar profile
+        """
+        lpar_profile = self.lpar_prof if lpar_profile is None else lpar_profile
+        assigned_io_slots = self.ssh.run_command(f"lssyscfg -r prof -m {self.mg_system}"
+                                                 f" --filter 'lpar_names={self.lpar_name},"
+                                                 f"profile_names={lpar_profile}' -F io_slots")
+        log.info(f"assigned_io_slots:{assigned_io_slots}")
+        return [] if assigned_io_slots is "none" \
+                               else assigned_io_slots[0].replace('"',"").split(",")
+
+    def get_lpar_name_for_ioslot(self, ioslot):
+        """
+        :param remove_ioslot: String, accepts drc name
+        Returns lpar name if io slot assigned to lpar else returns None
+        """
+        lshwres_out = self.ssh.run_command(f"lshwres -r io -m {self.mg_system} --rsubtype "
+                                           f"slot -F drc_index:drc_name:lpar_name")
+        lshwres_out = [line for line in lshwres_out if ioslot+":" in line]
+        return lshwres_out[0].split(":")[-1] if lshwres_out is not None else None
+
+    def get_drc_index_for_ioslot(self, ioslot):
+        """
+        :param remove_ioslot: String, accepts drc name
+        returns drc index of io slot if slot is available else returns None
+        """
+        drc_index_out = self.ssh.run_command(f"lshwres -r io -m {self.mg_system} --rsubtype "
+                                             f"slot -F drc_index:drc_name:lpar_name")
+        drc_index_out = [line for line in drc_index_out if ioslot+":" in line]
+        return drc_index_out[0].split(":")[0] if drc_index_out is not None else None
 
     def change_proc_mode(self, proc_mode, sharing_mode, min_proc_units, desired_proc_units, max_proc_units, overcommit_ratio=1):
         '''

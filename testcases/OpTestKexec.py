@@ -41,7 +41,7 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 from common.OpTestError import OpTestError
-from common.OpTestHMC import OpSecureBootUtilities
+from common.OpTestUtil import OpTestUtil
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -86,7 +86,7 @@ class OpTestKexec(unittest.TestCase):
             else:
                 log.info("Distro not supported")
 
-        sb_utilities = OpSecureBootUtilities(self.c, self.distro)
+        sb_utilities = OpTestUtil(conf)
         self.kernel_signature = sb_utilities.check_kernel_signature()
         self.os_level_secureboot = sb_utilities.check_os_level_secureboot_state()
 

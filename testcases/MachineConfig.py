@@ -29,7 +29,7 @@ import os
 import unittest
 import time
 import re
-import  json
+import json
 
 import OpTestConfiguration
 import OpTestLogger
@@ -255,8 +255,17 @@ class LparConfig():
             if "POWER10" in proc_compat_mode:
                 self.cv_HMC.configure_gzip_qos(self.qos_credits)
             else:
-                log.info("nx_gzip is supported only in Power10 mode")   
+                log.info("nx_gzip is supported only in Power10 mode")
 
+        """
+        If ioslots=drc_name is passed in machine_config lpar profile gets updated with this change
+        """
+
+        if "slot=" in self.machine_config:
+            ioslot_drc_names = "".join(self.machine_config[self.machine_config.index("slot=")+len("slot=")+1:])
+            ioslot_drc_names = ",".join(ioslot_drc_names[:ioslot_drc_names.index("=")].split(",")[:-1]) \
+                               if "=" in ioslot_drc_names else ioslot_drc_names
+            self.cv_HMC.add_ioslot(ioslot_drc_names)
 
         self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                (self.system_name, self.lpar_name, self.lpar_prof))
