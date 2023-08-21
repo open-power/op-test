@@ -79,6 +79,15 @@ class MachineConfig(unittest.TestCase):
                 status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb_size).CecSetup_lmb()
                 if status:
                     self.fail(status)
+
+            if "hugepages" in config_value:
+                num_hugepages = re.findall(
+                    'hugepages=[0-9]+', str(self.machine_config))[0].split('=')[1]
+                print(num_hugepages)
+                status = CecConfig(self.cv_HMC, self.system_name, self.lpar_name,
+                                   self.lpar_prof, hugepages=num_hugepages).CecHugepageSetup_16gb()
+                if status:
+                    self.fail(status)
             else:
                 self.skipTest("Not implemented for other CEC settings")
 
@@ -298,17 +307,22 @@ class CecConfig():
 
     '''
     This class configures LMB. Pass lmb_size to machine_config in config file.
-    Ex: machine_config="lmb=4096, hugepage=16GB"
+    Ex: machine_config={"cec":"lmb=4096"}
     Valid LMB values are "128,256,1024,2048,4096"
+
+    It also configures 16gb hugepages on CEC. Pass hugepages to machine_config
+    in config file
+    Ex: machine_config={"cec":"hugepages=4"}
     '''
     def __init__(self, cv_HMC=None, system_name= None,
-                 lpar_name=None, lpar_prof=None, lmb=None):
+                 lpar_name=None, lpar_prof=None, lmb=None, hugepages=None):
 
         self.cv_HMC = cv_HMC
         self.system_name = system_name
         self.lpar_name = lpar_name
         self.lpar_prof = lpar_prof
         self.lmb_size = lmb
+        self.num_hugepages = hugepages
 
     def CecSetup_lmb(self):
         current_lmb = self.cv_HMC.get_lmb_size()
@@ -326,6 +340,28 @@ class CecConfig():
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                    (self.system_name, self.lpar_name, self.lpar_prof))
             time.sleep(5)
+
+    def CecHugepageSetup_16gb(self):
+
+        self.current_hgpg = self.cv_HMC.get_16gb_hugepage_size()
+        if int(self.current_hgpg[0]) != 0:
+            log.info("System is already configured with 16gb Hugepage")
+        else:
+            self.cv_HMC.poweroff_system()
+            self.cv_HMC.configure_16gb_hugepage(self.num_hugepages)
+            self.cv_HMC.poweron_system()
+            self.current_hgpg = self.cv_HMC.get_16gb_hugepage_size()
+            if int(self.current_hgpg[0]) == int(self.num_hugepages):
+                log.info("System booted with %s 16gb hugepages" %
+                         self.num_hugepages)
+            else:
+                return "Failed to boot with %s 16gb hugepages" % self.num_hugepages
+        attrs = "min_num_huge_pages={0},desired_num_huge_pages={0},max_num_huge_pages={0}" .format(
+            int(self.current_hgpg[0]))
+        self.cv_HMC.set_lpar_cfg(attrs)
+        self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
+                                (self.system_name, self.lpar_name, self.lpar_prof))
+        time.sleep(20)
 
 
 class OsConfig():
