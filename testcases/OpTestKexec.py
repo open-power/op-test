@@ -47,44 +47,71 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class OpTestKexec(unittest.TestCase):
 
+    def populate_kernel_initrd_image(self):
+        """
+        Determines the kernel and initrd image filenames based on the Linux
+        distribution.
+
+        First identifies the distribution using 'get_distro()'. If the
+        distribution is unknown, the test is skipped.
+        Second identify the kernel version either by the provided
+        'linux_src_dir' or the running kernel.
+
+        Based on the Linux distribution and kernel version set the kernel_image
+        and initrd_image instance variable
+        """
+
+        distro = self.op_test_util.distro_name()
+
+        # Skip the test for unsupported distro
+        if distro == "unknown":
+            self.skipTest("Unsupported distro")
+
+        # Find kexec kernel version. If user provided the kernel source
+        # directory then follow that, else go with currently running kernel.
+        k_ver = None
+        if self.linux_src_dir:
+            try:
+                self.cv_HOST.host_run_command("cd " + str(self.linux_src_dir))
+                k_ver = self.cv_HOST.host_run_command("make kernelrelease")[0]
+            except CommandFailed:
+                self.skipTest("No kernel source at " + str(self.linux_src_dir))
+        else:
+            try:
+                k_ver = self.cv_HOST.host_run_command("uname -r")[0]
+            except CommandFailed:
+                self.skipTest("Unable to find kernel version")
+
+        # Set kernel_image and initrd_image instance variable with
+        # corresponding filenames path
+        k_ver = str(k_ver)
+        if distro == "rhel":
+            self.kernel_image = "vmlinuz-" + k_ver
+            self.initrd_image = "initramfs-" + k_ver + ".img"
+        elif distro == "sles":
+            self.kernel_image = "vmlinux-" + k_ver
+            self.initrd_image = "initrd-" + k_ver
+        elif distro == "ubuntu":
+            self.kernel_image = "vmlinux-" + k_ver
+            self.initrd_image = "initrd.img-" + k_ver
+
     def setUp(self):
         conf = OpTestConfiguration.conf
+        self.op_test_util = OpTestUtil(conf)
         self.cv_SYSTEM = conf.system()
         self.c = self.cv_SYSTEM.console
         self.cv_HOST = conf.host()
+        self.distro = None
         self.num_of_iterations = conf.args.num_of_iterations
         self.kernel_image = conf.args.kernel_image
         self.initrd_image = conf.args.initrd_image
         self.linux_src_dir = conf.args.linux_src_dir
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        res = self.c.run_command("cat /etc/os-release")
-        if "Ubuntu" in (res[0] or res[1]):
-            self.distro = "Ubuntu"
-        elif 'Red Hat' in (res[0] or res[1]):
-            self.distro = 'RHEL'
-        elif 'SLES' in (res[0] or res[1]):
-            self.distro = 'SLES'
-        else:
-            raise self.skipTest("Test currently supported only on Ubuntu, SLES and RHEL")
 
+        # User didn't provide kernel and initrd image so use currently
+        # running kernel for kexec kernel.
         if not (self.kernel_image and self.initrd_image):
-            if self.linux_src_dir:
-                kernel_release = self.cv_HOST.host_run_command("cd {} && make kernelrelease".format(self.linux_src_dir))[0]
-            else:
-                kernel_release = self.cv_HOST.host_run_command("uname -r")[0]
-
-            #Get proper kernel images based on distros
-            if self.distro == "RHEL":
-                self.kernel_image = "vmlinuz-{}".format(kernel_release)
-                self.initrd_image = "initramfs-{}.img".format(kernel_release)
-            elif self.distro == "SLES":
-                self.kernel_image = "vmlinux-{}".format(kernel_release)
-                self.initrd_image = "initrd-{}".format(kernel_release)
-            elif self.distro == "Ubuntu":
-                self.kernel_image = "vmlinux-{}".format(kernel_release)
-                self.initrd_image = "initrd.img-{}".format(kernel_release)
-            else:
-                log.info("Distro not supported")
+            self.populate_kernel_initrd_image()
 
         sb_utilities = OpTestUtil(conf)
         self.kernel_signature = sb_utilities.check_kernel_signature()
