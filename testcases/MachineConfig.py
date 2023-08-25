@@ -54,6 +54,7 @@ class MachineConfig(unittest.TestCase):
             self.hmc_ip = conf.args.hmc_ip
             self.lpar_name = conf.args.lpar_name
             self.system_name = conf.args.system_name
+            self.cv_FSP = self.cv_SYSTEM.bmc
             self.cv_HMC = self.cv_SYSTEM.hmc
             self.lpar_prof = conf.args.lpar_prof
         else:
@@ -79,6 +80,17 @@ class MachineConfig(unittest.TestCase):
                 status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb_size).CecSetup_lmb()
                 if status:
                     self.fail(status)
+            if "eio" in config_value:
+                if self.bmc_type == "FSP_PHYP":
+                    eio_slot_count = re.findall('eio=[0-9]+', str(self.machine_config))[0].split('=')[1]
+                    if int(eio_slot_count) not in range(9):
+                        self.skipTest("%s is not valid eio slot count, "
+                                      "Please pass a number between 1 to 8, and pass 0 to disable Enlarged IO" % eio_slot_count)
+                    self.cv_HMC.poweroff_system()
+                    self.cv_FSP.cv_ASM.configure_enlarged_io(eio_slot_count)
+                    self.cv_HMC.poweron_system()
+                else:
+                    self.skipTest("Config parameter is currently supported only on FSP system")
             else:
                 self.skipTest("Not implemented for other CEC settings")
 
