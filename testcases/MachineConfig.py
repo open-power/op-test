@@ -67,19 +67,22 @@ class MachineConfig(unittest.TestCase):
                 self.fail(status)
 
         if self.machine_config.__contains__('cec'):
+            lmb_size= None
+            setup = 0
             if not self.cv_HMC.lpar_vios:
                 self.skipTest("Please pass lpar_vios in config file.")
             config_value=self.machine_config['cec']
             valid_size = [128, 256, 1024, 2048, 4096]
             if "lmb" in config_value:
+                setup = 1
                 lmb_size = re.findall('lmb=[0-9]+', str(self.machine_config))[0].split('=')[1]
                 if int(lmb_size) not in valid_size:
                     self.skipTest("%s is not valid lmb size, "
                                   "valid lmb sizes are 128, 256, 1024, 2048, 4096" % lmb_size)
-                status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb_size).CecSetup_lmb()
-                if status:
-                    self.fail(status)
-            else:
+            status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb=lmb_size).CecSetup()
+            if status:
+                self.fail(status)
+            if not setup:
                 self.skipTest("Not implemented for other CEC settings")
 
         if self.machine_config.__contains__('os'):
@@ -309,23 +312,37 @@ class CecConfig():
         self.lpar_name = lpar_name
         self.lpar_prof = lpar_prof
         self.lmb_size = lmb
+        self.setup = 0
 
-    def CecSetup_lmb(self):
-        current_lmb = self.cv_HMC.get_lmb_size()
-        if int(current_lmb[0]) == int(self.lmb_size):
-            log.info("System is already booted with LMB %s" % self.lmb_size)
-        else:
-            self.cv_HMC.configure_lmb(self.lmb_size)
+    def CecSetup(self):
+        if self.lmb_size:
+            self.lmb_setup()
+        if self.setup:
             self.cv_HMC.poweroff_system()
             self.cv_HMC.poweron_system()
+        self.ValidateCEC_Setup()
+        ##loading system
+        self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
+                                (self.system_name, self.lpar_name, self.lpar_prof))
+        time.sleep(5)
+
+    def ValidateCEC_Setup(self):
+
+        if self.lmb_size:
             current_lmb = self.cv_HMC.get_lmb_size()
             if int(current_lmb[0]) == int(self.lmb_size):
                 log.info("System booted with LMB %s" % self.lmb_size)
             else:
                 return "Failed to boot with LMB %s" % self.lmb_size
-            self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
-                                   (self.system_name, self.lpar_name, self.lpar_prof))
-            time.sleep(5)
+
+    def lmb_setup(self):
+        current_lmb = self.cv_HMC.get_lmb_size()
+        if int(current_lmb[0]) == int(self.lmb_size):
+            log.info("System is already booted with LMB %s" % self.lmb_size)
+        else:
+            self.cv_HMC.configure_lmb(self.lmb_size)
+            self.setup =1
+
 
 
 class OsConfig():
