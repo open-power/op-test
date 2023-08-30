@@ -67,35 +67,39 @@ class MachineConfig(unittest.TestCase):
                 self.fail(status)
 
         if self.machine_config.__contains__('cec'):
+            lmb_size= None
+            setup = 0
             if not self.cv_HMC.lpar_vios:
                 self.skipTest("Please pass lpar_vios in config file.")
             config_value=self.machine_config['cec']
             valid_size = [128, 256, 1024, 2048, 4096]
             if "lmb" in config_value:
+                setup = 1
                 lmb_size = re.findall('lmb=[0-9]+', str(self.machine_config))[0].split('=')[1]
                 if int(lmb_size) not in valid_size:
                     self.skipTest("%s is not valid lmb size, "
                                   "valid lmb sizes are 128, 256, 1024, 2048, 4096" % lmb_size)
-                status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb_size).CecSetup_lmb()
-                if status:
-                    self.fail(status)
-            else:
+            status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb=lmb_size).CecSetup()
+            if status:
+                self.fail(status)
+            if not setup:
                 self.skipTest("Not implemented for other CEC settings")
 
         if self.machine_config.__contains__('os'):
+            setup = 0
             config_value = self.machine_config['os']
             valid_size = ['2M', '1G', '16M', '16G']
             if 'hugepage' in config_value:
+                setup = 1
                 hugepage_size = re.findall(
                     "hugepage=[0-9]+[A-Z]", str(self.machine_config))[0].split('=')[1]
                 if str(hugepage_size) not in valid_size:
                     self.skipTest("%s is not valid hugepage size, "
                                   "valid hugepage sizes are 1G, 2M, 16M, 16G" % hugepage_size)
-                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name,
-                                  self.lpar_prof, self.machine_config['os']).OsHugepageSetup()
-                if status:
-                    self.fail(status)
-            else:
+            status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],hugepage=hugepage_size).Ossetup()
+            if status:
+                self.fail(status)
+            if not setup:
                 self.skipTest("Not implemented for other OS settings")
 
 
@@ -309,23 +313,37 @@ class CecConfig():
         self.lpar_name = lpar_name
         self.lpar_prof = lpar_prof
         self.lmb_size = lmb
+        self.setup = 0
 
-    def CecSetup_lmb(self):
-        current_lmb = self.cv_HMC.get_lmb_size()
-        if int(current_lmb[0]) == int(self.lmb_size):
-            log.info("System is already booted with LMB %s" % self.lmb_size)
-        else:
-            self.cv_HMC.configure_lmb(self.lmb_size)
+    def CecSetup(self):
+        if self.lmb_size:
+            self.lmb_setup()
+        if self.setup:
             self.cv_HMC.poweroff_system()
             self.cv_HMC.poweron_system()
+        self.ValidateCEC_Setup()
+        ##loading system
+        self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
+                                (self.system_name, self.lpar_name, self.lpar_prof))
+        time.sleep(5)
+
+    def ValidateCEC_Setup(self):
+
+        if self.lmb_size:
             current_lmb = self.cv_HMC.get_lmb_size()
             if int(current_lmb[0]) == int(self.lmb_size):
                 log.info("System booted with LMB %s" % self.lmb_size)
             else:
                 return "Failed to boot with LMB %s" % self.lmb_size
-            self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
-                                   (self.system_name, self.lpar_name, self.lpar_prof))
-            time.sleep(5)
+
+    def lmb_setup(self):
+        current_lmb = self.cv_HMC.get_lmb_size()
+        if int(current_lmb[0]) == int(self.lmb_size):
+            log.info("System is already booted with LMB %s" % self.lmb_size)
+        else:
+            self.cv_HMC.configure_lmb(self.lmb_size)
+            self.setup =1
+
 
 
 class OsConfig():
@@ -337,7 +355,7 @@ class OsConfig():
     '''
 
     def __init__(self, cv_HMC=None, system_name=None,
-                 lpar_name=None, lpar_prof=None, machine_config=None):
+                 lpar_name=None, lpar_prof=None, machine_config=None, hugepage=None):
         self.cv_HMC = cv_HMC
         self.system_name = system_name
         self.lpar_name = lpar_name
@@ -351,14 +369,17 @@ class OsConfig():
         self.mmu = str(self.mmulist[0]).split(':')[1].strip()
         self.obj = OpTestInstallUtil.InstallUtil()
         self.os_level = self.cv_HOST.host_get_OS_Level()
+        self.size_hgpg = hugepage
 
+    def Ossetup(self):
+        if self.size_hgpg:
+            self.OsHugepageSetup()
 
     def OsHugepageSetup(self):
 
         filename_part1 = "cat /sys/kernel/mm/hugepages/hugepages-"
         filename_part2 = "kB/nr_hugepages"
-        if "hugepage=16G" in self.machine_config:
-            self.size_hgpg = "16G"
+        if self.size_hgpg == "16G":
             self.num_hgpg = self.cv_HMC.get_16gb_hugepage_size()
             self.no_hgpg = int(self.num_hgpg[0])
             if self.no_hgpg != 0:
@@ -373,17 +394,14 @@ class OsConfig():
             self.des_mem = int(exist_cfg.get('desired_mem'))
             self.percentile = int(self.des_mem * 0.1)
             if 'Radix' in self.mmu:
-                if "hugepage=16M" in self.machine_config:
+                if self.size_hgpg == "16M":
                     self.fail("16M is not supported in Radix")
-                elif "hugepage=2M" in self.machine_config:
-                    self.size_hgpg = "2M"
+                elif self.size_hgpg == "2M":
                     self.no_hgpg = int(self.percentile / 2)
-                elif "hugepage=1G" in self.machine_config:
-                    self.size_hgpg = "1G"
+                elif  self.size_hgpg == "1G":
                     self.no_hgpg = int(self.percentile / 1024)
 
-            elif 'Hash' in self.mmu and "hugepage=16M" in self.machine_config:
-                self.size_hgpg = "16M"
+            elif 'Hash' in self.mmu and self.size_hgpg == "16M":
                 self.no_hgpg = int(self.percentile / 16)
             self.obj.update_kernel_cmdline(self.os_level,
                                            "hugepagesz=%s hugepages=%s" % (
