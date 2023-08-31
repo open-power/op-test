@@ -674,7 +674,7 @@ class KexecSuite():
     '''Kexec Test Suite'''
 
     def suite(self):
-        return OpTestKexec.exec_suite()
+        return OpTestKexec.kexec_suite()
 
 class DlparIOSuite():
     '''DlparIO Test Suite'''
@@ -946,6 +946,7 @@ suites = {
     'palmetto-ci': OpenBMCPalmettoSkirootSuite(),
     'per-commit': OpTestPerCommitSuite(),
     'pull-request': OpTestPullRequestSuite(),
+    'kexec-suite': KexecSuite(),
 }
 
 try:

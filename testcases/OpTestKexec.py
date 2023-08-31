@@ -396,3 +396,15 @@ class OpTestKexec(unittest.TestCase):
                                          sys_reset=False)
             self.assertTrue(ret, "kexec failed, at iteration cnt: " + str(i))
             log.info("Completed kexec iteration cnt %s." % str(i))
+
+
+def kexec_suite():
+    """kexec test suite"""
+
+    suite = unittest.TestSuite()
+    suite.addTest(OpTestKexec('test_load_unload'))
+    suite.addTest(OpTestKexec('test_load_and_exec'))
+    suite.addTest(OpTestKexec('test_kexec_force'))
+    suite.addTest(OpTestKexec('test_kexec_single_step'))
+    suite.addTest(OpTestKexec('test_kexec_in_loop'))
+    return suite
