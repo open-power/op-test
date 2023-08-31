@@ -34,13 +34,12 @@ import json
 import OpTestConfiguration
 import OpTestLogger
 from common import OpTestInstallUtil
+from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
-
 class MachineConfig(unittest.TestCase):
-
 
     def setUp(self):
 
@@ -56,6 +55,7 @@ class MachineConfig(unittest.TestCase):
             self.system_name = conf.args.system_name
             self.cv_HMC = self.cv_SYSTEM.hmc
             self.lpar_prof = conf.args.lpar_prof
+            self.util = OpTestUtil(conf)
         else:
             self.skipTest("Functionality is supported only on LPAR")
 
@@ -96,7 +96,11 @@ class MachineConfig(unittest.TestCase):
                 if str(hugepage_size) not in valid_size:
                     self.skipTest("%s is not valid hugepage size, "
                                   "valid hugepage sizes are 1G, 2M, 16M, 16G" % hugepage_size)
-            status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],hugepage=hugepage_size).Ossetup()
+                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],hugepage=hugepage_size).Ossetup()
+            if 'secureboot' in config_value:
+                setup = 1
+                enable = self.util.validate_secureboot_parameter(self.machine_config)
+                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],enable=enable).Ossetup()
             if status:
                 self.fail(status)
             if not setup:
@@ -119,9 +123,11 @@ class LparConfig():
         self.lpar_name = lpar_name
         self.lpar_prof = lpar_prof
         self.machine_config=machin_config
+        self.hmc_con = self.cv_HMC.ssh
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.util = OpTestUtil(conf)
 
     def LparSetup(self):
         '''
@@ -230,7 +236,6 @@ class LparConfig():
                 else:
                     return "Failed to boot with vtpm disabled"
 
-
         if "vpmem=1" in self.machine_config:
             try: self.pmem_name = conf.args.pmem_name
             except AttributeError:
@@ -280,7 +285,14 @@ class LparConfig():
                 log.info("System booted with %s mode" % proc_mode)
             else:
                 return "Failed to boot in %s mode" % proc_mode
-
+        
+        if "secureboot" in self.machine_config:
+            enable = self.util.validate_secureboot_parameter(self.machine_config)
+            hmc_secureboot = self.cv_HMC.hmc_secureboot_on_off(enable)
+            if hmc_secureboot:
+                log.info("Secureboot is successfully set to the desired state!")
+            else:
+                return "Failed to set secureboot to the desired state!" 
 
 class RestoreLAPRConfig(MachineConfig):
 
@@ -296,7 +308,6 @@ class RestoreLAPRConfig(MachineConfig):
         self.cv_HMC.poweroff_lpar()
         self.cv_HMC.lpar_prof = self.cv_HMC.lpar_prof + "_bck"
         self.cv_HMC.poweron_lpar()
-
 
 class CecConfig():
 
@@ -344,8 +355,6 @@ class CecConfig():
             self.cv_HMC.configure_lmb(self.lmb_size)
             self.setup =1
 
-
-
 class OsConfig():
     '''
     This Class assign  huge page in the system   based on MMU either Radix or hash and validate
@@ -355,7 +364,7 @@ class OsConfig():
     '''
 
     def __init__(self, cv_HMC=None, system_name=None,
-                 lpar_name=None, lpar_prof=None, machine_config=None, hugepage=None):
+                 lpar_name=None, lpar_prof=None, machine_config=None, hugepage=None, enable=None):
         self.cv_HMC = cv_HMC
         self.system_name = system_name
         self.lpar_name = lpar_name
@@ -365,15 +374,20 @@ class OsConfig():
         self.cv_SYSTEM = conf.system()
         self.cv_HOST = conf.host()
         self.c = self.cv_HMC.get_host_console()
+        self.hmc_con = self.cv_HMC.ssh
         self.mmulist = self.c.run_command("tail /proc/cpuinfo | grep MMU")
         self.mmu = str(self.mmulist[0]).split(':')[1].strip()
         self.obj = OpTestInstallUtil.InstallUtil()
         self.os_level = self.cv_HOST.host_get_OS_Level()
         self.size_hgpg = hugepage
+        self.enable = enable
+        self.util = OpTestUtil(conf)
 
     def Ossetup(self):
         if self.size_hgpg:
             self.OsHugepageSetup()
+        if self.enable:
+            self.util.os_secureboot_enable(enable=self.enable)
 
     def OsHugepageSetup(self):
 

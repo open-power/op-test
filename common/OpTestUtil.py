@@ -156,6 +156,86 @@ class OpTestUtil():
                 return True
         return False
 
+    def validate_secureboot_parameter(self, machine_config):
+        '''
+        Checks the validity of the states, set as parameter in the configuration file.
+        Valid states are either 'on' or 'off'.
+        Return : 
+        True  - if secureboot is set to 'on'
+        False - if secureboot is set to 'off' 
+        '''
+        self.sb_valid_states = ['on', 'off']
+        secureboot_parameter_state = re.findall("secureboot=[a-z][a-z]+", str(machine_config))[0].split('=')[1]
+        if str(secureboot_parameter_state) not in self.sb_valid_states:
+            self.skipTest("%s is not a valid state for secureboot. "
+                          "Secureboot valid states can be either set to 'on' or 'off'" % str(secureboot_parameter_state))
+        if secureboot_parameter_state == 'on':
+            return True
+        else:
+            return False
+
+    def getPRePDisk(self):
+        '''
+        Identify the PReP partition, this disk name is required to copy
+        signed grub. This manual step required for RHEL OS only.
+        '''
+        out = self.conf.host().host_run_command('sfdisk -l')
+        for line in out:
+            if "PPC PReP Boot" in line:
+                self.prepDisk = line.split(" ")[0]
+                break
+        if not self.prepDisk:
+            self.fail("%s: Failed to get PReP partition name" % self.distro)
+
+    def backup_restore_PRepDisk(self, action):
+        if action == "backup":
+            out = self.conf.host().host_run_command("dd if=%s of=%s" % (self.prepDisk, self.backup_prep_filename))
+        if action == "restore":
+            out = self.conf.host().host_run_command("dd if=%s of=%s" % (self.backup_prep_filename, self.prepDisk))
+        for line in out:
+            if "No" in line:
+                self.fail("Failed to %s the PRep partition." % (action))
+
+    def os_secureboot_enable(self, enable=True):
+        '''
+        To enable/disable the Secure Boot at Operating System level.
+        Parameter enable=True for enabling Secure Boot
+        Parameter enable=False for disabling Secure Boot
+        '''
+        self.prepDisk = ""
+        self.backup_prep_filename = "/root/save-prep"
+        self.distro_version = self.get_distro_version()
+        self.kernel_signature = self.check_kernel_signature()
+        self.grub_filename = self.get_grub_file()
+        self.grub_signature = self.check_grub_signature(self.grub_filename)
+
+        if self.kernel_signature == True:
+            if 'rhel' in self.distro_name() and enable:
+                # Get the PReP disk file
+                self.getPRePDisk()
+                self.backup_restore_PRepDisk(action="backup")
+                #Proceed ahead only if the grub is signed
+                if self.grub_signature == True:
+                    # Running grub2-install on PReP disk
+                    out = self.conf.host().host_run_command("grub2-install %s" % self.prepDisk)
+                    for line in out:
+                        if "Installation finished. No error reported." not in out:
+                            # Restore the PRep partition back to its original state
+                            self.backup_restore_PRepDisk(action="restore")
+                            self.fail("RHEL: Failed to install on PReP partition")
+
+                    out = self.conf.host().host_run_command("dd if=%s of=%s; echo $?" % 
+                                             (self.grub_filename, self.prepDisk))
+                    if "0" not in out[3]:
+                        # Restore the PRep partition back to its original state
+                        self.backup_restore_PRepDisk(action="restore")
+                        self.fail("RHEL: Failed to copy to PReP partition")
+            elif 'rhel' in self.distro_name() and not enable:
+                # Nothing to do for Secure Boot disable for RHEL at OS level
+                pass
+        else:
+            self.fail("%s - Kernel is not signed" % (self.distro))
+
     def check_lockers(self):
         if self.conf.args.hostlocker is not None:
             self.conf.util.hostlocker_lock(self.conf.args)
