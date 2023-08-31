@@ -213,3 +213,15 @@ class OpTestASM:
         form = "form=71"
         self.submit(form, param)
         self.logout()
+
+    def configure_enlarged_io(self, ioec1):
+        if not self.login():
+            raise OpTestError("Failed to login ASM page")
+        param = {'form':  '47',
+                 'submit': 'Save settings',
+                 'CSRF_TOKEN': '',
+                 'ioec_enable': 'on',
+                 'ioec1': ioec1}
+        form = "form=47"
+        self.submit(form, param)
+        self.logout()
