@@ -156,24 +156,6 @@ class OpTestUtil():
                 return True
         return False
 
-    def validate_secureboot_parameter(self, machine_config):
-        '''
-        Checks the validity of the states, set as parameter in the configuration file.
-        Valid states are either 'on' or 'off'.
-        Return : 
-        True  - if secureboot is set to 'on'
-        False - if secureboot is set to 'off' 
-        '''
-        self.sb_valid_states = ['on', 'off']
-        secureboot_parameter_state = re.findall("secureboot=[a-z][a-z]+", str(machine_config))[0].split('=')[1]
-        if str(secureboot_parameter_state) not in self.sb_valid_states:
-            self.skipTest("%s is not a valid state for secureboot. "
-                          "Secureboot valid states can be either set to 'on' or 'off'" % str(secureboot_parameter_state))
-        if secureboot_parameter_state == 'on':
-            return True
-        else:
-            return False
-
     def getPRePDisk(self):
         '''
         Identify the PReP partition, this disk name is required to copy
