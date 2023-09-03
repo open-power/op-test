@@ -59,10 +59,33 @@ class MachineConfig(unittest.TestCase):
         else:
             self.skipTest("Functionality is supported only on LPAR")
 
+    def validate_secureboot_parameter(self, machine_config):
+        '''
+        Checks the validity of the states, set as parameter in the configuration file.
+        Valid states are either 'on' or 'off'.
+        Return :
+        True  - if secureboot is set to 'on'
+        False - if secureboot is set to 'off'
+        '''
+        sb_valid_states = ['on', 'off']
+        secureboot_parameter_state = re.findall("secureboot=[a-z][a-z]+", str(machine_config))[0].split('=')[1]
+        if str(secureboot_parameter_state) not in sb_valid_states:
+            self.skipTest("%s is not a valid state for secureboot. "
+                          "Secureboot valid states can be either set to 'on' or 'off'" % str(secureboot_parameter_state))
+        if secureboot_parameter_state == 'on':
+            return True
+        else:
+            return False
+
+
     def runTest(self):
         status=0
         if self.machine_config.__contains__('lpar'):
-            status=LparConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,self.machine_config['lpar']).LparSetup()
+            self.sb_enable = None
+            config_value=self.machine_config['lpar']
+            if 'secureboot' in config_value:
+                self.sb_enable = self.validate_secureboot_parameter(self.machine_config)
+            status=LparConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,self.machine_config['lpar'],sb_enable=self.sb_enable).LparSetup()
             if status:
                 self.fail(status)
 
@@ -99,8 +122,8 @@ class MachineConfig(unittest.TestCase):
                 status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],hugepage=hugepage_size).Ossetup()
             if 'secureboot' in config_value:
                 setup = 1
-                enable = self.util.validate_secureboot_parameter(self.machine_config)
-                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],enable=enable).Ossetup()
+                self.sb_enable = self.validate_secureboot_parameter(self.machine_config)
+                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],enable=self.sb_enable).Ossetup()
             if status:
                 self.fail(status)
             if not setup:
@@ -117,7 +140,7 @@ class LparConfig():
     Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1"
     '''
     def __init__(self, cv_HMC=None, system_name= None,
-                 lpar_name=None, lpar_prof=None, machin_config =None):
+                 lpar_name=None, lpar_prof=None, machin_config =None, sb_enable=None):
         self.cv_HMC = cv_HMC
         self.system_name = system_name
         self.lpar_name = lpar_name
@@ -128,6 +151,7 @@ class LparConfig():
         self.cv_SYSTEM = conf.system()
         self.cv_HMC.poweroff_lpar()
         self.util = OpTestUtil(conf)
+        self.sb_enable = sb_enable
 
     def LparSetup(self):
         '''
@@ -276,9 +300,8 @@ class LparConfig():
                                if "=" in ioslot_drc_names else ioslot_drc_names
             self.cv_HMC.add_ioslot(ioslot_drc_names)
 
-        if "secureboot" in self.machine_config:
-            enable = self.util.validate_secureboot_parameter(self.machine_config)
-            self.cv_HMC.hmc_secureboot_on_off(enable)
+        if self.sb_enable is not None :
+            self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
         
         self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                (self.system_name, self.lpar_name, self.lpar_prof))
