@@ -184,8 +184,6 @@ class HMCUtil():
         2. Enable/Disable Secure boot using 'chsyscfg' command
         3. PowerON/Activate the LPAR and boot to Operating System
         '''
-        # PowerOFF/shutdown LPAR from HMC
-        self.poweroff_lpar()
         # Set Secure Boot value using HMC command
         cmd = ('chsyscfg -r lpar -m %s -i "name=%s, secure_boot=' %
                (self.mg_system, self.lpar_name))
@@ -193,17 +191,8 @@ class HMCUtil():
             cmd = '%s2"' % cmd
         else: # Value '0' to disable Secure Boot
             cmd = '%s0"' % cmd
-        self.ssh.run_command(cmd, timeout=300)
-            # PowerON/Activate LPAR and Boot the Operating System
-        self.poweron_lpar()
+        return self.ssh.run_command(cmd, timeout=300)
 
-        # Checking What Secure Boot state got set,
-        # according to the required enable/disable
-        hmc_secureboot = self.check_lpar_secureboot_state(self.ssh)
-        if (enable and hmc_secureboot) or (not enable and not hmc_secureboot):
-            return True
-        else:
-            return False
 
     def deactivate_lpar_console(self):
         '''

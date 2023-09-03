@@ -126,7 +126,7 @@ class LparConfig():
         self.hmc_con = self.cv_HMC.ssh
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_HMC.poweroff_lpar()
         self.util = OpTestUtil(conf)
 
     def LparSetup(self):
@@ -276,6 +276,10 @@ class LparConfig():
                                if "=" in ioslot_drc_names else ioslot_drc_names
             self.cv_HMC.add_ioslot(ioslot_drc_names)
 
+        if "secureboot" in self.machine_config:
+            enable = self.util.validate_secureboot_parameter(self.machine_config)
+            self.cv_HMC.hmc_secureboot_on_off(enable)
+        
         self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                (self.system_name, self.lpar_name, self.lpar_prof))
         time.sleep(5)
@@ -285,14 +289,7 @@ class LparConfig():
                 log.info("System booted with %s mode" % proc_mode)
             else:
                 return "Failed to boot in %s mode" % proc_mode
-        
-        if "secureboot" in self.machine_config:
-            enable = self.util.validate_secureboot_parameter(self.machine_config)
-            hmc_secureboot = self.cv_HMC.hmc_secureboot_on_off(enable)
-            if hmc_secureboot:
-                log.info("Secureboot is successfully set to the desired state!")
-            else:
-                return "Failed to set secureboot to the desired state!" 
+
 
 class RestoreLAPRConfig(MachineConfig):
 
