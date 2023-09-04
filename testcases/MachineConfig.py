@@ -110,6 +110,8 @@ class MachineConfig(unittest.TestCase):
 
         if self.machine_config.__contains__('os'):
             setup = 0
+            sb_enable = None
+            hugepage_size = None
             config_value = self.machine_config['os']
             valid_size = ['2M', '1G', '16M', '16G']
             if 'hugepage' in config_value:
@@ -119,11 +121,10 @@ class MachineConfig(unittest.TestCase):
                 if str(hugepage_size) not in valid_size:
                     self.skipTest("%s is not valid hugepage size, "
                                   "valid hugepage sizes are 1G, 2M, 16M, 16G" % hugepage_size)
-                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],hugepage=hugepage_size).Ossetup()
             if 'secureboot' in config_value:
                 setup = 1
-                self.sb_enable = self.validate_secureboot_parameter(self.machine_config)
-                status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],enable=self.sb_enable).Ossetup()
+                sb_enable = self.validate_secureboot_parameter(self.machine_config)
+            status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],enable=sb_enable, hugepage=hugepage_size).Ossetup()
             if status:
                 self.fail(status)
             if not setup:
@@ -406,8 +407,9 @@ class OsConfig():
     def Ossetup(self):
         if self.size_hgpg:
             self.OsHugepageSetup()
-        if self.enable:
-            self.util.os_secureboot_enable(enable=self.enable)
+        if self.enable is not None:
+            if not self.util.os_secureboot_enable(enable=self.enable):
+                return "secure boot os setting failed"
 
     def OsHugepageSetup(self):
 

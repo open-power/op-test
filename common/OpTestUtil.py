@@ -167,7 +167,8 @@ class OpTestUtil():
                 self.prepDisk = line.split(" ")[0]
                 break
         if not self.prepDisk:
-            self.fail("%s: Failed to get PReP partition name" % self.distro)
+            return False
+        return True
 
     def backup_restore_PRepDisk(self, action):
         if action == "backup":
@@ -176,7 +177,8 @@ class OpTestUtil():
             out = self.conf.host().host_run_command("dd if=%s of=%s" % (self.backup_prep_filename, self.prepDisk))
         for line in out:
             if "No" in line:
-                self.fail("Failed to %s the PRep partition." % (action))
+                return False
+        return True
 
     def os_secureboot_enable(self, enable=True):
         '''
@@ -194,8 +196,10 @@ class OpTestUtil():
         if self.kernel_signature == True:
             if 'rhel' in self.distro_name() and enable:
                 # Get the PReP disk file
-                self.getPRePDisk()
-                self.backup_restore_PRepDisk(action="backup")
+                if not self.getPRePDisk():
+                    return False
+                if not self.backup_restore_PRepDisk(action="backup"):
+                    return False
                 #Proceed ahead only if the grub is signed
                 if self.grub_signature == True:
                     # Running grub2-install on PReP disk
@@ -204,7 +208,7 @@ class OpTestUtil():
                         if "Installation finished. No error reported." not in out:
                             # Restore the PRep partition back to its original state
                             self.backup_restore_PRepDisk(action="restore")
-                            self.fail("RHEL: Failed to install on PReP partition")
+                            return False
 
                     out = self.conf.host().host_run_command("dd if=%s of=%s; echo $?" % 
                                              (self.grub_filename, self.prepDisk))
@@ -216,7 +220,8 @@ class OpTestUtil():
                 # Nothing to do for Secure Boot disable for RHEL at OS level
                 pass
         else:
-            self.fail("%s - Kernel is not signed" % (self.distro))
+            return False
+        return True
 
     def check_lockers(self):
         if self.conf.args.hostlocker is not None:
