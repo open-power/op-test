@@ -227,6 +227,7 @@ class LparConfig():
 
 
         if "vtpm=1" in self.machine_config:
+            conf = OpTestConfiguration.conf
             vtpm_enabled = self.cv_HMC.vtpm_state()
             if vtpm_enabled[0] == "1":
                 log.info("System is already booted with VTPM enabled")
@@ -262,6 +263,7 @@ class LparConfig():
                     return "Failed to boot with vtpm disabled"
 
         if "vpmem=1" in self.machine_config:
+            conf = OpTestConfiguration.conf
             try: self.pmem_name = conf.args.pmem_name
             except AttributeError:
                 self.pmem_name = "vol1"
