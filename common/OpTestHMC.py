@@ -46,6 +46,7 @@ from common.OpTestError import OpTestError
 from common.OpTestSSH import OpTestSSH
 from common.OpTestUtil import OpTestUtil
 from common.Exceptions import CommandFailed
+#from common.OpTestSystem import OpSystemState
 from common import OPexpect
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
@@ -159,7 +160,7 @@ class HMCUtil():
         self.PS1_set = -1
         self.LOGIN_set = -1
         self.SUDO_set = -1
-
+    
     def check_lpar_secureboot_state(self, hmc_con):
         '''
         Check whether the secure-boot is enabled for lpar.
@@ -175,6 +176,23 @@ class HMCUtil():
             return True
         elif int(output[0]) == 0: # Value '0' means Secure Boot disabled
             return False
+
+    def hmc_secureboot_on_off(self, enable=True):
+        '''
+        Enable/Disable Secure Boot from HMC
+        1. PowerOFF/Shutdown LPAR from HMC
+        2. Enable/Disable Secure boot using 'chsyscfg' command
+        3. PowerON/Activate the LPAR and boot to Operating System
+        '''
+        # Set Secure Boot value using HMC command
+        cmd = ('chsyscfg -r lpar -m %s -i "name=%s, secure_boot=' %
+               (self.mg_system, self.lpar_name))
+        if enable: # Value '2' to enable Secure Boot
+            cmd = '%s2"' % cmd
+        else: # Value '0' to disable Secure Boot
+            cmd = '%s0"' % cmd
+        return self.ssh.run_command(cmd, timeout=300)
+
 
     def deactivate_lpar_console(self):
         '''

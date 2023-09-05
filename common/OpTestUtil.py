@@ -156,6 +156,73 @@ class OpTestUtil():
                 return True
         return False
 
+    def getPRePDisk(self):
+        '''
+        Identify the PReP partition, this disk name is required to copy
+        signed grub. This manual step required for RHEL OS only.
+        '''
+        out = self.conf.host().host_run_command('sfdisk -l')
+        for line in out:
+            if "PPC PReP Boot" in line:
+                self.prepDisk = line.split(" ")[0]
+                break
+        if not self.prepDisk:
+            return False
+        return True
+
+    def backup_restore_PRepDisk(self, action):
+        if action == "backup":
+            out = self.conf.host().host_run_command("dd if=%s of=%s" % (self.prepDisk, self.backup_prep_filename))
+        if action == "restore":
+            out = self.conf.host().host_run_command("dd if=%s of=%s" % (self.backup_prep_filename, self.prepDisk))
+        for line in out:
+            if "No" in line:
+                return False
+        return True
+
+    def os_secureboot_enable(self, enable=True):
+        '''
+        To enable/disable the Secure Boot at Operating System level.
+        Parameter enable=True for enabling Secure Boot
+        Parameter enable=False for disabling Secure Boot
+        '''
+        self.prepDisk = ""
+        self.backup_prep_filename = "/root/save-prep"
+        self.distro_version = self.get_distro_version()
+        self.kernel_signature = self.check_kernel_signature()
+        self.grub_filename = self.get_grub_file()
+        self.grub_signature = self.check_grub_signature(self.grub_filename)
+
+        if self.kernel_signature == True:
+            if 'rhel' in self.distro_name() and enable:
+                # Get the PReP disk file
+                if not self.getPRePDisk():
+                    return False
+                if not self.backup_restore_PRepDisk(action="backup"):
+                    return False
+                #Proceed ahead only if the grub is signed
+                if self.grub_signature == True:
+                    # Running grub2-install on PReP disk
+                    out = self.conf.host().host_run_command("grub2-install %s" % self.prepDisk)
+                    for line in out:
+                        if "Installation finished. No error reported." not in out:
+                            # Restore the PRep partition back to its original state
+                            self.backup_restore_PRepDisk(action="restore")
+                            return False
+
+                    out = self.conf.host().host_run_command("dd if=%s of=%s; echo $?" % 
+                                             (self.grub_filename, self.prepDisk))
+                    if "0" not in out[3]:
+                        # Restore the PRep partition back to its original state
+                        self.backup_restore_PRepDisk(action="restore")
+                        self.fail("RHEL: Failed to copy to PReP partition")
+            elif 'rhel' in self.distro_name() and not enable:
+                # Nothing to do for Secure Boot disable for RHEL at OS level
+                pass
+        else:
+            return False
+        return True
+
     def check_lockers(self):
         if self.conf.args.hostlocker is not None:
             self.conf.util.hostlocker_lock(self.conf.args)
