@@ -79,8 +79,14 @@ class MachineConfig(unittest.TestCase):
 
 
     def runTest(self):
+        
+        for key in self.machine_config:
+            self.callConfig(key)
+
+    def callConfig(self, key):
+    
         status=0
-        if self.machine_config.__contains__('lpar'):
+        if key == "lpar":
             self.sb_enable = None
             config_value=self.machine_config['lpar']
             if 'secureboot' in config_value:
@@ -89,7 +95,7 @@ class MachineConfig(unittest.TestCase):
             if status:
                 self.fail(status)
 
-        if self.machine_config.__contains__('cec'):
+        if key == "cec":
             lmb_size= None
             num_hugepages = None
             setup = 0
@@ -114,7 +120,7 @@ class MachineConfig(unittest.TestCase):
             if not setup:
                 self.skipTest("Not implemented for other CEC settings")
 
-        if self.machine_config.__contains__('os'):
+        if key == "os":
             setup = 0
             sb_enable = None
             hugepage_size = None
