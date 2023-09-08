@@ -265,8 +265,19 @@ class PowerNVDump(unittest.TestCase):
                 self.c.run_command("ls /var/crash/%s/dump*" %
                                    self.crash_content[0])
             else:
-                self.c.run_command("ls /var/crash/%s/vmcore*" %
-                                   self.crash_content[0])
+                res = self.c.run_command("ls /var/crash/%s/vmcore*" %
+                                         self.crash_content[0])
+                paths = res[0].split()
+                file_names = [os.path.basename(path) for path in paths]
+                # Check if vmcore-dmesg-incomplete.txt is present in file_names
+                if "vmcore-dmesg-incomplete.txt" in file_names:
+                    raise OpTestError("kdump failed to create vmcore file")
+                else:
+                    filtered_files = [f for f in file_names if f.startswith("vmcore") and not f == "vmcore-dmesg.txt"]
+                    if filtered_files:
+                        log.debug("vmcore file  %s exists in crash dir" % filtered_files)
+                    else:
+                        raise OpTestError("kdump failed to create vmcore file")
             if boot_type == BootType.MPIPL:
                 self.c.run_command("ls /var/crash/%s/opalcore*" %
                                    self.crash_content[0])
