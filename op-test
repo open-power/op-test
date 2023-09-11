@@ -189,9 +189,7 @@ except Exception as e:
 OpTestConfiguration.conf.objs()
 
 class SystemAccessSuite():
-    '''
-    Tests all system interfaces
-    '''
+    '''Tests all system interfaces'''
 
     def __init__(self):
         self.s = unittest.TestSuite()
@@ -676,7 +674,7 @@ class KexecSuite():
     '''Kexec Test Suite'''
 
     def suite(self):
-        return OpTestKexec.exec_suite()
+        return OpTestKexec.kexec_suite()
 
 class DlparIOSuite():
     '''DlparIO Test Suite'''
@@ -948,6 +946,7 @@ suites = {
     'palmetto-ci': OpenBMCPalmettoSkirootSuite(),
     'per-commit': OpTestPerCommitSuite(),
     'pull-request': OpTestPullRequestSuite(),
+    'kexec-suite': KexecSuite(),
 }
 
 try:
