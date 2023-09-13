@@ -379,10 +379,10 @@ class CecConfig():
         if self.setup:
             self.cv_HMC.poweron_system()
             self.ValidateCEC_Setup()
-        ##loading system
-        self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
-                                (self.system_name, self.lpar_name, self.lpar_prof))
-        time.sleep(5)
+            ##loading system
+            self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
+                                    (self.system_name, self.lpar_name, self.lpar_prof))
+            time.sleep(5)
 
     def ValidateCEC_Setup(self):
 
