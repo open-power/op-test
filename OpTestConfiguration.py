@@ -922,9 +922,6 @@ class OpTestConfiguration():
                                     lpar_password=self.args.host_password,
                                     logfile=self.logfile
                                     )
-                else:
-                    raise Exception(
-                        "HMC IP, username and password is required")
                 rest_api = EBMCHostManagement(conf=self,
                                               ip=self.args.bmc_ip,
                                               username=self.args.bmc_username,
@@ -944,7 +941,16 @@ class OpTestConfiguration():
                     host=host,
                     conf=self,
                 )
-                hmc.set_system(self.op_system)
+                # For EBMC type of systems the implementation here is:
+                # By default the EBMC system will be phyp mode i.e the console object returns lpar console
+                # In case if someone wants to run bmc commands than the system is set to BMC mode i.e
+                # only BMC details (no hmc) have provided as input if user wants to run bmc commands over ssh
+                # so at any point of time the test can use either phyp or bmc mode, and not both
+                if hmc:
+                    hmc.set_system(self.op_system)
+                else:
+                    bmc.set_system(self.op_system)
+
             elif self.args.bmc_type in ['qemu']:
                 print((repr(self.args)))
                 bmc = OpTestQemu(conf=self,
