@@ -839,6 +839,53 @@ class HMCUtil():
             return False
         return True
 
+    def enable_msp(self, mg_system, vios_name, remote_hmc=None):
+        '''
+        The function enables msp for lpar of the 
+        given lpar_id and managaed system.
+
+        :param mg_system: string, Source managed system
+        :param lpar_id: number. lpar ID of the lpar 
+        :returns: Boolean, True on success, False on failure
+        '''
+        hmc = remote_hmc if remote_hmc else self 
+        cmd = "chsyscfg -m %s -r lpar -i name=%s,msp=1" % (mg_system, vios_name)
+        msp_enable = hmc.ssh.run_command(cmd)
+        if msp_enable != 0:
+            return False 
+        return True
+
+    def set_label(self, mg_system, adapter_id, port_id, label, remote_hmc=None):
+        '''
+        :param mg_system: string, Source managed system
+        :param adapter_id: number adapter ID of the card
+        :param label: string, name of the label that needs to be set
+        :returns: Boolean, True on success, False on failure
+        '''
+        hmc = remote_hmc if remote_hmc else self
+        cmd = 'chhwres -r sriov -m %s --rsubtype physport -o \
+               s -a "adapter_id=%s,phys_port_id=%s,phys_port_label=%s"' % (
+               mg_system, adapter_id, port_id, label)
+        label_set = hmc.ssh.run_command(cmd)
+        if label_set != 0:
+            return False
+        return True
+
+    def remove_label(self, mg_system, adapter_id, port_id, remote_hmc=None):
+        '''
+        :param mg_system: string, Source managed system
+        :param adapter_id: number, adapter ID of the card
+        :returns: Boolean, True on success, False on failure
+        '''
+        hmc = remote_hmc if remote_hmc else self
+        cmd = 'chhwres -r sriov -m %s --rsubtype physport -o \
+               s -a "adapter_id=%s,phys_port_id=%s,phys_port_label=none"' % (
+               mg_system, adapter_id, port_id)
+        label_remove = hmc.ssh.run_command(cmd)
+        if label_remove != 0:
+            return False
+        return True
+
     def gather_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
         '''
         Gather the logs for the commands at the given directory
