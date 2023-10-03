@@ -75,6 +75,8 @@ class GcovBuild(unittest.TestCase):
                 src_path = os.path.join(src_path, line)
                 break
         log.info("\n\nsource path = %s" %src_path)
+        self.cv_HOST.host_run_command('mv %s /root/kernel/linux' %src_path)
+        src_path = '/root/kernel/linux'
         log.info("\nadding gcov_param....")
         self.kernel_config(src_path)
         log.info("Building the new kernel...")
