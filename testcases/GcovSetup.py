@@ -69,12 +69,17 @@ class GcovBuild(unittest.TestCase):
             src_path = self.util.get_distro_src('kernel', '/root', "-bp")
         elif self.distro_name == 'sles':
             src_path = self.util.get_distro_src('kernel-default', '/root', "-bp")
+        src_path_base = src_path
         out = self.cv_HOST.host_run_command(f"ls {src_path}")
         for line in out:
             if line.startswith("linux-"):
                 src_path = os.path.join(src_path, line)
                 break
         log.info("\n\nsource path = %s" %src_path)
+        self.cv_HOST.host_run_command('mkdir -p /root/kernel')
+        self.cv_HOST.host_run_command('mv %s /root/kernel/linux' %src_path)
+        self.cv_HOST.host_run_command('rm -rf %s' %src_path_base)
+        src_path = '/root/kernel/linux'
         log.info("\nadding gcov_param....")
         self.kernel_config(src_path)
         log.info("Building the new kernel...")
