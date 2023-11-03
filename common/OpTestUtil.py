@@ -161,10 +161,10 @@ class OpTestUtil():
         Identify the PReP partition, this disk name is required to copy
         signed grub. This manual step required for RHEL OS only.
         '''
-        out = self.conf.host().host_run_command('sfdisk -l')
+        out = self.conf.host().host_run_command('df /boot')
         for line in out:
-            if "PPC PReP Boot" in line:
-                self.prepDisk = line.split(" ")[0]
+            if "/dev" in line:
+                self.prepDisk = line.split(" ")[0].replace('2', '1')
                 break
         if not self.prepDisk:
             return False
