@@ -439,7 +439,7 @@ class OsConfig():
         self.hmc_con = self.cv_HMC.ssh
         self.mmulist = self.c.run_command("tail /proc/cpuinfo | grep MMU")
         self.mmu = str(self.mmulist[0]).split(':')[1].strip()
-        self.cmdline = self.c.run_command("cat /proc/cmdline | grep -o disable_radix=1")
+        self.cmdline = self.c.run_command("cat /proc/cmdline")
         self.obj = OpTestInstallUtil.InstallUtil()
         self.os_level = self.cv_HOST.host_get_OS_Level()
         self.size_hgpg = hugepage
