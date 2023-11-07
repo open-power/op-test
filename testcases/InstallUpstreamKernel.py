@@ -21,6 +21,7 @@
 import unittest
 import os
 import re
+import time
 
 try:
     from urllib.parse import urlparse
@@ -124,6 +125,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
+            time.sleep(10)
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
                 con.run_command(
