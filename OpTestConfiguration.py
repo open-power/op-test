@@ -61,20 +61,19 @@ mambo_autorun = "1"
 mambo_timeout_factor = 2
 
 # HostLocker credentials need to be in Notes Web section ('comment' section of JSON)
-# bmc_type:OpenBMC
-# bmc_username:root
-# bmc_usernameipmi:ADMIN
-# bmc_password:0penBmc
-# bmc_passwordipmi:admin
-# bmc_ip:wl2.aus.stglabs.ibm.com
-# host_user:root
-# host_password:abc123
-# host_ip:wl2l.aus.stglabs.ibm.com
+# bmc_type:XXXX
+# bmc_username:
+# bmc_usernameipmi:
+# bmc_password:
+# bmc_passwordipmi:
+# bmc_ip:<BMC IP>
+# host_password:YYYYY
+# host_ip:<system ip address>
 
 
 default_val = {
     'hostlocker': None,
-    'hostlocker_server': 'http://hostlocker.ozlabs.ibm.com',
+    'hostlocker_server': '',
     'hostlocker_base_url': '/hostlock/api/v1',
     'hostlocker_user': None,
     'hostlocker_locktime': 'never',
@@ -82,7 +81,7 @@ default_val = {
     'hostlocker_proxy': 'socks5h://localhost:1080',
     'hostlocker_no_proxy_ips': ['10.61.0.0/17', '10.61.128.0/17'],
     'aes': None,
-    'aes_server': 'http://fwreport02.rchland.ibm.com',
+    'aes_server': 'aes server',
     'aes_base_url': '/pse_ct_dashboard/aes/rest',
     'aes_user': None,
     'locker_wait': None,
@@ -94,11 +93,11 @@ default_val = {
     'bmc_type': 'OpenBMC',
     'bmc_username': 'root',
     'bmc_usernameipmi': 'ADMIN',
-    'bmc_password': '0penBmc',
-    'bmc_passwordipmi': 'admin',
+    'bmc_password': 'ZZZZ',
+    'bmc_passwordipmi': 'XXXX',
     'bmc_ip': None,
     'host_user': 'root',
-    'host_password': 'abc123',
+    'host_password': 'YYYY',
     'host_ip': None,
     'secvar_payload_url': 'https://github.com/erichte-ibm/op-test/raw/erichte-ibm/os-secure-boot-squashed/test_binaries',
 }
@@ -107,24 +106,24 @@ default_val_fsp = {
     'bmc_type': 'FSP',
     'bmc_username': 'dev',
     'bmc_usernameipmi': 'ADMIN',
-    'bmc_password': 'FipSdev',
-    'bmc_passwordipmi': 'PASSW0RD',
+    'bmc_password': 'YYYY',
+    'bmc_passwordipmi': 'ZZZZ',
 }
 
 default_val_ami = {
     'bmc_type': 'AMI',
     'bmc_username': 'sysadmin',
     'bmc_usernameipmi': 'ADMIN',
-    'bmc_password': 'superuser',
-    'bmc_passwordipmi': 'admin',
+    'bmc_password': 'YYYY',
+    'bmc_passwordipmi': 'XXXX',
 }
 
 default_val_smc = {
     'bmc_type': 'SMC',
     'bmc_username': 'sysadmin',
-    'bmc_usernameipmi': 'ADMIN',
+    'bmc_usernameipmi': 'YYYY',
     'bmc_password': 'superuser',
-    'bmc_passwordipmi': 'ADMIN',
+    'bmc_passwordipmi': 'XXXX',
 }
 
 default_val_qemu = {
