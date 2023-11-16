@@ -245,7 +245,7 @@ class LparConfig():
                 self.overcommit_ratio = 1
             proc_mode = 'shared'
             curr_proc_mode = self.cv_HMC.get_proc_mode()
-            if proc_mode in curr_proc_mode and lpar_config == True:
+            if proc_mode in curr_proc_mode and not lpar_config:
                 log.info("System is already booted in shared mode.")
             else:
                 self.cv_HMC.profile_bckup()
