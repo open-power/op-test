@@ -142,17 +142,17 @@ class OpTestEBMC():
         self.rest_api = rest_api
         self.has_vpnor = None
         self.logfile = logfile
-        if not self.hmc:
-            self.console = OpTestSSH(ip, username, password, port=2200,
-                                     logfile=self.logfile, check_ssh_keys=check_ssh_keys,
-                                     known_hosts_file=known_hosts_file)
 
-            self.bmc = OpTestBMC(ip=self.hostname,
-                                 username=self.username,
-                                 password=self.password,
-                                 logfile=self.logfile,
-                                 check_ssh_keys=check_ssh_keys,
+        self.console = OpTestSSH(ip, username, password, port=2200,
+                                 logfile=self.logfile, check_ssh_keys=check_ssh_keys,
                                  known_hosts_file=known_hosts_file)
+
+        self.bmc = OpTestBMC(ip=self.hostname,
+                             username=self.username,
+                             password=self.password,
+                             logfile=self.logfile,
+                             check_ssh_keys=check_ssh_keys,
+                             known_hosts_file=known_hosts_file)
 
     def set_system(self, system):
         self.console.set_system(system)

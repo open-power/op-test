@@ -61,20 +61,19 @@ mambo_autorun = "1"
 mambo_timeout_factor = 2
 
 # HostLocker credentials need to be in Notes Web section ('comment' section of JSON)
-# bmc_type:OpenBMC
-# bmc_username:root
-# bmc_usernameipmi:ADMIN
-# bmc_password:0penBmc
-# bmc_passwordipmi:admin
-# bmc_ip:wl2.aus.stglabs.ibm.com
-# host_user:root
-# host_password:abc123
-# host_ip:wl2l.aus.stglabs.ibm.com
+# bmc_type:XXXX
+# bmc_username:
+# bmc_usernameipmi:
+# bmc_password:
+# bmc_passwordipmi:
+# bmc_ip:<BMC IP>
+# host_password:YYYYY
+# host_ip:<system ip address>
 
 
 default_val = {
     'hostlocker': None,
-    'hostlocker_server': 'http://hostlocker.ozlabs.ibm.com',
+    'hostlocker_server': '',
     'hostlocker_base_url': '/hostlock/api/v1',
     'hostlocker_user': None,
     'hostlocker_locktime': 'never',
@@ -82,7 +81,7 @@ default_val = {
     'hostlocker_proxy': 'socks5h://localhost:1080',
     'hostlocker_no_proxy_ips': ['10.61.0.0/17', '10.61.128.0/17'],
     'aes': None,
-    'aes_server': 'http://fwreport02.rchland.ibm.com',
+    'aes_server': 'aes server',
     'aes_base_url': '/pse_ct_dashboard/aes/rest',
     'aes_user': None,
     'locker_wait': None,
@@ -94,11 +93,11 @@ default_val = {
     'bmc_type': 'OpenBMC',
     'bmc_username': 'root',
     'bmc_usernameipmi': 'ADMIN',
-    'bmc_password': '0penBmc',
-    'bmc_passwordipmi': 'admin',
+    'bmc_password': 'ZZZZ',
+    'bmc_passwordipmi': 'XXXX',
     'bmc_ip': None,
     'host_user': 'root',
-    'host_password': 'abc123',
+    'host_password': 'YYYY',
     'host_ip': None,
     'secvar_payload_url': 'https://github.com/erichte-ibm/op-test/raw/erichte-ibm/os-secure-boot-squashed/test_binaries',
 }
@@ -107,24 +106,24 @@ default_val_fsp = {
     'bmc_type': 'FSP',
     'bmc_username': 'dev',
     'bmc_usernameipmi': 'ADMIN',
-    'bmc_password': 'FipSdev',
-    'bmc_passwordipmi': 'PASSW0RD',
+    'bmc_password': 'YYYY',
+    'bmc_passwordipmi': 'ZZZZ',
 }
 
 default_val_ami = {
     'bmc_type': 'AMI',
     'bmc_username': 'sysadmin',
     'bmc_usernameipmi': 'ADMIN',
-    'bmc_password': 'superuser',
-    'bmc_passwordipmi': 'admin',
+    'bmc_password': 'YYYY',
+    'bmc_passwordipmi': 'XXXX',
 }
 
 default_val_smc = {
     'bmc_type': 'SMC',
     'bmc_username': 'sysadmin',
-    'bmc_usernameipmi': 'ADMIN',
+    'bmc_usernameipmi': 'YYYY',
     'bmc_password': 'superuser',
-    'bmc_passwordipmi': 'ADMIN',
+    'bmc_passwordipmi': 'XXXX',
 }
 
 default_val_qemu = {
@@ -922,9 +921,6 @@ class OpTestConfiguration():
                                     lpar_password=self.args.host_password,
                                     logfile=self.logfile
                                     )
-                else:
-                    raise Exception(
-                        "HMC IP, username and password is required")
                 rest_api = EBMCHostManagement(conf=self,
                                               ip=self.args.bmc_ip,
                                               username=self.args.bmc_username,
@@ -944,7 +940,16 @@ class OpTestConfiguration():
                     host=host,
                     conf=self,
                 )
-                hmc.set_system(self.op_system)
+                # For EBMC type of systems the implementation here is:
+                # By default the EBMC system will be phyp mode i.e the console object returns lpar console
+                # In case if someone wants to run bmc commands than the system is set to BMC mode i.e
+                # only BMC details (no hmc) have provided as input if user wants to run bmc commands over ssh
+                # so at any point of time the test can use either phyp or bmc mode, and not both
+                if hmc:
+                    hmc.set_system(self.op_system)
+                else:
+                    bmc.set_system(self.op_system)
+
             elif self.args.bmc_type in ['qemu']:
                 print((repr(self.args)))
                 bmc = OpTestQemu(conf=self,

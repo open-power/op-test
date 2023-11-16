@@ -299,7 +299,10 @@ class HMCUtil():
         for values in list(splitter):
             data = values.split("=")
             key = data[0]
-            value = data[1]
+            try:
+                value = data[1]
+            except IndexError:
+                value = 'null'
             cfg_dict[key] = value
         return cfg_dict
 

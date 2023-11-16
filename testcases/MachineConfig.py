@@ -501,6 +501,7 @@ class OsConfig():
         self.hmc_con = self.cv_HMC.ssh
         self.mmulist = self.c.run_command("tail /proc/cpuinfo | grep MMU")
         self.mmu = str(self.mmulist[0]).split(':')[1].strip()
+        self.cmdline = self.c.run_command("cat /proc/cmdline")
         self.obj = OpTestInstallUtil.InstallUtil()
         self.os_level = self.cv_HOST.host_get_OS_Level()
         self.size_hgpg = hugepage
@@ -532,6 +533,10 @@ class OsConfig():
             exist_cfg = self.cv_HMC.get_lpar_cfg()
             self.des_mem = int(exist_cfg.get('desired_mem'))
             self.percentile = int(self.des_mem * 0.1)
+            if 'disable_radix=1' in self.cmdline and 'Hash' in self.mmu:
+                self.obj.update_kernel_cmdline(self.os_level, remove_args="disable_radix=1",
+                                               reboot=False, reboot_cmd=False)
+                self.mmu = 'Radix'
             if 'Radix' in self.mmu:
                 if self.size_hgpg == "16M":
                     self.fail("16M is not supported in Radix")
@@ -543,8 +548,8 @@ class OsConfig():
             elif 'Hash' in self.mmu and self.size_hgpg == "16M":
                 self.no_hgpg = int(self.percentile / 16)
             self.obj.update_kernel_cmdline(self.os_level,
-                                           "hugepagesz=%s hugepages=%s" % (
-                                               self.size_hgpg, self.no_hgpg),
+                                           "default_hugepagesz=%s hugepagesz=%s hugepages=%s" % (
+                                           self.size_hgpg, self.size_hgpg, self.no_hgpg),
                                            "",
                                            reboot=True,
                                            reboot_cmd=True)

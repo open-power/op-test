@@ -53,7 +53,6 @@ class LcovSetup(unittest.TestCase):
         self.util = OpTestUtil(OpTestConfiguration.conf)
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         self.distro = self.util.distro_name()
-        self.k_version = "".join(self.cv_HOST.host_run_command("uname -r"))
 
     def runTest(self):
         '''
@@ -102,8 +101,7 @@ class LcovGatherData(LcovSetup):
         Running the test
         '''
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-        self.k_version = "".join(self.cv_HOST.host_run_command("uname -r"))
-        src_path = f'/root/kernel-{self.k_version}*/linux-{self.k_version}*'
+        src_path = f'/root/kernel/linux'
         self.cv_HOST.host_run_command(f"cd {src_path}")
         src_path = "".join(self.cv_HOST.host_run_command("pwd"))
         temp_dir = tempfile.mkdtemp(prefix="Lcov_result_")
