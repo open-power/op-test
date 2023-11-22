@@ -125,16 +125,17 @@ class InstallUpstreamKernel(unittest.TestCase):
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
-            time.sleep(10)
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
-                con.run_command(
-                    "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
+                con.run_command("grubby --set-default /boot/vmlinuz-%s" % res[-1])
                 log.debug("Rebooting after kernel install...")
                 self.console_thread.console_terminate()
                 con.close()
-                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-                self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                time.sleep(10)
+                raw_pty = self.cv_SYSTEM.console.get_console()
+                raw_pty.sendline("reboot")
+                raw_pty.expect("login:", timeout=600)
+                raw_pty.close()
             else:
                 self.console_thread.console_terminate()
                 cmdline = con.run_command("cat /proc/cmdline")[-1]
