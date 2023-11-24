@@ -115,11 +115,11 @@ class InstallUpstreamKernel(unittest.TestCase):
                         self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
             # Capture kernel version & release
-            res = con.run_command("make kernelrelease")
+            ker_ver = con.run_command("make kernelrelease")
             sha = con.run_command("git rev-parse HEAD")
             tcommit = con.run_command("export 'TERM=xterm-256color';git show -s --format=%ci")
             tcommit = re.sub(r"\x1b\[[0-9;]*[mGKHF]", "", tcommit[1])
-            log.info("Upstream kernel version: %s", res[-1])
+            log.info("Upstream kernel version: %s", ker_ver[-1])
             log.info("Upstream kernel commit-id: %s", sha[-1])
             log.info("Upstream kernel commit-time: %s", tcommit)
             log.debug("Compile and install linux kernel")
@@ -127,8 +127,10 @@ class InstallUpstreamKernel(unittest.TestCase):
                             onlinecpus, timeout=self.host_cmd_timeout)
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
-                con.run_command("grubby --set-default /boot/vmlinuz-%s" % res[-1])
+                con.run_command("grubby --set-default /boot/vmlinuz-%s" % ker_ver[-1])
                 log.debug("Rebooting after kernel install...")
+                self.console_thread.console_terminate()
+                self.prompt = self.cv_SYSTEM.util.build_prompt()
                 self.console_thread.console_terminate()
                 con.close()
                 time.sleep(10)
@@ -175,6 +177,8 @@ class InstallUpstreamKernel(unittest.TestCase):
             con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
             res = con.run_command("uname -r")
             log.info("Installed upstream kernel version: %s", res[-1])
+            if ker_ver[-1] != res[-1]:
+                self.fail("Upstream kernel did not boot")
             if self.conf.args.host_cmd:
                 con.run_command(self.conf.args.host_cmd,
                                 timeout=self.host_cmd_timeout)
