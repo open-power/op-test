@@ -91,12 +91,12 @@ default_val = {
     'aes_proxy': None,
     'aes_no_proxy_ips': None,
     'bmc_type': 'OpenBMC',
-    'bmc_username': 'root',
-    'bmc_usernameipmi': 'ADMIN',
+    'bmc_username': 'YYY',
+    'bmc_usernameipmi': 'ZZZZ',
     'bmc_password': 'ZZZZ',
     'bmc_passwordipmi': 'XXXX',
     'bmc_ip': None,
-    'host_user': 'root',
+    'host_user': 'yyyy',
     'host_password': 'YYYY',
     'host_ip': None,
     'secvar_payload_url': 'https://github.com/erichte-ibm/op-test/raw/erichte-ibm/os-secure-boot-squashed/test_binaries',
@@ -105,24 +105,24 @@ default_val = {
 default_val_fsp = {
     'bmc_type': 'FSP',
     'bmc_username': 'dev',
-    'bmc_usernameipmi': 'ADMIN',
+    'bmc_usernameipmi': 'ZZZZ',
     'bmc_password': 'YYYY',
     'bmc_passwordipmi': 'ZZZZ',
 }
 
 default_val_ami = {
     'bmc_type': 'AMI',
-    'bmc_username': 'sysadmin',
-    'bmc_usernameipmi': 'ADMIN',
+    'host_user': 'YYYY',
+    'bmc_usernameipmi': 'ZZZZ',
     'bmc_password': 'YYYY',
     'bmc_passwordipmi': 'XXXX',
 }
 
 default_val_smc = {
     'bmc_type': 'SMC',
-    'bmc_username': 'sysadmin',
+    'host_user': 'YYYY',
     'bmc_usernameipmi': 'YYYY',
-    'bmc_password': 'superuser',
+    'bmc_password': 'XXXX',
     'bmc_passwordipmi': 'XXXX',
 }
 
