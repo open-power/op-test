@@ -370,6 +370,8 @@ class PowerNVDump(unittest.TestCase):
         elif crash_type == "hmc":
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -n %s -o dumprestart" %
                                    (self.system_name, self.lpar_name), timeout=300)
+        elif crash_type == "softlockup":
+            self.c.pty.sendline("insmod /tmp/softlockup.ko")
         done = False
         boot_type = BootType.NORMAL
         rc = -1
@@ -1323,6 +1325,29 @@ class KernelCrash_FadumpNocma(PowerNVDump):
             if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
 
+class KernelCrash_KdumpSoftlockup(PowerNVDump):
+
+    '''
+    This test verifies kdump/fadump after inserting softlockup kernel module.
+    '''
+
+    def runTest(self):
+        self.setup_test()
+        # Make sure softlockup related file does not exist
+        self.c.run_command("cd /tmp; ls -1; rm -rf soft* Makefile", timeout=60)
+
+        #copy the source files from test_binaries to /tmp
+        self.cv_HOST.copy_test_file_to_host("softlockup.c")
+        self.cv_HOST.copy_test_file_to_host("Makefile")
+       
+        #compile source files to get kernel modules
+        self.c.run_command("cd /tmp; make", timeout=60)
+        
+        #Enable softlockup
+        self.c.run_command("sysctl -w kernel.softlockup_panic=1")
+
+        boot_type = self.kernel_crash(crash_type="softlockup")
+        self.verify_dump_file(boot_type)
 
 def crash_suite():
     s = unittest.TestSuite()
@@ -1354,5 +1379,6 @@ def crash_suite():
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
+    s.addTest(KernelCrash_KdumpSoftlockup())
 
     return s
