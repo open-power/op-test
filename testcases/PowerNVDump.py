@@ -664,6 +664,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         if not self.is_lpar:
             self.verify_dump_dt_node(boot_type)
         self.verify_dump_file(boot_type)
+        self.c.close()
 
 
 class KernelCrash_OnlyKdumpEnable(PowerNVDump):
@@ -698,11 +699,13 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
+        log.info("=============== Testing Only kdump enable followed by crash ===============")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         if self.is_lpar:
             boot_type = self.kernel_crash(crash_type="hmc")
             self.verify_dump_file(boot_type)
+        self.c.close()
 
 
 class KernelCrash_DisableAll(PowerNVDump):
@@ -828,6 +831,7 @@ class KernelCrash_KdumpSSH(PowerNVDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type, dump_place="net")
         self.setup_test("net")
+        self.c.close()
 
 class KernelCrash_KdumpNFS(PowerNVDump):
     '''
@@ -893,6 +897,7 @@ class KernelCrash_KdumpNFS(PowerNVDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type, dump_place="net")
         self.setup_test("net")
+        self.c.close()
 
 
 class KernelCrash_KdumpSAN(PowerNVDump):
@@ -940,6 +945,7 @@ class KernelCrash_KdumpSAN(PowerNVDump):
         if self.filesystem:
             self.c.run_command("sed -i '/\/var\/crash %s/d' /etc/fstab; sync" % self.filesystem)
 
+        self.c.close()
 
 class KernelCrash_KdumpSMT(PowerNVDump):
     '''
@@ -976,6 +982,7 @@ class KernelCrash_KdumpSMT(PowerNVDump):
                 log.info("=============== Testing kdump/fadump with smt=%s and dumprestart from HMC ===============" % i)
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
+        self.c.close()
 
 class KernelCrash_KdumpDLPAR(PowerNVDump, testcases.OpTestDlpar.OpTestDlpar):
 
@@ -1037,6 +1044,7 @@ class KernelCrash_KdumpWorkLoad(PowerNVDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         self.c.run_command("rm -rf /tmp/ebizzy*")
+        self.c.close()
 
 class KernelCrash_hugepage_checks(PowerNVDump):
     '''
@@ -1044,40 +1052,68 @@ class KernelCrash_hugepage_checks(PowerNVDump):
     '''
 
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("=============== Testing kdump/fadump with default hugepage size ===============")
-        hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
-        log.info("Hugepage size is {} kB".format(hugepage_size))
+
+        hugepage_size_org = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+        log.info("Hugepage size is {} kB".format(hugepage_size_org))
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
         log.info("After dump/restart, Hugepage size is {} kB".format(hugepage_size))
-        if hugepage_size != '2048' :
-            raise OpTestError("Failed to set  default hugepage size 2MB")
+        if hugepage_size != hugepage_size_org :
+            raise OpTestError("Failed to set  default hugepage size {}".format(hugepage_size))
         else:
             log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
 
+        log.info("Hugepage size is {} kB".format(hugepage_size))
         mmu = self.c.run_command("awk '$1 == \"MMU\" {print $3}' /proc/cpuinfo")[0]
         log.debug(" MMU '{}'".format(mmu))
+        exist_cfg = self.cv_HMC.get_lpar_cfg()
         if mmu == "Radix":
-            log.info("=============== Testing kdump/fadump with 1GB hugepage size ===============")
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
-            self.setup_test()
+            remove = False
+            if hugepage_size == "2048":
+                default = True
+                hugepage_args = "default_hugepagesz=1GB hugepagesz=1GB hugepages=20"
+            elif hugepage_size == "1048576":
+                remove = True
+                hugepage_args = "default_hugepagesz=1GB hugepagesz=1GB hugepages=20"
             obj = OpTestInstallUtil.InstallUtil()
-            if not obj.update_kernel_cmdline(self.distro, args="default_hugepagesz=1GB hugepagesz=1GB hugepages=80",
-                                             reboot=True, reboot_cmd=True):
-                self.fail("KernelArgTest failed to update kernel args")
+            if remove:
+                if not obj.update_kernel_cmdline(self.distro, remove_args=hugepage_args,
+                                                 reboot=True, reboot_cmd=True):
+                    self.fail("KernelArgTest failed to update kernel args")
+            else:
+                if not obj.update_kernel_cmdline(self.distro, args=hugepage_args,
+                                                 reboot=True, reboot_cmd=True):
+                    self.fail("KernelArgTest failed to update kernel args")
+
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            hugepage_size_org = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
             boot_type = self.kernel_crash()
             self.verify_dump_file(boot_type)
+
             hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
             log.info("After dump/restart , Hugepage size set is {}".format(hugepage_size))
-            if hugepage_size != '1048576' :
-                raise OpTestError("Failed to set hugepage size to 1GB")
+            if hugepage_size != hugepage_size_org :
+                raise OpTestError("Failed to set hugepage sizei {}".format(hugepage_size))
             else:
                 log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
+
+            obj = OpTestInstallUtil.InstallUtil()
+            if hugepage_size == "1048576":
+                if default:
+                    if not obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
+                                                     reboot=True, reboot_cmd=True):
+                        self.fail("KernelArgTest failed to update kernel args")
+                else:
+                    if not obj.update_kernel_cmdline(self.distro, args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
+                                                     reboot=True, reboot_cmd=True):
+                        self.fail("KernelArgTest failed to update kernel args")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c.close()
 
 class KernelCrash_XIVE_off(PowerNVDump):
     '''
@@ -1086,10 +1122,8 @@ class KernelCrash_XIVE_off(PowerNVDump):
     '''
 
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("=============== Testing kdump/fadump with xive=off ===============")
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         obj = OpTestInstallUtil.InstallUtil()
         if not obj.update_kernel_cmdline(self.distro, args="xive=off",
                                          reboot=True, reboot_cmd=True):
@@ -1109,7 +1143,7 @@ class KernelCrash_XIVE_off(PowerNVDump):
             self.setup_test()
             self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
             self.c.run_command("ppc64_cpu --smt")
-            log.info("Testing kdump/fadump with smt=%s and dumprestart from HMC" % i)
+            log.info("Testing kdump/fadump with xive-off smt=%s and dumprestart from HMC" % i)
             boot_type = self.kernel_crash(crash_type="hmc")
             self.verify_dump_file(boot_type)
 
@@ -1122,19 +1156,21 @@ class KernelCrash_XIVE_off(PowerNVDump):
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
 
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c.close()
+
 class KernelCrash_disable_radix(PowerNVDump):
     '''
     This test checks kdump/fadump with kernel parameter option disable_radix
     '''
 
     def runTest(self):
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("Testing kdump/fadump with disable_radix")
         mmu = self.c.run_command("awk '$1 == \"MMU\" {print $3}' /proc/cpuinfo")[0]
         log.debug(" MMU '{}'".format(mmu))
         if mmu == "Radix":
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
             obj = OpTestInstallUtil.InstallUtil()
             if not obj.update_kernel_cmdline(self.distro, args="disable_radix",
                                              reboot=True, reboot_cmd=True):
@@ -1148,12 +1184,12 @@ class KernelCrash_disable_radix(PowerNVDump):
                 log.info("The kernel parameter was set to {}".format(kernel_boottime_arg))
             boot_type = self.kernel_crash()
             self.verify_dump_file(boot_type)
-            log.info("Test Kdump with xive=off along with different SMT levels")
+            log.info("Test Kdump with disable_radix along with different SMT levels")
             for i in ["off", "2", "4", "on"]:
                 self.setup_test()
                 self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
                 self.c.run_command("ppc64_cpu --smt")
-                log.info("Testing kdump/fadump with smt=%s and dumprestart from HMC" % i)
+                log.info("Testing kdump/fadump with disable-radix smt=%s and dumprestart from HMC" % i)
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
@@ -1167,6 +1203,9 @@ class KernelCrash_disable_radix(PowerNVDump):
                 self.fail("KernelArgTest failed to update kernel args")
         else:
             raise self.skipTest("Hash MMU detected, skipping the test")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c.close()
 
 class OpTestMakedump(PowerNVDump):
     '''
@@ -1183,7 +1222,7 @@ class OpTestMakedump(PowerNVDump):
 
     def makedump_check(self):
         '''
-        Function will verify all makdump options on already colleted vmcore
+        Function will verify all makedump options on already colleted vmcore
         '''
         res = self.c.run_command("ls -1 /var/crash/")
         crash_dir = self.c.run_command("cd /var/crash/%s" % res[0])
@@ -1236,6 +1275,7 @@ class OpTestMakedump(PowerNVDump):
     def runTest(self):
         self.kernel_crash()
         self.makedump_check()
+        self.c.close()
 
 
 class KernelCrash_KdumpPMEM(PowerNVDump):
@@ -1300,7 +1340,7 @@ class KernelCrash_KdumpPMEM(PowerNVDump):
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
         self.verify_dump_file(boot_type)
-
+        self.c.close()
 
 class KernelCrash_FadumpNocma(PowerNVDump):
 

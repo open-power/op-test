@@ -421,12 +421,11 @@ class InstallUtil():
         req_args, req_remove_args = self.check_kernel_cmdline(args,
                                                               remove_args)
         try:
-            con.run_command("grubby --help", timeout=60)
             cmd = 'grubby --update-kernel=`grubby --default-kernel` '
             if req_args:
-                cmd += '--args="%s" ' % req_args
+                cmd += '--args="%s"; sleep 30' % req_args
             if req_remove_args:
-                cmd += '--remove-args="%s"' % req_remove_args
+                cmd += '--remove-args="%s"; sleep 30' % req_remove_args
             try:
                 con.run_command(cmd)
             except CommandFailed as Err:
