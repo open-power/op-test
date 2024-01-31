@@ -298,6 +298,7 @@ class PowerNVDump(unittest.TestCase):
             self.c.run_command("dmesg > /tmp/dmesg_log")
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
         self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+        self.c.run_command("cat /sys/kernel/fadump_registered")
 
         # Verify OPAL msglog to confirm whether registration passed or not
         if not self.is_lpar:
