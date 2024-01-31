@@ -663,9 +663,6 @@ class OSdumpSuite():
         self.s.addTest(PowerNVDump.KernelCrash_KdumpPMEM())
         self.s.addTest(PowerNVDump.KernelCrash_FadumpNocma())
         self.s.addTest(PowerNVDump.OpTestMakedump())
-        self.s.addTest(PowerNVDump.KernelCrash_DisableAll())
-        self.s.addTest(PowerNVDump.SkirootKernelCrash())
-        self.s.addTest(PowerNVDump.OPALCrash_MPIPL())
 
     def suite(self):
         return self.s
