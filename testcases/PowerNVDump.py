@@ -292,13 +292,14 @@ class PowerNVDump(unittest.TestCase):
         '''
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
         if int(res) == 1:
-            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
+            return True 
+        else:
+            self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+            self.c.run_command("cat /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
             self.c.run_command("dmesg > /tmp/dmesg_log")
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
-        self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
-        self.c.run_command("cat /sys/kernel/fadump_registered")
 
         # Verify OPAL msglog to confirm whether registration passed or not
         if not self.is_lpar:
@@ -326,7 +327,9 @@ class PowerNVDump(unittest.TestCase):
         '''
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
         if int(res) == 0:
-            self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+            return True 
+        else:
+            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
