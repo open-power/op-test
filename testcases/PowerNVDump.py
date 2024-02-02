@@ -292,12 +292,14 @@ class PowerNVDump(unittest.TestCase):
         '''
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
         if int(res) == 1:
-            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
+            return True 
+        else:
+            self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+            self.c.run_command("cat /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
             self.c.run_command("dmesg > /tmp/dmesg_log")
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
-        self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
 
         # Verify OPAL msglog to confirm whether registration passed or not
         if not self.is_lpar:
@@ -325,7 +327,9 @@ class PowerNVDump(unittest.TestCase):
         '''
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
         if int(res) == 0:
-            self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+            return True 
+        else:
+            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
@@ -660,6 +664,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
         log.debug("======================fadump is supported=======================")
+        log.info("========== Testing Fadump enable followed by crash ==============")
         boot_type = self.kernel_crash()
         if not self.is_lpar:
             self.verify_dump_dt_node(boot_type)
@@ -673,13 +678,26 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
 
     def runTest(self):
         self.setup_test()
-        if not self.is_lpar:
-            if self.is_fadump_supported():
-                raise self.skipTest("fadump is enabled, please disable(remove fadump=on \
-                                   kernel parameter and re-try")
+
         if self.is_fadump_param_enabled():
-            raise self.skipTest(
-                "fadump=on added in kernel param, please remove and re-try")
+            log.info("fadump is enabled. Next, remove fadump=on")
+            if self.distro == "rhel":
+                obj = OpTestInstallUtil.InstallUtil()
+                if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=on",
+                                                 reboot=True, reboot_cmd=True):
+                    self.fail("KernelArgTest failed to update kernel args")
+            elif self.distro == "sles":
+                self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
+                self.c.run_command("sed -i '/KDUMP_FADUMP=\"yes\"/c\KDUMP_FADUMP=\"no\"' /etc/sysconfig/kdump")
+                self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
+                self.c.run_command("mkdumprd -f", timeout=120)
+                self.c.run_command("update-bootloader --refresh")
+                self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
+                                   "update-bootloader --refresh", timeout=240)
+                time.sleep(5)
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         if self.distro == "ubuntu":
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
@@ -698,11 +716,11 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
+        log.info("========= Testing Only kdump enable followed by crash ===========")
         boot_type = self.kernel_crash()
-        self.verify_dump_file(boot_type)
         if self.is_lpar:
             boot_type = self.kernel_crash(crash_type="hmc")
-            self.verify_dump_file(boot_type)
+        self.verify_dump_file(boot_type)
 
 
 class KernelCrash_DisableAll(PowerNVDump):
@@ -1078,6 +1096,11 @@ class KernelCrash_hugepage_checks(PowerNVDump):
                 raise OpTestError("Failed to set hugepage size to 1GB")
             else:
                 log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
+                                         reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+
 
 class KernelCrash_XIVE_off(PowerNVDump):
     '''
