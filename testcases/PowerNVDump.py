@@ -1052,6 +1052,7 @@ class KernelCrash_KdumpWorkLoad(PowerNVDump):
         time.sleep(50)
         self.c.run_command("ps -ef|grep ebizzy")
         self.c.run_command("free -h")
+        log.info("=============== Testing kdump/fadump with ebizzy workload ======================")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         self.c.run_command("rm -rf /tmp/ebizzy*")
@@ -1100,7 +1101,8 @@ class KernelCrash_hugepage_checks(PowerNVDump):
         if not obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
-
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class KernelCrash_XIVE_off(PowerNVDump):
     '''
@@ -1127,12 +1129,12 @@ class KernelCrash_XIVE_off(PowerNVDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
 
-        log.info("Test Kdump with xive=off along with different SMT levels")
+        log.info("Test Kdump/fadump xive=off with different SMT levels")
         for i in ["off", "2", "4", "on"]:
             self.setup_test()
             self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
             self.c.run_command("ppc64_cpu --smt")
-            log.info("Testing kdump/fadump with smt=%s and dumprestart from HMC" % i)
+            log.info("Testing kdump/fadump xive=off with smt=%s and dumprestart from HMC" % i)
             boot_type = self.kernel_crash(crash_type="hmc")
             self.verify_dump_file(boot_type)
 
@@ -1144,6 +1146,8 @@ class KernelCrash_XIVE_off(PowerNVDump):
         if not obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class KernelCrash_disable_radix(PowerNVDump):
     '''
@@ -1171,12 +1175,12 @@ class KernelCrash_disable_radix(PowerNVDump):
                 log.info("The kernel parameter was set to {}".format(kernel_boottime_arg))
             boot_type = self.kernel_crash()
             self.verify_dump_file(boot_type)
-            log.info("Test Kdump with xive=off along with different SMT levels")
+            log.info("Test Kdump/fadump disable_radix with different SMT levels")
             for i in ["off", "2", "4", "on"]:
                 self.setup_test()
                 self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
                 self.c.run_command("ppc64_cpu --smt")
-                log.info("Testing kdump/fadump with smt=%s and dumprestart from HMC" % i)
+                log.info("Testing kdump/fadump disable_radix with smt=%s and dumprestart from HMC" % i)
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
@@ -1188,6 +1192,8 @@ class KernelCrash_disable_radix(PowerNVDump):
             if not obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         else:
             raise self.skipTest("Hash MMU detected, skipping the test")
 
@@ -1339,13 +1345,12 @@ class KernelCrash_FadumpNocma(PowerNVDump):
         log.info("=============== Testing fadump with nocma ===============")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
-        if self.distro == "rhel":
-            if not obj.update_kernel_cmdline(self.distro, args="fadump=on", reboot=True, reboot_cmd=True):
-                self.fail("KernelArgTest failed to update kernel args")
-        if self.distro == "sles":
-            if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
-                self.fail("KernelArgTest failed to update kernel args")
 
+        if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 def crash_suite():
     s = unittest.TestSuite()
