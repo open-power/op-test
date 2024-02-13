@@ -326,6 +326,8 @@ def get_parser():
         'git repo', 'Git repository details for upstream kernel install/boot')
     gitgroup.add_argument(
         "--git-repo", help="Kernel git repository", default=None)
+    gitgroup.add_argument(
+        "--git-repo-reference", help="Kernel git repository reference for fast cloning", default=None)    
     gitgroup.add_argument("--git-repoconfigpath",
                           help="Kernel config file to be used", default=None)
     gitgroup.add_argument(
@@ -342,6 +344,14 @@ def get_parser():
                           help="Append kernel commandline while booting with kexec", default=None)
     gitgroup.add_argument(
         "--use-reboot", help="Use reboot command replacing a hard power off/on", action='store_true', default=False)
+    gitgroup.add_argument("--bad-commit",
+                          help="first identified bad commit version in the git tree", default=None)
+    gitgroup.add_argument("--good-commit",
+                          help="last identified good commit version in the git tree", default=None)
+    gitgroup.add_argument("--bisect-script",
+                          help="bisect test script that classifies the commit as good or bad", default=None)
+    gitgroup.add_argument("--bisect-category",
+                          help="bisect category (build, test)", default=None)
 
     imagegroup = parser.add_argument_group(
         'Images', 'Firmware LIDs/images to flash')
