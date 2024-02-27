@@ -110,7 +110,11 @@ class LcovGatherData(LcovSetup):
         gcov_src_path = os.path.join(gcov_path, gcov_src)
         info_file_path = '/home/test.info'
         self.cv_HOST.host_run_command(f"touch /home/test.info")
-        info_cmd = f'lcov -o {info_file_path} -c -f -d {gcov_src_path} -b  {src_path} --keep-going' 
+        #TO-DO,
+        #below was earlier command,
+        #info_cmd = f'lcov -o {info_file_path} -c -f -d {gcov_src_path} -b {src_path} --keep-going
+        #below is the new command as work around and we need to get this with appropriate fix
+        info_cmd = f'lcov -o {info_file_path} -c -f -d {gcov_src_path} -b {src_path} --ignore-errors inconsistent,negative,mismatch' 
         self.c.run_command(info_cmd, timeout=self.host_cmd_timeout)
         html_cmd = f'genhtml -o {temp_dir} {info_file_path}'
         self.c.run_command(html_cmd, timeout=self.host_cmd_timeout)
