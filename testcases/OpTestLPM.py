@@ -230,7 +230,7 @@ class OpTestLPM(unittest.TestCase):
                        'blk_update_request: I/O error',
                        'device-mapper: multipath']
 
-        err = self.util.collect_errors_by_level(output_dir=output_dir, skip_errors=skip_errors, warn_errors=warn_errors)
+        err = self.util.collect_errors_by_level(output_dir=output_dir, level_check=4, skip_errors=skip_errors, warn_errors=warn_errors)
         return err
 
     def is_RMCActive(self, mg_system, remote_hmc=None):
