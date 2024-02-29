@@ -472,7 +472,7 @@ class OpTestConfiguration():
         self.cronus = OpTestCronus(self)
         self.args = []
         self.remaining_args = []
-        self.basedir = os.path.dirname(sys.argv[0])
+        self.basedir = os.path.abspath(os.path.dirname(__file__))
         self.signal_ready = False  # indicator for properly initialized
         self.atexit_ready = False  # indicator for properly initialized
         self.aes_print_helpers = True  # Need state for locker_wait
