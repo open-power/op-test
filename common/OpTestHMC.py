@@ -579,6 +579,24 @@ class HMCUtil():
         return self.run_command("lshwres -r mem -m %s --level sys -F configurable_num_sys_huge_pages" %
                                 self.mg_system)
 
+    def get_available_mem_resources(self):
+        '''
+        Get the available memory from CEC
+        
+        :returns: Available memory
+        '''
+        return self.run_command("lshwres -m %s -r mem --level sys -F curr_avail_sys_mem" %
+                                self.mg_system)
+
+    def get_available_proc_resources(self):
+        '''
+        Get the available CPU count from CEC
+
+        :returns: Available CPU count
+        '''
+        return self.run_command("lshwres -m %s -r proc --level sys -F curr_avail_sys_proc_units" %
+                                self.mg_system)
+
     def get_lpar_state(self, vios=False, remote_hmc=None):
         '''
         Get current state of LPAR
