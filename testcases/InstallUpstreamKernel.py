@@ -115,26 +115,33 @@ class InstallUpstreamKernel(unittest.TestCase):
                         self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
             # Capture kernel version & release
-            res = con.run_command("make kernelrelease")
+            ker_ver = con.run_command("make kernelrelease")
             sha = con.run_command("git rev-parse HEAD")
             tcommit = con.run_command("export 'TERM=xterm-256color';git show -s --format=%ci")
             tcommit = re.sub(r"\x1b\[[0-9;]*[mGKHF]", "", tcommit[1])
-            log.info("Upstream kernel version: %s", res[-1])
+            log.info("Upstream kernel version: %s", ker_ver[-1])
             log.info("Upstream kernel commit-id: %s", sha[-1])
             log.info("Upstream kernel commit-time: %s", tcommit)
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
-            time.sleep(10)
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
-                con.run_command(
-                    "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
+                con.run_command("grubby --set-default /boot/vmlinuz-%s" % ker_ver[-1])
                 log.debug("Rebooting after kernel install...")
                 self.console_thread.console_terminate()
+                self.prompt = self.cv_SYSTEM.util.build_prompt()
+                self.console_thread.console_terminate()
                 con.close()
-                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-                self.cv_SYSTEM.goto_state(OpSystemState.OS)
+                for i in range(5):
+                    raw_pty = self.wait_for(self.cv_SYSTEM.console.get_console, timeout=20)
+                    time.sleep(10)
+                    if raw_pty is not None:
+                        raw_pty.sendline("uname -r")
+                        break
+                raw_pty.sendline("reboot")
+                raw_pty.expect("login:", timeout=600)
+                raw_pty.close()
             else:
                 self.console_thread.console_terminate()
                 cmdline = con.run_command("cat /proc/cmdline")[-1]
@@ -174,6 +181,8 @@ class InstallUpstreamKernel(unittest.TestCase):
             con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
             res = con.run_command("uname -r")
             log.info("Installed upstream kernel version: %s", res[-1])
+            if ker_ver[-1] != res[-1]:
+                self.fail("Upstream kernel did not boot")
             if self.conf.args.host_cmd:
                 con.run_command(self.conf.args.host_cmd,
                                 timeout=self.host_cmd_timeout)
@@ -182,3 +191,24 @@ class InstallUpstreamKernel(unittest.TestCase):
         finally:
             if self.console_thread.isAlive():
                 self.console_thread.console_terminate()
+
+    def wait_for(self, func, timeout, first=0.0, step=1.0, text=None, args=None, kwargs=None):
+        args = args or []
+        kwargs = kwargs or {}
+
+        start_time = time.monotonic()
+        end_time = start_time + timeout
+
+        time.sleep(first)
+
+        while time.monotonic() < end_time:
+            if text:
+                LOG.debug("%s (%.9f secs)", text, (time.monotonic() - start_time))
+
+            output = func(*args, **kwargs)
+            if output:
+                return output
+
+            time.sleep(step)
+
+        return None
