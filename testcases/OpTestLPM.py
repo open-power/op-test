@@ -103,10 +103,12 @@ class OpTestLPM(unittest.TestCase):
             self.dest_lpar_vios = self.conf.args.remote_lpar_vios.split(",")
             for vios_name in self.src_lpar_vios:
                 if not self.cv_HMC.is_msp_enabled(self.src_mg_sys, vios_name):
-                    self.errMsg(vios_name, self.src_mg_sys)
+                    log.info("MSP is not set, trying to set MSP..!")
+                    self.cv_HMC.enable_msp(self.src_mg_sys, vios_name)
             for vios_name in self.dest_lpar_vios:
                 if not self.cv_HMC.is_msp_enabled(self.dest_mg_sys, vios_name, remote_hmc):
-                    self.errMsg(vios_name, self.dest_mg_sys)
+                    log.info("MSP is not set in destination machine, trying to set MSP..!")
+                    self.cv_HMC.enable_msp(self.dest_mg_sys, vios_name)
 
         if 'slot_num' in self.conf.args:
             self.slot_num = self.conf.args.slot_num
@@ -120,6 +122,7 @@ class OpTestLPM(unittest.TestCase):
             self.interface_ip = self.conf.args.interface_ip
             self.netmask = self.conf.args.netmask
             self.peer_ip = self.conf.args.peer_ip
+            self.adapter_labels = self.conf.args.adapter_labels.split(",")
 
             self.vios_id = []
             for vios_name in self.src_lpar_vios:
@@ -133,6 +136,12 @@ class OpTestLPM(unittest.TestCase):
             self.target_adapter_id = []
             for adapter in self.target_adapters:
                 self.target_adapter_id.append(self.cv_HMC.get_adapter_id(self.dest_mg_sys, adapter, remote_hmc))
+
+        for index in range(0, len(self.adapter_labels)):
+            for port in self.ports:
+                self.cv_HMC.set_label(self.src_mg_sys, self.adapter_id[index], self.ports[index], self.adapter_labels[index])
+            for port in self.target_ports:
+                self.cv_HMC.set_label(self.dest_mg_sys, self.target_adapter_id[index], self.ports[index], self.adapter_labels[index])
 
     def check_pkg_installation(self):
         pkg_found = True
@@ -386,6 +395,11 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             self.cv_HOST.host_run_command('pkill -x "stress-ng"')
             self.thread_stressng.console_terminate()
 
+        for index in range(0, len(self.adapter_labels)):
+            for port in self.ports:
+                self.cv_HMC.remove_label(self.src_mg_sys, self.adapter_id[index], self.ports[index])
+            for port in self.target_ports:
+                self.cv_HMC.remove_label(self.dest_mg_sys, self.target_adapter_id[index], self.ports[index])
 
 class OpTestLPM_CrossHMC(OpTestLPM):
 
