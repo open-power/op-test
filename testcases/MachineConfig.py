@@ -252,6 +252,7 @@ class LparConfig():
                         self.vtpm_encryption = "Power10v1"
                 elif proc_compat_mode[0] in ["POWER9_base", "POWER9", "POWER8"]:
                     self.vtpm_version = 1.2
+                    self.vtpm_encryption = None
                 else:
                     log.info("Unknown processor compact mode")
                 self.cv_HMC.enable_vtpm(self.vtpm_version, self.vtpm_encryption)

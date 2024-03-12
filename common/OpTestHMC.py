@@ -439,7 +439,7 @@ class HMCUtil():
                         (self.mg_system, self.lpar_name))
         time.sleep(5)
 
-    def enable_vtpm(self, vtpm_version, vtpm_encryption):
+    def enable_vtpm(self, vtpm_version, vtpm_encryption=None):
         '''
         Enables vtpm mode.
 
