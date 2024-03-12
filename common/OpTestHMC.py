@@ -884,7 +884,7 @@ class HMCUtil():
         '''
         return self.ssh.run_command_ignore_fail(command, timeout*self.timeout_factor, retry)
 
-    def run_command(self, i_cmd, timeout=15):
+    def run_command(self, i_cmd, timeout=60):
         '''
         Wrapper function for `ssh.run_command`
 
