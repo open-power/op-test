@@ -227,7 +227,7 @@ class LparConfig():
                 self.desired_proc_units = "2"
             try: self.max_proc_units = conf.args.max_proc_units
             except AttributeError:
-                self.max_proc_units = "2"
+                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[0]))
             proc_mode = 'ded'
             curr_proc_mode = self.cv_HMC.get_proc_mode()
             if proc_mode in curr_proc_mode:
