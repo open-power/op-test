@@ -318,9 +318,7 @@ class LparConfig():
         if self.sb_enable is not None :
             self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
         
-        self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
-                               (self.system_name, self.lpar_name, self.lpar_prof))
-        time.sleep(5)
+        self.cv_HMC.poweron_lpar()
         curr_proc_mode = self.cv_HMC.get_proc_mode()
         if proc_mode:
             if proc_mode in curr_proc_mode:
