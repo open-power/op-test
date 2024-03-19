@@ -21,14 +21,11 @@
 import json
 import os
 import uuid
-from datetime import datetime
 import re
 import unittest
 import os
 from urllib.parse import urlparse
-from enum import Enum
 import subprocess
-import smtplib
 from email.mime.text import MIMEText
 import OpTestConfiguration
 import OpTestLogger
@@ -82,7 +79,6 @@ class Buil_bisector(unittest.TestCase):
             print("result",result,"result")
             email = result[0]
             print("email: ",email)
-
             return email
         except subprocess.CalledProcessError as e:
             print("ERROR",e)
@@ -112,6 +108,3 @@ class Buil_bisector(unittest.TestCase):
         log.info("email  ")
         log.info(email)  
         return email , badCommit
-             
-        
-        
