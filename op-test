@@ -109,6 +109,7 @@ from testcases import OpTestGSBStaticKey
 from testcases import GcovSetup
 from testcases import Lcov
 from testcases import BisectKernel
+from testcases import OpTestHtxBootme
 import OpTestConfiguration
 import sys
 import time
