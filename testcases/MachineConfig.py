@@ -196,14 +196,9 @@ class LparConfig():
             except AttributeError:
                 self.overcommit_ratio = 1
             proc_mode = 'shared'
-            curr_proc_mode = self.cv_HMC.get_proc_mode()
-            if proc_mode in curr_proc_mode:
-                log.info("System is already booted in shared mode.")
-            else:
-                self.cv_HMC.profile_bckup()
-                self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
-                                             self.desired_proc_units, self.max_proc_units, self.overcommit_ratio)
-
+            self.cv_HMC.profile_bckup()
+            self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
+                                         self.desired_proc_units, self.max_proc_units, self.overcommit_ratio)
         '''
         If cpu=dedicated is passed in machine_config lpar proc mode changes to dedicated mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
@@ -238,13 +233,10 @@ class LparConfig():
             except AttributeError:
                 self.max_memory = self.cv_HMC.get_available_mem_resources()[0]
             proc_mode = 'ded'
-            curr_proc_mode = self.cv_HMC.get_proc_mode()
-            if proc_mode in curr_proc_mode:
-                log.info("System is already booted in dedicated mode.")
-            else:
-                self.cv_HMC.profile_bckup()
-                self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
-                                             self.desired_proc_units, self.max_proc_units)
+            self.cv_HMC.profile_bckup()
+            self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
+                                         self.desired_proc_units, self.max_proc_units,
+                                         self.min_memory, self.desired_memory, self.max_memory)
 
         if "vtpm=1" in self.machine_config:
             conf = OpTestConfiguration.conf
