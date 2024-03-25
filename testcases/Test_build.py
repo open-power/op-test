@@ -105,7 +105,7 @@ class Test_build(unittest.TestCase):
             self.branch='master' 
         self.connection.run_command("git clone --depth 1 {} -b {}".format(self.repo, self.branch))
         self.connection.run_command("cd linux")
-        commit = self.connection.run_command("export 'TERM=xterm-256color';git log -1 --format=%H")
+        commit = self.connection.run_command("export 'TERM=xterm-256color';git log -1 --format=%H | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
         log.info(commit)
         self.connection.run_command("cd ..")
         self.connection.run_command("wget http://ltc-jenkins.aus.stglabs.ibm.com:81/abdul/ioci/kernel_config -o linux/.config")
