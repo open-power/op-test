@@ -106,6 +106,7 @@ class Test_build(unittest.TestCase):
         self.connection.run_command("git clone --depth 1 {} -b {}".format(self.repo, self.branch))
         self.connection.run_command("cd linux")
         commit = self.connection.run_command("export 'TERM=xterm-256color';git log -1 --format=%H")
+        log.info(commit)
         self.connection.run_command("cd ..")
         self.connection.run_command("wget http://ltc-jenkins.aus.stglabs.ibm.com:81/abdul/ioci/kernel_config -o linux/.config")
         self.connection.run_command("cd linux && make olddefconfig")
@@ -127,6 +128,7 @@ class Test_build(unittest.TestCase):
         else : 
              email1=""
              commiti=commit[-1]
+             log.info(commiti)
         with open('output.json','w') as f:
              json.dump({"exit_code":exit_code,"email":email1,"commit": commiti,"error":entry},f)
         return exit_code
