@@ -132,7 +132,7 @@ class OpTestKexec(unittest.TestCase):
         self.os_level_secureboot = sb_utilities.check_os_level_secureboot_state()
 
     def get_kexec_load_cmd(self, load_opt=True, copy_cmdline=True,
-                           file_load=False, add_arg=None):
+                           syscall_load=False, file_load=False, add_arg=None):
         """
         Generates a kexec command for loading a kernel image with various
         optional arguments.
@@ -158,6 +158,9 @@ class OpTestKexec(unittest.TestCase):
 
         if file_load:
             kexec_cmd = kexec_cmd + " -s"
+
+        if syscall_load:
+            kexec_cmd = kexec_cmd + " -c"
 
         if copy_cmdline:
             kexec_cmd = kexec_cmd + " --append=\"`cat /proc/cmdline`\""
@@ -354,6 +357,55 @@ class OpTestKexec(unittest.TestCase):
         ret = self.execute_kexec_cmd(kexec_exec_cmd, raw_pty_console=True)
         self.assertTrue(ret, "kexec exec failed: " + kexec_exec_cmd)
 
+    def test_file_load_and_exec(self):
+        """
+        Test kexec functionality by loading with kexec-file-syscall and exec
+        into kexec kernel.
+
+        First load the kexec kernel using -s, -l and --append(command line
+        arguments of currently running kenrel form /proc/cmdline) option.
+        Then exec into kexec kernel.
+
+        Test passes if both the kexec load and the execution into the
+        kexec kernel go fine; otherwise, it fails."
+        """
+
+        kexec_load_cmd = self.get_kexec_load_cmd(file_load=True)
+        ret = self.load_kexec_kernel(kexec_load_cmd)
+        self.assertTrue(ret, "Kexec load failed")
+
+        kexec_exec_cmd = self.get_kexec_exec_command(exec_opt=True)
+        ret = self.execute_kexec_cmd(kexec_exec_cmd, raw_pty_console=True)
+        self.assertTrue(ret, "kexec exec failed: " + kexec_exec_cmd)
+
+    def test_syscall_load_and_exec(self):
+        """
+        Test kexec functionality by loading with kexec-syscall and exec
+        into kexec kernel.
+
+        First load the kexec kernel using -c, -l and --append(command line
+        arguments of currently running kenrel form /proc/cmdline) option.
+        Then exec into kexec kernel.
+
+        Test passes if both the kexec load and the execution into the
+        kexec kernel go fine; otherwise, it fails."
+        """
+
+        kexec_load_cmd = self.get_kexec_load_cmd(syscall_load=True)
+        ret = self.load_kexec_kernel(kexec_load_cmd)
+        if self.os_level_secureboot:
+            self.assertFalse(ret, "Kexec load pass, with -c option")
+        else:
+            self.assertTrue(ret, "Kexec load failed, with -c option")
+
+        kexec_exec_cmd = self.get_kexec_exec_command(exec_opt=True)
+        if self.os_level_secureboot:
+            ret = self.execute_kexec_cmd(kexec_exec_cmd)
+            self.assertFalse(ret, "Kexec exec pass, with -c option")
+        else:
+            ret = self.execute_kexec_cmd(kexec_exec_cmd, raw_pty_console=True)
+            self.assertTrue(ret, "Kexec exec failed, with -c option")
+
     def test_kexec_force(self):
         """
         Test kexec load and exec into kexec kernel using --force (-f) option.
@@ -406,5 +458,7 @@ def kexec_suite():
     suite.addTest(OpTestKexec('test_load_and_exec'))
     suite.addTest(OpTestKexec('test_kexec_force'))
     suite.addTest(OpTestKexec('test_kexec_single_step'))
+    suite.addTest(OpTestKexec('test_file_load_and_exec'))
+    suite.addTest(OpTestKexec('test_syscall_load_and_exec'))
     suite.addTest(OpTestKexec('test_kexec_in_loop'))
     return suite
