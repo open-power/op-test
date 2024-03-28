@@ -460,7 +460,10 @@ def get_parser():
                             help="Don't exit if we find unknown command line arguments")
     misc_group.add_argument("--secvar-payload-url",
                             help="Specify a URL for the secvar test data payload")
-
+    misc_group.add_argument("--email", action='store_true', default=None,
+                            help="your email to send mail")
+    misc_group.add_argument("--email_pswrd", action='store_true', default=None,
+                            help="password of your email id")
     return parser
 
 
