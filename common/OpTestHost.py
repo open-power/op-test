@@ -976,6 +976,21 @@ class OpTestHost():
             l_msg = "Executable file %s/%s is not present" % (i_dir, i_file)
             log.debug(l_msg)
             return False
+    def host_check_module_loaded(self, i_module):
+        ''''
+        Function to check kernel module is loaded.
+
+        :params i_module: Name of kernel module
+        :return: True when loaded, else False.
+        :rtype: boolean.
+        '''
+        with open('/proc/modules', 'r') as modules_file:
+            for line in modules_file:
+                module_info = line.split()
+                if module_info[0] == i_module:
+                    return True
+                return False
+
 
 
 class OpTestLPAR(OpTestHost):
