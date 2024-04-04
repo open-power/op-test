@@ -412,10 +412,11 @@ class HMCUtil():
         '''
         if proc_mode == 'shared':
             self.set_lpar_cfg("proc_mode=shared,sharing_mode=%s,min_proc_units=%s,max_proc_units=%s,"
-                              "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s" %
+                              "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s,"
+                              "min_mem=%s,desired_mem=%s,max_mem=%s" %
                               (sharing_mode, min_proc_units, max_proc_units, desired_proc_units,
                                overcommit_ratio*int(min_proc_units), overcommit_ratio*int(desired_proc_units),
-                               overcommit_ratio*int(max_proc_units)))
+                               3*int(max_proc_units),min_memory, desired_memory, max_memory))
         elif proc_mode == 'ded':
             self.set_lpar_cfg("proc_mode=ded,sharing_mode=%s,min_procs=%s,max_procs=%s,desired_procs=%s,"
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %

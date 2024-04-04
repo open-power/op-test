@@ -189,16 +189,26 @@ class LparConfig():
             try: self.desired_proc_units = float(conf.args.desired_proc_units)
             except AttributeError:
                 self.desired_proc_units = 2.0
-            try: self.max_proc_units = float(conf.args.max_proc_units)
+            try: self.max_proc_units = float(self.cv_HMC.get_available_proc_resources()[0])
             except AttributeError:
                 self.max_proc_units = 2.0
             try: self.overcommit_ratio = int(conf.args.overcommit_ratio)
             except AttributeError:
                 self.overcommit_ratio = 1
+            try: self.min_memory = conf.args.min_memory
+            except AttributeError:
+                self.min_memory = "4096"
+            try: self.desired_memory = conf.args.desired_memory
+            except AttributeError:
+                self.desired_memory = "40960"
+            try: self.max_memory = conf.args.max_memory
+            except AttributeError:
+                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[0]) + int(self.desired_memory)
             proc_mode = 'shared'
             self.cv_HMC.profile_bckup()
             self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
-                                         self.desired_proc_units, self.max_proc_units, self.overcommit_ratio)
+                                         self.desired_proc_units, self.max_proc_units, 
+                                         self.min_memory, self.desired_memory, self.max_memory,self.overcommit_ratio)
         '''
         If cpu=dedicated is passed in machine_config lpar proc mode changes to dedicated mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
@@ -231,7 +241,7 @@ class LparConfig():
                 self.desired_memory = "40960"
             try: self.max_memory = conf.args.max_memory
             except AttributeError:
-                self.max_memory = self.cv_HMC.get_available_mem_resources()[0]
+                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[0]) + int(self.desired_memory)
             proc_mode = 'ded'
             self.cv_HMC.profile_bckup()
             self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
