@@ -91,12 +91,12 @@ default_val = {
     'aes_proxy': None,
     'aes_no_proxy_ips': None,
     'bmc_type': 'OpenBMC',
-    'bmc_username': 'root',
-    'bmc_usernameipmi': 'ADMIN',
+    'bmc_username': 'YYY',
+    'bmc_usernameipmi': 'ZZZZ',
     'bmc_password': 'ZZZZ',
     'bmc_passwordipmi': 'XXXX',
     'bmc_ip': None,
-    'host_user': 'root',
+    'host_user': 'yyyy',
     'host_password': 'YYYY',
     'host_ip': None,
     'secvar_payload_url': 'https://github.com/erichte-ibm/op-test/raw/erichte-ibm/os-secure-boot-squashed/test_binaries',
@@ -105,24 +105,24 @@ default_val = {
 default_val_fsp = {
     'bmc_type': 'FSP',
     'bmc_username': 'dev',
-    'bmc_usernameipmi': 'ADMIN',
+    'bmc_usernameipmi': 'ZZZZ',
     'bmc_password': 'YYYY',
     'bmc_passwordipmi': 'ZZZZ',
 }
 
 default_val_ami = {
     'bmc_type': 'AMI',
-    'bmc_username': 'sysadmin',
-    'bmc_usernameipmi': 'ADMIN',
+    'host_user': 'YYYY',
+    'bmc_usernameipmi': 'ZZZZ',
     'bmc_password': 'YYYY',
     'bmc_passwordipmi': 'XXXX',
 }
 
 default_val_smc = {
     'bmc_type': 'SMC',
-    'bmc_username': 'sysadmin',
+    'host_user': 'YYYY',
     'bmc_usernameipmi': 'YYYY',
-    'bmc_password': 'superuser',
+    'bmc_password': 'XXXX',
     'bmc_passwordipmi': 'XXXX',
 }
 
@@ -326,6 +326,8 @@ def get_parser():
         'git repo', 'Git repository details for upstream kernel install/boot')
     gitgroup.add_argument(
         "--git-repo", help="Kernel git repository", default=None)
+    gitgroup.add_argument(
+        "--git-repo-reference", help="Kernel git repository reference for fast cloning", default=None)    
     gitgroup.add_argument("--git-repoconfigpath",
                           help="Kernel config file to be used", default=None)
     gitgroup.add_argument(
@@ -342,6 +344,14 @@ def get_parser():
                           help="Append kernel commandline while booting with kexec", default=None)
     gitgroup.add_argument(
         "--use-reboot", help="Use reboot command replacing a hard power off/on", action='store_true', default=False)
+    gitgroup.add_argument("--bad-commit",
+                          help="first identified bad commit version in the git tree", default=None)
+    gitgroup.add_argument("--good-commit",
+                          help="last identified good commit version in the git tree", default=None)
+    gitgroup.add_argument("--bisect-script",
+                          help="bisect test script that classifies the commit as good or bad", default=None)
+    gitgroup.add_argument("--bisect-category",
+                          help="bisect category (build, test)", default=None)
 
     imagegroup = parser.add_argument_group(
         'Images', 'Firmware LIDs/images to flash')
@@ -462,7 +472,7 @@ class OpTestConfiguration():
         self.cronus = OpTestCronus(self)
         self.args = []
         self.remaining_args = []
-        self.basedir = os.path.dirname(sys.argv[0])
+        self.basedir = os.path.abspath(os.path.dirname(__file__))
         self.signal_ready = False  # indicator for properly initialized
         self.atexit_ready = False  # indicator for properly initialized
         self.aes_print_helpers = True  # Need state for locker_wait

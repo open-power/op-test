@@ -253,6 +253,9 @@ class LparConfig():
                 self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
                                              self.desired_proc_units, self.max_proc_units, self.overcommit_ratio)
 
+            self.cv_HMC.profile_bckup()
+            self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
+                                         self.desired_proc_units, self.max_proc_units, self.overcommit_ratio)
         '''
         If cpu=dedicated is passed in machine_config lpar proc mode changes to dedicated mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
@@ -280,7 +283,16 @@ class LparConfig():
             try:
                 self.max_proc_units = conf.args.max_proc_units
             except AttributeError:
-                self.max_proc_units = "2"
+                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[0]))
+            try: self.min_memory = conf.args.min_memory
+            except AttributeError:
+                self.min_memory = "4096"
+            try: self.desired_memory = conf.args.desired_memory
+            except AttributeError:
+                self.desired_memory = "40960"
+            try: self.max_memory = conf.args.max_memory
+            except AttributeError:
+                self.max_memory = self.cv_HMC.get_available_mem_resources()[0]
             proc_mode = 'ded'
             curr_proc_mode = self.cv_HMC.get_proc_mode()
             if proc_mode in curr_proc_mode:
@@ -289,6 +301,10 @@ class LparConfig():
                 self.cv_HMC.profile_bckup()
                 self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
                                              self.desired_proc_units, self.max_proc_units)
+            self.cv_HMC.profile_bckup()
+            self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
+                                         self.desired_proc_units, self.max_proc_units,
+                                         self.min_memory, self.desired_memory, self.max_memory)
 
         if "vtpm=1" in self.machine_config:
             conf = OpTestConfiguration.conf
@@ -305,6 +321,7 @@ class LparConfig():
                         self.vtpm_encryption = "Power10v1"
                 elif proc_compat_mode[0] in ["POWER9_base", "POWER9", "POWER8"]:
                     self.vtpm_version = 1.2
+                    self.vtpm_encryption = None
                 else:
                     log.info("Unknown processor compact mode")
                 self.cv_HMC.enable_vtpm(
@@ -376,10 +393,11 @@ class LparConfig():
 
         if self.sb_enable is not None:
             self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
-
+            
         self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                 (self.system_name, self.lpar_name, self.lpar_prof))
         time.sleep(5)
+        self.cv_HMC.poweron_lpar()
         curr_proc_mode = self.cv_HMC.get_proc_mode()
         if proc_mode:
             if proc_mode in curr_proc_mode:

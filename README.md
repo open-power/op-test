@@ -71,7 +71,7 @@ After cloning FWTS see the README for pre-reqs and how-to,
 be sure to 'make install' after building to get the proper
 paths setup.
 
-git clone git://kernel.ubuntu.com/hwe/fwts.git
+git clone https://github.com/fwts/fwts
 
 It must also have (package names for Debian/Ubuntu systems):
 

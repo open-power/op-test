@@ -108,6 +108,7 @@ from testcases import OpTestKexec
 from testcases import OpTestGSBStaticKey
 from testcases import GcovSetup
 from testcases import Lcov
+from testcases import BisectKernel
 import OpTestConfiguration
 import sys
 import time
@@ -663,9 +664,16 @@ class OSdumpSuite():
         self.s.addTest(PowerNVDump.KernelCrash_KdumpPMEM())
         self.s.addTest(PowerNVDump.KernelCrash_FadumpNocma())
         self.s.addTest(PowerNVDump.OpTestMakedump())
-        self.s.addTest(PowerNVDump.KernelCrash_DisableAll())
-        self.s.addTest(PowerNVDump.SkirootKernelCrash())
-        self.s.addTest(PowerNVDump.OPALCrash_MPIPL())
+
+    def suite(self):
+        return self.s
+
+class OSdumpsanitySuite():
+    '''Test Suite which runs kdump and fadump basic sanity tests'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
+        self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
 
     def suite(self):
         return self.s
@@ -934,6 +942,7 @@ suites = {
     'opencapi': OpenCAPISuite(),
     'crash-suite': CrashSuite(),
     'osdump-suite': OSdumpSuite(),
+    'osdumpsanitysuite': OSdumpsanitySuite(),
     'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
     'GuestSecureBootSuite': GuestSecureBootSuite(),

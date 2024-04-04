@@ -398,7 +398,8 @@ class HMCUtil():
         drc_index_out = [line for line in drc_index_out if ioslot+":" in line]
         return drc_index_out[0].split(":")[0] if drc_index_out is not None else None
 
-    def change_proc_mode(self, proc_mode, sharing_mode, min_proc_units, desired_proc_units, max_proc_units, overcommit_ratio=1):
+    def change_proc_mode(self, proc_mode, sharing_mode, min_proc_units, desired_proc_units, max_proc_units,
+                          min_memory, desired_memory, max_memory, overcommit_ratio=1):
         '''
         Sets processor mode to shared or dedicated based on proc_mode
 
@@ -416,8 +417,10 @@ class HMCUtil():
                                overcommit_ratio*int(min_proc_units), overcommit_ratio*int(desired_proc_units),
                                overcommit_ratio*int(max_proc_units)))
         elif proc_mode == 'ded':
-            self.set_lpar_cfg("proc_mode=ded,sharing_mode=%s,min_procs=%s,max_procs=%s,desired_procs=%s" %
-                             (sharing_mode, min_proc_units, max_proc_units, desired_proc_units))
+            self.set_lpar_cfg("proc_mode=ded,sharing_mode=%s,min_procs=%s,max_procs=%s,desired_procs=%s,"
+                              "min_mem=%s,desired_mem=%s,max_mem=%s" %
+                              (sharing_mode, min_proc_units, max_proc_units, desired_proc_units,
+                               min_memory, desired_memory, max_memory))
         else:
             log.info("Please pass valid proc_mode, \"shared\" or \"ded\"")
 
@@ -439,7 +442,7 @@ class HMCUtil():
                         (self.mg_system, self.lpar_name))
         time.sleep(5)
 
-    def enable_vtpm(self, vtpm_version, vtpm_encryption):
+    def enable_vtpm(self, vtpm_version, vtpm_encryption=None):
         '''
         Enables vtpm mode.
 
@@ -577,6 +580,24 @@ class HMCUtil():
         :returns: current number of 16gb hugepages of managed system
         '''
         return self.run_command("lshwres -r mem -m %s --level sys -F configurable_num_sys_huge_pages" %
+                                self.mg_system)
+
+    def get_available_mem_resources(self):
+        '''
+        Get the available memory from CEC
+        
+        :returns: Available memory
+        '''
+        return self.run_command("lshwres -m %s -r mem --level sys -F curr_avail_sys_mem" %
+                                self.mg_system)
+
+    def get_available_proc_resources(self):
+        '''
+        Get the available CPU count from CEC
+
+        :returns: Available CPU count
+        '''
+        return self.run_command("lshwres -m %s -r proc --level sys -F curr_avail_sys_proc_units" %
                                 self.mg_system)
 
     def get_lpar_state(self, vios=False, remote_hmc=None):
@@ -884,7 +905,7 @@ class HMCUtil():
         '''
         return self.ssh.run_command_ignore_fail(command, timeout*self.timeout_factor, retry)
 
-    def run_command(self, i_cmd, timeout=15):
+    def run_command(self, i_cmd, timeout=60):
         '''
         Wrapper function for `ssh.run_command`
 

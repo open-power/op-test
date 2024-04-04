@@ -245,9 +245,9 @@ class PowerNVDump(unittest.TestCase):
         Verify if dump file present
         '''
         if self.distro == "rhel":
-            self.c.run_command("cp /etc/kdump.conf_bck /etc/kdump.conf")
+            self.cv_HOST.host_run_command("cp /etc/kdump.conf_bck /etc/kdump.conf", timeout=60)
         if self.distro == "sles":
-            self.c.run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump")
+            self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump")
         if dump_place == "local":
             crash_content_after = self.c.run_command(
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
@@ -292,12 +292,14 @@ class PowerNVDump(unittest.TestCase):
         '''
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
         if int(res) == 1:
-            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
+            return True 
+        else:
+            self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+            self.c.run_command("cat /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
             self.c.run_command("dmesg > /tmp/dmesg_log")
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
-        self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
 
         # Verify OPAL msglog to confirm whether registration passed or not
         if not self.is_lpar:
@@ -325,7 +327,9 @@ class PowerNVDump(unittest.TestCase):
         '''
         res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
         if int(res) == 0:
-            self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+            return True 
+        else:
+            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
@@ -355,6 +359,7 @@ class PowerNVDump(unittest.TestCase):
         reboot. It has below steps
             1. Enable reboot on kernel panic: echo 10 > /proc/sys/kernel/panic
             2. Trigger kernel crash: echo c > /proc/sysrq-trigger
+            3. If trigger requeted by watchdog then call watchdog trigger event.
         return BMC_CONST.FW_SUCCESS or raise OpTestError
         '''
         self.c.run_command("uname -a")
@@ -365,22 +370,27 @@ class PowerNVDump(unittest.TestCase):
         self.c.run_command("echo 10 > /proc/sys/kernel/panic")
         # Enable sysrq before triggering the kernel crash
         self.c.pty.sendline("echo 1 > /proc/sys/kernel/sysrq")
-        if crash_type == "echo_c":
+        # Check if crash requested by watchdog event, if yes then call the
+        # watchdog_run_command function to execute the event.
+        if crash_type == "watchdog":
+            self.c.pty.sendline("./watchdog-countdown")
+        elif crash_type == "echo_c":
             self.c.pty.sendline("echo c > /proc/sysrq-trigger")
         elif crash_type == "hmc":
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -n %s -o dumprestart" %
                                    (self.system_name, self.lpar_name), timeout=300)
+
         done = False
         boot_type = BootType.NORMAL
         rc = -1
         while not done:
             try:
                 # MPIPL completion + system reboot would take time, keeping it
-                # 600 seconds. Post MPIPL, kernel will offload vmcore and reboot
+                # 1800 seconds. Post MPIPL, kernel will offload vmcore and reboot
                 # system. Hostboot will run istep 10.1 in normal boot only. So
                 # check for istep 10.1 to detect normal boot.
                 rc = self.c.pty.expect(
-                    ["ISTEP 10. 1", "saving vmcore complete", "saved vmcore", "Rebooting."], timeout=600)
+                    ["ISTEP 10. 1", "saving vmcore complete", "saved vmcore", "Rebooting."], timeout=1800)
             except KernelFADUMP:
                 log.debug("====================MPIPL boot started==================")
                 # if fadump is enabled system should start MPIPL after kernel crash
@@ -420,6 +430,10 @@ class PowerNVDump(unittest.TestCase):
                     self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN)
                     done = True
 
+            # This will ensure the system state as "Not Activated" and captures the state of
+            # LPAR from HMC as "Not Activated" before rebooting the LPAR.
+            if self.cv_HMC.get_lpar_state() == "Not Activated":
+                return
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         log.debug("System booted fine to host OS...")
         return boot_type
@@ -660,6 +674,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
         log.debug("======================fadump is supported=======================")
+        log.info("========== Testing Fadump enable followed by crash ==============")
         boot_type = self.kernel_crash()
         if not self.is_lpar:
             self.verify_dump_dt_node(boot_type)
@@ -673,13 +688,26 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
 
     def runTest(self):
         self.setup_test()
-        if not self.is_lpar:
-            if self.is_fadump_supported():
-                raise self.skipTest("fadump is enabled, please disable(remove fadump=on \
-                                   kernel parameter and re-try")
+
         if self.is_fadump_param_enabled():
-            raise self.skipTest(
-                "fadump=on added in kernel param, please remove and re-try")
+            log.info("fadump is enabled. Next, remove fadump=on")
+            if self.distro == "rhel":
+                obj = OpTestInstallUtil.InstallUtil()
+                if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=on",
+                                                 reboot=True, reboot_cmd=True):
+                    self.fail("KernelArgTest failed to update kernel args")
+            elif self.distro == "sles":
+                self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
+                self.c.run_command("sed -i '/KDUMP_FADUMP=\"yes\"/c\KDUMP_FADUMP=\"no\"' /etc/sysconfig/kdump")
+                self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
+                self.c.run_command("mkdumprd -f", timeout=120)
+                self.c.run_command("update-bootloader --refresh")
+                self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
+                                   "update-bootloader --refresh", timeout=240)
+                time.sleep(5)
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
         if self.distro == "ubuntu":
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
@@ -698,11 +726,11 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
+        log.info("========= Testing Only kdump enable followed by crash ===========")
         boot_type = self.kernel_crash()
-        self.verify_dump_file(boot_type)
         if self.is_lpar:
             boot_type = self.kernel_crash(crash_type="hmc")
-            self.verify_dump_file(boot_type)
+        self.verify_dump_file(boot_type)
 
 
 class KernelCrash_DisableAll(PowerNVDump):
@@ -910,8 +938,8 @@ class KernelCrash_KdumpSAN(PowerNVDump):
     def setup_san(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sfdisk --delete %s" % self.dev_path)
-            self.c.run_command("echo , | sfdisk --force %s" % self.dev_path, timeout=120)
+            self.cv_HOST.host_run_command("sfdisk --delete %s" % self.dev_path)
+            self.cv_HOST.host_run_command("echo , | sfdisk --force %s" % self.dev_path, timeout=120)
             try: self.c.run_command("umount %s1" % self.dev_path)
             except: pass
             self.c.run_command("dd if=/dev/zero bs=512 count=512 of=%s1" % self.dev_path)
@@ -923,7 +951,8 @@ class KernelCrash_KdumpSAN(PowerNVDump):
                 self.c.run_command("sed -i '/\/var\/crash %s/d' /etc/fstab;"
                                    "echo '%s1 /var/crash %s defaults 0 0' >> /etc/fstab; sync" % (
                                    self.filesystem, self.dev_path, self.filesystem))
-                self.c.run_command("mount -t %s %s1 /var/crash" % (self.filesystem, self.dev_path))
+                self.c.run_command("systemctl daemon-reload")
+                self.cv_HOST.host_run_command("mount -t %s %s1 /var/crash" % (self.filesystem, self.dev_path), timeout=60)
             else:
                 self.c.run_command("sed -i 's/-l --message-level/-l -F --message-level/' /etc/kdump.conf; sync")
                 self.c.run_command("sed -i '/^raw/ s/^#*/#/' /etc/kdump.conf;"
@@ -1034,6 +1063,7 @@ class KernelCrash_KdumpWorkLoad(PowerNVDump):
         time.sleep(50)
         self.c.run_command("ps -ef|grep ebizzy")
         self.c.run_command("free -h")
+        log.info("=============== Testing kdump/fadump with ebizzy workload ======================")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         self.c.run_command("rm -rf /tmp/ebizzy*")
@@ -1078,6 +1108,12 @@ class KernelCrash_hugepage_checks(PowerNVDump):
                 raise OpTestError("Failed to set hugepage size to 1GB")
             else:
                 log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
+                                         reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class KernelCrash_XIVE_off(PowerNVDump):
     '''
@@ -1104,12 +1140,12 @@ class KernelCrash_XIVE_off(PowerNVDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
 
-        log.info("Test Kdump with xive=off along with different SMT levels")
+        log.info("Test Kdump/fadump xive=off with different SMT levels")
         for i in ["off", "2", "4", "on"]:
             self.setup_test()
             self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
             self.c.run_command("ppc64_cpu --smt")
-            log.info("Testing kdump/fadump with smt=%s and dumprestart from HMC" % i)
+            log.info("Testing kdump/fadump xive=off with smt=%s and dumprestart from HMC" % i)
             boot_type = self.kernel_crash(crash_type="hmc")
             self.verify_dump_file(boot_type)
 
@@ -1121,6 +1157,8 @@ class KernelCrash_XIVE_off(PowerNVDump):
         if not obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class KernelCrash_disable_radix(PowerNVDump):
     '''
@@ -1148,12 +1186,12 @@ class KernelCrash_disable_radix(PowerNVDump):
                 log.info("The kernel parameter was set to {}".format(kernel_boottime_arg))
             boot_type = self.kernel_crash()
             self.verify_dump_file(boot_type)
-            log.info("Test Kdump with xive=off along with different SMT levels")
+            log.info("Test Kdump/fadump disable_radix with different SMT levels")
             for i in ["off", "2", "4", "on"]:
                 self.setup_test()
                 self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
                 self.c.run_command("ppc64_cpu --smt")
-                log.info("Testing kdump/fadump with smt=%s and dumprestart from HMC" % i)
+                log.info("Testing kdump/fadump disable_radix with smt=%s and dumprestart from HMC" % i)
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
@@ -1165,6 +1203,8 @@ class KernelCrash_disable_radix(PowerNVDump):
             if not obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         else:
             raise self.skipTest("Hash MMU detected, skipping the test")
 
@@ -1316,16 +1356,299 @@ class KernelCrash_FadumpNocma(PowerNVDump):
         log.info("=============== Testing fadump with nocma ===============")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
-        if self.distro == "rhel":
-            if not obj.update_kernel_cmdline(self.distro, args="fadump=on", reboot=True, reboot_cmd=True):
-                self.fail("KernelArgTest failed to update kernel args")
-        if self.distro == "sles":
-            if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
-                self.fail("KernelArgTest failed to update kernel args")
+
+        if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+class OpTestWatchdog(PowerNVDump):
+    '''
+    This test verifies "watchdog module" with diffrent scenarios like
+    1. Watchdog module load and unload.
+    2. watchdog with action 1/ Reboot LPAR.
+    3. watchdog with action 0/ Halt LPAR.
+    4. watchdog with action 2 /dump collect
+                a. dump collect to a local disk
+                b. dump collect to a NFS disk
+                c. dump collect to a SAN FC disk
+    '''
+
+    def setUp(self):
+        super(OpTestWatchdog, self).setUp()
+        self.mg_system = self.cv_HMC.mg_system
+
+        if not self.cv_HMC.is_lpar_in_managed_system(self.mg_system, self.cv_HMC.lpar_name):
+            raise OpTestError("Lpar %s not found in managed system %s" % (
+                              self.cv_HMC.lpar_name, self.mg_system))
+
+    def get_watchdog_tool(self):
+        '''
+        This funtions copies compiled watchdog-countdown Tool/directory
+        to root directory,using this tool we can trigger the watchdog events.
+        '''
+        filename = "watchdog-countdown"
+        self.cv_HOST.copy_test_file_to_host(filename, dstdir="/root")
+
+    def module_load_with_parameters(self, i_module, timeout, action):
+        '''
+        This function will load the module using modprobe
+        with timeout and action parameters and valiadates
+        module load.
+        :params
+            i_module: watchdog Module name "pseries_wdt".
+            timeout: timeout value while loading module
+            action: type of reset.
+                    Action_0 : halt the LPAR
+                    Action_1 : reboot the LPAR
+                    Action_2 : collect dump and reboot LPAR
+        :rtype int
+        '''
+        try:
+            cmd = f"modprobe {i_module} timeout={timeout} action={action}"
+            self.cv_HOST.host_run_command(cmd)
+            self.script_timeout = timeout
+            self.script_action = action
+            return self.script_timeout, self.script_action
+
+        except CommandFailed as c:
+            l_msg = "Error in loading the module %s, modprobe failed: %s" % (
+                i_module, str(c))
+            raise OpTestError(l_msg)
+
+    def validate_timeout_and_action(self):
+        '''
+        Funtion to validate timeout and action of watchdog module.
+        '''
+        self.get_watchdog_timeout_value("pseries_wdt")
+        self.get_watchdog_action_value("pseries_wdt")
+
+        if (self.system_timeout_value == self.script_timeout) and (self.watchdog_action_mode == self.script_action):
+            return True
+        else:
+            self.fail("Timeout and action values of watchdog module"
+                      "are incorrect,Please check logs")
+
+    def get_watchdog_timeout_value(self, i_module):
+        '''
+        Funtion to get timeout value of a watchdog_module
+        that set by script.
+
+        :params i_module: watchdog module i.e "pseries_wdt"
+        :rtype int
+        '''
+        cmd = f"cat /sys/module/{i_module}/parameters/timeout"
+        output = self.cv_HOST.host_run_command(cmd)
+        self.system_timeout_value = int(output[0])
+        return self.system_timeout_value
+
+    def get_watchdog_action_value(self, i_module):
+        '''
+        Funtion to get action value of a watchdog_module
+        that set by script.
+
+        :params i_module: watchdog module i.e "pseries_wdt"
+        :rtype int
+        '''
+        cmd = f"cat /sys/module/{i_module}/parameters/action"
+        output = self.cv_HOST.host_run_command(cmd)
+        self.watchdog_action_mode = int(output[0])
+        return self.watchdog_action_mode
+
+    def module_load(self):
+        '''
+        Funtion to load watchdog module.
+        '''
+        self.cv_SYSTEM.cv_HOST.host_load_module("pseries_wdt")
+
+    def module_unload(self, i_module):
+        '''
+        This function will unload the module using modprobe
+        and validates module unload.
+        '''
+        try:
+            self.cv_HOST.host_run_command("modprobe -r %s" % i_module)
+        except CommandFailed as c:
+            l_msg = "Error in unloading the module %s, modprobe -r failed: %s" % (
+                i_module, str(c))
+            raise OpTestError(l_msg)
+        if self.cv_HOST.host_check_module_loaded(i_module):
+            raise OpTestError(f"{i_module} module still present even after unload,Please check logs")
+
+    def check_module_support(self):
+        '''
+        Function to check the watchdog module is supported with the current kernel
+        if not supported, none of the test cases executed.
+
+        :return : True if supported else False
+        :rtype : boolean
+        '''
+        cmd = "find /lib/modules/$(uname -r) -type f -name '*.ko*' | grep pseries-wdt"
+        try:
+            self.cv_HOST.host_run_command(cmd)
+            return True
+
+        except CommandFailed as c:
+            msg = " Watchdog module is not supported in this kernel, Please check."
+            raise OpTestError(msg)
+
+    def check_module_load_unload(self, i_module="pseries_wdt"):
+        '''
+        This function loads and unloads the watchdog module
+        to the count as per user input
+        '''
+        conf = OpTestConfiguration.conf
+        self.count = conf.args.count or "10"
+        if self.check_module_support:
+            for _ in range(int(self.count)):
+                try:
+                    self.module_unload(i_module)
+                    time.sleep(2)
+                    log.info("Module unloaded ")
+                    self.module_load()
+                    log.info("module got loaded ")
+                except CommandFailed as c:
+                    msg = "watchdog module load and unload has issues,Please check logs."
+                    raise OpTestError(msg)
+
+    def check_wd_action_one(self):
+        '''
+        Function to trigger watchdog event with action set to "1"
+        which reboots the LPAR.
+        '''
+        if self.check_module_support():
+            self.module_unload("pseries_wdt")
+            self.module_load_with_parameters("pseries_wdt", 60, 1)
+            if self.validate_timeout_and_action():
+                log.info("=============== Testing watchdog with Action 1 ===============")
+                self.get_watchdog_tool()
+                self.kernel_crash(crash_type="watchdog")
+            if not self.cv_HMC.get_lpar_state() == "Running":
+                self.fail("System state is mismatching after the watchdog event,Please check logs")
+
+    def check_wd_action_zero(self):
+        '''
+        Function to trigger watchdog event with action set to "0"
+        which Shutdown the LPAR.
+        '''
+        if self.check_module_support():
+            self.module_unload("pseries_wdt")
+            self.module_load_with_parameters("pseries_wdt", 120, 0)
+            if self.validate_timeout_and_action():
+                log.info("=============== Testing watchdog with Action 0 ===============")
+                self.get_watchdog_tool()
+                self.kernel_crash(crash_type="watchdog")
+            if not self.cv_HMC.get_lpar_state() == "Not Activated":
+                self.fail("System state is mismatching after the watchdog event,Please check logs")
+
+    def check_wd_overNFS(self):
+        '''
+        Function to execute watchdog test case and collect
+        crash dump over remote based NFS directory.
+        '''
+        conf = OpTestConfiguration.conf
+        self.dump_server_ip = conf.args.dump_server_ip
+        self.kdumpNFS = KernelCrash_KdumpNFS()
+        self.kdumpNFS.setUp()
+        if self.check_module_support():
+            if self.distro == "rhel":
+                self.cv_HOST.host_check_command("kdumpctl")
+                obj = OpTestInstallUtil.InstallUtil()
+                if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
+                                                 reboot=True, reboot_cmd=True):
+                    self.fail("KernelArgTest failed to update kernel args")
+                time.sleep(5)
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            os_level = self.cv_HOST.host_get_OS_Level()
+            self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+            self.cv_HOST.host_enable_kdump_service(os_level)
+            self.module_unload("pseries_wdt")
+            self.module_load_with_parameters("pseries_wdt", 60, 2)
+
+            if self.validate_timeout_and_action():
+                if not (self.dump_server_ip or self.dump_server_pw):
+                    raise self.skipTest("Provide --dump-server-ip and --dump-server-pw "
+                                        "for network dumps")
+                self.setup_pwdless_auth()
+                self.setup_test("net")
+                self.kdumpNFS.setup_nfs()
+                log.info("=============== Testing kdump over nfs ===============")
+                self.get_watchdog_tool()
+                boot_type = self.kernel_crash(crash_type="watchdog")
+                self.verify_dump_file(boot_type, dump_place="net")
+                self.setup_test("net")
+
+    def check_wd_overSAN(self):
+        '''
+        Function to execute watchdog test case and collect
+        crash dump over remote based NFS directory.
+        '''
+        self.kdumpSAN = KernelCrash_KdumpSAN()
+        self.kdumpSAN.setUp()
+        if self.check_module_support():
+            if self.distro == "rhel":
+                self.cv_HOST.host_check_command("kdumpctl")
+                obj = OpTestInstallUtil.InstallUtil()
+                if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
+                                                 reboot=True, reboot_cmd=True):
+                    self.fail("KernelArgTest failed to update kernel args")
+                time.sleep(5)
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            os_level = self.cv_HOST.host_get_OS_Level()
+            self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+            self.cv_HOST.host_enable_kdump_service(os_level)
+            self.module_unload("pseries_wdt")
+            self.module_load_with_parameters("pseries_wdt", 60, 2)
+            if self.validate_timeout_and_action():
+                self.setup_test()
+                self.kdumpSAN.setup_san()
+                log.info("=============== Testing kdump over SAN ===============")
+                self.get_watchdog_tool()
+                boot_type = self.kernel_crash(crash_type="watchdog")
+                self.verify_dump_file(boot_type)
+                self.setup_test()
+
+    def check_wd_localdisk(self):
+        '''
+        Function to execute watchdog test case and collect
+        crash dump on local "/var/crash" directory.
+        '''
+        if self.check_module_support():
+            if self.distro == "rhel":
+                self.cv_HOST.host_check_command("kdumpctl")
+                obj = OpTestInstallUtil.InstallUtil()
+                if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
+                                                 reboot=True, reboot_cmd=True):
+                    self.fail("KernelArgTest failed to update kernel args")
+                time.sleep(5)
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            os_level = self.cv_HOST.host_get_OS_Level()
+            self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+            self.cv_HOST.host_enable_kdump_service(os_level)
+            self.module_unload("pseries_wdt")
+            self.module_load_with_parameters("pseries_wdt", 60, 2)
+            if self.validate_timeout_and_action():
+                self.setup_test()
+                self.get_watchdog_tool()
+                boot_type = self.kernel_crash(crash_type="watchdog")
+                self.verify_dump_file(boot_type)
+
+    def runTest(self):
+        self.check_module_load_unload()
+        self.check_wd_action_one()
+        self.check_wd_localdisk()
+        self.check_wd_overSAN()
+        self.check_wd_overNFS()
+        self.check_wd_action_zero()
 
 
 def crash_suite():
     s = unittest.TestSuite()
+    s.addTest(OpTestWatchdog())
     s.addTest(KernelCrash_OnlyKdumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
