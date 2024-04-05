@@ -295,6 +295,7 @@ class PowerNVDump(unittest.TestCase):
             return True 
         else:
             self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
+            self.c.run_command('\r\n')
             self.c.run_command("cat /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
@@ -330,11 +331,13 @@ class PowerNVDump(unittest.TestCase):
             return True 
         else:
             self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
+            self.c.run_command('\r\n')
 
         if not self.is_lpar:
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
             self.c.run_command("dmesg > /tmp/dmesg_log")
             self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
+            self.c.run_command('\r\n')
 
             opal_data = " ".join(self.c.run_command(
                 "%s | diff -a /tmp/opal_log -" % BMC_CONST.OPAL_MSG_LOG))
