@@ -28,12 +28,10 @@ import pexpect
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 from testcases.OpTestFlash import PNORFLASH
 from testcases.OpTestFlash import OpalLidsFLASH
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -102,12 +100,12 @@ class SecureBoot(unittest.TestCase):
         data = " ".join(c.run_command(
             "cat /sys/firmware/opal/msglog | grep -i stb"))
         if self.securemode:
-            if not "secure mode on" in data:
+            if "secure mode on" not in data:
                 self.assertTrue(
                     False, "OPAL-SB: Secure mode is detected as OFF")
         for part in part_list:
             msg = "STB: %s verified" % part
-            if not msg in data:
+            if msg not in data:
                 self.assertTrue(
                     False, "OPAL-SB: %s verification failed or not happened" % part)
 

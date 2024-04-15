@@ -38,20 +38,14 @@ This class will test the functionality of following ipmi commands
 
 import time
 import subprocess
-import re
-import os
-import sys
-import subprocess
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
 from common.OpTestError import OpTestError
-from common.OpTestSystem import OpTestSystem
 from common.OpTestSystem import OpSystemState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

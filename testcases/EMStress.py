@@ -25,16 +25,13 @@ EM Stress tests
 
 import unittest
 import time
-import threading
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestThread import OpSSHThreadLinearVar1, OpSSHThreadLinearVar2
 from common.OpTestSOL import OpSOLMonitorThread
 from testcases.OpTestEM import OpTestEM
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

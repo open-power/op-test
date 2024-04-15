@@ -47,8 +47,6 @@ the applicable options per method.
 '''
 
 import unittest
-import logging
-import pexpect
 import time
 import re
 import difflib
@@ -57,7 +55,7 @@ from distutils.version import LooseVersion
 import OpTestConfiguration
 import OpTestLogger
 from common.OpTestSystem import OpSystemState
-from common.Exceptions import CommandFailed, UnexpectedCase
+from common.Exceptions import CommandFailed
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 skiroot_done = 0
@@ -103,7 +101,7 @@ class OpClassPCI(unittest.TestCase):
                 cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
                 cls.c = cls.cv_SYSTEM.console
             cls.pty = cls.cv_SYSTEM.console.get_console()
-        except Exception as e:
+        except Exception:
             log.debug("Unable to find cls.desired, probably a test code problem")
             cls.cv_SYSTEM.goto_state(OpSystemState.OS)
 
@@ -283,7 +281,7 @@ class OpClassPCI(unittest.TestCase):
             if len(compare_results):
                 self.assertEqual(len(compare_results), 0,
                                  "skiroot_lspci and host_lspci devices differ:\n{}"
-                                 .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
+                                 .format(self.conf.lspci_file(), ))
             # refresh so next pair can be matched up, i.e. soft or hard
             skiroot_done = 0
             host_done = 0
@@ -337,7 +335,7 @@ class OpClassPCI(unittest.TestCase):
         try:
             link_down_entries = self.c.run_command(
                 "grep ',[432]\].*PHB#.* Link down' /sys/firmware/opal/msglog")
-        except CommandFailed as cf:
+        except CommandFailed:
             pass
         if link_down_entries:
             log.debug("link_down_entries={}".format(link_down_entries))
@@ -347,7 +345,7 @@ class OpClassPCI(unittest.TestCase):
         try:
             timeout_entries = self.c.run_command(
                 "grep ',[432]\].*Timeout waiting for' /sys/firmware/opal/msglog")
-        except CommandFailed as cf:
+        except CommandFailed:
             pass
         if timeout_entries:
             log.debug("timeout_entries={}".format(timeout_entries))
@@ -455,7 +453,7 @@ class OpClassPCI(unittest.TestCase):
                 driver, slot, cmd))
             try:
                 self.c.run_command(cmd)
-            except CommandFailed as cf:
+            except CommandFailed:
                 msg = "Driver unbind operation failed for driver {}, slot {}".format(
                     slot, driver)
                 failure_list[index] = msg
@@ -466,14 +464,14 @@ class OpClassPCI(unittest.TestCase):
             try:
                 self.c.run_command("test -d {}".format(path))
                 rc = 1
-            except CommandFailed as cf:
+            except CommandFailed:
                 pass
             cmd = "echo -n {} > /sys/bus/pci/drivers/{}/bind".format(
                 slot, driver)
             log.debug("bind driver={} slot={} cmd={}".format(driver, slot, cmd))
             try:
                 self.c.run_command(cmd)
-            except CommandFailed as cf:
+            except CommandFailed:
                 msg = "Driver bind operation failed for driver {}, slot {}".format(
                     slot, driver)
                 failure_list[index] = msg
@@ -482,7 +480,7 @@ class OpClassPCI(unittest.TestCase):
             self.c.run_command(cmd)
             try:
                 self.c.run_command("test -d {}".format(path))
-            except CommandFailed as cf:
+            except CommandFailed:
                 rc = 2
 
             self._gather_errors()
@@ -538,12 +536,12 @@ class OpClassPCI(unittest.TestCase):
             path = "/sys/bus/pci/slots/{}/power".format(phy_slot)
             try:
                 self.c.run_command("test -f {}".format(path))
-            except CommandFailed as cf:
+            except CommandFailed:
                 log.debug("Slot {} does not support hotplug".format(phy_slot))
                 continue  # slot does not support hotplug
             try:
                 self.c.run_command("echo 0 > {}".format(path))
-            except CommandFailed as cf:
+            except CommandFailed:
                 msg = "PCI device/slot power off operation failed"
                 failure_list[index] = msg
             time.sleep(5)
@@ -554,7 +552,7 @@ class OpClassPCI(unittest.TestCase):
                 failure_list[index] = msg
             try:
                 self.c.run_command("echo 1 > {}".format(path))
-            except CommandFailed as cf:
+            except CommandFailed:
                 msg = "PCI device/slot power on operation failed"
                 failure_list[index] = msg
             res = self.c.run_command(cmd)

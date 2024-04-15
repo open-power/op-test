@@ -20,7 +20,7 @@ from common.OpTestEBMC import EBMCHostManagement
 from common.OpTestWeb import OpTestWeb
 from common.OpTestUtil import OpTestUtil
 from common.OpTestCronus import OpTestCronus
-from common.Exceptions import HostLocker, AES, ParameterCheck, OpExit
+from common.Exceptions import ParameterCheck, OpExit
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import atexit
 import argparse
@@ -49,7 +49,6 @@ import logging
 import importlib
 import os
 import stat
-import addons
 
 optAddons = dict()  # Store all addons found.  We'll loop through it a couple time below
 # Look at the top level of the addons for any directories and load their Setup modules

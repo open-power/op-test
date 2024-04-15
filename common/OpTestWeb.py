@@ -24,11 +24,6 @@
 #
 # IBM_PROLOG_END_TAG
 
-import time
-import subprocess
-import os
-import pexpect
-import unittest
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
@@ -70,9 +65,7 @@ class OpTestWeb():
 
         try:
 
-            import argparse
             from selenium import webdriver
-            from easyprocess import EasyProcess
             from pyvirtualdisplay import Display
             from FWUpdatePage import FWUpdatePage
             from LoginPage import LoginPage

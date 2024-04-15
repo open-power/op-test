@@ -21,9 +21,6 @@ import re
 import sys
 import time
 import datetime
-import pexpect
-import subprocess
-import json
 import requests
 import cgi
 import os
@@ -33,9 +30,7 @@ from .OpTestBMC import OpTestBMC
 from .Exceptions import HTTPCheck
 from .Exceptions import CommandFailed
 from .OpTestConstants import OpTestConstants as BMC_CONST
-from . import OpTestSystem
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -645,7 +640,7 @@ class HostManagement():
             payload = {"data": []}
             r = self.conf.util_bmc_server.post(
                 uri=uri, json=payload, minutes=minutes)
-        except Exception as e:
+        except Exception:
             # Try falling back to the old method (everything prior? who knows)
             uri = "/xyz/openbmc_project/software/{}".format(id)
             payload = {"data": []}
@@ -1109,7 +1104,7 @@ class OpTestOpenBMC():
                 #self.bmc.run_command("dd if=/tmp/padded of=/usr/local/share/pnor/BOOTKERNEL bs=16M count=1")
                 self.bmc.run_command("rm -f /usr/local/share/pnor/BOOTKERNEL", timeout=60)
                 self.bmc.run_command("ln -s /tmp/{} /usr/local/share/pnor/BOOTKERNEL".format(lid_name), timeout=60)
-            except CommandFailed as e:
+            except CommandFailed:
                 log.warning("FLASHING CommandFailed, check that this is ok for your setup")
 
     def flash_part_openbmc(self, lid_name, part_name):

@@ -21,7 +21,6 @@
 
 import time
 import requests
-import json
 import sys
 
 from .OpTestSSH import OpTestSSH

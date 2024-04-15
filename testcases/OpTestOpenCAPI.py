@@ -38,18 +38,13 @@ Prerequisites:
 2. OpenCAPI card must have been flashed with memcpy3 AFU
 '''
 
-import time
-import subprocess
-import re
 
 import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

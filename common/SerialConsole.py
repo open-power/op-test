@@ -35,21 +35,17 @@ at a serial concentrator over SSH.
 '''
 
 import time
-import subprocess
 import os
 import pexpect
 import sys
-import re
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
 from .OpTestUtil import OpTestUtil
 from . import OpTestSystem
 from .Exceptions import CommandFailed
-from .Exceptions import BMCDisconnected
 from . import OPexpect
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -133,7 +129,7 @@ class SerialConsole():
         except pexpect.ExceptionPexpect:
             self.state = SerialConsoleState.DISCONNECTED
             raise OpTestError("Failed to close serial console")
-        except Exception as e:
+        except Exception:
             self.state = SerialConsoleState.DISCONNECTED
             pass
 
@@ -148,7 +144,7 @@ class SerialConsole():
                                       logfile=self.logfile,
                                       failure_callback=set_system_to_UNKNOWN_BAD,
                                       failure_callback_data=self.system)
-        except Exception as e:
+        except Exception:
             self.state = SerialConsoleState.DISCONNECTED
             raise CommandFailed(
                 'OPexpect.spawn', "OPexpect.spawn encountered a problem, command was '{}'".format(cmd), -1)

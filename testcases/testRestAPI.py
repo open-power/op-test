@@ -40,7 +40,6 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import HTTPCheck
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -66,7 +65,7 @@ class RestAPI(unittest.TestCase):
                 cls.cv_SYSTEM.goto_state(OpSystemState.OFF)
             else:
                 cls.cv_SYSTEM.goto_state(OpSystemState.OS)
-        except Exception as e:
+        except Exception:
             log.debug("Unable to find cls.desired, probably a test code problem")
             cls.cv_SYSTEM.goto_state(OpSystemState.OS)
 

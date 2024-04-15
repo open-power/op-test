@@ -32,11 +32,7 @@ Largely, if we can implement a test as part of FWTS, we should do it there
 as it's easy to run and packaged.
 '''
 
-import time
-import subprocess
 import re
-import sys
-import os
 
 import OpTestConfiguration
 import unittest
@@ -47,7 +43,6 @@ import common.OpTestQemu as OpTestQemu
 
 import json
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

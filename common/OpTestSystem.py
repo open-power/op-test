@@ -41,17 +41,12 @@ from . import OpTestIPMI  # circular dependencies, use package
 from . import OpTestQemu
 from . import OpTestMambo
 from . import OpTestHMC
-from .OpTestFSP import OpTestFSP
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
-from . import OpTestHost
-from .OpTestUtil import OpTestUtil
 from .OpTestSSH import ConsoleState as SSHConnectionState
 from .Exceptions import HostbootShutdown, WaitForIt, RecoverFailed, UnknownStateTransition
 from .Exceptions import ConsoleSettings, UnexpectedCase, StoppingSystem, HTTPCheck
-from .OpTestSSH import OpTestSSH
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -512,7 +507,7 @@ class OpTestSystem(object):
             echo_output = sys_pty.before
             try:
                 echo_rc = int(echo_output.splitlines()[-1])
-            except Exception as e:
+            except Exception:
                 # most likely cause is running while booting unknowlingly
                 return OpSystemState.UNKNOWN
             if (echo_rc == 0):
@@ -673,7 +668,7 @@ class OpTestSystem(object):
                 my_r, my_reconnect = self.wait_for_it(expect_dict=self.petitboot_expect_table,
                                                       reconnect=self.petitboot_reconnect, refresh=self.petitboot_refresh, buffer_kicker=self.petitboot_kicker,
                                                       threshold=self.threshold_petitboot, loop_max=100)
-        except Exception as e:
+        except Exception:
             return
 
     def run_UNKNOWN(self, state):
@@ -885,7 +880,7 @@ class OpTestSystem(object):
             log.debug("Retry clearing SDR")
             try:
                 rc = self.cv_IPMI.ipmi_sdr_clear()
-            except OpTestError as e:
+            except OpTestError:
                 return BMC_CONST.FW_FAILED
         return rc
 
@@ -895,7 +890,7 @@ class OpTestSystem(object):
         '''
         try:
             rc = self.cv_IPMI.ipmi_power_on()
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return rc
 
@@ -905,7 +900,7 @@ class OpTestSystem(object):
         '''
         try:
             return self.cv_IPMI.ipmi_power_cycle()
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
 
     def sys_power_soft(self):
@@ -914,7 +909,7 @@ class OpTestSystem(object):
         '''
         try:
             rc = self.cv_IPMI.ipmi_power_soft()
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return rc
 
@@ -941,7 +936,7 @@ class OpTestSystem(object):
     def sys_warm_reset(self):
         try:
             rc = self.cv_IPMI.ipmi_warm_reset()
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return rc
 
@@ -953,7 +948,7 @@ class OpTestSystem(object):
     def sys_cold_reset_bmc(self):
         try:
             rc = self.cv_IPMI.ipmi_cold_reset()
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return rc
 
@@ -968,7 +963,7 @@ class OpTestSystem(object):
             if(l_rc != BMC_CONST.FW_SUCCESS):
                 return BMC_CONST.FW_FAILED
             self.cv_HOST.host_cold_reset()
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
 
         return BMC_CONST.FW_SUCCESS
@@ -981,7 +976,7 @@ class OpTestSystem(object):
     def sys_ipl_wait_for_working_state(self, i_timeout=10):
         try:
             rc = self.cv_IPMI.ipl_wait_for_working_state(i_timeout)
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return rc
 
@@ -994,7 +989,7 @@ class OpTestSystem(object):
         '''
         try:
             l_rc = self.cv_IPMI.ipmi_wait_for_standby_state(i_timeout)
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return l_rc
 
@@ -1008,7 +1003,7 @@ class OpTestSystem(object):
         '''
         try:
             l_rc = self.cv_IPMI.ipmi_wait_for_os_boot_complete(i_timeout)
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return l_rc
 
@@ -1021,7 +1016,7 @@ class OpTestSystem(object):
         '''
         try:
             rc = self.cv_IPMI.ipmi_sel_check(i_string)
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
         return rc
 
@@ -1128,7 +1123,7 @@ class OpTestSystem(object):
         try:
             self.cv_HOST.host_run_command(
                 BMC_CONST.HOST_IPMI_REPROVISION_REQUEST)
-        except OpTestError as e:
+        except OpTestError:
             log.error("Failed to issue ipmi pnor reprovision request")
             return BMC_CONST.FW_FAILED
         return BMC_CONST.FW_SUCCESS
@@ -1162,7 +1157,7 @@ class OpTestSystem(object):
     def sys_get_sel_list(self):
         try:
             return self.cv_IPMI.ipmi_get_sel_list()
-        except OpTestError as e:
+        except OpTestError:
             return BMC_CONST.FW_FAILED
 
     def petitboot_exit_to_shell(self):

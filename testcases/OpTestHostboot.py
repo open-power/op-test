@@ -25,10 +25,7 @@ Perform various hostboot validations and checks
 '''
 
 import unittest
-import logging
 import pexpect
-import time
-import string
 
 import OpTestConfiguration
 import OpTestLogger
@@ -124,7 +121,7 @@ class OpTestHostboot(unittest.TestCase):
             self.assertTrue(False, "We reached the limit on how many"
                             " errors detected during boot: \"{}\"\n"
                             .format(self.threshold_attempts,
-                                    ('\n'.join(f for f in self.snippet_list))))
+                                    ))
 
     def PetitbootChecks(self):
         '''Sniff test the boot for any platform errors
@@ -137,7 +134,7 @@ class OpTestHostboot(unittest.TestCase):
             self.assertTrue(False, "We reached the limit on how many"
                             " errors detected during boot: \"{}\"\n"
                             .format(self.threshold_attempts,
-                                    ('\n'.join(f for f in self.snippet_list))))
+                                    ))
 
 
 class SkirootBasicCheck(OpTestHostboot, unittest.TestCase):

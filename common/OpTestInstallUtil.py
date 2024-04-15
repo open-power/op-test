@@ -27,7 +27,6 @@ import os
 import threading
 import socketserver
 import http.server
-import http.server
 import cgi
 import subprocess
 import time
@@ -36,7 +35,6 @@ import OpTestConfiguration
 
 from common.OpTestSystem import OpSystemState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -90,7 +88,7 @@ class InstallUtil():
                 return True
             except CommandFailed as cf:
                 log.debug("wait_for_network CommandFailed={}".format(cf))
-                if cf.exitcode is 1:
+                if cf.exitcode == 1:
                     time.sleep(5)
                     retry = retry - 1
                     pass
@@ -118,7 +116,7 @@ class InstallUtil():
                 if retry == 1:
                     log.debug("ping_network raise cf={}".format(cf))
                     raise cf
-                if cf.exitcode is 1:
+                if cf.exitcode == 1:
                     time.sleep(5)
                     retry = retry - 1
                     log.debug(
@@ -148,7 +146,7 @@ class InstallUtil():
             raise noconfig_exception
         cmd = (
             "ip addr|grep -B1 -i %s |grep BROADCAST|awk -F ':' '{print $2}'" % (self.conf.args.host_mac))
-        log.debug("ip addr cmd={}".format(cmd, type(cmd)))
+        log.debug("ip addr cmd={}".format(cmd, ))
         iface = self.cv_SYSTEM.console.run_command(cmd, retry=5)
         log.debug("iface={} type={} len={}".format(
             iface, type(iface), len(iface)))
@@ -217,7 +215,7 @@ class InstallUtil():
                 break
             except CommandFailed as cf:
                 log.debug("get_server_ip CommandFailed cf={}".format(cf))
-                if cf.exitcode is 1:
+                if cf.exitcode == 1:
                     time.sleep(1)
                     retry = retry - 1
                     pass

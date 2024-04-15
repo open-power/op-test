@@ -36,17 +36,11 @@ the environemnt for security reasons.
 This test ensures that the ssh server is not running at boot
 '''
 
-import time
-import subprocess
-import subprocess
-import re
-import sys
 
 import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

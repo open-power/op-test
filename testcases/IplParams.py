@@ -36,7 +36,6 @@ from common.Exceptions import CommandFailed
 import common.OpTestMambo as OpTestMambo
 import common.OpTestQemu as OpTestQemu
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -182,7 +181,7 @@ class IplParams():
             self.revision = ''.join(self.c.run_command(
                 "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'"))
             log.debug("self.cpu={} self.revision={}".format(self.cpu, self.revision))
-            if not self.revision in ["2.2", "2.3"]:
+            if self.revision not in ["2.2", "2.3"]:
                 return {}
             rl = 0
             try:

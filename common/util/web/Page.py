@@ -24,7 +24,6 @@
 #
 # IBM_PROLOG_END_TAG
 
-from selenium import webdriver
 
 ##
 # @file: Page.py

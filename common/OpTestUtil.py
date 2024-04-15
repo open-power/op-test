@@ -24,27 +24,16 @@
 #
 # IBM_PROLOG_END_TAG
 
-import sys
 import os
-import datetime
 import time
 import pwd
-import string
 import subprocess
-import random
 import re
-import telnetlib
-import socket
-import select
-import time
-import pty
 import pexpect
-import subprocess
 import requests
 import traceback
 from requests.adapters import HTTPAdapter
 #from requests.packages.urllib3.util import Retry
-from http.client import HTTPConnection
 # HTTPConnection.debuglevel = 1 # this will print some additional info to stdout
 import urllib3  # setUpChildLogger enables integrated logging with op-test
 import json
@@ -56,7 +45,6 @@ from .Exceptions import CommandFailed, RecoverFailed, ConsoleSettings
 from .Exceptions import HostLocker, AES, ParameterCheck, HTTPCheck, UnexpectedCase
 from .OpTestVIOS import OpTestVIOS
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -367,7 +355,7 @@ class OpTestUtil():
             if self.conf.args.hostlocker_keep_lock is False:
                 try:
                     self.hostlocker_unlock()
-                except Exception as e:
+                except Exception:
                     log.warning("OpTestSystem HostLocker attempted to release "
                                 "host '{}' hostlocker-user '{}', please manually "
                                 "verify and release".format(self.conf.args.hostlocker,
@@ -474,7 +462,7 @@ class OpTestUtil():
                 # remove temp files
                 try:
                     self.conf.bmc().run_command("rm /tmp/op-test*")
-                except Exception as e:
+                except Exception:
                     log.warning(
                         "OpTestSystem encountered a problem cleaning up BMC /tmp files, you may want to check.")
                 log.info(
@@ -584,7 +572,7 @@ class OpTestUtil():
             cmd = 'ip addr show to %s' % ip
             try:
                 output = subprocess.check_output(cmd.split())
-            except (subprocess.CalledProcessError, OSError) as e:
+            except (subprocess.CalledProcessError, OSError):
                 raise HostLocker(
                     message="Could not run 'ip' to check for no proxy?")
 
@@ -650,7 +638,7 @@ class OpTestUtil():
                             "of the reservation '{}' in AES, please manually "
                             "verify and release if needed, see details: {}"
                             .format(res_id, release_dict))
-        except Exception as e:
+        except Exception:
             # this seems to be the typical path from AES, not sure what's up
             log.debug(
                 "NO JSON object from aes_release_reservation, r.text={}".format(r.text))
@@ -1458,7 +1446,7 @@ class OpTestUtil():
                     else:
                         term_obj.setup_term_disable = 1
                         return -1
-            except RecoverFailed as e:
+            except RecoverFailed:
                 if term_obj.setup_term_quiet == 0:
                     log.warning("OpTestSystem Change of shell prompt not completed after last retry,"
                                 " probably a connection issue, raised Exception ConsoleSettings but continuing")
@@ -1581,7 +1569,7 @@ class OpTestUtil():
                 try:
                     echo_rc = int(before.splitlines()[-1])
                     log.debug("check_root echo_rc={}".format(echo_rc))
-                except Exception as e:
+                except Exception:
                     echo_rc = -1
                 if echo_rc == 0:
                     # Owing to hscroot being user name for HMC
@@ -1846,7 +1834,7 @@ class OpTestUtil():
         output_list += pty.before.replace("\r\r\n", "\n").splitlines()
         try:
             del output_list[:1]  # remove command from the list
-        except Exception as e:
+        except Exception:
             pass  # nothing there
         # if we are running 'sudo -s' as root then catch on generic # prompt, restore env
         if running_sudo_s and (rc == 0):
@@ -1863,11 +1851,11 @@ class OpTestUtil():
                 echo_output += pty.before.replace("\r\r\n", "\n").splitlines()
                 try:
                     del echo_output[:1]  # remove command from the list
-                except Exception as e:
+                except Exception:
                     pass  # nothing there
                 try:
                     echo_rc = int(echo_output[-1])
-                except Exception as e:
+                except Exception:
                     echo_rc = -1
             else:
                 raise CommandFailed(command, "run_command echo TIMEOUT, the command may have been ok,"
@@ -1908,7 +1896,7 @@ class OpTestUtil():
         output_list += term_obj.get_console().before.replace("\r\r\n", "\n").splitlines()
         try:
             del output_list[:1]  # remove command from the list
-        except Exception as e:
+        except Exception:
             pass  # nothing there
         return output_list
 
@@ -1930,7 +1918,7 @@ class OpTestUtil():
         output_list += term_obj.get_console().before.replace("\r\r\n", "\n").splitlines()
         try:
             del output_list[:1]  # remove command from the list
-        except Exception as e:
+        except Exception:
             pass  # nothing there
         return output_list
 

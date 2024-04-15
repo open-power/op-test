@@ -37,7 +37,6 @@ This class will test the functionality of following drivers:
 '''
 
 import time
-import subprocess
 import re
 import random
 import decimal
@@ -47,11 +46,9 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
-from common.OpTestIPMI import IPMIConsoleState
 import common.OpTestQemu as OpTestQemu
 from testcases.DeviceTreeValidation import DeviceTreeValidation
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -186,7 +183,7 @@ class OpTestEM():
         l_cmd = "cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq"
         cur_freq = self.c.run_command(l_cmd)
 
-        if not type(i_freq) is list:
+        if type(i_freq) is not list:
             if not cur_freq[0] == i_freq:
                 time.sleep(0.2)
                 cur_freq = self.c.run_command(l_cmd)
@@ -195,7 +192,7 @@ class OpTestEM():
                 return
 
         achieved = False
-        if not type(i_freq) is list:
+        if type(i_freq) is not list:
             freq_list = [i_freq]
         else:
             freq_list = i_freq
@@ -326,7 +323,7 @@ class slw_info(OpTestEM, unittest.TestCase):
             elif proc_gen in ["POWER9", "POWER9P"]:
                 self.c.run_command(
                     "cat /sys/firmware/opal/msglog | grep -i stop")
-        except CommandFailed as cf:
+        except CommandFailed:
             pass  # we may have no slw entries in msglog
 
 

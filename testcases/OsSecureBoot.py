@@ -1,5 +1,4 @@
 import unittest
-import os, time
 
 import OpTestConfiguration
 

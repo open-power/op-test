@@ -51,14 +51,8 @@ Mc warm reset boot sequence
 6) Make sure boots to Host OS, SOL fine
 '''
 
-import time
-import subprocess
-import subprocess
-import re
-import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
 import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState

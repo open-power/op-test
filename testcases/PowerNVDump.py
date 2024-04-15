@@ -63,7 +63,6 @@ import pexpect
 import unittest
 import time
 import re
-import tempfile
 
 import OpTestConfiguration
 import OpTestLogger
@@ -1489,7 +1488,7 @@ class OpTestWatchdog(PowerNVDump):
             self.cv_HOST.host_run_command(cmd)
             return True
 
-        except CommandFailed as c:
+        except CommandFailed:
             msg = " Watchdog module is not supported in this kernel, Please check."
             raise OpTestError(msg)
 
@@ -1508,7 +1507,7 @@ class OpTestWatchdog(PowerNVDump):
                     log.info("Module unloaded ")
                     self.module_load()
                     log.info("module got loaded ")
-                except CommandFailed as c:
+                except CommandFailed:
                     msg = "watchdog module load and unload has issues,Please check logs."
                     raise OpTestError(msg)
 

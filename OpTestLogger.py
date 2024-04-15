@@ -21,8 +21,6 @@
 # This implements all the python logger setup for op-test
 
 import os
-import sys
-from datetime import datetime
 import logging
 from logging.handlers import RotatingFileHandler
 

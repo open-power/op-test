@@ -24,13 +24,10 @@
 #
 # IBM_PROLOG_END_TAG
 
-from .Page import Page
 from .seleniumimports import *
 from .BmcPageConstants import BmcPageConstants
-from selenium.webdriver.support.ui import Select
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
-import time
 
 ##
 # @file: MaintenancePage.py

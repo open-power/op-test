@@ -36,10 +36,7 @@ on fast-reset system will be added here.
 
 import time
 import pexpect
-import subprocess
-import subprocess
 import re
-import sys
 
 import unittest
 
@@ -48,7 +45,6 @@ from common.OpTestSystem import OpSystemState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -118,7 +114,7 @@ class OpTestFastReboot(unittest.TestCase):
                               "/proc/device-tree/ibm,opal/fast-reboot: {}"
                               .format(fast_reboot_state[:-1]))
         except CommandFailed as cf:
-            if cf.exitcode is not 1:
+            if cf.exitcode != 1:
                 raise cf
 
         cpu = ''.join(c.run_command(

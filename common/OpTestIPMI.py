@@ -47,12 +47,10 @@ from .OpTestError import OpTestError
 from .OpTestUtil import OpTestUtil
 from . import OpTestSystem
 from .Exceptions import CommandFailed
-from .Exceptions import BMCDisconnected
 from . import OPexpect
 
 from .SerialConsole import SerialConsole
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -256,7 +254,7 @@ class IPMIConsole():
         except pexpect.ExceptionPexpect:
             self.state = IPMIConsoleState.DISCONNECTED
             raise OpTestError("IPMI: failed to close ipmi console")
-        except Exception as e:
+        except Exception:
             self.state = IPMIConsoleState.DISCONNECTED
             pass
 
@@ -277,7 +275,7 @@ class IPMIConsole():
                                       logfile=self.logfile,
                                       failure_callback=set_system_to_UNKNOWN_BAD,
                                       failure_callback_data=self.system)
-        except Exception as e:
+        except Exception:
             self.state = IPMIConsoleState.DISCONNECTED
             raise CommandFailed(
                 'OPexpect.spawn', "OPexpect.spawn encountered a problem, command was '{}'".format(cmd), -1)
@@ -463,7 +461,7 @@ class OpTestIPMI():
         '''
         r = self.ipmitool.run('chassis power reset')
         self.console.close()
-        if not BMC_CONST.CHASSIS_POWER_RESET in r:
+        if BMC_CONST.CHASSIS_POWER_RESET not in r:
             raise Exception("IPMI 'chassis power reset' failed: %s " % r)
 
     def ipmi_power_diag(self):
@@ -471,7 +469,7 @@ class OpTestIPMI():
         This function sends the chassis power diag ipmitool command.
         '''
         r = self.ipmitool.run('chassis power diag')
-        if not "Chassis Power Control: Diag" in r:
+        if "Chassis Power Control: Diag" not in r:
             raise Exception("IPMI 'chassis power diag' failed: %s " % r)
 
     ##
@@ -495,7 +493,7 @@ class OpTestIPMI():
         timeout = time.time() + 60*timeout
         cmd = 'sdr elist |grep \'Host Status\''
         output = self.ipmitool.run(cmd)
-        if not "Host Status" in output:
+        if "Host Status" not in output:
             return BMC_CONST.FW_PARAMETER
         while True:
             output = self.ipmitool.run(cmd)
@@ -532,7 +530,7 @@ class OpTestIPMI():
         timeout = time.time() + 60*timeout
         cmd = 'sdr elist |grep \'Host Status\''
         output = self.ipmitool.run(cmd)
-        if not "Host Status" in output:
+        if "Host Status" not in output:
             return BMC_CONST.FW_PARAMETER
 
         while True:
@@ -592,7 +590,7 @@ class OpTestIPMI():
         l_timeout = time.time() + 60*i_timeout
         l_cmd = 'sdr elist |grep \'OS Boot\''
         output = self.ipmitool.run(l_cmd)
-        if not "OS Boot" in output:
+        if "OS Boot" not in output:
             return BMC_CONST.FW_PARAMETER
         while True:
             l_output = self.ipmitool.run(l_cmd)
@@ -621,7 +619,7 @@ class OpTestIPMI():
         l_timeout = time.time() + 60*i_timeout
         l_cmd = 'sdr elist |grep \'OS Boot\''
         l_output = self.ipmitool.run(l_cmd)
-        if not "OS Boot" in l_output:
+        if "OS Boot" not in l_output:
             return BMC_CONST.FW_PARAMETER
 
         while True:

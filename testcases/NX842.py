@@ -24,20 +24,12 @@
 #
 # IBM_PROLOG_END_TAG
 
-import time
-import subprocess
-import re
-import subprocess
-import sys
 
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
-from common.OpTestIPMI import IPMIConsoleState
-from common.Exceptions import CommandFailed
 
 
 class NX842(unittest.TestCase):

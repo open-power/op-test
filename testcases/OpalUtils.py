@@ -36,7 +36,6 @@ Test different OPAL Utilities:
 - pflash
 '''
 
-import re
 import random
 
 
@@ -47,7 +46,6 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

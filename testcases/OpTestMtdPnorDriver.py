@@ -37,19 +37,13 @@ Test MTD PNOR Driver package for OpenPower testing.
    I *severely* doubt this test case currently works as intended.
 '''
 
-import time
-import subprocess
-import re
 import subprocess
 
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

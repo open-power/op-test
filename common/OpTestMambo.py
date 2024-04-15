@@ -25,14 +25,12 @@ Support testing against Mambo simulator
 import sys
 import time
 import pexpect
-import subprocess
 import os
 
 from common.Exceptions import CommandFailed, ParameterCheck
 from . import OPexpect
 from .OpTestUtil import OpTestUtil
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -123,10 +121,10 @@ class MamboConsole():
                 else:
                     signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
-        except pexpect.ExceptionPexpect as e:
+        except pexpect.ExceptionPexpect:
             self.state = ConsoleState.DISCONNECTED
             raise "Mambo Console: failed to close console"
-        except Exception as e:
+        except Exception:
             self.state = ConsoleState.DISCONNECTED
             pass
         log.debug("Mambo close -> TERMINATE")

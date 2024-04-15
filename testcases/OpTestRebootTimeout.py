@@ -26,15 +26,12 @@ Test it doesn't take until the heat death of the universe to reboot.
 '''
 
 import unittest
-import re
 import time
 import pexpect
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

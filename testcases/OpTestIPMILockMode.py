@@ -39,7 +39,6 @@ lock command then one can access only specific whitelisted in-band ipmi commands
 '''
 
 import time
-import subprocess
 import re
 import sys
 
@@ -49,7 +48,6 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -81,7 +79,7 @@ class OpTestIPMILockMode(unittest.TestCase):
 
     def runTest(self):
         # FIXME: detect and don't hardcode
-        if not self.platform in ['habanero', 'firestone', 'garrison', 'p9dsu']:
+        if self.platform not in ['habanero', 'firestone', 'garrison', 'p9dsu']:
             raise unittest.SkipTest(
                 "Platform %s doesn't support IPMI Lockdown mode" % self.platform)
 
@@ -190,7 +188,7 @@ class OpTestIPMILockMode(unittest.TestCase):
         l_con.run_command(BMC_CONST.HOST_SET_BMC_GLOBAL_ENABLES_SEL_ON)
 
         # 13.[App] Get System Interface Capabilities
-        if not self.platform in ['p9dsu']:
+        if self.platform not in ['p9dsu']:
             log.debug("Testing Get System Interface Capabilities")
             l_res = l_con.run_command(
                 BMC_CONST.HOST_GET_SYSTEM_INTERFACE_CAPABILITIES_SSIF)
@@ -210,7 +208,7 @@ class OpTestIPMILockMode(unittest.TestCase):
         l_res = l_con.run_command_ignore_fail(
             BMC_CONST.HOST_CLEAR_MESSAGE_FLAGS)
 
-        if not self.platform in ['p9dsu']:
+        if self.platform not in ['p9dsu']:
             # 17. [OEM] PNOR Access Status
             log.debug("Testing the PNOR Access Status")
             l_res = l_con.run_command(BMC_CONST.HOST_PNOR_ACCESS_STATUS_DENY)

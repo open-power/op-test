@@ -4,9 +4,7 @@ import time
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
-from common.OpTestError import OpTestError
 from common.OpTestKeys import OpTestKeys as keys
 
 
@@ -134,7 +132,7 @@ class StaticNetworkConfigTestCase(unittest.TestCase):
         self.bmc = conf.bmc()
         self.console = self.system.console
 
-        if conf.args.bmc_type is not 'qemu':
+        if conf.args.bmc_type != 'qemu':
             self.skipTest("This test is intended for qemu")
 
         # TODO extend to use real network device in qemu / real machine
@@ -235,7 +233,7 @@ class RestoreConfigDefaultTestCase(unittest.TestCase):
         self.bmc = conf.bmc()
         self.console = self.system.console
 
-        if conf.args.bmc_type is not 'qemu':
+        if conf.args.bmc_type != 'qemu':
             self.skipTest("This test is intended for qemu")
 
         # TODO extend to use real network device in qemu / real machine

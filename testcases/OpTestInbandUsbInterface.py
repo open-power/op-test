@@ -40,17 +40,11 @@ It is all the same tests as :mod:`testcases.OpTestInbandIPMI` but using the
 USB interface rather than BT.
 '''
 
-import time
-import subprocess
-import re
-import subprocess
-import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestSystem import OpSystemState
 import testcases.OpTestInbandIPMI as ib
 
 

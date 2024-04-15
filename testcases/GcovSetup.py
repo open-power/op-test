@@ -97,7 +97,7 @@ class GcovBuild(unittest.TestCase):
         if dest_path is None:
             log.error("Please provide a valid path")
             return ""
-        boot_conf_file = self.cv_HOST.host_run_command(f"ls /boot/ | grep -i config-")[0]
+        boot_conf_file = self.cv_HOST.host_run_command("ls /boot/ | grep -i config-")[0]
         boot_conf_file = f"/boot/{boot_conf_file}"
         src_conf_file = f"{dest_path}/.config"
         log.info(f"copying {boot_conf_file} {src_conf_file}")
@@ -166,7 +166,7 @@ class GcovBuild(unittest.TestCase):
         self.cv_HOST.host_run_command("make olddefconfig")
         try:
             self.cv_HOST.host_run_command("make -j %s" %onlinecpus , timeout=self.host_cmd_timeout)
-            cmd = f"make -j modules_install && make install"
+            cmd = "make -j modules_install && make install"
             if not self.cv_HOST.host_run_command(cmd):
                 self.fail("module installation failed")
         except Exception:

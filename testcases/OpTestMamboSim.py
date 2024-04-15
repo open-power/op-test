@@ -35,15 +35,12 @@ provide pertinent information regarding the state of the mambo config.
 '''
 
 import unittest
-import time
 import pexpect
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.Exceptions import CommandFailed
 import common.OpTestMambo as OpTestMambo
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

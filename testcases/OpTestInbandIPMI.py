@@ -37,22 +37,15 @@ This class will test the functionality of following commands
    mc, pef, power, raw, sdr, sel, sensor, session, user
 '''
 
-import time
-import subprocess
-import re
-import subprocess
-import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestIPMI import IPMIConsoleState
 from common.Exceptions import CommandFailed
 import common.OpTestMambo as OpTestMambo
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -454,7 +447,7 @@ class OpTestInbandIPMI(OpTestInbandIPMIBase, unittest.TestCase):
             if 'Error loading interface usb' in cf.output:
                 self.skipTest("No USB IPMI interface")
             raise cf
-        except OpTestError as e:
+        except OpTestError:
             self.skipTest("IPMI: Insufficient resources")
         return l_res
 

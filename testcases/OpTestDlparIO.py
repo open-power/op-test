@@ -30,9 +30,7 @@ import unittest
 import re
 import OpTestConfiguration
 import OpTestLogger
-from common import OpTestHMC
 from common.OpTestSOL import OpSOLMonitorThread
-from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 

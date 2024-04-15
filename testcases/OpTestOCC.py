@@ -36,23 +36,17 @@ This class will test the functionality of following.
 '''
 
 import time
-import subprocess
-import re
-import sys
-import os
 import random
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
 import testcases.OpTestEM
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -337,7 +331,7 @@ class OCCRESET_FSP(OpTestOCCBase, unittest.TestCase):
                     res = self.c.run_command("dmesg | grep -i 'OCC Active'")
                     recovered = True
                     break
-                except CommandFailed as cf:
+                except CommandFailed:
                     pass
 
             self.assertTrue(

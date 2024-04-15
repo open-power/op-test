@@ -24,10 +24,7 @@
 #
 # IBM_PROLOG_END_TAG
 
-from .Page import Page
-from engine.FWObject import FWObject
 from .BmcPageConstants import BmcPageConstants
-from connection.common.FWConnection import FWConnection
 from OpTestConstants import OpTestConstants as BMC_CONST
 from OpTestError import OpTestError
 from .seleniumimports import *

@@ -37,21 +37,15 @@ This driver has following functionalities:
   driver is capable of reading and programming the data to these devices.
 '''
 
-import time
-import subprocess
-import re
-import sys
 
 import unittest
 
 import OpTestConfiguration
 from testcases.I2C import I2C
-from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded
 from common.Exceptions import KernelConfigNotSet
 import difflib
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
