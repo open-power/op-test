@@ -632,9 +632,12 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         '''
         self.cv_SYSTEM.set_state(OpSystemState.OS)
         if self.distro == "rhel":
+            self.c.run_command("git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
+                               "python ./servicereport --plugins kdump package --repair", timeout=240)
+            time.sleep(10)
             self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf; sync")
             obj = OpTestInstallUtil.InstallUtil()
-            if not obj.update_kernel_cmdline(self.distro, args="fadump=on crashkernel=2G-128G:2048M,128G-:8192M",
+            if not obj.update_kernel_cmdline(self.distro, args="fadump=on",
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
         if self.distro == "sles":
@@ -715,10 +718,9 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
-            obj = OpTestInstallUtil.InstallUtil()
-            if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
-                                             reboot=True, reboot_cmd=True):
-                self.fail("KernelArgTest failed to update kernel args")
+            self.c.run_command("git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
+                               "python ./servicereport --plugins kdump package --repair", timeout=240)
+            time.sleep(10)
         elif self.distro == "sles":
             self.cv_HOST.host_check_command("kdumptool")
             self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
