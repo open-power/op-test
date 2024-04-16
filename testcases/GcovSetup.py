@@ -60,15 +60,19 @@ class GcovBuild(unittest.TestCase):
             self.installer = "yum install"
         elif self.distro_name == 'sles':
             self.installer = "zypper install"
-        dep_packages = ["rpm-build", "yum-utils", "gcc*", "perl*", "tiny*"]
+        dep_packages = ["rpm-build", "gcc*", "perl*", "tiny*"]
         log.info(f"\nInstalling following dependency packages\n {dep_packages}")
         for pkg in dep_packages:
-            self.cv_HOST.host_run_command(f"{self.installer} {pkg} -y")
+            if self.distro_name == 'rhel':
+                dep_packages.append("yum-utils")
+                self.cv_HOST.host_run_command(f"{self.installer} {pkg} -y")
+            elif self.distro_name == 'sles':
+                self.cv_HOST.host_run_command(f"{self.installer} -y {pkg}")
         log.info("\nInstalling the ditro src...")
         if self.distro_name == 'rhel':
             src_path = self.util.get_distro_src('kernel', '/root', "-bp")
         elif self.distro_name == 'sles':
-            src_path = self.util.get_distro_src('kernel-default', '/root', "-bp")
+            src_path = self.util.get_distro_src('kernel-default', '/root', "-bp", "linux")
         src_path_base = src_path
         out = self.cv_HOST.host_run_command(f"ls {src_path}")
         for line in out:
@@ -150,6 +154,8 @@ class GcovBuild(unittest.TestCase):
                 log.info("param failed to change {param}")
                 err_param.append(param)
             log.info("\n\n\n")
+        if self.distro_name == 'sles':
+            self.cv_HOST.host_run_command(f"sed -i 's/^.*CONFIG_SYSTEM_TRUSTED_KEYS/#&/g' {conf_file}")
         if err_param:
             self.fail("few param did not got updated: %s" %err_param)
 
