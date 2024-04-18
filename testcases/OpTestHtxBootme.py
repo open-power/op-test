@@ -351,3 +351,170 @@ class HtxBootme_AllMdt(OpTestHtxBootmeIO, unittest.TestCase):
         log.debug("Running the HTX ")
         cmd = "htxcmdline -run  -mdt %s" % self.mdt_file
         self.con.run_command(cmd)
+
+class HtxBootme_BlockDevice(OpTestHtxBootmeIO, unittest.TestCase):
+    """
+    The Test case is to run Htx on BLock Devices mdt.hd
+    """
+    def setUp(self):
+        super(HtxBootme_BlockDevice, self).setUp()
+
+        self.current_test_case="HtxBootme_BlockDevice"
+        self.mdt_file = self.conf.args.mdt_file
+        self.block_devices = self.conf.args.htx_disks
+        self.all = self.conf.args.all
+
+        if not self.all and self.block_devices is None:
+            self.fail("Needs the block devices to run the HTX")
+        if self.all:
+            self.block_device = ""
+        else:
+            self.block_device = []
+            for dev in self.block_devices.split():
+                dev_path = self.get_absolute_disk_path(dev)
+                dev_base = self.execute_remote_command('basename $(realpath {})'.format(dev_path))
+                if 'dm' in dev_base:
+                    dev_base = self.get_mpath_from_dm(dev_base)
+                self.block_device.append(dev_base)
+            self.block_device = " ".join(self.block_device)
+
+    def start_htx_run(self):
+        super(HtxBootme_BlockDevice, self).start_htx_run()
+
+        path = "/usr/lpp/htx/mdt/%s" % self.mdt_file
+        if self.execute_remote_command('test -e {}'.format(path)):
+            self.fail(f"MDT file {self.mdt_file} not found")
+
+        log.debug("selecting the mdt file ")
+        cmd = f"htxcmdline -select -mdt {self.mdt_file}"
+        self.con.run_command(cmd)
+
+        if not self.all:
+            if self.is_block_device_in_mdt() is False:
+                self.fail(f"Block devices {self.block_device} are not available"
+                          f"in {self.mdt_file}")
+
+        self.suspend_all_block_device()
+
+        log.debug(f"Activating the {self.block_device}")
+        cmd = f"htxcmdline -activate {self.block_device} -mdt {self.mdt_file}"
+        self.con.run_command(cmd)
+        if not self.all:
+            if self.is_block_device_active() is False:
+                self.fail("Block devices failed to activate")
+
+        log.debug(f"Running the HTX on {self.block_device}")
+        cmd = f"htxcmdline -run -mdt {self.mdt_file}"
+        self.con.run_command(cmd)
+
+    def is_block_device_in_mdt(self):
+        """
+        verifies the presence of given block devices in selected mdt file
+        """
+        log.debug(
+            f"checking if the given block_devices are present in {self.mdt_file}")
+        cmd = f"htxcmdline -query -mdt {self.mdt_file}"
+        output = self.con.run_command(cmd)
+        device = []
+        for dev in self.block_device.split(" "):
+            if dev not in output:
+                device.append(dev)
+        if device:
+            log.debug(
+                f"block_devices {device} are not avalable in {self.mdt_file} ")
+        log.debug(
+            f"BLOCK DEVICES {self.block_device} ARE AVAILABLE {self.mdt_file}")
+        return True
+
+    def suspend_all_block_device(self):
+        """
+        Suspend the Block devices, if active.
+        """
+        log.debug("suspending block_devices if any running")
+        cmd = f"htxcmdline -suspend all  -mdt {self.mdt_file}"
+        self.con.run_command(cmd)
+
+    def is_block_device_active(self):
+        """
+        Verifies whether the block devices are active or not
+        """
+        log.debug("checking whether all block_devices are active ot not")
+        cmd = f"htxcmdline -query {self.block_device} -mdt {self.mdt_file}"
+        output = self.con.run_command(cmd)
+        device_list = self.block_device.split(" ")
+        active_devices = []
+        for line in output:
+            for dev in device_list:
+                if dev in line and "ACTIVE" in line:
+                    active_devices.append(dev)
+        non_active_device = list(set(device_list) - set(active_devices))
+        if non_active_device:
+            return False
+        log.debug(f"BLOCK DEVICES {self.block_device} ARE ACTIVE")
+        return True
+
+    def get_mpath_from_dm(self, dm_id):
+        """
+        Get the mpath name for given device mapper id
+
+        :param dev_mapper: Input device mapper dm-x
+        :return: mpath name like mpathx
+        :rtype: str
+        """
+        cmd = "multipathd show maps format '%d %n'"
+        try:
+            mpaths = self.con.run_command(cmd)
+        except process.CmdError as ex:
+            raise MPException(f"Multipathd Command Failed : {ex} ")
+        for mpath in mpaths:
+            if dm_id in mpath:
+                return mpath.split()[1]
+
+    def get_all_disk_paths(self):
+        """
+        Returns all available disk names and alias on this  system
+
+        This will get all the sysfs disks name entries by its device
+        node name, by-uuid, by-id and by-path, irrespective of any
+        platform and device type
+
+        :returns: a list of all disk path names
+        :rtype: list of str
+        """
+        disk_list = abs_path = []
+        for path in [
+            "/dev",
+            "/dev/mapper",
+            "/dev/disk/by-id",
+            "/dev/disk/by-path",
+            "/dev/disk/by-uuid",
+            "/dev/disk/by-partuuid",
+            "/dev/disk/by-partlabel",
+        ]:
+            if self.execute_remote_command('test -e {}'.format(path)):
+                directory = self.execute_remote_command('ls -l {}'.format(path))
+                for device in directory:
+                    abs_path.append(path +  '/' + device)
+                disk_list.extend(abs_path)
+        return disk_list
+
+    def get_absolute_disk_path(self, device):
+        """
+        Returns absolute device path of given disk
+
+        This will get actual disks path of given device, it can take
+        node name, by-uuid, by-id and by-path, irrespective of any
+        platform and device type
+
+        :param device: disk name or disk alias names sda or scsi-xxx
+        :type device: str
+
+        :returns: the device absolute path name
+        :rtype: bool
+        """
+        if not self.execute_remote_command('test -e {}'.format(device)):
+            for dev_path in self.get_all_disk_paths():
+                dev_base = self.execute_remote_command('basename $(realpath {})'.format(dev_path))
+                if device == dev_base:
+                    return dev_path
+        return device
