@@ -48,6 +48,7 @@ This is done to avoid performing a kexec on a kernel that was booted using
 kexec, except for the kexec in loop test.
 '''
 
+import os
 import unittest
 import OpTestLogger
 
@@ -57,6 +58,7 @@ from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+
 
 class OpTestKexec(unittest.TestCase):
     """kexec test class"""
@@ -75,10 +77,8 @@ class OpTestKexec(unittest.TestCase):
         and initrd_image instance variable
         """
 
-        distro = self.op_test_util.distro_name()
-
         # Skip the test for unsupported distro
-        if distro == "unknown":
+        if self.distro == "unknown":
             self.skipTest("Unsupported distro")
 
         # Find kexec kernel version. If user provided the kernel source
@@ -99,13 +99,13 @@ class OpTestKexec(unittest.TestCase):
         # Set kernel_image and initrd_image instance variable with
         # corresponding filenames path
         k_ver = str(k_ver)
-        if distro == "rhel":
+        if self.distro == "rhel":
             self.kernel_image = "vmlinuz-" + k_ver
             self.initrd_image = "initramfs-" + k_ver + ".img"
-        elif distro == "sles":
+        elif self.distro == "sles":
             self.kernel_image = "vmlinux-" + k_ver
             self.initrd_image = "initrd-" + k_ver
-        elif distro == "ubuntu":
+        elif self.distro == "ubuntu":
             self.kernel_image = "vmlinux-" + k_ver
             self.initrd_image = "initrd.img-" + k_ver
 
@@ -115,7 +115,7 @@ class OpTestKexec(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.c = self.cv_SYSTEM.console
         self.cv_HOST = conf.host()
-        self.distro = None
+        self.distro = self.op_test_util.distro_name()
         self.num_of_iterations = conf.args.num_of_iterations
         self.kernel_image = conf.args.kernel_image
         self.initrd_image = conf.args.initrd_image
@@ -160,7 +160,7 @@ class OpTestKexec(unittest.TestCase):
             kexec_cmd = kexec_cmd + " -s"
 
         if syscall_load:
-            kexec_cmd = kexec_cmd + " -c"
+            kexec_cmd = "%s -c" % kexec_cmd
 
         if copy_cmdline:
             kexec_cmd = kexec_cmd + " --append=\"`cat /proc/cmdline`\""
@@ -355,7 +355,7 @@ class OpTestKexec(unittest.TestCase):
 
         kexec_exec_cmd = self.get_kexec_exec_command(exec_opt=True)
         ret = self.execute_kexec_cmd(kexec_exec_cmd, raw_pty_console=True)
-        self.assertTrue(ret, "kexec exec failed: " + kexec_exec_cmd)
+        self.assertTrue(ret, "kexec exec failed: %s " % kexec_exec_cmd)
 
     def test_file_load_and_exec(self):
         """
@@ -449,6 +449,65 @@ class OpTestKexec(unittest.TestCase):
             self.assertTrue(ret, "kexec failed, at iteration cnt: " + str(i))
             log.info("Completed kexec iteration cnt %s." % str(i))
 
+    def test_kexec_unsigned_kernel(self):
+        """
+        Tests the unsigned kernel when secure boot is enabled.
+
+        From the signed kernel image, create unsigned kernel image. The same
+        used for 'kexec' when secure boot is enabled. Expected failure while
+        loading kexec.
+        """
+        if self.os_level_secureboot:
+            if self.op_test_util.check_kernel_signature():
+                if self.distro in ["unknown", "ubuntu"]:
+                    self.skipTest("Unsupported Linux distribution.")
+                install_cmd = "wget"
+                wget_bool = True
+                res = self.cv_HOST.host_run_command('which %s' % install_cmd,
+                                                    timeout=120)
+                if install_cmd not in res[0]:
+                    wget_bool = False
+                if not wget_bool:
+                    if self.distro == "rhel":
+                        install_cmd = "yum install -y %s" % install_cmd
+                    elif self.distro == "sles":
+                        install_cmd = "zypper install -y %s" % install_cmd
+                    self.cv_HOST.host_run_command(install_cmd, timeout=120)
+                try:
+                    url = "https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-module-sig.pl"
+                    self.cv_HOST.host_run_command("wget %s -P /tmp/" % url, timeout=120)
+                except CommandFailed:
+                    self.skipTest("Can't get extract-module-sig.pl file.")
+                module_sig_file = '/tmp/extract-module-sig.pl'
+                self.cv_HOST.host_run_command("chmod u+x %s" % module_sig_file)
+                self.kernel_image = "/boot/%s" % self.kernel_image
+                cmd = "%s -0 %s > %s.unsigned" % \
+                      (module_sig_file, self.kernel_image, self.kernel_image)
+                out = self.cv_HOST.host_run_command(cmd)
+                if '0' not in out[3]:
+                    self.skipTest("Can not create unsigned binary. Using- %s"
+                                  % cmd)
+                cmd = "kexec -s -l %s.unsigned" % self.kernel_image
+                ret = self.execute_kexec_cmd(cmd)
+                if ret:
+                    self.fail("kexec loaded unsigned kernel when secure boot"
+                              " is enabled.")
+                else:
+                    log.info("kexec loading with unsigned kernel failed. "
+                             "Which is expected.")
+        else:
+            self.skipTest("secure boot is disabled.")
+
+    def tearDown(self):
+        unsigned_kernel = "%s.unsigned" % self.kernel_image
+        if 'boot' not in unsigned_kernel:
+            unsigned_kernel = "/boot/%s" % unsigned_kernel
+        if os.path.exists(unsigned_kernel):
+            os.remove(unsigned_kernel)
+        sign_file = "/tmp/extract-module-sig.pl"
+        if os.path.exists(sign_file):
+            os.remove(sign_file)
+
 
 def kexec_suite():
     """kexec test suite"""
@@ -461,4 +520,5 @@ def kexec_suite():
     suite.addTest(OpTestKexec('test_file_load_and_exec'))
     suite.addTest(OpTestKexec('test_syscall_load_and_exec'))
     suite.addTest(OpTestKexec('test_kexec_in_loop'))
+    suite.addTest(OpTestKexec('test_kexec_unsigned_kernel'))
     return suite
