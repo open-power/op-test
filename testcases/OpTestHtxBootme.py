@@ -74,7 +74,7 @@ class OpTestHtxBootmeIO():
         self.boot_count = int(self.conf.args.boot_count)
         self.htx_rpm_link=self.conf.args.htx_rpm_link
         
-       if not self.execute_remote_command('test -e {}'.format(path)):
+        if not self.execute_remote_command('test -e {}'.format(path)):
             log.debug("MDT file %s not found due to config" % self.mdt_file)
 
         self.host_distro_name = self.util.distro_name()
@@ -107,9 +107,10 @@ class OpTestHtxBootmeIO():
             self.latest_htx_rpm = distro_specific_htx_versions[0]
 
             if "error:" in self.con.run_command('rpm -ivh --nodeps %s%s '
-                              '--force' % (self.htx_rpm_link, self.latest_htx_rpm
-                              ), timeout=180):
-                            self.fail("Installion of rpm failed")
+                                                '--force' % (self.htx_rpm_link,
+                                                             self.latest_htx_rpm
+                                                             ), timeout=180):
+                self.fail("Installion of rpm failed")
 
     def setup_htx(self):
         """
