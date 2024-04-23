@@ -256,7 +256,10 @@ class PowerNVDump(unittest.TestCase):
                 "ssh root@%s -i %s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.dump_server_ip, self.rsa_path, self.dump_path))
         self.crash_content = list(
             set(crash_content_after) - set(self.crash_content))
-        self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
+        if self.distro == "sles":
+            self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}-\d{2}', x), self.crash_content))
+        else:
+            self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
         if len(self.crash_content):
             if dump_place == "net":
                 self.c.run_command('scp -i %s -r root@%s:/%s/%s /var/crash/' %
@@ -294,8 +297,7 @@ class PowerNVDump(unittest.TestCase):
         if int(res) == 1:
             return True 
         else:
-            self.c.run_command("echo 1 > /sys/kernel/fadump_registered")
-            self.c.run_command('\r\n')
+            self.c.run_command("echo 1 > /sys/kernel/fadump_registered; sleep 10")
             self.c.run_command("cat /sys/kernel/fadump_registered")
 
         if not self.is_lpar:
@@ -330,14 +332,12 @@ class PowerNVDump(unittest.TestCase):
         if int(res) == 0:
             return True 
         else:
-            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
-            self.c.run_command('\r\n')
+            self.c.run_command("echo 0 > /sys/kernel/fadump_registered; sleep 10")
 
         if not self.is_lpar:
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
             self.c.run_command("dmesg > /tmp/dmesg_log")
-            self.c.run_command("echo 0 > /sys/kernel/fadump_registered")
-            self.c.run_command('\r\n')
+            self.c.run_command("echo 0 > /sys/kernel/fadump_registered; sleep 10")
 
             opal_data = " ".join(self.c.run_command(
                 "%s | diff -a /tmp/opal_log -" % BMC_CONST.OPAL_MSG_LOG))
@@ -632,7 +632,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         '''
         self.cv_SYSTEM.set_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
+            self.c.run_command("rm -rf ServiceReport; git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
                                "python ./servicereport --plugins kdump package --repair", timeout=240)
             time.sleep(10)
             self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf; sync")
@@ -718,7 +718,7 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
-            self.c.run_command("git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
+            self.c.run_command("rm -rf ServiceReport; git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
                                "python ./servicereport --plugins kdump package --repair", timeout=240)
             time.sleep(10)
         elif self.distro == "sles":
@@ -733,9 +733,11 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
         self.cv_HOST.host_enable_kdump_service(os_level)
         log.info("========= Testing Only kdump enable followed by crash ===========")
         boot_type = self.kernel_crash()
-        if self.is_lpar:
-            boot_type = self.kernel_crash(crash_type="hmc")
         self.verify_dump_file(boot_type)
+        if self.is_lpar:
+            log.info("========= Testing kdump with HMC dumprestart ===========")
+            boot_type = self.kernel_crash(crash_type="hmc")
+            self.verify_dump_file(boot_type)
 
 
 class KernelCrash_DisableAll(PowerNVDump):
@@ -1127,6 +1129,10 @@ class KernelCrash_XIVE_off(PowerNVDump):
     '''
 
     def runTest(self):
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=80",
+                                         reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to remove kernel args:default_hugepagesz=1GB hugepagesz=1GB hugepages=80")
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("=============== Testing kdump/fadump with xive=off ===============")
@@ -1171,6 +1177,10 @@ class KernelCrash_disable_radix(PowerNVDump):
     '''
 
     def runTest(self):
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
+                                         reboot=True, reboot_cmd=True):
+           self.fail("KernelArgTest failed to remove kernel args:xive=off")
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("Testing kdump/fadump with disable_radix")
@@ -1279,6 +1289,10 @@ class OpTestMakedump(PowerNVDump):
         self.c.run_command("rm -rf dump*")
 
     def runTest(self):
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
+                                         reboot=True, reboot_cmd=True):
+            self.fail("KernelArgTest failed to remove kernel args:disable_radix")
         self.kernel_crash()
         self.makedump_check()
 
