@@ -32,7 +32,6 @@ import re
 import time
 import sys
 import subprocess
-import paramiko
 import itertools
 from datetime import datetime
 
@@ -68,13 +67,20 @@ class OpTestHtxBootmeIO():
         if 'ppc64' not in res[-1]:
             self.fail("Platform does not support HTX tests")
 
+        self.host_ip = self.conf.args.host_ip
+        self.host_user = self.conf.args.host_user
         self.host_password = self.conf.args.host_password
         self.mdt_file = self.conf.args.mdt_file
         self.time_limit = int(self.conf.args.time_limit)
         self.boot_count = int(self.conf.args.boot_count)
         self.htx_rpm_link=self.conf.args.htx_rpm_link
+
+        self.ssh_host = OpTestSSH(self.host_ip, self.host_user, self.host_password)
+        self.ssh_host.set_system(self.conf.system())
         
-        if not self.execute_remote_command('test -e {}'.format(path)):
+        path = "/usr/lpp/htx/mdt/%s" % self.mdt_file
+        res = self.ssh_host.run_command("if [ -f %s ];then echo 'true';else echo 'false';fi" % path)
+        if 'false' in res:
             log.debug("MDT file %s not found due to config" % self.mdt_file)
 
         self.host_distro_name = self.util.distro_name()
@@ -140,9 +146,8 @@ class OpTestHtxBootmeIO():
             for rpm in ins_htx:
                 self.con.run_command_ignore_fail("rpm -e %s" % rpm, timeout=30)
                 log.debug("Deleted old htx rpm package from host")
-                if self.execute_remote_command('test -e {}'.format('/usr/lpp/htx')):
-                    if not self.execute_remote_command('rm -rf {}'.format('/usr/lpp/htx')):
-                        self.fail("Failed to delete the file at /usr/lpp/htx")
+                self.ssh_host.run_command("if [ -d %s ];then rm -rf %s;fi" %
+                                          ('/usr/lpp/htx', '/usr/lpp/htx'), timeout=60)
         if self.current_test_case == "HtxBootme_NicDevices":
             peer_ins_htx = self.ssh.run_command_ignore_fail('rpm -qa | grep htx')
             if peer_ins_htx:
@@ -176,9 +181,8 @@ class OpTestHtxBootmeIO():
         Checks if HTX is running, and if no errors.
         """
         log.debug("HTX Error logs")
-        file_size = self.check_remote_file_size_command('wc -c {}'.format("/tmp/htx/htxerr"))
-        file_size = int(file_size.split()[0])
-        if file_size != 0:
+        file_size = self.ssh_host.run_command('wc -c {}'.format("/tmp/htx/htxerr"))
+        if int(file_size[0].split()[0]) != 0:
             self.fail("check errorlogs for exact error and failure")
         cmd = 'htxcmdline -query  -mdt %s' % self.mdt_file
         res = self.con.run_command(cmd)
@@ -212,8 +216,8 @@ class OpTestHtxBootmeIO():
                     time.sleep(10)
                     log.debug("Mdt start is still in progress")
             self.con.run_command(cmd)
-            htxerr_file = self.check_remote_file_size_command('wc -c {}'.format("/tmp/htx/htxerr"))
-            if int(htxerr_file.split()[0]) != 0:
+            htxerr_file = self.ssh_host.run_command('wc -c {}'.format("/tmp/htx/htxerr"))
+            if int(htxerr_file[0].split()[0]) != 0:
                 self.fail("check error logs for exact error and failure")
             log.info("Reboot cycle %s completed successfully" % (i+1))
             reboot_time = time.time() - start_time
@@ -245,27 +249,6 @@ class OpTestHtxBootmeIO():
                 time.sleep(2)
                 i_try -= 1
         return False
-
-    def check_remote_file_size_command(self, command):
-        """
-        Creates a new SSH client connection, executes a command,
-        and then closes the connection.
-
-        :param command: Command to execute on the remote machine.
-        :return: Command output as a string. 
-                 or Returns Execption error msg if there was an error.
-        """
-        try:
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(self.cv_HOST.ip, 22, self.cv_HOST.user, self.host_password)
-            stdin, stdout, stderr = client.exec_command(command)
-            output = stdout.read().decode().strip()
-            client.close()
-            return output
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return e
 
     def wait_for_reboot_completion(self, ip_addr, timeout=500):
         """
@@ -367,13 +350,12 @@ class HtxBootme_BlockDevice(OpTestHtxBootmeIO, unittest.TestCase):
 
         if not self.all and self.block_devices is None:
             self.fail("Needs the block devices to run the HTX")
-        if self.all:
+        if self.all == "True":
             self.block_device = ""
         else:
             self.block_device = []
             for dev in self.block_devices.split():
-                dev_path = self.get_absolute_disk_path(dev)
-                dev_base = self.execute_remote_command('basename $(realpath {})'.format(dev_path))
+                dev_base = self.ssh_host.run_command('basename $(realpath {})'.format(dev))[0]
                 if 'dm' in dev_base:
                     dev_base = self.get_mpath_from_dm(dev_base)
                 self.block_device.append(dev_base)
@@ -383,7 +365,8 @@ class HtxBootme_BlockDevice(OpTestHtxBootmeIO, unittest.TestCase):
         super(HtxBootme_BlockDevice, self).start_htx_run()
 
         path = "/usr/lpp/htx/mdt/%s" % self.mdt_file
-        if self.execute_remote_command('test -e {}'.format(path)):
+        res = self.ssh_host.run_command("if [ -d %s ];then echo 'true';else echo 'false';fi" % path)
+        if 'true' in res:
             self.fail(f"MDT file {self.mdt_file} not found")
 
         log.debug("selecting the mdt file ")
@@ -469,53 +452,4 @@ class HtxBootme_BlockDevice(OpTestHtxBootmeIO, unittest.TestCase):
             raise MPException(f"Multipathd Command Failed : {ex} ")
         for mpath in mpaths:
             if dm_id in mpath:
-                return mpath.split()[1]
-
-    def get_all_disk_paths(self):
-        """
-        Returns all available disk names and alias on this  system
-
-        This will get all the sysfs disks name entries by its device
-        node name, by-uuid, by-id and by-path, irrespective of any
-        platform and device type
-
-        :returns: a list of all disk path names
-        :rtype: list of str
-        """
-        disk_list = abs_path = []
-        for path in [
-            "/dev",
-            "/dev/mapper",
-            "/dev/disk/by-id",
-            "/dev/disk/by-path",
-            "/dev/disk/by-uuid",
-            "/dev/disk/by-partuuid",
-            "/dev/disk/by-partlabel",
-        ]:
-            if self.execute_remote_command('test -e {}'.format(path)):
-                directory = self.execute_remote_command('ls -l {}'.format(path))
-                for device in directory:
-                    abs_path.append(path +  '/' + device)
-                disk_list.extend(abs_path)
-        return disk_list
-
-    def get_absolute_disk_path(self, device):
-        """
-        Returns absolute device path of given disk
-
-        This will get actual disks path of given device, it can take
-        node name, by-uuid, by-id and by-path, irrespective of any
-        platform and device type
-
-        :param device: disk name or disk alias names sda or scsi-xxx
-        :type device: str
-
-        :returns: the device absolute path name
-        :rtype: bool
-        """
-        if not self.execute_remote_command('test -e {}'.format(device)):
-            for dev_path in self.get_all_disk_paths():
-                dev_base = self.execute_remote_command('basename $(realpath {})'.format(dev_path))
-                if device == dev_base:
-                    return dev_path
-        return device
+                return mpath.split()[-1]
