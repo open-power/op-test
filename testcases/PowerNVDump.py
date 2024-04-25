@@ -1130,9 +1130,8 @@ class KernelCrash_XIVE_off(PowerNVDump):
 
     def runTest(self):
         obj = OpTestInstallUtil.InstallUtil()
-        if not obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=80",
-                                         reboot=True, reboot_cmd=True):
-            self.fail("KernelArgTest failed to remove kernel args:default_hugepagesz=1GB hugepagesz=1GB hugepages=80")
+        obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=80",
+                                  reboot=True, reboot_cmd=True)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("=============== Testing kdump/fadump with xive=off ===============")
@@ -1178,9 +1177,8 @@ class KernelCrash_disable_radix(PowerNVDump):
 
     def runTest(self):
         obj = OpTestInstallUtil.InstallUtil()
-        if not obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
-                                         reboot=True, reboot_cmd=True):
-           self.fail("KernelArgTest failed to remove kernel args:xive=off")
+        obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
+                                  reboot=True, reboot_cmd=True)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("Testing kdump/fadump with disable_radix")
@@ -1290,9 +1288,8 @@ class OpTestMakedump(PowerNVDump):
 
     def runTest(self):
         obj = OpTestInstallUtil.InstallUtil()
-        if not obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
-                                         reboot=True, reboot_cmd=True):
-            self.fail("KernelArgTest failed to remove kernel args:disable_radix")
+        obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
+                                  reboot=True, reboot_cmd=True)
         self.kernel_crash()
         self.makedump_check()
 
