@@ -914,6 +914,33 @@ class HMCUtil():
         :param timeout: number, time out in seconds
         '''
         return self.ssh.run_command(i_cmd, timeout)
+   
+    def is_perfcollection_enabled(self):
+        '''
+        Get Performance Information collection allowed in hmc profile
+
+        :returns: Ture if  allow_perf_collection in hmc otherwise false
+        '''
+
+        rc = self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F allow_perf_collection"
+                                % (self.mg_system, self.lpar_name))
+        if  rc:
+            return True
+	return False
+    
+    def hmc_perfcollect_configure(self, enable=True):
+        '''
+        Enable/Disable perfcollection from HMC
+        '''
+        # Set perf collection profile  value using HMC command
+        cmd = ('chsyscfg -r lpar -m %s -i "name=%s, allow_perf_collection=' %
+               (self.mg_system, self.lpar_name))
+        if enable: # Value '1' to enable perfcollection
+            cmd = '%s1"' % cmd
+        else: # Value '0' to disable perfcollection
+            cmd = '%s0"' % cmd
+        self.run_command(cmd, timeout=300)
+        
 
 
 class OpTestHMC(HMCUtil):
