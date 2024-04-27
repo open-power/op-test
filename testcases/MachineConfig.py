@@ -146,11 +146,11 @@ class MachineConfig(unittest.TestCase):
 class LparConfig():
 
     '''
-    pass machine_config in config file indicating proc mode, vtpm and vpmem.
+    pass machine_config in config file indicating proc mode, vtpm vpmem and perf.
     valid values: cpu=shared or cpu=dedicated
                   vtpm=1 or vtpm=0
                   vpmem=0 or vpmem=1
-    Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1"
+    Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1,perf=1"
     '''
     def __init__(self, cv_HMC=None, system_name= None,
                  lpar_name=None, lpar_prof=None, machin_config =None, sb_enable=None):
@@ -325,6 +325,18 @@ class LparConfig():
             ioslot_drc_names = ",".join(ioslot_drc_names[:ioslot_drc_names.index("=")].split(",")[:-1]) \
                                if "=" in ioslot_drc_names else ioslot_drc_names
             self.cv_HMC.add_ioslot(ioslot_drc_names)
+        
+        if "perf=1" in self.machine_config:
+            conf = OpTestConfiguration.conf
+            if self.cv_HMC.is_perfcollection_enabled():
+                log.info("System is already booted with perf collection profile enabled")
+            else:
+                self.cv_HMC.hmc_perfcollect_configure()
+                if self.cv_HMC.is_perfcollection_enabled:
+                    log.info("System is already booted with perf collection profile enabled")
+                else:
+                    return "Failed to enable Performance Information collection"
+
 
         if self.sb_enable is not None :
             self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
