@@ -1130,7 +1130,7 @@ class KernelCrash_XIVE_off(PowerNVDump):
 
     def runTest(self):
         obj = OpTestInstallUtil.InstallUtil()
-        obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=80",
+        obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB",
                                   reboot=True, reboot_cmd=True)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
@@ -1245,6 +1245,14 @@ class OpTestMakedump(PowerNVDump):
             self.fail("vmcore is not saved")
         else:
             log.info("vmcore is saved")
+
+        '''
+        The vmcore file saved in flattened format on SLES distro.
+        So, convert flattened format to kdump compress format.
+        '''
+        if self.distro == "sles":
+            self.c.run_command("mv vmcore vmcore.orig; makedumpfile -R vmcore <vmcore.orig", timeout=60)
+
         self.c.run_command("makedumpfile -v")
         self.check_run("makedumpfile --split -d 31 -l vmcore dump3 dump4",
                        "The dumpfiles are saved to dump3, and dump4")
