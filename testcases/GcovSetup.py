@@ -54,6 +54,10 @@ class GcovBuild(unittest.TestCase):
         '''
         Running the gcov test
         '''
+        path = " /sys/kernel/debug/gcov/reset"
+        res = self.cv_HOST.host_run_command("if [ -f %s ];then echo 'true';else echo 'false';fi" % path)
+        if 'true' in res:
+            self.skipTest("Skip Gcov Setup as system already booted with Gcov Kernel")
         self.distro_name = self.util.distro_name()
         log.info("OS: %s" %self.distro_name)
         if self.distro_name == 'rhel':
