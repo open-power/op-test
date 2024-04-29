@@ -247,7 +247,7 @@ class PowerNVDump(unittest.TestCase):
         if self.distro == "rhel":
             self.cv_HOST.host_run_command("cp /etc/kdump.conf_bck /etc/kdump.conf", timeout=60)
         if self.distro == "sles":
-            self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump")
+            self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump", timeout=60)
         if dump_place == "local":
             crash_content_after = self.c.run_command(
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
