@@ -927,20 +927,20 @@ class HMCUtil():
         if  rc:
             return True
 	return False
-    
+
     def hmc_perfcollect_configure(self, enable=True):
         '''
         Enable/Disable perfcollection from HMC
+	enable perfcollection value is 1 and for disable it 0
         '''
         # Set perf collection profile  value using HMC command
         cmd = ('chsyscfg -r lpar -m %s -i "name=%s, allow_perf_collection=' %
                (self.mg_system, self.lpar_name))
-        if enable: # Value '1' to enable perfcollection
+        if enable:
             cmd = '%s1"' % cmd
-        else: # Value '0' to disable perfcollection
+        else:
             cmd = '%s0"' % cmd
         self.run_command(cmd, timeout=300)
-        
 
 
 class OpTestHMC(HMCUtil):
