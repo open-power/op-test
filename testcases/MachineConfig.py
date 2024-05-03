@@ -33,6 +33,7 @@ import json
 
 import OpTestConfiguration
 import OpTestLogger
+from common import OpTestHMC
 from common import OpTestInstallUtil
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
@@ -56,6 +57,11 @@ class MachineConfig(unittest.TestCase):
             self.cv_HMC = self.cv_SYSTEM.hmc
             self.lpar_prof = conf.args.lpar_prof
             self.util = OpTestUtil(conf)
+            self.lpar_flag = False
+            try:
+                self.lpar_list = conf.args.lpar_list
+            except AttributeError:
+                self.lpar_list = ""
         else:
             self.skipTest("Functionality is supported only on LPAR")
 
@@ -77,21 +83,48 @@ class MachineConfig(unittest.TestCase):
         else:
             return False
 
+    def update_hmc_object(self, target_hmc_ip, target_hmc_username, target_hmc_password,
+                          managed_system, lpar_name):
+        """
+        In case of multi lpar configuration here we are creating multiple objects[In sequence] as per
+        lpar change.
+        """
+        conf = OpTestConfiguration.conf
+        self.cv_HMC = OpTestHMC.OpTestHMC(target_hmc_ip,
+                                          target_hmc_username,
+                                          target_hmc_password,
+                                          managed_system=managed_system,
+                                          lpar_name=lpar_name,
+                                          lpar_prof=conf.args.lpar_prof
+                                          )
+        self.cv_HMC.set_system(conf.system())
 
     def runTest(self):
-        
-        for key in self.machine_config:
-            self.callConfig(key)
+        if self.lpar_list != "":
+            self.lpar_list = self.lpar_list.split(",")
+            self.lpar_list.append(self.lpar_name)
+            self.lpar_flag = True
+            for lpar in self.lpar_list:
+                lpar = lpar.strip()
+                self.update_hmc_object(
+                    self.hmc_ip, self.hmc_user, self.hmc_password, self.system_name, lpar)
+                for key in self.machine_config:
+                    self.callConfig(key, lpar)
+        else:
+            for key in self.machine_config:
+                self.callConfig(key)        
 
-    def callConfig(self, key):
-    
+    def callConfig(self, key, lpar=""):
+        if lpar != "":
+            self.lpar_name = lpar
+
         status=0
         if key == "lpar":
             self.sb_enable = None
             config_value=self.machine_config['lpar']
             if 'secureboot' in config_value:
                 self.sb_enable = self.validate_secureboot_parameter(self.machine_config)
-            status=LparConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,self.machine_config['lpar'],sb_enable=self.sb_enable).LparSetup()
+            status=LparConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,self.machine_config['lpar'],sb_enable=self.sb_enable).LparSetup(self.lpar_flag)
             if status:
                 self.fail(status)
 
@@ -166,7 +199,7 @@ class LparConfig():
         self.util = OpTestUtil(conf)
         self.sb_enable = sb_enable
 
-    def LparSetup(self):
+    def LparSetup(self, lpar_config=""):
         '''
         If cpu=shared is passed in machine_config lpar proc mode changes to shared mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
@@ -205,10 +238,15 @@ class LparConfig():
             except AttributeError:
                 self.max_memory = int(self.cv_HMC.get_available_mem_resources()[0]) + int(self.desired_memory)
             proc_mode = 'shared'
-            self.cv_HMC.profile_bckup()
-            self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
-                                         self.desired_proc_units, self.max_proc_units, 
-                                         self.min_memory, self.desired_memory, self.max_memory,self.overcommit_ratio)
+            curr_proc_mode = self.cv_HMC.get_proc_mode()
+            if proc_mode in curr_proc_mode and not lpar_config:
+                log.info("System is already booted in shared mode.")
+            else:
+                if not lpar_config:
+                    self.cv_HMC.profile_bckup()
+                self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
+                        self.desired_proc_units, self.max_proc_units, 
+                        self.min_memory, self.desired_memory, self.max_memory,self.overcommit_ratio)
         '''
         If cpu=dedicated is passed in machine_config lpar proc mode changes to dedicated mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
