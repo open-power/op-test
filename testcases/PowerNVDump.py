@@ -1056,13 +1056,14 @@ class KernelCrash_KdumpWorkLoad(PowerNVDump):
             cmd = "zypper install -y make gcc wget"
         self.c.run_command(cmd, timeout=120)
         try:
-            self.c.run_command("wget %s -P /tmp" % self.url)
+            self.c.run_command("rm -rf /tmp/ebizzy*", timeout=120)
+            self.c.run_command("wget %s -P /tmp" % self.url, timeout=120)
         except CommandFailed:
             self.fail("Failed to download ebizzy tar")
-        self.c.run_command("tar -xf /tmp/ebizzy*.tar.gz -C /tmp")
+        self.c.run_command("tar -xf /tmp/ebizzy*.tar.gz -C /tmp", timeout=120)
         self.c.run_command("cd /tmp/ebizzy*/")
         try:
-            self.c.run_command("./configure; make")
+            self.c.run_command("./configure; make", timeout=120)
         except CommandFailed:
             self.fail("Failed to compile ebizzy")
         self.c.run_command("./ebizzy -S 60&")
