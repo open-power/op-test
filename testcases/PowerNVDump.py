@@ -192,20 +192,20 @@ class PowerNVDump(unittest.TestCase):
         Method to verify fadump is enabled
         returns True if fadump is configured
         '''
-        res = self.c.run_command("cat /sys/kernel/fadump_enabled")[-1]
+        res = self.c.run_command("cat /sys/kernel/fadump/enabled")[-1]
         if int(res) == 1:
             return True
         elif int(res) == 0:
             return False
         else:
-            raise Exception("Unknown fadump_enabled value")
+            raise Exception("Unknown /sys/kernel/fadump/enabled value")
 
     def is_fadump_supported(self):
         '''
         Methods checks if fadump is supported 
         '''
         try:
-            self.c.run_command("ls /sys/kernel/fadump_enabled")
+            self.c.run_command("ls /sys/kernel/fadump/enabled")
             return True
         except CommandFailed:
             return False
@@ -293,12 +293,12 @@ class PowerNVDump(unittest.TestCase):
         '''
         Enable and verify fadump registered by checking opal/dmesg logs
         '''
-        res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
+        res = self.c.run_command("cat /sys/kernel/fadump/registered")[-1]
         if int(res) == 1:
             return True 
         else:
-            self.c.run_command("echo 1 > /sys/kernel/fadump_registered; sleep 10")
-            self.c.run_command("cat /sys/kernel/fadump_registered")
+            self.c.run_command("echo 1 > /sys/kernel/fadump/registered; sleep 10")
+            self.c.run_command("cat /sys/kernel/fadump/registered")
 
         if not self.is_lpar:
             self.c.run_command("dmesg > /tmp/dmesg_log")
@@ -328,16 +328,16 @@ class PowerNVDump(unittest.TestCase):
         '''
         Disable and verify fadump unregistered by checking opal/dmesg logs
         '''
-        res = self.c.run_command("cat /sys/kernel/fadump_registered")[-1]
+        res = self.c.run_command("cat /sys/kernel/fadump/registered")[-1]
         if int(res) == 0:
             return True 
         else:
-            self.c.run_command("echo 0 > /sys/kernel/fadump_registered; sleep 10")
+            self.c.run_command("echo 0 > /sys/kernel/fadump/registered; sleep 10")
 
         if not self.is_lpar:
             self.c.run_command("%s > /tmp/opal_log" % BMC_CONST.OPAL_MSG_LOG)
             self.c.run_command("dmesg > /tmp/dmesg_log")
-            self.c.run_command("echo 0 > /sys/kernel/fadump_registered; sleep 10")
+            self.c.run_command("echo 0 > /sys/kernel/fadump/registered; sleep 10")
 
             opal_data = " ".join(self.c.run_command(
                 "%s | diff -a /tmp/opal_log -" % BMC_CONST.OPAL_MSG_LOG))
@@ -667,7 +667,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
             raise self.skipTest(
                 "fadump not enabled in the kernel, does system has right firmware!!!")
         if not self.is_fadump_enabled():
-            raise self.skipTest("fadump_enabled is off")
+            raise self.skipTest("fadump is disabled")
         if self.distro == "ubuntu":
             self.cv_HOST.host_check_command("kdump")
         elif self.distro == "rhel":
