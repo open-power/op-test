@@ -414,9 +414,10 @@ class HMCUtil():
             self.set_lpar_cfg("proc_mode=shared,sharing_mode=%s,min_proc_units=%s,max_proc_units=%s,"
                               "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s,"
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %
-                              (sharing_mode, min_proc_units, max_proc_units, desired_proc_units,
-                               overcommit_ratio*int(min_proc_units), overcommit_ratio*int(desired_proc_units),
-                               3*int(max_proc_units),min_memory, desired_memory, max_memory))
+                              (sharing_mode, overcommit_ratio*int(min_proc_units), max_proc_units, 
+                               overcommit_ratio*int(desired_proc_units),
+                               int(min_proc_units), 2*int(desired_proc_units),
+                               2*int(max_proc_units),min_memory, desired_memory, max_memory))
         elif proc_mode == 'ded':
             self.set_lpar_cfg("proc_mode=ded,sharing_mode=%s,min_procs=%s,max_procs=%s,desired_procs=%s,"
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %
@@ -600,6 +601,67 @@ class HMCUtil():
         '''
         return self.run_command("lshwres -m %s -r proc --level sys -F curr_avail_sys_proc_units" %
                                 self.mg_system)
+
+    def get_stealable_resources(self):
+        '''
+        we are getting the not activated lpars 
+        list in order to steal the procs and mem resources
+        '''
+        output = self.run_command("lssyscfg -r lpar -m %s -F name state" % self.mg_system)
+        # Split the output into lines
+        #lines = output.splitlines()
+        # Initialize an empty list to store the first column values
+        not_activated_lpars = []
+        # Iterate over each line to extract the first column value if the state is "Not Activated"
+        for line in output:
+            # Split the line using space as the delimiter
+            parts = line.split()
+            # Check if the state is "Not Activated" and extract the first column value
+            if len(parts) >= 2 and parts[1] == '"Not':
+                lpar_name = parts[0]
+                # Append the LPAR name to the list
+                not_activated_lpars.append(lpar_name)
+        return not_activated_lpars
+
+    def get_stealable_proc_resources_lpar(self):
+        '''
+        we are getting the procs assigned to not activated lpars
+        '''
+        stealable_procs = []
+        lpars = self.get_stealable_resources()
+        for lpar in lpars:
+            
+            lpar_mode = self.run_command("lshwres -r proc -m %s --level lpar --filter lpar_names=%s -F curr_proc_mode" %
+                                         (self.mg_system, lpar))
+            if "shared" in lpar_mode:
+                proc = self.run_command("lshwres -r proc -m %s --level lpar --filter lpar_names=%s -F curr_proc_units" %
+                                        (self.mg_system, lpar))
+            else:
+                proc = self.run_command("lshwres -r proc -m %s --level lpar --filter lpar_names=%s -F curr_procs" %
+                                        (self.mg_system, lpar))
+            if proc:
+                for proc_value in proc:
+                    stealable_procs.append(int(float(proc_value)))
+        total_stealable_proc = sum(stealable_procs)
+        print("total stealable proc:", total_stealable_proc)
+        return total_stealable_proc
+
+    def get_stealable_mem_resources_lpar(self):
+        '''
+        we are getting the memory assigned to
+        not activated lpars
+        '''
+        stealable_mem = []
+        lpars = self.get_stealable_resources()
+        for lpar in lpars:
+            mem = self.run_command("lshwres -r mem -m %s --level lpar --filter lpar_names=%s -F curr_mem" %
+                                   (self.mg_system, lpar))
+            if mem:
+                for mem_value in mem:
+                    stealable_mem.append(int(mem_value))
+        total_stealable_memory = sum(stealable_mem)
+        print("total stealable memory:", total_stealable_memory)
+        return total_stealable_memory
 
     def get_lpar_state(self, vios=False, remote_hmc=None):
         '''

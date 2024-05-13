@@ -39,6 +39,7 @@ from common.OpTestSystem import OpSystemState
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+
 class MachineConfig(unittest.TestCase):
 
     def setUp(self):
@@ -47,7 +48,7 @@ class MachineConfig(unittest.TestCase):
         self.cv_SYSTEM = conf.system()
         self.bmc_type = conf.args.bmc_type
         self.machine_config = json.loads(conf.args.machine_config)
-        if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP" :
+        if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP":
             self.hmc_user = conf.args.hmc_username
             self.hmc_password = conf.args.hmc_password
             self.hmc_ip = conf.args.hmc_ip
@@ -68,7 +69,8 @@ class MachineConfig(unittest.TestCase):
         False - if secureboot is set to 'off'
         '''
         sb_valid_states = ['on', 'off']
-        secureboot_parameter_state = re.findall("secureboot=[a-z][a-z]+", str(machine_config))[0].split('=')[1]
+        secureboot_parameter_state = re.findall(
+            "secureboot=[a-z][a-z]+", str(machine_config))[0].split('=')[1]
         if str(secureboot_parameter_state) not in sb_valid_states:
             self.skipTest("%s is not a valid state for secureboot. "
                           "Secureboot valid states can be either set to 'on' or 'off'" % str(secureboot_parameter_state))
@@ -77,44 +79,47 @@ class MachineConfig(unittest.TestCase):
         else:
             return False
 
-
     def runTest(self):
-        
+
         for key in self.machine_config:
             self.callConfig(key)
 
     def callConfig(self, key):
-    
-        status=0
+
+        status = 0
         if key == "lpar":
             self.sb_enable = None
-            config_value=self.machine_config['lpar']
+            config_value = self.machine_config['lpar']
             if 'secureboot' in config_value:
-                self.sb_enable = self.validate_secureboot_parameter(self.machine_config)
-            status=LparConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,self.machine_config['lpar'],sb_enable=self.sb_enable).LparSetup()
+                self.sb_enable = self.validate_secureboot_parameter(
+                    self.machine_config)
+            status = LparConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof,
+                                self.machine_config['lpar'], sb_enable=self.sb_enable).LparSetup()
             if status:
                 self.fail(status)
 
         if key == "cec":
-            lmb_size= None
+            lmb_size = None
             num_hugepages = None
             setup = 0
             if not self.cv_HMC.lpar_vios:
                 self.skipTest("Please pass lpar_vios in config file.")
-            config_value=self.machine_config['cec']
+            config_value = self.machine_config['cec']
             valid_size = [128, 256, 1024, 2048, 4096]
             if "lmb" in config_value:
                 setup = 1
-                lmb_size = re.findall('lmb=[0-9]+', str(self.machine_config))[0].split('=')[1]
+                lmb_size = re.findall(
+                    'lmb=[0-9]+', str(self.machine_config))[0].split('=')[1]
                 if int(lmb_size) not in valid_size:
                     self.skipTest("%s is not valid lmb size, "
                                   "valid lmb sizes are 128, 256, 1024, 2048, 4096" % lmb_size)
             if "hugepages" in config_value:
                 setup = 1
                 num_hugepages = re.findall(
-                        'hugepages=[0-9]+', str(self.machine_config))[0].split('=')[1]
+                    'hugepages=[0-9]+', str(self.machine_config))[0].split('=')[1]
 
-            status = CecConfig(self.cv_HMC,self.system_name,self.lpar_name,self.lpar_prof,lmb=lmb_size,hugepages=num_hugepages).CecSetup()
+            status = CecConfig(self.cv_HMC, self.system_name, self.lpar_name,
+                               self.lpar_prof, lmb=lmb_size, hugepages=num_hugepages).CecSetup()
             if status:
                 self.fail(status)
             if not setup:
@@ -135,8 +140,10 @@ class MachineConfig(unittest.TestCase):
                                   "valid hugepage sizes are 1G, 2M, 16M, 16G" % hugepage_size)
             if 'secureboot' in config_value:
                 setup = 1
-                sb_enable = self.validate_secureboot_parameter(self.machine_config)
-            status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof, self.machine_config['os'],enable=sb_enable, hugepage=hugepage_size).Ossetup()
+                sb_enable = self.validate_secureboot_parameter(
+                    self.machine_config)
+            status = OsConfig(self.cv_HMC, self.system_name, self.lpar_name, self.lpar_prof,
+                              self.machine_config['os'], enable=sb_enable, hugepage=hugepage_size).Ossetup()
             if status:
                 self.fail(status)
             if not setup:
@@ -152,13 +159,14 @@ class LparConfig():
                   vpmem=0 or vpmem=1
     Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1"
     '''
-    def __init__(self, cv_HMC=None, system_name= None,
-                 lpar_name=None, lpar_prof=None, machin_config =None, sb_enable=None):
+
+    def __init__(self, cv_HMC=None, system_name=None,
+                 lpar_name=None, lpar_prof=None, machin_config=None, sb_enable=None):
         self.cv_HMC = cv_HMC
         self.system_name = system_name
         self.lpar_name = lpar_name
         self.lpar_prof = lpar_prof
-        self.machine_config=machin_config
+        self.machine_config = machin_config
         self.hmc_con = self.cv_HMC.ssh
         conf = OpTestConfiguration.conf
         self.cv_SYSTEM = conf.system()
@@ -180,35 +188,45 @@ class LparConfig():
         proc_mode = None
         if "cpu=shared" in self.machine_config:
             conf = OpTestConfiguration.conf
-            try: self.sharing_mode = conf.args.sharing_mode
+            try:
+                self.sharing_mode = conf.args.sharing_mode
             except AttributeError:
                 self.sharing_mode = "cap"
-            try: self.min_proc_units = float(conf.args.min_proc_units)
+            try:
+                self.min_proc_units = float(conf.args.min_proc_units)
             except AttributeError:
                 self.min_proc_units = 1.0
-            try: self.desired_proc_units = float(conf.args.desired_proc_units)
+            try:
+                self.desired_proc_units = float(conf.args.desired_proc_units)
             except AttributeError:
                 self.desired_proc_units = 2.0
-            try: self.max_proc_units = float(self.cv_HMC.get_available_proc_resources()[0])
+            try:
+                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[
+                                          0])) + self.cv_HMC.get_stealable_proc_resources_lpar()
             except AttributeError:
                 self.max_proc_units = 2.0
-            try: self.overcommit_ratio = int(conf.args.overcommit_ratio)
+            try:
+                self.overcommit_ratio = int(conf.args.overcommit_ratio)
             except AttributeError:
                 self.overcommit_ratio = 1
-            try: self.min_memory = conf.args.min_memory
+            try:
+                self.min_memory = conf.args.min_memory
             except AttributeError:
                 self.min_memory = "4096"
-            try: self.desired_memory = conf.args.desired_memory
+            try:
+                self.desired_memory = conf.args.desired_memory
             except AttributeError:
                 self.desired_memory = "40960"
-            try: self.max_memory = conf.args.max_memory
+            try:
+                self.max_memory = conf.args.max_memory
             except AttributeError:
-                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[0]) + int(self.desired_memory)
+                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
+                                      0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
             proc_mode = 'shared'
             self.cv_HMC.profile_bckup()
             self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
-                                         self.desired_proc_units, self.max_proc_units, 
-                                         self.min_memory, self.desired_memory, self.max_memory,self.overcommit_ratio)
+                                         self.desired_proc_units, self.max_proc_units,
+                                         self.min_memory, self.desired_memory, self.max_memory, self.overcommit_ratio)
         '''
         If cpu=dedicated is passed in machine_config lpar proc mode changes to dedicated mode.
         Pass sharing_mode, min_proc_units, max_proc_units and desired_proc_units in config file.
@@ -221,27 +239,36 @@ class LparConfig():
 
         if "cpu=dedicated" in self.machine_config:
             conf = OpTestConfiguration.conf
-            try: self.sharing_mode = conf.args.sharing_mode
+            try:
+                self.sharing_mode = conf.args.sharing_mode
             except AttributeError:
                 self.sharing_mode = "share_idle_procs"
-            try: self.min_proc_units = conf.args.min_proc_units
+            try:
+                self.min_proc_units = conf.args.min_proc_units
             except AttributeError:
                 self.min_proc_units = "1"
-            try: self.desired_proc_units = conf.args.desired_proc_units
+            try:
+                self.desired_proc_units = conf.args.desired_proc_units
             except AttributeError:
                 self.desired_proc_units = "2"
-            try: self.max_proc_units = conf.args.max_proc_units
+            try:
+                self.max_proc_units = conf.args.max_proc_units
             except AttributeError:
-                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[0]))
-            try: self.min_memory = conf.args.min_memory
+                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[
+                                          0])) + self.cv_HMC.get_stealable_proc_resources_lpar()
+            try:
+                self.min_memory = conf.args.min_memory
             except AttributeError:
                 self.min_memory = "4096"
-            try: self.desired_memory = conf.args.desired_memory
+            try:
+                self.desired_memory = conf.args.desired_memory
             except AttributeError:
                 self.desired_memory = "40960"
-            try: self.max_memory = conf.args.max_memory
+            try:
+                self.max_memory = conf.args.max_memory
             except AttributeError:
-                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[0]) + int(self.desired_memory)
+                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
+                                      0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
             proc_mode = 'ded'
             self.cv_HMC.profile_bckup()
             self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode, self.min_proc_units,
@@ -257,7 +284,8 @@ class LparConfig():
                 proc_compat_mode = self.cv_HMC.get_proc_compat_mode()
                 if "POWER10" in proc_compat_mode:
                     self.vtpm_version = 2.0
-                    try: self.vtpm_encryption = conf.args.vtpm_encryption
+                    try:
+                        self.vtpm_encryption = conf.args.vtpm_encryption
                     except AttributeError:
                         self.vtpm_encryption = "Power10v1"
                 elif proc_compat_mode[0] in ["POWER9_base", "POWER9", "POWER8"]:
@@ -265,7 +293,8 @@ class LparConfig():
                     self.vtpm_encryption = None
                 else:
                     log.info("Unknown processor compact mode")
-                self.cv_HMC.enable_vtpm(self.vtpm_version, self.vtpm_encryption)
+                self.cv_HMC.enable_vtpm(
+                    self.vtpm_version, self.vtpm_encryption)
                 vtpm_enabled = self.cv_HMC.vtpm_state()
                 if vtpm_enabled[0] == "1":
                     log.info("System booted with VTPM enabled")
@@ -287,13 +316,15 @@ class LparConfig():
 
         if "vpmem=1" in self.machine_config:
             conf = OpTestConfiguration.conf
-            try: self.pmem_name = conf.args.pmem_name
+            try:
+                self.pmem_name = conf.args.pmem_name
             except AttributeError:
                 self.pmem_name = "vol1"
-            try: self.pmem_size = conf.args.pmem_size
+            try:
+                self.pmem_size = conf.args.pmem_size
             except AttributeError:
                 self.pmem_size = "8192"
-            if self.cv_HMC.vpmem_count() [0] >= "1":
+            if self.cv_HMC.vpmem_count()[0] >= "1":
                 self.cv_HMC.remove_vpmem()
             current_lmb = self.cv_HMC.get_lmb_size()
             if int(self.pmem_size) % int(current_lmb[0]) != 0:
@@ -301,13 +332,15 @@ class LparConfig():
             self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
             curr_num_volumes = self.cv_HMC.vpmem_count()
             if curr_num_volumes[0] >= "1":
-                log.info("Configured vpmem %s of %sMB" % (self.pmem_name, self.pmem_size))
+                log.info("Configured vpmem %s of %sMB" %
+                         (self.pmem_name, self.pmem_size))
             else:
                 return "Failed to configure pmem"
 
         if "nx_gzip" in self.machine_config:
             conf = OpTestConfiguration.conf
-            try: self.qos_credits =  round(float(conf.args.qos_credits))
+            try:
+                self.qos_credits = round(float(conf.args.qos_credits))
             except AttributeError:
                 self.qos_credits = 10
             proc_compat_mode = self.cv_HMC.get_proc_compat_mode()
@@ -321,14 +354,15 @@ class LparConfig():
         """
 
         if "slot=" in self.machine_config:
-            ioslot_drc_names = "".join(self.machine_config[self.machine_config.index("slot=")+len("slot=")+1:])
+            ioslot_drc_names = "".join(
+                self.machine_config[self.machine_config.index("slot=")+len("slot=")+1:])
             ioslot_drc_names = ",".join(ioslot_drc_names[:ioslot_drc_names.index("=")].split(",")[:-1]) \
                                if "=" in ioslot_drc_names else ioslot_drc_names
             self.cv_HMC.add_ioslot(ioslot_drc_names)
 
-        if self.sb_enable is not None :
+        if self.sb_enable is not None:
             self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
-        
+
         self.cv_HMC.poweron_lpar()
         curr_proc_mode = self.cv_HMC.get_proc_mode()
         if proc_mode:
@@ -353,6 +387,7 @@ class RestoreLAPRConfig(MachineConfig):
         self.cv_HMC.lpar_prof = self.cv_HMC.lpar_prof + "_bck"
         self.cv_HMC.poweron_lpar()
 
+
 class CecConfig():
 
     '''
@@ -364,7 +399,8 @@ class CecConfig():
     in config file
     Ex: machine_config={"cec":"hugepages=4"}
     '''
-    def __init__(self, cv_HMC=None, system_name= None,
+
+    def __init__(self, cv_HMC=None, system_name=None,
                  lpar_name=None, lpar_prof=None, lmb=None, hugepages=None):
 
         self.cv_HMC = cv_HMC
@@ -388,7 +424,7 @@ class CecConfig():
         if self.setup:
             self.cv_HMC.poweron_system()
             self.ValidateCEC_Setup()
-            ##loading system
+            # loading system
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -o on -n %s -f %s" %
                                     (self.system_name, self.lpar_name, self.lpar_prof))
             time.sleep(5)
@@ -404,27 +440,29 @@ class CecConfig():
         if self.num_hugepages:
             self.current_hgpg = self.cv_HMC.get_16gb_hugepage_size()
             if int(self.current_hgpg[0]) != 0:
-                log.info("System configured with %s 16gb Hugepage" % self.current_hgpg[0])
+                log.info("System configured with %s 16gb Hugepage" %
+                         self.current_hgpg[0])
                 self.cv_HMC.poweroff_lpar()
                 self.setting_16gb_hugepage_profile()
             else:
                 self.cec_dict['hugepages'] = self.num_hugepages
 
     def lmb_setup(self):
-        #Configure the lmb as per user request
+        # Configure the lmb as per user request
         self.cv_HMC.configure_lmb(self.lmb_size)
-        self.setup =1
+        self.setup = 1
 
     def hugepage_16gb_setup(self):
-        #configure the number of 16gb hugepages as per user request
+        # configure the number of 16gb hugepages as per user request
         self.cv_HMC.configure_16gb_hugepage(self.num_hugepages)
         self.setup = 1
 
     def setting_16gb_hugepage_profile(self):
         self.current_hgpg = self.cv_HMC.get_16gb_hugepage_size()
         attrs = "min_num_huge_pages={0},desired_num_huge_pages={0},max_num_huge_pages={0}" .format(
-           int(self.current_hgpg[0]))
+            int(self.current_hgpg[0]))
         self.cv_HMC.set_lpar_cfg(attrs)
+
 
 class OsConfig():
     '''
@@ -489,14 +527,14 @@ class OsConfig():
                     self.fail("16M is not supported in Radix")
                 elif self.size_hgpg == "2M":
                     self.no_hgpg = int(self.percentile / 2)
-                elif  self.size_hgpg == "1G":
+                elif self.size_hgpg == "1G":
                     self.no_hgpg = int(self.percentile / 1024)
 
             elif 'Hash' in self.mmu and self.size_hgpg == "16M":
                 self.no_hgpg = int(self.percentile / 16)
             self.obj.update_kernel_cmdline(self.os_level,
                                            "default_hugepagesz=%s hugepagesz=%s hugepages=%s" % (
-                                           self.size_hgpg, self.size_hgpg, self.no_hgpg),
+                                               self.size_hgpg, self.size_hgpg, self.no_hgpg),
                                            "",
                                            reboot=True,
                                            reboot_cmd=True)
@@ -515,7 +553,6 @@ class OsConfig():
             return msg
         else:
             log.info("%s Hugepage validation successful!" % self.size_hgpg)
-
 
     def configure_os_16gb_hugepage(self):
         if 'Radix' in self.mmu:
