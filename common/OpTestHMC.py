@@ -863,6 +863,19 @@ class HMCUtil():
         if int(msp_output[0]) != 1:
             return False
         return True
+    
+    def is_perfcollection_enabled(self):
+        '''
+        Get Performance Information collection allowed in hmc profile
+
+        :returns: Ture if  allow_perf_collection in hmc otherwise false
+        '''
+
+        rc = self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F allow_perf_collection"
+                                % (self.mg_system, self.lpar_name))
+        if  rc:
+            return True
+        return False
 
     def gather_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
         '''
