@@ -180,9 +180,7 @@ class HMCUtil():
     def hmc_secureboot_on_off(self, enable=True):
         '''
         Enable/Disable Secure Boot from HMC
-        1. PowerOFF/Shutdown LPAR from HMC
-        2. Enable/Disable Secure boot using 'chsyscfg' command
-        3. PowerON/Activate the LPAR and boot to Operating System
+        Enable/Disable Secure boot using 'chsyscfg' command
         '''
         # Set Secure Boot value using HMC command
         cmd = ('chsyscfg -r lpar -m %s -i "name=%s, secure_boot=' %
