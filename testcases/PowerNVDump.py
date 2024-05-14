@@ -115,6 +115,7 @@ class PowerNVDump(unittest.TestCase):
             try: self.mem_resource = conf.args.mem_resource
             except AttributeError:
                 self.mem_resource = 2048
+        self.dump_server_user = conf.args.dump_server_user if 'dump_server_user' in conf.args else 'root' 
         self.dump_server_ip = conf.args.dump_server_ip if 'dump_server_ip' in conf.args else ''
         self.dump_server_pw = conf.args.dump_server_pw if 'dump_server_pw' in conf.args else ''
         self.dump_path = conf.args.dump_path if 'dump_path' in conf.args else ''
@@ -147,7 +148,7 @@ class PowerNVDump(unittest.TestCase):
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
         if dump_place == "net":
             self.crash_content = self.c.run_command(
-                "ssh -i %s root@%s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.rsa_path, self.dump_server_ip, self.dump_path))
+            "ssh -i %s %s@%s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.rsa_path, self.dump_server_user, self.dump_server_ip, self.dump_path))
             log.debug("crash content is %s" % (self.crash_content))
 
     def setup_pwdless_auth(self):
@@ -169,13 +170,13 @@ class PowerNVDump(unittest.TestCase):
             self.c.run_command(
                 "ssh-keygen -q -t rsa -f %s -P ''" % self.rsa_path)
             self.c.run_command("chmod 400 %s" % self.rsa_path)
-            self.c.run_command("sshpass -p %s ssh-copy-id -o \"StrictHostKeyChecking no\" -i %s root@%s" %
-                               (self.dump_server_pw, self.rsa_path, self.dump_server_ip))
+            self.c.run_command("sshpass -p %s ssh-copy-id -o \"StrictHostKeyChecking no\" -i %s %s@%s" %
+                           (self.dump_server_pw, self.rsa_path, self.dump_server_user, self.dump_server_ip))
         except CommandFailed:
             self.fail(
                 "Failed to create/copy ssh key file")
         pwd_less = self.c.run_command(
-            "ssh -i %s -o \"StrictHostKeyChecking no\" -o  \"NumberOfPasswordPrompts=0\" %s \"echo\"" % (self.rsa_path, self.dump_server_ip))
+            "ssh -i %s -o \"StrictHostKeyChecking no\" -o  \"NumberOfPasswordPrompts=0\" %s@%s \"echo\"" % (self.rsa_path, self.dump_server_user, self.dump_server_ip))
 
     def is_fadump_param_enabled(self):
         '''
@@ -253,7 +254,7 @@ class PowerNVDump(unittest.TestCase):
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
         if dump_place == "net":
             crash_content_after = self.c.run_command(
-                "ssh root@%s -i %s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.dump_server_ip, self.rsa_path, self.dump_path))
+                "ssh %s@%s -i %s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.dump_server_user, self.dump_server_ip, self.rsa_path, self.dump_path))
         self.crash_content = list(
             set(crash_content_after) - set(self.crash_content))
         if self.distro == "sles":
@@ -262,32 +263,39 @@ class PowerNVDump(unittest.TestCase):
             self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
         if len(self.crash_content):
             if dump_place == "net":
-                self.c.run_command('scp -i %s -r root@%s:/%s/%s /var/crash/' %
-                                  (self.rsa_path, self.dump_server_ip, self.dump_path, self.crash_content[0]), timeout=1200)
+                #if user is not root, cannot copy/list vmcore files due to permission issue, because the owner of vmcore dir will be root.
+                if self.dump_server_user == 'root':
+                    self.c.run_command('scp -i %s -r %s@%s:/%s/%s /var/crash/' %
+                                  (self.rsa_path, self.dump_server_user, self.dump_server_ip, self.dump_path, self.crash_content[0]), timeout=1200)
             if self.distro == "ubuntu":
                 self.c.run_command("ls /var/crash/%s/dump*" %
                                    self.crash_content[0])
             else:
-                res = self.c.run_command("ls /var/crash/%s/vmcore*" %
-                                         self.crash_content[0])
-                paths = res[0].split()
-                file_names = [os.path.basename(path) for path in paths]
-                # Check if vmcore-dmesg-incomplete.txt is present in file_names
-                if "vmcore-dmesg-incomplete.txt" in file_names:
-                    raise OpTestError("kdump failed to create vmcore file")
+                if self.dump_server_user != 'root':
+                    res = self.c.run_command("ssh %s@%s -i %s ls %s/%s/vmcore*" %
+                            (self.dump_server_user, self.dump_server_ip, self.rsa_path, self.dump_path, self.crash_content[0]))
                 else:
-                    filtered_files = [f for f in file_names if f.startswith("vmcore") and not f == "vmcore-dmesg.txt"]
-                    if filtered_files:
-                        log.debug("vmcore file  %s exists in crash dir" % filtered_files)
-                    else:
+                    res = self.c.run_command("ls /var/crash/%s/vmcore*" %
+                                          self.crash_content[0])
+                    paths = res[0].split()
+                    file_names = [os.path.basename(path) for path in paths]
+                    # Check if vmcore-dmesg-incomplete.txt is present in file_names
+                    if "vmcore-dmesg-incomplete.txt" in file_names:
                         raise OpTestError("kdump failed to create vmcore file")
+                    else:
+                        filtered_files = [f for f in file_names if f.startswith("vmcore") and not f == "vmcore-dmesg.txt"]
+                        if filtered_files:
+                            log.debug("vmcore file  %s exists in crash dir" % filtered_files)
+                        else:
+                            raise OpTestError("kdump failed to create vmcore file")
             if boot_type == BootType.MPIPL:
                 self.c.run_command("ls /var/crash/%s/opalcore*" %
                                    self.crash_content[0])
         else:
             msg = "Dump directory not created"
             raise OpTestError(msg)
-        self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
+        if self.dump_server_user == 'root':
+            self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
 
     def verify_fadump_reg(self):
         '''
