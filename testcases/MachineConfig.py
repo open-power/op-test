@@ -203,7 +203,7 @@ class LparConfig():
     valid values: cpu=shared or cpu=dedicated
                   vtpm=1 or vtpm=0
                   vpmem=0 or vpmem=1
-    Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1"
+    Ex: machine_config="cpu=dedicated,vtpm=1,vpmem=1,perf=1"
     '''
 
     def __init__(self, cv_HMC=None, system_name=None,
@@ -421,6 +421,17 @@ class LparConfig():
 
         if self.sb_enable is not None:
             self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
+        
+        if "perf=1" in self.machine_config:
+            conf = OpTestConfiguration.conf
+            if self.cv_HMC.is_perfcollection_enabled():
+                log.info("System is already booted with perf collection profile enabled")
+            else:
+                self.cv_HMC.hmc_perfcollect_configure()
+                if self.cv_HMC.is_perfcollection_enabled:
+                    log.info("System is already booted with perf collection profile enabled")
+                else:
+                    return "Failed to enable Performance Information collection"
 
         self.cv_HMC.poweron_lpar()
         curr_proc_mode = self.cv_HMC.get_proc_mode()
