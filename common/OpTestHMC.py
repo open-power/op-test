@@ -880,8 +880,8 @@ class HMCUtil():
         Enable/Disable perfcollection from HMC
         The value for enabling perfcollection is 1, and for disabling it is 0.
         '''
-        
-	cmd = ('chsyscfg -r lpar -m %s -i "name=%s, allow_perf_collection=' %
+       
+        cmd = ('chsyscfg -r lpar -m %s -i "name=%s, allow_perf_collection=' %
                (self.mg_system, self.lpar_name))
         if enable:
             cmd = '%s1"' % cmd
