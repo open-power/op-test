@@ -180,9 +180,7 @@ class HMCUtil():
     def hmc_secureboot_on_off(self, enable=True):
         '''
         Enable/Disable Secure Boot from HMC
-        1. PowerOFF/Shutdown LPAR from HMC
-        2. Enable/Disable Secure boot using 'chsyscfg' command
-        3. PowerON/Activate the LPAR and boot to Operating System
+        Enable/Disable Secure boot using 'chsyscfg' command
         '''
         # Set Secure Boot value using HMC command
         cmd = ('chsyscfg -r lpar -m %s -i "name=%s, secure_boot=' %
@@ -863,6 +861,34 @@ class HMCUtil():
         if int(msp_output[0]) != 1:
             return False
         return True
+    
+    def is_perfcollection_enabled(self):
+        '''
+        Get Performance Information collection allowed in hmc profile
+
+        :returns: Ture if  allow_perf_collection in hmc otherwise false
+        '''
+
+        rc = self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F allow_perf_collection"
+                                % (self.mg_system, self.lpar_name))
+        if  rc:
+            return True
+        return False
+
+    def hmc_perfcollect_configure(self, enable=True):
+        '''
+        Enable/Disable perfcollection from HMC
+        The value for enabling perfcollection is 1, and for disabling it is 0.
+        '''
+       
+        cmd = ('chsyscfg -r lpar -m %s -i "name=%s, allow_perf_collection=' %
+               (self.mg_system, self.lpar_name))
+        if enable:
+            cmd = '%s1"' % cmd
+        else:
+            cmd = '%s0"' % cmd
+        self.run_command(cmd, timeout=300)
+
 
     def gather_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
         '''
