@@ -460,7 +460,8 @@ def get_parser():
                             help="Don't exit if we find unknown command line arguments")
     misc_group.add_argument("--secvar-payload-url",
                             help="Specify a URL for the secvar test data payload")
-
+    misc_group.add_argument("--bisect-flag",
+                            help="Specify if bisection is to be done or not")
     return parser
 
 

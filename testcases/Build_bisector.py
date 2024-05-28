@@ -91,12 +91,21 @@ class Buil_bisector(unittest.TestCase):
         makefile_path = os.path.join(self.conf.basedir, "make.sh")
         self.cv_HOST.copy_test_file_to_host(makefile_path, dstdir=self.linux_path)
         self.connection.run_command("git bisect start")
-        self.connection.run_command("git bisect good {} ".format(self.good_commit))
+        folder_type=re.split(r'[\/\\.]',str(self.repo))[-2]
+        print("FOLDER",folder_type)
+        if folder_type == 'linux-next':
+            self.connection.run_command("git fetch --tags")
+            good_tag=self.connection.run_command("git tag -l 'v[0-9]*' | sort -V | tail -n 1")
+            self.connection.run_command("git bisect good {} ".format(good_tag))
+        else:
+            self.connection.run_command("git bisect good {} ".format(self.good_commit))
         self.connection.run_command(" git bisect bad ")
         self.connection.run_command("chmod +x ./make.sh ")
         commit =  self.connection.run_command(" git bisect run ./make.sh")
         badCommit = [word for word in commit if word.endswith("is the first bad commit")]
         badCommit= badCommit[0].split()[0]
         email = self.get_email(badCommit)
+        log.info("LOGGG")
+        self.connection.run_command("git bisect log")
         self.connection.run_command("git bisect reset")
         return email , badCommit
