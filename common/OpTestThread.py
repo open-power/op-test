@@ -27,18 +27,12 @@ to a different log file.
 '''
 
 import random
-import unittest
 import time
 import threading
-import pexpect
 
 import OpTestConfiguration
-from .OpTestSystem import OpSystemState
-from .OpTestConstants import OpTestConstants as BMC_CONST
 from .Exceptions import CommandFailed
-from .OpTestIPMI import IPMIConsoleState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -76,7 +70,7 @@ class OpSSHThreadLinearVar1(threading.Thread):
                 if ignore_fail:
                     try:
                         self.c.run_command(cmd, timeout=cmd_timeout)
-                    except CommandFailed as cf:
+                    except CommandFailed:
                         pass
                 else:
                     self.c.run_command(cmd, timeout=cmd_timeout)
@@ -121,7 +115,7 @@ class OpSSHThreadLinearVar2(threading.Thread):
                 if ignore_fail:
                     try:
                         self.c.run_command(cmd)
-                    except CommandFailed as cf:
+                    except CommandFailed:
                         pass
                 else:
                     self.c.run_command(cmd)
@@ -162,7 +156,7 @@ class OpSSHThreadRandom(threading.Thread):
             if ignore_fail:
                 try:
                     self.c.run_command(cmd)
-                except CommandFailed as cf:
+                except CommandFailed:
                     pass
             else:
                 self.c.run_command(cmd)

@@ -35,9 +35,6 @@ This class will test the functionality of following drivers
 1. RTC driver: Real time clock
 '''
 
-import time
-import subprocess
-import re
 
 import unittest
 
@@ -45,7 +42,6 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

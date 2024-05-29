@@ -39,22 +39,15 @@ This class will test the functionality of following.
 '''
 
 import time
-import subprocess
-import re
-import sys
-import os
 import random
 import pexpect
 import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestSSH import ConsoleState as SSHConnectionState
-from common.OpTestIPMI import IPMIConsoleState
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed, UnknownStateTransition, PlatformError, HostbootShutdown, StoppingSystem
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -82,9 +75,9 @@ class OpTestHMIHandling(unittest.TestCase):
         self.revision = ''.join(self.cv_HOST.host_run_command(
             "grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
         supported = True
-        if self.cpu in ["POWER9"] and not self.revision in ["2.0", "2.1", "2.2", "2.3"]:
+        if self.cpu in ["POWER9"] and self.revision not in ["2.0", "2.1", "2.2", "2.3"]:
             supported = False
-        if self.cpu in ["POWER9P"] and not self.revision in ["1.0"]:
+        if self.cpu in ["POWER9P"] and self.revision not in ["1.0"]:
             supported = False
         if not supported:
             log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
@@ -213,7 +206,7 @@ class OpTestHMIHandling(unittest.TestCase):
         states = self.cv_HOST.host_run_command(
             "find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'", console=1)
         for state in states:
-            if state is "0":
+            if state == "0":
                 try:
                     self.cv_HOST.host_run_command(
                         "cpupower idle-set -e 0", console=1)
@@ -262,7 +255,7 @@ class OpTestHMIHandling(unittest.TestCase):
                 output += my_pty.before.replace("\r\r\n", "\n").splitlines()
                 try:
                     del output[:1]  # remove command from the list
-                except Exception as e:
+                except Exception:
                     pass  # nothing there
                 log.debug("LIST output={}".format(output))
                 if "No GARD entries to display" in output:
@@ -283,7 +276,7 @@ class OpTestHMIHandling(unittest.TestCase):
                             "\r\r\n", "\n").splitlines()
                         try:
                             del output[:1]  # remove command from the list
-                        except Exception as e:
+                        except Exception:
                             pass  # nothing there
                         log.debug("GARD Clear output={}".format(output))
                     if rc == 1:
@@ -327,7 +320,7 @@ class OpTestHMIHandling(unittest.TestCase):
                 output += my_pty.before.replace("\r\r\n", "\n").splitlines()
                 try:
                     del output[:1]  # remove command from the list
-                except Exception as e:
+                except Exception:
                     pass  # nothing there
                 log.debug("FINAL output={}".format(output))
                 if "No GARD entries to display" not in output:

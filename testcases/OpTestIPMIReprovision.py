@@ -37,9 +37,6 @@ default tests.
 2. GARD Partition - IPMI Reprovision.
 '''
 
-import time
-import subprocess
-import re
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
@@ -74,7 +71,7 @@ class NVRAM(OpTestIPMIReprovision):
     '''
 
     def runTest(self):
-        if not self.platform in ['habanero', 'firestone', 'garrison']:
+        if self.platform not in ['habanero', 'firestone', 'garrison']:
             raise unittest.SkipTest(
                 "Platform %s doesn't support IPMI Reprovision" % self.platform)
 
@@ -137,7 +134,7 @@ class GARD(OpTestIPMIReprovision):
     '''
 
     def runTest(self):
-        if not self.platform in ['habanero', 'firestone', 'garrison']:
+        if self.platform not in ['habanero', 'firestone', 'garrison']:
             raise unittest.SkipTest(
                 "Platform %s doesn't support IPMI Reprovision" % self.platform)
 

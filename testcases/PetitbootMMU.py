@@ -28,7 +28,6 @@ for the processor. This means hash for P8 and radix for P9 onwards.
 
 import unittest
 
-import logging
 import OpTestConfiguration
 import OpTestLogger
 from common.OpTestSystem import OpSystemState

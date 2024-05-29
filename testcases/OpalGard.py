@@ -31,17 +31,13 @@ opal-gard
 Test different OPAL GARD Related functionality
 '''
 
-import re
-import random
 
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -96,7 +92,7 @@ class OpalGard(unittest.TestCase):
         data = self.cv_HOST.host_pflash_get_partition("GUARD")
         try:
             offset = hex(data["offset"]//16)
-        except Exception as e:
+        except Exception:
             self.assertTrue(
                 False, "OpenPOWER BMC unable to find valid offset for partition=GUARD")
         for i in range(0, 11):

@@ -40,10 +40,7 @@ Different dumps for fsp platforms:
 '''
 
 import time
-import subprocess
-import re
 
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
 
@@ -51,7 +48,6 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

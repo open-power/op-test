@@ -33,26 +33,16 @@ in OpenPower systems
 
 import sys
 import os
-import string
 import time
-import random
 import subprocess
 import re
-import telnetlib
-import socket
-import select
-import pty
-import pexpect
-import subprocess
 
-import OpTestConfiguration
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
 from .OpTestSSH import OpTestSSH
 from . import OpTestQemu
-from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -799,7 +789,7 @@ class OpTestHost():
 
     # Supported on OpenPower and P9 FSP system
     def host_prd_supported(self, bmc_type, console=0):
-        if not "FSP" in bmc_type:
+        if "FSP" not in bmc_type:
             return True
 
         proc_gen = self.host_get_proc_gen(console=console)

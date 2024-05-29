@@ -77,7 +77,7 @@ class TConnection():
         self.tn.read_until(b'assword: ')
         self.tn.write(self.password + b'\n')
         ret = self.tn.read_until(self.prompt)
-        if not self.prompt in ret:
+        if self.prompt not in ret:
             raise NoLoginPrompt(ret)
 
     ##

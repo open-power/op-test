@@ -41,15 +41,12 @@ import os.path
 import subprocess
 from . import OPexpect
 
-from .OpTestIPMI import OpTestIPMI
 from .OpTestSSH import OpTestSSH
 from .OpTestUtil import OpTestUtil
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
-from .OpTestWeb import OpTestWeb
 from .Exceptions import CommandFailed, SSHSessionDisconnected
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -120,9 +117,9 @@ class OpTestBMC():
         retries = 0
         try:
             self.ssh.run_command('reboot')
-        except SSHSessionDisconnected as e:
+        except SSHSessionDisconnected:
             pass
-        except CommandFailed as e:
+        except CommandFailed:
             pass
         self.ssh.close()
         log.info('Sent reboot command now waiting for reboot to complete...')
@@ -157,9 +154,9 @@ class OpTestBMC():
         '''
         try:
             self.ssh.run_command('reboot')
-        except SSHSessionDisconnected as e:
+        except SSHSessionDisconnected:
             pass
-        except CommandFailed as e:
+        except CommandFailed:
             pass
         self.ssh.close()
         log.info('Sent reboot command...')

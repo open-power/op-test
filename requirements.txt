@@ -1,5 +1,5 @@
 pexpect
-unittest-xml-reporting
+unittest - xml - reporting
 ptyprocess
 requests
 pysocks

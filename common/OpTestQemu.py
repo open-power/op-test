@@ -35,7 +35,6 @@ from . import OPexpect
 from .OpTestUtil import OpTestUtil
 import OpTestConfiguration
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -123,10 +122,10 @@ class QemuConsole():
                 else:
                     signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
-        except pexpect.ExceptionPexpect as e:
+        except pexpect.ExceptionPexpect:
             self.state = ConsoleState.DISCONNECTED
             raise "Qemu Console: failed to close console"
-        except Exception as e:
+        except Exception:
             self.state = ConsoleState.DISCONNECTED
             pass
         log.debug("Qemu close -> TERMINATE")

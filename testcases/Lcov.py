@@ -101,7 +101,7 @@ class LcovGatherData(LcovSetup):
         Running the test
         '''
         self.c = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-        src_path = f'/root/kernel/linux'
+        src_path = '/root/kernel/linux'
         self.cv_HOST.host_run_command(f"cd {src_path}")
         src_path = "".join(self.cv_HOST.host_run_command("pwd"))
         temp_dir = tempfile.mkdtemp(prefix="Lcov_result_")
@@ -109,7 +109,7 @@ class LcovGatherData(LcovSetup):
         gcov_src = src_path[1:]
         gcov_src_path = os.path.join(gcov_path, gcov_src)
         info_file_path = '/home/test.info'
-        self.cv_HOST.host_run_command(f"touch /home/test.info")
+        self.cv_HOST.host_run_command("touch /home/test.info")
         #TO-DO,
         #below was earlier command,
         #info_cmd = f'lcov -o {info_file_path} -c -f -d {gcov_src_path} -b {src_path} --keep-going

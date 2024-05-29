@@ -34,11 +34,6 @@ with system level power consumption limits.
 
 '''
 
-import time
-import subprocess
-import subprocess
-import re
-import sys
 
 import unittest
 

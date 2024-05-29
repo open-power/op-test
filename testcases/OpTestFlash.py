@@ -56,7 +56,6 @@ from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 from common import OpTestInstallUtil
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -151,7 +150,7 @@ class OpTestFlashBase(unittest.TestCase):
             try:
                 image_list = self.cv_BMC.run_command(
                     "ls -1 -d /tmp/images/*/ --color=never")
-            except CommandFailed as cf:
+            except CommandFailed:
                 pass
             for i in range(0, len(image_list)):
                 version = self.get_image_version(image_list[i] + "MANIFEST")
@@ -227,7 +226,7 @@ class BmcImageFlash(OpTestFlashBase):
                 # because openbmc
                 l_res = self.cv_BMC.run_command(
                     "rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
-            except CommandFailed as cf:
+            except CommandFailed:
                 # Ok to just keep giong, may not have patched firmware
                 pass
             # OpenBMC implementation for updating code level 'X' to 'X' is really a no-operation
@@ -386,7 +385,7 @@ class PNORFLASH(OpTestFlashBase):
                     # because openbmc
                     l_res = self.cv_BMC.run_command(
                         "rm -f /usr/local/share/pnor/* /media/pnor-prsv/GUARD")
-                except CommandFailed as cf:
+                except CommandFailed:
                     # Ok to just keep giong, may not have patched firmware
                     pass
                 version = self.get_version_tar(self.pnor)

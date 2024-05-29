@@ -20,7 +20,7 @@ from common.OpTestEBMC import EBMCHostManagement
 from common.OpTestWeb import OpTestWeb
 from common.OpTestUtil import OpTestUtil
 from common.OpTestCronus import OpTestCronus
-from common.Exceptions import HostLocker, AES, ParameterCheck, OpExit
+from common.Exceptions import ParameterCheck, OpExit
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import atexit
 import argparse
@@ -49,7 +49,6 @@ import logging
 import importlib
 import os
 import stat
-import addons
 
 optAddons = dict()  # Store all addons found.  We'll loop through it a couple time below
 # Look at the top level of the addons for any directories and load their Setup modules
@@ -514,7 +513,7 @@ class OpTestConfiguration():
         config.read(filename)
 
         if config.has_section('op-test'):
-            d = dict(config.items('op-test'))
+            dict(config.items('op-test'))
         else:
             msg = "{} is missing an an [op-test] section header".format(
                 filename)
@@ -671,7 +670,7 @@ class OpTestConfiguration():
             # log for triage of how dated the repo is
             OpTestLogger.optest_logger_glob.optest_logger.debug(
                 "op-test-framework git level = {}".format(git_output))
-        except Exception as e:
+        except Exception:
             OpTestLogger.optest_logger_glob.optest_logger.debug(
                 "Unable to get git describe")
 

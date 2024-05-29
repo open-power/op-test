@@ -1,12 +1,11 @@
 name: Pylint
 
-on: 
+
+on:
   push:
-      branches:
-     	- 'master'
+    branches: [ "master" ]
   pull_request:
-     branches:
-       - 'master'
+    branches: [ "master" ]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,4 +24,4 @@ jobs:
         pip install pylint
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py')
+        pylint -d C0301,C0325,C0114,C0103,C0209,W0718,W1202,R0912  $(git ls-files '*.py')

@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-import time
 import unittest
 
 import OpTestConfiguration
-from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
-from common.OpTestError import OpTestError
 from common.OpTestKeys import OpTestKeys as keys
 
 

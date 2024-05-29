@@ -32,21 +32,13 @@ This testcase will deal with testing access to the host pnor
 from petitboot through the pflash program
 '''
 
-import time
-import subprocess
-import subprocess
 import re
-import sys
-import os
-import os.path
 
 import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.Exceptions import CommandFailed
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -179,7 +171,7 @@ class OpTestPNOR():
         self.pflashRead("/tmp/tmp", tocInfo['offset'], tocInfo['length'])
         try:
             self.c.run_command("diff /tmp/tmp /tmp/zeros")
-        except CommandFailed as cf:
+        except CommandFailed:
             # This is not an error -> expected for vPNOR (prior to RO-TOC)
             log.debug("Failed to zero TOC")
         # Better write the toc back now

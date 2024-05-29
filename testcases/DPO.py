@@ -33,8 +33,6 @@ to be notified from OPAL and OS should process the request.
 We will use "ipmitool power soft" command to issue DPO.
 '''
 
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
 
 import unittest
 import pexpect
@@ -43,7 +41,6 @@ from common.OpTestSystem import OpSystemState
 import common.OpTestQemu as OpTestQemu
 import common.OpTestMambo as OpTestMambo
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

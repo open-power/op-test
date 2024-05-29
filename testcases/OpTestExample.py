@@ -26,7 +26,6 @@ for `op-test`.
 '''
 
 import unittest
-import logging
 
 import OpTestConfiguration
 import OpTestLogger

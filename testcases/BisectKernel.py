@@ -24,9 +24,7 @@ from enum import Enum
 
 import OpTestConfiguration
 import OpTestLogger
-from common.OpTestSystem import OpSystemState
 from common.OpTestSOL import OpSOLMonitorThread
-from common.OpTestInstallUtil import InstallUtil
 from common.Exceptions import CommandFailed
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -204,7 +202,7 @@ class BisectKernel(unittest.TestCase):
         try:
             # Run kexec and execute the new kernel
             self.connection.run_command("{} && kexec -e".format(kexec_cmdline))
-        except Exception as e:
+        except Exception:
             # Log any errors that occur during kexec
             log.info("Kexec done! continuing..")
 

@@ -40,9 +40,7 @@ import OpTestConfiguration
 from common.Exceptions import CommandFailed
 from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 import common.OpTestQemu as OpTestQemu
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -225,8 +223,7 @@ class DeviceTreeValidation(unittest.TestCase):
 
         self.assertEqual(nr_pstates, len(pstate_ids),
                          "Wrong number of pstates, "
-                         "Expected %s, found %s".format(nr_pstates,
-                                                        len(pstate_ids)))
+                         "Expected %s, found %s".format())
 
         if self.cv_HOST.host_get_proc_gen(console=1) in ["POWER8", "POWER8E"]:
             id_list = []

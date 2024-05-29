@@ -47,7 +47,6 @@ import re
 import OpTestConfiguration
 import OpTestLogger
 from common import OpTestHMC
-from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 from common.OpTestUtil import OpTestUtil

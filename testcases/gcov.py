@@ -36,7 +36,6 @@ from common import OpTestInstallUtil
 
 import socket
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

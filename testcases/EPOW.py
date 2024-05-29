@@ -43,10 +43,7 @@ This module tests the EPOW feature incase of FSP systems.
 '''
 
 import time
-import subprocess
-import subprocess
 import re
-import sys
 import pexpect
 import random
 
@@ -57,7 +54,6 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -141,7 +137,7 @@ class EPOWBase(unittest.TestCase):
                 res = pty.before
                 log.debug(pty.after)
                 log.debug("System got graceful shutdown")
-        except pexpect.TIMEOUT as e:
+        except pexpect.TIMEOUT:
             log.debug("System is in active state")
             log.debug(pty.before)
 

@@ -34,9 +34,7 @@ import time
 import OpTestConfiguration
 import OpTestLogger
 
-from common import OpTestHMC
 from common.OpTestSystem import OpSystemState
-from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)

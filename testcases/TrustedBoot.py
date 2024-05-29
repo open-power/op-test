@@ -41,14 +41,10 @@ if you set policy to disable and remove/inject error on the TPM -and- system is 
 '''
 
 import unittest
-import pexpect
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -88,24 +84,24 @@ class TrustedBoot(unittest.TestCase):
         data = " ".join(c.run_command(
             "cat /sys/firmware/opal/msglog | grep -i stb"))
         if self.trustedmode:
-            if not "trusted mode on" in data:
+            if "trusted mode on" not in data:
                 self.assertTrue(False, "OPAL: trusted mode is detected as OFF")
         else:
-            if not "trusted mode off" in data:
+            if "trusted mode off" not in data:
                 self.assertTrue(False, "OPAL: trusted mode is detected as ON")
             return
 
         for part in part_list:
             msg = "STB: %s hash calculated" % part
-            if not msg in data:
+            if msg not in data:
                 self.assertTrue(False, "OPAL: %s hash not calculated" % part)
             msg = "STB: %s measured on pcr" % part
-            if not msg in data:
+            if msg not in data:
                 self.assertTrue(
                     False, "OPAL: %s hash not measured on TPM PCR register" % part)
 
         msg = "STB: EV_SEPARATOR measured on pcr"
-        if not msg in data:
+        if msg not in data:
             self.assertTrue(
                 False, "OPAL: EV_SEPARATOR measured on TPM PCR registers")
 

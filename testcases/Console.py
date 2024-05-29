@@ -38,7 +38,6 @@ from common.Exceptions import CommandFailed
 import common.OpTestMambo as OpTestMambo
 import common.OpTestQemu as OpTestQemu
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

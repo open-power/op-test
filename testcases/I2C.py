@@ -30,10 +30,7 @@ This class will test functionality of following drivers:
 I2C Driver(Inter-Integrated Circuit) driver
 '''
 
-import time
-import subprocess
 import re
-import sys
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 
@@ -44,7 +41,6 @@ from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed, KernelModuleNotLoaded
 from common.Exceptions import KernelConfigNotSet
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -179,16 +175,16 @@ class I2C():
         l_res = None
         try:
             l_res = self.c.run_command("cat /sys/bus/i2c/drivers/at24/*/name")
-        except CommandFailed as cf:
+        except CommandFailed:
             l_res = self.c.run_command("dmesg -C")
             try:
                 self.c.run_command("rmmod at24")
                 self.cv_HOST.host_load_module("at24")
                 l_res = self.c.run_command(
                     "cat /sys/bus/i2c/drivers/at24/*/name")
-            except CommandFailed as cf:
+            except CommandFailed:
                 pass
-            except KernelModuleNotLoaded as km:
+            except KernelModuleNotLoaded:
                 pass
         return l_res
 
@@ -226,7 +222,7 @@ class I2C():
                 l_res = self.c.run_command(
                     "i2cdetect -F %i|egrep '(Send|Receive) Bytes'|grep yes"
                     % int(i_bus))
-            except CommandFailed as cf:
+            except CommandFailed:
                 log.debug("i2c bus %i doesn't support query" % int(i_bus))
                 raise I2CDetectUnsupported
 

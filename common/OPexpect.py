@@ -169,7 +169,7 @@ class spawn(pexpect.spawn):
                 log = log + self.before + self.after
                 l = super(spawn, self).expect("ISTEP", timeout=20)
                 log = log + self.before + self.after
-            except pexpect.TIMEOUT as t:
+            except pexpect.TIMEOUT:
                 pass
             raise PlatformError(state, log)
 

@@ -41,7 +41,6 @@ import unittest
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

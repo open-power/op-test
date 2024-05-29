@@ -34,15 +34,8 @@ For second IPL, Petitboot Kernel messages will not come on active
 SOL console.
 '''
 
-import time
-import subprocess
-import re
-import pexpect
-import threading
 
-from common.OpTestIPMI import OpTestIPMI
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
 
 import unittest
 import OpTestConfiguration

@@ -37,11 +37,6 @@ assume (and check for) the NFS mount.
 '''
 
 import time
-import subprocess
-import os
-import pexpect
-import sys
-import subprocess
 
 from .OpTestTConnection import TConnection
 from .OpTestASM import OpTestASM
@@ -279,7 +274,7 @@ class OpTestFSP():
             # the "standby" state and went straigh to "ipling" again. I have
             # no idea why...
             if self.is_sys_powered_on():
-                print("Hit runtime while waiting in wait_for_standby(), odd!");
+                print("Hit runtime while waiting in wait_for_standby(), odd!")
                 self.power_off_sys()
 
             print(self.progress_line())

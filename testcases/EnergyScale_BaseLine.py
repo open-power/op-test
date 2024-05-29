@@ -27,22 +27,13 @@ except it's not perfect, and don't bet that it is the same as it's only
 based on a log of a test run rather than the source code for that test.
 '''
 
-import time
-import subprocess
 import re
-import sys
-import os
-import random
 
-from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
-from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

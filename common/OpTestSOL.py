@@ -26,8 +26,6 @@ variants of thread based SSH/SOL session runs, each thread logs
 to a different log file.
 '''
 
-import random
-import unittest
 import time
 import threading
 import pexpect
@@ -35,8 +33,6 @@ import os
 
 import OpTestConfiguration
 from .OpTestSystem import OpSystemState
-from .Exceptions import CommandFailed
-from .OpTestIPMI import IPMIConsoleState
 
 import logging
 from logging.handlers import RotatingFileHandler

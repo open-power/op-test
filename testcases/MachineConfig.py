@@ -25,7 +25,6 @@
 # IBM_PROLOG_END_TAG
 
 
-import os
 import unittest
 import time
 import re
@@ -36,7 +35,6 @@ import OpTestLogger
 from common import OpTestHMC
 from common import OpTestInstallUtil
 from common.OpTestUtil import OpTestUtil
-from common.OpTestSystem import OpSystemState
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

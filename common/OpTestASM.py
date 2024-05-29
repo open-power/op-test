@@ -35,13 +35,7 @@ the FSP Web UI (such as progress codes), so we scrape it.
 '''
 
 import time
-import subprocess
-import os
-import pexpect
-import sys
-import subprocess
 
-from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
 
 import http.cookiejar

@@ -35,18 +35,13 @@ This class will test the functionality of following drivers
 1. Hardware monitoring sensors(hwmon driver) using sensors utility
 '''
 
-import time
-import subprocess
-import re
 
 import unittest
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestError import OpTestError
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

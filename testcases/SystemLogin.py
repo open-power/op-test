@@ -25,12 +25,6 @@ System Login
 Really simple tests to ensure we can simply log into a booted host.
 '''
 
-import time
-import subprocess
-import subprocess
-import re
-import sys
-import os
 
 import unittest
 
@@ -40,7 +34,6 @@ from common.Exceptions import CommandFailed
 import common.OpTestQemu as OpTestQemu
 import common.OpTestMambo as OpTestMambo
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 

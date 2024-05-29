@@ -19,14 +19,12 @@
 
 from . import OpTestSystem
 from .OpTestUtil import OpTestUtil
-from .Exceptions import CommandFailed, SSHSessionDisconnected
-import re
+from .Exceptions import CommandFailed
 import sys
 import os
 import time
 import pexpect
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -124,10 +122,10 @@ class OpTestSSH():
                 else:
                     signalstatus = os.WTERMSIG(self.pty.status)
             self.state = ConsoleState.DISCONNECTED
-        except pexpect.ExceptionPexpect as e:
+        except pexpect.ExceptionPexpect:
             self.state = ConsoleState.DISCONNECTED
             raise "SSH Console: failed to close ssh console"
-        except Exception as e:
+        except Exception:
             self.state = ConsoleState.DISCONNECTED
             pass
 

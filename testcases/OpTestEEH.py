@@ -35,11 +35,7 @@ This testcase basically tests all OPAL EEH Error injection tests.
 '''
 
 import time
-import subprocess
-import subprocess
 import re
-import sys
-import os
 
 import unittest
 
@@ -47,7 +43,6 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -318,7 +313,7 @@ class OpTestEEH(unittest.TestCase):
         for i in range(1, tries+1):
             try:
                 res = c.run_command("dmesg | grep 'EEH: Frozen'")
-            except CommandFailed as cf:
+            except CommandFailed:
                 continue
             return True
             time.sleep(1)
@@ -331,7 +326,7 @@ class OpTestEEH(unittest.TestCase):
         for i in range(1, tries+1):
             try:
                 res = c.run_command("dmesg | grep 'permanently disabled'")
-            except CommandFailed as cf:
+            except CommandFailed:
                 continue
             return True
             time.sleep(1)
@@ -371,7 +366,7 @@ class OpTestEEH(unittest.TestCase):
                 res = c.run_command(
                     "dmesg | grep -i --color=never 'EEH: PE location:'")
                 found = True
-            except CommandFailed as cf:
+            except CommandFailed:
                 continue
             if found:
                 break

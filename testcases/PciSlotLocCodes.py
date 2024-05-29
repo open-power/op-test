@@ -39,7 +39,6 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -62,7 +61,7 @@ class PciDT(unittest.TestCase):
             else:
                 cls.c = cls.cv_SYSTEM.console
                 cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
-        except Exception as e:
+        except Exception:
             log.debug("Unable to find cls.desired, probably a test code problem")
             cls.c = cls.cv_SYSTEM.console
             cls.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
@@ -148,7 +147,7 @@ class PciDT(unittest.TestCase):
                         else:
                             log.debug("NPU compat_output={} for {}"
                                       .format(compat_output, compat_node))
-                    except CommandFailed as cf:
+                    except CommandFailed:
                         tracking_dict['slot-label-status'] = 2
                         tracking_dict['slot-label'] = None
                         self.slot_failures += 1
@@ -162,7 +161,7 @@ class PciDT(unittest.TestCase):
                         else:
                             value = res[0].rstrip('\x00')
                         tracking_dict['loc-code'] = value
-                    except CommandFailed as cf:
+                    except CommandFailed:
                         tracking_dict['loc-code-status'] = 2
                         tracking_dict['loc-code'] = None
                         self.loccode_failures += 1

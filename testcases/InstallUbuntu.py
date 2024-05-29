@@ -37,7 +37,6 @@ import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common import OpTestInstallUtil
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -145,14 +144,14 @@ class InstallUbuntu(unittest.TestCase):
                        'url=http://%s:%s/preseed.cfg' % (self.cv_HOST.get_scratch_disk(),
                                                          my_ip, port))
 
-        if not self.conf.args.host_dns in [None, ""]:
+        if self.conf.args.host_dns not in [None, ""]:
             kernel_args = kernel_args + ' netcfg/disable_autoconfig=true '
             kernel_args = kernel_args + 'netcfg/get_nameservers=%s ' % self.conf.args.host_dns
             kernel_args = kernel_args + 'netcfg/get_ipaddress=%s ' % self.cv_HOST.ip
             kernel_args = kernel_args + 'netcfg/get_netmask=%s ' % self.conf.args.host_submask
             kernel_args = kernel_args + 'netcfg/get_gateway=%s ' % self.conf.args.host_gateway
 
-        if not self.conf.args.proxy in [None, ""]:
+        if self.conf.args.proxy not in [None, ""]:
             kernel_args = kernel_args + \
                 'mirror/http/proxy={} '.format(self.conf.args.proxy)
 

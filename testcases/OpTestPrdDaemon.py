@@ -39,23 +39,15 @@ This class will test the functionality of following.
 '''
 
 import time
-import subprocess
-import re
-import sys
-import os
-import random
-import subprocess
 
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 import unittest
 
 import OpTestConfiguration
-from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -93,7 +85,7 @@ class OpTestPrdDaemon(unittest.TestCase):
         try:
             l_res = self.cv_HOST.host_run_command("pidof opal-prd")
             log.debug("pidof opal-prd output={}".format(l_res))
-        except CommandFailed as c:
+        except CommandFailed:
             try:
                 start_res = self.cv_HOST.host_run_command(
                     "/bin/systemctl start opal-prd.service")

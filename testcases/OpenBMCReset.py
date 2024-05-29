@@ -34,21 +34,14 @@ This testcase does OpenBMC reboot and Host-BMC interface testing.
 
 '''
 
-import time
-import subprocess
-import subprocess
-import re
-import sys
 
 import unittest
 import OpTestConfiguration
 
 from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import CommandFailed
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -196,7 +189,7 @@ class OpenBMCRebootHostTests(unittest.TestCase):
             try:
                 msg = self.c.run_command("dmesg -r|grep '<[21]>'")
                 error = True
-            except CommandFailed as cf:
+            except CommandFailed:
                 pass
             self.assertFalse(error,
                              "Critical errors in Kernel log:\n%s" % msg)

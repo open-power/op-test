@@ -34,8 +34,6 @@ import re
 
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
-from common.OpTestConstants import OpTestConstants as BMC_CONST
-from common.Exceptions import CommandFailed
 
 
 class DeviceTreeWarnings():
