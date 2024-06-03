@@ -250,8 +250,8 @@ class LparConfig():
             except AttributeError:
                 self.desired_proc_units = 2.0
             try:
-                self.max_proc_units = float(
-                    self.cv_HMC.get_available_proc_resources()[0])
+                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[
+                                          0])) + self.cv_HMC.get_stealable_proc_resources_lpar()
             except AttributeError:
                 self.max_proc_units = 2.0
             try:
@@ -269,8 +269,8 @@ class LparConfig():
             try:
                 self.max_memory = conf.args.max_memory
             except AttributeError:
-                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[0]) + \
-                        int(self.desired_memory)
+                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
+                                      0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
             proc_mode = 'shared'
             curr_proc_mode = self.cv_HMC.get_proc_mode()
             if proc_mode in curr_proc_mode and not lpar_config:
@@ -311,8 +311,8 @@ class LparConfig():
             try:
                 self.max_proc_units = conf.args.max_proc_units
             except AttributeError:
-                self.max_proc_units = int(
-                    float(self.cv_HMC.get_available_proc_resources()[0]))
+                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[
+                                          0])) + self.cv_HMC.get_stealable_proc_resources_lpar()
             try:
                 self.min_memory = conf.args.min_memory
             except AttributeError:
@@ -325,7 +325,7 @@ class LparConfig():
                 self.max_memory = conf.args.max_memory
             except AttributeError:
                 self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
-                                      0]) + int(self.desired_memory)
+                                      0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
             proc_mode = 'ded'
             self.cv_HMC.profile_bckup()
             self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode,
@@ -421,15 +421,17 @@ class LparConfig():
 
         if self.sb_enable is not None:
             self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
-        
+
         if "perf=1" in self.machine_config:
             conf = OpTestConfiguration.conf
             if self.cv_HMC.is_perfcollection_enabled():
-                log.info("System is already booted with perf collection profile enabled")
+                log.info(
+                    "System is already booted with perf collection profile enabled")
             else:
                 self.cv_HMC.hmc_perfcollect_configure()
                 if self.cv_HMC.is_perfcollection_enabled:
-                    log.info("System is already booted with perf collection profile enabled")
+                    log.info(
+                        "System is already booted with perf collection profile enabled")
                 else:
                     return "Failed to enable Performance Information collection"
 
