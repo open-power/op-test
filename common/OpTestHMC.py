@@ -46,7 +46,6 @@ from common.OpTestError import OpTestError
 from common.OpTestSSH import OpTestSSH
 from common.OpTestUtil import OpTestUtil
 from common.Exceptions import CommandFailed
-#from common.OpTestSystem import OpSystemState
 from common import OPexpect
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
@@ -112,6 +111,7 @@ class HMCUtil():
     '''
     Utility and functions of HMC object
     '''
+
     def __init__(self, hmc_ip, user_name, password, scratch_disk="", proxy="",
                  logfile=sys.stdout, managed_system=None, lpar_name=None, prompt=None,
                  block_setup_term=None, delaybeforesend=None, timeout_factor=None,
@@ -160,7 +160,7 @@ class HMCUtil():
         self.PS1_set = -1
         self.LOGIN_set = -1
         self.SUDO_set = -1
-    
+
     def check_lpar_secureboot_state(self, hmc_con):
         '''
         Check whether the secure-boot is enabled for lpar.
@@ -169,12 +169,12 @@ class HMCUtil():
         'False' in case of Secure boot disabled
         '''
         # HMC command to know the current state of Secure Boot
-        cmd = ("lssyscfg -r lpar -m %s -F curr_secure_boot --filter lpar_names=%s" 
+        cmd = ("lssyscfg -r lpar -m %s -F curr_secure_boot --filter lpar_names=%s"
                % (self.mg_system, self.lpar_name))
         output = hmc_con.run_command(cmd, timeout=300)
-        if int(output[0]) == 2: # Value '2' means Secure Boot enabled
+        if int(output[0]) == 2:  # Value '2' means Secure Boot enabled
             return True
-        elif int(output[0]) == 0: # Value '0' means Secure Boot disabled
+        elif int(output[0]) == 0:  # Value '0' means Secure Boot disabled
             return False
 
     def hmc_secureboot_on_off(self, enable=True):
@@ -185,19 +185,18 @@ class HMCUtil():
         # Set Secure Boot value using HMC command
         cmd = ('chsyscfg -r lpar -m %s -i "name=%s, secure_boot=' %
                (self.mg_system, self.lpar_name))
-        if enable: # Value '2' to enable Secure Boot
+        if enable:  # Value '2' to enable Secure Boot
             cmd = '%s2"' % cmd
-        else: # Value '0' to disable Secure Boot
+        else:  # Value '0' to disable Secure Boot
             cmd = '%s0"' % cmd
         return self.ssh.run_command(cmd, timeout=300)
-
 
     def deactivate_lpar_console(self):
         '''
         Deactivate/disconnect the LPAR Console
         '''
         self.ssh.run_command("rmvterm -m %s -p %s" %
-                         (self.mg_system, self.lpar_name), timeout=10)
+                             (self.mg_system, self.lpar_name), timeout=10)
 
     def poweroff_system(self):
         '''
@@ -231,7 +230,7 @@ class HMCUtil():
             log.info('LPAR Already powered-off!')
             return
         hmc.ssh.run_command("chsysstate -m %s -r lpar -n %s -o shutdown --immed" %
-                         (hmc.mg_system, self.lpar_name))
+                            (hmc.mg_system, self.lpar_name))
         self.wait_lpar_state(OpHmcState.NOT_ACTIVE, remote_hmc=remote_hmc)
 
     def poweron_lpar(self, vios=False, remote_hmc=None):
@@ -249,12 +248,14 @@ class HMCUtil():
         lpar_name = self.lpar_name
         if vios:
             lpar_name = hmc.lpar_vios
-        cmd = "chsysstate -m %s -r lpar -n %s -o on" % (hmc.mg_system, lpar_name)
+        cmd = "chsysstate -m %s -r lpar -n %s -o on" % (
+            hmc.mg_system, lpar_name)
 
         if self.lpar_prof:
             cmd = "%s -f %s" % (cmd, self.lpar_prof)
 
-        self.wait_lpar_state(OpHmcState.NOT_ACTIVE, vios=vios, remote_hmc=remote_hmc)
+        self.wait_lpar_state(OpHmcState.NOT_ACTIVE,
+                             vios=vios, remote_hmc=remote_hmc)
         hmc.ssh.run_command(cmd)
         self.wait_lpar_state(vios=vios, remote_hmc=remote_hmc)
         time.sleep(STALLTIME)
@@ -268,7 +269,7 @@ class HMCUtil():
             log.info('LPAR Already powered-off!')
             return
         self.ssh.run_command("chsysstate -m %s -r lpar -n %s -o dumprestart" %
-                         (self.mg_system, self.lpar_name))
+                             (self.mg_system, self.lpar_name))
         self.wait_lpar_state()
 
     def restart_lpar(self):
@@ -279,7 +280,7 @@ class HMCUtil():
             log.info('LPAR Already powered-off!')
             return
         self.ssh.run_command("chsysstate -m %s -r lpar -n %s -o shutdown --immed --restart" %
-                         (self.mg_system, self.lpar_name))
+                             (self.mg_system, self.lpar_name))
         self.wait_lpar_state()
 
     def get_lpar_cfg(self):
@@ -289,7 +290,7 @@ class HMCUtil():
         :returns: LPAR configuration parameters in key, value pair
         '''
         out = self.ssh.run_command("lssyscfg -r prof -m %s --filter 'lpar_names=%s'" %
-                (self.mg_system, self.lpar_name))[-1]
+                                   (self.mg_system, self.lpar_name))[-1]
         cfg_dict = {}
         splitter = shlex.shlex(out)
         splitter.whitespace += ','
@@ -304,7 +305,7 @@ class HMCUtil():
             cfg_dict[key] = value
         return cfg_dict
 
-    def set_lpar_cfg(self, arg_str, lpar_profile = None):
+    def set_lpar_cfg(self, arg_str, lpar_profile=None):
         '''
         Set LPAR configuration parameter values
 
@@ -315,9 +316,9 @@ class HMCUtil():
         if not self.lpar_prof:
             raise OpTestError("Profile needs to be defined to use this method")
         self.ssh.run_command("chsyscfg -r prof -m %s -i 'lpar_name=%s,name=%s,%s' --force" %
-                (self.mg_system, self.lpar_name, lpar_profile, arg_str))
+                             (self.mg_system, self.lpar_name, lpar_profile, arg_str))
 
-    def add_ioslot(self, add_ioslot, lpar_profile = None):
+    def add_ioslot(self, add_ioslot, lpar_profile=None):
         """
         Adds ioslots to lpar profile
         :param add_ioslot: String, accepts drc name or drc names
@@ -327,20 +328,23 @@ class HMCUtil():
                              if not provided
         """
         lpar_profile = self.lpar_prof if lpar_profile is None else lpar_profile
-        exisitng_io_slots = self.get_ioslots_assigned_to_lpar(lpar_profile = lpar_profile)
+        exisitng_io_slots = self.get_ioslots_assigned_to_lpar(
+            lpar_profile=lpar_profile)
         drc_index_for_slots = [self.get_drc_index_for_ioslot(add_slot)
                                for add_slot in add_ioslot.split(",")]
         if None in drc_index_for_slots:
-            log.info(f"few slots among {add_ioslot} not found in {self.mg_system}")
-        new_slots = [slot+"/none/0" for slot in drc_index_for_slots if slot is not None]
+            log.info(
+                f"few slots among {add_ioslot} not found in {self.mg_system}")
+        new_slots = [
+            slot+"/none/0" for slot in drc_index_for_slots if slot is not None]
         if list(set(exisitng_io_slots).intersection(new_slots)):
             log.info(f"Found slots which are already mapped:"
-                      f"{list(set(exisitng_io_slots).intersection(new_slots))}")
-        self.set_lpar_cfg("io_slots=\""+",".join(exisitng_io_slots+new_slots)+"\"",\
-                           lpar_profile = lpar_profile) if new_slots \
-                           else log.info("No new slots are added to lpar profile")
+                     f"{list(set(exisitng_io_slots).intersection(new_slots))}")
+        self.set_lpar_cfg("io_slots=\""+",".join(exisitng_io_slots+new_slots)+"\"",
+                          lpar_profile=lpar_profile) if new_slots \
+            else log.info("No new slots are added to lpar profile")
 
-    def remove_ioslot(self, remove_ioslot, lpar_profile = None):
+    def remove_ioslot(self, remove_ioslot, lpar_profile=None):
         """
         Removes ioslots from lpar profile
         :param remove_ioslot: String, accepts drc name or drc names
@@ -350,19 +354,23 @@ class HMCUtil():
                              if not provided
         """
         lpar_profile = self.lpar_prof if lpar_profile is None else lpar_profile
-        exisitng_io_slots = self.get_ioslots_assigned_to_lpar(lpar_profile = lpar_profile)
+        exisitng_io_slots = self.get_ioslots_assigned_to_lpar(
+            lpar_profile=lpar_profile)
         drc_index_for_slots = [self.get_drc_index_for_ioslot(remove_slot)
                                for remove_slot in remove_ioslot.split(",")]
         if None in drc_index_for_slots:
-            log.info(f"few slots among {add_ioslot} not found in {self.mg_system}")
-        new_slots = [slot+"/none/0" for slot in drc_index_for_slots if slot is not None]
+            log.info(
+                f"few slots among {add_ioslot} not found in {self.mg_system}")
+        new_slots = [
+            slot+"/none/0" for slot in drc_index_for_slots if slot is not None]
         if [slot for slot in new_slots if slot not in exisitng_io_slots]:
-            log.info(f"provided slots {new_slots} not in {exisitng_io_slots} to remove")
-        self.set_lpar_cfg("io_slots=\""+",".join(set(exisitng_io_slots)-set(new_slots))+"\"",\
-                          lpar_profile = lpar_profile) if new_slots \
-                          else log.info("No new slots are removed from lpar profile")
+            log.info(
+                f"provided slots {new_slots} not in {exisitng_io_slots} to remove")
+        self.set_lpar_cfg("io_slots=\""+",".join(set(exisitng_io_slots)-set(new_slots))+"\"",
+                          lpar_profile=lpar_profile) if new_slots \
+            else log.info("No new slots are removed from lpar profile")
 
-    def get_ioslots_assigned_to_lpar(self, lpar_profile = None):
+    def get_ioslots_assigned_to_lpar(self, lpar_profile=None):
         """
         :optional_param lpar_profile: String, Defaults to class variable
                              if not provided
@@ -374,7 +382,7 @@ class HMCUtil():
                                                  f"profile_names={lpar_profile}' -F io_slots")
         log.info(f"assigned_io_slots:{assigned_io_slots}")
         return [] if assigned_io_slots is "none" \
-                               else assigned_io_slots[0].replace('"',"").split(",")
+            else assigned_io_slots[0].replace('"', "").split(",")
 
     def get_lpar_name_for_ioslot(self, ioslot):
         """
@@ -397,7 +405,7 @@ class HMCUtil():
         return drc_index_out[0].split(":")[0] if drc_index_out is not None else None
 
     def change_proc_mode(self, proc_mode, sharing_mode, min_proc_units, desired_proc_units, max_proc_units,
-                          min_memory, desired_memory, max_memory, overcommit_ratio=1):
+                         min_memory, desired_memory, max_memory, overcommit_ratio=1):
         '''
         Sets processor mode to shared or dedicated based on proc_mode
 
@@ -414,7 +422,7 @@ class HMCUtil():
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %
                               (sharing_mode, overcommit_ratio*int(min_proc_units), max_proc_units, overcommit_ratio*int(desired_proc_units),
                                int(min_proc_units), 2*int(desired_proc_units),
-                               2*int(max_proc_units),min_memory, desired_memory, max_memory))
+                               2*int(max_proc_units), min_memory, desired_memory, max_memory))
         elif proc_mode == 'ded':
             self.set_lpar_cfg("proc_mode=ded,sharing_mode=%s,min_procs=%s,max_procs=%s,desired_procs=%s,"
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %
@@ -430,7 +438,7 @@ class HMCUtil():
         :returns: "shared" if lpar is in shared mode, "ded" if lpar is in dedicated mode.
         '''
         return self.run_command("lshwres -r proc -m %s --level lpar --filter lpar_names=%s -F curr_proc_mode" %
-                               (self.mg_system, self.lpar_name))
+                                (self.mg_system, self.lpar_name))
 
     def disable_vtpm(self):
         '''
@@ -438,7 +446,7 @@ class HMCUtil():
 
         '''
         self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=0\"" %
-                        (self.mg_system, self.lpar_name))
+                         (self.mg_system, self.lpar_name))
         time.sleep(5)
 
     def enable_vtpm(self, vtpm_version, vtpm_encryption=None):
@@ -449,10 +457,10 @@ class HMCUtil():
         '''
         if vtpm_version == 2.0:
             self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=1, vtpm_version=2.0, vtpm_encryption=%s\"" %
-                            (self.mg_system, self.lpar_name, vtpm_encryption))
+                             (self.mg_system, self.lpar_name, vtpm_encryption))
         if vtpm_version == 1.2:
             self.run_command("chsyscfg -r lpar -m %s -i \"name=%s, vtpm_enabled=1, vtpm_version=1.2\"" %
-                            (self.mg_system, self.lpar_name))
+                             (self.mg_system, self.lpar_name))
         time.sleep(5)
 
     def vtpm_state(self):
@@ -462,7 +470,7 @@ class HMCUtil():
         :returns: 0 if vtpm is disabled, 1 if vtpm is enabled
         '''
         return self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F vtpm_enabled" %
-                                      (self.mg_system, self.lpar_name))
+                                (self.mg_system, self.lpar_name))
 
     def vpmem_count(self):
         '''
@@ -471,7 +479,7 @@ class HMCUtil():
         :returns: number of vpmem volumes on the lpar
         '''
         return self.run_command("lshwres -r pmem -m %s --level lpar --filter lpar_names=%s -F curr_num_volumes" %
-                                      (self.mg_system, self.lpar_name))
+                                (self.mg_system, self.lpar_name))
 
     def remove_singlevpmem(self, pmem_name):
         '''
@@ -488,7 +496,8 @@ class HMCUtil():
 
         :param pmem_name: name of vpmem volume
         '''
-        volume_name = self.run_command("lshwres -r pmem -m %s --rsubtype volume -F name" % (self.mg_system))
+        volume_name = self.run_command(
+            "lshwres -r pmem -m %s --rsubtype volume -F name" % (self.mg_system))
         if pmem_name in volume_name:
             return 1
         return 0
@@ -498,10 +507,10 @@ class HMCUtil():
         remove all  vpmem device from lpar
         '''
 
-        volume_name = self.run_command("lshwres -r pmem -m %s --rsubtype volume --filter lpar_names=%s -F name" % (self.mg_system, self.lpar_name))
+        volume_name = self.run_command(
+            "lshwres -r pmem -m %s --rsubtype volume --filter lpar_names=%s -F name" % (self.mg_system, self.lpar_name))
         for pmem_name in volume_name:
             self.remove_singlevpmem(pmem_name)
-
 
     def configure_vpmem(self, pmem_name, pmem_size):
         '''
@@ -511,11 +520,12 @@ class HMCUtil():
         :param pmem_size: size of vpmem volume, should be multiple of lmb size
         '''
         if self.check_exiting_vpmemname(pmem_name):
-            ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4))
+            ran = ''.join(random.choices(
+                string.ascii_lowercase + string.digits, k=4))
             pmem_name = str(ran)
 
         self.run_command("chhwres -r pmem -m %s -o a --rsubtype volume --volume %s --device dram -p %s -a size=%s,affinity=1" %
-                               (self.mg_system, pmem_name, self.lpar_name, pmem_size))
+                         (self.mg_system, pmem_name, self.lpar_name, pmem_size))
 
     def get_proc_compat_mode(self):
         '''
@@ -533,7 +543,7 @@ class HMCUtil():
         :param qos_credits: Qos credits to alllocate.
         '''
         self.run_command("chhwres -r accel -m %s --rsubtype gzip -o s -p %s -q %s" %
-                        (self.mg_system, self.lpar_name, qos_credits))
+                         (self.mg_system, self.lpar_name, qos_credits))
         time.sleep(5)
 
     def profile_bckup(self):
@@ -541,7 +551,7 @@ class HMCUtil():
         Takes lpar profile backup
         '''
         self.run_command("mksyscfg -r prof -m %s -o save -p %s -n %s_bck --force" %
-                        (self.mg_system, self.lpar_name, self.lpar_prof))
+                         (self.mg_system, self.lpar_name, self.lpar_prof))
 
     def configure_lmb(self, lmb_size):
         '''
@@ -551,7 +561,7 @@ class HMCUtil():
          Valid LMB values are "128,256,1024,2048,4096"
         '''
         self.run_command("chhwres -m %s -r mem -o s -a pend_mem_region_size=%s" %
-                               (self.mg_system, lmb_size))
+                         (self.mg_system, lmb_size))
         time.sleep(2)
 
     def get_lmb_size(self):
@@ -569,7 +579,7 @@ class HMCUtil():
         :param num_hugepages: number of 16gb hugepages to configure on managed system
         '''
         self.run_command("chhwres -m %s -r mem -o s -a requested_num_sys_huge_pages=%s" %
-                               (self.mg_system, num_hugepages))
+                         (self.mg_system, num_hugepages))
         time.sleep(2)
 
     def get_16gb_hugepage_size(self):
@@ -584,7 +594,7 @@ class HMCUtil():
     def get_available_mem_resources(self):
         '''
         Get the available memory from CEC
-        
+
         :returns: Available memory
         '''
         return self.run_command("lshwres -m %s -r mem --level sys -F curr_avail_sys_mem" %
@@ -606,18 +616,11 @@ class HMCUtil():
         '''
         output = self.run_command(
             "lssyscfg -r lpar -m %s -F name state" % self.mg_system)
-        # Split the output into lines
-        # lines = output.splitlines()
-        # Initialize an empty list to store the first column values
         not_activated_lpars = []
-        # Iterate over each line to extract the first column value if the state is "Not Activated"
         for line in output:
-            # Split the line using space as the delimiter
             parts = line.split()
-            # Check if the state is "Not Activated" and extract the first column value
             if len(parts) >= 2 and parts[1] == '"Not':
                 lpar_name = parts[0]
-                # Append the LPAR name to the list
                 not_activated_lpars.append(lpar_name)
         return not_activated_lpars
 
@@ -641,7 +644,7 @@ class HMCUtil():
                 for proc_value in proc:
                     stealable_procs.append(int(float(proc_value)))
         total_stealable_proc = sum(stealable_procs)
-        print("total stealable proc:", total_stealable_proc)
+        log.info("total stealable proc: %s" % total_stealable_proc)
         return total_stealable_proc
 
     def get_stealable_mem_resources_lpar(self):
@@ -658,7 +661,7 @@ class HMCUtil():
                 for mem_value in mem:
                     stealable_mem.append(int(mem_value))
         total_stealable_memory = sum(stealable_mem)
-        print("total stealable memory:", total_stealable_memory)
+        log.info("total stealable memory:%s" % total_stealable_memory)
         return total_stealable_memory
 
     def get_lpar_state(self, vios=False, remote_hmc=None):
@@ -744,9 +747,10 @@ class HMCUtil():
         '''
         hmc = remote_hmc if remote_hmc else self
         lpar_list = hmc.ssh.run_command(
-                   'lssyscfg -r lpar -m %s -F name' % mg_system)
+            'lssyscfg -r lpar -m %s -F name' % mg_system)
         if lpar_name in lpar_list:
-            log.info("%s lpar found in managed system %s" % (lpar_name, mg_system))
+            log.info("%s lpar found in managed system %s" %
+                     (lpar_name, mg_system))
             return True
         return False
 
@@ -764,12 +768,14 @@ class HMCUtil():
                   False - when LPAR migration unsuccess
         '''
         if src_mg_system == None or dest_mg_system == None:
-            raise OpTestError("Source and Destination Managed System required for LPM")
+            raise OpTestError(
+                "Source and Destination Managed System required for LPM")
         if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name):
-            raise OpTestError("Lpar %s not found in managed system %s" % (self.lpar_name, src_mg_system))
+            raise OpTestError("Lpar %s not found in managed system %s" % (
+                self.lpar_name, src_mg_system))
         for mode in ['v', 'm']:
             cmd = 'migrlpar -o %s -m %s -t %s -p %s %s' % (
-                   mode, src_mg_system, dest_mg_system, self.lpar_name, param)
+                mode, src_mg_system, dest_mg_system, self.lpar_name, param)
             if options:
                 cmd = "%s %s" % (cmd, options)
             self.ssh.run_command(cmd, timeout=timeout)
@@ -777,14 +783,15 @@ class HMCUtil():
         time.sleep(timeout)
         if self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
             cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F state" % (
-                   dest_mg_system, self.lpar_name)
+                dest_mg_system, self.lpar_name)
             lpar_state = self.ssh.run_command(cmd)[0]
             if lpar_state not in ['Migrating - Running', 'Migrating - Not Activated']:
                 log.info("Migration of lpar %s from %s to %s is successfull" %
                          (self.lpar_name, src_mg_system, dest_mg_system))
                 self.mg_system = dest_mg_system
                 return True
-            self.recover_lpar(src_mg_system, dest_mg_system, stop_lpm=True, timeout=timeout)
+            self.recover_lpar(src_mg_system, dest_mg_system,
+                              stop_lpm=True, timeout=timeout)
         log.info("Migration of lpar %s from %s to %s failed" %
                  (self.lpar_name, src_mg_system, dest_mg_system))
         return False
@@ -806,7 +813,7 @@ class HMCUtil():
         except CommandFailed:
             try:
                 cmd = "mkauthkeys -u %s --ip %s --passwd %s" % (
-                       hmc_user, hmc_ip, hmc_passwd)
+                    hmc_user, hmc_ip, hmc_passwd)
                 hmc.run_command(cmd, timeout=120)
             except CommandFailed as cf:
                 raise cf
@@ -830,21 +837,21 @@ class HMCUtil():
         hmc = remote_hmc if remote_hmc else self
 
         if src_mg_system == None or dest_mg_system == None:
-            raise OpTestError("Source and Destination Managed System "\
-            "required for Cross HMC LPM")
+            raise OpTestError("Source and Destination Managed System "
+                              "required for Cross HMC LPM")
         if target_hmc_ip == None or target_hmc_user == None or target_hmc_passwd == None:
-            raise OpTestError("Destination HMC IP, Username, and Password "\
-            "required for Cross HMC LPM")
+            raise OpTestError("Destination HMC IP, Username, and Password "
+                              "required for Cross HMC LPM")
         if not self.is_lpar_in_managed_system(src_mg_system, self.lpar_name, remote_hmc):
             raise OpTestError("Lpar %s not found in managed system %s" % (
-            self.lpar_name, src_mg_system))
+                self.lpar_name, src_mg_system))
 
         self.set_ssh_key_auth(target_hmc_ip, target_hmc_user,
                               target_hmc_passwd, remote_hmc)
 
         for mode in ['v', 'm']:
             cmd = "migrlpar -o %s -m %s -t %s -p %s -u %s --ip %s %s" % (mode, src_mg_system,
-                   dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip, param)
+                                                                         dest_mg_system, self.lpar_name, target_hmc_user, target_hmc_ip, param)
             if options:
                 cmd = "%s %s" % (cmd, options)
             hmc.ssh.run_command(cmd, timeout=timeout)
@@ -864,7 +871,7 @@ class HMCUtil():
             self.ssh.run_command("migrlpar -o s -m %s -p %s" % (
                 src_mg_system, self.lpar_name), timeout=timeout)
         self.ssh.run_command("migrlpar -o r -m %s -p %s" % (
-                src_mg_system, self.lpar_name), timeout=timeout)
+            src_mg_system, self.lpar_name), timeout=timeout)
         if not self.is_lpar_in_managed_system(dest_mg_system, self.lpar_name):
             log.info("LPAR recovered at managed system %s" % src_mg_system)
             return True
@@ -881,7 +888,8 @@ class HMCUtil():
         :returns: string, adapter id
         '''
         hmc = remote_hmc if remote_hmc else self
-        cmd = 'lshwres -m {} -r sriov --rsubtype adapter -F phys_loc:adapter_id'.format(mg_system)
+        cmd = 'lshwres -m {} -r sriov --rsubtype adapter -F phys_loc:adapter_id'.format(
+            mg_system)
         adapter_id_output = hmc.ssh.run_command(cmd)
         for line in adapter_id_output:
             if str(loc_code) in line:
@@ -898,7 +906,8 @@ class HMCUtil():
         :returns: number, LPAR id on success, 0 on failure
         '''
         hmc = remote_hmc if remote_hmc else self
-        cmd = 'lssyscfg -m %s -r lpar --filter lpar_names=%s -F lpar_id' % (mg_system, l_lpar_name)
+        cmd = 'lssyscfg -m %s -r lpar --filter lpar_names=%s -F lpar_id' % (
+            mg_system, l_lpar_name)
         lpar_id_output = hmc.ssh.run_command(cmd)
         for line in lpar_id_output:
             if l_lpar_name in line:
@@ -918,12 +927,12 @@ class HMCUtil():
         '''
         hmc = remote_hmc if remote_hmc else self
         cmd = "lssyscfg -m %s -r lpar --filter lpar_names=%s -F msp" % (
-                mg_system, vios_name)
+            mg_system, vios_name)
         msp_output = hmc.ssh.run_command(cmd)
         if int(msp_output[0]) != 1:
             return False
         return True
-    
+
     def is_perfcollection_enabled(self):
         '''
         Get Performance Information collection allowed in hmc profile
@@ -932,8 +941,8 @@ class HMCUtil():
         '''
 
         rc = self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F allow_perf_collection"
-                                % (self.mg_system, self.lpar_name))
-        if  rc:
+                              % (self.mg_system, self.lpar_name))
+        if rc:
             return True
         return False
 
@@ -942,7 +951,7 @@ class HMCUtil():
         Enable/Disable perfcollection from HMC
         The value for enabling perfcollection is 1, and for disabling it is 0.
         '''
-       
+
         cmd = ('chsyscfg -r lpar -m %s -i "name=%s, allow_perf_collection=' %
                (self.mg_system, self.lpar_name))
         if enable:
@@ -950,7 +959,6 @@ class HMCUtil():
         else:
             cmd = '%s0"' % cmd
         self.run_command(cmd, timeout=300)
-
 
     def gather_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
         '''
@@ -964,8 +972,10 @@ class HMCUtil():
         '''
         hmc = remote_hmc if remote_hmc else self
         if not output_dir:
-            output_dir = "HMC_Logs_%s" % (time.asctime(time.localtime())).replace(" ", "_")
-        output_dir = os.path.join(self.system.cv_HOST.results_dir, output_dir, "hmc-"+hmc.hmc_ip)
+            output_dir = "HMC_Logs_%s" % (
+                time.asctime(time.localtime())).replace(" ", "_")
+        output_dir = os.path.join(
+            self.system.cv_HOST.results_dir, output_dir, "hmc-"+hmc.hmc_ip)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -975,11 +985,13 @@ class HMCUtil():
         try:
             for cmd in set(list_of_commands):
                 output = "\n".join(hmc.run_command(r"%s" % cmd, timeout=1800))
-                filename = "%s.log" % '-'.join((re.sub(r'[^a-zA-Z0-9]', ' ', cmd)).split())
+                filename = "%s.log" % '-'.join(
+                    (re.sub(r'[^a-zA-Z0-9]', ' ', cmd)).split())
                 filepath = os.path.join(output_dir, filename)
                 with open(filepath, 'w') as f:
                     f.write(output)
-            log.warn("Please collect the pedbg logs immediately. At risk of being overwritten.")
+            log.warn(
+                "Please collect the pedbg logs immediately. At risk of being overwritten.")
             return True
         except CommandFailed as cmd_failed:
             raise cmd_failed
@@ -1056,6 +1068,7 @@ class HMCConsole(HMCUtil):
     HMCConsole Class
     Methods to manage the console of LPAR
     """
+
     def __init__(self, hmc_ip, user_name, password, managed_system, lpar_name,
                  lpar_vios, lpar_prof, lpar_user, lpar_password,
                  block_setup_term=None, delaybeforesend=None, timeout_factor=1,
@@ -1251,7 +1264,8 @@ class HMCConsole(HMCUtil):
             log.info("Opening the LPAR console")
             time.sleep(STALLTIME)
             self.pty.send('\r')
-            self.pty.sendline("mkvterm -m %s -p %s" % (self.mg_system, self.lpar_name))
+            self.pty.sendline("mkvterm -m %s -p %s" %
+                              (self.mg_system, self.lpar_name))
             self.pty.send('\r')
             time.sleep(STALLTIME)
             i = self.pty.expect(
@@ -1272,7 +1286,6 @@ class HMCConsole(HMCUtil):
             self.state = ConsoleState.DISCONNECTED
             raise CommandFailed('OPexpect.spawn',
                                 'OPexpect.spawn encountered a problem: ' + str(exp), -1)
-
 
         if self.delaybeforesend:
             self.pty.delaybeforesend = self.delaybeforesend
@@ -1341,7 +1354,8 @@ class HMCConsole(HMCUtil):
         self.pty.send('\r')
         time.sleep(STALLTIME)
         log.debug("Waiting for login screen")
-        i = self.pty.expect(["login:", self.expect_prompt, pexpect.TIMEOUT], timeout=30)
+        i = self.pty.expect(["login:", self.expect_prompt,
+                            pexpect.TIMEOUT], timeout=30)
         if i == 0:
             log.debug("System has booted")
             time.sleep(STALLTIME)
@@ -1360,4 +1374,3 @@ class HMCConsole(HMCUtil):
         Wrapper command for run_command from util
         '''
         return self.util.run_command(self, i_cmd, timeout)
-

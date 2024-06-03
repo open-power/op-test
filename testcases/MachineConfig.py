@@ -269,7 +269,8 @@ class LparConfig():
             try:
                 self.max_memory = conf.args.max_memory
             except AttributeError:
-                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
+                self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
+                                      0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
             proc_mode = 'shared'
             curr_proc_mode = self.cv_HMC.get_proc_mode()
             if proc_mode in curr_proc_mode and not lpar_config:
@@ -420,15 +421,17 @@ class LparConfig():
 
         if self.sb_enable is not None:
             self.cv_HMC.hmc_secureboot_on_off(self.sb_enable)
-        
+
         if "perf=1" in self.machine_config:
             conf = OpTestConfiguration.conf
             if self.cv_HMC.is_perfcollection_enabled():
-                log.info("System is already booted with perf collection profile enabled")
+                log.info(
+                    "System is already booted with perf collection profile enabled")
             else:
                 self.cv_HMC.hmc_perfcollect_configure()
                 if self.cv_HMC.is_perfcollection_enabled:
-                    log.info("System is already booted with perf collection profile enabled")
+                    log.info(
+                        "System is already booted with perf collection profile enabled")
                 else:
                     return "Failed to enable Performance Information collection"
 
