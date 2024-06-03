@@ -33,6 +33,7 @@ import OpTestLogger
 from common.OpTestSystem import OpSystemState
 from common.OpTestSOL import OpSOLMonitorThread
 from common.OpTestInstallUtil import InstallUtil
+from common.OpTestUtil import OpTestUtil
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -52,6 +53,8 @@ class InstallUpstreamKernel(unittest.TestCase):
         self.patch = self.conf.args.git_patch
         self.use_kexec = self.conf.args.use_kexec
         self.append_kernel_cmdline = self.conf.args.append_kernel_cmdline
+        self.util = OpTestUtil(OpTestConfiguration.conf)
+        self.host_distro_name = self.util.distro_name()
         if self.config_path:
             self.config = "olddefconfig"
         if not self.repo:
@@ -115,82 +118,76 @@ class InstallUpstreamKernel(unittest.TestCase):
                         self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
             # Capture kernel version & release
-            res = con.run_command("make kernelrelease")
+            ker_ver = con.run_command("make kernelrelease")[-1]
             sha = con.run_command("git rev-parse HEAD")
             tcommit = con.run_command("export 'TERM=xterm-256color';git show -s --format=%ci")
             tcommit = re.sub(r"\x1b\[[0-9;]*[mGKHF]", "", tcommit[1])
-            log.info("Upstream kernel version: %s", res[-1])
+            log.info("Upstream kernel version: %s", ker_ver)
             log.info("Upstream kernel commit-id: %s", sha[-1])
             log.info("Upstream kernel commit-time: %s", tcommit)
             log.debug("Compile and install linux kernel")
             con.run_command("make -j %d -s && make modules_install && make install" %
                             onlinecpus, timeout=self.host_cmd_timeout)
             time.sleep(10)
+            if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
+                gruby_cmd = 'grubby --set-default'
+            elif self.host_distro_name in ['sles', 'SLES']:
+                gruby_cmd = 'grub2-set-default'
+            else:
+                raise self.skipTest("Unsupported OS")
+            con.run_command("%s  /boot/vmlinu*-%s" % (gruby_cmd, ker_ver))
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
-                con.run_command(
-                    "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
                 log.debug("Rebooting after kernel install...")
-                self.console_thread.console_terminate()
-                self.prompt = self.cv_SYSTEM.util.build_prompt()
-                self.console_thread.console_terminate()
-                con.close()
-                for i in range(5):
-                    raw_pty = self.wait_for(self.cv_SYSTEM.console.get_console, timeout=20)
-                    time.sleep(10)
-                    if raw_pty is not None:
-                        raw_pty.sendline("uname -r")
-                        break
-                raw_pty.sendline("reboot")
-                raw_pty.expect("login:", timeout=600)
-                raw_pty.close()
+                boot_cmd = 'reboot'
             else:
-                self.console_thread.console_terminate()
                 cmdline = con.run_command("cat /proc/cmdline")[-1]
                 if self.append_kernel_cmdline:
                     cmdline += " %s" % self.append_kernel_cmdline
-                kern_rel_str = con.run_command(
-                     "cat %s/include/config/kernel.release" % linux_path)[-1]
                 try:
                     initrd_file = con.run_command(
-                        "ls -l /boot/initr*-%s.img" % kern_rel_str)[-1].split(" ")[-1]
+                        "ls -l /boot/initr*-%s.img" % ker_ver)[-1].split(" ")[-1]
                 except Exception:
                     initrd_file = con.run_command(
-                        "ls -l /boot/initr*-%s" % kern_rel_str)[-1].split(" ")[-1]
+                        "ls -l /boot/initr*-%s" % ker_ver)[-1].split(" ")[-1]
                 kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinu*-%s -l" % (
-                    initrd_file, cmdline, kern_rel_str)
+                    initrd_file, cmdline, ker_ver)
                 # Let's makesure we set the default boot index to current kernel
                 # to avoid leaving host in unstable state incase boot failure
-                res = con.run_command("cat /etc/os-release")
-                if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
+                if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
                     con.run_command(
-                        'grubby --set-default /boot/vmlinu*-`uname -r`')
-                elif 'Red Hat' in res[0] or 'Red Hat' in res[1]:
-                    con.run_command(
-                        'grubby --set-default /boot/vmlinu*-`uname -r`')
-                elif 'SLES' in res[0] or 'SLES' in res[1]:
-                    con.run_command(
-                        'grub2-set-default /boot/vmlinu*-`uname -r`')
-                else:
-                    raise self.skipTest("Unsupported OS")
+                        '%s /boot/vmlinu*-`uname -r`' % gruby_cmd)
+                elif self.host_distro_name in ['sles', 'SLES']:
+                    con.run_command('%s /boot/vmlinu*-`uname -r`' % gruby_cmd)
                 con.run_command(
                     "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
                 con.run_command(kexec_cmdline)
-                con.close()
-                raw_pty = self.cv_SYSTEM.console.get_console()
-                raw_pty.sendline("reboot")
-                raw_pty.expect("login:", timeout=600)
+                boot_cmd = 'kexec -e'
+            self.console_thread.console_terminate()
+            self.cv_SYSTEM.util.build_prompt()
+            self.console_thread.console_terminate()
+            con.close()
+            for i in range(5):
+                raw_pty = self.wait_for(self.cv_SYSTEM.console.get_console, timeout=20)
+                time.sleep(10)
+                if raw_pty is not None:
+                    raw_pty.sendline("uname -r")
+                    break
+            raw_pty.sendline(boot_cmd)
+            raw_pty.expect("login:", timeout=600)
+            raw_pty.close()
             con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-            res = con.run_command("uname -r")
-            log.info("Installed upstream kernel version: %s", res[-1])
+            res = con.run_command("uname -r")[-1]
+            log.info("Installed upstream kernel version: %s", res)
+            if ker_ver != res:
+                self.fail("Upstream kernel did not boot")
             if self.conf.args.host_cmd:
                 con.run_command(self.conf.args.host_cmd,
                                 timeout=self.host_cmd_timeout)
             self.cv_HOST.host_gather_opal_msg_log()
             self.cv_HOST.host_gather_kernel_log()
         finally:
-            if self.console_thread.isAlive():
-                self.console_thread.console_terminate()
+            self.console_thread.console_terminate()
 
     def wait_for(self, func, timeout, first=0.0, step=1.0, text=None, args=None, kwargs=None):
         args = args or []
