@@ -124,7 +124,7 @@ class PowerNVDump(unittest.TestCase):
         except AttributeError:
             self.url = "http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        res = self.c.run_command("cat /etc/os-release")
+        res = self.cv_HOST.host_run_command("cat /etc/os-release", timeout=60)
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
             self.distro = "ubuntu"
         elif 'Red Hat' in res[0] or 'Red Hat' in res[1]:
@@ -903,7 +903,7 @@ class KernelCrash_KdumpNFS(PowerNVDump):
             self.c.run_command("sed -i 's/-l -F --message-level/-l --message-level/' /etc/kdump.conf; sync")
             self.c.run_command("sed -i '/^path/ s/^#*/#/' /etc/kdump.conf; echo 'path /' >> /etc/kdump.conf; sync")
             self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_location, self.dump_path))
-            self.c.run_command("systemctl restart kdump.service", timeout=180)
+            self.cv_HOST.host_run_command("systemctl restart kdump.service", timeout=300)
             self.c.run_command("fsfreeze -f /boot; fsfreeze -u /boot")
             res = self.c.run_command("service kdump status | grep active")
             if 'dead' in res:
