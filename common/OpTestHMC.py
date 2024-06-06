@@ -381,7 +381,7 @@ class HMCUtil():
                                                  f" --filter 'lpar_names={self.lpar_name},"
                                                  f"profile_names={lpar_profile}' -F io_slots")
         log.info(f"assigned_io_slots:{assigned_io_slots}")
-        return [] if assigned_io_slots is "none" \
+        return [] if assigned_io_slots == "none" \
             else assigned_io_slots[0].replace('"', "").split(",")
 
     def get_lpar_name_for_ioslot(self, ioslot):
