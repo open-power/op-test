@@ -213,7 +213,7 @@ class OpTestHMIHandling(unittest.TestCase):
         states = self.cv_HOST.host_run_command(
             "find /sys/devices/system/cpu/cpu*/cpuidle/state* -type d | cut -d'/' -f8 | sort -u | sed -e 's/^state//'", console=1)
         for state in states:
-            if state is "0":
+            if state == "0":
                 try:
                     self.cv_HOST.host_run_command(
                         "cpupower idle-set -e 0", console=1)

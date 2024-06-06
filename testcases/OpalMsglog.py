@@ -127,7 +127,7 @@ class OpalMsglog():
             self.assertTrue(len(log_entries) == 0,
                             "Warnings/Errors in OPAL log:\n%s" % msg)
         except CommandFailed as cf:
-            if cf.exitcode is 1 and len(cf.output) is 0:
+            if cf.exitcode == 1 and len(cf.output) == 0:
                 # We have no warnings/errors!
                 pass
             else:
