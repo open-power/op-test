@@ -1475,12 +1475,12 @@ class OpTestUtil():
         my_user = host.username()
         my_pwd = host.password()
         pty.sendline()
-        rc = pty.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = pty.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
         if rc == 0:
             pty.sendline(my_user)
             time.sleep(0.1)
             rc = pty.expect(
-                [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
             if rc == 0:
                 pty.sendline(my_pwd)
                 time.sleep(0.5)
@@ -1509,17 +1509,17 @@ class OpTestUtil():
         else:  # timeout eof
             pty.sendline()
             rc = pty.expect(
-                ['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                ['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
             if rc == 0:
                 pty.sendline(my_user)
                 time.sleep(0.1)
                 rc = pty.expect(
-                    [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                    [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                 if rc == 0:
                     pty.sendline(my_pwd)
                     time.sleep(0.5)
                     rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~ #", ":~",
-                                     'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                                     'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                     if rc not in [1, 2, 3, 4, 5]:
                         if term_obj.setup_term_quiet == 0:
                             log.warning("OpTestSystem Problem with the login and/or password prompt,"
@@ -1658,7 +1658,7 @@ class OpTestUtil():
             return
 
         rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~>", "~ #",
-                         'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                         'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
@@ -1688,7 +1688,7 @@ class OpTestUtil():
         # Ctrl-L may cause a esc[J (erase) character to appear in the buffer.
         # Include this in the patterns that expect $ (end of line)
         rc = pty.expect(['login: (\x1b\[J)*$', ".*#(\x1b\[J)*$", ".*# (\x1b\[J)*$", ".*\$(\x1b\[J)*",
-                         "~>(\x1b\[J)", "~ #(\x1b\[J)", ":~(\x1b\[J)", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                         "~>(\x1b\[J)", "~ #(\x1b\[J)", ":~(\x1b\[J)", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
