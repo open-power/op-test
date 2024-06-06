@@ -1475,12 +1475,12 @@ class OpTestUtil():
         my_user = host.username()
         my_pwd = host.password()
         pty.sendline()
-        rc = pty.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        rc = pty.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
         if rc == 0:
             pty.sendline(my_user)
             time.sleep(0.1)
             rc = pty.expect(
-                [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
             if rc == 0:
                 pty.sendline(my_pwd)
                 time.sleep(0.5)
@@ -1509,12 +1509,12 @@ class OpTestUtil():
         else:  # timeout eof
             pty.sendline()
             rc = pty.expect(
-                ['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                ['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
             if rc == 0:
                 pty.sendline(my_user)
                 time.sleep(0.1)
                 rc = pty.expect(
-                    [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                    [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                 if rc == 0:
                     pty.sendline(my_pwd)
                     time.sleep(0.5)
