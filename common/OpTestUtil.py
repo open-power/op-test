@@ -2274,7 +2274,7 @@ class OpTestUtil():
         res = self.get_distro_details()
         return res.get('VERSION_ID')[0].strip("\"") 
 
-    def get_distro_src(self, package, dest_path, build_option=None):
+    def get_distro_src(self, package, dest_path, build_option=None, pack_dir=None):
         
         '''
         Downloads the source package and prepares it in the given dest_path
@@ -2282,7 +2282,8 @@ class OpTestUtil():
 
         :param package: name of the package
         :param dest_path: destination_path
-        :param  build_option : rpmbuild option
+        :param build_option : rpmbuild option
+        :param pack_dir: final pakage dir in case of sles
         :return path: build directory
         '''
         if dest_path is None:
@@ -2314,21 +2315,22 @@ class OpTestUtil():
             return ""
 
         elif self.distro_name() == 'sles':
-            host.host_run_command("zypper install rpm-build -y")
-            s_cmd = f"zypper -n source-install {package}"
+            host.host_run_command("zypper install -y  rpm-build")
+            s_cmd = f"zypper -n source-install {package};cd /usr/src/packages/SOURCES/;./mkspec;cp  {package}.spec ../SPECS/"
             if host.host_run_command(s_cmd):
+
                 spec_path = f"/usr/src/packages/SPECS/{package}.spec"
             else:
                spec_path = None
             if spec_path:
-                return self.prepare_source(spec_path,host, dest_path, package, build_option)
+                return self.prepare_source(spec_path,host, dest_path, package, build_option, 'sles', pack_dir)
             else:
                 log.error("Failed to install distro package")
         else:
             return ""
 
 
-    def prepare_source(self,spec_file, host, dest_path, package, build_option=None):
+    def prepare_source(self,spec_file, host, dest_path, package, build_option=None, distro=None, pack_dir=None):
         """
         Rpmbuild the spec path and return build dir
 
@@ -2344,7 +2346,10 @@ class OpTestUtil():
         build_option += f" --define '_builddir {dest_path}'"
         try:
             host.host_run_command(f"rpmbuild {build_option} {spec_file}")
-            return host.host_run_command(f"ls -d -- {dest_path}/* | grep {package}")[0]
+            dir_name = host.host_run_command(f"ls -d -- {dest_path}/* | grep {package}")[0]
+            if distro is not None:
+                dir_name = host.host_run_command(f"ls -d -- {dir_name}/* | grep linux")[0]
+            return dir_name
         except OpTestError:
             return ""
 
