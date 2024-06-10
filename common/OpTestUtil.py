@@ -2353,6 +2353,122 @@ class OpTestUtil():
         except OpTestError:
             return ""
 
+    def err_message(self, er):
+        """
+        To get entire error msg
+        """
+        error_message = [str(item) for item in er]
+        combined_error = '\n'.join(error_message)
+        combined_error = re.sub(r'\x1b\[[0-9;]*[mK]|,', '', combined_error)
+        parts = combined_error.split('\x1b[')
+        cleaned_error = ''.join(char for char in combined_error if ord(char) < 128)
+        pattern = r'in file.*?compilation terminated'
+        match = re.search(pattern, cleaned_error, re.IGNORECASE | re.DOTALL)
+        if match:
+            relevant_part = match.group(0)
+            return relevant_part
+        return " "
+
+    def get_email(self, commit_id):
+        """
+        To get email of Author from the identified bad commit
+        """
+        connection = self.conf.host()
+        try :
+            connection.host_run_command("git config --global color.ui true")
+            result = connection.host_run_command("git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(commit_id))
+            return result[0]
+        except subprocess.CalledProcessError as e:
+            log.info(e)
+            return None
+
+    def build_bisector(self, linux_path, good_commit, repo):
+        connection = self.conf.host()
+        connection.host_run_command(" if [ '$(pwd)' != {} ]; then cd {} || exit 1 ; fi ".format(linux_path,linux_path))
+        shallow = connection.host_run_command("git rev-parse --is-shallow-repository")
+        if shallow[-1] in [True,'true']:
+            connection.host_run_command("git fetch --unshallow",timeout=3000)
+        makefile_path = os.path.join(self.conf.basedir, "test_binaries/make.sh")
+        connection.copy_test_file_to_host(makefile_path, dstdir=linux_path)
+        connection.host_run_command("git bisect start")
+        folder_type=re.split(r'[\/\\.]',str(repo))[-2]
+        if folder_type == 'linux-next':
+            connection.host_run_command("git fetch --tags")
+            good_tag=connection.host_run_command("git tag -l 'v[0-9]*' | sort -V | tail -n 1")
+            connection.host_run_command("git bisect good {} ".format(good_tag))
+        else:
+            connection.host_run_command("git bisect good {} ".format(good_commit))
+        connection.host_run_command(" git bisect bad ")
+        connection.host_run_command("chmod +x ./make.sh ")
+        commit =  connection.host_run_command(" git bisect run ./make.sh")
+        badCommit = [word for word in commit if word.endswith("is the first bad commit")]
+        badCommit= badCommit[0].split()[0]
+        email = self.get_email(badCommit)
+        connection.host_run_command("git bisect log")
+        connection.host_run_command("git bisect reset")
+        return email, badCommit
+
+    def get_commit_message(self, linux_path, commit_sha):
+        connection = self.conf.host()
+        try:
+            connection.host_run_command(" if [ '$(pwd)' != {} ]; then cd {} || exit 1 ; fi ".format(linux_path,linux_path))
+            commit_message = connection.host_run_command("git log -n 1 --pretty=format:%s {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(commit_sha))
+        except subprocess.CalledProcessError as e:
+            log.info(e)
+            commit_message = None
+        return commit_message[0].strip()
+
+    def format_email(self, linux_path , repo):
+        connection = self.conf.host()
+        machine_type = connection.host_run_command("uname -m")
+        gcc_version = connection.host_run_command("gcc --version")[0]
+        kernel_version = connection.host_run_command("uname -r")
+        try:
+            with open("output.json", "r") as file:
+                data = json.load(file)
+                error_message = data.get("error", "")
+                err_long = data.get("err_msg","")
+                commit = str(data.get("commit", ""))[:7]
+        except FileNotFoundError:
+            log.error("Error: output.json not found.")
+            error_message = ""
+            commit = ""
+        fix_description = self.get_commit_message(linux_path,commit)
+        if "netdev/net" in repo:
+            linux = "netdev/net"
+        elif "netdev/net-next" in repo:
+            linux = "netdev/net-next"
+        elif "mkp/scsi" in repo :
+            linux = "scsi/scsi-queue"
+        elif "torvalds/linux" in repo:
+            linux = "mainline/master"
+        elif "next/linux-next" in repo:
+            linux = "linux-next/master"
+        else:
+            linux = "linux"
+        subject = "[{}][bisected {}] [{}] build fail with error: {}".format(linux,commit, machine_type, error_message)
+        body = """
+        Greetings,
+
+        Today's {} kernel fails to build on {} machine.
+
+        Kernel build fail at error: {}
+        {}
+
+        Kernel Version: {}
+        Machine Type: {}
+        gcc: {}
+        Bisected Commit: {}
+
+        kernel builds fine when the bad commit ({})  is reverted
+        {} - {}
+        --
+        Regards
+        Linux CI
+        """.format(linux, machine_type, error_message,err_long,kernel_version, machine_type, gcc_version, commit,commit, commit, fix_description)
+        with open("email.json","w") as email:
+             json.dump({"subject":subject,"body":body},email)
+
 
 class Server(object):
     '''

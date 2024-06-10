@@ -110,6 +110,7 @@ from testcases import GcovSetup
 from testcases import Lcov
 from testcases import BisectKernel
 from testcases import OpTestHtxBootme
+from testcases import OpTestKernelTest
 import OpTestConfiguration
 import sys
 import time
