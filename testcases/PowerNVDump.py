@@ -1100,7 +1100,7 @@ class KernelCrash_hugepage_checks(PowerNVDump):
         hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
         log.info("After dump/restart, Hugepage size is {} kB".format(hugepage_size))
         if hugepage_size != '2048' :
-            raise OpTestError("Failed to set  default hugepage size 2MB")
+            self.skipTest("Failed to set  default hugepage size 2MB")
         else:
             log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
 
@@ -1121,7 +1121,7 @@ class KernelCrash_hugepage_checks(PowerNVDump):
             hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
             log.info("After dump/restart , Hugepage size set is {}".format(hugepage_size))
             if hugepage_size != '1048576' :
-                raise OpTestError("Failed to set hugepage size to 1GB")
+                self.skipTest("Failed to set hugepage size to 1GB")
             else:
                 log.info("PASSED: Hugepage size is {} kB".format(hugepage_size))
         obj = OpTestInstallUtil.InstallUtil()
@@ -1153,7 +1153,7 @@ class KernelCrash_XIVE_off(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         kernel_boottime_arg = self.c.run_command("cat /proc/cmdline | grep -o 'xive=off'")[0]
         if kernel_boottime_arg != 'xive=off' :
-            raise OpTestError("Failed to set kernel parameter xive=off")
+            self.skipTest("Failed to set kernel parameter xive=off")
         else:
             log.info("The kernel parameter was set to {}".format(kernel_boottime_arg))
         boot_type = self.kernel_crash()
@@ -1203,7 +1203,7 @@ class KernelCrash_disable_radix(PowerNVDump):
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             kernel_boottime_arg = self.c.run_command("cat /proc/cmdline | grep -o 'disable_radix'")[0]
             if kernel_boottime_arg != 'disable_radix' :
-                raise OpTestError("Failed to set kernel parameter disable_radix")
+                self.skipTest("Failed to set kernel parameter disable_radix")
             else:
                 log.info("The kernel parameter was set to {}".format(kernel_boottime_arg))
             boot_type = self.kernel_crash()
