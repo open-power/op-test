@@ -2469,6 +2469,21 @@ class OpTestUtil():
         with open("email.json","w") as email:
              json.dump({"subject":subject,"body":body},email)
 
+    def wait_for(self, func, timeout, first=0.0, step=1.0, text=None, args=None, kwargs=None):
+        args = args or []
+        kwargs = kwargs or {}
+        start_time = time.monotonic()
+        end_time = start_time + timeout
+        time.sleep(first)
+        while time.monotonic() < end_time:
+            if text:
+                log.debug("%s (%.9f secs)", text, (time.monotonic() - start_time))
+            output = func(*args, **kwargs)
+            if output:
+                return output
+            time.sleep(step)
+        return None
+
 
 class Server(object):
     '''
