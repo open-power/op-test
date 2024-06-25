@@ -125,6 +125,65 @@ class KernelTest(unittest.TestCase):
             matches = [match.group(1) for match in re.finditer(pattern,er)]
             return matches
     
+    def boot_kernel(self):
+        """
+        Does kexec boot for Upstream Linux
+        """
+        self.con.run_command("make olddefconfig")
+        base_version = self.con.run_command("uname -r")
+        ker_ver = self.con.run_command("make kernelrelease")[-1]
+        cpu= self.con.run_command("lscpu | grep '^CPU(s):' | awk '{print $2}'")
+        self.con.run_command("make -j {} all -s vmlinux".format(cpu[-1]), timeout = 60000)
+        self.con.run_command("make modules_install")
+        self.con.run_command("make install")
+        if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
+            self.con.run_command('grubby --set-default /boot/vmlinu*-{}'.format(base_version[-1]))
+        elif self.host_distro_name in ['sles', 'SLES']:
+            self.con.run_command('grub2-set-default /boot/vmlinu*-{}'.format(base_version[-1]))
+        else:
+            raise self.skipTest("Unsupported OS")
+        cmdline = self.con.run_command("cat /proc/cmdline")[-1]
+        if self.append_kernel_cmdline:
+            cmdline += " %s" % self.append_kernel_cmdline
+        try:
+            initrd_file = self.con.run_command("ls -l /boot/initr*-%s.img" % ker_ver)[-1].split(" ")[-1]
+        except Exception:
+            initrd_file = self.con.run_command("ls -l /boot/initr*-%s" % ker_ver)[-1].split(" ")[-1]
+        kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinu*-%s -l" % (initrd_file, cmdline, ker_ver)
+        self.con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
+        self.con.run_command(kexec_cmdline)
+        self.console_thread.console_terminate()
+        self.cv_SYSTEM.util.build_prompt()
+        self.console_thread.console_terminate()
+        self.con.close()
+        time.sleep(10)
+        for i in range(5):
+            raw_pty = self.util.wait_for(self.cv_SYSTEM.console.get_console, timeout=20)
+            time.sleep(10)
+            if raw_pty is not None:
+                raw_pty.sendline("uname -r")
+                break
+        raw_pty.sendline("kexec -e")
+        boot_log=raw_pty.before
+        raw_pty.expect("login:", timeout=600)
+        raw_pty.close()
+        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+        kernel_version_output = con.run_command("uname -r")[-1]
+        log.info("Installed upstream kernel version: %s", kernel_version_output[-1])
+        if self.conf.args.host_cmd:
+            con.run_command(self.conf.args.host_cmd,
+                                timeout=60)
+        self.cv_HOST.host_gather_opal_msg_log()
+        self.cv_HOST.host_gather_kernel_log()
+        if "error" in boot_log.lower() or "warning" in boot_log.lower():
+            print("Error or warning detected during boot process. Exiting...")
+            return False
+        if kernel_version_output != base_version :
+            print("Kernel booted fine. Kernel version:", kernel_version_output.strip())
+            return True
+        else:
+            return False
+
 
 class KernelBuild(KernelTest):
     """
@@ -179,6 +238,38 @@ class KernelBuild(KernelTest):
         if exit_code != 0:
             self.util.format_email(self.linux_path, self.repo)
     
+    def tearDown(self):
+        self.console_thread.console_terminate()
+        self.con.close()
+
+
+class KernelBoot(KernelTest):
+
+    def setUp(self):
+        """
+        Does setup for KernelBoot from parent KernelTest
+        """
+        super(KernelBoot,self).setUp()
+
+    def runTest(self):
+        """
+        Clones git repo and boots the kernel to check for failure and do bisection
+        """
+        self.con.run_command("if [ -d {} ]; then rm -rf {}; fi".format(self.home,self.home))
+        self.con.run_command("if [ ! -d {} ]; then mkdir -p {}; fi".format(self.home,self.home))
+        self.con.run_command("cd {}".format(self.home))
+        if not self.branch:
+            self.branch='master'
+        self.con.run_command("git clone --depth 1 -b {} {} linux".format( self.branch, self.repo),timeout=3000)
+        self.con.run_command("cd linux")
+        commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
+        self.con.run_command("cd ..")
+        error = self.build_kernel()
+        exit_code = error[0]
+        if exit_code != 0:
+            return "Build Failure in boot, check build bisection Aborting"
+        self.boot_kernel()
+
     def tearDown(self):
         self.console_thread.console_terminate()
         self.con.close()
