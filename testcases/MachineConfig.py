@@ -33,8 +33,10 @@ import json
 
 import OpTestConfiguration
 import OpTestLogger
+from common import OpTestASM
 from common import OpTestHMC
 from common import OpTestInstallUtil
+from common.OpTestEBMC import EBMCHostManagement
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
@@ -59,6 +61,7 @@ class MachineConfig(unittest.TestCase):
             self.lpar_prof = conf.args.lpar_prof
             self.util = OpTestUtil(conf)
             self.lpar_flag = False
+            self.cv_BMC = self.cv_SYSTEM.bmc
             try:
                 self.lpar_list = conf.args.lpar_list
             except AttributeError:
@@ -141,6 +144,7 @@ class MachineConfig(unittest.TestCase):
         if key == "cec":
             lmb_size = None
             num_hugepages = None
+            ioenlargecapacity = None
             setup = 0
             if not self.cv_HMC.lpar_vios:
                 self.skipTest("Please pass lpar_vios in config file.")
@@ -159,10 +163,16 @@ class MachineConfig(unittest.TestCase):
                 num_hugepages = re.findall(
                     'hugepages=[0-9]+',
                     str(self.machine_config))[0].split('=')[1]
+            if "iocapacity" in config_value:
+                setup=1
+                if self.bmc_type in ["EBMC_PHYP", "FSP_PHYP"]:
+                    ioenlargecapacity = re.findall(
+                    'iocapacity=[0-9]+', str(self.machine_config))[0].split('=')[1]
 
             status = CecConfig(self.cv_HMC, self.system_name, self.lpar_name,
                                self.lpar_prof, lmb=lmb_size,
-                               hugepages=num_hugepages).CecSetup()
+                               hugepages=num_hugepages, iocapacity=ioenlargecapacity,
+                               bmc_type=self.bmc_type, bmc=self.cv_SYSTEM.bmc).CecSetup()
             if status:
                 self.fail(status)
             if not setup:
@@ -471,7 +481,8 @@ class CecConfig():
     '''
 
     def __init__(self, cv_HMC=None, system_name=None,
-                 lpar_name=None, lpar_prof=None, lmb=None, hugepages=None):
+                 lpar_name=None, lpar_prof=None, lmb=None, hugepages=None,
+                 iocapacity=None, bmc_type=None, bmc=None):
 
         self.cv_HMC = cv_HMC
         self.system_name = system_name
@@ -480,7 +491,13 @@ class CecConfig():
         self.lmb_size = lmb
         self.num_hugepages = hugepages
         self.setup = 0
-        self.cec_dict = {'lmb_cec': None, 'hugepages': None}
+        self.iocapacity = iocapacity
+        self.cec_dict = {'lmb_cec': None, 'hugepages': None, 'iocapacity': None}
+        self.config = OpTestConfiguration.conf
+        self.bmc_type = bmc_type
+        self.bmc = bmc
+        if self.bmc_type == "FSP_PHYP" and iocapacity is not None:
+            self.bmc.cv_ASM.configure_enlarged_io(iocapacity)
 
     def CecSetup(self):
 
@@ -491,6 +508,11 @@ class CecConfig():
             self.lmb_setup()
         if self.cec_dict['hugepages'] is not None:
             self.hugepage_16gb_setup()
+        if self.cec_dict['iocapacity'] is not None:
+            if bmc_type == "EBMC_PHYP":
+                self.io_enlarge_cpacity()
+            elif bmc_type == "FSP_PHYP":
+                self.cv_ASM.configure_enlarged_io(self.iocapacity)
         if self.setup:
             self.cv_HMC.poweron_system()
             self.ValidateCEC_Setup()
@@ -516,6 +538,11 @@ class CecConfig():
                 self.setting_16gb_hugepage_profile()
             else:
                 self.cec_dict['hugepages'] = self.num_hugepages
+        if self.iocapacity:
+            if self.bmc_type == "FSP_PHYP":
+                self.bmc.cv_ASM.configure_enlarged_io(self.iocapacity)
+            else:
+                self.io_enlarge_capacity()
 
     def lmb_setup(self):
         # Configure the lmb as per user request
@@ -532,6 +559,37 @@ class CecConfig():
         attrs = "min_num_huge_pages={0},desired_num_huge_pages={0},max_num_huge_pages={0}" .format(
             int(self.current_hgpg[0]))
         self.cv_HMC.set_lpar_cfg(attrs)
+
+    def io_enlarge_capacity(self):
+        """
+        Calling set IO Enlarge capacity if provided value is not same as current value
+        """
+        cur_iocapacity = self.get_current_ioadapter_enlarged_capacity()
+        log.info("Setting up ioenlarge capacity")
+        log.info("Current ioenlarge capacity value:"+str(cur_iocapacity))
+        if cur_iocapacity != self.iocapacity:
+            self.set_ioenlarge_capacity()
+        else:
+            log.info("Provided IO Enlarge capacity value is same as current value, Exiting...")
+
+    def get_current_ioadapter_enlarged_capacity(self):
+        """
+        Get ioadapter enlarged capcity value
+        """
+        log.debug("=====Get current IOAdapter Enlarge Capacity=====")
+        return self.bmc.rest_api.get_bios_attribute_value(
+            bios_attribute="hb_ioadapter_enlarged_capacity_current"
+        )
+
+    def set_ioenlarge_capacity(self):
+        """
+        Set ioadapter enlarged capcity value
+        """
+        log.debug("=====Set IOAdapter Enlarge Capacity=====")
+        self.bmc.rest_api.set_bios_attribute(
+                    bios_attribute="hb_ioadapter_enlarged_capacity",
+                    bios_attribute_val=self.iocapacity
+                )
 
 
 class OsConfig():
