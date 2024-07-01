@@ -1011,7 +1011,7 @@ suites = {
     'osdumpfadumpsuite': OSdumpfadumpSuite(),
     'osdumpsanitysuite': OSdumpsanitySuite(),
     'ISSTkdumpSuite': ISSTkdumpSuite(),
-    'ISSTkdumpSuite':ISSTfadumpSuite(),
+    'ISSTfadumpSuite':ISSTfadumpSuite(),
     'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
     'GuestSecureBootSuite': GuestSecureBootSuite(),
