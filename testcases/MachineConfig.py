@@ -272,17 +272,12 @@ class LparConfig():
                 self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
                                       0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
             proc_mode = 'shared'
-            curr_proc_mode = self.cv_HMC.get_proc_mode()
-            if proc_mode in curr_proc_mode and not lpar_config:
-                log.info("System is already booted in shared mode.")
-            else:
-                if not lpar_config:
-                    self.cv_HMC.profile_bckup()
-                self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode,
-                                             self.min_proc_units, self.desired_proc_units,
-                                             self.max_proc_units, self.min_memory,
-                                             self.desired_memory, self.max_memory,
-                                             self.overcommit_ratio)
+            self.cv_HMC.profile_bckup()
+            self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode,
+                                         self.min_proc_units, self.desired_proc_units,
+                                         self.max_proc_units, self.min_memory,
+                                         self.desired_memory, self.max_memory,
+                                         self.overcommit_ratio)
         '''
         If cpu=dedicated is passed in machine_config lpar proc mode
         changes to dedicated mode. Pass sharing_mode, min_proc_units,
