@@ -689,6 +689,32 @@ class OSdumpkdumpSuite():
     def suite(self):
         return self.s
 
+class ISSTkdumpSuite():
+    '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
+        if 'dev_path' in OpTestConfiguration.conf.args:
+            self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
+        self.s.addTest(PowerNVDump.OpTestMakedump())
+        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
+        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+    
+    def suite(self):
+        return self.s
+
+class ISSTfadumpSuite():
+    '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
+        self.s.addTest(PowerNVDump.OpTestMakedump())
+        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
+        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+
+    def suite(self):
+        return self.s
+
 class OSdumpfadumpSuite():
     '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
     def __init__(self):
@@ -984,6 +1010,8 @@ suites = {
     'osdumpkdumpsuite': OSdumpkdumpSuite(),
     'osdumpfadumpsuite': OSdumpfadumpSuite(),
     'osdumpsanitysuite': OSdumpsanitySuite(),
+    'ISSTkdumpSuite': ISSTkdumpSuite(),
+    'ISSTkdumpSuite':ISSTfadumpSuite(),
     'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
     'GuestSecureBootSuite': GuestSecureBootSuite(),
