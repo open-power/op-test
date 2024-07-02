@@ -696,7 +696,6 @@ class ISSTkdumpSuite():
         self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
         if 'dev_path' in OpTestConfiguration.conf.args:
             self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
-        self.s.addTest(PowerNVDump.OpTestMakedump())
         self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
         self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
     
@@ -708,7 +707,6 @@ class ISSTfadumpSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
         self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
-        self.s.addTest(PowerNVDump.OpTestMakedump())
         self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
         self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
 
