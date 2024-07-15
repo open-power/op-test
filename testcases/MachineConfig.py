@@ -555,7 +555,7 @@ class OsConfig():
         self.c = self.cv_HMC.get_host_console()
         self.hmc_con = self.cv_HMC.ssh
         self.mmulist = self.c.run_command("tail /proc/cpuinfo | grep MMU")
-        self.mmu = str(self.mmulist[0]).split(':')[1].strip()
+        self.mmu = str(self.mmulist).split(':')[1].strip()
         self.cmdline = self.c.run_command("cat /proc/cmdline")
         self.obj = OpTestInstallUtil.InstallUtil()
         self.os_level = self.cv_HOST.host_get_OS_Level()
