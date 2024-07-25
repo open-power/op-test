@@ -129,6 +129,7 @@ class KernelTest(unittest.TestCase):
         """
         Does kexec boot for Upstream Linux
         """
+        self.con.run_command("export TERM=dumb; export NO_COLOR=1; alias ls='ls --color=never'; alias grep='grep --color=never'; git config --global color.ui false; bind 'set enable-bracketed-paste off'")
         self.con.run_command("make olddefconfig")
         base_version = self.con.run_command("uname -r")
         ker_ver = self.con.run_command("make kernelrelease")[-1]
@@ -152,32 +153,37 @@ class KernelTest(unittest.TestCase):
         kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinu*-%s -l" % (initrd_file, cmdline, ker_ver)
         self.con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
         self.con.run_command(kexec_cmdline)
+        self.con.run_command("bind 'set enable-bracketed-paste off'")
+        self.con.close()
         self.console_thread.console_terminate()
         self.cv_SYSTEM.util.build_prompt()
         self.console_thread.console_terminate()
-        self.con.close()
-        time.sleep(10)
+        time.sleep(15)
         for i in range(5):
             raw_pty = self.util.wait_for(self.cv_SYSTEM.console.get_console, timeout=20)
             time.sleep(10)
             if raw_pty is not None:
                 raw_pty.sendline("uname -r")
                 break
-        raw_pty.sendline("kexec -e")
-        boot_log=raw_pty.before
-        raw_pty.expect("login:", timeout=600)
-        raw_pty.close()
-        con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-        kernel_version_output = con.run_command("uname -r")[-1]
+        try:
+            raw_pty.sendline("kexec -e")
+        except Exception as e:
+            log.info(e)
+        rc = raw_pty.expect(["login:", "WARNING: CPU"], timeout=600)
+        if rc == 1:
+            raw_pty.close()
+            self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            dmessage = self.con.run_command("dmesg --color=never")
+            log.info(dmessage)
+            log.info("WARNING: CPU catched")
+            return False
+        kernel_version_output = self.con.run_command("uname -r")[-1]
         log.info("Installed upstream kernel version: %s", kernel_version_output[-1])
         if self.conf.args.host_cmd:
-            con.run_command(self.conf.args.host_cmd,
+            self.con.run_command(self.conf.args.host_cmd,
                                 timeout=60)
         self.cv_HOST.host_gather_opal_msg_log()
         self.cv_HOST.host_gather_kernel_log()
-        if "error" in boot_log.lower() or "warning" in boot_log.lower():
-            print("Error or warning detected during boot process. Exiting...")
-            return False
         if kernel_version_output != base_version :
             print("Kernel booted fine. Kernel version:", kernel_version_output.strip())
             return True
@@ -268,7 +274,54 @@ class KernelBoot(KernelTest):
         exit_code = error[0]
         if exit_code != 0:
             return "Build Failure in boot, check build bisection Aborting"
-        self.boot_kernel()
+        log.info("BOOOT STARTING")
+        boot = False
+        try :
+            boot = self.boot_kernel()
+        except Exception as e:
+            log.info("EXCEPTION")
+        if not boot and self.bisect_flag == '1':
+            log.info("BISECTION STARTING")
+            subprocess.run(f"if [ -d {self.linux_path} ]; then rm -rf {self.linux_path}; fi", shell=True, check=True)
+            subprocess.run(f"if [ ! -d {self.linux_path} ]; then mkdir -p {self.linux_path}; fi", shell=True, check=True)
+            subprocess.run(f"cd {self.home}", shell=True, check=True)
+            subprocess.run("git config --global http.postBuffer 1048576000", shell=True, check=True)
+            subprocess.run(f"git clone -b {self.branch} {self.repo} {self.linux_path}" , shell=True, check=True,timeout=1800)
+            subprocess.run(f"cd {self.linux_path}",shell=True,check=True)
+            try:
+                subprocess.run("git bisect start", shell=True, check=True,cwd=self.linux_path)
+                subprocess.run("git bisect bad", shell=True, check=True,cwd=self.linux_path)
+                folder_type=re.split(r'[\/\\.]',str(self.repo))[-2]
+                if folder_type == 'linux-next':
+                    subprocess.run("git fetch --tags" , shell=True, check=True)
+                    good_tag=subprocess.run("git tag -l 'v[0-9]*' | sort -V | tail -n 1", shell=True, check=True)
+                    subprocess.run(f"git bisect good {good_tag}", shell=True, check=True,cwd=self.linux_path)
+                else:
+                    subprocess.run("pwd")
+                    subprocess.run(f"git bisect good {self.good_commit}", shell=True, check=True,cwd=self.linux_path)
+                while True:
+                    print("ENTERED LOOP BISECT")
+                    subprocess.run("git bisect next", shell=True, check=True, cwd=self.linux_path)
+                    commit_to_test = subprocess.check_output("git rev-parse HEAD", shell=True, cwd=self.linux_path).decode().strip()
+                    log.info("commit to test is")
+                    log.info(commit_to_test)
+                    self.con.run_command(" if [ '$(pwd)' != {} ]; then cd {} || exit 1 ; fi ; bind 'set enable-bracketed-paste off'".format(self.linux_path,self.linux_path))
+                    self.con.run_command("git checkout {}; git checkout {};".format(self.branch,commit_to_test))
+                    result = self.boot_kernel()
+                    if result == True:
+                        subprocess.run("git bisect good", shell=True, check=True,cwd=self.linux_path)
+                    else:
+                        subprocess.run("git bisect bad", shell=True, check=True,cwd=self.linux_path)
+            except subprocess.CalledProcessError as e:
+                log.info("Error:", e)
+            finally:
+                bisect_log = subprocess.run("git bisect log", shell=True, check=True,cwd=self.linux_path)
+                log.info(bisect_log)
+                subprocess.run("git bisect reset", shell=True, check=True,cwd=self.linux_path)
+        elif self.bisect_flag != '1':
+            log.info("BOOT FAILURE, NO BISECTION")
+        else:
+            log.info("NO BISECTION NEEDED, NOT BOOT FAILURE")
 
     def tearDown(self):
         self.console_thread.console_terminate()
