@@ -1688,7 +1688,7 @@ class OpTestUtil():
         # Ctrl-L may cause a esc[J (erase) character to appear in the buffer.
         # Include this in the patterns that expect $ (end of line)
         rc = pty.expect(['login: (\x1b\[J)*$', ".*#(\x1b\[J)*$", ".*# (\x1b\[J)*$", ".*\$(\x1b\[J)*",
-                         "~>(\x1b\[J)", "~ #(\x1b\[J)", ":~(\x1b\[J)", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
+                         "~>(\x1b\[J)", "~ #(\x1b\[J)", ":~(\x1b\[J)*", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
