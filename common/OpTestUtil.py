@@ -2316,7 +2316,10 @@ class OpTestUtil():
 
         elif self.distro_name() == 'sles':
             host.host_run_command("zypper install -y  rpm-build")
-            s_cmd = f"zypper -n source-install {package};cd /usr/src/packages/SOURCES/;./mkspec;cp  {package}.spec ../SPECS/"
+            if package.startswith("kernel"):
+                s_cmd = f"zypper -n source-install kernel-source;cd /usr/src/packages/SOURCES/;./mkspec;cp  {package}.spec ../SPECS/"
+            else:
+                s_cmd = f"zypper -n source-install {package};cd /usr/src/packages/SOURCES/;./mkspec;cp  {package}.spec ../SPECS/"
             if host.host_run_command(s_cmd):
 
                 spec_path = f"/usr/src/packages/SPECS/{package}.spec"
