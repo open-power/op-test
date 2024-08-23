@@ -1807,7 +1807,7 @@ class OpTestUtil():
                 raise CommandFailed(command, ''.join(failure_list_output), -1)
         return list_output, echo_rc
 
-    def run_command(self, term_obj, command, timeout=60, retry=0):
+    def run_command(self, term_obj, command, timeout=600, retry=5):
         # retry=0 will perform one pass
         counter = 0
         while counter <= retry:
