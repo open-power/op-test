@@ -1144,7 +1144,6 @@ class KernelCrash_XIVE_off(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         self.setup_test()
         log.info("=============== Testing kdump/fadump with xive=off ===============")
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         obj = OpTestInstallUtil.InstallUtil()
         if not obj.update_kernel_cmdline(self.distro, args="xive=off",
                                          reboot=True, reboot_cmd=True):
