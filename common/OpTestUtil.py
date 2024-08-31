@@ -2571,6 +2571,12 @@ class Server(object):
                 self.xAuthHeader['X-Auth-Token'] = match.group(1)
                 self.jsonHeader.update(self.xAuthHeader)
             json_data = json.loads(r.text)
+            if json_data.get('token'):
+                json_data={
+                          "data": "User '%s' logged in" %username,
+                            "message": "200 OK",
+                              "status": "ok"
+                              }
             log.debug("r.status_code={} json_data['status']={}"
                       " r.text={} r.headers={} r.request.headers={}"
                       .format(r.status_code, json_data['status'],
