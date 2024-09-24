@@ -52,17 +52,14 @@ class KernelTest(unittest.TestCase):
         self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         self.host_cmd_timeout = self.conf.args.host_cmd_timeout
         self.repo = self.conf.args.git_repo
-        self.repo_reference = self.conf.args.git_repo_reference
         self.branch = self.conf.args.git_branch
         self.home = self.conf.args.git_home
         self.config_path = self.conf.args.git_repoconfigpath
-        self.config = self.conf.args.git_repoconfig
         self.good_commit = self.conf.args.good_commit
         self.bad_commit = self.conf.args.bad_commit
-        self.bisect_script = self.conf.args.bisect_script
-        self.bisect_category = self.conf.args.bisect_category
         self.append_kernel_cmdline = self.conf.args.append_kernel_cmdline
         self.linux_path = os.path.join(self.home, "linux")
+        self.local_path = os.path.join(os.getcwd(), "linux")
         self.bisect_flag = self.conf.args.bisect_flag
         self.util = OpTestUtil(OpTestConfiguration.conf)
         self.host_distro_name = self.util.distro_name()
@@ -98,7 +95,7 @@ class KernelTest(unittest.TestCase):
                 self.con.run_command("wget %s -O linux/.config" % self.config_path)
             else:
                 self.cv_HOST.copy_test_file_to_host(self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
-        self.con.run_command("cd linux && make olddefconfig")
+        self.con.run_command("cd linux && make olddefconfig", timeout=60)
         # the below part of the code is needed for only first run and will be decided bisect flag false
         ker_ver = self.con.run_command("make kernelrelease")[-1]
         sha = self.con.run_command("git rev-parse HEAD")
@@ -109,8 +106,8 @@ class KernelTest(unittest.TestCase):
         log.info("Upstream kernel commit-time: %s", tcommit)
         log.debug("Compile the upstream kernel")
         try:
-            cpu= self.con.run_command("lscpu | grep '^CPU(s):' | awk '{print $2}'")
-            err=self.con.run_command("make -j {} -s vmlinux".format(cpu[-1]), timeout=self.host_cmd_timeout)
+            cpu = self.cv_HOST.host_get_core_count()
+            err=self.con.run_command("make -j {} -s".format(cpu), timeout=self.host_cmd_timeout)
             log.info("Kernel build successful")
             return 0,err
         except CommandFailed as e:
@@ -130,13 +127,13 @@ class KernelTest(unittest.TestCase):
         Does kexec boot for Upstream Linux
         """
         self.con.run_command("export TERM=dumb; export NO_COLOR=1; alias ls='ls --color=never'; alias grep='grep --color=never'; git config --global color.ui false; bind 'set enable-bracketed-paste off'")
-        self.con.run_command("make olddefconfig")
+        self.con.run_command("make olddefconfig", timeout=60)
         base_version = self.con.run_command("uname -r")
         ker_ver = self.con.run_command("make kernelrelease")[-1]
-        cpu= self.con.run_command("lscpu | grep '^CPU(s):' | awk '{print $2}'")
-        self.con.run_command("make -j {} all -s vmlinux".format(cpu[-1]), timeout = 60000)
-        self.con.run_command("make modules_install")
-        self.con.run_command("make install")
+        cpu = self.cv_HOST.host_get_core_count()
+        self.con.run_command("make -j {} -s".format(cpu), timeout=60000)
+        self.con.run_command("make modules_install", timeout=300)
+        self.con.run_command("make install", timeout=120)
         if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
             self.con.run_command('grubby --set-default /boot/vmlinu*-{}'.format(base_version[-1]))
         elif self.host_distro_name in ['sles', 'SLES']:
@@ -151,18 +148,18 @@ class KernelTest(unittest.TestCase):
         except Exception:
             initrd_file = self.con.run_command("ls -l /boot/initr*-%s" % ker_ver)[-1].split(" ")[-1]
         kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinu*-%s -l" % (initrd_file, cmdline, ker_ver)
-        self.con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg")
+        self.con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg", timeout=30)
         self.con.run_command(kexec_cmdline)
         self.con.run_command("bind 'set enable-bracketed-paste off'")
         self.con.close()
         self.console_thread.console_terminate()
         self.cv_SYSTEM.util.build_prompt()
         self.console_thread.console_terminate()
-        time.sleep(15)
+        time.sleep(30)
         for i in range(5):
-            raw_pty = self.util.wait_for(self.cv_SYSTEM.console.get_console, timeout=20)
+            raw_pty = self.util.wait_for(self.cv_SYSTEM.console.get_console, timeout=80)
             time.sleep(10)
-            if raw_pty is not None:
+            if raw_pty:
                 raw_pty.sendline("uname -r")
                 break
         try:
@@ -171,25 +168,33 @@ class KernelTest(unittest.TestCase):
             log.info(e)
         rc = raw_pty.expect(["login:", "WARNING: CPU"], timeout=600)
         if rc == 1:
+            dmessage = []
             raw_pty.close()
-            self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-            dmessage = self.con.run_command("dmesg --color=never")
-            log.info(dmessage)
-            log.info("WARNING: CPU catched")
-            return False
-        kernel_version_output = self.con.run_command("uname -r")[-1]
-        log.info("Installed upstream kernel version: %s", kernel_version_output[-1])
-        if self.conf.args.host_cmd:
-            self.con.run_command(self.conf.args.host_cmd,
-                                timeout=60)
-        self.cv_HOST.host_gather_opal_msg_log()
-        self.cv_HOST.host_gather_kernel_log()
-        if kernel_version_output != base_version :
-            print("Kernel booted fine. Kernel version:", kernel_version_output.strip())
-            return True
-        else:
+            self.cv_SYSTEM.console.close()
+            log.info("Kernel Boot WARNING: Found!")
+            #in case of kernel crash or oops or hung we might need system OFF ON or wait for base login
+            #this delay is must to make sure the lpar has booted to login and ssh service is up
+            while True:
+                status = subprocess.run(["ping", "-c", "3", self.conf.args.host_ip], capture_output=True)
+                if status.returncode != 0:
+                    log.info("booting...")
+                time.sleep(10)
+                self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+                if self.con:
+                    self.con.run_command('uname -r')
+                    break
             return False
 
+        if rc == 0:
+            raw_pty.close()
+            self.cv_SYSTEM.console.close()
+            log.info("Kernel Booted ..")
+            self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            kernel_version_output = self.con.run_command("uname -r")[-1]
+            log.info("Installed upstream kernel version: %s", kernel_version_output)
+            if kernel_version_output[-1] == base_version[-1]:
+                log.error("Kexec failed, booted back to base kernel !")
+            return True
 
 class KernelBuild(KernelTest):
     """
@@ -281,47 +286,72 @@ class KernelBoot(KernelTest):
         except Exception as e:
             log.info("EXCEPTION")
         if not boot and self.bisect_flag == '1':
-            log.info("BISECTION STARTING")
-            subprocess.run(f"if [ -d {self.linux_path} ]; then rm -rf {self.linux_path}; fi", shell=True, check=True)
-            subprocess.run(f"if [ ! -d {self.linux_path} ]; then mkdir -p {self.linux_path}; fi", shell=True, check=True)
-            subprocess.run(f"cd {self.home}", shell=True, check=True)
+            count = 0
+            exit_code = 4
+            local_path = os.getcwd()
+            log.info("BOOT BISECTION STARTING")
+            self.con.run_command("cd {}; make clean".format(self.linux_path), timeout=60)
+            dmessage = self.con.run_command("dmesg --color=never --level=warn")
+            subprocess.run(f"if [ -d {self.local_path} ]; then rm -rf {self.local_path}; fi", shell=True, check=True)
             subprocess.run("git config --global http.postBuffer 1048576000", shell=True, check=True)
-            subprocess.run(f"git clone -b {self.branch} {self.repo} {self.linux_path}" , shell=True, check=True,timeout=1800)
-            subprocess.run(f"cd {self.linux_path}",shell=True,check=True)
+            subprocess.run(f"git clone -b {self.branch} {self.repo} linux", shell=True, check=True, timeout=1800)
+            subprocess.run(f"cd {self.local_path}", shell=True, check=True)
             try:
-                subprocess.run("git bisect start", shell=True, check=True,cwd=self.linux_path)
-                subprocess.run("git bisect bad", shell=True, check=True,cwd=self.linux_path)
+                subprocess.run("git bisect start", shell=True, check=True, cwd=self.local_path)
+                subprocess.run("git bisect bad", shell=True, check=True, cwd=self.local_path)
                 folder_type=re.split(r'[\/\\.]',str(self.repo))[-2]
                 if folder_type == 'linux-next':
                     subprocess.run("git fetch --tags" , shell=True, check=True)
                     good_tag=subprocess.run("git tag -l 'v[0-9]*' | sort -V | tail -n 1", shell=True, check=True)
-                    subprocess.run(f"git bisect good {good_tag}", shell=True, check=True,cwd=self.linux_path)
+                    subprocess.run(f"git bisect good {good_tag}", shell=True, check=True, cwd=self.local_path)
                 else:
                     subprocess.run("pwd")
-                    subprocess.run(f"git bisect good {self.good_commit}", shell=True, check=True,cwd=self.linux_path)
+                    subprocess.run(f"git bisect good {self.good_commit}", shell=True, check=True, cwd=self.local_path)
                 while True:
-                    print("ENTERED LOOP BISECT")
-                    subprocess.run("git bisect next", shell=True, check=True, cwd=self.linux_path)
-                    commit_to_test = subprocess.check_output("git rev-parse HEAD", shell=True, cwd=self.linux_path).decode().strip()
-                    log.info("commit to test is")
+                    log.info("ENTERED BISECTION LOOP {}".format(count))
+                    subprocess.run("git bisect next", shell=True, check=True, cwd=self.local_path)
+                    commit_to_test = subprocess.check_output("git rev-parse HEAD", shell=True, cwd=self.local_path).decode().strip()
                     log.info(commit_to_test)
                     self.con.run_command(" if [ '$(pwd)' != {} ]; then cd {} || exit 1 ; fi ; bind 'set enable-bracketed-paste off'".format(self.linux_path,self.linux_path))
                     self.con.run_command("git checkout {}; git checkout {};".format(self.branch,commit_to_test))
                     result = self.boot_kernel()
+                    count += 1
                     if result == True:
-                        subprocess.run("git bisect good", shell=True, check=True,cwd=self.linux_path)
+                        log.info("\n ------ git bisect good {} ------ \n".format(commit_to_test))
+                        subprocess.run("git bisect good", shell=True, check=True, cwd=self.local_path)
                     else:
-                        subprocess.run("git bisect bad", shell=True, check=True,cwd=self.linux_path)
+                        log.info("\n ------ git bisect bad {} ------ \n".format(commit_to_test))
+                        subprocess.run("git bisect bad", shell=True, check=True, cwd=self.local_path)
+                    bilogs = []
+                    bilogs = subprocess.check_output("git bisect log", shell=True, cwd=self.local_path).decode().split('\n')
+                    biflag = False
+                    for logs in bilogs:
+                        if 'first bad commit' in logs:
+                            badCommit = commit_to_test
+                            biflag = True
+                    if biflag:
+                        break
             except subprocess.CalledProcessError as e:
                 log.info("Error:", e)
             finally:
-                bisect_log = subprocess.run("git bisect log", shell=True, check=True,cwd=self.linux_path)
-                log.info(bisect_log)
-                subprocess.run("git bisect reset", shell=True, check=True,cwd=self.linux_path)
-        elif self.bisect_flag != '1':
-            log.info("BOOT FAILURE, NO BISECTION")
+                bilogs = subprocess.run("git bisect log", shell=True, check=True, cwd=self.local_path)
+                log.info(bilogs)
+                entry = self.con.run_command("dmesg --color=never --level=warn | grep 'WARNING:'")
+                emaili =  subprocess.run("git config --global color.ui true;git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(badCommit), shell=True, check=True, cwd=self.local_path)
+                subprocess.run("git bisect reset", shell=True, check=True,cwd=self.local_path)
+                log.info("Boot Bisection Completed ! Bad Commit: {} Author: {}".format(badCommit,emaili))
+                # WRITING BOOT BISECTION DATA TO JSON AND FORMAT EMAIL FOR BOOT REPORT IS TODO 
+                #with open('output.json','w') as f:
+                #   json.dump({"exit_code":exit_code,"email":emaili,"commit": badCommit,"error":entry,"err_msg":dmessage,"flag":self.bisect_flag},f)
+                #self.util.format_email(self.linux_path, self.repo)
+        elif boot and self.bisect_flag == '1':
+            exit_code = 0
+            goodCommit = commit
+            log.info("Boot Successfull.. Updating the last good commit to json")
+            with open('output.json','w') as f:
+                json.dump({"exit_code":exit_code,"commit": goodCommit,"flag":self.bisect_flag},f)
         else:
-            log.info("NO BISECTION NEEDED, NOT BOOT FAILURE")
+            log.info("BOOT FAILED, NO BISECTION SELECTED")
 
     def tearDown(self):
         self.console_thread.console_terminate()
