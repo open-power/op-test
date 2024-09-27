@@ -60,15 +60,27 @@ class GcovBuild(unittest.TestCase):
             self.skipTest("Skip Gcov Setup as system already booted with Gcov Kernel")
         self.distro_name = self.util.distro_name()
         log.info("OS: %s" %self.distro_name)
+        dep_packages = ["rpm-build", "gcc*", "perl*"]
         if self.distro_name == 'rhel':
             self.installer = "yum install"
+            dep_packages.extend(["yum-utils", "tiny*"])
         elif self.distro_name == 'sles':
             self.installer = "zypper install"
-        dep_packages = ["rpm-build", "gcc*", "perl*", "tiny*"]
+            dep_packages.extend(["hmaccalc", "flex", "libelf-devel", "libopenssl-devel", "pesign-obs-integration", "dwarves"])
+            log.info("\n\nNeed to enable Unsupported Modules for Sles....\n")
+            log.info("enabling Unsupported Modules for Sles....\n")
+            file_path = '/lib/modprobe.d/10-unsupported-modules.conf'
+            cmd = f"sed -i 's/allow_unsupported_modules 0/allow_unsupported_modules 1/g' {file_path}"
+            self.cv_HOST.host_run_command(cmd)
+            out = self.cv_HOST.host_run_command(f"cat {file_path} | grep -i ^allow_unsupported_modules")
+            for line in out:
+                if line.split(" ")[-1] == '1':
+                    log.info("Successfuly enabled Unsupported Modules for Sles.")
+                else:
+                    log.info("Failed to enabled Unsupported Modules for Sles.")
         log.info(f"\nInstalling following dependency packages\n {dep_packages}")
         for pkg in dep_packages:
             if self.distro_name == 'rhel':
-                dep_packages.append("yum-utils")
                 self.cv_HOST.host_run_command(f"{self.installer} {pkg} -y")
             elif self.distro_name == 'sles':
                 self.cv_HOST.host_run_command(f"{self.installer} -y {pkg}")
@@ -119,6 +131,14 @@ class GcovBuild(unittest.TestCase):
         """
         k_config_params = ["CONFIG_GCOV_KERNEL=y", "CONFIG_ARCH_HAS_GCOV_PROFILE_ALL=y", "CONFIG_GCOV_PROFILE_ALL=y", "CONFIG_GCOV_PROFILE_FTRACE=y"]
         err_param = []
+
+        # Adding the Gcov parameter to new building kernel
+        cmd = f"sed -i 's/CONFIG_LOCALVERSION=.*/CONFIG_LOCALVERSION=\"-Gcov\"/g' {conf_file}"
+        self.cv_HOST.host_run_command(cmd)
+        if self.distro_name == 'sles':
+            cmd = f"sed -i 's/CONFIG_MODULE_SIG_KEY=.*/CONFIG_MODULE_SIG_KEY=\"\"/g' {conf_file}"
+            self.cv_HOST.host_run_command(cmd)
+
         for param in k_config_params:
             log.info("\n working on param  %s" %param)
             unset_param = param
