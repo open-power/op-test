@@ -417,12 +417,23 @@ class HMCUtil():
         :param overcommit_ratio: overcommit ratio can be 1 to 5 for ideal cases
         '''
         if proc_mode == 'shared':
+            '''
+            Get the maximum configured virtual procs
+            '''
+            v_max_proc = 0
+            max_virtual_proc = self.run_command("lshwres -m %s -r proc --level sys -F curr_sys_virtual_procs" % (self.mg_system))
+            max_virtual_proc = int(max_virtual_proc[0])
+            if overcommit_ratio*int(max_proc_units) > max_virtual_proc:
+                v_max_proc = max_virtual_proc
+            else:
+                v_max_proc = overcommit_ratio*int(max_proc_units)
+
             self.set_lpar_cfg("proc_mode=shared,sharing_mode=%s,min_proc_units=%s,max_proc_units=%s,"
                               "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s,"
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %
-                              (sharing_mode, overcommit_ratio*int(min_proc_units), max_proc_units, overcommit_ratio*int(desired_proc_units),
-                               int(min_proc_units), 2*int(desired_proc_units),
-                               2*int(max_proc_units), min_memory, desired_memory, max_memory))
+                              (sharing_mode, min_proc_units, max_proc_units, desired_proc_units,
+                                  overcommit_ratio*int(min_proc_units),  overcommit_ratio*int(desired_proc_units), v_max_proc,
+                                  min_memory, desired_memory, max_memory))
         elif proc_mode == 'ded':
             self.set_lpar_cfg("proc_mode=ded,sharing_mode=%s,min_procs=%s,max_procs=%s,desired_procs=%s,"
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %

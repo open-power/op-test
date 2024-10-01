@@ -250,10 +250,9 @@ class LparConfig():
             except AttributeError:
                 self.desired_proc_units = 2.0
             try:
-                self.max_proc_units = int(float(
-                    self.cv_HMC.get_available_proc_resources()[0])) + self.cv_HMC.get_stealable_proc_resources_lpar()
+                self.max_proc_units = float(conf.args.max_proc_units)
             except AttributeError:
-                self.max_proc_units = 2.0
+                self.max_proc_units = int(float(self.cv_HMC.get_available_proc_resources()[0])) + self.cv_HMC.get_stealable_proc_resources_lpar()
             try:
                 self.overcommit_ratio = int(conf.args.overcommit_ratio)
             except AttributeError:
