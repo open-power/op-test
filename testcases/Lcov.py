@@ -66,9 +66,9 @@ class LcovSetup(unittest.TestCase):
         dep_packages = ['perl*', 'tiny*']
         log.info("installing the dependency packages")
         for pkg in dep_packages:
-            if self.distro_name == 'rhel':
+            if self.distro == 'rhel':
                 self.cv_HOST.host_run_command(f"{cmd} {pkg} -y")
-            elif self.distro_name == 'sles':
+            elif self.distro == 'sles':
                 self.cv_HOST.host_run_command(f"{cmd} -y {pkg}")
         time.sleep(5)
         log.info("changing dir to /home")
