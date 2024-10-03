@@ -66,7 +66,7 @@ class GcovBuild(unittest.TestCase):
             dep_packages.extend(["yum-utils", "tiny*"])
         elif self.distro_name == 'sles':
             self.installer = "zypper install"
-            dep_packages.extend(["hmaccalc", "flex", "libelf-devel", "libopenssl-devel", "pesign-obs-integration", "dwarves"])
+            dep_packages.extend(["hmaccalc", "flex", "libelf-devel", "libopenssl-devel", "pesign-obs-integration", "dwarves", "kernel-install-tools"])
             log.info("\n\nNeed to enable Unsupported Modules for Sles....\n")
             log.info("enabling Unsupported Modules for Sles....\n")
             file_path = '/lib/modprobe.d/10-unsupported-modules.conf'
