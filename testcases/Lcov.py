@@ -59,11 +59,12 @@ class LcovSetup(unittest.TestCase):
         Test for installing the lcov
         '''
         log.info("distro_name=%s" %self.distro)
+        dep_packages = ['perl*', 'git-core']
         if self.distro == 'rhel':
             cmd = "yum install"
+            dep_packages.append('tiny*')
         elif self.distro == 'sles':
             cmd = "zypper install"
-        dep_packages = ['perl*', 'tiny*']
         log.info("installing the dependency packages")
         for pkg in dep_packages:
             if self.distro == 'rhel':
