@@ -88,7 +88,7 @@ class MachineConfig(unittest.TestCase):
             return False
 
     def update_hmc_object(self, target_hmc_ip, target_hmc_username,
-                          target_hmc_password, managed_system, lpar_name):
+                          target_hmc_password, managed_system, lpar_name, lpar_vios):
         """
         In case of multi lpar configuration here we are creating
         multiple objects[In sequence] as per lpar change.
@@ -99,7 +99,8 @@ class MachineConfig(unittest.TestCase):
                                           target_hmc_password,
                                           managed_system=managed_system,
                                           lpar_name=lpar_name,
-                                          lpar_prof=conf.args.lpar_prof
+                                          lpar_prof=conf.args.lpar_prof,
+                                          lpar_vios=conf.args.lpar_vios
                                           )
         self.cv_HMC.set_system(conf.system())
 
