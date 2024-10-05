@@ -88,7 +88,7 @@ class MachineConfig(unittest.TestCase):
             return False
 
     def update_hmc_object(self, target_hmc_ip, target_hmc_username,
-                          target_hmc_password, managed_system, lpar_name, lpar_vios):
+                          target_hmc_password, managed_system, lpar_name):
         """
         In case of multi lpar configuration here we are creating
         multiple objects[In sequence] as per lpar change.
