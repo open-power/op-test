@@ -2191,6 +2191,7 @@ class OpTestUtil():
 
             if collect_sosreport:
                 if 'rhel' in self.distro_name():
+                    host.host_run_command("yum install sos -y")
                     cmd = 'yes "" | sosreport'
                     str_msg = "Your sosreport has been generated and saved in:"
                 elif 'sles' in self.distro_name():
