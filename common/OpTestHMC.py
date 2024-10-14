@@ -1325,7 +1325,7 @@ class HMCConsole(HMCUtil):
             self.util.clear_state(self)
             self.connect(logger=logger)
             time.sleep(STALLTIME)
-            l_rc = self.pty.expect(["login:", pexpect.TIMEOUT], timeout=30)
+            l_rc = self.pty.expect(["login:", pexpect.TIMEOUT], timeout=80)
             if l_rc == 0:
                 self.pty.send('\r')
                 # In case when OS reboot/multireboot test and we lose prompt, reset prompt

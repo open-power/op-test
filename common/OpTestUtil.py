@@ -1658,7 +1658,7 @@ class OpTestUtil():
             return
 
         rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~>", "~ #",
-                         'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
+                         'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))

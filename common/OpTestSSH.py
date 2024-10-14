@@ -181,7 +181,7 @@ class OpTestSSH():
             self.pty.delaybeforesend = self.delaybeforesend
         self.pty.logfile_read = OpTestLogger.FileLikeLogger(self.log)
         # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
-        time.sleep(2)
+        time.sleep(5)
         self.check_set_term()
         log.debug("CONNECT starts Expect Buffer ID={}".format(hex(id(self.pty))))
         return self.pty
