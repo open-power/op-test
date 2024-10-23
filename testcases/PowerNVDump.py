@@ -641,7 +641,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         self.cv_SYSTEM.set_state(OpSystemState.OS)
         if self.distro == "rhel":
             self.c.run_command("rm -rf ServiceReport; git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
-                               "python ./servicereport --plugins kdump package --repair", timeout=240)
+                               "python ./servicereport --plugins fadump package --repair", timeout=240)
             time.sleep(10)
             self.c.run_command("sed -e '/nfs/ s/^#*/#/' -i /etc/kdump.conf; sync")
             obj = OpTestInstallUtil.InstallUtil()
