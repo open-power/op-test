@@ -164,7 +164,7 @@ class OpTestUtil():
         out = self.conf.host().host_run_command('df /boot')
         for line in out:
             if "/dev" in line:
-                self.prepDisk = line.split(" ")[0].replace('2', '1')
+                self.prepDisk = line.split(" ")[0][:-1]+'1'
                 break
         if not self.prepDisk:
             return False
