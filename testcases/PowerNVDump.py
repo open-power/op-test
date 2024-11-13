@@ -122,7 +122,7 @@ class PowerNVDump(unittest.TestCase):
         self.rsa_path = "/root/.ssh/dmp_id_rsa"
         try: self.url = conf.args.url
         except AttributeError:
-            self.url = "http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz"
+            self.url = "https://sourceforge.net/projects/ebizzy/files/ebizzy/0.3/ebizzy-0.3.tar.gz"
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         res = self.cv_HOST.host_run_command("cat /etc/os-release", timeout=60)
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
@@ -1049,7 +1049,7 @@ class KernelCrash_KdumpWorkLoad(PowerNVDump):
 
     # This test verifies kdump/fadump after running ebizzy.
     # ebizzy url needs to be given in ~/.op-test-framework.conf.
-    # Ex: url=http://liquidtelecom.dl.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz
+    # Ex: url=https://sourceforge.net/projects/ebizzy/files/ebizzy/0.3/ebizzy-0.3.tar.gz
 
 
     def runTest(self):
