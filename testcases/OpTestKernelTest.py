@@ -217,7 +217,7 @@ class KernelBuild(KernelTest):
         self.con.run_command("cd {}".format(self.home))
         if not self.branch:
             self.branch='master' 
-        self.con.run_command("git clone --depth 1 -b {} {} linux".format( self.branch, self.repo),timeout=3000)
+        self.con.run_command("git clone -b {} {} linux".format( self.branch, self.repo),timeout=3000)
         self.con.run_command("cd linux")
         commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
         self.con.run_command("cd ..")
@@ -271,7 +271,7 @@ class KernelBoot(KernelTest):
         self.con.run_command("cd {}".format(self.home))
         if not self.branch:
             self.branch='master'
-        self.con.run_command("git clone --depth 1 -b {} {} linux".format( self.branch, self.repo),timeout=3000)
+        self.con.run_command("git clone -b {} {} linux".format( self.branch, self.repo),timeout=3000)
         self.con.run_command("cd linux")
         commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
         self.con.run_command("cd ..")
