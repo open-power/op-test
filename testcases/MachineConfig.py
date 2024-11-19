@@ -431,6 +431,8 @@ class LparConfig():
                     return "Failed to enable Performance Information collection"
 
         self.cv_HMC.poweron_lpar()
+        time.sleep(30)
+        self.cv_SYSTEM.console.close()
         curr_proc_mode = self.cv_HMC.get_proc_mode()
         if proc_mode:
             if proc_mode in curr_proc_mode:
