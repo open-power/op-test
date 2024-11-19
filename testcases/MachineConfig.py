@@ -36,7 +36,6 @@ import OpTestLogger
 from common import OpTestASM
 from common import OpTestHMC
 from common import OpTestInstallUtil
-from common.OpTestEBMC import EBMCHostManagement
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 
@@ -496,8 +495,6 @@ class CecConfig():
         self.config = OpTestConfiguration.conf
         self.bmc_type = bmc_type
         self.bmc = bmc
-        if self.bmc_type == "FSP_PHYP" and iocapacity is not None:
-            self.bmc.cv_ASM.configure_enlarged_io(iocapacity)
 
     def CecSetup(self):
 
@@ -510,7 +507,7 @@ class CecConfig():
             self.hugepage_16gb_setup()
         if self.cec_dict['iocapacity'] is not None:
             if bmc_type == "EBMC_PHYP":
-                self.io_enlarge_cpacity()
+                self.bmc.rest_api.configure_enlarged_io(self.iocapacity)
             elif bmc_type == "FSP_PHYP":
                 self.cv_ASM.configure_enlarged_io(self.iocapacity)
         if self.setup:
@@ -542,7 +539,7 @@ class CecConfig():
             if self.bmc_type == "FSP_PHYP":
                 self.bmc.cv_ASM.configure_enlarged_io(self.iocapacity)
             else:
-                self.io_enlarge_capacity()
+                self.bmc.rest_api.configure_enlarged_io(self.iocapacity)
 
     def lmb_setup(self):
         # Configure the lmb as per user request
@@ -559,37 +556,6 @@ class CecConfig():
         attrs = "min_num_huge_pages={0},desired_num_huge_pages={0},max_num_huge_pages={0}" .format(
             int(self.current_hgpg[0]))
         self.cv_HMC.set_lpar_cfg(attrs)
-
-    def io_enlarge_capacity(self):
-        """
-        Calling set IO Enlarge capacity if provided value is not same as current value
-        """
-        cur_iocapacity = self.get_current_ioadapter_enlarged_capacity()
-        log.info("Setting up ioenlarge capacity")
-        log.info("Current ioenlarge capacity value:"+str(cur_iocapacity))
-        if cur_iocapacity != self.iocapacity:
-            self.set_ioenlarge_capacity()
-        else:
-            log.info("Provided IO Enlarge capacity value is same as current value, Exiting...")
-
-    def get_current_ioadapter_enlarged_capacity(self):
-        """
-        Get ioadapter enlarged capcity value
-        """
-        log.debug("=====Get current IOAdapter Enlarge Capacity=====")
-        return self.bmc.rest_api.get_bios_attribute_value(
-            bios_attribute="hb_ioadapter_enlarged_capacity_current"
-        )
-
-    def set_ioenlarge_capacity(self):
-        """
-        Set ioadapter enlarged capcity value
-        """
-        log.debug("=====Set IOAdapter Enlarge Capacity=====")
-        self.bmc.rest_api.set_bios_attribute(
-                    bios_attribute="hb_ioadapter_enlarged_capacity",
-                    bios_attribute_val=self.iocapacity
-                )
 
 
 class OsConfig():
