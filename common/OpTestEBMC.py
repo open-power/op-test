@@ -19,6 +19,7 @@
 # permissions and limitations under the License.
 
 
+import os
 import time
 import requests
 import json
@@ -127,6 +128,97 @@ class EBMCHostManagement():
                                key=['Status', 'State'],
                                minutes=timeout)
         return status
+ 
+    def set_attribute_redfish(self, uri, attribute_name, attribute_value):
+        """
+        Changing any attribute value using Redfish API
+        
+        :param uri: redfish uri at which the attribute can be updated
+        :param attribute_name: Should be same as attribute name in redfish
+        :param attribute_value: Value want be be updated for attribute
+        """
+        auth_token = self.generate_ssl_auth_token(ip_add=self.conf.args.bmc_ip)
+        content_type = "-H 'Content-Type: application/json'"
+        rest_server = "https://{}{}".format(self.conf.args.bmc_ip, uri)
+        attribute_param = '\'{"Attributes":{'+'{}:{}'.format(attribute_name, attribute_value)+'}}\''
+        curl_command = "curl -k -H"+" 'X-Auth-Token: "+auth_token+"' "+content_type+f" -X PATCH {rest_server} "+f"-d {attribute_param}"
+        log.info("Command to set attribut: "+curl_command)
+        try:
+            output = os.system(curl_command)
+            return output
+        except CommandFailed as cf:
+            return cf.output
+
+    def generate_ssl_auth_token(self, ip_add = None):
+        """
+        Generates ssl key then returns the ssl key
+        """
+        payload = {
+            "username": self.conf.args.bmc_username,
+            "password": self.conf.args.bmc_password
+        }
+        uri = f"https://{ip_add}/redfish/v1/SessionService/Sessions"
+        creds = '{"UserName":\"'+ self.conf.args.bmc_username + '","Password":\"' + self.conf.args.bmc_password + '"}'
+        file_name = "/tmp/headers-"+time.strftime("%Y%m%d%H%M%S")+".txt"
+        sess_cmd = 'curl -k -H "Content-Type: application/json" -X POST -D '+file_name+" "+uri+' -d '+"\'"+creds+"\'"
+        os.system(sess_cmd)
+        auth_file = open(file_name)
+        token = auth_file.read()
+        token = [line for line in token.split("\n") if "X-Auth-Token" in line][0].split(":")[1].strip()
+        if token:
+            return token
+        else:
+            log.info("Token not found in response")
+            return None
+
+    def get_bios_attribute_value(self, bios_attribute=None, minutes=BMC_CONST.HTTP_RETRY):
+        """
+        Get BIOS current attribute value using redfish api
+        """
+        uri = "/redfish/v1/Systems/system/Bios"
+        r = self.conf.util_bmc_server.get(uri=uri, minutes=minutes)
+        return r.json().get("Attributes").get(bios_attribute)
+
+    def set_bios_attribute(self, bios_attribute=None, bios_attribute_val=None):
+        '''
+        Set BMC BIOS attribute to provided value
+        '''
+        uri = '/redfish/v1/Systems/system/Bios/Settings'
+        return self.set_attribute_redfish(uri=uri,
+                                          attribute_name='"'+bios_attribute+'"',
+                                          attribute_value=bios_attribute_val)
+
+    def configure_enlarged_io(self, iocapacity):
+        """
+        Calling set IO Enlarge capacity if provided value is not same as current value
+        """
+        cur_iocapacity = self.get_current_ioadapter_enlarged_capacity()
+        log.info("Setting up ioenlarge capacity")
+        log.info("Current ioenlarge capacity value:"+str(cur_iocapacity))
+        if cur_iocapacity != iocapacity:
+            self.set_ioenlarge_capacity(iocapacity)
+        else:
+            log.info("Provided IO Enlarge capacity value is same as current value, Exiting...")
+
+    def get_current_ioadapter_enlarged_capacity(self):
+        """
+        Get ioadapter enlarged capcity value
+        """
+        log.debug("=====Get current IOAdapter Enlarge Capacity=====")
+        return self.get_bios_attribute_value(
+                bios_attribute="hb_ioadapter_enlarged_capacity_current"
+            )
+
+    def set_ioenlarge_capacity(self, iocapacity):
+        """
+        Set ioadapter enlarged capcity value
+        """
+        log.debug("=====Set IOAdapter Enlarge Capacity=====")
+        self.set_bios_attribute(
+                        bios_attribute="hb_ioadapter_enlarged_capacity",
+                        bios_attribute_val=iocapacity
+                )
+
 
 
 class OpTestEBMC():
