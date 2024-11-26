@@ -65,7 +65,7 @@ class IPMITool():
     the caller.
     '''
 
-    def __init__(self, method='lanplus', binary='ipmitool',
+    def __init__(self, method='lanplus', binary='ipmitool', alg_id='17',
                  ip=None, username=None, password=None, logfile=sys.stdout):
         self.method = 'lanplus'
         self.ip = ip
@@ -73,12 +73,13 @@ class IPMITool():
         self.password = password
         self.binary = binary
         self.logfile = logfile
+        self.alg_id = alg_id
 
     def binary_name(self):
         return self.binary
 
     def arguments(self):
-        s = ' -H %s -I %s' % (self.ip, self.method)
+        s = ' -H %s -I %s -C %s' % (self.ip, self.method, self.alg_id)
         if self.username:
             s += ' -U %s' % (self.username)
         if self.password:
