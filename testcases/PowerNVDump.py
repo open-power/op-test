@@ -1235,7 +1235,7 @@ class OpTestMakedump(PowerNVDump):
     '''
 
     def check_run(self, cmd, condition):
-        res = self.c.run_command(cmd)
+        res = self.c.run_command(cmd, timeout=300)
         for value in res:
             if condition in value:
                 log.info("command %s works well" % cmd)
