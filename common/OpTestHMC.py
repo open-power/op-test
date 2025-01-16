@@ -423,10 +423,13 @@ class HMCUtil():
             v_max_proc = 0
             max_virtual_proc = self.run_command("lshwres -m %s -r proc --level sys -F curr_sys_virtual_procs" % (self.mg_system))
             max_virtual_proc = int(max_virtual_proc[0])
-            if overcommit_ratio*int(max_proc_units) > max_virtual_proc:
-                v_max_proc = max_virtual_proc
+            if int(max_proc_units) > max_virtual_proc:
+                v_max_proc = int(max_proc_units)
             else:
-                v_max_proc = overcommit_ratio*int(max_proc_units)
+                v_max_proc = max_virtual_proc
+
+            if desired_proc_units < v_max_proc:
+                log.error("The test case is being canceled as we need to configure the system manually because desired_proc_units < v_max_proc.")
 
             self.set_lpar_cfg("proc_mode=shared,sharing_mode=%s,min_proc_units=%s,max_proc_units=%s,"
                               "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s,"
