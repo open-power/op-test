@@ -428,6 +428,9 @@ class HMCUtil():
             else:
                 v_max_proc = max_virtual_proc
 
+            if desired_proc_units < v_max_proc:
+                log.error("The test case is being canceled as we need to configure the system manually because desired_proc_units < v_max_proc.")
+
             self.set_lpar_cfg("proc_mode=shared,sharing_mode=%s,min_proc_units=%s,max_proc_units=%s,"
                               "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s,"
                               "min_mem=%s,desired_mem=%s,max_mem=%s" %
