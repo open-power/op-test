@@ -424,9 +424,12 @@ class HMCUtil():
             max_virtual_proc = self.run_command("lshwres -m %s -r proc --level sys -F curr_sys_virtual_procs" % (self.mg_system))
             max_virtual_proc = int(max_virtual_proc[0])
             if overcommit_ratio*int(max_proc_units) > max_virtual_proc:
-                v_max_proc = max_virtual_proc
-            else:
+                 v_max_proc = max_virtual_proc
+             else:
                 v_max_proc = overcommit_ratio*int(max_proc_units)
+
+            if max_proc_units > v_max_proc:
+                max_proc_units = v_max_proc
 
             self.set_lpar_cfg("proc_mode=shared,sharing_mode=%s,min_proc_units=%s,max_proc_units=%s,"
                               "desired_proc_units=%s,min_procs=%s,desired_procs=%s,max_procs=%s,"
