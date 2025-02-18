@@ -344,7 +344,7 @@ class LparConfig():
                 log.info("System is already booted with VTPM enabled")
             else:
                 proc_compat_mode = self.cv_HMC.get_proc_compat_mode()
-                if "POWER10" in proc_compat_mode:
+                if proc_compat_mode[0] in ["POWER10", "POWER11"]:
                     self.vtpm_version = 2.0
                     try:
                         self.vtpm_encryption = conf.args.vtpm_encryption
@@ -406,10 +406,10 @@ class LparConfig():
             except AttributeError:
                 self.qos_credits = 10
             proc_compat_mode = self.cv_HMC.get_proc_compat_mode()
-            if "POWER10" in proc_compat_mode:
+            if proc_compat_mode[0] in ["POWER10", "POWER11"]:
                 self.cv_HMC.configure_gzip_qos(self.qos_credits)
             else:
-                log.info("nx_gzip is supported only in Power10 mode")
+                log.info("nx_gzip is supported only in Power10/Power11 mode")
 
         """
         If ioslots=drc_name is passed in machine_config lpar profile
