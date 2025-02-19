@@ -425,7 +425,7 @@ class HMCUtil():
             max_virtual_proc = int(max_virtual_proc[0])
             if overcommit_ratio*int(max_proc_units) > max_virtual_proc:
                  v_max_proc = max_virtual_proc
-             else:
+            else:
                 v_max_proc = overcommit_ratio*int(max_proc_units)
 
             if max_proc_units > v_max_proc:
