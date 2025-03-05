@@ -107,7 +107,7 @@ class KernelTest(unittest.TestCase):
         log.debug("Compile the upstream kernel")
         try:
             cpu = self.cv_HOST.host_get_core_count()
-            err=self.con.run_command("make -j {} -s".format(cpu), timeout=self.host_cmd_timeout)
+            err=self.con.run_command("make -j {} -s".format(int(cpu)), timeout=self.host_cmd_timeout)
             log.info("Kernel build successful")
             return 0,err
         except CommandFailed as e:
