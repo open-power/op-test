@@ -424,7 +424,7 @@ class HMCUtil():
             max_virtual_proc = self.run_command("lshwres -m %s -r proc --level sys -F curr_sys_virtual_procs" % (self.mg_system))
             max_virtual_proc = int(max_virtual_proc[0])
             if overcommit_ratio*int(max_proc_units) > max_virtual_proc:
-                 v_max_proc = max_virtual_proc
+                v_max_proc = max_virtual_proc
             else:
                 v_max_proc = overcommit_ratio*int(max_proc_units)
 
