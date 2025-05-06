@@ -47,6 +47,7 @@ from common.OpTestSSH import OpTestSSH
 from common.OpTestUtil import OpTestUtil
 from common.Exceptions import CommandFailed
 from common import OPexpect
+from common.OpTestSysinfo import OpTestSysinfo
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
 
@@ -160,6 +161,7 @@ class HMCUtil():
         self.PS1_set = -1
         self.LOGIN_set = -1
         self.SUDO_set = -1
+        self.sysinfo = OpTestSysinfo()
 
     def check_lpar_secureboot_state(self, hmc_con):
         '''
@@ -1349,6 +1351,9 @@ class HMCConsole(HMCUtil):
                     self.pty.send('\r')
                     log.debug("Waiting till booting!")
                     self.pty = self.get_login_prompt()
+
+        log.info("Collecting OS sysinfo") 
+        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
 
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
             self.util.setup_term(self.system, self.pty,
