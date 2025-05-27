@@ -47,6 +47,7 @@ from http.client import HTTPConnection
 import urllib3  # setUpChildLogger enables integrated logging with op-test
 import json
 import tempfile
+import yaml
 
 from common.OpTestSSH import OpTestSSH
 
@@ -54,24 +55,22 @@ import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
+config_file = "CONFIG.YMAL"
 
 class OpTestSysinfo():
 
     def __init__(self):
-        pass
+        with open(config_file, "r") as file:
+           self.config_actions = yaml.safe_load(file)
 
     def get_OSconfig(self, pty, prompt):
         # Collect config related data from the OS
         try:
+            list_of_commands = self.config_actions["LINUX"]["COMMANDS"]
             print("########### OS Sysinfo ########")
-            pty.sendline("date")  
-            pty.sendline("hostname")
-            pty.sendline("cat /etc/os-release | grep PRETTY_NAME ")
-            pty.sendline("uname -r")
-            pty.sendline("lsmcode")
-            pty.sendline("lparstat -i ")
-            pty.sendline("cat /proc/cpuinfo")
-            pty.sendline("lsmem | grep \"Memory block size\"")
+            for index, each_cmd in enumerate(list_of_commands, start=0):
+                pty.sendline(each_cmd)
+                rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         except CommandFailed as cf:
             raise cf
 

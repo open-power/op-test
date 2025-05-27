@@ -1,0 +1,6 @@
+LINUX:
+ COMMAND:
+ 	-"date"
+        -"hostname"
+        -"cat /etc/os-release | grep PRETTY_NAME "
+        -"uname -r"
