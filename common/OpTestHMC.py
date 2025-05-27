@@ -1059,6 +1059,8 @@ class OpTestHMC(HMCUtil):
         self.system = system
         self.ssh.set_system(system)
         self.console.set_system(system)
+        log.info("Collecting OS sysinfo")
+        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
 
     def get_rest_api(self):
         return None
@@ -1352,8 +1354,6 @@ class HMCConsole(HMCUtil):
                     log.debug("Waiting till booting!")
                     self.pty = self.get_login_prompt()
 
-        log.info("Collecting OS sysinfo") 
-        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
 
         if self.system.SUDO_set != 1 or self.system.LOGIN_set != 1 or self.system.PS1_set != 1:
             self.util.setup_term(self.system, self.pty,
