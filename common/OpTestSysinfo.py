@@ -24,29 +24,8 @@
 #
 # IBM_PROLOG_END_TAG
 
-import sys
-import os
-import datetime
 import time
-import pwd
-import string
-import subprocess
-import random
-import re
-import telnetlib
-import socket
-import select
-import time
-import pty
 import pexpect
-import subprocess
-import requests
-import traceback
-from requests.adapters import HTTPAdapter
-from http.client import HTTPConnection
-import urllib3  # setUpChildLogger enables integrated logging with op-test
-import json
-import tempfile
 import yaml
 
 from common.OpTestSSH import OpTestSSH
