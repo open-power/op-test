@@ -1474,13 +1474,12 @@ class OpTestUtil():
             return -1, -1
         my_user = host.username()
         my_pwd = host.password()
-        pty.sendline()
         rc = pty.expect(['login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
         if rc == 0:
             pty.sendline(my_user)
-            time.sleep(0.1)
+            time.sleep(3)
             rc = pty.expect(
-                [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=60)
+                [r"[Pp]assword:", pexpect.TIMEOUT, pexpect.EOF], timeout=120)
             if rc == 0:
                 pty.sendline(my_pwd)
                 time.sleep(0.5)
