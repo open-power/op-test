@@ -1,0 +1,16 @@
+LINUX:
+ COMMANDS:
+        - "date"
+        - "hostname"
+        - "cat /etc/os-release | grep PRETTY_NAME"
+        - "uname -r"
+ HMC-COMMANDS:
+       - "lshmc -V"
+       - "lssyscfg -r sys -F name,state,type_model,serial_num| grep -oP '^[^,]+(?=,)' "
+       - "lssyscfg -r lpar -m SYS -F name,state,os_version"
+       - "lshwres -r proc -m SYS --level sys"
+       - "lshwres -r mem -m SYS --level sys"
+       - "lssyscfg -r lpar -m SYS -F name,lpar_env,state,os_version"
+       - "lshwres -r virtualio --rsubtype eth -m SYS --level lpar"
+       - "lshwres -r virtualio --rsubtype scsi -m SYS --level lpar"
+       - "lshwres -r virtualio --rsubtype fc -m SYS --level lpar"
