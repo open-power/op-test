@@ -28,6 +28,7 @@ import time
 import pexpect
 import yaml
 
+from common.Exceptions import CommandFailed
 from common.OpTestSSH import OpTestSSH
 
 import logging
