@@ -1059,8 +1059,6 @@ class OpTestHMC(HMCUtil):
         self.system = system
         self.ssh.set_system(system)
         self.console.set_system(system)
-        log.info("Collecting OS sysinfo")
-        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
 
     def get_rest_api(self):
         return None
@@ -1139,6 +1137,8 @@ class HMCConsole(HMCUtil):
         self.system = system
         self.pty = self.get_console()
         self.pty.set_system(system)
+        log.info("Collecting OS sysinfo")
+        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
 
     def get_host_console(self):
         '''
