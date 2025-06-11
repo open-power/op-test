@@ -1,0 +1,17 @@
+LINUX:
+ COMMANDS:
+        - "date"
+        - "hostname"
+        - "cat /etc/os-release | grep PRETTY_NAME"
+        - "uname -r"
+HMC:
+  COMMANDS:
+       - "lshmc -V"  #HMC software version, release, service pack, and build level
+       - "lssyscfg -r sys -F name,state,type_model,serial_num"  #List Managed Systems with on name,state,type_model,serial_num
+       - "lssyscfg -r lpar -m SYS -F name,state,os_version"   #Get system lpar's with name,state,os_version
+       - "lshwres -r proc -m SYS --level sys"  #Get proc resources available from sys
+       - "lshwres -r mem -m SYS --level sys"   #Get mem resources available from sys
+       - "lssyscfg -r lpar -m SYS -F name,lpar_env,state,os_version" #List All LPARs and Identify VIOS Partitions
+       - "lshwres -r virtualio --rsubtype eth -m SYS --level lpar" #Virtual Ethernet Adapter (VEA) Info
+       - "lshwres -r virtualio --rsubtype scsi -m SYS --level lpar" #scsi Adapter Info
+       - "lshwres -r virtualio --rsubtype fc -m SYS --level lpar"  #fc Adapter Info
