@@ -452,7 +452,7 @@ class InstallUtil():
                 return False
             if req_args or req_remove_args:
                 try:
-                    cmd = "sed -i 's/%s=.*/%s=\"%s\"/g' %s" % (grub_key, grub_key,
+                    cmd = "sed -i 's|%s=.*|%s=\"%s\"|g' %s" % (grub_key, grub_key,
                                                                output, boot_cfg)
                     con.run_command(cmd, timeout=60)
                     if 'Ubuntu' in distro:
