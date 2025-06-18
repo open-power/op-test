@@ -920,7 +920,7 @@ class KernelCrash_KdumpNFS(PowerNVDump):
         else:
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"nfs:\/\/%s\%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_ip, self.dump_path))
             self.c.run_command('sed -i \'/^KDUMP_SSH_IDENTITY=/c\KDUMP_SSH_IDENTITY=\"%s\"\' /etc/sysconfig/kdump;' % self.rsa_path)
-            self.c.run_command("zypper install -y nfs-kernel-server; systemctl nfs-server start")
+            self.c.run_command("zypper install -y nfs-kernel-server; systemctl start nfs-server")
             self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_location, self.dump_path))
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             time.sleep(5)
