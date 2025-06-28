@@ -528,7 +528,7 @@ class HMCUtil():
         for pmem_name in volume_name:
             self.remove_singlevpmem(pmem_name)
 
-    def configure_vpmem(self, pmem_name, pmem_size):
+    def configure_vpmem(self, pmem_name, pmem_size, affinity=1):
         '''
         Configures vpmem on lpar
 
@@ -540,8 +540,8 @@ class HMCUtil():
                 string.ascii_lowercase + string.digits, k=4))
             pmem_name = str(ran)
 
-        self.run_command("chhwres -r pmem -m %s -o a --rsubtype volume --volume %s --device dram -p %s -a size=%s,affinity=1" %
-                         (self.mg_system, pmem_name, self.lpar_name, pmem_size))
+        self.run_command("chhwres -r pmem -m %s -o a --rsubtype volume --volume %s --device dram -p %s -a size=%s,affinity=%s" %
+                         (self.mg_system, pmem_name, self.lpar_name, pmem_size, affinity))
 
     def get_proc_compat_mode(self):
         '''
