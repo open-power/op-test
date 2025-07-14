@@ -68,6 +68,7 @@ import tempfile
 import OpTestConfiguration
 import OpTestLogger
 from common import OpTestInstallUtil
+from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
 from common.Exceptions import KernelOOPS, KernelPanic, KernelCrashUnknown, KernelKdump, KernelFADUMP, PlatformError, CommandFailed, SkibootAssert
 from common.OpTestConstants import OpTestConstants as BMC_CONST
@@ -98,6 +99,9 @@ class PowerNVDump(unittest.TestCase):
         self.cv_BMC = conf.bmc()
         self.bmc_type = conf.args.bmc_type
         self.util = self.cv_SYSTEM.util
+        self.op_test_util = OpTestUtil(conf)
+        self.distro = self.op_test_util.distro_name()
+        self.version = self.op_test_util.get_distro_version().split(".")[0]
         self.pdbg = conf.args.pdbg
         self.basedir = conf.basedir
         self.c = self.cv_SYSTEM.console
@@ -177,6 +181,15 @@ class PowerNVDump(unittest.TestCase):
                 "Failed to create/copy ssh key file")
         pwd_less = self.c.run_command(
             "ssh -i %s -o \"StrictHostKeyChecking no\" -o  \"NumberOfPasswordPrompts=0\" %s@%s \"echo\"" % (self.rsa_path, self.dump_server_user, self.dump_server_ip))
+
+    def reset_kdump_bootloaded_if_needed(self):
+        """
+        On SLES 16, KDUMP_UPDATE_BOOTLOADER=false to ensure config/initrd is updated.
+        """
+        if (self.distro == "sles") and self.version == "16":
+            log.info("SLES 16 detected: forcing KDUMP_UPDATE_BOOTLOADER=false and restarting kdump.service")
+            self.c.run_command("sed -i 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER=\"false\"/' /etc/sysconfig/kdump")
+            self.c.run_command_ignore_fail("systemctl restart kdump.service")
 
     def is_fadump_param_enabled(self):
         '''
@@ -1395,6 +1408,67 @@ class KernelCrash_FadumpNocma(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
+
+class KernelCrash_FadumpJunkValue(PowerNVDump):
+    """
+    This test verifies fadump with junk value
+    1. In sles , it will not capture dump
+    2. In Rhel. dump will get captured as kdump is enabled
+    """
+    def runTest(self):
+
+        if self.distro.lower() not in ["sles", "rhel"]:
+            self.skipTest(f"Fadump testing not supported on {self.distro}")
+        log.info("Calling reset_kdump_bootloaded_if_needed()")
+        self.reset_kdump_bootloaded_if_needed()
+
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(
+            self.distro,
+            args="fadump=xyz",
+            remove_args="fadump=on",
+            reboot=True,
+            reboot_cmd=True
+        ):
+            self.fail("Failed to update kernel cmdline with fadump=xyz")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+        try:
+            self.setup_test()
+        except Exception as e:
+            log.warning(f"Skipping crash dir check due to expected junk fadump value: {e}")
+
+        self.c.run_command("cat /proc/cmdline")
+        fadump_reg = self.c.run_command("cat /sys/kernel/fadump_registered")[0].strip()
+        log.info(f"fadump_registered = {fadump_reg} (expect 0)")
+        if fadump_reg == "1":
+            self.fail("FADUMP is still registered even after fadump=xyz")
+
+        log.info("Triggering crash with junk fadump=xyz ...")
+        boot_type = self.kernel_crash()
+        if self.distro == "rhel":
+            self.verify_dump_file(boot_type)
+            log.info("In Rhel, dump has got captured as kdump will be enabled")
+        else:
+            try:
+                self.verify_dump_file(boot_type)
+            except Exception:
+                log.info("Expected: dump directory not found")
+
+            vmcore_check = self.c.run_command("find /var/crash -type f -name vmcore || true")
+            if vmcore_check:
+                self.fail("Unexpected vmcore found! fadump=xyz should prevent dump collection.")
+
+            log.info("fadump=xyz behaved correctly — no dump collected, normal reboot observed.")
+
+        # Revert cmdline
+        if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=xyz", reboot=True, reboot_cmd=True):
+            self.fail("Failed to remove fadump=xyz from cmdline")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+
 class OpTestWatchdog(PowerNVDump):
     '''
     This test verifies "watchdog module" with diffrent scenarios like
@@ -1705,6 +1779,7 @@ def crash_suite():
     s.addTest(KernelCrash_disable_radix())
     s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(KernelCrash_FadumpNocma())
+    s.addTest(KernelCrash_FadumpJunkValue())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
