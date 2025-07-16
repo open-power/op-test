@@ -376,28 +376,38 @@ class LparConfig():
                 else:
                     return "Failed to boot with vtpm disabled"
 
-        if "vpmem=1" in self.machine_config:
-            conf = OpTestConfiguration.conf
-            try:
-                self.pmem_name = conf.args.pmem_name
-            except AttributeError:
-                self.pmem_name = "vol1"
-            try:
-                self.pmem_size = conf.args.pmem_size
-            except AttributeError:
-                self.pmem_size = "8192"
-            if self.cv_HMC.vpmem_count()[0] >= "1":
-                self.cv_HMC.remove_vpmem()
-            current_lmb = self.cv_HMC.get_lmb_size()
-            if int(self.pmem_size) % int(current_lmb[0]) != 0:
-                self.fail("pmem_size should be multiple of %s" % current_lmb)
-            self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
-            curr_num_volumes = self.cv_HMC.vpmem_count()
-            if curr_num_volumes[0] >= "1":
-                log.info("Configured vpmem %s of %sMB" %
-                         (self.pmem_name, self.pmem_size))
+        if "vpmem" in self.machine_config:
+            num_pmem = re.search(r'vpmem=(\d+)', self.machine_config).group(1)
+            if int(num_pmem) >= 1:
+                conf = OpTestConfiguration.conf
+                try:
+                    self.pmem_name = conf.args.pmem_name
+                except AttributeError:
+                    self.pmem_name = "vol"
+                try:
+                    self.pmem_size = conf.args.pmem_size
+                except AttributeError:
+                    self.pmem_size = "8192"
+                if self.cv_HMC.vpmem_count()[0] >= "1":
+                    self.cv_HMC.remove_vpmem()
+                current_lmb = self.cv_HMC.get_lmb_size()
+                if int(self.pmem_size) % int(current_lmb[0]) != 0:
+                    self.fail("pmem_size should be multiple of %s" % current_lmb)
+                if int(num_pmem) == 1:
+                    self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
+                else:
+                    self.cv_HMC.configure_vpmem(self.pmem_name, self.pmem_size)
+                    for i in range(int(num_pmem)-1):
+                        self.cv_HMC.configure_vpmem("%s%s" % (self.pmem_name, (i+1)), self.pmem_size, 0)
+                        log.info("Configuring vpmem volume %s" % (i+2))
+                curr_num_volumes = self.cv_HMC.vpmem_count()
+                if [ curr_num_volumes[0] >= "1" ]:
+                    log.info("Configured %s vpmem volume of %sMB" %
+                             (curr_num_volumes[0], self.pmem_size))
+                else:
+                    return "Failed to configure pmem"
             else:
-                return "Failed to configure pmem"
+                log.info("Persistent memory is not configured")
 
         if "nx_gzip" in self.machine_config:
             conf = OpTestConfiguration.conf
