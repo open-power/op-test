@@ -1469,6 +1469,52 @@ class KernelCrash_FadumpJunkValue(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 
+class KernelCmdlineParamTest(PowerNVDump):
+    '''
+    Function to add extra boot args to fadump kernel and check.
+    '''
+    def runTest(self):
+        conf = OpTestConfiguration.conf
+        # Step 1: Read current FADUMP_COMMANDLINE_APPEND
+        try:
+            output = self.cv_HOST.host_run_command("grep ^FADUMP_COMMANDLINE_APPEND /etc/sysconfig/kdump")
+            match = re.search(r'FADUMP_COMMANDLINE_APPEND="(.*)"', output[0])
+            fadump_append = match.group(1) if match else ""
+        except Exception as e:
+            self.fail(f"Failed to read FADUMP_COMMANDLINE_APPEND: {e}")
+
+        # Step 2: Append test=123 if we didn't pass anything in the config file
+        try:
+            self.fadump_param = conf.args.fadump_new_append.strip()
+            self.new_append = f"{fadump_append} {self.fadump_param}"
+        except AttributeError:
+            self.fadump_param = "test=123"
+            self.new_append = f"{fadump_append} {self.fadump_param}".strip()
+        self.cv_HOST.host_run_command(f"sed -i 's/^FADUMP_COMMANDLINE_APPEND=.*/FADUMP_COMMANDLINE_APPEND=\"{self.new_append}\"/' /etc/sysconfig/kdump")
+
+        # Step 3: Restart kdump service
+        try:
+            self.cv_HOST.host_run_command("systemctl restart kdump.service")
+        except CommandFailed as e:
+            self.fail(f"Failed to restart kdump.service: {e}")
+
+        # Step 4: Trigger crash
+        log.info("Triggering crash...")
+        boot_type = self.kernel_crash()
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+        # Step 5: After reboot, check for additional param 
+        output = self.c.run_command("systemctl status kdump")
+        status_str = "\n".join(output)
+        for line in status_str.splitlines():
+            if "additional parameters" in line.lower():
+                if self.fadump_param in line:
+                    log.info(" Found additional param:%s" % (self.new_append))
+                else:
+                    self.fail("not found additional parameter %s" % (self.new_append))
+
+
 class OpTestWatchdog(PowerNVDump):
     '''
     This test verifies "watchdog module" with diffrent scenarios like
@@ -1780,6 +1826,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(KernelCrash_FadumpNocma())
     s.addTest(KernelCrash_FadumpJunkValue())
+    s.addTest(KernelCmdlineParamTest())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
