@@ -1515,6 +1515,65 @@ class KernelCmdlineParamTest(PowerNVDump):
                     self.fail("not found additional parameter %s" % (self.new_append))
 
 
+class KernelCrash_FadumpOffValue(PowerNVDump):
+    """
+    This test verifies fadump disable
+    1. In sles , it will not capture dump
+    2. In Rhel. dump will get captured as kdump is enabled
+    """
+    def runTest(self):
+
+        if self.distro.lower() not in ["sles", "rhel"]:
+            self.skipTest(f"Fadump testing not supported on {self.distro}")
+        log.info("Calling reset_kdump_bootloaded_if_needed()")
+        self.reset_kdump_bootloaded_if_needed()
+
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(
+            self.distro,
+            args="fadump=off",
+            remove_args="fadump=on",
+            reboot=True,
+            reboot_cmd=True
+        ):
+            self.fail("Failed to update kernel cmdline with fadump=off")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+        try:
+            self.setup_test()
+        except Exception as e:
+            log.warning(f"Skipping crash dir check due to expected fadump disable: {e}")
+
+        self.c.run_command("cat /proc/cmdline")
+        fadump_reg = self.c.run_command("cat /sys/kernel/fadump_registered")[0].strip()
+        log.info(f"fadump_registered = {fadump_reg} (expect 0)")
+        if fadump_reg == "1":
+            self.fail("FADUMP is still registered even after fadump=off")
+
+        log.info("Triggering crash with fadump=off ...")
+        boot_type = self.kernel_crash()
+        if self.distro == "rhel":
+            self.verify_dump_file(boot_type)
+            log.info("In Rhel, dump has got captured as kdump will be enabled")
+        else:
+            try:
+                self.verify_dump_file(boot_type)
+            except Exception:
+                log.info("Expected: dump directory not found")
+
+            vmcore_check = self.c.run_command("find /var/crash -type f -name vmcore || true")
+            if vmcore_check:
+                self.fail("Unexpected vmcore found! fadump=off should prevent dump collection.")
+            log.info("fadump=off behaved correctly — no dump collected, normal reboot observed.")
+
+        # Revert cmdline
+        if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=off", reboot=True, reboot_cmd=True):
+            self.fail("Failed to remove fadump=off from cmdline")
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
+
 class OpTestWatchdog(PowerNVDump):
     '''
     This test verifies "watchdog module" with diffrent scenarios like
@@ -1827,6 +1886,7 @@ def crash_suite():
     s.addTest(KernelCrash_FadumpNocma())
     s.addTest(KernelCrash_FadumpJunkValue())
     s.addTest(KernelCmdlineParamTest())
+    s.addTest(KernelCrash_FadumpOffValue())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
