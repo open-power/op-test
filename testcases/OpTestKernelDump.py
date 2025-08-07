@@ -2,7 +2,7 @@
 # IBM_PROLOG_BEGIN_TAG
 # This is an automatically generated prolog.
 #
-# $Source: op-test-framework/testcases/PowerNVDump.py $
+# $Source: op-test-framework/testcases/OptestKernelDump.py $
 #
 # OpenPOWER Automated Test Project
 #
@@ -24,7 +24,7 @@
 #
 # IBM_PROLOG_END_TAG
 
-#  @package PowerNVDump.py
+#  @package OptestKernelDump.py
 #  This module can contain testcases related to Firmware & Kernel dump feature
 #  including kdump, fadump aka MPIPL, opaldump, etc.
 #
@@ -84,7 +84,7 @@ class BootType():
     INVALID = 4
 
 
-class PowerNVDump(unittest.TestCase):
+class OptestKernelDump(unittest.TestCase):
     '''
     Main super class to test dump functionality for various dump targets
     '''
@@ -463,7 +463,7 @@ class PowerNVDump(unittest.TestCase):
         return boot_type
 
 
-class OPALCrash_MPIPL(PowerNVDump):
+class OPALCrash_MPIPL(OptestKernelDump):
     '''
     OPAL initiated MPIPL flow validation. This will verify whether OPAL
     supports MPIPL or not and then triggers OPAL assert. This will verify
@@ -540,7 +540,7 @@ class OPALCrash_MPIPL(PowerNVDump):
         return boot_type
 
 
-class SBECrash_MPIPL(PowerNVDump):
+class SBECrash_MPIPL(OptestKernelDump):
     '''
     Testcase to test SBE and hostboot part of MPIPL code.
     This test would trigger SBE S0 interrupt directly to initiate MPIPL.
@@ -641,7 +641,7 @@ class SBECrash_MPIPL(PowerNVDump):
         self.c.run_command(r_cmd)
 
 
-class KernelCrash_FadumpEnable(PowerNVDump):
+class KernelCrash_FadumpEnable(OptestKernelDump):
     '''
     This Class test KDUMP functionality with firmware assisted dump enabled 
     It performs all similar steps as kdump with fadump=on in kernel commandline
@@ -708,7 +708,7 @@ class KernelCrash_FadumpEnable(PowerNVDump):
         self.verify_dump_file(boot_type)
 
 
-class KernelCrash_OnlyKdumpEnable(PowerNVDump):
+class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
     '''
     This classs does preconfiguration and enablement for kdump test
     '''
@@ -761,7 +761,7 @@ class KernelCrash_OnlyKdumpEnable(PowerNVDump):
             self.verify_dump_file(boot_type)
 
 
-class KernelCrash_DisableAll(PowerNVDump):
+class KernelCrash_DisableAll(OptestKernelDump):
     '''
     Disable kdump service and boot back to normal
     '''
@@ -787,7 +787,7 @@ class KernelCrash_DisableAll(PowerNVDump):
             raise OpTestError(msg)
 
 
-class SkirootKernelCrash(PowerNVDump, unittest.TestCase):
+class SkirootKernelCrash(OptestKernelDump, unittest.TestCase):
     '''
     KDUMP test wth skiroot configurations enabled
     brief This tests the Skiroot kernel crash followed by system IPL
@@ -826,7 +826,7 @@ class SkirootKernelCrash(PowerNVDump, unittest.TestCase):
         self.kernel_crash()
 
 
-class KernelCrash_KdumpSSH(PowerNVDump):
+class KernelCrash_KdumpSSH(OptestKernelDump):
     '''
     This test verifies kdump/fadump over ssh.
     Need to pass --dump-server-ip and --dump-server-pw in command line.
@@ -885,7 +885,7 @@ class KernelCrash_KdumpSSH(PowerNVDump):
         self.verify_dump_file(boot_type, dump_place="net")
         self.setup_test("net")
 
-class KernelCrash_KdumpNFS(PowerNVDump):
+class KernelCrash_KdumpNFS(OptestKernelDump):
     '''
     This test verifies kdump/fadump over nfs.
     Need to pass --dump-server-ip and --dump-server-pw in command line.
@@ -951,7 +951,7 @@ class KernelCrash_KdumpNFS(PowerNVDump):
         self.setup_test("net")
 
 
-class KernelCrash_KdumpSAN(PowerNVDump):
+class KernelCrash_KdumpSAN(OptestKernelDump):
     '''
     This test verifies kdump/fadump over SAN disk with FS and raw disk.
     '''
@@ -998,7 +998,7 @@ class KernelCrash_KdumpSAN(PowerNVDump):
             self.c.run_command("sed -i '/\/var\/crash %s/d' /etc/fstab; sync" % self.filesystem)
 
 
-class KernelCrash_KdumpSMT(PowerNVDump):
+class KernelCrash_KdumpSMT(OptestKernelDump):
     '''
     This test tests kdump/fadump with smt=1,2,4 and 
     kdump/fadump with smt=1,2,4 and dumprestart from HMC.
@@ -1034,7 +1034,7 @@ class KernelCrash_KdumpSMT(PowerNVDump):
                 boot_type = self.kernel_crash(crash_type="hmc")
                 self.verify_dump_file(boot_type)
 
-class KernelCrash_KdumpDLPAR(PowerNVDump, testcases.OpTestDlpar.OpTestDlpar):
+class KernelCrash_KdumpDLPAR(OptestKernelDump, testcases.OpTestDlpar.OpTestDlpar):
 
     # This test verifies kdump/fadump after cpu and memory add/remove.
     # cpu_resource and mem_resource must be defined in ~/.op-test-framework.conf.
@@ -1058,7 +1058,7 @@ class KernelCrash_KdumpDLPAR(PowerNVDump, testcases.OpTestDlpar.OpTestDlpar):
                 self.verify_dump_file(boot_type)
 
 
-class KernelCrash_KdumpWorkLoad(PowerNVDump):
+class KernelCrash_KdumpWorkLoad(OptestKernelDump):
 
     # This test verifies kdump/fadump after running ebizzy.
     # ebizzy url needs to be given in ~/.op-test-framework.conf.
@@ -1097,7 +1097,7 @@ class KernelCrash_KdumpWorkLoad(PowerNVDump):
         self.verify_dump_file(boot_type)
         self.c.run_command("rm -rf /tmp/ebizzy*")
 
-class KernelCrash_hugepage_checks(PowerNVDump):
+class KernelCrash_hugepage_checks(OptestKernelDump):
     '''
     This test checks hugepage size set after kdump/fadump
     '''
@@ -1144,7 +1144,7 @@ class KernelCrash_hugepage_checks(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-class KernelCrash_XIVE_off(PowerNVDump):
+class KernelCrash_XIVE_off(OptestKernelDump):
     '''
     This test checks kdump/fadump with kernel parameter option xive=off 
     with different levels of SMT levels
@@ -1191,7 +1191,7 @@ class KernelCrash_XIVE_off(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
-class KernelCrash_disable_radix(PowerNVDump):
+class KernelCrash_disable_radix(OptestKernelDump):
     '''
     This test checks kdump/fadump with kernel parameter option disable_radix
     '''
@@ -1242,7 +1242,7 @@ class KernelCrash_disable_radix(PowerNVDump):
         else:
             raise self.skipTest("Hash MMU detected, skipping the test")
 
-class OpTestMakedump(PowerNVDump):
+class OpTestMakedump(OptestKernelDump):
     '''
     function will trigger crash kernel and  run the makedumpfile on collected vmcore
     '''
@@ -1323,7 +1323,7 @@ class OpTestMakedump(PowerNVDump):
         self.makedump_check()
 
 
-class KernelCrash_KdumpPMEM(PowerNVDump):
+class KernelCrash_KdumpPMEM(OptestKernelDump):
     '''
     This test verifies kdump/fadump on pmem device.
     '''
@@ -1387,7 +1387,7 @@ class KernelCrash_KdumpPMEM(PowerNVDump):
         self.verify_dump_file(boot_type)
 
 
-class KernelCrash_FadumpNocma(PowerNVDump):
+class KernelCrash_FadumpNocma(OptestKernelDump):
 
     # This test verifies fadump with nocma.
 
@@ -1409,7 +1409,7 @@ class KernelCrash_FadumpNocma(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 
-class KernelCrash_FadumpJunkValue(PowerNVDump):
+class KernelCrash_FadumpJunkValue(OptestKernelDump):
     """
     This test verifies fadump with junk value
     1. In sles , it will not capture dump
@@ -1469,7 +1469,7 @@ class KernelCrash_FadumpJunkValue(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 
-class KernelCmdlineParamTest(PowerNVDump):
+class KernelCmdlineParamTest(OptestKernelDump):
     '''
     Function to add extra boot args to fadump kernel and check.
     '''
@@ -1515,7 +1515,7 @@ class KernelCmdlineParamTest(PowerNVDump):
                     self.fail("not found additional parameter %s" % (self.new_append))
 
 
-class KernelCrash_FadumpOffValue(PowerNVDump):
+class KernelCrash_FadumpOffValue(OptestKernelDump):
     """
     This test verifies fadump disable
     1. In sles , it will not capture dump
@@ -1574,7 +1574,7 @@ class KernelCrash_FadumpOffValue(PowerNVDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 
-class OpTestWatchdog(PowerNVDump):
+class OpTestWatchdog(OptestKernelDump):
     '''
     This test verifies "watchdog module" with diffrent scenarios like
     1. Watchdog module load and unload.

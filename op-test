@@ -65,7 +65,7 @@ from testcases import fspTODCorruption
 from testcases import OpalUtils
 from testcases import OpTestPrdDaemon
 from testcases import fspresetReload
-from testcases import PowerNVDump
+from testcases import OpTestKernelDump
 from testcases import EPOW
 from testcases import DPO
 from testcases import LightPathDiagnostics
@@ -636,36 +636,36 @@ class CrashSuite():
     '''Crash Test Suite'''
 
     def suite(self):
-        return PowerNVDump.crash_suite()
+        return OpTestKernelDump.crash_suite()
 
 class OSdumpSuite():
     '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+        self.s.addTest(OpTestKernelDump.KernelCrash_OnlyKdumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
         if 'dev_path' in OpTestConfiguration.conf.args:
-            self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpDLPAR())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpWorkLoad())
-        self.s.addTest(PowerNVDump.KernelCrash_hugepage_checks())
-        self.s.addTest(PowerNVDump.KernelCrash_XIVE_off())
-        self.s.addTest(PowerNVDump.KernelCrash_disable_radix())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpPMEM())
-        self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+            self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSAN())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpDLPAR())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpWorkLoad())
+        self.s.addTest(OpTestKernelDump.KernelCrash_hugepage_checks())
+        self.s.addTest(OpTestKernelDump.KernelCrash_XIVE_off())
+        self.s.addTest(OpTestKernelDump.KernelCrash_disable_radix())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpPMEM())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
         if 'dev_path' in OpTestConfiguration.conf.args:
-            self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpDLPAR())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpWorkLoad())
-        self.s.addTest(PowerNVDump.KernelCrash_hugepage_checks())
-        self.s.addTest(PowerNVDump.KernelCrash_XIVE_off())
-        self.s.addTest(PowerNVDump.KernelCrash_disable_radix())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpPMEM())
-        self.s.addTest(PowerNVDump.KernelCrash_FadumpNocma())
-        self.s.addTest(PowerNVDump.OpTestMakedump())
+            self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSAN())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpDLPAR())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpWorkLoad())
+        self.s.addTest(OpTestKernelDump.KernelCrash_hugepage_checks())
+        self.s.addTest(OpTestKernelDump.KernelCrash_XIVE_off())
+        self.s.addTest(OpTestKernelDump.KernelCrash_disable_radix())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpPMEM())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpNocma())
+        self.s.addTest(OpTestKernelDump.OpTestMakedump())
 
     def suite(self):
         return self.s
@@ -674,17 +674,17 @@ class OSdumpkdumpSuite():
     '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_OnlyKdumpEnable())
         if 'dev_path' in OpTestConfiguration.conf.args:
-            self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpDLPAR())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpWorkLoad())
-        self.s.addTest(PowerNVDump.KernelCrash_hugepage_checks())
-        self.s.addTest(PowerNVDump.KernelCrash_XIVE_off())
-        self.s.addTest(PowerNVDump.KernelCrash_disable_radix())
-        self.s.addTest(PowerNVDump.OpTestMakedump())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+            self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSAN())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpDLPAR())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpWorkLoad())
+        self.s.addTest(OpTestKernelDump.KernelCrash_hugepage_checks())
+        self.s.addTest(OpTestKernelDump.KernelCrash_XIVE_off())
+        self.s.addTest(OpTestKernelDump.KernelCrash_disable_radix())
+        self.s.addTest(OpTestKernelDump.OpTestMakedump())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
 
     def suite(self):
         return self.s
@@ -693,11 +693,11 @@ class ISSTkdumpSuite():
     '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_OnlyKdumpEnable())
         if 'dev_path' in OpTestConfiguration.conf.args:
-            self.s.addTest(PowerNVDump.KernelCrash_KdumpSAN())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+            self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSAN())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
     
     def suite(self):
         return self.s
@@ -706,9 +706,9 @@ class ISSTfadumpSuite():
     '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
 
     def suite(self):
         return self.s
@@ -717,16 +717,16 @@ class OSdumpfadumpSuite():
     '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpDLPAR())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpWorkLoad())
-        self.s.addTest(PowerNVDump.KernelCrash_hugepage_checks())
-        self.s.addTest(PowerNVDump.KernelCrash_XIVE_off())
-        self.s.addTest(PowerNVDump.KernelCrash_disable_radix())
-        self.s.addTest(PowerNVDump.OpTestMakedump())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpSSH())
-        self.s.addTest(PowerNVDump.KernelCrash_KdumpNFS())
-        self.s.addTest(PowerNVDump.KernelCrash_FadumpNocma())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpDLPAR())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpWorkLoad())
+        self.s.addTest(OpTestKernelDump.KernelCrash_hugepage_checks())
+        self.s.addTest(OpTestKernelDump.KernelCrash_XIVE_off())
+        self.s.addTest(OpTestKernelDump.KernelCrash_disable_radix())
+        self.s.addTest(OpTestKernelDump.OpTestMakedump())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpNocma())
 
     def suite(self):
         return self.s
@@ -735,8 +735,8 @@ class OSdumpsanitySuite():
     '''Test Suite which runs kdump and fadump basic sanity tests'''
     def __init__(self):
         self.s = unittest.TestSuite()
-        self.s.addTest(PowerNVDump.KernelCrash_OnlyKdumpEnable())
-        self.s.addTest(PowerNVDump.KernelCrash_FadumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_OnlyKdumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpEnable())
 
     def suite(self):
         return self.s
@@ -884,7 +884,7 @@ class OpTestHostbootSuite():
         self.s = unittest.TestSuite()
         self.s.addTest(OpTestHostboot.skiroot_full_suite())
         self.s.addTest(OpTestHostboot.host_full_suite())
-        self.s.addTest(PowerNVDump.SBECrash_MPIPL())
+        self.s.addTest(OpTestKernelDump.SBECrash_MPIPL())
 
     def suite(self):
         return self.s
