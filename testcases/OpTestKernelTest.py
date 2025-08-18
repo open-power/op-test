@@ -94,7 +94,7 @@ class KernelTest(unittest.TestCase):
             if is_url(self.config_path):
                 self.con.run_command("wget %s -O linux/.config" % self.config_path)
             else:
-                self.cv_HOST.copy_test_file_to_host(self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
+                self.cv_HOST.copy_test_file_to_host(self.config_path, sourcedir="", dstdir=os.path.join(self.linux_path, ".config"))
         self.con.run_command("cd linux && make olddefconfig", timeout=60)
         # the below part of the code is needed for only first run and will be decided bisect flag false
         ker_ver = self.con.run_command("make kernelrelease")[-1]
