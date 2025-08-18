@@ -131,7 +131,7 @@ class KernelTest(unittest.TestCase):
         base_version = self.con.run_command("uname -r")
         ker_ver = self.con.run_command("make kernelrelease")[-1]
         cpu = self.cv_HOST.host_get_core_count()
-        self.con.run_command("make -j {} -s".format(cpu), timeout=60000)
+        self.con.run_command("make -j {} -s".format(int(cpu)), timeout=60000)
         self.con.run_command("make modules_install", timeout=300)
         self.con.run_command("make install", timeout=120)
         if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
