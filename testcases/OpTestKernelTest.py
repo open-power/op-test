@@ -94,7 +94,7 @@ class KernelTest(unittest.TestCase):
             if is_url(self.config_path):
                 self.con.run_command("wget %s -O linux/.config" % self.config_path)
             else:
-                self.cv_HOST.copy_test_file_to_host(self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
+                self.cv_HOST.copy_test_file_to_host(self.config_path, sourcedir="", dstdir=os.path.join(self.linux_path, ".config"))
         self.con.run_command("cd linux && make olddefconfig", timeout=60)
         # the below part of the code is needed for only first run and will be decided bisect flag false
         ker_ver = self.con.run_command("make kernelrelease")[-1]
@@ -131,7 +131,7 @@ class KernelTest(unittest.TestCase):
         base_version = self.con.run_command("uname -r")
         ker_ver = self.con.run_command("make kernelrelease")[-1]
         cpu = self.cv_HOST.host_get_core_count()
-        self.con.run_command("make -j {} -s".format(cpu), timeout=60000)
+        self.con.run_command("make -j {} -s".format(int(cpu)), timeout=60000)
         self.con.run_command("make modules_install", timeout=300)
         self.con.run_command("make install", timeout=120)
         if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
