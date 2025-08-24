@@ -315,6 +315,36 @@ class DlparMemExtended(OpTestDlpar, unittest.TestCase):
             log.debug("Deleting smt script")
             self.console.run_command("rm ./smt_script")
 
+class Dlpar_mem_hotplug(OpTestDlpar,unittest.TestCase):
+    '''Class for DLPAR Memory Basic Tests
+       This class allows --run testcases.OpTestDlpar.DlparMemBasic
+       Test 1 : memory_hotplug.memmap_on_memory=0 * test dlpar memory add, memory remove, memory mix
+       Test 2 : memory_hotplug.memmap_on_memory=1 * test dlpar memory add, memory remove, memory mix
+       Test 3 : memory_hotplug.memmap_on_memory=force * test dlpar memory add, memory remove, memory mix       
+
+    '''
+    def setUp(self):
+      super(DlparMemBasic, self).setUp()
+    def runTest(self):
+      self.AddRemove("mem","-q","a",self.mem_resource)
+      self.AddRemove("mem","-q","r",self.mem_resource)
+      self.Move("mem","-q",self.mem_resource)
+
+    def runTest(self):
+        obj = OpTestInstallUtil.InstallUtil()
+        list1 = [0,1,force]
+        for ele in list1:
+            obj.update_kernel_cmdline(self.distro, args="memory_hotplug.memmap_on_memory = ele",
+                                         reboot=True, reboot_cmd=True)
+
+            log.debug("Mem add in a loop")
+            log.debug("=================")
+            self.AddRemove("mem","-q","a",self.mem_resource)
+
+            log.debug("Mem remove in a loop")
+            log.debug("=================")
+            self.AddRemove("mem","-q","r",self.mem_resource)
+
 def tearDown(self):
     self.console_thread.console_terminate()
 #reboot machine & delete script smt_script
