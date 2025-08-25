@@ -106,7 +106,7 @@ class KernelTest(unittest.TestCase):
         log.info("Upstream kernel commit-time: %s", tcommit)
         log.debug("Compile the upstream kernel")
         try:
-            cpu = self.cv_HOST.host_get_core_count()
+            cpu = self.cv_HOST.host_get_online_cpus()
             err=self.con.run_command("make -j {} -s".format(int(cpu)), timeout=self.host_cmd_timeout)
             log.info("Kernel build successful")
             return 0,err
@@ -130,7 +130,7 @@ class KernelTest(unittest.TestCase):
         self.con.run_command("make olddefconfig", timeout=60)
         base_version = self.con.run_command("uname -r")
         ker_ver = self.con.run_command("make kernelrelease")[-1]
-        cpu = self.cv_HOST.host_get_core_count()
+        cpu = self.cv_HOST.host_get_online_cpus()
         self.con.run_command("make -j {} -s".format(int(cpu)), timeout=60000)
         self.con.run_command("make modules_install", timeout=300)
         self.con.run_command("make install", timeout=120)
