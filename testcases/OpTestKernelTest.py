@@ -56,6 +56,7 @@ class KernelTest(unittest.TestCase):
         self.home = self.conf.args.git_home
         self.config_path = self.conf.args.git_repoconfigpath
         self.good_commit = self.conf.args.good_commit
+        self.commit_date = self.conf.args.commit_date
         self.bad_commit = self.conf.args.bad_commit
         self.append_kernel_cmdline = self.conf.args.append_kernel_cmdline
         self.linux_path = os.path.join(self.home, "linux")
@@ -217,9 +218,10 @@ class KernelBuild(KernelTest):
         self.con.run_command("cd {}".format(self.home))
         if not self.branch:
             self.branch='master' 
-        self.con.run_command("git clone -b {} {} linux".format( self.branch, self.repo),timeout=3000)
+        self.con.run_command("git clone --shallow-since={} -b {} {} linux".format(self.commit_date, self.branch, self.repo),timeout=3000)
         self.con.run_command("cd linux")
         commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
+        commit_date = self.con.run_command("git show -s --format=%ci {} | awk -F ' ' '{print $1}'".format(commit))
         self.con.run_command("cd ..")
         error = self.build_kernel()
         exit_code = error[0]
@@ -245,7 +247,7 @@ class KernelBuild(KernelTest):
              emaili=""
              commiti=commit[-1]
         with open('output.json','w') as f:
-            json.dump({"exit_code":exit_code,"email":emaili,"commit": commiti,"error":entry,"err_msg":err_msg,"flag":self.bisect_flag},f)
+            json.dump({"exit_code":exit_code,"email":emaili,"commit": commiti, "commitDate": commit_date, "error":entry,"err_msg":err_msg,"flag":self.bisect_flag},f)
         if exit_code != 0:
             self.util.format_email(self.linux_path, self.repo)
     
