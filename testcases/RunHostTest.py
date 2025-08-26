@@ -78,4 +78,6 @@ class RunHostTest(unittest.TestCase):
                                                             self.host_cmd_resultpath)
 
     def tearDown(self):
+        self.self.cv_SYSTEM.cv_HOST.host_gather_fw_logs()
+        self.self.cv_SYSTEM.cv_HOST.host_gather_kernel_log()
         self.console_thread.console_terminate()
