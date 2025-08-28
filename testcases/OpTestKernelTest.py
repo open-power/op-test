@@ -89,7 +89,15 @@ class KernelTest(unittest.TestCase):
             if urlparse(path).scheme in valid_schemes:
                 return True
             return False
-
+        self.con.run_command("if [ -d {} ]; then rm -rf {}; fi".format(self.home,self.home))
+        self.con.run_command("if [ ! -d {} ]; then mkdir -p {}; fi".format(self.home,self.home))
+        self.con.run_command("cd {}".format(self.home))
+        if not self.branch:
+            self.branch='master'
+        self.con.run_command("git clone -b {} {} linux".format( self.branch, self.repo),timeout=3000)
+        self.con.run_command("cd linux")
+        self.commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
+        self.con.run_command("cd ..")
         if self.config_path:
             if is_url(self.config_path):
                 self.con.run_command("wget %s -O linux/.config" % self.config_path)
@@ -97,17 +105,17 @@ class KernelTest(unittest.TestCase):
                 self.cv_HOST.copy_test_file_to_host(self.config_path, sourcedir="", dstdir=os.path.join(self.linux_path, ".config"))
         self.con.run_command("cd linux && make olddefconfig", timeout=60)
         # the below part of the code is needed for only first run and will be decided bisect flag false
-        ker_ver = self.con.run_command("make kernelrelease")[-1]
+        self.ker_ver = self.con.run_command("make kernelrelease")[-1]
         sha = self.con.run_command("git rev-parse HEAD")
         tcommit = self.con.run_command("export 'TERM=xterm-256color';git show -s --format=%ci")
         tcommit = re.sub(r"\x1b\[[0-9;]*[mGKHF]", "", tcommit[1])
-        log.info("Upstream kernel version: %s", ker_ver)
+        log.info("Upstream kernel version: %s", self.ker_ver)
         log.info("Upstream kernel commit-id: %s", sha[-1])
         log.info("Upstream kernel commit-time: %s", tcommit)
         log.debug("Compile the upstream kernel")
         try:
             cpu = self.cv_HOST.host_get_online_cpus()
-            err=self.con.run_command("make -j {} -s".format(int(cpu)), timeout=self.host_cmd_timeout)
+            err=self.con.run_command("make -j {} -s && make modules_install && make install".format(int(cpu)), timeout=self.host_cmd_timeout)
             log.info("Kernel build successful")
             return 0,err
         except CommandFailed as e:
@@ -127,13 +135,7 @@ class KernelTest(unittest.TestCase):
         Does kexec boot for Upstream Linux
         """
         self.con.run_command("export TERM=dumb; export NO_COLOR=1; alias ls='ls --color=never'; alias grep='grep --color=never'; git config --global color.ui false; bind 'set enable-bracketed-paste off'")
-        self.con.run_command("make olddefconfig", timeout=60)
         base_version = self.con.run_command("uname -r")
-        ker_ver = self.con.run_command("make kernelrelease")[-1]
-        cpu = self.cv_HOST.host_get_online_cpus()
-        self.con.run_command("make -j {} -s".format(int(cpu)), timeout=60000)
-        self.con.run_command("make modules_install", timeout=300)
-        self.con.run_command("make install", timeout=120)
         if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
             self.con.run_command('grubby --set-default /boot/vmlinu*-{}'.format(base_version[-1]))
         elif self.host_distro_name in ['sles', 'SLES']:
@@ -144,10 +146,10 @@ class KernelTest(unittest.TestCase):
         if self.append_kernel_cmdline:
             cmdline += " %s" % self.append_kernel_cmdline
         try:
-            initrd_file = self.con.run_command("ls -l /boot/initr*-%s.img" % ker_ver)[-1].split(" ")[-1]
+            initrd_file = self.con.run_command("ls -l /boot/initr*-%s.img" % self.ker_ver)[-1].split(" ")[-1]
         except Exception:
-            initrd_file = self.con.run_command("ls -l /boot/initr*-%s" % ker_ver)[-1].split(" ")[-1]
-        kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinu*-%s -l" % (initrd_file, cmdline, ker_ver)
+            initrd_file = self.con.run_command("ls -l /boot/initr*-%s" % self.ker_ver)[-1].split(" ")[-1]
+        kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinu*-%s -l" % (initrd_file, cmdline, self.ker_ver)
         self.con.run_command("grub2-mkconfig  --output=/boot/grub2/grub.cfg", timeout=30)
         self.con.run_command(kexec_cmdline)
         self.con.run_command("bind 'set enable-bracketed-paste off'")
@@ -199,7 +201,7 @@ class KernelTest(unittest.TestCase):
 class KernelBuild(KernelTest):
     """
     Does the build for any Linux repo and in case of build failure, calls build bisector 
-    from OpTestUtils to give first bad commit and related information along with email template. 
+    from OpTestUtils to give first bad commit and related information along with email template.
     """
 
     def setUp(self):
@@ -212,15 +214,6 @@ class KernelBuild(KernelTest):
         """
         Clones git repo and builds to check for failure and do bisection
         """
-        self.con.run_command("if [ -d {} ]; then rm -rf {}; fi".format(self.home,self.home))
-        self.con.run_command("if [ ! -d {} ]; then mkdir -p {}; fi".format(self.home,self.home))
-        self.con.run_command("cd {}".format(self.home))
-        if not self.branch:
-            self.branch='master' 
-        self.con.run_command("git clone -b {} {} linux".format( self.branch, self.repo),timeout=3000)
-        self.con.run_command("cd linux")
-        commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
-        self.con.run_command("cd ..")
         error = self.build_kernel()
         exit_code = error[0]
         errVal = str(error[1])
@@ -230,7 +223,7 @@ class KernelBuild(KernelTest):
         if exit_code != 0:
             entry = self.Store_loc(errVal)[-1]
             err_msg= self.util.err_message(error)
-            badCommit = commit[-1]
+            badCommit = self.commit[-1]
             if self.bisect_flag == '1':
                 log.info("STARTING BUILD_BISECTION")
                 res = self.util.build_bisector(self.linux_path, self.good_commit, self.repo)
@@ -240,10 +233,12 @@ class KernelBuild(KernelTest):
                 log.info("revert commit check is manual for now")
             else :  
                 emaili=""
-                commiti=commit[-1]
-        else :  
+                commiti=self.commit[-1]
+        else :
+             # self.boot() should be called from KernelBoot() Once the code is hardened  
              emaili=""
-             commiti=commit[-1]
+             commiti=self.commit[-1]
+             self.boot_kernel()
         with open('output.json','w') as f:
             json.dump({"exit_code":exit_code,"email":emaili,"commit": commiti,"error":entry,"err_msg":err_msg,"flag":self.bisect_flag},f)
         if exit_code != 0:
