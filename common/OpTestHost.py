@@ -830,6 +830,15 @@ class OpTestHost():
         res = self.host_run_command("lscpu --all -e| wc -l", console=console)
         return int(res[0])/(self.host_get_smt(console=console))
 
+   def host_get_online_cpus(self, console=0):
+       '''
+       Get total online cpu count
+       return : cpus
+       type: int
+       '''
+       res = self.host_run_command("lscpu --online -e | wc -l", console=console)
+       return int(res[0])-1
+
     def host_gather_debug_logs(self, console=0):
         self.host_run_command(
             "grep ',[0-4]\]' /sys/firmware/opal/msglog", console=console)
