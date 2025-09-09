@@ -223,17 +223,20 @@ class KernelBuild(KernelTest):
         if exit_code != 0:
             entry = self.Store_loc(errVal)[-1]
             err_msg= self.util.err_message(error)
-            badCommit = self.commit[-1]
-            if self.bisect_flag == '1':
-                log.info("STARTING BUILD_BISECTION")
-                res = self.util.build_bisector(self.linux_path, self.good_commit, self.repo)
-                log.info("BUILD_BISECTION ENDED")
-                emaili=res[0]
-                commiti=res[1]
-                log.info("revert commit check is manual for now")
-            else :  
-                emaili=""
-                commiti=self.commit[-1]
+            if "No space" in errVal:
+                print(f"Error contains 'No Space', skipping bisection search: {errVal}")
+            else:
+                badCommit = self.commit[-1]
+                if self.bisect_flag == '1':
+                    log.info("STARTING BUILD_BISECTION")
+                    res = self.util.build_bisector(self.linux_path, self.good_commit, self.repo)
+                    log.info("BUILD_BISECTION ENDED")
+                    emaili=res[0]
+                    commiti=res[1]
+                    log.info("revert commit check is manual for now")
+                else :  
+                    emaili=""
+                    commiti=self.commit[-1]
         else :
              emaili=""
              commiti=self.commit[-1]
