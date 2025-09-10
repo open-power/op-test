@@ -38,12 +38,14 @@ mem_resource - max memory in MB
 lpar2_name - name of destination lpar for move operation
 loop_num - number of times to run loop
 '''
+import time
 import unittest
 import logging
 import os.path
 from os import path 
 import OpTestConfiguration
 import OpTestLogger
+from testcases.grub import Grub
 from common import OpTestHMC, OpTestFSP
 from common import OpTestHMC
 from common.OpTestSystem import OpSystemState
@@ -321,33 +323,6 @@ class DlparMemExtended(OpTestDlpar, unittest.TestCase):
             self.console.run_command("rm ./smt_script")
 
 
-class Dlpar_mem_hotplu(OpTestDlpar,unittest.TestCase):
-    '''Class for DLPAR Memory Basic Tests
-       This class allows --run testcases.OpTestDlpar.DlparMemBasic
-    '''
-    def setUp(self):
-      super(Dlpar_mem_hotplug, self).setUp()
-
-    def runTest(self):
-        obj = OpTestInstallUtil.InstallUtil()
-        list1 = [0, 1, 'force']
-        for ele in list1:
-            obj.update_kernel_cmdline(
-               self.distro, 
-               args=f"memory_hotplug.memmap_on_memory={ele}",
-               reboot=True, 
-               reboot_cmd=True
-            )
-            con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-            #self.cv_SYSTEM.goto_state(OpSystemState.OS)
-            log.debug("Mem add in a loop")
-            log.debug("=================")
-            self.AddRemove("mem","-q","a",self.mem_resource)
-
-            log.debug("Mem remove in a loop")
-            log.debug("=================")
-            self.AddRemove("mem","-q","r",self.mem_resource)
-
 class Dlpar_mem_hotplug(OpTestDlpar, unittest.TestCase):
     """Class for DLPAR Memory hotplug Tests
        This class executes test cases from OpTestDlpar.DlparMemBasic.
@@ -359,12 +334,11 @@ class Dlpar_mem_hotplug(OpTestDlpar, unittest.TestCase):
 
     def setUp(self):
         super(Dlpar_mem_hotplug, self).setUp()
-
+    
     def runTest(self):
         obj = OpTestInstallUtil.InstallUtil()
 
         test_settings = [0, 1, 'force']
-
         for setting in test_settings:
             obj.update_kernel_cmdline(
                 self.distro,
@@ -372,19 +346,16 @@ class Dlpar_mem_hotplug(OpTestDlpar, unittest.TestCase):
                 reboot=True,
                 reboot_cmd=True
             )
-
             # Establish SSH connection
             con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
 
             log.debug("Memory hotplug with setting: %s", setting)
             log.debug("=================")
-
             # Add memory resource
             self.AddRemove("mem", "-q", "a", self.mem_resource)
 
-            log.debug("Memory hotplug removal with setting: %s", setting)
+            #log.debug("Memory hotplug removal with setting: %s", setting)
             log.debug("=================")
-
             # Remove memory resource
             self.AddRemove("mem", "-q", "r", self.mem_resource)
 
