@@ -830,7 +830,7 @@ class OpTestHost():
         res = self.host_run_command("lscpu --all -e| wc -l", console=console)
         return int(res[0])/(self.host_get_smt(console=console))
 
-   def host_get_online_cpus(self, console=0):
+    def host_get_online_cpus(self, console=0):
        '''
        Get total online cpu count
        return : cpus

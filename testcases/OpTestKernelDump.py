@@ -1573,6 +1573,61 @@ class KernelCrash_FadumpOffValue(OptestKernelDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
+class KernelCrash_FadumpMultiThreadCheck(OptestKernelDump):
+    """
+    Testcase will check how many threads it has been used for dump
+    """
+    def runTest(self):
+        # Step 1: Read nr_cpus from /etc/sysconfig/kdump
+        if self.distro == "sles":
+            self.skipTest("skipping the testcase for now.. Need to figure out a way to verify multithreading in sles")
+        syscfg = self.c.run_command("grep ^FADUMP_COMMANDLINE_APPEND /etc/sysconfig/kdump")
+        syscfg_str = "\n".join(syscfg).strip()
+        match = re.search(r"nr_cpus=(\d+)", syscfg_str)
+        nr_cpus = int(match.group(1))
+        log.info(f"nr_cpus from sysconfig: {nr_cpus}")
+
+        # Step 2: Get lscpu CPU count
+        lscpu_out = self.c.run_command("LC_ALL=C lscpu | grep '^CPU(s):'")
+        lscpu_str = "\n".join(lscpu_out).strip()
+        match = re.search(r"CPU\(s\):\s+(\d+)", lscpu_str)
+        lscpu_cpus = int(match.group(1))
+        log.info(f"CPU(s) from lscpu: {lscpu_cpus}")
+
+        # Step 3: Trigger crash
+        boot_type = self.kernel_crash()
+
+        # Step 4: Parse num-threads from kexec-dmesg.log
+        crash_dirs = self.c.run_command("ls -1 /var/crash")
+        crash_dirs = [d.strip() for d in crash_dirs if d.strip()]
+        latest_crashdir = sorted(crash_dirs)[-1]
+        log_path = f"/var/crash/{latest_crashdir}/kexec-dmesg.log"
+        dmesg_log = self.c.run_command(f"cat {log_path}")
+        if isinstance(dmesg_log, list):
+            dmesg_log = "\n".join(dmesg_log).strip()
+        else:
+            dmesg_log = str(dmesg_log).strip()
+        match = re.search(r"--num-threads=(\d+)", dmesg_log)
+        num_threads = int(match.group(1))
+        log.info(f"num-threads from kexec-dmesg.log: {num_threads}")
+
+        # Step 5: Validation logic
+        log.info(f"nr_cpus (from sysconfig): {nr_cpus}")
+        log.info(f"lscpu reported CPUs    : {lscpu_cpus}")
+        log.info(f"--num-threads (dmesg)  : {num_threads}")
+        if nr_cpus == lscpu_cpus:
+            log.info("Case: nr_cpus == lscpu_cpus")
+            assert num_threads == nr_cpus, f"Expected {nr_cpus}, got {num_threads}"
+        elif nr_cpus < lscpu_cpus:
+            log.info("Case: nr_cpus < lscpu_cpus (capped at nr_cpus)")
+            assert num_threads == nr_cpus, f"Expected {nr_cpus}, got {num_threads}"
+        elif nr_cpus > lscpu_cpus:
+            log.info("Case: nr_cpus > lscpu_cpus (fallback to lscpu_cpus)")
+            assert num_threads == lscpu_cpus, f"Expected {lscpu_cpus}, got {num_threads}"
+
+        log.info("FADUMP num-threads check PASSED")
+        self.c.run_command(f"rm -rf /var/crash/{latest_crashdir}; sync")
+
 
 class OpTestWatchdog(OptestKernelDump):
     '''
@@ -1887,6 +1942,7 @@ def crash_suite():
     s.addTest(KernelCrash_FadumpJunkValue())
     s.addTest(KernelCmdlineParamTest())
     s.addTest(KernelCrash_FadumpOffValue())
+    s.addTest(KernelCrash_FadumpMultiThreadCheck())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
