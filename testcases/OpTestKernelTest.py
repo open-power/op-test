@@ -73,13 +73,6 @@ class KernelTest(unittest.TestCase):
         if not (self.conf.args.host_ip and self.conf.args.host_user and self.conf.args.host_password):
             self.fail(
                 "Provide host ip user details refer, --host-{ip,user,password}")
-
-    def build_kernel(self):
-        """
-        Build and install the Linux kernel.
-        """
-        self.config_path = self.conf.args.git_repoconfigpath
-
         def is_url(path):
             '''
             param path: path to download
@@ -94,16 +87,21 @@ class KernelTest(unittest.TestCase):
         self.con.run_command("cd {}".format(self.home))
         if not self.branch:
             self.branch='master'
-        self.con.run_command("git clone -b {} {} linux".format( self.branch, self.repo),timeout=3000)
+        self.con.run_command("git clone --depth 1 -b {} {} linux".format(self.branch, self.repo),timeout=3000)
         self.con.run_command("cd linux")
-        self.commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
+        self.head_commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
         self.con.run_command("cd ..")
         if self.config_path:
             if is_url(self.config_path):
                 self.con.run_command("wget %s -O linux/.config" % self.config_path)
             else:
                 self.cv_HOST.copy_test_file_to_host(self.config_path, sourcedir="", dstdir=os.path.join(self.linux_path, ".config"))
-        self.con.run_command("cd linux && make olddefconfig", timeout=60)
+
+    def build_kernel(self):
+        """
+        Build and install the Linux kernel.
+        """
+        self.con.run_command("cd {} && make olddefconfig".format(self.linux_path), timeout=60)
         # the below part of the code is needed for only first run and will be decided bisect flag false
         self.ker_ver = self.con.run_command("make kernelrelease")[-1]
         sha = self.con.run_command("git rev-parse HEAD")
@@ -120,7 +118,7 @@ class KernelTest(unittest.TestCase):
             return 0,err
         except CommandFailed as e:
             log.error("Kernel build failed: {}".format(e))
-            return  4,e
+            return 4,e
         
     def Store_loc(self, er) :
             """
@@ -198,153 +196,111 @@ class KernelTest(unittest.TestCase):
                 log.error("Kexec failed, booted back to base kernel !")
             return True
 
-class KernelBuild(KernelTest):
-    """
-    Does the build for any Linux repo and in case of build failure, calls build bisector 
-    from OpTestUtils to give first bad commit and related information along with email template.
-    """
-
-    def setUp(self):
-        """
-        Does setup for KernelBUild from parent KernelTest
-        """
-        super(KernelBuild,self).setUp()
 
     def runTest(self):
         """
         Clones git repo and builds to check for failure and do bisection
         """
+        log.info("KERNEL BUILD STARTING")
         error = self.build_kernel()
+        bi_flag = False
         exit_code = error[0]
         errVal = str(error[1])
-        log.info("printing the exit code '{}'".format(exit_code))
+        log.info("Printing the build exit code '{}'".format(exit_code))
         entry=[]
         err_msg=[]
         if exit_code != 0:
             entry = self.Store_loc(errVal)[-1]
             err_msg= self.util.err_message(error)
-            badCommit = self.commit[-1]
             if self.bisect_flag == '1':
-                log.info("STARTING BUILD_BISECTION")
+                log.info("BUILD_BISECTION STARTED")
                 res = self.util.build_bisector(self.linux_path, self.good_commit, self.repo)
                 log.info("BUILD_BISECTION ENDED")
-                emaili=res[0]
-                commiti=res[1]
-                log.info("revert commit check is manual for now")
-            else :  
-                emaili=""
-                commiti=self.commit[-1]
-        else :
-             emaili=""
-             commiti=self.commit[-1]
-        with open('output.json','w') as f:
-            json.dump({"exit_code":exit_code,"email":emaili,"commit": commiti,"error":entry,"err_msg":err_msg,"flag":self.bisect_flag},f)
-        if exit_code != 0:
-            self.util.format_email(self.linux_path, self.repo)
-    
-    def tearDown(self):
-        self.console_thread.console_terminate()
-        self.con.close()
-
-
-class KernelBoot(KernelTest):
-
-    def setUp(self):
-        """
-        Does setup for KernelBoot from parent KernelTest
-        """
-        super(KernelBoot,self).setUp()
-
-    def runTest(self):
-        """
-        Clones git repo and boots the kernel to check for failure and do bisection
-        """
-        self.con.run_command("if [ -d {} ]; then rm -rf {}; fi".format(self.home,self.home))
-        self.con.run_command("if [ ! -d {} ]; then mkdir -p {}; fi".format(self.home,self.home))
-        self.con.run_command("cd {}".format(self.home))
-        if not self.branch:
-            self.branch='master'
-        self.con.run_command("git clone -b {} {} linux".format( self.branch, self.repo),timeout=3000)
-        self.con.run_command("cd linux")
-        commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
-        self.con.run_command("cd ..")
-        error = self.build_kernel()
-        exit_code = error[0]
-        if exit_code != 0:
-            return "Build Failure in boot, check build bisection Aborting"
-        log.info("BOOOT STARTING")
-        boot = False
-        try :
-            boot = self.boot_kernel()
-        except Exception as e:
-            log.info("EXCEPTION")
-        if not boot and self.bisect_flag == '1':
-            count = 0
-            exit_code = 4
-            local_path = os.getcwd()
-            log.info("BOOT BISECTION STARTING")
-            self.con.run_command("cd {}; make clean".format(self.linux_path), timeout=60)
-            dmessage = self.con.run_command("dmesg --color=never --level=warn")
-            subprocess.run(f"if [ -d {self.local_path} ]; then rm -rf {self.local_path}; fi", shell=True, check=True)
-            subprocess.run("git config --global http.postBuffer 1048576000", shell=True, check=True)
-            subprocess.run(f"git clone -b {self.branch} {self.repo} linux", shell=True, check=True, timeout=1800)
-            subprocess.run(f"cd {self.local_path}", shell=True, check=True)
-            try:
-                subprocess.run("git bisect start", shell=True, check=True, cwd=self.local_path)
-                subprocess.run("git bisect bad", shell=True, check=True, cwd=self.local_path)
-                folder_type=re.split(r'[\/\\.]',str(self.repo))[-2]
-                if folder_type == 'linux-next':
-                    subprocess.run("git fetch --tags" , shell=True, check=True)
-                    good_tag=subprocess.run("git tag -l 'v[0-9]*' | sort -V | tail -n 1", shell=True, check=True)
-                    subprocess.run(f"git bisect good {good_tag}", shell=True, check=True, cwd=self.local_path)
-                else:
-                    subprocess.run("pwd")
-                    subprocess.run(f"git bisect good {self.good_commit}", shell=True, check=True, cwd=self.local_path)
-                while True:
-                    log.info("ENTERED BISECTION LOOP {}".format(count))
-                    subprocess.run("git bisect next", shell=True, check=True, cwd=self.local_path)
-                    commit_to_test = subprocess.check_output("git rev-parse HEAD", shell=True, cwd=self.local_path).decode().strip()
-                    log.info(commit_to_test)
-                    self.con.run_command(" if [ '$(pwd)' != {} ]; then cd {} || exit 1 ; fi ; bind 'set enable-bracketed-paste off'".format(self.linux_path,self.linux_path))
-                    self.con.run_command("git checkout {}; git checkout {};".format(self.branch,commit_to_test))
-                    result = self.boot_kernel()
-                    count += 1
-                    if result == True:
-                        log.info("\n ------ git bisect good {} ------ \n".format(commit_to_test))
-                        subprocess.run("git bisect good", shell=True, check=True, cwd=self.local_path)
-                    else:
-                        log.info("\n ------ git bisect bad {} ------ \n".format(commit_to_test))
-                        subprocess.run("git bisect bad", shell=True, check=True, cwd=self.local_path)
-                    bilogs = []
-                    bilogs = subprocess.check_output("git bisect log", shell=True, cwd=self.local_path).decode().split('\n')
-                    biflag = False
-                    for logs in bilogs:
-                        if 'first bad commit' in logs:
-                            badCommit = commit_to_test
-                            biflag = True
-                    if biflag:
-                        break
-            except subprocess.CalledProcessError as e:
-                log.info("Error:", e)
-            finally:
-                bilogs = subprocess.run("git bisect log", shell=True, check=True, cwd=self.local_path)
-                log.info(bilogs)
-                entry = self.con.run_command("dmesg --color=never --level=warn | grep 'WARNING:'")
-                emaili =  subprocess.run("git config --global color.ui true;git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(badCommit), shell=True, check=True, cwd=self.local_path)
-                subprocess.run("git bisect reset", shell=True, check=True,cwd=self.local_path)
-                log.info("Boot Bisection Completed ! Bad Commit: {} Author: {}".format(badCommit,emaili))
-                # WRITING BOOT BISECTION DATA TO JSON AND FORMAT EMAIL FOR BOOT REPORT IS TODO 
-                #with open('output.json','w') as f:
-                #   json.dump({"exit_code":exit_code,"email":emaili,"commit": badCommit,"error":entry,"err_msg":dmessage,"flag":self.bisect_flag},f)
-                #self.util.format_email(self.linux_path, self.repo)
-        elif boot and self.bisect_flag == '1':
-            exit_code = 0
-            goodCommit = commit
-            log.info("Boot Successfull.. Updating the last good commit to json")
-            with open('output.json','w') as f:
-                json.dump({"exit_code":exit_code,"commit": goodCommit,"flag":self.bisect_flag},f)
+                AuthEmail=res[0]
+                NewBadCommit=res[1]
+                bi_flag = True
+                log.info("Please manually revert and test the bad commit")
         else:
-            log.info("BOOT FAILED, NO BISECTION SELECTED")
+            log.info("KERNEL BOOT STARTING")
+            boot = False
+            try :
+                boot = self.boot_kernel()
+            except Exception as e:
+                log.info("EXCEPTION")
+            if not boot and self.bisect_flag == '1':
+                count = 0
+                exit_code = 4
+                log.info("BOOT_BISECTION STARTED")
+                self.con.run_command("cd {}; make clean".format(self.linux_path), timeout=60)
+                shallow = self.con.run_command("git rev-parse --is-shallow-repository")
+                if shallow[-1] in [True,'true']:
+                    self.con.run_command("git fetch --unshallow",timeout=3000)
+                dmessage = self.con.run_command("dmesg --color=never --level=warn")
+                subprocess.run(f"if [ -d {self.local_path} ]; then rm -rf {self.local_path}; fi", shell=True, check=True)
+                subprocess.run("git config --global http.postBuffer 1048576000", shell=True, check=True)
+                subprocess.run(f"git clone -b {self.branch} {self.repo} linux", shell=True, check=True, timeout=1800)
+                subprocess.run(f"cd {self.local_path}", shell=True, check=True)
+                try:
+                    subprocess.run("git bisect start", shell=True, check=True, cwd=self.local_path)
+                    subprocess.run("git bisect bad", shell=True, check=True, cwd=self.local_path)
+                    folder_type=re.split(r'[\/\\.]',str(self.repo))[-2]
+                    if folder_type == 'linux-next':
+                        subprocess.run("git fetch --tags" , shell=True, check=True)
+                        good_tag=subprocess.run("git tag -l 'v[0-9]*' | sort -V | tail -n 1", shell=True, check=True)
+                        subprocess.run(f"git bisect good {good_tag}", shell=True, check=True, cwd=self.local_path)
+                    else:
+                        subprocess.run("pwd")
+                        subprocess.run(f"git bisect good {self.good_commit}", shell=True, check=True, cwd=self.local_path)
+                    while True:
+                        log.info("ENTERED BISECTION LOOP {}".format(count))
+                        subprocess.run("git bisect next", shell=True, check=True, cwd=self.local_path)
+                        commit_to_test = subprocess.check_output("git rev-parse HEAD", shell=True, cwd=self.local_path).decode().strip()
+                        log.info(commit_to_test)
+                        self.con.run_command(" if [ '$(pwd)' != {} ]; then cd {} || exit 1 ; fi ; bind 'set enable-bracketed-paste off'".format(self.linux_path,self.linux_path))
+                        self.con.run_command("git checkout {}; git checkout {};".format(self.branch,commit_to_test))
+                        res_out = self.build_kernel()
+                        exit_code = res_out[0]
+                        if exit_code != 0:
+                            log.info("Build error in boot bisection consider as good")
+                            result  = True
+                        else:
+                            result = self.boot_kernel()
+                        count += 1
+                        if result == True:
+                            log.info("\n ------ git bisect good {} ------ \n".format(commit_to_test))
+                            subprocess.run("git bisect good", shell=True, check=True, cwd=self.local_path)
+                        else:
+                            log.info("\n ------ git bisect bad {} ------ \n".format(commit_to_test))
+                            subprocess.run("git bisect bad", shell=True, check=True, cwd=self.local_path)
+                        bilogs = []
+                        bilogs = subprocess.check_output("git bisect log", shell=True, cwd=self.local_path).decode().split('\n')
+                        for logs in bilogs:
+                            if 'first bad commit' in logs:
+                                NewBadCommit = commit_to_test
+                                bi_flag = True
+                            if bi_flag:
+                                break
+                except subprocess.CalledProcessError as e:
+                    log.info("Error:", e)
+                finally:
+                    bilogs = subprocess.run("git bisect log", shell=True, check=True, cwd=self.local_path)
+                    log.info(bilogs)
+                    entry = self.con.run_command("dmesg --color=never --level=warn | grep 'WARNING:'")
+                    AuthEmail =  subprocess.run("git config --global color.ui true;git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(badCommit), shell=True, check=True, cwd=self.local_path)
+                    subprocess.run("git bisect reset", shell=True, check=True,cwd=self.local_path)
+                    log.info("Boot Bisection Completed ! Bad Commit: {} Author: {}".format(NewBadCommit, AuthEmail))
+            elif boot and self.bisect_flag == '1':
+                exit_code = 0
+                self.bisect_flag = 0
+                NewGoodCommit = self.head_commit[0]
+                log.info("Boot Successfull.. Updating the last good commit to json")
+        if bi_flag:
+            with open('output.json','w') as f:
+                json.dump({"exit_code":exit_code,"email":AuthEmail,"commit": NewBadCommit,"error":entry,"err_msg":err_msg,"flag":self.bisect_flag},f)
+                self.util.format_email(self.linux_path, self.repo)
+        else:
+            with open('output.json','w') as f:
+                json.dump({"exit_code":exit_code,"commit": NewGoodCommit, "flag":self.bisect_flag},f)
 
     def tearDown(self):
         self.console_thread.console_terminate()
