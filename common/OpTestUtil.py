@@ -2400,7 +2400,7 @@ class OpTestUtil():
         if folder_type == 'linux-next':
             connection.host_run_command("git fetch --tags")
             good_tag=connection.host_run_command("git tag -l 'v[0-9]*' | sort -V | tail -n 1")
-            connection.host_run_command("git bisect good {} ".format(good_tag))
+            connection.host_run_command("git bisect good {} ".format(good_tag[0]))
         else:
             connection.host_run_command("git bisect good {} ".format(good_commit))
         connection.host_run_command(" git bisect bad ")
