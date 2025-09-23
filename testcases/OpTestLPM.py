@@ -146,7 +146,10 @@ class OpTestLPM(unittest.TestCase):
                 pkg_notfound.append(pkg)
         if pkg_found:
             return True
-        raise OpTestError("Install the required packages : %s" % pkg_notfound)
+        if pkg_notfound:
+            self.util.install_distro_packages(pkg_notfound)
+            
+        #raise OpTestError("Install the required packages : %s" % pkg_notfound)
 
     def lpm_setup(self):
         try:
@@ -379,6 +382,7 @@ class OpTestLPM_LocalHMC(OpTestLPM):
             raise OpTestError("Test failed. {}".format(err))
 
     def runTest(self):
+        self.check_pkg_installation()
         self.lpar_migrate_test()
 
     def tearDown(self):

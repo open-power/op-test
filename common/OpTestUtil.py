@@ -2276,6 +2276,33 @@ class OpTestUtil():
         res = self.get_distro_details()
         return res.get('VERSION_ID')[0].strip("\"") 
 
+    def install_distro_packages(self, packages):
+        '''
+        Install the packages from the package list
+        Generate a command specific to distro and 
+        use it to run the non interactive command 
+        which will install the package list.
+        '''
+        if not packages:
+            log.info("No packages to install.")
+
+        host = self.conf.host()
+        distro_name = self.get_distro_details().get('ID')[0].strip("\"")
+        if distro_name  == 'rhel':
+            cmd = "yum install -y " + " ".join(packages)
+        elif distro_name == "sles":
+            cmd = "zypper --non-interactive install -y "+ " ".join(packages)+" ;echo $?"
+        else:
+            raise ValueError(f"Unsupported distribution: {distro_name}")
+
+        try:
+            result = host.host_run_command(cmd)
+            status = result[-1].strip().split('\n')
+            if status[0] != 0:
+                raise OpTestError(f"Unable to install package: {packages}")
+        except CommandFailed as cf:
+            log.debug("Failed to install packages required for the test CommandFailed={}".format(cf)) 
+        
     def get_distro_src(self, package, dest_path, build_option=None, pack_dir=None):
         
         '''
