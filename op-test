@@ -665,6 +665,9 @@ class OSdumpSuite():
         self.s.addTest(OpTestKernelDump.KernelCrash_disable_radix())
         self.s.addTest(OpTestKernelDump.KernelCrash_KdumpPMEM())
         self.s.addTest(OpTestKernelDump.KernelCrash_FadumpNocma())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpJunkValue())
+        self.s.addTest(OpTestKernelDump.KernelCmdlineParamTest())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpOffValue())
         self.s.addTest(OpTestKernelDump.OpTestMakedump())
 
     def suite(self):
@@ -727,6 +730,9 @@ class OSdumpfadumpSuite():
         self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
         self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
         self.s.addTest(OpTestKernelDump.KernelCrash_FadumpNocma())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpJunkValue())
+        self.s.addTest(OpTestKernelDump.KernelCmdlineParamTest())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpOffValue())
 
     def suite(self):
         return self.s
