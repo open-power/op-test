@@ -1242,6 +1242,78 @@ class KernelCrash_disable_radix(OptestKernelDump):
         else:
             raise self.skipTest("Hash MMU detected, skipping the test")
 
+
+class KernelCrash_KdumpMultiThreadCheck(OptestKernelDump):
+    """
+    Testcase will check how many threads it has been used for dump
+    """
+    def get_nr_cpus(self):
+        """Helper to extract nr_cpus value from KDUMP_COMMANDLINE_APPEND."""
+        syscfg = self.c.run_command("grep ^KDUMP_COMMANDLINE_APPEND /etc/sysconfig/kdump")
+        syscfg_str = "\n".join(syscfg).strip()
+        match = re.search(r"nr_cpus=(\d+)", syscfg_str)
+        if not match:
+            self.fail("nr_cpus parameter not found in KDUMP_COMMANDLINE_APPEND")
+        return int(match.group(1))
+
+    def runTest(self):
+        if self.distro == "sles":
+            self.skipTest("skipping the testcase for now.. Need to figure out a way to verify multithreading in sles")
+        nr_cpus = self.get_nr_cpus()
+        log.info(f"Current nr_cpus: {nr_cpus}")
+        if nr_cpus != 16:
+            self.c.run_command(
+            r'sed -i "s/\(KDUMP_COMMANDLINE_APPEND=\"[^\"]*\)nr_cpus=[^ ]*/\1nr_cpus=16/" /etc/sysconfig/kdump')
+            self.c.run_command("kdumpctl restart", timeout=120)
+
+            nr_cpus = self.get_nr_cpus()
+            log.info(f"Updated nr_cpus: {nr_cpus}")
+
+            if nr_cpus != 16:
+                self.fail("Failed to update nr_cpus to 16 in KDUMP_COMMANDLINE_APPEND")
+
+        # Step 2: Get lscpu CPU count
+        lscpu_out = self.c.run_command("LC_ALL=C lscpu | grep '^CPU(s):'")
+        lscpu_str = "\n".join(lscpu_out).strip()
+        match = re.search(r"CPU\(s\):\s+(\d+)", lscpu_str)
+        lscpu_cpus = int(match.group(1))
+        log.info(f"CPU(s) from lscpu: {lscpu_cpus}")
+
+        # Step 3: Trigger crash
+        boot_type = self.kernel_crash()
+
+        # Step 4: Parse num-threads from kexec-dmesg.log
+        crash_dirs = self.c.run_command("ls -1 /var/crash")
+        crash_dirs = [d.strip() for d in crash_dirs if d.strip()]
+        latest_crashdir = sorted(crash_dirs)[-1]
+        log_path = f"/var/crash/{latest_crashdir}/kexec-dmesg.log"
+        dmesg_log = self.c.run_command(f"cat {log_path}")
+        if isinstance(dmesg_log, list):
+            dmesg_log = "\n".join(dmesg_log).strip()
+        else:
+            dmesg_log = str(dmesg_log).strip()
+        match = re.search(r"--num-threads=(\d+)", dmesg_log)
+        num_threads = int(match.group(1))
+        log.info(f"num-threads from kexec-dmesg.log: {num_threads}")
+
+        # Step 5: Validation logic
+        log.info(f"nr_cpus (from sysconfig): {nr_cpus}")
+        log.info(f"lscpu reported CPUs    : {lscpu_cpus}")
+        log.info(f"--num-threads (dmesg)  : {num_threads}")
+        if nr_cpus == lscpu_cpus:
+            log.info("Case: nr_cpus == lscpu_cpus")
+            assert num_threads == nr_cpus, f"Expected {nr_cpus}, got {num_threads}"
+        elif nr_cpus < lscpu_cpus:
+            log.info("Case: nr_cpus < lscpu_cpus (capped at nr_cpus)")
+            assert num_threads == nr_cpus, f"Expected {nr_cpus}, got {num_threads}"
+        elif nr_cpus > lscpu_cpus:
+            log.info("Case: nr_cpus > lscpu_cpus (fallback to lscpu_cpus)")
+            assert num_threads == lscpu_cpus, f"Expected {lscpu_cpus}, got {num_threads}"
+
+        log.info("KDUMP num-threads check PASSED")
+        self.c.run_command(f"rm -rf /var/crash/{latest_crashdir}; sync")
+
+
 class OpTestMakedump(OptestKernelDump):
     '''
     function will trigger crash kernel and  run the makedumpfile on collected vmcore
@@ -1926,6 +1998,7 @@ def crash_suite():
     s.addTest(KernelCrash_XIVE_off())
     s.addTest(KernelCrash_disable_radix())
     s.addTest(KernelCrash_KdumpPMEM())
+    s.addTest(KernelCrash_KdumpMultiThreadCheck())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
