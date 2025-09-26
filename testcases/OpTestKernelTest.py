@@ -82,7 +82,7 @@ class KernelTest(unittest.TestCase):
             if urlparse(path).scheme in valid_schemes:
                 return True
             return False
-        self.con.run_command("if [ -d {} ]; then rm -rf {}; fi".format(self.home,self.home))
+        self.con.run_command("if [ -d {} ]; then rm -rf {}; fi".format(self.home,self.home),timeout=600)
         self.con.run_command("if [ ! -d {} ]; then mkdir -p {}; fi".format(self.home,self.home))
         self.con.run_command("cd {}".format(self.home))
         if not self.branch:
