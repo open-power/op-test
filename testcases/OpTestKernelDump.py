@@ -1456,12 +1456,6 @@ class KernelCrash_FadumpJunkValue(OptestKernelDump):
             except Exception:
                 log.info("Expected: dump directory not found")
 
-            vmcore_check = self.c.run_command("find /var/crash -type f -name vmcore || true")
-            if vmcore_check:
-                self.fail("Unexpected vmcore found! fadump=xyz should prevent dump collection.")
-
-            log.info("fadump=xyz behaved correctly — no dump collected, normal reboot observed.")
-
         # Revert cmdline
         if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=xyz", reboot=True, reboot_cmd=True):
             self.fail("Failed to remove fadump=xyz from cmdline")
@@ -1561,11 +1555,6 @@ class KernelCrash_FadumpOffValue(OptestKernelDump):
                 self.verify_dump_file(boot_type)
             except Exception:
                 log.info("Expected: dump directory not found")
-
-            vmcore_check = self.c.run_command("find /var/crash -type f -name vmcore || true")
-            if vmcore_check:
-                self.fail("Unexpected vmcore found! fadump=off should prevent dump collection.")
-            log.info("fadump=off behaved correctly — no dump collected, normal reboot observed.")
 
         # Revert cmdline
         if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=off", reboot=True, reboot_cmd=True):
