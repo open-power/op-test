@@ -663,7 +663,10 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
                 self.fail("KernelArgTest failed to update kernel args")
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
-            self.c.run_command("sed -i '/KDUMP_FADUMP=\"no\"/c\KDUMP_FADUMP=\"yes\"' /etc/sysconfig/kdump")
+            if self.version == "16":
+                self.c.run_command("sed -i '/KDUMP_FADUMP=\"false\"/c\KDUMP_FADUMP=\"true\"' /etc/sysconfig/kdump")
+            else:
+                self.c.run_command("sed -i '/KDUMP_FADUMP=\"no\"/c\KDUMP_FADUMP=\"yes\"' /etc/sysconfig/kdump")
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             self.c.run_command("mkdumprd -f", timeout=120)
             self.c.run_command("update-bootloader --refresh")
@@ -725,7 +728,10 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
                     self.fail("KernelArgTest failed to update kernel args")
             elif self.distro == "sles":
                 self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
-                self.c.run_command("sed -i '/KDUMP_FADUMP=\"yes\"/c\KDUMP_FADUMP=\"no\"' /etc/sysconfig/kdump")
+                if self.version == "16":
+                    self.c.run_command("sed -i '/KDUMP_FADUMP=\"true\"/c\KDUMP_FADUMP=\"false\"' /etc/sysconfig/kdump")
+                else:
+                    self.c.run_command("sed -i '/KDUMP_FADUMP=\"yes\"/c\KDUMP_FADUMP=\"no\"' /etc/sysconfig/kdump")
                 self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
                 self.c.run_command("mkdumprd -f", timeout=120)
                 self.c.run_command("update-bootloader --refresh")
