@@ -42,6 +42,8 @@ class OpTestSysinfo():
             self.config_actions = yaml.safe_load(file)
             list_of_commands = self.config_actions["LINUX"]["COMMANDS"]
             get_HMCconfig_cmds  = self.config_actions["HMC"]["COMMANDS"]
+            get_IOconfig_cmds  = self.config_actions["IO"]["COMMANDS"]
+            get_KVMconfig_cmds  = self.config_actions["KVM"]["COMMANDS"]
 
     def get_OSconfig(self, pty, prompt):
         # Collect config related data from the OS
@@ -70,4 +72,33 @@ class OpTestSysinfo():
                     output = pty.run_command(each_cmd)
                 except Exception as e:
                           print('command failed due to system error')
-
+    def get_IOconfig(self, pty, prompt,CEC_name,LPAR):
+        # Collect config data from HMC
+        ################ IO INFO ####################
+        #lpar_name = pty.run_command("lparstat -i | awk -F: '/Partition Name/ {print $2}' | xargs").strip()
+        get_HMCconfig_cmds  = self.config_actions["IO"]["COMMANDS"]
+        for index, each_cmd in enumerate(get_HMCconfig_cmds, start=0):
+             if re.search(r'SYS|LPAR_NAME', each_cmd):
+                new_cmd = each_cmd
+                # Replace placeholders
+                new_cmd = re.sub(r'SYS', CEC_name, new_cmd)
+                new_cmd = re.sub(r'LPAR_NAME', LPAR, new_cmd)
+                try:
+                   output = pty.run_command(new_cmd)
+                except Exception as e:
+                   print('command failed due to system error')
+             else:
+                try:
+                    output = pty.run_command(each_cmd)
+                except Exception as e:
+                          print('command failed due to system error') 
+    def get_KVMconfig(self, pty, prompt):
+        # Collect config related data from the OS
+        try:
+            list_of_commands = self.config_actions["KVM"]["COMMANDS"]
+            print("########### KVM info ########")
+            for index, each_cmd in enumerate(list_of_commands, start=0):
+                pty.sendline(each_cmd)
+                rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+        except CommandFailed as cf:
+            raise cf 
