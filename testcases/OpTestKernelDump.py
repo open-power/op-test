@@ -1494,7 +1494,11 @@ class KernelCmdlineParamTest(OptestKernelDump):
 
         # Step 3: Restart kdump service
         try:
-            self.cv_HOST.host_run_command("systemctl restart kdump.service")
+            if self.distro == "sles":
+                self.cv_HOST.host_run_command("systemctl restart kdump.service")
+            else:
+                self.cv_HOST.host_run_command("kdumpctl rebuild")
+                self.cv_HOST.host_run_command("kdumpctl restart")
         except CommandFailed as e:
             self.fail(f"Failed to restart kdump.service: {e}")
 
