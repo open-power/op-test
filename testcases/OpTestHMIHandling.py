@@ -94,6 +94,19 @@ class OpTestHMIHandling(unittest.TestCase):
 
         log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(
                 self.cpu, self.revision))
+        elif self.cpu in ["POWER8", "POWER8E", "POWER8NVL"]:
+            self.revision = ''.join(self.cv_HOST.host_run_command("grep '^revision' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/ (.*)//;'", console=1))
+            if not self.revision in ["1.0", "2.0", "2.1"]:
+                log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
+                           .format(self.cpu, self.revision))
+                raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
+                                         .format(self.cpu, self.revision))
+        else:
+            log.debug("Skipping, HMIHandling NOT supported on CPU={} Revision={}"
+                        .format(self.cpu, self.revision))
+            raise unittest.SkipTest("HMIHandling not supported on CPU={} Revision={}"
+                                     .format(self.cpu, self.revision))
+        log.debug("Setting up to run HMIHandling on CPU={} Revision={}".format(self.cpu, self.revision))
 
     def clear_stop(self):
         self.cv_SYSTEM.stop = 0
