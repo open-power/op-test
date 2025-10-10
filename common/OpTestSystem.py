@@ -72,6 +72,20 @@ class OpSystemState():
     UNKNOWN_BAD = 8  # special case, use set_state to place system in hold for later goto
 
 
+    table_strings = {'UNKNOWN' : UNKNOWN,
+                     'OFF' : OFF,
+                     'IPLing' : IPLing,
+                     'PETITBOOT' : PETITBOOT,
+                     'PETITBOOT_SHELL' : PETITBOOT_SHELL,
+                     'BOOTING' : BOOTING,
+                     'OS' : OS,
+                     'POWERING_OFF' : POWERING_OFF,
+                     'UNKNOWN_BAD' : UNKNOWN_BAD,
+                     }
+    table_string = ""
+    for i in sorted(table_strings.values()):
+        table_string = table_string + list(table_strings.keys())[list(table_strings.values())[i]] + "=" + str(i) + " "
+
 class OpTestSystem(object):
 
     # Initialize this object
@@ -373,11 +387,13 @@ class OpTestSystem(object):
         if (self.state == OpSystemState.UNKNOWN):
             log.debug(
                 "OpTestSystem CHECKING CURRENT STATE and TRANSITIONING for TARGET STATE: %s" % (state))
+            log.debug(" *** {}".format(OpSystemState.table_string))
             self.state = self.run_DETECT(state)
             log.debug("OpTestSystem CURRENT DETECTED STATE: %s" % (self.state))
 
         log.debug("OpTestSystem START STATE: %s (target %s)" %
                   (self.state, state))
+        log.debug(" *** {}".format(OpSystemState.table_string))
         never_unknown = False
         while 1:
             if self.stop == 1:
@@ -393,6 +409,7 @@ class OpTestSystem(object):
                 self.util.clear_state(self)
                 self.previous_state = self.state
             log.debug("OpTestSystem TRANSITIONED TO: %s" % (self.state))
+            log.debug(" *** {}".format(OpSystemState.table_string))
             if self.state == state:
                 break
             if never_unknown and self.state == OpSystemState.UNKNOWN:
@@ -588,14 +605,15 @@ class OpTestSystem(object):
             else:
                 x += 1
                 log.debug("\n *** WaitForIt CURRENT STATE \"{:02}\" TARGET STATE \"{:02}\"\n"
+                          " *** {}\n"
                           " *** WaitForIt working on transition\n"
                           " *** Expect Buffer ID={}\n"
                           " *** Current loop iteration \"{:02}\"             - Reconnect attempts \"{:02}\" - loop_max \"{:02}\"\n"
                           " *** WaitForIt timeout interval \"{:02}\" seconds - Stale buffer check every \"{:02}\" times\n"
                           " *** WaitForIt variables \"{}\"\n"
                           " *** WaitForIt Refresh=\"{}\" Buffer Kicker=\"{}\" - Kill Cord=\"{:02}\"\n".format(self.state, self.target_state,
-                                                                                                              hex(id(
-                                                                                                                  sys_pty)), x, reconnect_count, kwargs['loop_max'], kwargs['timeout'], kwargs['threshold'],
+                                                                                                              OpSystemState.table_string,
+                                                                                                              hex(id(sys_pty)), x, reconnect_count, kwargs['loop_max'], kwargs['timeout'], kwargs['threshold'],
                                                                                                               sorted(kwargs['expect_dict'].keys()), kwargs['refresh'], kwargs['buffer_kicker'], self.kill_cord))
             if (x >= kwargs['loop_max']):
                 if kwargs['last_try']:
