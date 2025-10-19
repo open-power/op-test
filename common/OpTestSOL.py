@@ -93,6 +93,14 @@ class OpSOLMonitorThread(threading.Thread):
                 self.c.expect("\n", timeout=60)
             except pexpect.TIMEOUT:
                 pass
+            except OSError as e:
+                # File descriptor closed (reboot / rmvterm)
+                print(f"[OpTestSOL] Console closed: {e}, stopping SOL thread.")
+                break
+            except Exception as e:
+                # Catch-all for any other console errors
+                print(f"[OpTestSOL] Unexpected error in SOL thread: {e}, stopping.")
+                break
             except pexpect.EOF:
                 self.c.close()
                 self.c = self.system.console.get_console()
