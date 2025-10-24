@@ -214,6 +214,7 @@ class KernelTest(unittest.TestCase):
             err_msg= self.util.err_message(error)
             if ("No Space" in str(msg) for msg in err_msg):
                  log.error("Error: No Space left on device. Exiting script.")
+                 sys.exit(4)
             if self.bisect_flag == '1':
                 log.info("BUILD_BISECTION STARTED")
                 res = self.util.build_bisector(self.linux_path, self.good_commit, self.repo)
