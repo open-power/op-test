@@ -274,7 +274,10 @@ class OptestKernelDump(unittest.TestCase):
             self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}-\d{2}', x), self.crash_content))
         else:
             self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
-        if len(self.crash_content):
+        if not self.crash_content:
+            raise OpTestError("Dump directory not created")
+        # We'll use try...finally to guarantee cleanup
+        try:
             if dump_place == "net":
                 #if user is not root, cannot copy/list vmcore files due to permission issue, because the owner of vmcore dir will be root.
                 if self.dump_server_user == 'root':
@@ -304,11 +307,10 @@ class OptestKernelDump(unittest.TestCase):
             if boot_type == BootType.MPIPL:
                 self.c.run_command("ls /var/crash/%s/opalcore*" %
                                    self.crash_content[0])
-        else:
-            msg = "Dump directory not created"
-            raise OpTestError(msg)
-        if self.dump_server_user == 'root':
-            self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
+        finally:
+            if dump_place == "local" and self.dump_server_user == 'root':
+                log.info("Cleaning up crash directory /var/crash/%s" % self.crash_content[0])
+                self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
 
     def verify_fadump_reg(self):
         '''
