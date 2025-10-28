@@ -77,10 +77,11 @@ class SecvarctlTest(unittest.TestCase):
             log.info("secvarctl cloned successfully")
 
             self.build_path = os.path.join(self.home, "secvarctl")
-            self.connection.run_command("cd {} && mkdir -p build && cd build".format(self.build_path))
-            self.connection.run_command("cmake ../")
-            self.connection.run_command("make")
-            self.connection.run_command("cd {} && make check".format(self.build_path))
+            # Combine commands to maintain directory context in the same shell session
+            self.connection.run_command("cd {} && mkdir -p build && cd build && cmake ../".format(self.build_path))
+            self.connection.run_command("cd {}/build && make".format(self.build_path))
+            # Create bin directory and symlink for guest_generate_testdata.py
+            self.connection.run_command("cd {} && mkdir -p bin && ln -sf ../build/secvarctl bin/secvarctl-dbg".format(self.build_path))
         except Exception as e:
             # Log any errors that occur
             self.fail("An error occurred : {}".format(str(e)))
@@ -96,8 +97,7 @@ class SecvarctlTest(unittest.TestCase):
 
     def run_secvar_test(self):
         try:
-            self.connection.run_command("cd {}".format(self.build_path))
-            self.connection.run_command("make check")
+            self.connection.run_command("cd {}/build && ctest --output-on-failure".format(self.build_path))
         except Exception as e:
             # Log any errors that occur
             self.fail("An error occurred : {}".format(str(e)))
