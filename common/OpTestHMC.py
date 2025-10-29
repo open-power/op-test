@@ -1138,9 +1138,19 @@ class HMCConsole(HMCUtil):
         self.pty = self.get_console()
         self.pty.set_system(system)
         log.info("Collecting OS sysinfo")
-        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
+        self.sysinfo.get_config(self.pty, self.expect_prompt,self.mg_system,self.lpar_name,'LINUX')
         log.info("Collecting HMC details")
-        self.sysinfo.get_HMCconfig(self.ssh, self.expect_prompt,self.mg_system)
+        self.sysinfo.get_config(self.ssh, self.expect_prompt,self.mg_system,self.lpar_name,'HMC')
+        log.info("Collecting IO details")
+        self.sysinfo.get_config(self.ssh, self.expect_prompt,self.mg_system,self.lpar_name,'IO')
+        log.info("Collecting KVM info")
+        self.sysinfo.get_config(self.pty, self.expect_prompt,self.mg_system,self.lpar_name,'KVM')
+        log.info("Collecting BMC_or_FSP info")
+        self.sysinfo.get_config(self.pty, self.expect_prompt,self.mg_system,self.lpar_name,'BMC_or_FSP')
+        log.info("Collecting VIOS info")
+        self.sysinfo.get_config(self.pty, self.expect_prompt,self.mg_system,self.lpar_name,'VIOS')
+        log.info("Collecting FS info")
+        self.sysinfo.get_config(self.pty, self.expect_prompt,self.mg_system,self.lpar_name,'FS')
 
     def get_host_console(self):
         '''
