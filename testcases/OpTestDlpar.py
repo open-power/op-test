@@ -38,12 +38,14 @@ mem_resource - max memory in MB
 lpar2_name - name of destination lpar for move operation
 loop_num - number of times to run loop
 '''
+import time
 import unittest
 import logging
 import os.path
 from os import path 
 import OpTestConfiguration
 import OpTestLogger
+from testcases.grub import Grub
 from common import OpTestHMC, OpTestFSP
 from common import OpTestHMC
 from common.OpTestSystem import OpSystemState
@@ -51,10 +53,15 @@ from common.OpTestConstants import OpTestConstants as BMC_CONST
 from random import randint
 from common.OpTestSystem import OpSystemState
 from common.OpTestSOL import OpSOLMonitorThread
+from common import OpTestInstallUtil
+from common.OpTestUtil import OpTestUtil
+ 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 class OpTestDlpar(unittest.TestCase):
    def setUp(self):
       conf = OpTestConfiguration.conf
+      self.op_test_util = OpTestUtil(conf)
+      self.distro = self.op_test_util.distro_name()
       self.cv_SYSTEM = conf.system()
       self.console = self.cv_SYSTEM.console
       conf = OpTestConfiguration.conf
@@ -314,6 +321,42 @@ class DlparMemExtended(OpTestDlpar, unittest.TestCase):
         if (path.exists(smt_script) != 1):
             log.debug("Deleting smt script")
             self.console.run_command("rm ./smt_script")
+
+
+class DlparMemHotplug(OpTestDlpar, unittest.TestCase):
+    """Class for DLPAR Memory hotplug Tests
+       This class executes test cases from OpTestDlpar.DlparMemBasic.
+       
+       Step 1 : memory_hotplug.memmap_on_memory=0 * test dlpar memory add, memory remove
+       Step 2 : memory_hotplug.memmap_on_memory=1 * test dlpar memory add, memory remove
+       Step 3 : memory_hotplug.memmap_on_memory=force * test dlpar memory add, memory remove
+    """
+    def setUp(self):
+        super(DlparMemHotplug, self).setUp()
+    
+    def runTest(self):
+        OpIUobj = OpTestInstallUtil.InstallUtil()
+        test_settings = [0,1,'force']
+        for setting in test_settings:
+            OpIUobj.update_kernel_cmdline(
+                self.distro,
+                args=f"memory_hotplug.memmap_on_memory={setting}",
+                reboot=True,
+                reboot_cmd=True
+            )
+            # Establish SSH connection
+            con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            log.debug("Memory hotplug with setting: %s", setting)
+            log.debug("=================")
+            # Add memory resource
+            self.AddRemove("mem", "-q", "a", self.mem_resource)
+            log.debug("Memory hotplug removal with setting: %s", setting)
+            log.debug("=================")
+            # Remove memory resource
+            self.AddRemove("mem", "-q", "r", self.mem_resource)
+        log.debug("Remove Memory hotplug as part of cleanup with setting: %s", setting)
+        OpIUobj.update_kernel_cmdline(self.distro, remove_args=f"memory_hotplug.memmap_on_memory={setting}",
+                                                 reboot=True, reboot_cmd=True)
 
 def tearDown(self):
     self.console_thread.console_terminate()
