@@ -308,7 +308,7 @@ class OptestKernelDump(unittest.TestCase):
                 self.c.run_command("ls /var/crash/%s/opalcore*" %
                                    self.crash_content[0])
         finally:
-            if dump_place == "local" and self.dump_server_user == 'root':
+            if self.dump_server_user == 'root':
                 log.info("Cleaning up crash directory /var/crash/%s" % self.crash_content[0])
                 self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
 
@@ -1327,8 +1327,10 @@ class OpTestMakedump(OptestKernelDump):
         obj = OpTestInstallUtil.InstallUtil()
         obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
                                   reboot=True, reboot_cmd=True)
+        self.setup_test()
         self.kernel_crash()
         self.makedump_check()
+        self.verify_dump_file(boot_type)
 
 
 class KernelCrash_KdumpPMEM(OptestKernelDump):
