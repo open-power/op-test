@@ -764,6 +764,7 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
         if self.is_lpar:
+            self.setup_test()
             log.info("========= Testing kdump with HMC dumprestart ===========")
             boot_type = self.kernel_crash(crash_type="hmc")
             self.verify_dump_file(boot_type)
