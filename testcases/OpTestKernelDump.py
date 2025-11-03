@@ -1329,7 +1329,7 @@ class OpTestMakedump(OptestKernelDump):
         obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
                                   reboot=True, reboot_cmd=True)
         self.setup_test()
-        self.kernel_crash()
+        boot_type = self.kernel_crash()
         self.makedump_check()
         self.verify_dump_file(boot_type)
 
