@@ -120,7 +120,7 @@ class LcovGatherData(LcovSetup):
         #below is the new command as work around and we need to get this with appropriate fix
         info_cmd = f'lcov -o {info_file_path} -c -f -d {gcov_src_path} -b {src_path} --ignore-errors inconsistent,negative,mismatch' 
         self.c.run_command(info_cmd, timeout=self.host_cmd_timeout)
-        html_cmd = f'genhtml -o {temp_dir} {info_file_path}'
+        html_cmd = f'genhtml -o {temp_dir} {info_file_path} --ignore-errors inconsistent'
         self.c.run_command(html_cmd, timeout=self.host_cmd_timeout)
         curr_dir = os.getcwd()
         log.info(f"\n\ncurrent_dir={curr_dir}, \ncreating dir here now")
