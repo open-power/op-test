@@ -40,34 +40,30 @@ class OpTestSysinfo():
     def __init__(self):
         with open(config_file, "r") as file:
             self.config_actions = yaml.safe_load(file)
-            list_of_commands = self.config_actions["LINUX"]["COMMANDS"]
-            get_HMCconfig_cmds  = self.config_actions["HMC"]["COMMANDS"]
-
-    def get_OSconfig(self, pty, prompt):
-        # Collect config related data from the OS
-        try:
-            list_of_commands = self.config_actions["LINUX"]["COMMANDS"]
-            print("########### OS Sysinfo ########")
-            for index, each_cmd in enumerate(list_of_commands, start=0):
-                pty.sendline(each_cmd)
-                rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-        except CommandFailed as cf:
-            raise cf
-
-    def get_HMCconfig(self, pty, prompt,CEC_name):
-        # Collect config data from HMC
-        ################ HMC INFO ####################
-        get_HMCconfig_cmds  = self.config_actions["HMC"]["COMMANDS"]
-        for index, each_cmd in enumerate(get_HMCconfig_cmds, start=0):
-             if re.search('SYS', each_cmd):
-                 new_cmd=re.sub('SYS',CEC_name,each_cmd)
-                 try:
-                   output = pty.run_command(new_cmd)
-                 except Exception as e: 
+    
+    def get_config(self, pty,prompt,CEC_name,LPAR,action_name):
+        # Collect config data based on action_name
+        get_config_cmds  = self.config_actions[action_name]["COMMANDS"]
+        for index, each_cmd in enumerate(get_config_cmds, start=0):
+             if re.search(r'SYS|LPAR_NAME', each_cmd):
+                new_cmd=each_cmd
+                # Replace placeholders
+                new_cmd = re.sub(r'SYS', CEC_name, new_cmd)
+                new_cmd = re.sub(r'LPAR_NAME', LPAR, new_cmd)
+                try:
+                    if action_name in ['HMC', 'IO']:
+                        output = pty.run_command(new_cmd)
+                    else:
+                        pty.sendline(new_cmd)
+                        rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                except Exception as e:
                    print('command failed due to system error')
              else:
                 try:
-                    output = pty.run_command(each_cmd)
+                    if action_name == 'HMC':
+                        output = pty.run_command(each_cmd)
+                    else:
+                        pty.sendline(each_cmd)
+                        rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
                 except Exception as e:
-                          print('command failed due to system error')
-
+                    print('command failed due to system error')
