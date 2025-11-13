@@ -2276,6 +2276,83 @@ class OpTestUtil():
         res = self.get_distro_details()
         return res.get('VERSION_ID')[0].strip("\"") 
 
+    def install_package(self, packages):
+        '''
+        Install the packages from the package list
+        Generate a command specific to distro and 
+        use it to run the non interactive command 
+        which will install the package list.
+        '''
+        if not packages:
+            log.info("No packages to install.")
+
+        host = self.conf.host()
+        distro_name = self.get_distro_details().get('ID')[0].strip("\"")
+        if distro_name  == 'rhel':
+            cmd = "yum install -y " + " ".join(packages)
+        elif distro_name == "sles":
+            cmd = "zypper --non-interactive install -y "+ " ".join(packages)+" ;echo $?"
+        else:
+            raise ValueError(f"Unsupported distribution: {distro_name}")
+
+        try:
+            result = host.host_run_command(cmd)
+            status = result[-1].strip().split('\n')
+            if status[0] != 0:
+                raise OpTestError(f"Unable to install package: {packages}")
+        except CommandFailed as cf:
+            log.debug("Failed to install packages required for the test CommandFailed={}".format(cf))
+
+    def check_package(self, packages):
+        '''
+        Check if a package from the packages list is installed 
+        on the OS.
+        '''
+        if not packages:
+            log.info("No packages to check.")
+            return
+
+        host = self.conf.host()
+        distro_name = self.get_distro_details().get('ID')[0].strip("\"")
+        if distro_name  == 'rhel':
+            cmd = "rpm -q " + " ".join(packages)
+        elif distro_name == "sles":
+            cmd = "rpm -q " + " ".join(packages)
+        else:
+            raise ValueError(f"Unsupported distribution: {distro_name}")
+        
+        try:
+            result = host.host_run_command(cmd)
+            log.info(f"Package check result: {result}")
+        except CommandFailed as cf:
+            log.debug("Package check failed CommandFailed={}".format(cf))
+
+    def uninstall_package(self, packages):
+        '''
+        Uninstall the packages from the package list.
+        '''
+        if not packages:
+            log.info("No packages to uninstall.")
+            return
+
+        host = self.conf.host()
+        distro_name = self.get_distro_details().get('ID')[0].strip("\"")
+
+        if distro_name == 'rhel':
+            cmd = "yum remove -y " + " ".join(packages)
+        elif distro_name == "sles":
+            cmd = "zypper --non-interactive remove -y " + " ".join(packages) + " ;echo $?"
+        else:
+            raise ValueError(f"Unsupported distribution: {distro_name}")
+
+        try:
+            result = host.host_run_command(cmd)
+            status = result[-1].strip().split('\n')
+            if status[0] != 0:
+                raise OpTestError(f"Unable to uninstall package: {packages}")
+        except CommandFailed as cf:
+            log.debug("Failed to uninstall packages CommandFailed={}".format(cf))
+        
     def get_distro_src(self, package, dest_path, build_option=None, pack_dir=None):
         
         '''
