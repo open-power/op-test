@@ -54,20 +54,23 @@ class OpTestSysinfo():
         except CommandFailed as cf:
             raise cf
 
-    def get_HMCconfig(self, pty, prompt,CEC_name):
+    def get_HMCconfig(self, pty, prompt,CEC_name,LPAR):
         # Collect config data from HMC
         ################ HMC INFO ####################
         get_HMCconfig_cmds  = self.config_actions["HMC"]["COMMANDS"]
+        print("########### HMC Sysinfo ########")
         for index, each_cmd in enumerate(get_HMCconfig_cmds, start=0):
-             if re.search('SYS', each_cmd):
-                 new_cmd=re.sub('SYS',CEC_name,each_cmd)
-                 try:
+            if re.search(r'SYS|LPAR_NAME', each_cmd):
+                new_cmd=each_cmd
+                # Replace placeholders
+                new_cmd = re.sub(r'SYS', CEC_name, new_cmd)
+                new_cmd = re.sub(r'LPAR_NAME', LPAR, new_cmd)
+                try:
                    output = pty.run_command(new_cmd)
-                 except Exception as e: 
+                except Exception as e:
                    print('command failed due to system error')
-             else:
+            else:
                 try:
                     output = pty.run_command(each_cmd)
                 except Exception as e:
                           print('command failed due to system error')
-
