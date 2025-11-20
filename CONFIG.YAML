@@ -1,9 +1,22 @@
 LINUX:
- COMMANDS:
-        - "date"
+  COMMANDS:
         - "hostname"
         - "cat /etc/os-release | grep PRETTY_NAME"
         - "uname -r"
+        - "lsmcode" #Firmware
+        - "tail /proc/cpuinfo | grep cpu" # will give info whether its P8/P9,P10 or P11
+        #kvm commands
+        - "arch"  # Architecture
+        - "lscpu | grep 'Model name' | cut -f 2 -d ':' | awk '{$1=$1}1'"  # Processor
+        - "nproc"  # No-of-CPUs
+        - "free -mh"  # RAM
+        #VIOS Commands
+        - "lscfg" # Display hardware configuration information.
+        - "vmstat" # Copy: Report virtual memory statistics.
+        #FS Commands
+        - "mkfs.ext4 -V"
+        - "mkfs.xfs -V"
+
 HMC:
   COMMANDS:
        - "lshmc -V"  #HMC software version, release, service pack, and build level
@@ -15,3 +28,10 @@ HMC:
        - "lshwres -r virtualio --rsubtype eth -m SYS --level lpar" #Virtual Ethernet Adapter (VEA) Info
        - "lshwres -r virtualio --rsubtype scsi -m SYS --level lpar" #scsi Adapter Info
        - "lshwres -r virtualio --rsubtype fc -m SYS --level lpar"  #fc Adapter Info
+       - "lssyscfg -r lpar -m SYS -F name,kvm_capable" #To check KVM capable lpars
+       - "lssysconn -r all" # This command lists system connections and includes the FSP/BMC IP address.
+       #IO Commands
+       - "lshwres -r io -m SYS --rsubtype slot --filter 'lpar_names=LPAR_NAME'"  # List physical IO
+       - "lshwres -r virtualio --rsubtype fc --level lpar -m SYS -F adapter_type,lpar_name,slot_num,remote_lpar_name,remote_slot_num,wwpns"  # List virtual IOs
+
+

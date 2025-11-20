@@ -1140,7 +1140,7 @@ class HMCConsole(HMCUtil):
         log.info("Collecting OS sysinfo")
         self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
         log.info("Collecting HMC details")
-        self.sysinfo.get_HMCconfig(self.ssh, self.expect_prompt,self.mg_system)
+        self.sysinfo.get_HMCconfig(self.ssh, self.expect_prompt,self.mg_system,self.lpar_name)
 
     def get_host_console(self):
         '''
