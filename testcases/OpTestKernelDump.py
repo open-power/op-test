@@ -1133,7 +1133,7 @@ class KernelCrash_hugepage_checks(OptestKernelDump):
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             self.setup_test()
             obj = OpTestInstallUtil.InstallUtil()
-            if not obj.update_kernel_cmdline(self.distro, args="default_hugepagesz=1GB hugepagesz=1GB hugepages=80",
+            if not obj.update_kernel_cmdline(self.distro, args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
