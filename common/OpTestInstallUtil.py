@@ -466,9 +466,14 @@ class InstallUtil():
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
             if reboot_cmd:
+                # Always reopen console fresh to avoid stale session after first reboot
+                self.cv_SYSTEM.console.close()
                 raw_pty = self.cv_SYSTEM.console.get_console()
                 raw_pty.sendline("reboot")
-                raw_pty.expect("login:", timeout=900)
+                login_patterns = [
+                  "login:", "root login:", "Ubuntu login:", "Password:",
+                ]
+                raw_pty.expect(login_patterns, timeout=900)
             else:
                 self.cv_SYSTEM.goto_state(OpSystemState.OFF)
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
