@@ -199,6 +199,7 @@ class GcovBuild(unittest.TestCase):
             cmd = f"make -j modules_install && make install"
             if not self.cv_HOST.host_run_command(cmd):
                 self.fail("module installation failed")
+            self.cv_HOST.host_run_command("grub2-mkconfig -o /boot/grub2/grub.cfg")
         except Exception:
             self.fail("compile and build of gcov kernel failed")
 
