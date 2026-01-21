@@ -463,6 +463,7 @@ class InstallUtil():
                     print(("Failed to update kernel commandline - %s: %s" %
                            (Err.command, Err.output)))
                     return False
+        time.sleep(60)
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
             if reboot_cmd:
