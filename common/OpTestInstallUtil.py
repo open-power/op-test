@@ -406,7 +406,7 @@ class InstallUtil():
         return req_args.strip(), req_remove_args.strip()
 
     def update_kernel_cmdline(self, distro, args="", remove_args="", reboot=True,
-                              reboot_cmd=False):
+                              reboot_cmd=False, timeout=0):
         """
         Update default Kernel cmdline arguments
 
@@ -463,7 +463,9 @@ class InstallUtil():
                     print(("Failed to update kernel commandline - %s: %s" %
                            (Err.command, Err.output)))
                     return False
-        time.sleep(60)
+
+        if timeout:
+            time.sleep(timeout)
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
             if reboot_cmd:
