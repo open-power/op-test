@@ -81,6 +81,9 @@ class OpTestOpenCAPI(unittest.TestCase):
         l_module = "ocxl"
         self.cv_HOST.host_load_module_based_on_config(l_kernel, l_config,
                                                       l_module)
+        # Load module pnv_php
+        l_module = "pnv_php"
+        self.cv_HOST.host_load_module(l_module)
 
 
 class OcxlDeviceFileTest(OpTestOpenCAPI, unittest.TestCase):
@@ -257,6 +260,37 @@ class MemCpy3AFUAtomicCasTest(OpTestOpenCAPI, unittest.TestCase):
             self.assertTrue(False, "ocxl_memcpy -A tests failed")
 
 
+class OcxlResetTest(OpTestOpenCAPI, unittest.TestCase):
+    '''
+    If the system has an OpenCAPI FPGA card, then load the modules
+    ocxl and pnv_php if required, and test the card reset.
+    '''
+
+    def setUp(self):
+        super(OcxlResetTest, self).setUp()
+
+    def runTest(self):
+        self.set_up()
+
+        # Check that the ocxl_reset_tests.sh script is available
+        # If not, clone and build libocxl and afutests
+        l_dir = "/tmp/libocxl"
+        if (self.cv_HOST.host_check_binary(l_dir, "afuobj/ocxl_reset_tests.sh") != True):
+            self.cv_HOST.host_clone_libocxl(l_dir)
+            self.cv_HOST.host_build_libocxl(l_dir)
+
+        # Run reset tests
+        l_exec = "afuobj/ocxl_reset_tests.sh -l 10"
+        cmd = "cd %s; ./%s" % (l_dir, l_exec)
+        log.debug(cmd)
+        try:
+            self.cv_HOST.host_run_command(cmd)
+            l_msg = "ocxl_reset_tests pass"
+            log.debug(l_msg)
+        except CommandFailed:
+            self.assertTrue(False, "ocxl_reset_tests failed")
+
+
 def opencapi_test_suite():
     s = unittest.TestSuite()
     s.addTest(OcxlDeviceFileTest())
@@ -265,4 +299,5 @@ def opencapi_test_suite():
     s.addTest(MemCpy3AFUReallocTest())
     s.addTest(MemCpy3AFUIncrementTest())
     s.addTest(MemCpy3AFUAtomicCasTest())
+    s.addTest(OcxlResetTest())
     return s
