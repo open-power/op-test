@@ -54,5 +54,6 @@ class OpTestKernelArg(unittest.TestCase):
                                          self.kernel_add_args,
                                          self.kernel_remove_args,
                                          reboot=True,
-                                         reboot_cmd=self.use_reboot_cmd):
+                                         reboot_cmd=self.use_reboot_cmd
+                                         timeout=60):
             self.fail("KernelArgTest failed to update kernel args")
