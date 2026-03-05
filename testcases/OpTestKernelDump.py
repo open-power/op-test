@@ -224,6 +224,26 @@ class OptestKernelDump(unittest.TestCase):
         except CommandFailed:
             return False
 
+    def get_pstore_timestamps(self):
+        """
+        Returns a dict of all files under /sys/fs/pstore with their mtime.
+        Example:
+            {
+            'dmesg-nvram-0': 1708001201,
+            'rtas-nvram-0': 1708001205
+            }
+        """
+        ts = {}
+        cmd = "ls -1 /sys/fs/pstore 2>/dev/null"
+        files = self.c.run_command(cmd)
+        for f in files:
+            f = f.strip()
+            if not f:
+                continue
+            out = self.c.run_command(f"stat -c '%Y' /sys/fs/pstore/{f}")
+            ts[f] = int(out[0].strip())
+        return ts
+
     # Verify /ibm,opal/dump node is present int DT or not
     def is_mpipl_supported(self):
         '''
@@ -1995,6 +2015,26 @@ class OpTestWatchdog(OptestKernelDump):
         self.check_wd_overNFS()
         self.check_wd_action_zero()
 
+class PstoreCheck(OptestKernelDump):
+    def runTest(self):
+        conf = OpTestConfiguration.conf
+        pre_ts = self.get_pstore_timestamps()
+        log.info(f"Pre-crash pstore files: {pre_ts}")
+        # Step 3: Trigger crash
+        boot_type = self.kernel_crash(crash_type="hmc")
+        post_ts = self.get_pstore_timestamps()
+        log.info(f"Post-crash pstore files: {post_ts}")
+        updated_files = []
+        for f, post_time in post_ts.items():
+            pre_time = pre_ts.get(f)
+            if pre_time is None:
+                updated_files.append(f)  # new file
+            elif post_time > pre_time:
+                updated_files.append(f)  # existing file updated
+
+        if not updated_files:
+            raise OpTestError("No pstore files were updated after crash")
+        log.info(f"Pstore files updated after crash: {updated_files}")
 
 def crash_suite():
     s = unittest.TestSuite()
@@ -2032,5 +2072,6 @@ def crash_suite():
     s.addTest(KernelCrash_DisableAll())
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
+    s.addTest(PstoreCheck())
 
     return s
