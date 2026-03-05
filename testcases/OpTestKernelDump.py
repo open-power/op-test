@@ -189,7 +189,7 @@ class OptestKernelDump(unittest.TestCase):
         if (self.distro == "sles") and self.version == "16":
             log.info("SLES 16 detected: forcing KDUMP_UPDATE_BOOTLOADER=false and restarting kdump.service")
             self.c.run_command("sed -i 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER=\"false\"/' /etc/sysconfig/kdump")
-            self.c.run_command_ignore_fail("systemctl restart kdump.service")
+            self.c.run_command("kdumptool commandline -c -u")
 
     def is_fadump_param_enabled(self):
         '''
@@ -750,6 +750,14 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
             self.c.run_command("rm -rf ServiceReport; git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
                                "python ./servicereport --plugins kdump package --repair", timeout=240)
             time.sleep(10)
+        elif self.distro == "sles" and self.version == "16":
+            self.cv_HOST.host_check_command("kdumptool")
+            self.c.run_command("zypper install -y ServiceReport", timeout=240)
+            output = self.c.run_command("servicereport -r -p kdump || true", timeout=240)
+            if "Auto Fixed" in "\n".join(output):
+                log.info("servicereport auto fixed crashkernel, reboot required")
+            self.reset_kdump_bootloaded_if_needed()
+
         elif self.distro == "sles":
             self.cv_HOST.host_check_command("kdumptool")
             self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
