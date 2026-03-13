@@ -399,7 +399,7 @@ class OptestKernelDump(unittest.TestCase):
             self.c.run_command("rm /tmp/opal_log")
             self.c.run_command("rm /tmp/dmesg_log")
 
-    def kernel_crash(self, crash_type="echo_c"):
+    def kernel_crash(self, crash_type="echo_c", crash_cpu=None):
         '''
         This function will test the kernel crash followed by system 
         reboot. It has below steps
@@ -421,7 +421,10 @@ class OptestKernelDump(unittest.TestCase):
         if crash_type == "watchdog":
             self.c.pty.sendline("./watchdog-countdown")
         elif crash_type == "echo_c":
-            self.c.pty.sendline("echo c > /proc/sysrq-trigger")
+            if crash_cpu:
+                self.c.pty.sendline(f"taskset -c {crash_cpu} echo c > /proc/sysrq-trigger")
+            else:
+                self.c.pty.sendline("echo c > /proc/sysrq-trigger")
         elif crash_type == "hmc":
             self.cv_HMC.run_command("chsysstate -r lpar -m %s -n %s -o dumprestart" %
                                    (self.system_name, self.lpar_name), timeout=300)
