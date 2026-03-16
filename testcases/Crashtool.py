@@ -27,26 +27,20 @@
 
 import unittest
 import os
+import random
 import OpTestConfiguration
 import OpTestLogger
 
 from common.OpTestSystem import OpSystemState
 from common.OpTestUtil import OpTestUtil
+from testcases.OpTestKernelDump import OptestKernelDump
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
-class CrashToolInteractiveTest(unittest.TestCase):
+class CrashTool(unittest.TestCase):
     """
-    Detects and validates the latest crash dump (vmcore) under /var/crash/
-
-    Identifies appropriate debug symbols (vmlinux) based on the OS (e.g., RHEL or SLES)
-
-    Launches crash vmlinux vmcore in interactive mode on the console
-
-    Executes a sequence of commands (log, bt, ps, etc.) in a single session
-
-    Verifies command output and exits cleanly from the crash shell
+    test class providing common setup and helper methods for crash dump testing
     """
 
     def setUp(self):
@@ -58,11 +52,37 @@ class CrashToolInteractiveTest(unittest.TestCase):
         self.distro = self.op_test_util.distro_name()
         self.version = self.op_test_util.get_distro_version().split(".")[0]
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.c = self.cv_SYSTEM.console
+        self.bmc_type = conf.args.bmc_type
+        if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP" :
+            self.is_lpar = True
+            self.cv_HMC = self.cv_SYSTEM.hmc
         try:
             self.crash_commands = conf.args.crash_commands
         except AttributeError:
             self.crash_commands = "log,bt,ps,runq,kmem -i,kmem -o,kmem -h,vm,sys,mod"
         self.commands = [cmd.strip() for cmd in self.crash_commands.split(",")]
+
+    def get_random_crash_cpu(self):
+        """
+        Pick a random valid CPU from available system CPUs
+        """
+        out = self.cv_HOST.host_run_command("nproc")
+        if out:
+            nproc = int(out[0].strip())
+        else:
+            nproc = int(
+                self.cv_HOST.host_run_command("getconf _NPROCESSORS_ONLN")[0].strip()
+            )
+        if nproc <= 0:
+            raise Exception("Invalid CPU count detected")
+        crash_cpu = random.randint(0, nproc - 1)
+        log.info(
+            "Selected random crash CPU %d from %d CPUs",
+            crash_cpu, nproc
+        )
+
+        return crash_cpu
 
     def run_crash_command(self, cmd, timeout=180):
         """
@@ -114,17 +134,11 @@ class CrashToolInteractiveTest(unittest.TestCase):
         log.info(
             f"All required debug packages for {self.distro} are installed.")
 
-    def runTest(self):
+    def crash_console(self):
         """
-        1.Gets kernel version (uname -r)
-        2.Finds latest crash directory (e.g., /var/crash/2025-06-03-07-08/)
-        3.Validates vmcore file type and size
-        4.Detects OS type/version and constructs appropriate vmlinux path
-        5.Launches crash interactively
-        6.Runs commands (stored in self.commands)
-        7.Exits crash cleanly
+        Locates latest crash dump directory, validates vmcore file,
+        determines correct vmlinux path and launches the crash tool.
         """
-        self.verify_packages()
         kernel_version = self.cv_HOST.host_run_command("uname -r")[0].strip()
         cmd = "ls -1td /var/crash/*/ | head -n 1 | xargs basename"
         crash_dir = self.cv_HOST.host_run_command(cmd)[0].strip()
@@ -149,11 +163,31 @@ class CrashToolInteractiveTest(unittest.TestCase):
         self.console.sendline(crash_cmd)
         try:
             self.console.expect_exact("crash>", timeout=300)
+            banner = self.console.before
+            # Return crash startup banner
+            return banner
         except Exception as e:
             if "crash>" not in self.console.before:
                 raise Exception(
                     "Crash tool failed to launch or kernel panic detected") from e
 
+class CrashToolInteractiveTest(CrashTool):
+    """
+    Interactive test case that verifies crash dump analysis by running a set of crash commands.
+    """
+
+    def runTest(self):
+        """
+        1.Verifies required packages
+        2.Triggers a kernel crash
+        3.Launches crash tool and disables scroll paging.
+        4.Iterates through configured crash commands (e.g., log, bt, ps, kmem) and captures output.
+        5.Exits crash session cleanly.
+        """
+        self.verify_packages()
+        OptestKernelDump.kernel_crash(self)
+        self.console = self.cv_SYSTEM.console.get_console()
+        self.crash_console()
         # Set scroll off to avoid pager issues
         self.run_crash_command("set scroll off")
 
@@ -165,3 +199,48 @@ class CrashToolInteractiveTest(unittest.TestCase):
         # Exit crash session
         self.console.sendline("exit")
         self.console.expect("#", timeout=30)
+
+class CrashTaskset(CrashTool):
+    """
+    Test case that validates crash dump collection when a crash is triggered on a specific CPU
+    """
+
+    def runTest(self):
+        self.verify_packages()
+        # Pick random valid CPU
+        self.crash_cpu = self.get_random_crash_cpu()
+        # Trigger crash with CPU affinity
+        OptestKernelDump.kernel_crash(self, crash_cpu=self.crash_cpu)
+        self.console = self.cv_SYSTEM.console.get_console()
+        # Launch crash and capture banner
+        banner = self.crash_console()
+        found_cpu = False
+        for line in banner.splitlines():
+            line = line.strip()
+            if line.startswith("CPU:"):
+                found_cpu = True
+                cpu = int(line.split()[1])
+
+                if cpu != self.crash_cpu:
+                    self.fail(
+                        "Expected crash CPU %d, got %d"
+                        % (self.crash_cpu, cpu)
+                    )
+                log.info(
+                    "Crash occurred on expected CPU %d", cpu
+                )
+                break
+
+        if not found_cpu:
+            self.fail("CPU field not found in crash startup output")
+
+        # Exit crash cleanly
+        self.console.sendline("exit")
+        self.console.expect("#", timeout=30)
+
+def crash_suite():
+    s = unittest.TestSuite()
+    s.addTest(CrashToolInteractiveTest())
+    s.addTest(CrashTaskset())
+    return s
+
