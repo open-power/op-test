@@ -1533,6 +1533,8 @@ class KernelCrash_FadumpJunkValue(OptestKernelDump):
 
         if self.distro.lower() not in ["sles", "rhel"]:
             self.skipTest(f"Fadump testing not supported on {self.distro}")
+        if self.distro.lower() == "sles" and int(self.version) < 16:
+            self.skipTest(f"Not supported on SLES {self.version}")
         log.info("Calling reset_kdump_bootloaded_if_needed()")
         self.reset_kdump_bootloaded_if_needed()
 
@@ -1554,6 +1556,7 @@ class KernelCrash_FadumpJunkValue(OptestKernelDump):
             log.warning(f"Skipping crash dir check due to expected junk fadump value: {e}")
 
         self.c.run_command("cat /proc/cmdline")
+        
         fadump_reg = self.c.run_command("cat /sys/kernel/fadump_registered")[0].strip()
         log.info(f"fadump_registered = {fadump_reg} (expect 0)")
         if fadump_reg == "1":
@@ -1637,6 +1640,8 @@ class KernelCrash_FadumpOffValue(OptestKernelDump):
 
         if self.distro.lower() not in ["sles", "rhel"]:
             self.skipTest(f"Fadump testing not supported on {self.distro}")
+        if self.distro.lower() == "sles" and int(self.version) < 16:
+            self.skipTest(f"Not supported on SLES {self.version}")
         log.info("Calling reset_kdump_bootloaded_if_needed()")
         self.reset_kdump_bootloaded_if_needed()
 
