@@ -102,6 +102,7 @@ class OptestKernelDump(unittest.TestCase):
         self.op_test_util = OpTestUtil(conf)
         self.distro = self.op_test_util.distro_name()
         self.version = self.op_test_util.get_distro_version().split(".")[0]
+        self.minor_version = self.op_test_util.get_distro_version().split(".")[1]
         self.pdbg = conf.args.pdbg
         self.basedir = conf.basedir
         self.c = self.cv_SYSTEM.console
@@ -688,7 +689,7 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
                 self.fail("KernelArgTest failed to update kernel args")
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
-            if self.version == "16":
+            if self.version == "16" or (self.version == "15" and self.minor_version >= "7"):
                 self.c.run_command("sed -i '/KDUMP_FADUMP=\"false\"/c\KDUMP_FADUMP=\"true\"' /etc/sysconfig/kdump")
             else:
                 self.c.run_command("sed -i '/KDUMP_FADUMP=\"no\"/c\KDUMP_FADUMP=\"yes\"' /etc/sysconfig/kdump")
