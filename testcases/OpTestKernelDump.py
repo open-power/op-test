@@ -63,6 +63,7 @@ import pexpect
 import unittest
 import time
 import re
+import random
 import tempfile
 
 import OpTestConfiguration
@@ -2039,6 +2040,111 @@ class PstoreCheck(OptestKernelDump):
             raise OpTestError("No pstore files were updated after crash")
         log.info(f"Pstore files updated after crash: {updated_files}")
 
+
+class TestTimezoneKdump(OptestKernelDump):
+
+    def get_timezone(self):
+        output = self.c.run_command("timedatectl")
+        for line in output:
+            if "Time zone" in line:
+                return line.strip()
+        return None
+
+    def set_random_timezone(self):
+        # List of some valid timezones
+        timezones = [
+            "UTC",
+            "Asia/Kolkata",
+            "America/New_York",
+            "Europe/London",
+            "Asia/Tokyo",
+            "Australia/Sydney"
+        ]
+
+        tz = random.choice(timezones)
+        self.c.run_command(f"timedatectl set-timezone {tz}")
+        return tz
+
+    def get_latest_crash_dir(self):
+        cmd = "ls -td /var/crash/* 2>/dev/null | head -1"
+        output = self.c.run_command(cmd)
+        if output:
+            return output[0].strip()
+        return None
+
+    def get_file_timestamps(self, crash_dir):
+        cmd = f"ls -l --time-style=full-iso {crash_dir}"
+        return self.c.run_command(cmd)
+
+    def rebuild_kdump(self):
+
+        if self.distro == 'sles':
+            self.c.run_command("mkdumprd -f")
+            self.c.run_command("systemctl restart kdump.service")
+        elif self.distro == 'rhel':
+            self.c.run_command("kdumpctl rebuild")
+            self.c.run_command("kdumpctl restart")
+        else:
+            raise Exception("Unsupported OS")
+
+
+    def runTest(self):
+
+        # Step 1: Check current timezone
+        original_tz = self.get_timezone()
+        log.info(f"Original timezone: {original_tz}")
+
+        # Step 2: Change timezone
+        new_tz = self.set_random_timezone()
+        time.sleep(2)
+
+        changed_tz = self.get_timezone()
+        log.info(f"Changed timezone: {changed_tz}")
+
+        if new_tz not in changed_tz:
+            raise Exception("Timezone change failed")
+
+        # Step 3 & 4: Rebuild kdump
+        self.rebuild_kdump()
+
+        # Step 5: Trigger crash
+        self.kernel_crash()
+
+        # Step 6: Validate crash directory timestamps
+        crash_dir = self.get_latest_crash_dir()
+        if not crash_dir:
+            raise Exception("No crash directory found")
+
+        log.info(f"Crash directory: {crash_dir}")
+
+        # Get timestamps
+        timestamps = self.get_file_timestamps(crash_dir)
+
+        log.info("Crash directory file timestamps:")
+        for line in timestamps:
+            log.info(line)
+
+        # Validate timezone effect
+        timedatectl_output = self.c.run_command("timedatectl")
+        tz_line = [l for l in timedatectl_output if "Time zone" in l][0]
+
+        log.info(f"Post-crash timezone:{tz_line}")
+
+        # Basic validation: timestamps exist
+        if not timestamps:
+            raise Exception("No files found in crash directory")
+
+        # Optional strict validation: check offset
+        # Example: +05:30, -04:00 etc.
+        match = re.search(r'([+-]\d{2}:\d{2})', tz_line)
+        if match:
+            offset = match.group(1)
+            found = any(offset in line for line in timestamps)
+            if not found:
+                raise Exception("Crash files do not reflect timezone offset")
+
+        log.info("Timezone validation on crash dump: SUCCESS")
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestWatchdog())
@@ -2076,5 +2182,6 @@ def crash_suite():
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
     s.addTest(PstoreCheck())
+    s.addTest(TestTimezoneKdump())
 
     return s
