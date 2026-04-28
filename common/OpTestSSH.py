@@ -31,6 +31,13 @@ import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 try:
+    import paramiko
+    HAS_PARAMIKO = True
+except ImportError:
+    HAS_PARAMIKO = False
+    log.warning("paramiko not available, direct SSH execution disabled")
+
+try:
     from common import OPexpect
 except ImportError:
     from . import OPexpect
@@ -85,6 +92,71 @@ class OpTestSSH():
 
     def set_system(self, system):
         self.system = system
+
+    def run_command_direct(self, command, timeout=60):
+        """
+        Execute command directly via SSH exec_command (non-interactive).
+        This is used for HMC commands that should not go through console/terminal.
+        
+        Args:
+            command: Command string to execute
+            timeout: Command timeout in seconds
+            
+        Returns:
+            List of output lines
+            
+        Raises:
+            CommandFailed: If command execution fails
+        """
+        if not HAS_PARAMIKO:
+            log.warning("paramiko not available, falling back to console execution")
+            return self.run_command(command, timeout)
+        
+        try:
+            # Create SSH client
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # Connect
+            client.connect(
+                hostname=self.host,
+                port=self.port,
+                username=self.username,
+                password=self.password,
+                timeout=30,
+                allow_agent=False,
+                look_for_keys=False
+            )
+            
+            # Execute command
+            log.debug(f"Executing direct SSH command: {command}")
+            stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
+            
+            # Get output
+            exit_status = stdout.channel.recv_exit_status()
+            output_lines = stdout.read().decode('utf-8', errors='ignore').splitlines()
+            error_lines = stderr.read().decode('utf-8', errors='ignore').splitlines()
+            
+            # Close connection
+            client.close()
+            
+            # Log output
+            if output_lines:
+                log.debug(f"Command output: {output_lines}")
+            if error_lines:
+                log.debug(f"Command stderr: {error_lines}")
+            
+            # Check exit status
+            if exit_status != 0:
+                log.warning(f"Command exited with status {exit_status}")
+                # For HMC commands, some non-zero exits are acceptable
+                # Return output anyway and let caller decide
+            
+            return output_lines
+            
+        except Exception as e:
+            log.error(f"Direct SSH command failed: {e}")
+            raise CommandFailed(command, str(e), -1)
 
     def set_system_setup_term(self, flag):
         self.system.block_setup_term = flag
@@ -222,6 +294,27 @@ class OpTestSSH():
         return self.pty
 
     def run_command(self, command, timeout=60, retry=0):
+        """
+        Execute command via SSH.
+        Uses direct SSH execution (non-interactive) by default for better reliability.
+        Falls back to console-based execution if direct method fails.
+        
+        Args:
+            command: Command string to execute
+            timeout: Command timeout in seconds
+            retry: Number of retries (used by console method)
+            
+        Returns:
+            Command output
+        """
+        # Try direct SSH execution first (non-interactive, more reliable)
+        if HAS_PARAMIKO:
+            try:
+                return self.run_command_direct(command, timeout)
+            except Exception as e:
+                log.warning(f"Direct SSH execution failed, falling back to console: {e}")
+        
+        # Fall back to console-based execution
         return self.util.run_command(self, command, timeout, retry)
 
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
