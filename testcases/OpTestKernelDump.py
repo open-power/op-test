@@ -59,11 +59,14 @@
 #
 
 import os
-import pexpect
 import unittest
 import time
 import re
 import tempfile
+
+from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from common.OpTestCommandExecutor import OpTestCommandExecutor
+from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
 
 import OpTestConfiguration
 import OpTestLogger
@@ -463,7 +466,7 @@ class OptestKernelDump(unittest.TestCase):
                 self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
                 done = True
                 boot_type = BootType.NORMAL
-            except pexpect.TIMEOUT:
+            except SSHCommandFailed as e:
                 done = True
                 boot_type = BootType.INVALID
                 self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
@@ -547,7 +550,7 @@ class OPALCrash_MPIPL(OptestKernelDump):
                 # System will start MPIPL flow after OPAL assert
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
                 boot_type = BootType.MPIPL
-            except pexpect.TIMEOUT:
+            except SSHCommandFailed as e:
                 done = True
                 boot_type = BootType.INVALID
                 self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
@@ -647,7 +650,7 @@ class SBECrash_MPIPL(OptestKernelDump):
             try:
                 # Verify MPIPL boot (wait for 600 secs before throwing error)
                 rc = self.c.pty.expect(['ISTEP 14. 8'], timeout=600)
-            except pexpect.TIMEOUT:
+            except SSHCommandFailed as e:
                 done = True
                 boot_type = BootType.INVALID
                 self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)

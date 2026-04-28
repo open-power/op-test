@@ -30,6 +30,10 @@ on the host.
 import unittest
 import os
 
+from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from common.OpTestCommandExecutor import OpTestCommandExecutor
+from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
+
 import OpTestConfiguration
 from common.OpTestSystem import OpSystemState
 from common.OpTestSOL import OpSOLMonitorThread
