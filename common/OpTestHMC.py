@@ -1123,6 +1123,10 @@ class HMCConsole(HMCUtil):
         self.PS1_set = -1
         self.LOGIN_set = -1
         self.SUDO_set = -1
+        
+        # Create SSH connection to LPAR for sysinfo collection (instead of using console)
+        self.lpar_ssh = None
+        
         super(HMCConsole, self).__init__(hmc_ip, user_name, password, scratch_disk, proxy,
                                          logfile, managed_system, lpar_name, prompt,
                                          block_setup_term, delaybeforesend, timeout_factor,
@@ -1137,8 +1141,27 @@ class HMCConsole(HMCUtil):
         self.system = system
         self.pty = self.get_console()
         self.pty.set_system(system)
-        log.info("Collecting OS sysinfo")
-        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
+        
+        # Create SSH connection to LPAR for sysinfo collection (instead of using console)
+        log.info("Collecting OS sysinfo via SSH")
+        try:
+            # Get LPAR IP from system.cv_HOST if available
+            if hasattr(system, 'cv_HOST') and system.cv_HOST:
+                lpar_ip = system.cv_HOST.ip
+                log.info(f"Creating SSH connection to LPAR at {lpar_ip}")
+                self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
+                                          logfile=self.logfile)
+                self.lpar_ssh.set_system(system)
+                # Use LPAR SSH for sysinfo collection
+                self.sysinfo.get_OSconfig(self.lpar_ssh, self.expect_prompt)
+            else:
+                log.warning("LPAR IP not available, falling back to console for sysinfo")
+                self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
+        except Exception as e:
+            log.warning(f"Failed to create LPAR SSH connection: {e}")
+            log.warning("Falling back to console for sysinfo collection")
+            self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
+        
         log.info("Collecting HMC details")
         self.sysinfo.get_HMCconfig(self.ssh, self.expect_prompt,self.mg_system,self.lpar_name)
 
