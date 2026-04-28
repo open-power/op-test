@@ -42,7 +42,6 @@ import telnetlib
 import socket
 import select
 import pty
-import pexpect
 import subprocess
 
 import OpTestConfiguration
@@ -51,11 +50,15 @@ from .OpTestError import OpTestError
 from .OpTestSSH import OpTestSSH
 from . import OpTestQemu
 from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+from .Exceptions import SSHConnectionFailed, SSHCommandFailed, SSHSessionDisconnected
+
+# New SSH architecture imports
+from .OpTestConnectionManager import OpTestConnectionManager
+from .OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from .OpTestCommandExecutor import OpTestCommandExecutor
 
 import logging
 import OpTestLogger
-log = OpTestLogger.optest_logger_glob.get_logger(__name__)
-
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
@@ -75,9 +78,35 @@ class OpTestHost():
         self.bmcip = i_bmcip
         self.results_dir = i_results_dir
         self.logfile = logfile
+        
+        # Legacy SSH support (for backward compatibility)
         self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
                              logfile=self.logfile, check_ssh_keys=check_ssh_keys,
                              known_hosts_file=known_hosts_file)
+        
+        # New SSH architecture - connection manager and direct connection
+        self.connection_manager = OpTestConnectionManager(
+            max_connections=20,
+            max_idle_time=300,
+            max_connection_age=3600
+        )
+        
+        # Get primary connection and executor for this host
+        try:
+            self.connection, self.executor = self.connection_manager.get_connection(
+                host=i_hostip,
+                username=i_hostuser,
+                password=i_hostpasswd,
+                port=22,
+                timeout=30
+            )
+            log.info(f"New SSH connection established to {i_hostip}")
+        except SSHConnectionFailed as e:
+            log.warning(f"Failed to establish new SSH connection: {e}")
+            log.warning("Falling back to legacy SSH implementation")
+            self.connection = None
+            self.executor = None
+        
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None
