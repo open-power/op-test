@@ -48,7 +48,9 @@ class OpTestSysinfo():
         # Collect config related data from the OS
         try:
             list_of_commands = self.config_actions["LINUX"]["COMMANDS"]
-            print("########### OS Sysinfo ########")
+            print("\n" + "="*80)
+            print("OS SYSTEM INFORMATION (via SSH)")
+            print("="*80)
             for index, each_cmd in enumerate(list_of_commands, start=0):
                 # Check if pty has run_command (SSH) or sendline (console/pexpect)
                 if hasattr(pty, 'run_command'):
@@ -56,13 +58,22 @@ class OpTestSysinfo():
                     try:
                         output = pty.run_command(each_cmd, timeout=10)
                         if output:
-                            print(f"{each_cmd}: {' '.join(output)}")
+                            # Format output nicely
+                            print(f"\n[{index+1}] Command: {each_cmd}")
+                            print("-" * 80)
+                            for line in output:
+                                print(f"  {line}")
                     except Exception as e:
-                        print(f"{each_cmd}: Failed - {e}")
+                        print(f"\n[{index+1}] Command: {each_cmd}")
+                        print("-" * 80)
+                        print(f"  ERROR: {e}")
                 else:
                     # Console mode - use sendline/expect
+                    print(f"\n[{index+1}] Command: {each_cmd}")
+                    print("-" * 80)
                     pty.sendline(each_cmd)
                     rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            print("\n" + "="*80 + "\n")
         except CommandFailed as cf:
             raise cf
 
