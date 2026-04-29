@@ -421,7 +421,76 @@ class OpTestSystem(object):
             self.detect_counter += 1
         return detect_state
 
+    def is_ssh_available(self):
+        """
+        Check if SSH connection to host is available.
+        Returns True if SSH is connected and alive, False otherwise.
+        """
+        try:
+            if hasattr(self.cv_HOST, 'connection') and self.cv_HOST.connection:
+                if self.cv_HOST.connection.is_alive():
+                    log.debug("SSH connection is available and alive")
+                    return True
+            log.debug("SSH connection not available")
+            return False
+        except Exception as e:
+            log.debug(f"SSH availability check failed: {e}")
+            return False
+
+    def detect_state_via_ssh(self):
+        """
+        Detect system state using SSH connection.
+        Returns OpSystemState if detection succeeds, None if SSH unavailable.
+        """
+        if not self.is_ssh_available():
+            return None
+        
+        try:
+            # Try to run a simple command to check if we're in OS
+            result = self.cv_HOST.executor.execute(
+                "cat /proc/version 2>/dev/null | grep -q '{}' && echo 'OS' || echo 'PETITBOOT'".format(self.openpower),
+                timeout=5
+            )
+            
+            if result.exit_code == 0:
+                output = result.stdout.strip()
+                if 'OS' in output:
+                    log.debug("SSH detection: System is in OS state")
+                    self.previous_state = OpSystemState.OS
+                    return OpSystemState.OS
+                elif 'PETITBOOT' in output:
+                    log.debug("SSH detection: System is in Petitboot shell state")
+                    self.previous_state = OpSystemState.PETITBOOT_SHELL
+                    return OpSystemState.PETITBOOT_SHELL
+            
+            return None
+        except Exception as e:
+            log.debug(f"SSH state detection failed: {e}")
+            return None
+
     def detect_target(self, target_state, reboot):
+        # First, try SSH-based detection if target is OS or Petitboot shell
+        if target_state in [OpSystemState.OS, OpSystemState.PETITBOOT_SHELL]:
+            ssh_state = self.detect_state_via_ssh()
+            if ssh_state is not None:
+                log.info(f"State detected via SSH: {ssh_state}")
+                if ssh_state == target_state:
+                    return ssh_state
+                elif ssh_state == OpSystemState.PETITBOOT_SHELL and target_state == OpSystemState.OS and reboot:
+                    self.run_REBOOT(target_state)
+                    return OpSystemState.UNKNOWN
+                elif ssh_state == OpSystemState.OS and target_state == OpSystemState.PETITBOOT_SHELL:
+                    # Can't go from OS to Petitboot shell without reboot
+                    if reboot:
+                        self.run_REBOOT(target_state)
+                        return OpSystemState.UNKNOWN
+                    else:
+                        return OpSystemState.UNKNOWN
+                elif ssh_state == target_state:
+                    return ssh_state
+        
+        # Fallback to console-based detection
+        log.debug("Falling back to console-based state detection")
         self.block_setup_term = 0  # unblock to allow setup_term during get_console
         self.console.enable_setup_term_quiet()
         sys_pty = self.console.get_console()
@@ -493,6 +562,14 @@ class OpTestSystem(object):
             return OpSystemState.UNKNOWN
 
     def check_kernel(self):
+        # Try SSH-based detection first
+        ssh_state = self.detect_state_via_ssh()
+        if ssh_state is not None:
+            log.debug(f"check_kernel: State detected via SSH: {ssh_state}")
+            return ssh_state
+        
+        # Fallback to console-based detection
+        log.debug("check_kernel: Falling back to console-based detection")
         self.block_setup_term = 0  # unblock to allow setup_term during get_console
         self.console.enable_setup_term_quiet()
         sys_pty = self.console.get_console()
