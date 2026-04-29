@@ -28,6 +28,7 @@ import OpTestConfiguration
 import time
 import pexpect
 import yaml
+from common.Exceptions import CommandFailed
 import re
 from common.OpTestSSH import OpTestSSH
 import logging
@@ -49,8 +50,19 @@ class OpTestSysinfo():
             list_of_commands = self.config_actions["LINUX"]["COMMANDS"]
             print("########### OS Sysinfo ########")
             for index, each_cmd in enumerate(list_of_commands, start=0):
-                pty.sendline(each_cmd)
-                rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                # Check if pty has run_command (SSH) or sendline (console/pexpect)
+                if hasattr(pty, 'run_command'):
+                    # SSH mode - use run_command
+                    try:
+                        output = pty.run_command(each_cmd, timeout=10)
+                        if output:
+                            print(f"{each_cmd}: {' '.join(output)}")
+                    except Exception as e:
+                        print(f"{each_cmd}: Failed - {e}")
+                else:
+                    # Console mode - use sendline/expect
+                    pty.sendline(each_cmd)
+                    rc = pty.expect([prompt, pexpect.TIMEOUT, pexpect.EOF], timeout=10)
         except CommandFailed as cf:
             raise cf
 
