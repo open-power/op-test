@@ -1139,8 +1139,10 @@ class HMCConsole(HMCUtil):
         '''
         self.ssh.set_system(system)
         self.system = system
-        self.pty = self.get_console()
-        self.pty.set_system(system)
+        # Don't open console during initialization - make it lazy
+        # Console will be opened when actually needed (get_console() call)
+        self.pty = None
+        log.info("Console connection deferred - will open when needed")
         
         # Create SSH connection to LPAR for sysinfo collection (instead of using console)
         log.info("Collecting OS sysinfo via SSH")
@@ -1353,7 +1355,9 @@ class HMCConsole(HMCUtil):
         :param logger: string, name of the logger to use other than default log
         :returns: object, HMC console with command prompt set
         '''
-        if self.state == ConsoleState.DISCONNECTED:
+        # Lazy initialization - connect only when actually needed
+        if self.pty is None or self.state == ConsoleState.DISCONNECTED:
+            log.info("Console needed - establishing connection now")
             self.util.clear_state(self)
             self.connect(logger=logger)
             time.sleep(STALLTIME)
