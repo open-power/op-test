@@ -147,6 +147,14 @@ class OpTestHost():
 
     def get_ssh_connection(self):
         return self.ssh
+    
+    @property
+    def pty(self):
+        """
+        Property to access SSH pty for compatibility with console interface.
+        This allows code that uses self.c.pty to work with both console and SSH.
+        """
+        return self.ssh.pty
 
     def get_new_ssh_connection(self, name="temp"):
         # time.sleep(1)

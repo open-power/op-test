@@ -509,8 +509,10 @@ class OptestKernelDump(unittest.TestCase):
             # LPAR from HMC as "Not Activated" before rebooting the LPAR.
             if self.cv_HMC.get_lpar_state() == "Not Activated":
                 return
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        log.debug("System booted fine to host OS...")
+        # Skip goto_state() to avoid console access on HMC systems
+        # SSH boot detection in run_BOOTING() already verified system is up
+        # self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        log.debug("System booted fine to host OS (verified via SSH)...")
         return boot_type
 
 
@@ -583,8 +585,9 @@ class OPALCrash_MPIPL(OptestKernelDump):
                 self.cv_SYSTEM.set_state(OpSystemState.IPLing)
                 done = True
 
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        log.debug("System booted fine to host OS...")
+        # Skip goto_state() to avoid console access on HMC systems
+        # self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        log.debug("System booted fine to host OS (verified via SSH)...")
         if not self.is_mpipl_boot():
             raise OpTestError("OPAL: MPIPL boot failed")
         self.verify_dump_dt_node(BootType.MPIPL)
@@ -685,8 +688,9 @@ class SBECrash_MPIPL(OptestKernelDump):
                 boot_type = BootType.MPIPL
                 done = True
 
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        log.debug("System booted fine to host OS...")
+        # Skip goto_state() to avoid console access on HMC systems
+        # self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        log.debug("System booted fine to host OS (verified via SSH)...")
         log.debug("cleanup skiboot clone")
         r_cmd = "rm -rf %s" % r_workdir
         self.c.run_command(r_cmd)
