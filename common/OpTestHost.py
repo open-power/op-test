@@ -47,7 +47,7 @@ import subprocess
 import OpTestConfiguration
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
-from .OpTestSSH import OpTestSSH
+from .OpTestSSH import OpTestSSH, ConsoleState
 from . import OpTestQemu
 from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
 from .Exceptions import SSHConnectionFailed, SSHCommandFailed, SSHSessionDisconnected
@@ -153,7 +153,11 @@ class OpTestHost():
         """
         Property to access SSH pty for compatibility with console interface.
         This allows code that uses self.c.pty to work with both console and SSH.
+        Automatically establishes SSH connection if not already connected.
         """
+        if self.ssh.pty is None or self.ssh.state == ConsoleState.DISCONNECTED:
+            log.info("SSH pty needed - establishing SSH connection")
+            self.ssh.get_console()
         return self.ssh.pty
 
     def get_new_ssh_connection(self, name="temp"):
