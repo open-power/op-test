@@ -1396,8 +1396,12 @@ class OpTestLPARSystem(OpTestSystem):
                  conf=None,
                  bmc_type=None,
                  state=OpSystemState.UNKNOWN):
-        if bmc_type in ['FSP_PHYP']:
-            bmc.fsp_get_console()
+        # For FSP_PHYP, bmc is HMC object directly (no FSP operations)
+        # For EBMC_PHYP, bmc is OpTestEBMC (has REST API but console via HMC)
+        # Skip fsp_get_console() for PHYP environments
+        if bmc_type in ['FSP_PHYP', 'EBMC_PHYP']:
+            # Console is managed through HMC, no FSP console setup needed
+            pass
         self.hmc = bmc.get_hmc()
         super(OpTestLPARSystem, self).__init__(host=host,
                                                bmc=bmc,

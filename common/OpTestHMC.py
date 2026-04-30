@@ -1063,6 +1063,33 @@ class OpTestHMC(HMCUtil):
     def get_rest_api(self):
         return None
 
+    def get_ipmi(self):
+        '''
+        Get IPMI interface (not available in PHYP).
+        
+        Returns:
+            None: PHYP does not support IPMI
+        '''
+        return None
+
+    def get_hmc(self):
+        '''
+        Get HMC interface (returns self for PHYP).
+        
+        Returns:
+            OpTestHMC: self
+        '''
+        return self
+
+    def bmc_host(self):
+        '''
+        Return HMC IP as BMC host.
+        
+        Returns:
+            str: HMC IP address
+        '''
+        return self.hmc_ip
+
     def has_os_boot_sensor(self):
         return False
 

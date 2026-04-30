@@ -867,13 +867,9 @@ class OpTestConfiguration():
                 else:
                     raise Exception(
                         "HMC IP, username and password is required")
-                bmc = OpTestFSP(self.args.bmc_ip,
-                                self.args.bmc_username,
-                                self.args.bmc_password,
-                                hmc=hmc,
-                                prompt=self.args.fsp_prompt if hasattr(
-                                    self.args, 'fsp_prompt') else "$",
-                                )
+                # For FSP_PHYP, use HMC directly as BMC to avoid FSP operations
+                # HMC now has get_ipmi(), get_hmc(), bmc_host() methods
+                bmc = hmc
                 self.op_system = common.OpTestSystem.OpTestLPARSystem(
                     state=self.startState,
                     bmc=bmc,
