@@ -791,6 +791,28 @@ class OpTestSystem(object):
             raise UnknownStateTransition(state=self.state,
                                          message="OpTestSystem in run_OFF and something caused the system to go to UNKNOWN")
 
+        # For HMC systems, use HMC SSH commands to power on LPAR
+        if isinstance(self.console, OpTestHMC.HMCConsole):
+            log.info("HMC system detected - using HMC SSH commands to power on LPAR")
+            try:
+                # Power on LPAR using HMC command
+                r = self.console.poweron_lpar()
+                if r == BMC_CONST.FW_SUCCESS:
+                    log.info("LPAR powered on successfully via HMC")
+                    return OpSystemState.IPLing
+                else:
+                    log.warning("HMC power on returned non-success, will retry")
+                    r = self.console.poweron_lpar()
+                    if r == BMC_CONST.FW_SUCCESS:
+                        log.info("LPAR powered on successfully via HMC on retry")
+                        return OpSystemState.IPLing
+                    else:
+                        raise OpTestError("Failed to power on LPAR via HMC after retry")
+            except Exception as e:
+                log.error(f"Failed to power on LPAR via HMC: {e}")
+                raise OpTestError(f"HMC power on failed: {e}")
+        
+        # For non-HMC systems, use traditional IPMI method
         # We clear any possible errors at this stage
         self.sys_sdr_clear()
 

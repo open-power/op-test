@@ -1172,31 +1172,52 @@ class HMCConsole(HMCUtil):
                     if attempt < max_retries:
                         time.sleep(2)  # Wait before retry
             
-            # If SSH failed after retries, try to boot system
+            # If SSH failed after retries, try to boot LPAR using HMC SSH commands
             if not ssh_success:
-                log.info("SSH connection failed after {max_retries} attempts")
-                log.info("Attempting to boot system using console-based method")
+                log.info(f"SSH connection failed after {max_retries} attempts")
+                log.info("Attempting to boot LPAR using HMC SSH commands")
                 try:
-                    from .OpTestSystem import OpSystemState
-                    if hasattr(system, 'goto_state'):
-                        log.info("Attempting goto_state(OS) via console")
-                        system.goto_state(OpSystemState.OS)
-                        
-                        # After boot, retry SSH connection once more
-                        log.info(f"Retrying SSH connection to LPAR at {lpar_ip} after boot")
-                        try:
-                            self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
-                                                      logfile=self.logfile)
-                            self.lpar_ssh.set_system(system)
-                            self.lpar_ssh.run_command_direct("echo test", timeout=10)
-                            ssh_success = True
-                            log.info("SSH connection successful after boot")
-                        except Exception as retry_error:
-                            log.warning(f"SSH connection failed even after boot: {retry_error}")
+                    # Check LPAR state
+                    lpar_state = self.get_lpar_state()
+                    log.info(f"Current LPAR state: {lpar_state}")
+                    
+                    # If LPAR is not running, power it on using HMC
+                    if lpar_state != OpHmcState.RUNNING:
+                        log.info("LPAR is not running, powering on via HMC SSH")
+                        result = self.poweron_lpar()
+                        if result == BMC_CONST.FW_SUCCESS:
+                            log.info("LPAR powered on successfully via HMC")
+                            
+                            # Wait for LPAR to boot and SSH to become available
+                            log.info("Waiting for LPAR to boot (up to 5 minutes)...")
+                            boot_wait_time = 300  # 5 minutes
+                            start_time = time.time()
+                            
+                            while (time.time() - start_time) < boot_wait_time:
+                                try:
+                                    log.debug(f"Attempting SSH connection after {int(time.time() - start_time)} seconds...")
+                                    self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
+                                                              logfile=self.logfile)
+                                    self.lpar_ssh.set_system(system)
+                                    self.lpar_ssh.run_command_direct("echo test", timeout=10)
+                                    ssh_success = True
+                                    log.info(f"SSH connection successful after boot (waited {int(time.time() - start_time)} seconds)")
+                                    break
+                                except Exception as e:
+                                    log.debug(f"SSH not ready yet: {e}")
+                                    time.sleep(10)  # Wait 10 seconds before retry
+                            
+                            if not ssh_success:
+                                log.warning(f"SSH did not become available within {boot_wait_time} seconds after HMC power on")
+                        else:
+                            log.warning("HMC power on command did not return success")
                     else:
-                        log.warning("System does not support goto_state, skipping boot attempt")
+                        log.info("LPAR is already running but SSH is not responding")
+                        log.warning("LPAR may be hung or SSH service not started")
+                        
                 except Exception as boot_error:
-                    log.warning(f"Failed to boot system via console: {boot_error}")
+                    log.warning(f"Failed to boot LPAR via HMC SSH: {boot_error}")
+                    log.info("Will skip OS sysinfo collection")
             
             # Collect OS sysinfo only if SSH is working
             if ssh_success:
