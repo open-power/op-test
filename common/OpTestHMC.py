@@ -1146,23 +1146,67 @@ class HMCConsole(HMCUtil):
         
         # Create SSH connection to LPAR for sysinfo collection (instead of using console)
         log.info("Collecting OS sysinfo via SSH")
-        try:
-            # Get LPAR IP from system.cv_HOST if available
-            if hasattr(system, 'cv_HOST') and system.cv_HOST:
-                lpar_ip = system.cv_HOST.ip
-                log.info(f"Creating SSH connection to LPAR at {lpar_ip}")
-                self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
-                                          logfile=self.logfile)
-                self.lpar_ssh.set_system(system)
-                # Use LPAR SSH for sysinfo collection
-                self.sysinfo.get_OSconfig(self.lpar_ssh, self.expect_prompt)
+        ssh_success = False
+        max_retries = 3
+        
+        # Get LPAR IP from system.cv_HOST if available
+        if not (hasattr(system, 'cv_HOST') and system.cv_HOST):
+            log.warning("LPAR IP not available, skipping OS sysinfo collection")
+        else:
+            lpar_ip = system.cv_HOST.ip
+            
+            # Try SSH connection with retries
+            for attempt in range(1, max_retries + 1):
+                try:
+                    log.info(f"Creating SSH connection to LPAR at {lpar_ip} (attempt {attempt}/{max_retries})")
+                    self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
+                                              logfile=self.logfile)
+                    self.lpar_ssh.set_system(system)
+                    # Test SSH connection with a simple command
+                    self.lpar_ssh.run_command_direct("echo test", timeout=10)
+                    ssh_success = True
+                    log.info(f"SSH connection successful on attempt {attempt}")
+                    break
+                except Exception as e:
+                    log.warning(f"SSH connection attempt {attempt}/{max_retries} failed: {e}")
+                    if attempt < max_retries:
+                        time.sleep(2)  # Wait before retry
+            
+            # If SSH failed after retries, try to boot system
+            if not ssh_success:
+                log.info("SSH connection failed after {max_retries} attempts")
+                log.info("Attempting to boot system using console-based method")
+                try:
+                    from .OpTestSystem import OpSystemState
+                    if hasattr(system, 'goto_state'):
+                        log.info("Attempting goto_state(OS) via console")
+                        system.goto_state(OpSystemState.OS)
+                        
+                        # After boot, retry SSH connection once more
+                        log.info(f"Retrying SSH connection to LPAR at {lpar_ip} after boot")
+                        try:
+                            self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
+                                                      logfile=self.logfile)
+                            self.lpar_ssh.set_system(system)
+                            self.lpar_ssh.run_command_direct("echo test", timeout=10)
+                            ssh_success = True
+                            log.info("SSH connection successful after boot")
+                        except Exception as retry_error:
+                            log.warning(f"SSH connection failed even after boot: {retry_error}")
+                    else:
+                        log.warning("System does not support goto_state, skipping boot attempt")
+                except Exception as boot_error:
+                    log.warning(f"Failed to boot system via console: {boot_error}")
+            
+            # Collect OS sysinfo only if SSH is working
+            if ssh_success:
+                try:
+                    log.info("Collecting OS sysinfo via SSH")
+                    self.sysinfo.get_OSconfig(self.lpar_ssh, self.expect_prompt)
+                except Exception as sysinfo_error:
+                    log.warning(f"Failed to collect OS sysinfo: {sysinfo_error}")
             else:
-                log.warning("LPAR IP not available, falling back to console for sysinfo")
-                self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
-        except Exception as e:
-            log.warning(f"Failed to create LPAR SSH connection: {e}")
-            log.warning("Falling back to console for sysinfo collection")
-            self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
+                log.warning("Skipping OS sysinfo collection - SSH connection not available")
         
         log.info("Collecting HMC details")
         self.sysinfo.get_HMCconfig(self.ssh, self.expect_prompt,self.mg_system,self.lpar_name)
