@@ -63,6 +63,7 @@ import unittest
 import time
 import re
 import tempfile
+import threading
 
 from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
 from common.OpTestCommandExecutor import OpTestCommandExecutor
@@ -85,6 +86,54 @@ class BootType():
     MPIPL = 2
     KDUMPKERNEL = 3
     INVALID = 4
+
+
+def monitor_console_thread(hmc_obj, stop_event, log_prefix="console"):
+    """
+    Background thread to monitor HMC console during reboot.
+    Captures boot messages including kdump activity.
+    
+    :param hmc_obj: OpTestHMC object
+    :param stop_event: threading.Event to signal thread to stop
+    :param log_prefix: Prefix for log messages
+    """
+    console_pty = None
+    try:
+        log.info(f"[{log_prefix}] Starting console monitoring thread")
+        
+        # Open console connection
+        console_pty = hmc_obj.connect()
+        log.info(f"[{log_prefix}] Console connection established")
+        
+        # Monitor console output
+        while not stop_event.is_set():
+            try:
+                # Read with short timeout to check stop_event frequently
+                console_pty.expect(['.+'], timeout=1)
+                output = console_pty.before + console_pty.after
+                if output:
+                    # Log interesting boot messages
+                    output_str = output.decode('utf-8', errors='ignore') if isinstance(output, bytes) else str(output)
+                    for line in output_str.split('\n'):
+                        line = line.strip()
+                        if line and any(keyword in line.lower() for keyword in
+                                      ['kdump', 'vmcore', 'dump', 'crash', 'istep', 'boot',
+                                       'kernel', 'panic', 'oops', 'reboot', 'fadump', 'mpipl']):
+                            log.info(f"[{log_prefix}] {line}")
+            except Exception:
+                # Timeout or other error - continue monitoring
+                pass
+                
+        log.info(f"[{log_prefix}] Console monitoring stopped")
+        
+    except Exception as e:
+        log.warning(f"[{log_prefix}] Console monitoring error: {e}")
+    finally:
+        if console_pty:
+            try:
+                console_pty.close()
+            except Exception:
+                pass
 
 
 class OptestKernelDump(unittest.TestCase):
@@ -458,6 +507,108 @@ class OptestKernelDump(unittest.TestCase):
         done = False
         boot_type = BootType.NORMAL
         rc = -1
+        
+        # For HMC/LPAR systems using SSH, we need different reboot detection
+        if self.is_lpar:
+            log.info("HMC/LPAR system detected - using SSH-based reboot detection")
+            log.info("Waiting for LPAR to crash and reboot (this may take several minutes)...")
+            
+            # Start console monitoring thread to capture boot messages
+            stop_console = threading.Event()
+            console_thread = None
+            try:
+                log.info("Starting background console monitoring thread...")
+                console_thread = threading.Thread(
+                    target=monitor_console_thread,
+                    args=(self.cv_HMC, stop_console, "KDUMP-CONSOLE"),
+                    daemon=True
+                )
+                console_thread.start()
+                log.info("Console monitoring thread started - will capture boot messages")
+            except Exception as e:
+                log.warning(f"Failed to start console monitoring thread: {e}")
+                log.warning("Continuing without console monitoring")
+            
+            # Wait for SSH connection to die (kernel crash)
+            max_wait = 60
+            log.info(f"Waiting up to {max_wait}s for SSH connection to die after crash trigger...")
+            for i in range(max_wait):
+                try:
+                    self.c.run_command("echo 'still alive'", timeout=5)
+                    time.sleep(1)
+                except Exception as e:
+                    log.info(f"SSH connection died after {i}s - kernel crashed successfully")
+                    break
+            else:
+                log.warning("SSH connection still alive after crash trigger - continuing anyway")
+            
+            # Wait for LPAR to show as "Not Activated"
+            log.info("Waiting for LPAR to reach 'Not Activated' state...")
+            max_wait = 120
+            for i in range(max_wait):
+                try:
+                    state = self.cv_HMC.get_lpar_state()
+                    if state == "Not Activated":
+                        log.info(f"LPAR reached 'Not Activated' state after {i}s")
+                        break
+                    log.debug(f"LPAR state: {state}, waiting...")
+                    time.sleep(5)
+                except Exception as e:
+                    log.debug(f"Error checking LPAR state: {e}")
+                    time.sleep(5)
+            
+            # Wait for LPAR to start booting (state changes from "Not Activated")
+            log.info("Waiting for LPAR to start booting...")
+            max_wait = 300  # 5 minutes for kdump to collect and reboot
+            for i in range(max_wait):
+                try:
+                    state = self.cv_HMC.get_lpar_state()
+                    if state != "Not Activated":
+                        log.info(f"LPAR started booting (state: {state}) after {i}s")
+                        boot_type = BootType.KDUMPKERNEL
+                        break
+                    time.sleep(5)
+                except Exception as e:
+                    log.debug(f"Error checking LPAR state: {e}")
+                    time.sleep(5)
+            else:
+                log.warning("LPAR did not start booting within timeout")
+            
+            # Wait for SSH to become available
+            log.info("Waiting for SSH to become available after reboot...")
+            max_wait = 600  # 10 minutes total
+            ssh_available = False
+            for i in range(max_wait):
+                try:
+                    # Try to reconnect SSH
+                    self.c = self.cv_HOST
+                    self.c.run_command("uname -a", timeout=10)
+                    log.info(f"SSH connection re-established after {i}s")
+                    ssh_available = True
+                    break
+                except Exception as e:
+                    if i % 10 == 0:  # Log every 10 seconds
+                        log.debug(f"SSH not yet available ({i}s elapsed): {e}")
+                    time.sleep(1)
+            
+            if not ssh_available:
+                log.error("SSH did not become available within timeout")
+                self.cv_SYSTEM.set_state(OpSystemState.UNKNOWN_BAD)
+                return BootType.INVALID
+            
+            log.info("System successfully rebooted and SSH is available")
+            self.cv_SYSTEM.set_state(OpSystemState.OS)
+            
+            # Stop console monitoring thread
+            if console_thread:
+                log.info("Stopping console monitoring thread...")
+                stop_console.set()
+                console_thread.join(timeout=5)
+                log.info("Console monitoring thread stopped")
+            
+            return boot_type
+        
+        # Original console-based detection for non-LPAR systems
         while not done:
             try:
                 # MPIPL completion + system reboot would take time, keeping it
