@@ -793,8 +793,14 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
                 self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
                                    "update-bootloader --refresh", timeout=240)
                 time.sleep(5)
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            # For HMC systems, use HMC reboot command instead of goto_state
+            if self.is_lpar:
+                log.info("HMC system - using HMC restart command instead of goto_state")
+                self.cv_HMC.restart_lpar()
+                time.sleep(120)  # Wait for LPAR to restart
+            else:
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         if self.distro == "ubuntu":
             self.cv_HOST.host_check_command("kdump")
@@ -816,8 +822,14 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
             self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
                                "update-bootloader --refresh", timeout=240)
             time.sleep(5)
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        # For HMC systems, use HMC restart command instead of goto_state
+        if self.is_lpar:
+            log.info("HMC system - using HMC restart command instead of goto_state")
+            self.cv_HMC.restart_lpar()
+            time.sleep(120)  # Wait for LPAR to restart
+        else:
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         os_level = self.cv_HOST.host_get_OS_Level()
         self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
         self.cv_HOST.host_enable_kdump_service(os_level)
