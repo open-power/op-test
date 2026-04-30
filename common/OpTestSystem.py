@@ -864,24 +864,50 @@ class OpTestSystem(object):
     def run_BOOTING(self, state):
         self.block_setup_term = 1
         
-        # For HMC systems, try SSH-based boot detection first
-        if isinstance(self.console, OpTestHMC.HMCConsole) and self.is_ssh_available():
-            log.info("HMC system detected with SSH available - using SSH for boot detection")
+        # For HMC systems, try SSH-based boot detection using pexpect
+        if isinstance(self.console, OpTestHMC.HMCConsole):
+            log.info("HMC system detected - attempting SSH-based boot detection with pexpect")
             try:
                 import time
+                # Use SSH with pexpect to wait for login prompt, similar to console
+                ssh_obj = self.cv_HOST.ssh
                 max_wait = self.booting_timeout * self.booting_watermark
                 start_time = time.time()
+                ssh_attempts = 0
+                
                 while (time.time() - start_time) < max_wait:
+                    ssh_attempts += 1
                     try:
-                        # Try to run a simple command via SSH to check if system is up
-                        self.cv_HOST.host_run_command("echo 'System is up'", timeout=10)
-                        log.info("SSH connection successful - system has booted")
-                        self.block_setup_term = 0
-                        return OpSystemState.OS
+                        log.debug("SSH boot detection attempt %d - spawning SSH connection" % ssh_attempts)
+                        # Spawn SSH connection using pexpect
+                        ssh_cmd = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 22 %s@%s" % (
+                            self.cv_HOST.user, self.cv_HOST.ip)
+                        ssh_pty = pexpect.spawn(ssh_cmd, timeout=10)
+                        
+                        # Wait for either password prompt or login prompt
+                        r = ssh_pty.expect(['password:', 'login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                        
+                        if r == 0:  # password prompt - system is up, SSH is working
+                            log.info("SSH password prompt detected - system has booted (attempt %d)" % ssh_attempts)
+                            ssh_pty.sendline(self.cv_HOST.passwd)
+                            ssh_pty.close()
+                            self.block_setup_term = 0
+                            return OpSystemState.OS
+                        elif r == 1:  # login prompt - system is at login, need to login
+                            log.info("Login prompt detected via SSH - system has booted (attempt %d)" % ssh_attempts)
+                            ssh_pty.close()
+                            self.block_setup_term = 0
+                            return OpSystemState.OS
+                        else:  # TIMEOUT or EOF
+                            log.debug("SSH not ready yet (attempt %d): timeout or EOF" % ssh_attempts)
+                            ssh_pty.close()
+                            
                     except Exception as e:
-                        log.debug("SSH not ready yet: %s" % str(e))
-                        time.sleep(10)
-                log.warning("SSH did not become available within timeout, falling back to console")
+                        log.debug("SSH connection attempt %d failed: %s" % (ssh_attempts, str(e)))
+                    
+                    time.sleep(10)
+                    
+                log.warning("SSH did not become available within timeout after %d attempts, falling back to console" % ssh_attempts)
             except Exception as e:
                 log.warning("SSH boot detection failed: %s, falling back to console" % str(e))
         
