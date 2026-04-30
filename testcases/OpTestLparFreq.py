@@ -34,6 +34,10 @@ import time
 import OpTestConfiguration
 import OpTestLogger
 
+from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from common.OpTestCommandExecutor import OpTestCommandExecutor
+from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
+
 from common import OpTestHMC
 from common.OpTestSystem import OpSystemState
 from common.OpTestError import OpTestError

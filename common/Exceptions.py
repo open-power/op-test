@@ -51,12 +51,47 @@ class SSHSessionDisconnected(Exception):
     SSH session/console was disconnected unexpectedly. e.g. it may have crashed
     '''
 
-    def __init__(self, notice):
+    def __init__(self, notice, original_exception=None):
         self.notice = notice
+        self.original_exception = original_exception
 
     def __str__(self):
+        if self.original_exception:
+            return "SSH session/console disconnected due to '{}': {}".format(
+                self.notice, self.original_exception)
         return "SSH session/console disconnected due to '{}'".format(
             self.notice)
+
+
+class SSHConnectionFailed(Exception):
+    '''
+    SSH connection attempt failed
+    '''
+
+    def __init__(self, message, original_exception=None):
+        self.message = message
+        self.original_exception = original_exception
+
+    def __str__(self):
+        if self.original_exception:
+            return "SSH connection failed: {} - {}".format(
+                self.message, self.original_exception)
+        return "SSH connection failed: {}".format(self.message)
+
+
+class SSHCommandFailed(Exception):
+    '''
+    SSH command execution failed
+    '''
+
+    def __init__(self, command, error_output, exit_code):
+        self.command = command
+        self.error_output = error_output
+        self.exit_code = exit_code
+
+    def __str__(self):
+        return "SSH command '{}' failed with exit code {}. Error: {}".format(
+            self.command, self.exit_code, self.error_output)
 
 
 class BMCDisconnected(Exception):

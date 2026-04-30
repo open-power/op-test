@@ -31,6 +31,10 @@ import random
 import OpTestConfiguration
 import OpTestLogger
 
+from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from common.OpTestCommandExecutor import OpTestCommandExecutor
+from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
+
 from common.OpTestSystem import OpSystemState
 from common.OpTestUtil import OpTestUtil
 from testcases.OpTestKernelDump import OptestKernelDump

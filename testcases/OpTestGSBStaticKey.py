@@ -37,6 +37,10 @@ Activate LPAR
 '''
 import unittest
 import OpTestConfiguration
+
+from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from common.OpTestCommandExecutor import OpTestCommandExecutor
+from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
 from common.OpTestSystem import OpSystemState
 from common.OpTestUtil import OpTestUtil
 
