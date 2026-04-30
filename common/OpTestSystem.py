@@ -863,6 +863,29 @@ class OpTestSystem(object):
 
     def run_BOOTING(self, state):
         self.block_setup_term = 1
+        
+        # For HMC systems, try SSH-based boot detection first
+        if isinstance(self.console, OpTestHMC.HMCConsole) and self.is_ssh_available():
+            log.info("HMC system detected with SSH available - using SSH for boot detection")
+            try:
+                import time
+                max_wait = self.booting_timeout * self.booting_watermark
+                start_time = time.time()
+                while (time.time() - start_time) < max_wait:
+                    try:
+                        # Try to run a simple command via SSH to check if system is up
+                        self.cv_HOST.host_run_command("echo 'System is up'", timeout=10)
+                        log.info("SSH connection successful - system has booted")
+                        self.block_setup_term = 0
+                        return OpSystemState.OS
+                    except Exception as e:
+                        log.debug("SSH not ready yet: %s" % str(e))
+                        time.sleep(10)
+                log.warning("SSH did not become available within timeout, falling back to console")
+            except Exception as e:
+                log.warning("SSH boot detection failed: %s, falling back to console" % str(e))
+        
+        # Fall back to console-based boot detection
         try:
             # if login cannot be reached it will automatically increase the watermark and retry
             # see the tunables booting_watermark and booting_timeout for customization for extra long boot cycles for debugging, etc
