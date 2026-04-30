@@ -98,6 +98,7 @@ def monitor_console_thread(hmc_obj, stop_event, log_prefix="console"):
     :param log_prefix: Prefix for log messages
     """
     console_pty = None
+    console = None
     try:
         log.info(f"[{log_prefix}] Starting console monitoring thread")
         
@@ -125,16 +126,27 @@ def monitor_console_thread(hmc_obj, stop_event, log_prefix="console"):
                 # Timeout or other error - continue monitoring
                 pass
                 
-        log.info(f"[{log_prefix}] Console monitoring stopped")
+        log.info(f"[{log_prefix}] Console monitoring stopped - cleaning up")
         
     except Exception as e:
         log.warning(f"[{log_prefix}] Console monitoring error: {e}")
     finally:
+        # Properly close and deactivate console to allow SSH login
         if console_pty:
             try:
+                log.info(f"[{log_prefix}] Closing console connection")
                 console_pty.close()
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug(f"[{log_prefix}] Error closing console pty: {e}")
+        
+        if console:
+            try:
+                log.info(f"[{log_prefix}] Deactivating LPAR console")
+                console.deactivate_lpar_console()
+            except Exception as e:
+                log.debug(f"[{log_prefix}] Error deactivating console: {e}")
+        
+        log.info(f"[{log_prefix}] Console cleanup complete")
 
 
 class OptestKernelDump(unittest.TestCase):
