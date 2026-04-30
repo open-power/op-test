@@ -232,6 +232,26 @@ class OpTestHost():
             log.warning(l_msg)
             raise OpTestError(l_msg)
 
+    def run_command(self, i_cmd, timeout=1500, retry=0, console=0):
+        '''
+        Wrapper method for host_run_command() to provide compatibility
+        with console interface. Uses SSH by default, console only if requested.
+        Logs commands and output for visibility (mimics console behavior).
+        
+        :param i_cmd: Command to run
+        :param timeout: Timeout in seconds
+        :param retry: Number of retries
+        :param console: If 1, force use of console instead of SSH
+        :returns: Command output as list of strings
+        '''
+        log.info("Running command via %s: %s" % ("console" if console else "SSH", i_cmd))
+        result = self.host_run_command(i_cmd, timeout, retry, console)
+        if result:
+            # Print output at INFO level so it's visible in console, like pexpect does
+            for line in result:
+                log.info("  %s" % line)
+        return result
+
     def host_run_command(self, i_cmd, timeout=1500, retry=0, console=0):
         # if we are QEMU use the system console
         if isinstance(self.ssh.system.console, OpTestQemu.QemuConsole) or (console == 1):

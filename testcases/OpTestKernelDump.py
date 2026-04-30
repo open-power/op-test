@@ -108,7 +108,8 @@ class OptestKernelDump(unittest.TestCase):
         self.minor_version = self.op_test_util.get_distro_version().split(".")[1]
         self.pdbg = conf.args.pdbg
         self.basedir = conf.basedir
-        self.c = self.cv_SYSTEM.console
+        # Use SSH for pre-crash commands, console only needed after crash for login
+        self.c = self.cv_HOST
         if self.bmc_type == "FSP_PHYP" or self.bmc_type == "EBMC_PHYP" :
             self.is_lpar = True
             self.hmc_user = conf.args.hmc_username
@@ -131,7 +132,8 @@ class OptestKernelDump(unittest.TestCase):
         try: self.url = conf.args.url
         except AttributeError:
             self.url = "https://downloads.sourceforge.net/project/ebizzy/ebizzy/0.3/ebizzy-0.3.tar.gz"
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        # Skip goto_state() - system is already in OS and SSH is available
+        # goto_state() would trigger console access which we want to avoid
         res = self.cv_HOST.host_run_command("cat /etc/os-release", timeout=60)
         if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
             self.distro = "ubuntu"
@@ -143,6 +145,26 @@ class OptestKernelDump(unittest.TestCase):
             self.c.run_command("cp /etc/sysconfig/kdump /etc/sysconfig/kdump_bck")
         else:
             raise self.skipTest("Test currently supported only on ubuntu, sles and rhel")
+
+    def wait_for_ssh_after_reboot(self, timeout=600):
+        '''
+        Wait for SSH to become available after system reboot.
+        This avoids using goto_state which would trigger console access.
+        '''
+        import time
+        log.info("Waiting for SSH connection after reboot (timeout=%ds)" % timeout)
+        start_time = time.time()
+        while (time.time() - start_time) < timeout:
+            try:
+                # Try to run a simple command via SSH
+                self.cv_HOST.host_run_command("echo 'SSH is up'", timeout=10)
+                log.info("SSH connection established successfully")
+                return True
+            except Exception as e:
+                log.debug("SSH not ready yet: %s" % str(e))
+                time.sleep(10)
+        log.error("SSH did not come up within %d seconds" % timeout)
+        return False
 
     def setup_test(self, dump_place="local"):
         '''
