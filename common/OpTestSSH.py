@@ -74,7 +74,7 @@ class OpTestSSH():
         # OpTestUtil instance is NOT conf's
         self.util = OpTestUtil()
         self.prompt = prompt
-        self.expect_prompt = self.util.build_prompt(prompt) + "$"
+        self.expect_prompt = self.util.build_prompt(prompt, ssh=True) + "$"
         self.pty = None
         # allows caller specific control of when to block setup_term
         self.block_setup_term = block_setup_term

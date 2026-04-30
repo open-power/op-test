@@ -440,8 +440,33 @@ class OpTestSystem(object):
     def detect_state_via_ssh(self):
         """
         Detect system state using SSH connection.
+        For HMC systems, uses HMC SSH to LPAR.
+        For direct systems, uses direct SSH connection.
         Returns OpSystemState if detection succeeds, None if SSH unavailable.
         """
+        # For HMC systems, always try SSH via host_run_command (uses HMC SSH)
+        if isinstance(self.console, OpTestHMC.HMCConsole):
+            try:
+                log.debug("SSH detection: Using HMC SSH connection")
+                result = self.cv_HOST.host_run_command(
+                    "cat /proc/version 2>/dev/null | grep -q '{}' && echo 'OS' || echo 'PETITBOOT'".format(self.openpower),
+                    timeout=5
+                )
+                output = '\n'.join(result).strip()
+                if 'OS' in output:
+                    log.debug("SSH detection: System is in OS state (via HMC SSH)")
+                    self.previous_state = OpSystemState.OS
+                    return OpSystemState.OS
+                elif 'PETITBOOT' in output:
+                    log.debug("SSH detection: System is in Petitboot shell state (via HMC SSH)")
+                    self.previous_state = OpSystemState.PETITBOOT_SHELL
+                    return OpSystemState.PETITBOOT_SHELL
+                return None
+            except Exception as e:
+                log.debug(f"HMC SSH state detection failed: {e}")
+                return None
+        
+        # For non-HMC systems, check if direct SSH is available
         if not self.is_ssh_available():
             return None
         

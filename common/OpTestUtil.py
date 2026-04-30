@@ -1286,11 +1286,14 @@ class OpTestUtil():
             log.debug("ping check to peerIP failed   CommandFailed={}".format(cf))
             return False
 
-    def build_prompt(self, prompt=None):
+    def build_prompt(self, prompt=None, ssh=False):
         if prompt:
             built_prompt = prompt
         else:
-            built_prompt = "\[console-expect\]#"
+            if ssh:
+                built_prompt = "\[ssh-expect\]#"
+            else:
+                built_prompt = "\[console-expect\]#"
 
         return built_prompt
 
