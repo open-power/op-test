@@ -81,7 +81,9 @@ class OpTestSysinfo():
         # Collect config data from HMC
         ################ HMC INFO ####################
         get_HMCconfig_cmds  = self.config_actions["HMC"]["COMMANDS"]
-        print("########### HMC Sysinfo ########")
+        print("\n" + "="*80)
+        print("HMC SYSTEM INFORMATION")
+        print("="*80)
         for index, each_cmd in enumerate(get_HMCconfig_cmds, start=0):
             if re.search(r'SYS|LPAR_NAME', each_cmd):
                 new_cmd=each_cmd
@@ -89,11 +91,26 @@ class OpTestSysinfo():
                 new_cmd = re.sub(r'SYS', CEC_name, new_cmd)
                 new_cmd = re.sub(r'LPAR_NAME', LPAR, new_cmd)
                 try:
-                   output = pty.run_command(new_cmd)
+                    output = pty.run_command(new_cmd, timeout=10)
+                    if output:
+                        print(f"\n[{index+1}] Command: {new_cmd}")
+                        print("-" * 80)
+                        for line in output:
+                            print(f"  {line}")
                 except Exception as e:
-                   print('command failed due to system error')
+                    print(f"\n[{index+1}] Command: {new_cmd}")
+                    print("-" * 80)
+                    print(f"  ERROR: {e}")
             else:
                 try:
-                    output = pty.run_command(each_cmd)
+                    output = pty.run_command(each_cmd, timeout=10)
+                    if output:
+                        print(f"\n[{index+1}] Command: {each_cmd}")
+                        print("-" * 80)
+                        for line in output:
+                            print(f"  {line}")
                 except Exception as e:
-                          print('command failed due to system error')
+                    print(f"\n[{index+1}] Command: {each_cmd}")
+                    print("-" * 80)
+                    print(f"  ERROR: {e}")
+        print("\n" + "="*80 + "\n")
