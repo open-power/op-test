@@ -1866,7 +1866,12 @@ class OpTestUtil():
                 except Exception as e:
                     pass  # nothing there
                 try:
-                    echo_rc = int(echo_output[-1])
+                    # Filter out ANSI escape sequences and empty lines before parsing exit code
+                    filtered_output = [line for line in echo_output if line and not line.startswith('\x1b[')]
+                    if filtered_output:
+                        echo_rc = int(filtered_output[-1])
+                    else:
+                        echo_rc = -1
                 except Exception as e:
                     echo_rc = -1
             else:
