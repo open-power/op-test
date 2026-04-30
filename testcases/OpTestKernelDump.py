@@ -101,8 +101,9 @@ def monitor_console_thread(hmc_obj, stop_event, log_prefix="console"):
     try:
         log.info(f"[{log_prefix}] Starting console monitoring thread")
         
-        # Open console connection
-        console_pty = hmc_obj.connect()
+        # Get the HMC console object and connect
+        console = hmc_obj.get_host_console()
+        console_pty = console.connect()
         log.info(f"[{log_prefix}] Console connection established")
         
         # Monitor console output
