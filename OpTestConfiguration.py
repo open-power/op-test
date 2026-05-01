@@ -463,6 +463,20 @@ def get_parser():
     misc_group.add_argument("--bisect-flag",
                             help="Specify if bisection is to be done or not")
 
+    vpmem_group = parser.add_argument_group("VPMEM", "VPMEM/NVDIMM test configuration")
+    vpmem_group.add_argument("--vpmem-device",
+                            help="Path to vpmem device (default: /dev/pmem0)",
+                            default="/dev/pmem0")
+    vpmem_group.add_argument("--vpmem-mount-point",
+                            help="Mount point for vpmem device (default: /pmem0)",
+                            default="/pmem0")
+    vpmem_group.add_argument("--vpmem-namespace",
+                            help="Namespace name (default: namespace0.0)",
+                            default="namespace0.0")
+    vpmem_group.add_argument("--vpmem-region",
+                            help="Region name (default: region0)",
+                            default="region0")
+
     return parser
 
 
