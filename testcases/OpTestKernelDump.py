@@ -73,6 +73,7 @@ from common.OpTestSystem import OpSystemState
 from common.Exceptions import KernelOOPS, KernelPanic, KernelCrashUnknown, KernelKdump, KernelFADUMP, PlatformError, CommandFailed, SkibootAssert
 from common.OpTestConstants import OpTestConstants as BMC_CONST
 from common.OpTestError import OpTestError
+from datetime import datetime
 import testcases.OpTestDlpar
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
@@ -2045,6 +2046,137 @@ class PstoreCheck(OptestKernelDump):
             raise OpTestError("No pstore files were updated after crash")
         log.info(f"Pstore files updated after crash: {updated_files}")
 
+
+class MeasureMakedumpTime(OptestKernelDump):
+
+    def build_stress_ng_if_needed(self):
+        self.stress_binary = "/opt/stress-ng/stress-ng"
+        log.info("Checking for stress-ng binary")
+        result = self.c.run_command_ignore_fail(
+            f"test -x {self.stress_binary} && echo FOUND"
+        )
+        if result and "FOUND" in result[0]:
+            log.info("stress-ng already present, skipping build")
+            return
+
+        log.info("Building stress-ng from source")
+        self.c.run_command_ignore_fail("zypper install -y gcc make wget tar")
+        self.c.run_command(
+            "mkdir -p /opt/stress-ng && cd /opt/stress-ng && "
+            "wget -q https://github.com/ColinIanKing/stress-ng/archive/refs/heads/master.tar.gz && "
+            "tar -xzf master.tar.gz && "
+            "cd stress-ng-master && make -j`nproc` > build.log 2>&1", timeout=1200
+        )
+        self.c.run_command(
+            "cp /opt/stress-ng/stress-ng-master/stress-ng /opt/stress-ng/stress-ng"
+        )
+        log.info("stress-ng build completed")
+
+    def start_stress_ng_workload(self):
+        """Start stress-ng with given method"""
+        self.build_stress_ng_if_needed()
+        cpu_count = int(self.c.run_command("nproc")[0].strip())
+        cpu_workers = max(1, int(cpu_count * 0.5))
+        vm_workers = max(1, int(cpu_count * 0.4))
+        workload_cmd = (
+            f"{self.stress_binary} "
+            f"--cpu {cpu_workers} "
+            f"--vm {vm_workers} "
+            f"--vm-bytes 60% "
+            f"--vm-keep "
+            f"--timeout 120s &"
+        )
+        log.info(f"Starting stress-ng workload: {workload_cmd}")
+        self.c.run_command(workload_cmd)
+        log.info("Waiting 60 seconds for workload stabilization")
+        time.sleep(60)
+        mem_info = self.c.run_command("free -m")[0]
+        log.info(f"Memory usage after workload:\n{mem_info}")
+
+    def extract_rhel_dump_time(self, log_lines):
+        start = None
+        end = None
+        for line in log_lines:
+            if "saving vmcore" in line and "complete" not in line:
+                m = re.search(r'\[\s*([\d\.]+)\]', line)
+                if m:
+                    start = float(m.group(1))
+            if "saving vmcore complete" in line:
+                m = re.search(r'\[\s*([\d\.]+)\]', line)
+                if m:
+                    end = float(m.group(1))
+        if start and end:
+            return end - start
+        return None
+
+    def extract_sles_dump_time(self, log_lines):
+        crash_time = None
+        dump_time = None
+        for line in log_lines:
+            if "Crash time:" in line:
+                crash_time = line.split("Crash time:")[1].strip()
+            if "Dump time:" in line:
+                dump_time = line.split("Dump time:")[1].strip()
+        if crash_time and dump_time:
+            t1 = datetime.strptime(crash_time, "%Y-%m-%dT%H:%M:%S")
+            t2 = datetime.strptime(dump_time, "%Y-%m-%dT%H:%M:%S")
+            return (t2 - t1).total_seconds()
+        return None
+
+    def runTest(self):
+        scenarios = [
+            ("Baseline (no workload)", None),
+            ("stress-ng workload", "stress-ng")
+        ]
+
+        results = {}
+
+        for name, workload in scenarios:
+            log.info(f"===== Running scenario: {name} =====")
+            if workload == "stress-ng":
+                self.start_stress_ng_workload()
+            else:
+                log.info("No workload for baseline")
+
+            # Trigger kernel crash
+            self.kernel_crash()
+
+            # Find latest crash directory
+            crash_dir = self.c.run_command("ls -td /var/crash/* | head -1")[0].strip()
+
+            if self.distro == "rhel":
+                logs = self.c.run_command(
+                    f"cat {crash_dir}/kexec-dmesg.log | grep kdump"
+                )
+                dump_time = self.extract_rhel_dump_time(logs)
+            elif self.distro == "sles":
+                logs = self.c.run_command(f"cat {crash_dir}/README.txt")
+                dump_time = self.extract_sles_dump_time(logs)
+            else:
+                raise RuntimeError("Unsupported distro")
+            
+            # Capture vmcore size
+            vmcore_size_str = self.c.run_command("du -m " + crash_dir + "/vmcore | awk '{print $1}'")[0].strip()
+            vmcore_size = float(vmcore_size_str)
+
+            log.info(f"Dump time for {name}: {dump_time:.2f} seconds")
+            log.info(f"vmcore size for {name}: {vmcore_size:.2f} MB") 
+            results[name] = {"time": dump_time, "vmcore_size_mb": vmcore_size}
+
+            # Clean crash directory for next run
+            self.c.run_command(f"rm -rf {crash_dir}; sync")
+
+        # Compare results
+        baseline = results["Baseline (no workload)"]
+        for name, data in results.items():
+            time_diff = data["time"] - baseline["time"]
+            size_diff = data["vmcore_size_mb"] - baseline["vmcore_size_mb"]
+            log.info("===== RESULTS =====")
+            log.info(
+                "%s: Dump Time = %.2f sec ( %.2f sec), VMCore Size = %.2f MB ( %.2f MB)" %
+                (name, data['time'], time_diff, data['vmcore_size_mb'], size_diff))
+
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestWatchdog())
@@ -2082,5 +2214,6 @@ def crash_suite():
     s.addTest(SkirootKernelCrash())
     s.addTest(OPALCrash_MPIPL())
     s.addTest(PstoreCheck())
+    s.addTest(MeasureMakedumpTime())
 
     return s
