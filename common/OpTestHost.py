@@ -42,20 +42,23 @@ import telnetlib
 import socket
 import select
 import pty
-import pexpect
 import subprocess
 
 import OpTestConfiguration
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
-from .OpTestSSH import OpTestSSH
+from .OpTestSSH import OpTestSSH, ConsoleState
 from . import OpTestQemu
 from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+from .Exceptions import SSHConnectionFailed, SSHCommandFailed, SSHSessionDisconnected
+
+# New SSH architecture imports
+from .OpTestConnectionManager import OpTestConnectionManager
+from .OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from .OpTestCommandExecutor import OpTestCommandExecutor
 
 import logging
 import OpTestLogger
-log = OpTestLogger.optest_logger_glob.get_logger(__name__)
-
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
@@ -75,9 +78,35 @@ class OpTestHost():
         self.bmcip = i_bmcip
         self.results_dir = i_results_dir
         self.logfile = logfile
+        
+        # Legacy SSH support (for backward compatibility)
         self.ssh = OpTestSSH(i_hostip, i_hostuser, i_hostpasswd,
                              logfile=self.logfile, check_ssh_keys=check_ssh_keys,
                              known_hosts_file=known_hosts_file)
+        
+        # New SSH architecture - connection manager and direct connection
+        self.connection_manager = OpTestConnectionManager(
+            max_connections=20,
+            max_idle_time=300,
+            max_connection_age=3600
+        )
+        
+        # Get primary connection and executor for this host
+        try:
+            self.connection, self.executor = self.connection_manager.get_connection(
+                host=i_hostip,
+                username=i_hostuser,
+                password=i_hostpasswd,
+                port=22,
+                timeout=30
+            )
+            log.info(f"New SSH connection established to {i_hostip}")
+        except SSHConnectionFailed as e:
+            log.warning(f"Failed to establish new SSH connection: {e}")
+            log.warning("Falling back to legacy SSH implementation")
+            self.connection = None
+            self.executor = None
+        
         self.scratch_disk = scratch_disk
         self.proxy = proxy
         self.scratch_disk_size = None
@@ -118,6 +147,18 @@ class OpTestHost():
 
     def get_ssh_connection(self):
         return self.ssh
+    
+    @property
+    def pty(self):
+        """
+        Property to access SSH pty for compatibility with console interface.
+        This allows code that uses self.c.pty to work with both console and SSH.
+        Automatically establishes SSH connection if not already connected.
+        """
+        if self.ssh.pty is None or self.ssh.state == ConsoleState.DISCONNECTED:
+            log.info("SSH pty needed - establishing SSH connection")
+            self.ssh.get_console()
+        return self.ssh.pty
 
     def get_new_ssh_connection(self, name="temp"):
         # time.sleep(1)
@@ -202,6 +243,26 @@ class OpTestHost():
             l_msg = "Code Update Failed"
             log.warning(l_msg)
             raise OpTestError(l_msg)
+
+    def run_command(self, i_cmd, timeout=1500, retry=0, console=0):
+        '''
+        Wrapper method for host_run_command() to provide compatibility
+        with console interface. Uses SSH by default, console only if requested.
+        Logs commands and output for visibility (mimics console behavior).
+        
+        :param i_cmd: Command to run
+        :param timeout: Timeout in seconds
+        :param retry: Number of retries
+        :param console: If 1, force use of console instead of SSH
+        :returns: Command output as list of strings
+        '''
+        log.info("Running command via %s: %s" % ("console" if console else "SSH", i_cmd))
+        result = self.host_run_command(i_cmd, timeout, retry, console)
+        if result:
+            # Print output at INFO level so it's visible in console, like pexpect does
+            for line in result:
+                log.info("  %s" % line)
+        return result
 
     def host_run_command(self, i_cmd, timeout=1500, retry=0, console=0):
         # if we are QEMU use the system console
