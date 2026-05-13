@@ -23,6 +23,10 @@ import os
 import re
 import time
 
+from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from common.OpTestCommandExecutor import OpTestCommandExecutor
+from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
+
 try:
     from urllib.parse import urlparse
 except ImportError:
