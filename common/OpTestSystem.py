@@ -421,7 +421,101 @@ class OpTestSystem(object):
             self.detect_counter += 1
         return detect_state
 
+    def is_ssh_available(self):
+        """
+        Check if SSH connection to host is available.
+        Returns True if SSH is connected and alive, False otherwise.
+        """
+        try:
+            if hasattr(self.cv_HOST, 'connection') and self.cv_HOST.connection:
+                if self.cv_HOST.connection.is_alive():
+                    log.debug("SSH connection is available and alive")
+                    return True
+            log.debug("SSH connection not available")
+            return False
+        except Exception as e:
+            log.debug(f"SSH availability check failed: {e}")
+            return False
+
+    def detect_state_via_ssh(self):
+        """
+        Detect system state using SSH connection.
+        For HMC systems, uses HMC SSH to LPAR.
+        For direct systems, uses direct SSH connection.
+        Returns OpSystemState if detection succeeds, None if SSH unavailable.
+        """
+        # For HMC systems, always try SSH via host_run_command (uses HMC SSH)
+        if isinstance(self.console, OpTestHMC.HMCConsole):
+            try:
+                log.debug("SSH detection: Using HMC SSH connection")
+                result = self.cv_HOST.host_run_command(
+                    "cat /proc/version 2>/dev/null | grep -q '{}' && echo 'OS' || echo 'PETITBOOT'".format(self.openpower),
+                    timeout=5
+                )
+                output = '\n'.join(result).strip()
+                if 'OS' in output:
+                    log.debug("SSH detection: System is in OS state (via HMC SSH)")
+                    self.previous_state = OpSystemState.OS
+                    return OpSystemState.OS
+                elif 'PETITBOOT' in output:
+                    log.debug("SSH detection: System is in Petitboot shell state (via HMC SSH)")
+                    self.previous_state = OpSystemState.PETITBOOT_SHELL
+                    return OpSystemState.PETITBOOT_SHELL
+                return None
+            except Exception as e:
+                log.debug(f"HMC SSH state detection failed: {e}")
+                return None
+        
+        # For non-HMC systems, check if direct SSH is available
+        if not self.is_ssh_available():
+            return None
+        
+        try:
+            # Try to run a simple command to check if we're in OS
+            result = self.cv_HOST.executor.execute(
+                "cat /proc/version 2>/dev/null | grep -q '{}' && echo 'OS' || echo 'PETITBOOT'".format(self.openpower),
+                timeout=5
+            )
+            
+            if result.exit_code == 0:
+                output = result.stdout.strip()
+                if 'OS' in output:
+                    log.debug("SSH detection: System is in OS state")
+                    self.previous_state = OpSystemState.OS
+                    return OpSystemState.OS
+                elif 'PETITBOOT' in output:
+                    log.debug("SSH detection: System is in Petitboot shell state")
+                    self.previous_state = OpSystemState.PETITBOOT_SHELL
+                    return OpSystemState.PETITBOOT_SHELL
+            
+            return None
+        except Exception as e:
+            log.debug(f"SSH state detection failed: {e}")
+            return None
+
     def detect_target(self, target_state, reboot):
+        # First, try SSH-based detection if target is OS or Petitboot shell
+        if target_state in [OpSystemState.OS, OpSystemState.PETITBOOT_SHELL]:
+            ssh_state = self.detect_state_via_ssh()
+            if ssh_state is not None:
+                log.info(f"State detected via SSH: {ssh_state}")
+                if ssh_state == target_state:
+                    return ssh_state
+                elif ssh_state == OpSystemState.PETITBOOT_SHELL and target_state == OpSystemState.OS and reboot:
+                    self.run_REBOOT(target_state)
+                    return OpSystemState.UNKNOWN
+                elif ssh_state == OpSystemState.OS and target_state == OpSystemState.PETITBOOT_SHELL:
+                    # Can't go from OS to Petitboot shell without reboot
+                    if reboot:
+                        self.run_REBOOT(target_state)
+                        return OpSystemState.UNKNOWN
+                    else:
+                        return OpSystemState.UNKNOWN
+                elif ssh_state == target_state:
+                    return ssh_state
+        
+        # Fallback to console-based detection
+        log.debug("Falling back to console-based state detection")
         self.block_setup_term = 0  # unblock to allow setup_term during get_console
         self.console.enable_setup_term_quiet()
         sys_pty = self.console.get_console()
@@ -493,6 +587,14 @@ class OpTestSystem(object):
             return OpSystemState.UNKNOWN
 
     def check_kernel(self):
+        # Try SSH-based detection first
+        ssh_state = self.detect_state_via_ssh()
+        if ssh_state is not None:
+            log.debug(f"check_kernel: State detected via SSH: {ssh_state}")
+            return ssh_state
+        
+        # Fallback to console-based detection
+        log.debug("check_kernel: Falling back to console-based detection")
         self.block_setup_term = 0  # unblock to allow setup_term during get_console
         self.console.enable_setup_term_quiet()
         sys_pty = self.console.get_console()
@@ -689,6 +791,28 @@ class OpTestSystem(object):
             raise UnknownStateTransition(state=self.state,
                                          message="OpTestSystem in run_OFF and something caused the system to go to UNKNOWN")
 
+        # For HMC systems, use HMC SSH commands to power on LPAR
+        if isinstance(self.console, OpTestHMC.HMCConsole):
+            log.info("HMC system detected - using HMC SSH commands to power on LPAR")
+            try:
+                # Power on LPAR using HMC command
+                r = self.console.poweron_lpar()
+                if r == BMC_CONST.FW_SUCCESS:
+                    log.info("LPAR powered on successfully via HMC")
+                    return OpSystemState.IPLing
+                else:
+                    log.warning("HMC power on returned non-success, will retry")
+                    r = self.console.poweron_lpar()
+                    if r == BMC_CONST.FW_SUCCESS:
+                        log.info("LPAR powered on successfully via HMC on retry")
+                        return OpSystemState.IPLing
+                    else:
+                        raise OpTestError("Failed to power on LPAR via HMC after retry")
+            except Exception as e:
+                log.error(f"Failed to power on LPAR via HMC: {e}")
+                raise OpTestError(f"HMC power on failed: {e}")
+        
+        # For non-HMC systems, use traditional IPMI method
         # We clear any possible errors at this stage
         self.sys_sdr_clear()
 
@@ -786,6 +910,55 @@ class OpTestSystem(object):
 
     def run_BOOTING(self, state):
         self.block_setup_term = 1
+        
+        # For HMC systems, try SSH-based boot detection using pexpect
+        if isinstance(self.console, OpTestHMC.HMCConsole):
+            log.info("HMC system detected - attempting SSH-based boot detection with pexpect")
+            try:
+                import time
+                # Use SSH with pexpect to wait for login prompt, similar to console
+                ssh_obj = self.cv_HOST.ssh
+                max_wait = self.booting_timeout * self.booting_watermark
+                start_time = time.time()
+                ssh_attempts = 0
+                
+                while (time.time() - start_time) < max_wait:
+                    ssh_attempts += 1
+                    try:
+                        log.debug("SSH boot detection attempt %d - spawning SSH connection" % ssh_attempts)
+                        # Spawn SSH connection using pexpect
+                        ssh_cmd = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 22 %s@%s" % (
+                            self.cv_HOST.user, self.cv_HOST.ip)
+                        ssh_pty = pexpect.spawn(ssh_cmd, timeout=10)
+                        
+                        # Wait for either password prompt or login prompt
+                        r = ssh_pty.expect(['password:', 'login: ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                        
+                        if r == 0:  # password prompt - system is up, SSH is working
+                            log.info("SSH password prompt detected - system has booted (attempt %d)" % ssh_attempts)
+                            ssh_pty.sendline(self.cv_HOST.passwd)
+                            ssh_pty.close()
+                            self.block_setup_term = 0
+                            return OpSystemState.OS
+                        elif r == 1:  # login prompt - system is at login, need to login
+                            log.info("Login prompt detected via SSH - system has booted (attempt %d)" % ssh_attempts)
+                            ssh_pty.close()
+                            self.block_setup_term = 0
+                            return OpSystemState.OS
+                        else:  # TIMEOUT or EOF
+                            log.debug("SSH not ready yet (attempt %d): timeout or EOF" % ssh_attempts)
+                            ssh_pty.close()
+                            
+                    except Exception as e:
+                        log.debug("SSH connection attempt %d failed: %s" % (ssh_attempts, str(e)))
+                    
+                    time.sleep(10)
+                    
+                log.warning("SSH did not become available within timeout after %d attempts, falling back to console" % ssh_attempts)
+            except Exception as e:
+                log.warning("SSH boot detection failed: %s, falling back to console" % str(e))
+        
+        # Fall back to console-based boot detection
         try:
             # if login cannot be reached it will automatically increase the watermark and retry
             # see the tunables booting_watermark and booting_timeout for customization for extra long boot cycles for debugging, etc

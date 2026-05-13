@@ -1286,11 +1286,14 @@ class OpTestUtil():
             log.debug("ping check to peerIP failed   CommandFailed={}".format(cf))
             return False
 
-    def build_prompt(self, prompt=None):
+    def build_prompt(self, prompt=None, ssh=False):
         if prompt:
             built_prompt = prompt
         else:
-            built_prompt = "\[console-expect\]#"
+            if ssh:
+                built_prompt = "\[ssh-expect\]#"
+            else:
+                built_prompt = "\[console-expect\]#"
 
         return built_prompt
 
@@ -1649,10 +1652,12 @@ class OpTestUtil():
             track_obj = ssh_obj
             term_obj = ssh_obj
             system_obj = ssh_obj.system
+            is_ssh = True
         else:
             track_obj = system
             term_obj = system.console
             system_obj = system
+            is_ssh = False
 
         if system_obj.state == 3:  # OpSystemState.PETITBOOT
             return
@@ -1661,17 +1666,17 @@ class OpTestUtil():
                          'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc in [1, 2, 3, 4, 5]:
             track_obj.PS1_set = self.set_PS1(
-                term_obj, pty, self.build_prompt(system_obj.prompt))
+                term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             # ssh port 22 can get in which uses sshpass or Petitboot, do this after set_PS1 to make sure we have something
             track_obj.LOGIN_set = 1
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc == 6:
             return  # Petitboot so nothing to do
@@ -1691,15 +1696,15 @@ class OpTestUtil():
                          "~>(\x1b\[J)", "~ #(\x1b\[J)", ":~(\x1b\[J)*", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc in [1, 2, 3, 4, 5, 6]:
             track_obj.LOGIN_set = track_obj.PS1_set = self.set_PS1(
-                term_obj, pty, self.build_prompt(system_obj.prompt))
+                term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc == 6:
             return  # Petitboot do nothing

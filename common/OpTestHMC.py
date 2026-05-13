@@ -1123,6 +1123,10 @@ class HMCConsole(HMCUtil):
         self.PS1_set = -1
         self.LOGIN_set = -1
         self.SUDO_set = -1
+        
+        # Create SSH connection to LPAR for sysinfo collection (instead of using console)
+        self.lpar_ssh = None
+        
         super(HMCConsole, self).__init__(hmc_ip, user_name, password, scratch_disk, proxy,
                                          logfile, managed_system, lpar_name, prompt,
                                          block_setup_term, delaybeforesend, timeout_factor,
@@ -1135,10 +1139,96 @@ class HMCConsole(HMCUtil):
         '''
         self.ssh.set_system(system)
         self.system = system
-        self.pty = self.get_console()
-        self.pty.set_system(system)
-        log.info("Collecting OS sysinfo")
-        self.sysinfo.get_OSconfig(self.pty, self.expect_prompt)
+        # Don't open console during initialization - make it lazy
+        # Console will be opened when actually needed (get_console() call)
+        self.pty = None
+        log.info("Console connection deferred - will open when needed")
+        
+        # Create SSH connection to LPAR for sysinfo collection (instead of using console)
+        log.info("Collecting OS sysinfo via SSH")
+        ssh_success = False
+        max_retries = 3
+        
+        # Get LPAR IP from system.cv_HOST if available
+        if not (hasattr(system, 'cv_HOST') and system.cv_HOST):
+            log.warning("LPAR IP not available, skipping OS sysinfo collection")
+        else:
+            lpar_ip = system.cv_HOST.ip
+            
+            # Try SSH connection with retries
+            for attempt in range(1, max_retries + 1):
+                try:
+                    log.info(f"Creating SSH connection to LPAR at {lpar_ip} (attempt {attempt}/{max_retries})")
+                    self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
+                                              logfile=self.logfile)
+                    self.lpar_ssh.set_system(system)
+                    # Test SSH connection with a simple command
+                    self.lpar_ssh.run_command_direct("echo test", timeout=10)
+                    ssh_success = True
+                    log.info(f"SSH connection successful on attempt {attempt}")
+                    break
+                except Exception as e:
+                    log.warning(f"SSH connection attempt {attempt}/{max_retries} failed: {e}")
+                    if attempt < max_retries:
+                        time.sleep(2)  # Wait before retry
+            
+            # If SSH failed after retries, try to boot LPAR using HMC SSH commands
+            if not ssh_success:
+                log.info(f"SSH connection failed after {max_retries} attempts")
+                log.info("Attempting to boot LPAR using HMC SSH commands")
+                try:
+                    # Check LPAR state
+                    lpar_state = self.get_lpar_state()
+                    log.info(f"Current LPAR state: {lpar_state}")
+                    
+                    # If LPAR is not running, power it on using HMC
+                    if lpar_state != OpHmcState.RUNNING:
+                        log.info("LPAR is not running, powering on via HMC SSH")
+                        result = self.poweron_lpar()
+                        if result == BMC_CONST.FW_SUCCESS:
+                            log.info("LPAR powered on successfully via HMC")
+                            
+                            # Wait for LPAR to boot and SSH to become available
+                            log.info("Waiting for LPAR to boot (up to 5 minutes)...")
+                            boot_wait_time = 300  # 5 minutes
+                            start_time = time.time()
+                            
+                            while (time.time() - start_time) < boot_wait_time:
+                                try:
+                                    log.debug(f"Attempting SSH connection after {int(time.time() - start_time)} seconds...")
+                                    self.lpar_ssh = OpTestSSH(lpar_ip, self.lpar_user, self.lpar_password,
+                                                              logfile=self.logfile)
+                                    self.lpar_ssh.set_system(system)
+                                    self.lpar_ssh.run_command_direct("echo test", timeout=10)
+                                    ssh_success = True
+                                    log.info(f"SSH connection successful after boot (waited {int(time.time() - start_time)} seconds)")
+                                    break
+                                except Exception as e:
+                                    log.debug(f"SSH not ready yet: {e}")
+                                    time.sleep(10)  # Wait 10 seconds before retry
+                            
+                            if not ssh_success:
+                                log.warning(f"SSH did not become available within {boot_wait_time} seconds after HMC power on")
+                        else:
+                            log.warning("HMC power on command did not return success")
+                    else:
+                        log.info("LPAR is already running but SSH is not responding")
+                        log.warning("LPAR may be hung or SSH service not started")
+                        
+                except Exception as boot_error:
+                    log.warning(f"Failed to boot LPAR via HMC SSH: {boot_error}")
+                    log.info("Will skip OS sysinfo collection")
+            
+            # Collect OS sysinfo only if SSH is working
+            if ssh_success:
+                try:
+                    log.info("Collecting OS sysinfo via SSH")
+                    self.sysinfo.get_OSconfig(self.lpar_ssh, self.expect_prompt)
+                except Exception as sysinfo_error:
+                    log.warning(f"Failed to collect OS sysinfo: {sysinfo_error}")
+            else:
+                log.warning("Skipping OS sysinfo collection - SSH connection not available")
+        
         log.info("Collecting HMC details")
         self.sysinfo.get_HMCconfig(self.ssh, self.expect_prompt,self.mg_system,self.lpar_name)
 
@@ -1330,7 +1420,9 @@ class HMCConsole(HMCUtil):
         :param logger: string, name of the logger to use other than default log
         :returns: object, HMC console with command prompt set
         '''
-        if self.state == ConsoleState.DISCONNECTED:
+        # Lazy initialization - connect only when actually needed
+        if self.pty is None or self.state == ConsoleState.DISCONNECTED:
+            log.info("Console needed - establishing connection now")
             self.util.clear_state(self)
             self.connect(logger=logger)
             time.sleep(STALLTIME)
