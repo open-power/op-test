@@ -1336,19 +1336,21 @@ class OpTestUtil():
         raise RecoverFailed(before=pty.before, after=pty.after,
                             msg='Unable to recover to known state, retry')
     @staticmethod
-    def monitor_hmc_console(hmc_obj, system_name, lpar_name, stop_event, log_prefix="CONSOLE"):
+    def monitor_hmc_console(hmc_obj, system_name, lpar_name, stop_event, ready_event, log_prefix="CONSOLE"):
         """
         Monitor HMC console output in a background thread.
         Captures crash messages, boot sequence, and system output.
         
         Usage:
             stop_event = threading.Event()
+            ready_event = threading.Event()
             thread = threading.Thread(
                 target=OpTestUtil.monitor_hmc_console,
-                args=(hmc_obj, system_name, lpar_name, stop_event, "KDUMP"),
+                args=(hmc_obj, system_name, lpar_name, stop_event, ready_event, "KDUMP"),
                 daemon=True
             )
             thread.start()
+            ready_event.wait(timeout=30)  # Wait for console to connect
             # ... do work ...
             stop_event.set()
             thread.join()
@@ -1357,6 +1359,7 @@ class OpTestUtil():
         :param system_name: Managed system name
         :param lpar_name: LPAR name
         :param stop_event: threading.Event to signal thread to stop
+        :param ready_event: threading.Event to signal console is connected and ready
         :param log_prefix: Prefix for log messages
         """
         import threading
@@ -1370,17 +1373,28 @@ class OpTestUtil():
             log.info(f"[{log_prefix}] Starting console monitoring")
             
             # Get console object and connect
+            # Don't deactivate first - we want to keep any existing connection
             console = hmc_obj.get_host_console()
             console_pty = console.connect()
+            
+            # Disable pexpect's default logging to prevent duplicate output
+            # We'll handle all logging ourselves
+            console_pty.logfile = None
+            console_pty.logfile_read = None
+            console_pty.logfile_send = None
+            
             log.info(f"[{log_prefix}] Console connected successfully")
+            
+            # Signal that console is ready
+            ready_event.set()
             
             # State tracking
             crash_detected = False
             boot_detected = False
-            login_detected = False
             
-            # Monitor console output
-            while not stop_event.is_set() and not login_detected:
+            # Monitor console output - just capture, don't login
+            # Stop when stop_event is set (main code will set this when SSH is available)
+            while not stop_event.is_set():
                 try:
                     # Read with timeout to check stop_event frequently
                     console_pty.expect(['.+'], timeout=1)
@@ -1395,24 +1409,19 @@ class OpTestUtil():
                                 continue
                             
                             # Detect crash/panic
-                            if not crash_detected and any(kw in line.lower() for kw in 
-                                    ['panic', 'crash', 'sysrq', 'oops', 'kernel panic']):
+                            if not crash_detected and any(kw in line.lower() for kw in
+                                    ['panic', 'crash', 'sysrq', 'oops', 'kernel panic', 'sysrq :']):
                                 crash_detected = True
                                 log.info(f"[{log_prefix}] *** CRASH DETECTED ***")
                             
                             # Detect boot after crash
-                            if crash_detected and not boot_detected and any(kw in line.lower() for kw in 
-                                    ['boot', 'kernel', 'grub', 'loading', 'starting']):
+                            if crash_detected and not boot_detected and any(kw in line.lower() for kw in
+                                    ['boot', 'kernel', 'grub', 'loading', 'starting', 'firmware']):
                                 boot_detected = True
                                 log.info(f"[{log_prefix}] *** BOOT SEQUENCE DETECTED ***")
                             
-                            # Detect login prompt after boot (only after seeing boot messages)
-                            if boot_detected and 'login:' in line.lower():
-                                login_detected = True
-                                log.info(f"[{log_prefix}] *** LOGIN PROMPT DETECTED - stopping monitoring ***")
-                                break
-                            
-                            # Log ALL output to capture complete crash sequence
+                            # Just log everything - don't try to login or stop at login prompt
+                            # Main code will stop us via stop_event when SSH is available
                             log.info(f"[{log_prefix}] {line}")
                                 
                 except Exception as e:

@@ -129,7 +129,7 @@ class OpTestSSH():
             )
             
             # Execute command
-            log.debug(f"Executing direct SSH command: {command}")
+            log.info(f"Executing direct SSH command: {command}")
             stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
             
             # Get output
@@ -140,11 +140,13 @@ class OpTestSSH():
             # Close connection
             client.close()
             
-            # Log output
+            # Log output consolidated for readability
             if output_lines:
-                log.debug(f"Command output: {output_lines}")
+                output_text = '\n'.join(output_lines)
+                log.info(output_text)
             if error_lines:
-                log.debug(f"Command stderr: {error_lines}")
+                error_text = '\n'.join(error_lines)
+                log.warning(f"Command stderr:\n{error_text}")
             
             # Check exit status
             if exit_status != 0:

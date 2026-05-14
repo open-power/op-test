@@ -469,14 +469,36 @@ class InstallUtil():
         if reboot and (req_args or req_remove_args):
             # Reboot the host for the kernel command to reflect
             if reboot_cmd:
-                # Always reopen console fresh to avoid stale session after first reboot
-                self.cv_SYSTEM.console.close()
-                raw_pty = self.cv_SYSTEM.console.get_console()
-                raw_pty.sendline("reboot")
-                login_patterns = [
-                  "login:", "root login:", "Ubuntu login:", "Password:",
-                ]
-                raw_pty.expect(login_patterns, timeout=900)
+                # Use SSH to trigger reboot instead of console to avoid console-expect prompt
+                log.info("Triggering reboot via SSH...")
+                try:
+                    # Use SSH direct command - system will reboot and connection will drop
+                    self.cv_HOST.ssh.run_command_direct("reboot", timeout=5)
+                except Exception as e:
+                    # Expected to fail as system reboots
+                    log.debug(f"Reboot command sent via SSH (connection dropped as expected): {e}")
+                
+                # Wait for system to reboot and SSH to become available
+                log.info("Waiting for system to reboot and SSH to become available...")
+                time.sleep(60)  # Initial delay for system to start rebooting
+                
+                # Wait for SSH to come back up
+                max_wait = 900  # 15 minutes
+                ssh_available = False
+                for i in range(max_wait):
+                    try:
+                        con.run_command("echo 'SSH is up'", timeout=10)
+                        log.info(f"SSH connection re-established after reboot ({i}s)")
+                        ssh_available = True
+                        break
+                    except Exception:
+                        if i % 30 == 0:  # Log every 30 seconds
+                            log.debug(f"Waiting for SSH... ({i}s elapsed)")
+                        time.sleep(1)
+                
+                if not ssh_available:
+                    log.error("SSH did not come back up after reboot")
+                    return False
             else:
                 self.cv_SYSTEM.goto_state(OpSystemState.OFF)
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
