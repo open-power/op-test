@@ -550,12 +550,28 @@ class OptestKernelDump(unittest.TestCase):
         if self.is_lpar:
             log.info("HMC/LPAR system detected - using SSH-based reboot detection")
             
-            # Note: Console monitoring on HMC/LPAR systems is unreliable for capturing
-            # crash messages due to timing and connection issues. The SSH-based reboot
-            # detection is sufficient for validating kdump functionality.
-            log.info("Using SSH-based crash detection (console monitoring skipped for HMC/LPAR)")
+            # Pre-connect to console before starting monitoring thread
             stop_console = threading.Event()
             console_thread = None
+            try:
+                log.info("Pre-connecting to console before crash...")
+                # Connect to console first to avoid missing crash messages
+                console_obj = self.cv_HMC.get_host_console()
+                console_pty = console_obj.connect()
+                log.info("Console connected - now starting monitoring thread...")
+                
+                # Start monitoring thread with already-connected console
+                console_thread = threading.Thread(
+                    target=OpTestUtil.monitor_hmc_console,
+                    args=(self.cv_HMC, self.system_name, self.lpar_name, stop_console, "KDUMP"),
+                    daemon=True
+                )
+                console_thread.start()
+                log.info("Console monitoring active - ready to capture crash")
+                time.sleep(1)  # Brief pause to ensure thread is reading
+            except Exception as e:
+                log.warning(f"Failed to start console monitoring: {e}")
+                log.warning("Continuing without console monitoring")
             
             # Now trigger the crash
             log.info("Triggering kernel crash...")

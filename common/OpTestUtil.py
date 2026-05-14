@@ -1335,6 +1335,108 @@ class OpTestUtil():
             "OpTestSystem Unable to recover to known state, raised Exception RecoverFailed but continuing")
         raise RecoverFailed(before=pty.before, after=pty.after,
                             msg='Unable to recover to known state, retry')
+    @staticmethod
+    def monitor_hmc_console(hmc_obj, system_name, lpar_name, stop_event, log_prefix="CONSOLE"):
+        """
+        Monitor HMC console output in a background thread.
+        Captures crash messages, boot sequence, and system output.
+        
+        Usage:
+            stop_event = threading.Event()
+            thread = threading.Thread(
+                target=OpTestUtil.monitor_hmc_console,
+                args=(hmc_obj, system_name, lpar_name, stop_event, "KDUMP"),
+                daemon=True
+            )
+            thread.start()
+            # ... do work ...
+            stop_event.set()
+            thread.join()
+        
+        :param hmc_obj: OpTestHMC object with SSH connection
+        :param system_name: Managed system name
+        :param lpar_name: LPAR name
+        :param stop_event: threading.Event to signal thread to stop
+        :param log_prefix: Prefix for log messages
+        """
+        import threading
+        import OpTestLogger
+        log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+        
+        console = None
+        console_pty = None
+        
+        try:
+            log.info(f"[{log_prefix}] Starting console monitoring")
+            
+            # Get console object and connect
+            console = hmc_obj.get_host_console()
+            console_pty = console.connect()
+            log.info(f"[{log_prefix}] Console connected successfully")
+            
+            # State tracking
+            crash_detected = False
+            boot_detected = False
+            login_detected = False
+            
+            # Monitor console output
+            while not stop_event.is_set() and not login_detected:
+                try:
+                    # Read with timeout to check stop_event frequently
+                    console_pty.expect(['.+'], timeout=1)
+                    output = console_pty.before + console_pty.after
+                    
+                    if output:
+                        output_str = output.decode('utf-8', errors='ignore') if isinstance(output, bytes) else str(output)
+                        
+                        for line in output_str.split('\n'):
+                            line = line.strip()
+                            if not line:
+                                continue
+                            
+                            # Detect crash/panic
+                            if not crash_detected and any(kw in line.lower() for kw in 
+                                    ['panic', 'crash', 'sysrq', 'oops', 'kernel panic']):
+                                crash_detected = True
+                                log.info(f"[{log_prefix}] *** CRASH DETECTED ***")
+                            
+                            # Detect boot after crash
+                            if crash_detected and not boot_detected and any(kw in line.lower() for kw in 
+                                    ['boot', 'kernel', 'grub', 'loading', 'starting']):
+                                boot_detected = True
+                                log.info(f"[{log_prefix}] *** BOOT SEQUENCE DETECTED ***")
+                            
+                            # Detect login prompt after boot (only after seeing boot messages)
+                            if boot_detected and 'login:' in line.lower():
+                                login_detected = True
+                                log.info(f"[{log_prefix}] *** LOGIN PROMPT DETECTED - stopping monitoring ***")
+                                break
+                            
+                            # Log ALL output to capture complete crash sequence
+                            log.info(f"[{log_prefix}] {line}")
+                                
+                except Exception as e:
+                    # Timeout or read error - continue monitoring
+                    if not stop_event.is_set():
+                        continue
+                    else:
+                        break
+            
+            log.info(f"[{log_prefix}] Console monitoring stopped")
+            
+        except Exception as e:
+            log.error(f"[{log_prefix}] Console monitoring error: {e}")
+        finally:
+            # Cleanup console connection
+            try:
+                if console_pty:
+                    console_pty.close()
+                if console and hmc_obj:
+                    hmc_obj.deactivate_lpar_console()
+                log.info(f"[{log_prefix}] Console cleanup complete")
+            except Exception as e:
+                log.warning(f"[{log_prefix}] Console cleanup error: {e}")
+
 
     def try_sendcontrol(self, term_obj, command, counter=3):
         pty = term_obj.get_console()
