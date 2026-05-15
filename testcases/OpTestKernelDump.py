@@ -191,7 +191,7 @@ class OptestKernelDump(unittest.TestCase):
         if (self.distro == "sles") and self.version == "16":
             log.info("SLES 16 detected: forcing KDUMP_UPDATE_BOOTLOADER=false and restarting kdump.service")
             self.c.run_command("sed -i 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER=\"false\"/' /etc/sysconfig/kdump")
-            self.c.run_command("kdumptool commandline -c -u")
+            self.cv_HOST.host_run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync;")
 
     def is_fadump_param_enabled(self):
         '''
