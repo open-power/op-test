@@ -33,26 +33,17 @@ in OpenPower systems
 
 import sys
 import os
-import string
 import time
-import random
 import subprocess
 import re
-import telnetlib
-import socket
-import select
-import pty
-import pexpect
 import subprocess
 
-import OpTestConfiguration
 from .OpTestConstants import OpTestConstants as BMC_CONST
 from .OpTestError import OpTestError
 from .OpTestSSH import OpTestSSH
 from . import OpTestQemu
-from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet, ParameterCheck
+from .Exceptions import CommandFailed, NoKernelConfig, KernelModuleNotLoaded, KernelConfigNotSet
 
-import logging
 import OpTestLogger
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -231,6 +222,37 @@ class OpTestHost():
         log.debug(fn)
         with open(fn, 'w') as f:
             f.write(l_data)
+
+    def host_gather_uv_msg_log(self, console=0):
+        '''
+        Gather Ultravisor logs(from the host) and store in a file
+        '''
+        uv_enabled_cmd = '[ -d /sys/firmware/devicetree/base/ibm,ultravisor ] && echo "enabled"'
+        if "enabled" in self.host_run_command(uv_enabled_cmd, console=console):
+            try:
+                l_data = '\n'.join(self.host_run_command(
+                    BMC_CONST.ULTRAVISOR_MSG_LOG, console=console))
+            except OpTestError:
+                l_msg = "Failed to gather ULTRAVISOR message logs"
+                raise OpTestError(l_msg)
+
+            if not self.results_dir:
+                log.debug(l_data)
+                return
+
+            l_res = (time.asctime(time.localtime())).replace(" ", "_")
+            l_logFile = "Ultravisor_msglog_%s.log" % l_res
+            fn = os.path.join(self.results_dir, l_logFile)
+            log.debug(fn)
+            with open(fn, 'w') as f:
+                f.write(l_data)
+
+    def host_gather_fw_logs(self, console=0):
+        '''
+        Wrapper function to gather all firmware related logs
+        '''
+        self.host_gather_opal_msg_log(console)
+        self.host_gather_uv_msg_log(console)
 
     def host_check_command(self, *i_cmd, **kwargs):
         '''
@@ -666,7 +688,7 @@ class OpTestHost():
 
     def host_is_kdump_active(self, os_level, console=0):
         '''
-        This function will check whether the kdump service is running/active or not. 
+        This function will check whether the kdump service is running/active or not.
         '''
         if "Ubuntu" in os_level:
             try:
@@ -682,7 +704,6 @@ class OpTestHost():
                 return True
             except CommandFailed:
                 return False
-
 
     def host_disable_kdump_service(self, os_level, console=0):
         '''
@@ -799,7 +820,7 @@ class OpTestHost():
 
     # Supported on OpenPower and P9 FSP system
     def host_prd_supported(self, bmc_type, console=0):
-        if not "FSP" in bmc_type:
+        if "FSP" not in bmc_type:
             return True
 
         proc_gen = self.host_get_proc_gen(console=console)
@@ -1010,14 +1031,22 @@ class OpTestLPAR(OpTestHost):
     Methods not applicable for an LPAR are overridden here
     '''
 
-    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip, i_results_dir,
-                 scratch_disk="", proxy="", logfile=sys.stdout,
+    def __init__(self, i_hostip, i_hostuser, i_hostpasswd, i_bmcip,
+                 i_results_dir, scratch_disk="", proxy="", logfile=sys.stdout,
                  check_ssh_keys=False, known_hosts_file=None, conf=None):
         super(OpTestLPAR, self).__init__(i_hostip,
-                i_hostuser, i_hostpasswd, i_bmcip, i_results_dir, scratch_disk,
-                proxy, logfile, check_ssh_keys, known_hosts_file, conf)
+                                         i_hostuser, i_hostpasswd, i_bmcip,
+                                         i_results_dir, scratch_disk, proxy,
+                                         logfile, check_ssh_keys,
+                                         known_hosts_file, conf)
 
     def host_gather_opal_msg_log(self, *args):
+        pass
+
+    def host_gather_uv_msg_log(self, *args):
+        pass
+
+    def host_gather_fw_logs(self, *args):
         pass
 
     def host_pflash_get_partition(self, *args):
@@ -1066,9 +1095,6 @@ class OpTestLPAR(OpTestHost):
         pass
 
     def host_clear_all_dumps(self, *args):
-        pass
-
-    def host_get_list_of_chips(self, *args):
         pass
 
     def host_prd_supported(self, *args):
