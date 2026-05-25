@@ -405,6 +405,23 @@ class InstallUtil():
                    (Err.command, Err.output)))
         return req_args.strip(), req_remove_args.strip()
 
+    def update_or_replace_arg(self, cmdline, new_arg):
+        key = new_arg.split("=")[0]
+        parts = cmdline.split()
+        updated = []
+        replaced = False
+        for part in parts:
+            if part.startswith(key + "="):
+                if not replaced:
+                    updated.append(new_arg)
+                    replaced = True
+            # skip old duplicate
+            else:
+                updated.append(part)
+        if not replaced:
+            updated.append(new_arg)
+        return " ".join(updated)
+
     def update_kernel_cmdline(self, distro, args="", remove_args="", reboot=True,
                               reboot_cmd=False, timeout=0):
         """
@@ -442,7 +459,8 @@ class InstallUtil():
                 output = con.run_command(cmd, timeout=60)[0].replace("\"", "")
                 output = output.split("GRUB_CMDLINE_LINUX_DEFAULT=")[-1].strip()
                 if req_args:
-                    output += " %s" % req_args
+                    for arg in req_args.split():
+                        output = self.update_or_replace_arg(output, arg)
                 if req_remove_args:
                     for each_arg in req_remove_args.split():
                         output = output.replace(each_arg, "")
