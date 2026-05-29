@@ -244,20 +244,47 @@ class HMCUtil():
         :returns: BMC_CONST.FW_SUCCESS up on success
         '''
         hmc = remote_hmc if remote_hmc else self
-        if self.get_lpar_state(vios, remote_hmc=remote_hmc) == OpHmcState.RUNNING:
+        current_state = self.get_lpar_state(vios, remote_hmc=remote_hmc)
+        
+        if current_state == OpHmcState.RUNNING:
             log.info('LPAR Already powered on!')
             return BMC_CONST.FW_SUCCESS
+        
         lpar_name = self.lpar_name
         if vios:
             lpar_name = hmc.lpar_vios
+        
+        # If LPAR is in Error state, shutdown first to clear the error
+        if current_state == "Error":
+            log.warning(f"LPAR is in Error state, shutting down first to clear error...")
+            try:
+                shutdown_cmd = f"chsysstate -m {hmc.mg_system} -r lpar -n {lpar_name} -o shutdown --immed"
+                hmc.ssh.run_command(shutdown_cmd, timeout=60)
+                # Wait a bit for shutdown to complete
+                time.sleep(5)
+                # Verify it reached NOT_ACTIVE state
+                for i in range(12):  # Wait up to 60 seconds
+                    new_state = self.get_lpar_state(vios, remote_hmc=remote_hmc)
+                    if new_state == OpHmcState.NOT_ACTIVE:
+                        log.info("LPAR successfully shutdown from Error state")
+                        break
+                    log.debug(f"Waiting for shutdown... current state: {new_state}")
+                    time.sleep(5)
+            except Exception as e:
+                log.warning(f"Failed to shutdown LPAR from Error state: {e}")
+                # Continue anyway and try to power on
+        
         cmd = "chsysstate -m %s -r lpar -n %s -o on" % (
             hmc.mg_system, lpar_name)
 
         if self.lpar_prof:
             cmd = "%s -f %s" % (cmd, self.lpar_prof)
 
-        self.wait_lpar_state(OpHmcState.NOT_ACTIVE,
-                             vios=vios, remote_hmc=remote_hmc)
+        # Only wait for NOT_ACTIVE if not already in that state
+        current_state = self.get_lpar_state(vios, remote_hmc=remote_hmc)
+        if current_state != OpHmcState.NOT_ACTIVE:
+            log.warning(f"LPAR not in NOT_ACTIVE state (current: {current_state}), attempting power on anyway...")
+        
         hmc.ssh.run_command(cmd)
         self.wait_lpar_state(vios=vios, remote_hmc=remote_hmc)
         time.sleep(STALLTIME)
@@ -1356,8 +1383,28 @@ class HMCConsole(HMCUtil):
         :raises: `CommandFailed`
         :returns: object, LPAR console using mkvterm
         '''
-        if self.state == ConsoleState.CONNECTED:
-            return self.pty
+        # CRITICAL FIX: Always check if pty is valid before returning cached connection
+        # Even if state is CONNECTED, the pty object may have invalid file descriptor
+        if self.state == ConsoleState.CONNECTED and self.pty is not None:
+            try:
+                fd = self.pty.fileno()
+                if fd >= 0 and self.pty.isalive():
+                    log.debug(f"Reusing existing console connection (fd={fd})")
+                    return self.pty
+                else:
+                    log.warning(f"Cached console has invalid fd={fd} or not alive - forcing reconnection")
+                    # Force cleanup of broken connection
+                    try:
+                        self.pty.close()
+                    except:
+                        pass
+                    self.pty = None
+                    self.state = ConsoleState.DISCONNECTED
+            except Exception as e:
+                log.warning(f"Error checking cached console: {e} - forcing reconnection")
+                self.pty = None
+                self.state = ConsoleState.DISCONNECTED
+        
         self.util.clear_state(self)  # clear when coming in DISCONNECTED
 
         log.info("De-activating the console")

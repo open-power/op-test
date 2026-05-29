@@ -93,7 +93,7 @@ class OpTestSSH():
     def set_system(self, system):
         self.system = system
 
-    def run_command_direct(self, command, timeout=60):
+    def run_command_direct(self, command, timeout=60, expect_disconnect=False):
         """
         Execute command directly via SSH exec_command (non-interactive).
         This is used for HMC commands that should not go through console/terminal.
@@ -101,6 +101,7 @@ class OpTestSSH():
         Args:
             command: Command string to execute
             timeout: Command timeout in seconds
+            expect_disconnect: If True, don't wait for exit status (for commands that crash the system)
             
         Returns:
             List of output lines
@@ -133,9 +134,18 @@ class OpTestSSH():
             stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
             
             # Get output
-            exit_status = stdout.channel.recv_exit_status()
-            output_lines = stdout.read().decode('utf-8', errors='ignore').splitlines()
-            error_lines = stderr.read().decode('utf-8', errors='ignore').splitlines()
+            if expect_disconnect:
+                # Don't wait for exit status - system will crash/disconnect
+                log.info("Command expected to disconnect - not waiting for exit status")
+                # Give command a moment to execute before connection dies
+                time.sleep(0.5)
+                exit_status = -1
+                output_lines = []
+                error_lines = []
+            else:
+                exit_status = stdout.channel.recv_exit_status()
+                output_lines = stdout.read().decode('utf-8', errors='ignore').splitlines()
+                error_lines = stderr.read().decode('utf-8', errors='ignore').splitlines()
             
             # Close connection
             client.close()
