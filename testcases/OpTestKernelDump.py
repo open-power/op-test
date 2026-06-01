@@ -1186,6 +1186,115 @@ class KernelCrash_hugepage_checks(OptestKernelDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OFF)
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
+class KernelCrash_HugepageConfig_16G_16M(OptestKernelDump):
+    '''
+    This test automates kernel dump testing with 16G and 16M hugepage configurations.
+    It triggers dumps with different hugepage sizes to verify dump functionality
+    across various memory configurations.
+    '''
+
+    def runTest(self):
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        
+        # Check if system supports Hash MMU (required for 16GB/16Mb hugepages)
+        mmu = self.c.run_command("awk '$1 == \"MMU\" {print $3}' /proc/cpuinfo")[0]
+        log.info("MMU type: {}".format(mmu))
+        
+        if mmu != "Hash":
+            self.skipTest("16GB hugepages require Hash MMU. Current MMU: {}".format(mmu))
+        
+        obj = OpTestInstallUtil.InstallUtil()
+        
+        # Test 1: Trigger dump with 16GB hugepage configuration
+        log.info("=" * 80)
+        log.info("Testing kdump/fadump with 16GB hugepage size")
+        log.info("=" * 80)
+        
+        # Configure 16GB hugepages
+        if not obj.update_kernel_cmdline(self.distro, 
+                                        args="default_hugepagesz=16GB hugepagesz=16GB hugepages=2",
+                                        reboot=True, reboot_cmd=True):
+            self.fail("Failed to update kernel args for 16GB hugepages")
+        
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        
+        # Verify 16GB hugepage configuration
+        hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+        log.info("Current Hugepage size: {} kB".format(hugepage_size))
+        
+        expected_16gb = str(16 * 1024 * 1024)  # 16GB in kB = 16777216
+        if hugepage_size != expected_16gb:
+            log.warning("Hugepage size {} kB does not match expected 16GB ({} kB)".format(
+                hugepage_size, expected_16gb))
+        
+        log.info("Triggering kernel crash with 16GB hugepages...")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        
+        # Verify hugepage size after dump
+        hugepage_size_after = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+        log.info("After dump/restart, Hugepage size: {} kB".format(hugepage_size_after))
+        
+        if hugepage_size_after == expected_16gb:
+            log.info("PASSED: 16GB hugepage configuration maintained after dump")
+        else:
+            log.warning("Hugepage size changed after dump: {} kB".format(hugepage_size_after))
+        
+        # Test 2: Trigger dump with 16MB hugepage configuration
+        log.info("=" * 80)
+        log.info("Testing kdump/fadump with 16MB hugepage size")
+        log.info("=" * 80)
+        
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.setup_test()
+        
+        # Remove 16GB config and add 16MB hugepages
+        if not obj.update_kernel_cmdline(self.distro,
+                                        remove_args="default_hugepagesz=16GB hugepagesz=16GB hugepages=2",
+                                        args="default_hugepagesz=16MB hugepagesz=16MB hugepages=128",
+                                        reboot=True, reboot_cmd=True):
+            self.fail("Failed to update kernel args for 16MB hugepages")
+        
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        
+        # Verify 16MB hugepage configuration
+        hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+        log.info("Current Hugepage size: {} kB".format(hugepage_size))
+        
+        expected_16mb = str(16 * 1024)  # 16MB in kB = 16384
+        if hugepage_size != expected_16mb:
+            log.warning("Hugepage size {} kB does not match expected 16MB ({} kB)".format(
+                hugepage_size, expected_16mb))
+        
+        log.info("Triggering kernel crash with 16MB hugepages...")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        
+        # Verify hugepage size after dump
+        hugepage_size_after = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
+        log.info("After dump/restart, Hugepage size: {} kB".format(hugepage_size_after))
+        
+        if hugepage_size_after == expected_16mb:
+            log.info("PASSED: 16MB hugepage configuration maintained after dump")
+        else:
+            log.warning("Hugepage size changed after dump: {} kB".format(hugepage_size_after))
+        
+        # Cleanup: Remove hugepage configuration and restore defaults
+        log.info("=" * 80)
+        log.info("Cleaning up: Restoring default hugepage configuration")
+        log.info("=" * 80)
+        
+        if not obj.update_kernel_cmdline(self.distro,
+                                        remove_args="default_hugepagesz=16MB hugepagesz=16MB hugepages=128",
+                                        reboot=True, reboot_cmd=True):
+            log.warning("Failed to remove hugepage kernel args during cleanup")
+        
+        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
 class KernelCrash_XIVE_off(OptestKernelDump):
     '''
     This test checks kdump/fadump with kernel parameter option xive=off 
@@ -2201,6 +2310,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_HugepageConfig_16G_16M())
     s.addTest(KernelCrash_XIVE_off())
     s.addTest(KernelCrash_disable_radix())
     s.addTest(KernelCrash_KdumpPMEM())
