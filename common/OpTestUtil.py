@@ -1286,11 +1286,14 @@ class OpTestUtil():
             log.debug("ping check to peerIP failed   CommandFailed={}".format(cf))
             return False
 
-    def build_prompt(self, prompt=None):
+    def build_prompt(self, prompt=None, ssh=False):
         if prompt:
             built_prompt = prompt
         else:
-            built_prompt = "\[console-expect\]#"
+            if ssh:
+                built_prompt = "\[ssh-expect\]#"
+            else:
+                built_prompt = "\[console-expect\]#"
 
         return built_prompt
 
@@ -1332,6 +1335,246 @@ class OpTestUtil():
             "OpTestSystem Unable to recover to known state, raised Exception RecoverFailed but continuing")
         raise RecoverFailed(before=pty.before, after=pty.after,
                             msg='Unable to recover to known state, retry')
+    @staticmethod
+    def monitor_hmc_console(hmc_obj, system_name, lpar_name, stop_event, ready_event, log_prefix="CONSOLE", ssh_check_func=None, result_dict=None):
+        """
+        Monitor HMC console output in a background thread.
+        Captures crash messages, boot sequence, and system output.
+        
+        Usage:
+            stop_event = threading.Event()
+            ready_event = threading.Event()
+            result_dict = {}  # To receive results from thread
+            thread = threading.Thread(
+                target=OpTestUtil.monitor_hmc_console,
+                args=(hmc_obj, system_name, lpar_name, stop_event, ready_event, "KDUMP", ssh_check_func, result_dict),
+                daemon=True
+            )
+            thread.start()
+            ready_event.wait(timeout=30)  # Wait for console to connect
+            # ... do work ...
+            stop_event.set()
+            thread.join()
+            # Check results
+            if result_dict.get('crash_detected'):
+                print("Crash was captured!")
+        
+        :param hmc_obj: OpTestHMC object with SSH connection
+        :param system_name: Managed system name
+        :param lpar_name: LPAR name
+        :param stop_event: threading.Event to signal thread to stop
+        :param ready_event: threading.Event to signal console is connected and ready
+        :param log_prefix: Prefix for log messages
+        :param ssh_check_func: Optional function to check if SSH is available (returns True/False)
+        :param result_dict: Optional dict to store results (crash_detected, boot_detected, etc.)
+        """
+        import threading
+        import OpTestLogger
+        log = OpTestLogger.optest_logger_glob.get_logger(__name__)
+        
+        console = None
+        console_pty = None
+        
+        try:
+            log.info(f"[{log_prefix}] Starting console monitoring")
+            
+            # Get console object and ensure clean connection
+            # Always deactivate first to avoid stale connections from previous tests
+            console = hmc_obj.get_host_console()
+            try:
+                log.info(f"[{log_prefix}] Deactivating any existing console connection...")
+                hmc_obj.deactivate_lpar_console()
+                log.info(f"[{log_prefix}] Console deactivation complete, waiting 3s for HMC to release...")
+                time.sleep(3)  # Give HMC more time to release the console
+            except Exception as e:
+                log.warning(f"[{log_prefix}] Console deactivation error (may not have been active): {e}")
+            
+            # Retry console connection if first attempt fails
+            console_pty = None
+            max_retries = 3
+            last_error = None
+            
+            for attempt in range(max_retries):
+                try:
+                    log.info(f"[{log_prefix}] Connecting to console (attempt {attempt + 1}/{max_retries})...")
+                    console_pty = console.connect()
+                    # Don't log the entire pexpect object - it's too verbose
+                    log.debug(f"[{log_prefix}] console.connect() completed")
+
+                    if console_pty:
+                        # Validate file descriptor immediately after connection
+                        try:
+                            fd = console_pty.fileno()
+                            if fd >= 0:
+                                log.info(f"[{log_prefix}] Console connection successful on attempt {attempt + 1} with fd={fd}")
+                                break
+                            else:
+                                last_error = f"Invalid file descriptor: {fd}"
+                                log.warning(f"[{log_prefix}] Console connection attempt {attempt + 1} has invalid fd={fd}")
+                                # Close the invalid connection to force a fresh one on retry
+                                try:
+                                    console_pty.close()
+                                    log.debug(f"[{log_prefix}] Closed invalid console connection")
+                                except Exception as close_err:
+                                    log.debug(f"[{log_prefix}] Error closing invalid connection: {close_err}")
+                                console_pty = None  # Mark as failed
+                        except Exception as fd_error:
+                            last_error = f"Cannot get file descriptor: {fd_error}"
+                            log.warning(f"[{log_prefix}] Console connection attempt {attempt + 1} fd check failed: {fd_error}")
+                            # Try to close the connection
+                            try:
+                                if console_pty:
+                                    console_pty.close()
+                            except:
+                                pass
+                            console_pty = None  # Mark as failed
+                    else:
+                        last_error = "console.connect() returned None"
+                        log.warning(f"[{log_prefix}] Console connection attempt {attempt + 1} returned None")
+                except Exception as e:
+                    last_error = str(e)
+                    log.warning(f"[{log_prefix}] Console connection attempt {attempt + 1} failed: {e}")
+                    import traceback
+                    log.debug(f"[{log_prefix}] Traceback: {traceback.format_exc()}")
+                    console_pty = None  # Ensure it's None on exception
+                
+                if attempt < max_retries - 1 and console_pty is None:
+                    # Deactivate console before retry to ensure clean state
+                    try:
+                        log.info(f"[{log_prefix}] Deactivating console before retry...")
+                        hmc_obj.deactivate_lpar_console()
+                        time.sleep(2)  # Wait for HMC to release
+                    except Exception as deact_err:
+                        log.debug(f"[{log_prefix}] Deactivation before retry failed: {deact_err}")
+                    
+                    log.info(f"[{log_prefix}] Retrying after 3 seconds...")
+                    time.sleep(3)  # Increased delay between retries
+            
+            if not console_pty:
+                error_msg = f"[{log_prefix}] Failed to connect to console after {max_retries} attempts. Last error: {last_error}"
+                log.error(error_msg)
+                raise Exception(error_msg)
+            
+            # Get the file descriptor that was validated in the retry loop
+            fd = console_pty.fileno()
+            
+            # Disable pexpect's default logging to prevent duplicate output
+            # We'll handle all logging ourselves
+            console_pty.logfile = None
+            console_pty.logfile_read = None
+            console_pty.logfile_send = None
+            
+            log.info(f"[{log_prefix}] Console connected successfully with fd={fd}")
+            
+            # Signal that console is ready
+            ready_event.set()
+            
+            # State tracking
+            crash_detected = False
+            boot_detected = False
+            login_prompt_detected = False
+            output_lines = []  # Store all output for later analysis
+            
+            log.info(f"[{log_prefix}] Starting console monitoring loop...")
+            
+            # Monitor console output - just capture, don't login
+            # Stop when stop_event is set OR when login prompt detected after boot
+            # (auto-stop on login prompt to release console for SSH)
+            while not stop_event.is_set() and not login_prompt_detected:
+                log.debug(f"[{log_prefix}] Monitoring iteration - waiting for console output...")
+                try:
+                    # Read with timeout to check stop_event frequently
+                    console_pty.expect(['.+'], timeout=1)
+                    output = console_pty.before + console_pty.after
+                    
+                    if output:
+                        output_str = output.decode('utf-8', errors='ignore') if isinstance(output, bytes) else str(output)
+                        
+                        for line in output_str.split('\n'):
+                            line = line.strip()
+                            if not line:
+                                continue
+                            
+                            # Store output for later analysis
+                            output_lines.append(line)
+                            
+                            # Detect crash/panic
+                            if not crash_detected and any(kw in line.lower() for kw in
+                                    ['panic', 'crash', 'sysrq', 'oops', 'kernel panic', 'sysrq :']):
+                                crash_detected = True
+                                log.info(f"[{log_prefix}] *** CRASH DETECTED ***")
+                                if result_dict is not None:
+                                    result_dict['crash_detected'] = True
+                            
+                            # Detect boot after crash
+                            if crash_detected and not boot_detected and any(kw in line.lower() for kw in
+                                    ['boot', 'kernel', 'grub', 'loading', 'starting', 'firmware']):
+                                boot_detected = True
+                                log.info(f"[{log_prefix}] *** BOOT SEQUENCE DETECTED ***")
+                                if result_dict is not None:
+                                    result_dict['boot_detected'] = True
+                            
+                            # Detect login prompt AFTER boot - check if SSH is up before auto-stopping
+                            if boot_detected and not login_prompt_detected and 'login:' in line.lower():
+                                log.info(f"[{log_prefix}] *** LOGIN PROMPT DETECTED - Checking if SSH is available ***")
+                                
+                                # If SSH check function provided, verify SSH is actually up
+                                if ssh_check_func:
+                                    try:
+                                        if ssh_check_func():
+                                            login_prompt_detected = True
+                                            log.info(f"[{log_prefix}] *** SSH CONFIRMED AVAILABLE - Auto-stopping console ***")
+                                            break
+                                        else:
+                                            log.info(f"[{log_prefix}] SSH not yet available, continuing to monitor...")
+                                    except Exception as e:
+                                        log.debug(f"[{log_prefix}] SSH check failed: {e}, continuing to monitor...")
+                                else:
+                                    # No SSH check function - auto-stop on login prompt
+                                    login_prompt_detected = True
+                                    log.info(f"[{log_prefix}] *** Auto-stopping on login prompt (no SSH check) ***")
+                                    break
+                            
+                            # Log everything
+                            log.info(f"[{log_prefix}] {line}")
+                                
+                except pexpect.TIMEOUT:
+                    # Timeout is normal - just means no output for 1 second
+                    if stop_event.is_set():
+                        break
+                    continue
+                except Exception as e:
+                    # Unexpected error - log it but continue monitoring
+                    log.warning(f"[{log_prefix}] Console read error: {type(e).__name__}: {e}")
+                    if stop_event.is_set():
+                        break
+                    # Try to continue monitoring despite error
+                    time.sleep(1)
+                    continue
+            
+            # Store output in result_dict
+            if result_dict is not None:
+                result_dict['output'] = output_lines
+                result_dict['login_prompt_detected'] = login_prompt_detected
+            
+            if login_prompt_detected:
+                log.info(f"[{log_prefix}] Console monitoring stopped (auto-stopped on login prompt)")
+            else:
+                log.info(f"[{log_prefix}] Console monitoring stopped (stop_event set)")
+            
+        except Exception as e:
+            log.error(f"[{log_prefix}] Console monitoring error: {e}")
+        finally:
+            # Cleanup console connection
+            try:
+                if console_pty:
+                    console_pty.close()
+                if console and hmc_obj:
+                    hmc_obj.deactivate_lpar_console()
+                log.info(f"[{log_prefix}] Console cleanup complete")
+            except Exception as e:
+                log.warning(f"[{log_prefix}] Console cleanup error: {e}")
+
 
     def try_sendcontrol(self, term_obj, command, counter=3):
         pty = term_obj.get_console()
@@ -1649,10 +1892,12 @@ class OpTestUtil():
             track_obj = ssh_obj
             term_obj = ssh_obj
             system_obj = ssh_obj.system
+            is_ssh = True
         else:
             track_obj = system
             term_obj = system.console
             system_obj = system
+            is_ssh = False
 
         if system_obj.state == 3:  # OpSystemState.PETITBOOT
             return
@@ -1661,17 +1906,17 @@ class OpTestUtil():
                          'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc in [1, 2, 3, 4, 5]:
             track_obj.PS1_set = self.set_PS1(
-                term_obj, pty, self.build_prompt(system_obj.prompt))
+                term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             # ssh port 22 can get in which uses sshpass or Petitboot, do this after set_PS1 to make sure we have something
             track_obj.LOGIN_set = 1
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc == 6:
             return  # Petitboot so nothing to do
@@ -1691,15 +1936,15 @@ class OpTestUtil():
                          "~>(\x1b\[J)", "~ #(\x1b\[J)", ":~(\x1b\[J)*", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc in [1, 2, 3, 4, 5, 6]:
             track_obj.LOGIN_set = track_obj.PS1_set = self.set_PS1(
-                term_obj, pty, self.build_prompt(system_obj.prompt))
+                term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             track_obj.PS1_set, track_obj.SUDO_set = self.get_sudo(
-                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt))
+                system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
             return
         if rc == 6:
             return  # Petitboot do nothing

@@ -1,7 +1,13 @@
+# SSH implementation - paramiko replaces pexpect
+paramiko>=2.7.0
+
+# Legacy support - will be removed after full migration
 pexpect
-unittest-xml-reporting
 ptyprocess
+
+# Testing and utilities
+unittest-xml-reporting
+unittest2
 requests
 pysocks
-unittest2
 ninja

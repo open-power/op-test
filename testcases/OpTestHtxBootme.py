@@ -33,6 +33,10 @@ import time
 import sys
 import subprocess
 import itertools
+
+from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
+from common.OpTestCommandExecutor import OpTestCommandExecutor
+from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
 from datetime import datetime
 
 try:
