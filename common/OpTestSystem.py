@@ -448,9 +448,11 @@ class OpTestSystem(object):
         if isinstance(self.console, OpTestHMC.HMCConsole):
             try:
                 log.debug("SSH detection: Using HMC SSH connection")
+                # Use console-based execution for state detection to ensure reliable output
                 result = self.cv_HOST.host_run_command(
                     "cat /proc/version 2>/dev/null | grep -q '{}' && echo 'OS' || echo 'PETITBOOT'".format(self.openpower),
-                    timeout=5
+                    timeout=5,
+                    console=1  # Force console-based execution
                 )
                 output = '\n'.join(result).strip()
                 if 'OS' in output:

@@ -2075,7 +2075,9 @@ class OpTestUtil():
     def try_command(self, term_obj, command, timeout=60):
         running_sudo_s = False
         extra_sudo_output = False
-        expect_prompt = self.build_prompt(term_obj.prompt) + "$"
+        # Use the pre-built expect_prompt from term_obj to ensure consistency
+        # (term_obj.expect_prompt already includes the ssh parameter and "$")
+        expect_prompt = term_obj.expect_prompt
         # if previous caller environment leaves buffer hung can show up here, e.g. PS2 prompt
         pty = term_obj.get_console()
         pty.sendline(command)
