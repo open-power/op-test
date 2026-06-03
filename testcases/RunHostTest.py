@@ -60,7 +60,8 @@ class RunHostTest(unittest.TestCase):
         con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         try:
             if self.host_cmd:
-                con.run_command(self.host_cmd, timeout=self.host_cmd_timeout)
+                # Use console-based execution to maintain session state (cd commands persist)
+                con.run_command(self.host_cmd, timeout=self.host_cmd_timeout, use_console=True)
             if self.host_cmd_file:
                 if not os.path.isfile(self.host_cmd_file):
                     self.fail("Provide valid host cmd file path")
@@ -75,7 +76,8 @@ class RunHostTest(unittest.TestCase):
                         self.console_thread = OpSOLMonitorThread(1, "console")
                         self.console_thread.start()
                         continue
-                    con.run_command(line, timeout=self.host_cmd_timeout)
+                    # Use console-based execution to maintain session state (cd commands persist)
+                    con.run_command(line, timeout=self.host_cmd_timeout, use_console=True)
         finally:
             if self.host_cmd_resultpath:
                 self.cv_SYSTEM.cv_HOST.copy_files_from_host(self.resultpath,
