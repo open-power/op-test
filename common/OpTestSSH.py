@@ -305,7 +305,7 @@ class OpTestSSH():
 
         return self.pty
 
-    def run_command(self, command, timeout=60, retry=0):
+    def run_command(self, command, timeout=60, retry=0, use_console=False):
         """
         Execute command via SSH.
         Uses direct SSH execution (non-interactive) by default for better reliability.
@@ -315,10 +315,16 @@ class OpTestSSH():
             command: Command string to execute
             timeout: Command timeout in seconds
             retry: Number of retries (used by console method)
+            use_console: If True, force console-based execution (maintains session state for cd commands)
             
         Returns:
             Command output
         """
+        # Force console-based execution if requested (for tests that need persistent sessions)
+        if use_console:
+            log.debug("Using console-based execution (persistent session)")
+            return self.util.run_command(self, command, timeout, retry)
+        
         # Try direct SSH execution first (non-interactive, more reliable)
         if HAS_PARAMIKO:
             try:
