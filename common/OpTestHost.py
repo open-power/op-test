@@ -38,7 +38,6 @@ import time
 import random
 import subprocess
 import re
-import telnetlib
 import socket
 import select
 import pty

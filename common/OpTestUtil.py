@@ -33,7 +33,11 @@ import string
 import subprocess
 import random
 import re
-import telnetlib
+# telnetlib was removed in Python 3.13, but we keep backward compatibility
+try:
+    import telnetlib
+except ModuleNotFoundError:
+    telnetlib = None
 import socket
 import select
 import time
