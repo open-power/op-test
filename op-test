@@ -135,6 +135,15 @@ def optest_handler(signum, frame):
     # structure to monitor for signals if needing to close this exposure
     signal_dict = dict((key, value) for value, key in reversed(sorted(signal.__dict__.items()))
                        if value.startswith('SIG') and not value.startswith('SIG_'))
+    
+    # Handle SIGHUP more gracefully - it often indicates transient network issues
+    if signum == signal.SIGHUP:
+        optestlog.warning("OpTestSystem received SIGHUP (signum={}), likely due to transient network issue".format(signum))
+        optestlog.warning("Allowing test framework to handle reconnection instead of immediate exit")
+        # Don't exit immediately - let the connection recovery logic handle it
+        return
+    
+    # For other signals, proceed with cleanup and exit
     if OpTestConfiguration.conf.signal_ready == True:
         OpTestConfiguration.conf.util.cleanup()
     traceback.print_stack()
