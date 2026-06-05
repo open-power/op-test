@@ -89,7 +89,7 @@ class KernelTest(unittest.TestCase):
             self.branch='master'
         self.con.run_command("git clone --depth 1 -b {} {} linux".format(self.branch, self.repo),timeout=3000)
         self.con.run_command("cd linux")
-        self.head_commit = self.con.run_command(" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
+        self.head_commit = self.con.run_command(r" git log -1 --format=%H  | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'")
         self.con.run_command("cd ..")
         if self.config_path:
             if is_url(self.config_path):
@@ -289,7 +289,7 @@ class KernelTest(unittest.TestCase):
                     bilogs = subprocess.run("git bisect log", shell=True, check=True, cwd=self.local_path)
                     log.info(bilogs)
                     entry = self.con.run_command("dmesg --color=never --level=warn | grep 'WARNING:'")
-                    AuthEmail =  subprocess.run("git config --global color.ui true;git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(badCommit), shell=True, check=True, cwd=self.local_path)
+                    AuthEmail =  subprocess.run(r"git config --global color.ui true;git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(badCommit), shell=True, check=True, cwd=self.local_path)
                     subprocess.run("git bisect reset", shell=True, check=True,cwd=self.local_path)
                     log.info("Boot Bisection Completed ! Bad Commit: {} Author: {}".format(NewBadCommit, AuthEmail))
             elif boot and self.bisect_flag == '1':

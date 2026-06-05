@@ -1392,7 +1392,7 @@ class OpTestIPMI():
     def ipmi_get_golden_side_sensor_id(self):
         cmd = "sdr elist -v | grep -i 'BIOS Golden'"
         output = self.ipmitool.run(cmd)
-        matchObj = re.search("BIOS Golden Side \((.*)\)", output)
+        matchObj = re.search(r"BIOS Golden Side \((.*)\)", output)
         id = None
         if matchObj:
             id = matchObj.group(1)
@@ -1401,7 +1401,7 @@ class OpTestIPMI():
     def ipmi_get_boot_count_sensor_id(self):
         cmd = "sdr elist -v | grep -i 'Boot Count'"
         output = self.ipmitool.run(cmd)
-        matchObj = re.search("Boot Count \((.*)\)", output)
+        matchObj = re.search(r"Boot Count \((.*)\)", output)
         id = None
         if matchObj:
             id = matchObj.group(1)

@@ -105,7 +105,7 @@ class DeviceTreeValidation(unittest.TestCase):
             res = res[1:]
         list = []
         for line in res:
-            line = re.sub("\(.*\)", "", line)
+            line = re.sub(r"\(.*\)", "", line)
             list = list + line.strip("\t\r\n ").split(" ")
         return list
 

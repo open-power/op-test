@@ -821,7 +821,7 @@ class OpTestHost():
             "PATH=/usr/local/sbin:$PATH getscom -l", console=console)
         chips = []
         for line in res:
-            matchObj = re.search("(\d{8}).*processor", line)
+            matchObj = re.search(r"(\d{8}).*processor", line)
             if matchObj:
                 chips.append(matchObj.group(1))
         if not chips:
@@ -834,7 +834,7 @@ class OpTestHost():
         proc_gen = self.host_get_proc_gen(console=console)
         core_ids = {}
         cpu_pirs = self.host_run_command(
-            "find /sys/devices/system/cpu/*/pir -exec cat {} \;", console=console)
+            r"find /sys/devices/system/cpu/*/pir -exec cat {} \;", console=console)
         for pir in cpu_pirs:
             if proc_gen in ["POWER8", "POWER8E"]:
                 core_id = hex((int("0x%s" % pir, 16) >> 3) & 0xf)
@@ -904,7 +904,7 @@ class OpTestHost():
 
     def host_gather_debug_logs(self, console=0):
         self.host_run_command(
-            "grep ',[0-4]\]' /sys/firmware/opal/msglog", console=console)
+            r"grep ',[0-4]\]' /sys/firmware/opal/msglog", console=console)
         self.host_run_command(
             "dmesg -T --level=alert,crit,err,warn", console=console)
 

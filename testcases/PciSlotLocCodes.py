@@ -116,7 +116,7 @@ class PciDT(unittest.TestCase):
         self.slot_failures = 0
         self.loccode_failures = 0
         for directory in sorted(node_dirs):
-            matchObj = re.match(".*/pci@\d{1,}$", directory, re.M)
+            matchObj = re.match(r".*/pci@\d{1,}$", directory, re.M)
             tracking_dict = {}
             try:
                 r = self.c.run_command("find {} -type d".format(directory))

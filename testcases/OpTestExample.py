@@ -93,7 +93,7 @@ class OpTestExample(unittest.TestCase):
             'eeh': 'cat /proc/powerpc/eeh',
             'linux': "dmesg -r|grep '<[4321]>'",
             'loc-code': 'find /sys/firmware/devicetree/base -name ibm,loc-code',
-            'msglog': "grep ',[0-4]\]' /sys/firmware/opal/msglog",
+            'msglog': r"grep ',[0-4]\]' /sys/firmware/opal/msglog",
             'os-release': 'cat /etc/os-release',
             'petitboot': 'lsprop /sys/firmware/devicetree/base/ibm,firmware-versions/petitboot',
             'phb': "cat /sys/firmware/opal/msglog |  grep 'PHB#' | grep -i  ' C:'",

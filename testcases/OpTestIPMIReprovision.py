@@ -28,9 +28,9 @@
 OpTestIPMIReprovision
 ---------------------
 
-Reset\Reprovision to default package for OpenPower testing.
+Reset\\Reprovision to default package for OpenPower testing.
 
-This class will test the functionality of following Reset\Reprovision to
+This class will test the functionality of following Reset\\Reprovision to
 default tests.
 
 1. NVRAM Partition - IPMI Reprovision.

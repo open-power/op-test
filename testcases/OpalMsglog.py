@@ -117,7 +117,7 @@ class OpalMsglog():
 
         try:
             log_entries = self.c.run_command(
-                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+                r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
 
             for f in filter_out:
                 fre = re.compile(f)

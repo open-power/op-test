@@ -200,8 +200,8 @@ class fspresetReload(unittest.TestCase):
             "cat /sys/firmware/opal/msglog > /tmp/opal_msglog")
 
     def gather_opal_errors(self):
-        cmd = "cat /sys/firmware/opal/msglog | diff - /tmp/opal_msglog | "\
-            "grep ',[0-4]\]'"
+        cmd = r"cat /sys/firmware/opal/msglog | diff - /tmp/opal_msglog | "\
+            r"grep ',[0-4]\]'"
         try:
             output = self.cv_HOST.host_run_command(cmd)
         except CommandFailed as cf:

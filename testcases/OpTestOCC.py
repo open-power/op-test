@@ -32,7 +32,7 @@ OCC Control package for OpenPower testing.
 
 This class will test the functionality of following.
 
-1. OCC Reset\Enable\Disable
+1. OCC Reset\\Enable\\Disable
 '''
 
 import time
@@ -190,7 +190,7 @@ class OpTestOCC(OpTestOCCBase, unittest.TestCase):
         self.do_occ_reset()
         tries = 10
         for j in range(1, tries):
-            log.debug("Waiting for OCC Enable\Disable (%d\%d)" % (j, tries))
+            log.debug(r"Waiting for OCC Enable\Disable (%d\%d)" % (j, tries))
             time.sleep(10)
             rc = self.check_occ_status()
             if rc == BMC_CONST.FW_SUCCESS:
@@ -228,7 +228,7 @@ class OpTestOCCFull(OpTestOCCBase, unittest.TestCase):
             self.do_occ_reset()
             tries = 30
             for j in range(1, tries):
-                log.debug("Waiting for OCC Enable\Disable (%d\%d)" %
+                log.debug(r"Waiting for OCC Enable\Disable (%d\%d)" %
                           (j, tries))
                 time.sleep(10)
                 rc = self.check_occ_status()
@@ -270,7 +270,7 @@ class OpTestOCCFull(OpTestOCCBase, unittest.TestCase):
             tries = 30
             for j in range(1, tries):
                 time.sleep(10)
-                log.debug("Waiting for OCC Enable\Disable (%d\%d)" %
+                log.debug(r"Waiting for OCC Enable\Disable (%d\%d)" %
                           (j, tries))
                 rc = self.check_occ_status()
                 if rc == BMC_CONST.FW_SUCCESS:
@@ -306,7 +306,7 @@ class OpTestOCCFull(OpTestOCCBase, unittest.TestCase):
 
             tries = 12
             for i in range(1, tries):
-                log.debug("Waiting for OCC Enable\Disable (%d\%d)" %
+                log.debug(r"Waiting for OCC Enable\Disable (%d\%d)" %
                           (i, tries))
                 time.sleep(10)
                 rc = self.check_occ_status()
@@ -331,7 +331,7 @@ class OCCRESET_FSP(OpTestOCCBase, unittest.TestCase):
             tries = 50
             recovered = False
             for j in range(1, tries):
-                log.debug("Waiting for OCC Active (%d\%d)" % (j, tries))
+                log.debug(r"Waiting for OCC Active (%d\%d)" % (j, tries))
                 time.sleep(1)
                 try:
                     res = self.c.run_command("dmesg | grep -i 'OCC Active'")

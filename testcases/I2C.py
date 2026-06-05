@@ -131,7 +131,7 @@ class I2C():
         # list by name Ex: ["i2c-0","i2c-1"...]
         l_list1 = []
         for l_bus in l_res:
-            matchObj = re.search("(i2c)-(\d{1,})", l_bus)
+            matchObj = re.search(r"(i2c)-(\d{1,})", l_bus)
             if matchObj:
                 l_list.append(matchObj.group(2))
                 l_list1.append(l_bus)
@@ -155,7 +155,7 @@ class I2C():
         l_chips = []
         for l_line in l_res:
             if l_line.__contains__("eeprom"):
-                matchObj = re.search("/(\d{1,}-\d{4})/eeprom", l_line)
+                matchObj = re.search(r"/(\d{1,}-\d{4})/eeprom", l_line)
                 if matchObj:
                     l_line = matchObj.group(1)
                     i_args = (l_line.replace("-", " "))

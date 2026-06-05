@@ -261,7 +261,7 @@ class OpTestIPMILockMode(unittest.TestCase):
         # 24. [Sensor/Event] Get Sensor Type
         log.debug("Testing Get Sensor Type")
         l_res = self.cv_IPMI.sdr_get_watchdog()
-        matchObj = re.search("Watchdog \((0x\d{1,})\)", l_res)
+        matchObj = re.search(r"Watchdog \((0x\d{1,})\)", l_res)
         if matchObj:
             log.debug("Got sensor Id for watchdog: %s" % matchObj.group(1))
         else:
@@ -272,7 +272,7 @@ class OpTestIPMILockMode(unittest.TestCase):
         # 25.[Sensor/Event] Get Sensor Reading
         log.debug("Testing Get Sensor Reading")
         l_res = self.cv_IPMI.sdr_get_watchdog()
-        matchObj = re.search("Watchdog \((0x\d{1,})\)", l_res)
+        matchObj = re.search(r"Watchdog \((0x\d{1,})\)", l_res)
         if matchObj:
             log.debug("Got sensor Id for watchdog: %s" % matchObj.group(1))
         else:

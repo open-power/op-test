@@ -102,21 +102,21 @@ class KernelLog():
                       # Not having memory on all NUMA nodes isn't *necessarily* fatal or a problem
                       "Could not find start_pfn for node",
                       # PNOR tests open a r/w window on a RO partition, currently fails like this
-                      "mtd.*opal_flash_async_op\(op=1\) failed \(rc -6\)",
+                      r"mtd.*opal_flash_async_op\(op=1\) failed \(rc -6\)",
                       # New warning, but aparrently harmless
                       "Cannot allocate SWIOTLB buffer",
                       # Ignore a quirk that we hit on (at least some) Tuletas,
                       "TI XIO2000a quirk detected; secondary bus fast back-to-back transfers disabled",
                       # SCSI is Fun, and for some reason likes being very severe about discovering disks,
-                      "sd .* \[sd.*\] Assuming drive cache: write through",
+                      r"sd .* \[sd.*\] Assuming drive cache: write through",
                       # SCSI is fun. Progress as dots
-                      " \.$",
+                      r" \.$",
                       # SCSI is fun, of course this is critically important event
                       "s[dr] .* Power-on or device reset occurred",
                       ".?ready$",
                       # Mellanox!
-                      "mlx4_en.* Port \d+: Using \d+ [TR]X rings",
-                      "mlx4_en.* Port \d+: Initializing port",
+                      r"mlx4_en.* Port \d+: Using \d+ [TR]X rings",
+                      r"mlx4_en.* Port \d+: Initializing port",
                       "mlx4_core.*Old device ETS support detected",
                       "mlx4_core.*Consider upgrading device FW.",
                       # Skiboot doesn't yet support secvars, but the Kernel looks for them
@@ -131,7 +131,7 @@ class KernelLog():
             # some weird disk setups
             filter_out.append('vdb.*start.*is beyond EOD')
             # urandom_read fun
-            filter_out.append('urandom_read: \d+ callbacks suppressed')
+            filter_out.append(r'urandom_read: \d+ callbacks suppressed')
 
         if self.bmc_type in ['mambo']:
             # We have a couple of things showing up in Mambo runs.
@@ -142,7 +142,7 @@ class KernelLog():
             # Strange IMC failure
             filter_out.append('IMC PMU nest_mcs01_imc Register failed')
             # urandom_read fun
-            filter_out.append('urandom_read: \d+ callbacks suppressed')
+            filter_out.append(r'urandom_read: \d+ callbacks suppressed')
 
         for f in filter_out:
             fre = re.compile(f)

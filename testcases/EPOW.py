@@ -77,7 +77,7 @@ class EPOWBase(unittest.TestCase):
 
     def get_epow_limits(self):
         fsp_MTM = self.cv_FSP.get_raw_mtm()
-        matchObj = re.search("-\d{2}.", fsp_MTM)
+        matchObj = re.search(r"-\d{2}.", fsp_MTM)
         if matchObj:
             x = matchObj.group()
             y = x[1:3]
@@ -89,7 +89,7 @@ class EPOWBase(unittest.TestCase):
             file = '/opt/fips/components/engd/power_management_tul_%s.def' % (
                 var)
         elif self.proc_gen in ["POWER9", "POWER9P"]:
-            file = '/opt/fips/components/engd/power_management_zz_%s.def' % (
+            file = '/opt/fips/components/engd/power_management_zz_%s.defr' % (
                 var)
 
         # Check for Nebs enable\disable

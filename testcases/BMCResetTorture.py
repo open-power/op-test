@@ -85,7 +85,7 @@ class RuntimeBMCResetTorture(unittest.TestCase):
                 cmd = "dmesg -T --level=emerg,alert,crit,err,warn"
             con.run_command_ignore_fail(cmd)
             con.run_command_ignore_fail(
-                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+                r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
 
 
 class Skiroot(RuntimeBMCResetTorture, unittest.TestCase):
@@ -139,5 +139,5 @@ class BMCResetvsHostIPLTorture(RuntimeBMCResetTorture, unittest.TestCase):
             self.cv_SYSTEM.goto_state(OpSystemState.PETITBOOT_SHELL)
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail(
-                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+                r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)

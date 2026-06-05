@@ -81,7 +81,7 @@ class OpTestDumps():
             raise Exception("Unknown test type")
 
     def fipsdump_initiate_from_host(self):
-        dumpname = self.cv_FSP.fsp_run_command("fipsdump -l | sed 's/\ .*//'")
+        dumpname = self.cv_FSP.fsp_run_command(r"fipsdump -l | sed 's/\ .*//'")
         self.cv_HOST.host_run_command(
             'echo 1 > /sys/firmware/opal/dump/initiate_dump')
         dumping = False
@@ -107,7 +107,7 @@ class OpTestDumps():
         # Timeout case(Usually it is taking less than one minute(around 40s))
         self.assertNotEqual(i, tries, "FipS dump taking more than 3 mins")
         new_dumpname = self.cv_FSP.fsp_run_command(
-            "fipsdump -l | sed 's/\ .*//'")
+            r"fipsdump -l | sed 's/\ .*//'")
         self.assertNotEqual(dumpname, new_dumpname,
                             "fipsdump initation from host failed to initiate")
 

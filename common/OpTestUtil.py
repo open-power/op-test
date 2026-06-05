@@ -1291,9 +1291,9 @@ class OpTestUtil():
             built_prompt = prompt
         else:
             if ssh:
-                built_prompt = "\[ssh-expect\]#"
+                built_prompt = r"\[ssh-expect\]#"
             else:
-                built_prompt = "\[console-expect\]#"
+                built_prompt = r"\[console-expect\]#"
 
         return built_prompt
 
@@ -1727,7 +1727,7 @@ class OpTestUtil():
             if rc == 0:
                 pty.sendline(my_pwd)
                 time.sleep(0.5)
-                rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~ #", ":~",
+                rc = pty.expect(['login: $', ".*#$", ".*# $", r".*\$", "~ #", ":~",
                                  'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                 if rc not in [1, 2, 3, 4, 5]:
                     if term_obj.setup_term_quiet == 0:
@@ -1761,7 +1761,7 @@ class OpTestUtil():
                 if rc == 0:
                     pty.sendline(my_pwd)
                     time.sleep(0.5)
-                    rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~ #", ":~",
+                    rc = pty.expect(['login: $', ".*#$", ".*# $", r".*\$", "~ #", ":~",
                                      'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
                     if rc not in [1, 2, 3, 4, 5]:
                         if term_obj.setup_term_quiet == 0:
@@ -1902,7 +1902,7 @@ class OpTestUtil():
         if system_obj.state == 3:  # OpSystemState.PETITBOOT
             return
 
-        rc = pty.expect(['login: $', ".*#$", ".*# $", ".*\$", "~>", "~ #",
+        rc = pty.expect(['login: $', ".*#$", ".*# $", r".*\$", "~>", "~ #",
                          'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=60)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
@@ -1932,8 +1932,8 @@ class OpTestUtil():
             pty.sendcontrol('l')
         # Ctrl-L may cause a esc[J (erase) character to appear in the buffer.
         # Include this in the patterns that expect $ (end of line)
-        rc = pty.expect(['login: (\x1b\[J)*$', ".*#(\x1b\[J)*$", ".*# (\x1b\[J)*$", ".*\$(\x1b\[J)*",
-                         "~>(\x1b\[J)", "~ #(\x1b\[J)", ":~(\x1b\[J)*", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
+        rc = pty.expect([r'login: (\x1b\[J)*$', r".*#(\x1b\[J)*$", r".*# (\x1b\[J)*$", r".*\$(\x1b\[J)*",
+                         r"~>(\x1b\[J)", r"~ #(\x1b\[J)", r":~(\x1b\[J)*", 'Petitboot', pexpect.TIMEOUT, pexpect.EOF], timeout=30)
         if rc == 0:
             track_obj.PS1_set, track_obj.LOGIN_set = self.get_login(
                 system_obj.cv_HOST, term_obj, pty, self.build_prompt(system_obj.prompt, ssh=is_ssh))
@@ -2710,7 +2710,7 @@ class OpTestUtil():
         connection = self.conf.host()
         try :
             connection.host_run_command("git config --global color.ui true")
-            result = connection.host_run_command("git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(commit_id))
+            result = connection.host_run_command(r"git show --format=%ce {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(commit_id))
             return result[0]
         except subprocess.CalledProcessError as e:
             log.info(e)
@@ -2746,7 +2746,7 @@ class OpTestUtil():
         connection = self.conf.host()
         try:
             connection.host_run_command(" if [ '$(pwd)' != {} ]; then cd {} || exit 1 ; fi ".format(linux_path,linux_path))
-            commit_message = connection.host_run_command("git log -n 1 --pretty=format:%s {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(commit_sha))
+            commit_message = connection.host_run_command(r"git log -n 1 --pretty=format:%s {} | sed -r 's/\x1B\[[0-9:]*[JKsu]//g'".format(commit_sha))
         except subprocess.CalledProcessError as e:
             log.info(e)
             commit_message = None
@@ -2900,7 +2900,7 @@ class Server(object):
                                 .format(r.status_code, r.text, r.headers,
                                         r.request.headers, username, password))
             cookie = r.headers['Set-Cookie']
-            match = re.search('SESSION=(\w+);', cookie)
+            match = re.search(r'SESSION=(\w+);', cookie)
             if match:
                 self.xAuthHeader['X-Auth-Token'] = match.group(1)
                 self.jsonHeader.update(self.xAuthHeader)

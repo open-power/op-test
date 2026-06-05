@@ -128,7 +128,7 @@ class FWTSTest(unittest.TestCase):
             # and FWTS 17.03 (at least) expects them to be, so skip those
             # failures
             if not self.CENTAURS_PRESENT and re.match(
-                    'No MEM devices \(memory-buffer', log_text):
+                    r'No MEM devices \(memory-buffer', log_text):
                 self.skipTest("FWTS assumes Centaurs present on FSP systems")
 
             if self.IS_FSP_SYSTEM and re.match(
@@ -176,7 +176,7 @@ class FWTSTest(unittest.TestCase):
                     self.skipTest(
                         "FWTS/firmware known issue: https://lists.ubuntu.com/archives/fwts-devel/2018-April/010329.html")
 
-                if re.match('No MEM DIMM devices \(memory-buffer\) were found '
+                if re.match(r'No MEM DIMM devices \(memory-buffer\) were found '
                             'in "/sys/firmware/devicetree/base" with a status '
                             'of "okay" or "ok".  This is unexpected so please '
                             'check your system setup for issues.', log_text):
@@ -281,7 +281,7 @@ class FWTS(unittest.TestSuite):
             # We want to ensure we're at least at version 17.01
             # which means we need to parse this:
             # fwts, Version V17.01.00, 2017-01-19 04:20:38
-            v = re.search("fwts, Version V(\d+)\.(\d+)", ''.join(fwts_version))
+            v = re.search(r"fwts, Version V(\d+)\.(\d+)", ''.join(fwts_version))
             major, minor = v.group(1), v.group(2)
 
             checkver = FWTSVersion()

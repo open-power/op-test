@@ -461,9 +461,9 @@ class OptestKernelDump(unittest.TestCase):
         self.crash_content = list(
             set(crash_content_after) - set(self.crash_content))
         if self.distro == "sles":
-            self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}-\d{2}', x), self.crash_content))
+            self.crash_content = list(filter(lambda x: re.search(r'\d{4}-\d{2}-\d{2}-\d{2}-\d{2}', x), self.crash_content))
         else:
-            self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
+            self.crash_content = list(filter(lambda x: re.search(r'\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
         if not self.crash_content:
             raise OpTestError("Dump directory not created")
         # We'll use try...finally to guarantee cleanup
@@ -1126,11 +1126,11 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
         if self.distro == "sles":
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
+            self.c.run_command(r'sed -i \'/^KDUMP_SAVEDIR=/c\\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
             if self.version == "16" or (self.version == "15" and self.minor_version >= "7"):
-                self.c.run_command("sed -i '/KDUMP_FADUMP=\"false\"/c\KDUMP_FADUMP=\"true\"' /etc/sysconfig/kdump")
+                self.c.run_command(r"sed -i '/KDUMP_FADUMP=\"false\"/c\KDUMP_FADUMP=\"true\"' /etc/sysconfig/kdump")
             else:
-                self.c.run_command("sed -i '/KDUMP_FADUMP=\"no\"/c\KDUMP_FADUMP=\"yes\"' /etc/sysconfig/kdump")
+                self.c.run_command(r"sed -i '/KDUMP_FADUMP=\"no\"/c\KDUMP_FADUMP=\"yes\"' /etc/sysconfig/kdump")
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             self.c.run_command("mkdumprd -f", timeout=120)
             self.c.run_command("update-bootloader --refresh")
@@ -1191,11 +1191,11 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
                                                  reboot=True, reboot_cmd=True):
                     self.fail("KernelArgTest failed to update kernel args")
             elif self.distro == "sles":
-                self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
+                self.c.run_command(r'sed -i \'/^KDUMP_SAVEDIR=/c\\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
                 if self.version == "16":
-                    self.c.run_command("sed -i '/KDUMP_FADUMP=\"true\"/c\KDUMP_FADUMP=\"false\"' /etc/sysconfig/kdump")
+                    self.c.run_command(r"sed -i '/KDUMP_FADUMP=\"true\"/c\KDUMP_FADUMP=\"false\"' /etc/sysconfig/kdump")
                 else:
-                    self.c.run_command("sed -i '/KDUMP_FADUMP=\"yes\"/c\KDUMP_FADUMP=\"no\"' /etc/sysconfig/kdump")
+                    self.c.run_command(r"sed -i '/KDUMP_FADUMP=\"yes\"/c\KDUMP_FADUMP=\"no\"' /etc/sysconfig/kdump")
                 self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
                 self.c.run_command("mkdumprd -f", timeout=120)
                 self.c.run_command("update-bootloader --refresh")
@@ -1347,8 +1347,8 @@ class KernelCrash_KdumpSSH(OptestKernelDump):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
             self.c.run_command("sed -i -e '/^nfs/ s/^#*/#/' /etc/kdump.conf; sync")
-            self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.dump_server_ip)
-            self.c.run_command("sed -i '/sshkey \/root\/.ssh\/kdump_id_rsa/c\sshkey %s' /etc/kdump.conf; sync" % self.rsa_path)
+            self.c.run_command(r"sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.dump_server_ip)
+            self.c.run_command(r"sed -i '/sshkey \/root\/.ssh\/kdump_id_rsa/c\sshkey %s' /etc/kdump.conf; sync" % self.rsa_path)
             self.c.run_command("sed -i 's/-l --message-level/-l -F --message-level/' /etc/kdump.conf; sync")
             self.c.run_command("sed -i '/^path/ s/^#*/#/' /etc/kdump.conf;"
                                "echo 'path %s' >> /etc/kdump.conf; sync" % self.dump_path)
@@ -1359,15 +1359,15 @@ class KernelCrash_KdumpSSH(OptestKernelDump):
             if 'dead' in res:
                 self.fail("Kdump service is not configured properly")
         elif self.distro == "ubuntu":
-            self.c.run_command("sed -i '/SSH=\"<user at server>\"/c\SSH=\"root@%s\"' /etc/default/kdump-tools" % self.dump_server_ip)
-            self.c.run_command("sed -i '/SSH_KEY=\"<path>\"/c\SSH_KEY=%s' /etc/default/kdump-tools" % self.rsa_path)
+            self.c.run_command(r"sed -i '/SSH=\"<user at server>\"/c\SSH=\"root@%s\"' /etc/default/kdump-tools" % self.dump_server_ip)
+            self.c.run_command(r"sed -i '/SSH_KEY=\"<path>\"/c\SSH_KEY=%s' /etc/default/kdump-tools" % self.rsa_path)
             self.c.run_command("kdump-config unload;")
             self.c.run_command("kdump-config load;")
             time.sleep(5)
         else:
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"ssh:\/\/root@%s\/%s\"\' /etc/sysconfig/kdump;' %
+            self.c.run_command(r'sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"ssh:\/\/root@%s\/%s\"\' /etc/sysconfig/kdump;' %
                                (self.dump_server_ip, self.dump_path))
-            self.c.run_command('sed -i \'/^KDUMP_SSH_IDENTITY=/c\KDUMP_SSH_IDENTITY=\"%s\"\' /etc/sysconfig/kdump;' % self.rsa_path)
+            self.c.run_command(r'sed -i \'/^KDUMP_SSH_IDENTITY=/c\KDUMP_SSH_IDENTITY=\"%s\"\' /etc/sysconfig/kdump;' % self.rsa_path)
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
             time.sleep(5)
 
@@ -1405,8 +1405,8 @@ class KernelCrash_KdumpNFS(OptestKernelDump):
     def setup_nfs(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         if self.distro == "rhel":
-            self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.dump_server_ip)
-            self.c.run_command("sed -i '/sshkey %s/c\#sshkey \/root\/.ssh\/kdump_id_rsa' /etc/kdump.conf; sync" % self.rsa_path)
+            self.c.run_command(r"sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.dump_server_ip)
+            self.c.run_command(r"sed -i '/sshkey %s/c\#sshkey \/root\/.ssh\/kdump_id_rsa' /etc/kdump.conf; sync" % self.rsa_path)
             self.c.run_command("yum -y install nfs-utils", timeout=180)
             self.c.run_command("service nfs-server start")
             self.c.run_command("sed -i -e '/^nfs/ s/^#*/#/' /etc/kdump.conf;"
@@ -1429,8 +1429,8 @@ class KernelCrash_KdumpNFS(OptestKernelDump):
             self.c.run_command("sed -i '/NFS=\"<nfs mount>\"/c\\NFS=\"%s:%s\"' /etc/default/kdump-tools" % (self.dump_location, self.dump_path))
             time.sleep(5)
         else:
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"nfs:\/\/%s\%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_ip, self.dump_path))
-            self.c.run_command('sed -i \'/^KDUMP_SSH_IDENTITY=/c\KDUMP_SSH_IDENTITY=\"%s\"\' /etc/sysconfig/kdump;' % self.rsa_path)
+            self.c.run_command(r'sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"nfs:\/\/%s\%s\"\' /etc/sysconfig/kdump;' % (self.dump_server_ip, self.dump_path))
+            self.c.run_command(r'sed -i \'/^KDUMP_SSH_IDENTITY=/c\KDUMP_SSH_IDENTITY=\"%s\"\' /etc/sysconfig/kdump;' % self.rsa_path)
             self.c.run_command("zypper install -y nfs-kernel-server; systemctl start nfs-server")
             self.c.run_command("mount -t nfs %s:%s /var/crash" % (self.dump_location, self.dump_path))
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync", timeout=180)
@@ -1474,7 +1474,7 @@ class KernelCrash_KdumpSAN(OptestKernelDump):
                 self.c.run_command("sed -i '/^path/ s/^#*/#/' /etc/kdump.conf; echo 'path /' >> /etc/kdump.conf; sync")
                 self.c.run_command("sed -i '/^%s/ s/^#*/#/' /etc/kdump.conf; echo '%s %s1' >> /etc/kdump.conf; sync" % (
                                    self.filesystem, self.filesystem, self.dev_path))
-                self.c.run_command("sed -i '/\/var\/crash %s/d' /etc/fstab;"
+                self.c.run_command(r"sed -i '/\/var\/crash %s/d' /etc/fstab;"
                                    "echo '%s1 /var/crash %s defaults 0 0' >> /etc/fstab; sync" % (
                                    self.filesystem, self.dev_path, self.filesystem))
                 self.c.run_command("systemctl daemon-reload")
@@ -1493,7 +1493,7 @@ class KernelCrash_KdumpSAN(OptestKernelDump):
         self.verify_dump_file(boot_type)
         self.setup_test()
         if self.filesystem:
-            self.c.run_command("sed -i '/\/var\/crash %s/d' /etc/fstab; sync" % self.filesystem)
+            self.c.run_command(r"sed -i '/\/var\/crash %s/d' /etc/fstab; sync" % self.filesystem)
 
 
 class KernelCrash_KdumpSMT(OptestKernelDump):
@@ -2050,21 +2050,21 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
                            % (self.pmem_id, self.pmem_id))
         if self.distro == "rhel":
             self.c.run_command("echo 'add_drivers+=\"papr_scm\"' > /etc/dracut.conf.d/99-pmem-workaround.conf")
-            self.c.run_command("sed -i 's/path \/var\/crash/path \/pmem%s/' /etc/kdump.conf; sync" % self.pmem_id)
+            self.c.run_command(r"sed -i 's/path \/var\/crash/path \/pmem%s/' /etc/kdump.conf; sync" % self.pmem_id)
             self.c.run_command("kdumpctl restart", timeout=120)
         if self.distro == "sles":
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/pmem%s\"\' /etc/sysconfig/kdump;' % self.pmem_id)
+            self.c.run_command(r'sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/pmem%s\"\' /etc/sysconfig/kdump;' % self.pmem_id)
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync")
         log.info("=============== Testing kdump/fadump over pmem ===============")
         boot_type = self.kernel_crash()
         self.c.run_command("cp -r /pmem%s/* /var/crash" % self.pmem_id)
         self.c.run_command("umount /pmem%s" % self.pmem_id)
         self.c.run_command("ndctl destroy-namespace all -f")
-        self.c.run_command("sed -i '$d' \/etc\/fstab")
+        self.c.run_command(r"sed -i '$d' \/etc\/fstab")
         if self.distro == "rhel":
-            self.c.run_command("sed -i 's/path \/pmem%s/path \/var\/crash/' /etc/kdump.conf; sync" % self.pmem_id)
+            self.c.run_command(r"sed -i 's/path \/pmem%s/path \/var\/crash/' /etc/kdump.conf; sync" % self.pmem_id)
         if self.distro == "sles":
-            self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
+            self.c.run_command(r'sed -i \'/^KDUMP_SAVEDIR=/c\\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
         self.verify_dump_file(boot_type)
 
 

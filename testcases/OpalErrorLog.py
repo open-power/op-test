@@ -115,7 +115,7 @@ class BasicTest(OpalErrorLog):
                 transfer_complete = True
                 break
             time.sleep(1)
-            log.debug("Waiting for transfer of error logs to Host: (%d\%d)"
+            log.debug(r"Waiting for transfer of error logs to Host: (%d\%d)"
                       % (j, tries))
         if not transfer_complete:
             self.cv_HOST.host_gather_opal_msg_log()

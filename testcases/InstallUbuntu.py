@@ -85,7 +85,7 @@ class InstallUbuntu(unittest.TestCase):
         r = None
         while r != 0:
             time.sleep(0.2)
-            r = raw_pty.expect(['\*.*\s+' + item, '\*.*\s+', pexpect.TIMEOUT],
+            r = raw_pty.expect([r'\*.*\s+' + item, r'\*.*\s+', pexpect.TIMEOUT],
                                timeout=1)
             if r == 0:
                 break

@@ -109,7 +109,7 @@ class OpTestPrdDriver(unittest.TestCase):
             "PATH=/usr/local/sbin:$PATH getscom -l", console=1)
         l_chips = []
         for line in l_res:
-            matchObj = re.search("(\d{8}).*processor", line)
+            matchObj = re.search(r"(\d{8}).*processor", line)
             if matchObj:
                 l_chips.append(matchObj.group(1))
         log.debug("chips list:%s list length: %s" % (l_chips, len(l_chips)))

@@ -336,7 +336,7 @@ class OpClassPCI(unittest.TestCase):
         total_entries = link_down_entries = timeout_entries = []
         try:
             link_down_entries = self.c.run_command(
-                "grep ',[432]\].*PHB#.* Link down' /sys/firmware/opal/msglog")
+                r"grep ',[432]\].*PHB#.* Link down' /sys/firmware/opal/msglog")
         except CommandFailed as cf:
             pass
         if link_down_entries:
@@ -346,7 +346,7 @@ class OpClassPCI(unittest.TestCase):
                 "total_entries with link_down_entries={}".format(total_entries))
         try:
             timeout_entries = self.c.run_command(
-                "grep ',[432]\].*Timeout waiting for' /sys/firmware/opal/msglog")
+                r"grep ',[432]\].*Timeout waiting for' /sys/firmware/opal/msglog")
         except CommandFailed as cf:
             pass
         if timeout_entries:
@@ -357,7 +357,7 @@ class OpClassPCI(unittest.TestCase):
         platform = self.c.run_command("cat /proc/device-tree/compatible")
 
         filter_out = [
-            'PHB#00(00|30|33|34)\[(0|8):(0|4|3)\]: LINK: Timeout waiting for link up',
+            r'PHB#00(00|30|33|34)\[(0|8):(0|4|3)\]: LINK: Timeout waiting for link up',
             'Timeout waiting for downstream link',
         ]
 
@@ -413,7 +413,7 @@ class OpClassPCI(unittest.TestCase):
         except CommandFailed:
             pass
         try:
-            self.c.run_command("grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            self.c.run_command(r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
         except CommandFailed:
             pass
 

@@ -146,7 +146,7 @@ class BMCResetThenRebootHost(BasicIPL):
         console = self.cv_SYSTEM.console
         console.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
         console.run_command_ignore_fail(
-            "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
         console.pty.sendline("reboot")
         self.cv_SYSTEM.set_state(OpSystemState.IPLing)
         try:

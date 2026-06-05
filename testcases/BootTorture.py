@@ -116,7 +116,7 @@ class BootTorture(unittest.TestCase):
 
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail(
-                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+                r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
 
 
 class BootTorture10(BootTorture, unittest.TestCase):
@@ -163,7 +163,7 @@ class ReBootTorture(BootTorture, unittest.TestCase):
                                      .format(self.conf.lspci_file(), ('\n'.join(i for i in compare_results))))
             self.c.run_command_ignore_fail("dmesg -r|grep '<[4321]>'")
             self.c.run_command_ignore_fail(
-                "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+                r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
             self.c.pty.sendline("echo 10  > /proc/sys/kernel/printk")
             self.c.pty.sendline("reboot")
             self.cv_SYSTEM.set_state(OpSystemState.IPLing)

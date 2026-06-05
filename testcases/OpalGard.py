@@ -82,7 +82,7 @@ class OpalGard(unittest.TestCase):
         cmd = "dmesg -T --level=alert,crit,err,warn"
         res = self.c.run_command_ignore_fail(cmd, timeout=120)
         self.c.run_command_ignore_fail(
-            "grep ',[0-4]\]' /sys/firmware/opal/msglog")
+            r"grep ',[0-4]\]' /sys/firmware/opal/msglog")
 
     def runTest(self):
         # opal-gard from host is not supported in FSP systems

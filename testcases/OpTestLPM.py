@@ -165,7 +165,7 @@ class OpTestLPM(unittest.TestCase):
                 self.firewall_status = False
         if self.firewall_status:
             self.cv_HOST.host_run_command("systemctl stop firewalld.service")
-        rc = self.cv_HOST.host_run_command("lssrc -a | grep 'rsct \| rsct_rm'")
+        rc = self.cv_HOST.host_run_command(r"lssrc -a | grep 'rsct \| rsct_rm'")
         if "inoperative" in str(rc):
             self.cv_HOST.host_run_command("startsrc -g rsct_rm; startsrc -g rsct")
             rc = self.cv_HOST.host_run_command("lssrc -a")
@@ -264,7 +264,7 @@ class OpTestLPM(unittest.TestCase):
                 raise OpTestError("RMC connection is down!!")
 
     def execute_stressng(self):
-        stress_ng_timeout = re.search('(?:--timeout|-t) (\d+[mM])', self.stressng_command)
+        stress_ng_timeout = re.search(r'(?:--timeout|-t) (\d+[mM])', self.stressng_command)
         if stress_ng_timeout:
             thread_timeout = int(stress_ng_timeout.group(1)[:-1])
         else:

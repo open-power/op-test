@@ -138,7 +138,7 @@ class OpTestEEH(unittest.TestCase):
 
         Basically, we throw logs in a temp file and diff them afterwards.
         '''
-        cmd = "cat /sys/firmware/opal/msglog|grep ',[0-4]\]' > /tmp/opal_msglog"
+        cmd = r"cat /sys/firmware/opal/msglog|grep ',[0-4]\]' > /tmp/opal_msglog"
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
         self.cv_SYSTEM.console.run_command("dmesg -C")
 
@@ -150,7 +150,7 @@ class OpTestEEH(unittest.TestCase):
         This should make it easier to debug problems as you'll have
         the specific log messages that occured for each test.
         '''
-        cmd = "grep ',[0-4]\]' /sys/firmware/opal/msglog | diff - /tmp/opal_msglog"
+        cmd = r"grep ',[0-4]\]' /sys/firmware/opal/msglog | diff - /tmp/opal_msglog"
         self.cv_SYSTEM.console.run_command_ignore_fail(cmd)
         self.cv_SYSTEM.console.run_command("dmesg")
 

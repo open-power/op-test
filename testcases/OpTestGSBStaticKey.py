@@ -194,7 +194,7 @@ class OpTestGSBStaticKey(unittest.TestCase):
         self.dt_secureboot = False
 
         # From 'dmesg' output collect Secure Boot and Lockdown status
-        out = self.c.run_command("dmesg | grep -i 'secure boot\|lockdown'")
+        out = self.c.run_command(r"dmesg | grep -i 'secure boot\|lockdown'")
         '''
         Possible output:
         Secure boot mode disabled

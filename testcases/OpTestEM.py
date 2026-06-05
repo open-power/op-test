@@ -570,7 +570,7 @@ class cpu_idle_states_host(OpTestEM, unittest.TestCase):
             kernel_cmdline = self.c.run_command_ignore_fail(
                 "cat /proc/cmdline")
             skiboot_err = self.c.run_command_ignore_fail(
-                "egrep -i '[54321]\].*(slw|stop)' /sys/firmware/opal/msglog")
+                r"egrep -i '[54321]\].*(slw|stop)' /sys/firmware/opal/msglog")
             kernel_err = self.c.run_command_ignore_fail("dmesg|grep idle")
             dt_err = self.c.run_command_ignore_fail(
                 "lsprop /proc/device-tree/ibm,opal/power-mgt")
