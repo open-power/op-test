@@ -1003,6 +1003,45 @@ class HMCUtil():
             cmd = '%s0"' % cmd
         self.run_command(cmd, timeout=300)
 
+    def is_kvm_capable_enabled(self):
+        '''
+        Get KVM capable flag status in hmc profile
+
+        :returns: True if kvm_capable is enabled in hmc otherwise False
+        '''
+
+        rc = self.run_command("lssyscfg -m %s -r lpar --filter lpar_names=%s -F kvm_capable"
+                              % (self.mg_system, self.lpar_name))
+        if rc:
+            return True
+        return False
+
+    def enable_kvm_capable(self):
+        '''
+        Enable KVM capable flag from HMC
+        The value for enabling kvm_capable is 1.
+
+        Note: The kvm_capable flag can only be toggled when the partition
+        is in a deactivated state.
+        '''
+
+        cmd = ('chsyscfg -r lpar -m %s -i "name=%s, kvm_capable=1"' %
+               (self.mg_system, self.lpar_name))
+        self.run_command(cmd, timeout=300)
+
+    def disable_kvm_capable(self):
+        '''
+        Disable KVM capable flag from HMC
+        The value for disabling kvm_capable is 0.
+
+        Note: The kvm_capable flag can only be toggled when the partition
+        is in a deactivated state.
+        '''
+
+        cmd = ('chsyscfg -r lpar -m %s -i "name=%s, kvm_capable=0"' %
+               (self.mg_system, self.lpar_name))
+        self.run_command(cmd, timeout=300)
+
     def gather_logs(self, list_of_commands=[], remote_hmc=None, output_dir=None):
         '''
         Gather the logs for the commands at the given directory
