@@ -48,6 +48,7 @@ from http.client import HTTPConnection
 # HTTPConnection.debuglevel = 1 # this will print some additional info to stdout
 import urllib3  # setUpChildLogger enables integrated logging with op-test
 import json
+from .Exceptions import SSHSessionDisconnected
 import tempfile
 
 from .OpTestConstants import OpTestConstants as BMC_CONST
@@ -2089,6 +2090,30 @@ class OpTestUtil():
         else:
             rc = pty.expect([expect_prompt, r"[Pp]assword for",
                              pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
+        
+        # Handle transient network disconnections (EOF/TIMEOUT on primary interface)
+        if rc in [pexpect.EOF, pexpect.TIMEOUT]:
+            log.warning("Detected connection issue (EOF/TIMEOUT) - attempting recovery")
+            # Give the network a moment to stabilize
+            time.sleep(2)
+            try:
+                # Try to reconnect the console/SSH session
+                term_obj.close()
+                time.sleep(1)
+                term_obj.connect()
+                log.info("Connection recovered, retrying command")
+                # Retry the command after reconnection
+                pty = term_obj.get_console()
+                pty.sendline(command)
+                if command == 'sudo -s':
+                    rc = pty.expect([".*#", r"[Pp]assword for",
+                                   pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
+                else:
+                    rc = pty.expect([expect_prompt, r"[Pp]assword for",
+                                   pexpect.TIMEOUT, pexpect.EOF], timeout=timeout)
+            except Exception as e:
+                log.error("Connection recovery failed: {}".format(e))
+                raise SSHSessionDisconnected("Transient network issue - connection recovery failed", e)
         output_list = []
         output_list += pty.before.replace("\r\r\n", "\n").splitlines()
         try:
