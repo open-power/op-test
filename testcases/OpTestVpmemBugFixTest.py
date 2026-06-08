@@ -329,7 +329,7 @@ class OpTestVpmemBugFixTest(unittest.TestCase):
             log.info("=" * 80)
 
             log.info("[Step 1] Powering off LPAR...")
-            self.cv_HMC.poweroff_lpar()
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             time.sleep(10)
 
             log.info("[Step 2] Backing up current LPAR profile...")
@@ -374,15 +374,11 @@ class OpTestVpmemBugFixTest(unittest.TestCase):
             else:
                 self.fail("Failed to configure all 3 vpmem volumes. Only %s configured" % curr_num_volumes[0])
 
-            log.info("[Step 6] Powering off LPAR to apply configuration changes...")
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            log.info("  LPAR powered off successfully")
-
-            log.info("[Step 7] Booting LPAR to OS with 3 vpmem volumes...")
+            log.info("[Step 6] Booting LPAR to OS with 3 vpmem volumes...")
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             log.info("  System successfully booted to OS")
 
-            log.info("[Step 8] Verifying vpmem devices...")
+            log.info("[Step 7] Verifying vpmem devices...")
             console = self.cv_SYSTEM.console
             console.run_command("uname -a", timeout=60)
             log.info("  Console is working properly")
@@ -406,7 +402,7 @@ class OpTestVpmemBugFixTest(unittest.TestCase):
             except CommandFailed as e:
                 log.warning("  Could not verify vpmem devices: %s" % str(e))
 
-            log.info("[Step 9] Creating 4 namespaces in region 1 with different alignments...")
+            log.info("[Step 8] Creating 4 namespaces in region 1 with different alignments...")
 
             try:
                 log.info("  Destroying any existing namespaces...")
@@ -471,7 +467,7 @@ class OpTestVpmemBugFixTest(unittest.TestCase):
             console.run_command("uname -a", timeout=60)
             log.info("  Console is working after reboot")
 
-            log.info("[Step 11] Destroying all namespaces at once after reboot...")
+            log.info("[Step 9] Destroying all namespaces at once after reboot...")
             try:
                 destroy_output = console.run_command("ndctl destroy-namespace all -f", timeout=120)
                 if destroy_output:
@@ -491,7 +487,7 @@ class OpTestVpmemBugFixTest(unittest.TestCase):
             except CommandFailed as e:
                 log.error("  Failed to destroy namespaces: %s" % str(e))
 
-            log.info("[Step 12] Checking system logs for calltraces and crashes after namespace destruction...")
+            log.info("[Step 10] Checking system logs for calltraces and crashes after namespace destruction...")
 
             try:
                 calltrace_check = console.run_command("dmesg | grep -i 'call trace\\|calltrace\\|BUG:\\|WARNING:\\|Oops'",
