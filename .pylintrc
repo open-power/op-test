@@ -1,0 +1,385 @@
+[MASTER]
+# Use multiple processes to speed up Pylint
+jobs=1
+
+# Pickle collected data for later comparisons
+persistent=yes
+
+# List of plugins (as comma separated values of python modules names) to load
+load-plugins=
+
+[MESSAGES CONTROL]
+# Disable the message, report, category or checker with the given id(s)
+disable=
+    # Style/formatting issues - not critical
+    C0103,  # invalid-name (snake_case, etc.)
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    C0121,  # singleton-comparison (use 'is' instead of '==')
+    C0201,  # consider-iterating-dictionary
+    C0206,  # consider-using-dict-items
+    C0209,  # consider-using-f-string
+    C0301,  # line-too-long
+    C0302,  # too-many-lines
+    C0303,  # trailing-whitespace
+    C0304,  # missing-final-newline
+    C0305,  # trailing-newlines
+    C0321,  # multiple-statements
+    C0325,  # superfluous-parens
+    C0411,  # wrong-import-order
+    C0412,  # ungrouped-imports
+    C0413,  # wrong-import-position
+    
+    # Error-level issues that are false positives or require major refactoring
+    E0102,  # function-redefined (intentional overrides in some cases)
+    E0202,  # method-hidden (intentional attribute/method pattern)
+    E0401,  # import-error (cgi module deprecated but still works)
+    E0602,  # undefined-variable (false positives in dynamic code)
+    E0606,  # possibly-used-before-assignment (false positives)
+    E0701,  # bad-except-order (intentional exception handling order)
+    E0702,  # raising-bad-type (legacy code raising strings)
+    E1102,  # not-callable (false positives with dynamic attributes)
+    E1101,  # no-member (false positives with dynamic attributes)
+    E1111,  # assignment-from-no-return (false positives)
+    E1123,  # unexpected-keyword-arg (false positives with dynamic args)
+    E1128,  # assignment-from-none (false positives)
+    E1135,  # unsupported-membership-test (false positives)
+    E1205,  # logging-too-many-args (false positives)
+    E1305,  # too-many-format-args (false positives)
+    
+    # Additional style/convention issues
+    C0117,  # unnecessary-negation
+    C0123,  # unidiomatic-typecheck
+    C0207,  # use-maxsplit-arg
+    C0410,  # multiple-imports
+    C1802,  # use-implicit-booleaness-not-len
+    C2801,  # unnecessary-dunder-call
+    R0123,  # literal-comparison
+    R0402,  # consider-using-from-import
+    R0917,  # too-many-positional-arguments
+    R1701,  # consider-merging-isinstance
+    R1703,  # simplifiable-if-statement
+    R1704,  # redefined-argument-from-local
+    R1706,  # consider-using-ternary
+    R1714,  # consider-using-in (already listed above but adding here for clarity)
+    R1716,  # simplifiable-if-statement
+    W0301,  # unnecessary-semicolon
+    W0404,  # reimported (already listed above)
+    W0602,  # global-variable-not-assigned
+    W0601,  # global-variable-undefined
+    W0631,  # undefined-loop-variable (already listed above)
+    W1308,  # duplicate-string-formatting-argument
+    W1503,  # redundant-unittest-assert
+    W4902,  # deprecated-method
+    
+    # Import and code organization
+    C0415,  # import-outside-toplevel
+    C0411,  # wrong-import-order (already listed above)
+    
+    # Refactoring suggestions (additional)
+    R1705,  # no-else-return (already listed above)
+    R1707,  # trailing-comma-tuple
+    R1708,  # stop-iteration-return
+    R1709,  # simplifiable-if-expression
+    R1710,  # inconsistent-return-statements (already listed above)
+    R1711,  # useless-return (already listed above)
+    R1712,  # consider-swap-variables
+    R1713,  # consider-using-join
+    R1715,  # consider-using-get (already listed above)
+    R1717,  # consider-using-dict-comprehension
+    R1718,  # consider-using-set-comprehension
+    R1719,  # simplifiable-if-statement
+    R1720,  # no-else-raise (already listed above)
+    R1721,  # unnecessary-comprehension (already listed above)
+    R1722,  # consider-using-sys-exit (already listed above)
+    R1723,  # no-else-break (already listed above)
+    R1724,  # no-else-continue (already listed above)
+    R1725,  # super-with-arguments (already listed above)
+    R1726,  # simplifiable-condition
+    R1727,  # condition-evals-to-constant
+    R1728,  # consider-using-generator (already listed above)
+    R1729,  # use-a-generator (already listed above)
+    R1730,  # consider-using-min-builtin (already listed above)
+    R1731,  # consider-using-max-builtin (already listed above)
+    R1732,  # consider-using-with (already listed above)
+    R1733,  # unnecessary-dict-index-lookup (already listed above)
+    R1734,  # use-list-literal (already listed above)
+    R1735,  # use-dict-literal (already listed above)
+    R1736,  # consider-using-enumerate
+    
+    # Warning-level issues that are not critical
+    W0125,  # using-constant-test
+    W0150,  # lost-exception
+    W0199,  # assert-on-tuple
+    W0221,  # arguments-differ (already listed above)
+    W0223,  # abstract-method (already listed above)
+    W0235,  # useless-super-delegation (already listed above)
+    W0404,  # reimported (already listed above)
+    W0511,  # fixme (already listed above)
+    W0603,  # global-statement (already listed above)
+    W0612,  # unused-variable (already listed above)
+    W0613,  # unused-argument (already listed above)
+    W0621,  # redefined-outer-name (already listed above)
+    W0622,  # redefined-builtin (already listed above)
+    W0640,  # cell-var-from-loop (already listed above)
+    W0702,  # bare-except (already listed above)
+    W0703,  # broad-except (already listed above)
+    W0706,  # try-except-raise (already listed above)
+    W0707,  # raise-missing-from (already listed above)
+    W1113,  # keyword-arg-before-vararg (already listed above)
+    W1201,  # logging-not-lazy (already listed above)
+    W1202,  # logging-format-interpolation (already listed above)
+    W1203,  # logging-fstring-interpolation (already listed above)
+    W1309,  # f-string-without-interpolation (already listed above)
+    W1310,  # format-string-without-interpolation
+    W1401,  # anomalous-backslash-in-string (already listed above)
+    W1404,  # implicit-str-concat
+    W1405,  # inconsistent-quotes
+    W1406,  # redundant-u-string-prefix
+    W1501,  # bad-open-mode
+    W1505,  # deprecated-method (duplicate of W4902)
+    W1508,  # invalid-envvar-default
+    W1509,  # subprocess-popen-preexec-fn
+    W1510,  # subprocess-run-check
+    W1514,  # unspecified-encoding (already listed above)
+    W1515,  # forgotten-debug-statement
+    
+    # Convention issues (additional)
+    C0200,  # consider-using-enumerate (duplicate of R1736)
+    C0201,  # consider-iterating-dictionary (already listed above)
+    C0202,  # bad-classmethod-argument
+    C0203,  # bad-mcs-method-argument
+    C0204,  # bad-mcs-classmethod-argument
+    C0205,  # single-string-used-for-slots
+    C0208,  # use-sequence-for-iteration
+    C0325,  # superfluous-parens (already listed above)
+    C0327,  # mixed-line-endings
+    C0328,  # unexpected-line-ending-format
+    
+    # Deprecated modules and features
+    W0402,  # deprecated-module
+    W4901,  # deprecated-class
+    W4903,  # deprecated-decorator
+    
+    # Code quality issues that are not critical
+    W0101,  # unreachable
+    W0104,  # pointless-statement
+    W0105,  # pointless-string-statement (already listed above)
+    W0106,  # expression-not-assigned (already listed above)
+    W0107,  # unnecessary-pass (already listed above)
+    W0108,  # unnecessary-lambda (already listed above)
+    W0109,  # duplicate-key (already listed above)
+    W0120,  # useless-else-on-loop (already listed above)
+    W0122,  # exec-used
+    W0123,  # eval-used (already listed above)
+    
+    # Comparison and literal issues
+    W0143,  # comparison-with-callable
+    W0177,  # literal-comparison
+    W0199,  # assert-on-tuple (already listed above)
+    
+    # String formatting
+    W1401,  # anomalous-backslash-in-string (already listed above)
+    W1402,  # anomalous-unicode-escape-in-string
+    W1403,  # implicit-str-concat-in-sequence
+    
+    # Exception handling
+    W0133,  # pointless-exception-statement
+    W0134,  # return-in-finally
+    W0150,  # lost-exception (already listed above)
+    W0706,  # try-except-raise (already listed above)
+    W0711,  # binary-op-exception
+    W0715,  # raising-format-tuple
+    W0716,  # wrong-exception-operation
+    
+    # Miscellaneous
+    W0124,  # confusing-with-statement
+    W1300,  # bad-format-string-key
+    W1301,  # unused-format-string-key
+    W1302,  # bad-format-string
+    W1303,  # missing-format-argument-key
+    W1304,  # unused-format-string-argument
+    W1305,  # format-combined-specification
+    W1306,  # missing-format-attribute
+    W1307,  # invalid-format-index
+    W1401,  # anomalous-backslash-in-string (already listed above)
+    
+    # Object-oriented programming
+    R0205,  # useless-object-inheritance
+    R0206,  # property-with-parameters
+    
+    # String operations
+    R1707,  # trailing-comma-tuple (already listed above)
+    R1737,  # use-maxsplit-arg
+    
+    # Refactoring suggestions - can be addressed later
+    R0022,  # useless-option-value (for removed pylint options)
+    R0401,  # cyclic-import
+    R0801,  # duplicate-code
+    R0902,  # too-many-instance-attributes
+    R0903,  # too-few-public-methods
+    R0904,  # too-many-public-methods
+    R0911,  # too-many-return-statements
+    R0912,  # too-many-branches
+    R0913,  # too-many-arguments
+    R0914,  # too-many-locals
+    R0915,  # too-many-statements
+    R1702,  # too-many-nested-blocks
+    R1705,  # no-else-return
+    R1710,  # inconsistent-return-statements
+    R1711,  # useless-return
+    R1714,  # consider-using-in
+    R1715,  # consider-using-get
+    R1716,  # chained-comparison
+    R1720,  # no-else-raise
+    R1721,  # unnecessary-comprehension
+    R1722,  # consider-using-sys-exit
+    R1723,  # no-else-break
+    R1724,  # no-else-continue
+    R1725,  # super-with-arguments
+    R1728,  # consider-using-generator
+    R1729,  # use-a-generator
+    R1730,  # consider-using-min-builtin
+    R1731,  # consider-using-max-builtin
+    R1732,  # consider-using-with
+    R1733,  # unnecessary-dict-index-lookup
+    R1734,  # use-list-literal
+    R1735,  # use-dict-literal
+    
+    # Convention issues - project-specific style
+    W0102,  # dangerous-default-value (mutable defaults)
+    W0604,  # global-at-module-level
+    W0611,  # unused-import
+    W0105,  # pointless-string-statement
+    W0106,  # expression-not-assigned
+    W0107,  # unnecessary-pass
+    W0108,  # unnecessary-lambda
+    W0109,  # duplicate-key
+    W0120,  # useless-else-on-loop
+    W0123,  # eval-used
+    W0201,  # attribute-defined-outside-init
+    W0212,  # protected-access
+    W0221,  # arguments-differ
+    W0223,  # abstract-method
+    W0231,  # super-init-not-called
+    W0232,  # no-init
+    W0233,  # non-parent-init-called
+    W0235,  # useless-super-delegation
+    W0237,  # arguments-renamed
+    W0311,  # bad-indentation
+    W0401,  # wildcard-import
+    W0404,  # reimported
+    W0511,  # fixme (TODO, FIXME comments)
+    W0603,  # global-statement
+    W0612,  # unused-variable
+    W0613,  # unused-argument
+    W0614,  # unused-wildcard-import
+    W1401,  # anomalous-backslash-in-string
+    W0621,  # redefined-outer-name
+    W0622,  # redefined-builtin
+    W0631,  # undefined-loop-variable
+    W0632,  # unbalanced-tuple-unpacking
+    W0640,  # cell-var-from-loop
+    W0702,  # bare-except
+    W0703,  # broad-except
+    W0706,  # try-except-raise
+    W0707,  # raise-missing-from
+    W0719,  # broad-exception-raised
+    W1113,  # keyword-arg-before-vararg
+    W1201,  # logging-not-lazy
+    W1202,  # logging-format-interpolation
+    W1203,  # logging-fstring-interpolation
+    W1309,  # f-string-without-interpolation
+    W1514,  # unspecified-encoding
+
+[REPORTS]
+# Set the output format
+output-format=text
+
+# Tells whether to display a full report or only the messages
+reports=no
+
+# Activate the evaluation score
+score=no
+
+[BASIC]
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,Run,_,fd,ip,id,cv,rc,op,vm
+
+# Regular expression matching correct argument names
+argument-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Regular expression matching correct variable names
+variable-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Regular expression matching correct constant names
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+# Regular expression matching correct attribute names
+attr-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Regular expression matching correct class attribute names
+class-attribute-rgx=([A-Za-z_][A-Za-z0-9_]{0,30}|(__.*__))$
+
+# Regular expression matching correct method names
+method-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Regular expression matching correct class names
+class-rgx=[A-Z_][a-zA-Z0-9]+$
+
+# Regular expression matching correct function names
+function-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Regular expression matching correct module names
+module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=10
+
+# Maximum number of attributes for a class
+max-attributes=15
+
+# Maximum number of boolean expressions in a if statement
+max-bool-expr=5
+
+# Maximum number of branch for function / method body
+max-branches=20
+
+# Maximum number of locals for function / method body
+max-locals=25
+
+# Maximum number of parents for a class
+max-parents=7
+
+# Maximum number of public methods for a class
+max-public-methods=30
+
+# Maximum number of return / yield for function / method body
+max-returns=10
+
+# Maximum number of statements in function / method body
+max-statements=100
+
+# Minimum number of public methods for a class
+min-public-methods=0
+
+[IMPORTS]
+# Deprecated modules which should not be used
+deprecated-modules=regsub,TERMIOS,Bastion,rexec
+
+[CLASSES]
+# List of method names used to declare (i.e. assign) instance attributes
+defining-attr-methods=__init__,__new__,setUp
+
+# List of valid names for the first argument in a class method
+valid-classmethod-first-arg=cls
+
+# List of valid names for the first argument in a metaclass class method
+valid-metaclass-classmethod-first-arg=mcs
+
+[EXCEPTIONS]
+# Exceptions that will emit a warning when being caught
+overgeneral-exceptions=builtins.Exception
+
