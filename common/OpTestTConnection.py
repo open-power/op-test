@@ -37,7 +37,12 @@
 # constantly themselves, so in this file we should expect to be given
 # strings and to return strings - even though that makes things harder.
 
-import telnetlib
+# telnetlib was removed in Python 3.13, use telnetlib3 as replacement
+import sys
+if sys.version_info >= (3, 13):
+    import telnetlib3 as telnetlib
+else:
+    import telnetlib
 
 
 class NoLoginPrompt(Exception):
