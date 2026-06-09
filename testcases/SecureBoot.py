@@ -92,6 +92,7 @@ class SecureBoot(unittest.TestCase):
         self.cpu = ''.join(c.run_command(
             "grep '^cpu' /proc/cpuinfo |uniq|sed -e 's/^.*: //;s/[,]* .*//;'"))
         log.debug(self.cpu)
+        part_list = []
         if self.cpu in ["POWER9", "POWER9P"]:
             part_list = ["CAPP", "IMA_CATALOG", "BOOTKERNEL", "VERSION"]
         elif self.cpu in ["POWER8"]:

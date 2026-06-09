@@ -34,6 +34,7 @@ import OpTestConfiguration
 from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
 from common.OpTestCommandExecutor import OpTestCommandExecutor
 from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
+from common.OpTestError import OpTestError
 from common.OpTestSystem import OpSystemState
 from common.OpTestUtil import OpTestUtil
 
@@ -89,10 +90,14 @@ class GcovBuild(unittest.TestCase):
             elif self.distro_name == 'sles':
                 self.cv_HOST.host_run_command(f"{self.installer} -y {pkg}")
         log.info("\nInstalling the ditro src...")
+        src_path = None
         if self.distro_name == 'rhel':
             src_path = self.util.get_distro_src('kernel', '/root', "-bp")
         elif self.distro_name == 'sles':
             src_path = self.util.get_distro_src('kernel-default', '/root', "-bp", "linux")
+        else:
+            raise OpTestError(f"Unsupported distro '{self.distro_name}' for gcov setup")
+        
         src_path_base = src_path
         out = self.cv_HOST.host_run_command(f"ls {src_path}")
         for line in out:
