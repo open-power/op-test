@@ -121,12 +121,16 @@ class CrashTool(unittest.TestCase):
         Raises OpTestError if any package is missing.
         """
         # Determine which packages to check
+        required_pkgs = []
         if self.distro.lower() == "sles":
             required_pkgs = ["kernel-default-debuginfo",
                              "kernel-default-debugsource", "crash"]
         elif self.distro.lower() == "rhel":
             required_pkgs = ["kernel-debuginfo",
                              "kernel-debuginfo-common-ppc64le", "crash"]
+        else:
+            log.warning(f"Unknown distro '{self.distro}', skipping package verification")
+            return
 
         # Check each package
         for pkg in required_pkgs:
