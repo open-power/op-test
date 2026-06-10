@@ -2633,6 +2633,85 @@ class OpTestUtil():
                 raise OpTestError(f"Unable to uninstall package: {packages}")
         except CommandFailed as cf:
             log.debug("Failed to uninstall packages CommandFailed={}".format(cf))
+
+    def get_timezone(self):
+        """
+        Retrieve the system's current timezone.
+
+        This method runs the `timedatectl` command on the configured host
+        and parses its output to extract the active timezone setting.
+        It searches for the line containing 'Time zone' and returns it
+        as a stripped string. If no timezone information is found,
+        the method returns None.
+
+        Returns:
+        str: The timezone line from `timedatectl` output, or None if not found.
+        """
+        host = self.conf.host()
+        output = host.host_run_command("timedatectl")
+        for line in output:
+            if "Time zone" in line:
+                return line.strip()
+        return None
+
+    def set_random_timezone(self):
+        """
+        Set the system timezone to a randomly selected valid timezone.
+
+        This method chooses a timezone at random from a predefined list
+        (e.g., UTC, Asia/Kolkata, America/New_York, Europe/London, Asia/Tokyo,
+        Australia/Sydney) and applies it to the configured host using
+        the `timedatectl set-timezone` command. It then returns the
+        selected timezone string.
+    
+        Returns:
+        str: The randomly chosen timezone that was applied to the host.
+        """
+        # List of some valid timezones
+        host = self.conf.host()
+        timezones = [
+            "UTC",
+            "Asia/Kolkata",
+            "America/New_York",
+            "Europe/London",
+            "Asia/Tokyo",
+            "Australia/Sydney"
+        ]
+
+        tz = random.choice(timezones)
+        host.host_run_command(f"timedatectl set-timezone {tz}")
+        return tz
+
+    def get_latest_crash_dir(self):
+        '''
+        Retrieve the most recent crash directory
+        '''
+        host = self.conf.host()
+        cmd = "ls -td /var/crash/* 2>/dev/null | head -1"
+        output = host.host_run_command(cmd)
+        if output:
+            return output[0].strip()
+        return None
+
+    def get_file_timestamps(self, crash_dir):
+        """
+        Retrieve detailed file timestamps from a crash directory.
+
+        This method runs the `ls -l --time-style=full-iso` command on the
+        specified crash directory of the configured host. It returns the
+        command output, which includes file metadata such as permissions,
+        ownership, size, and full ISO‑formatted timestamps.
+    
+        Args:
+        crash_dir (str): Path to the crash directory to inspect.
+    
+        Returns:
+        list[str]: A list of strings representing the detailed file
+                   information and timestamps from the directory.
+        """
+        host = self.conf.host()
+        cmd = f"ls -l --time-style=full-iso {crash_dir}"
+        return host.host_run_command(cmd)
         
     def get_distro_src(self, package, dest_path, build_option=None, pack_dir=None):
         
