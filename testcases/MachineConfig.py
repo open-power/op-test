@@ -231,6 +231,34 @@ class LparConfig():
         self.util = OpTestUtil(conf)
         self.sb_enable = sb_enable
 
+    def validate_and_adjust_memory(self, min_memory, desired_memory, max_memory):
+        '''
+        Validates and adjusts memory values to ensure min <= desired <= max.
+        Returns a tuple of (min_memory, desired_memory, max_memory) as strings.
+        '''
+        # Convert to integers for comparison and validation
+        min_mem = int(min_memory)
+        desired_mem = int(desired_memory)
+        max_mem = int(max_memory)
+        
+        # Validate and adjust memory values to ensure min <= desired <= max
+        if desired_mem > max_mem:
+            log.warning("desired_memory (%s) exceeds max_memory (%s). Adjusting desired_memory to %s" %
+                       (desired_mem, max_mem, max_mem))
+            desired_mem = max_mem
+        
+        if min_mem > desired_mem:
+            log.warning("min_memory (%s) exceeds desired_memory (%s). Adjusting min_memory to %s" %
+                       (min_mem, desired_mem, desired_mem))
+            min_mem = desired_mem
+        
+        if min_mem > max_mem:
+            log.warning("min_memory (%s) exceeds max_memory (%s). Adjusting min_memory to %s" %
+                       (min_mem, max_mem, max_mem))
+            min_mem = max_mem
+        
+        return (str(min_mem), str(desired_mem), str(max_mem))
+
     def LparSetup(self, lpar_config=""):
         '''
         If cpu=shared is passed in machine_config lpar proc mode
@@ -280,6 +308,11 @@ class LparConfig():
             except AttributeError:
                 self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
                                       0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
+            
+            # Use common validation function
+            self.min_memory, self.desired_memory, self.max_memory = self.validate_and_adjust_memory(
+                self.min_memory, self.desired_memory, self.max_memory)
+            
             proc_mode = 'shared'
             self.cv_HMC.profile_bckup()
             self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode,
@@ -330,6 +363,11 @@ class LparConfig():
             except AttributeError:
                 self.max_memory = int(self.cv_HMC.get_available_mem_resources()[
                                       0]) + self.cv_HMC.get_stealable_mem_resources_lpar()
+            
+            # Use common validation function
+            self.min_memory, self.desired_memory, self.max_memory = self.validate_and_adjust_memory(
+                self.min_memory, self.desired_memory, self.max_memory)
+            
             proc_mode = 'ded'
             self.cv_HMC.profile_bckup()
             self.cv_HMC.change_proc_mode(proc_mode, self.sharing_mode,
