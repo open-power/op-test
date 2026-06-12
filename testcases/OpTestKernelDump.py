@@ -2742,6 +2742,65 @@ class MeasureMakedumpTime(OptestKernelDump):
                 (name, data['time'], time_diff, data['vmcore_size_mb'], size_diff))
 
 
+class KernelCrash_CrashkernelOffset(OptestKernelDump):
+    '''
+    Test crashkernel with memory offset parameter.
+    Appends offset to existing crashkernel value and triggers crash.
+    Example: crashkernel=512M becomes crashkernel=512M@256M
+    '''
+
+    def runTest(self):
+        self.setup_test()
+        conf = OpTestConfiguration.conf
+        # Get test offset (default 256M)
+        try:
+            self.test_offset = conf.args.test_offset
+        except AttributeError:
+            self.test_offset = '256M'
+        log.info(f"========== Testing crashkernel with offset @{self.test_offset} ==========")
+        cmdline = self.c.run_command("cat /proc/cmdline")
+        cmdline_str = ' '.join(cmdline)
+        
+        match = re.search(r'crashkernel=([^\s@]+)', cmdline_str)
+        if not match:
+            self.skipTest("No crashkernel parameter found")
+        
+        current_value = match.group(1)
+        log.info(f"Current crashkernel value: {current_value}")
+        old_param = f"crashkernel={current_value}"
+        # Create new parameter with offset
+        new_param = f"crashkernel={current_value}@{self.test_offset}"
+        log.info(f"New crashkernel parameter: {new_param}")
+        self.reset_kdump_bootloaded_if_needed() 
+        # Update using OpTestInstallUtil (will replace old crashkernel)
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro, 
+                                        args=new_param,
+                                        reboot=True, 
+                                        reboot_cmd=True):
+            self.fail("Failed to update crashkernel with offset")
+        # Verify crashkernel with offset
+        cmdline = self.c.run_command("cat /proc/cmdline")
+        cmdline_str = ' '.join(cmdline)
+        
+        if f"@{self.test_offset}" not in cmdline_str:
+            self.fail(f"Crashkernel offset @{self.test_offset} not found in kernel cmdline")
+        
+        log.info(f"Verified: crashkernel with offset @{self.test_offset}")
+        log.info("========== Triggering crash ==========")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+        log.info(f"========== SUCCESS: Crashkernel offset @{self.test_offset} test passed ==========")
+        old_param = f"crashkernel={current_value}"
+        log.info(f"old crashkernel parameter: {old_param}")
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro,
+                                        args=old_param,
+                                        remove_args=new_param,
+                                        reboot=True,
+                                        reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestWatchdog())
@@ -2781,5 +2840,6 @@ def crash_suite():
     s.addTest(OPALCrash_MPIPL())
     s.addTest(PstoreCheck())
     s.addTest(MeasureMakedumpTime())
+    s.addTest(KernelCrash_CrashkernelOffset())
 
     return s
