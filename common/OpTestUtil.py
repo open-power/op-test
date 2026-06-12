@@ -2633,6 +2633,43 @@ class OpTestUtil():
                 raise OpTestError(f"Unable to uninstall package: {packages}")
         except CommandFailed as cf:
             log.debug("Failed to uninstall packages CommandFailed={}".format(cf))
+
+    def get_timezone(self):
+        host = self.conf.host()
+        output = host.host_run_command("timedatectl")
+        for line in output:
+            if "Time zone" in line:
+                return line.strip()
+        return None
+
+    def set_random_timezone(self):
+        # List of some valid timezones
+        host = self.conf.host()
+        timezones = [
+            "UTC",
+            "Asia/Kolkata",
+            "America/New_York",
+            "Europe/London",
+            "Asia/Tokyo",
+            "Australia/Sydney"
+        ]
+
+        tz = random.choice(timezones)
+        host.host_run_command(f"timedatectl set-timezone {tz}")
+        return tz
+
+    def get_latest_crash_dir(self):
+        host = self.conf.host()
+        cmd = "ls -td /var/crash/* 2>/dev/null | head -1"
+        output = host.host_run_command(cmd)
+        if output:
+            return output[0].strip()
+        return None
+
+    def get_file_timestamps(self, crash_dir):
+        host = self.conf.host()
+        cmd = f"ls -l --time-style=full-iso {crash_dir}"
+        return host.host_run_command(cmd)
         
     def get_distro_src(self, package, dest_path, build_option=None, pack_dir=None):
         
