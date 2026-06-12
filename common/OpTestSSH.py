@@ -160,7 +160,9 @@ class OpTestSSH():
             
             # Check exit status
             if exit_status != 0:
-                log.warning(f"Command exited with status {exit_status}")
+                raise CommandFailed(command,
+                    '\n'.join(error_lines),
+                    exit_status)
                 # For HMC commands, some non-zero exits are acceptable
                 # Return output anyway and let caller decide
             
