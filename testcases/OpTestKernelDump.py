@@ -2068,6 +2068,84 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
         self.verify_dump_file(boot_type)
 
 
+class OpTestFadumpCmaCheck(OptestKernelDump):
+    """
+    Test class to verify that fadump CMA initialization does not fail.
+    
+    This test checks the system boot log (dmesg) for the error message:
+    fadump: Failed to init cma area for firmware-assisted dump
+    cma:pageblock_order not yet initialized\. Called during early boot?
+    
+    If these errors are found, it indicates failure in fadump CMA
+    initialization and the test will fail.
+    """
+    def check_boot_log_for_fadump_error(self):
+        """
+        Check the boot log (dmesg) for fadump CMA initialization failure.
+        
+        Returns:
+            tuple: (bool, str) - (error_found, error_message)
+                   error_found: True if the error message is found
+                   error_message: The actual error message found, or None
+        """
+        log.info("Checking boot log for fadump CMA initialization errors...")
+        error_patterns= [
+                r"fadump:\s*Failed to init cma area for firmware-assisted\s*dump",
+                r"cma:\s*pageblock_order not yet initialized\. Called during early boot\?"]
+        try:
+            output = self.c.run_command("dmesg", timeout=30)
+            boot_log = '\n'.join(output)
+            found_errors = []
+            for pattern in error_patterns:
+                match = re.search(pattern, boot_log, re.IGNORECASE | re.MULTILINE)
+                if match:
+                    found_errors.append(match.group(0))
+            if found_errors:
+                for err in found_errors:
+                    log.error("Found error: %s", err)
+                return True, "; ".join(found_errors)
+            log.info("No fadump CMA initialization errors found in boot log")
+            return False, None
+                
+        except CommandFailed as e:
+            log.error(f"Failed to retrieve boot log: {str(e)}")
+            raise
+        except Exception as e:
+            log.error(f"Unexpected error while checking boot log: {str(e)}")
+            raise
+
+    def runTest(self):
+        """
+        Main test method that checks for fadump CMA initialization errors.
+        
+        This test will:
+        1. Check fadump status
+        2. Check boot log for the specific error message
+        3. Fail the test if the error is found
+        """
+        conf = OpTestConfiguration.conf
+        log.info("=" * 70)
+        log.info("Running OpTestFadumpCmaCheck test")
+        log.info("=" * 70)
+        self.is_fadump_enabled()
+        self.is_fadump_param_enabled()
+        self.verify_fadump_reg()
+        error_found, error_message = self.check_boot_log_for_fadump_error()
+        if error_found:
+            failure_msg = (
+                f"FAIL: fadump CMA initialization error detected in boot log!\n"
+                f"Error message: {error_message}\n"
+                f"This indicates that firmware-assisted dump failed to initialize "
+                f"the CMA (Contiguous Memory Allocator) area, which will prevent "
+                f"proper dump functionality."
+            )
+            log.error(failure_msg)
+            self.fail(failure_msg)
+        else:
+            log.info("PASS: No fadump CMA initialization errors found")
+            log.info("=" * 70)
+
+
 class KernelCrash_FadumpNocma(OptestKernelDump):
 
     # This test verifies fadump with nocma.
@@ -2759,6 +2837,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpMultiThreadCheck())
     s.addTest(OpTestMakedump())
     s.addTest(KernelCrash_FadumpEnable())
+    s.addTest(OpTestFadumpCmaCheck())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
     s.addTest(KernelCrash_KdumpNFS())
