@@ -126,7 +126,7 @@ class OpTestHtxBootmeIO():
         """
         Builds HTX
         """
-        packages = ['git', 'gcc', 'make', 'wget']
+        packages = ['git', 'gcc', 'make', 'wget', 'ndctl']
         if self.host_distro_name in ['centos', 'fedora', 'rhel', 'redhat']:
             packages.extend(['gcc-c++', 'ncurses-devel', 'tar'])
         elif self.host_distro_name == "Ubuntu":
