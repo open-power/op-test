@@ -498,7 +498,68 @@ class OpTestKexec(unittest.TestCase):
         else:
             self.skipTest("secure boot is disabled.")
 
+    def test_kexec_with_initrd_and_dtb(self):
+        """
+        Test kexec with both initrd and DTB (Device Tree Blob) for SLES 16.1.
+
+        This test performs the following steps:
+        1. Check if dtc package is installed, install if not present
+        2. Generate live.dtb from /proc/device-tree using dtc command
+        3. Load kexec kernel with initrd and DTB
+        4. Execute kexec to boot into the new kernel
+
+        Test passes if kexec kernel boots successfully with both initrd and DTB;
+        otherwise, it fails.
+        """
+        # Skip test for non-SLES distributions
+        if self.distro != "sles":
+            self.skipTest("This test is specific to SLES distribution")
+
+        log.info("Starting kexec test with initrd and DTB for SLES")
+        try:
+            dtc_check = self.cv_HOST.host_run_command("which dtc", timeout=30)
+            if not dtc_check or "dtc" not in dtc_check[0]:
+                log.info("dtc package not found, installing...")
+                install_cmd = "zypper install -y dtc"
+                self.cv_HOST.host_run_command(install_cmd, timeout=300)
+                log.info("dtc package installed successfully")
+            else:
+                log.info("dtc package is already installed")
+        except CommandFailed as e:
+            self.fail("Failed to check or install dtc package: %s" % str(e))
+        try:
+            log.info("Generating live.dtb from /proc/device-tree")
+            dtb_cmd = "dtc -I fs -O dtb -o /tmp/live.dtb /proc/device-tree"
+            self.cv_HOST.host_run_command(dtb_cmd, timeout=60)
+            log.info("live.dtb generated successfully at /tmp/live.dtb")
+        except CommandFailed as e:
+            self.fail("Failed to generate live.dtb: %s" % str(e))
+        try:
+            self.cv_HOST.host_run_command("ls -lh /tmp/live.dtb", timeout=30)
+        except CommandFailed:
+            self.fail("live.dtb file was not created")
+        try:
+            k_ver = self.cv_HOST.host_run_command("uname -r")[0]
+            log.info("Current kernel version: %s" % k_ver)
+        except CommandFailed:
+            self.fail("Unable to determine kernel version")
+        kexec_cmd = "kexec -lc /boot/vmlinux-%s --initrd=/boot/initrd-%s --dtb=/tmp/live.dtb --append=\"`cat /proc/cmdline`\"" % (k_ver, k_ver)
+        log.info("Kexec load command: %s" % kexec_cmd)
+        ret = self.load_kexec_kernel(kexec_cmd)
+        self.assertTrue(ret, "Kexec load with initrd and DTB failed")
+        log.info("Kexec kernel loaded successfully with initrd and DTB")
+        kexec_exec_cmd = self.get_kexec_exec_command(exec_opt=True)
+        log.info("Executing kexec: %s" % kexec_exec_cmd)
+        ret = self.execute_kexec_cmd(kexec_exec_cmd, raw_pty_console=True)
+        self.assertTrue(ret, "kexec exec failed with initrd and DTB: %s" % kexec_exec_cmd)
+        log.info("Kexec with initrd and DTB completed successfully")
+
     def tearDown(self):
+        # Clean up live.dtb file if it exists
+        try:
+            self.cv_HOST.host_run_command("rm -f /tmp/live.dtb", timeout=30)
+        except:
+            pass
         unsigned_kernel = "%s.unsigned" % self.kernel_image
         if 'boot' not in unsigned_kernel:
             unsigned_kernel = "/boot/%s" % unsigned_kernel
@@ -521,4 +582,5 @@ def kexec_suite():
     suite.addTest(OpTestKexec('test_syscall_load_and_exec'))
     suite.addTest(OpTestKexec('test_kexec_in_loop'))
     suite.addTest(OpTestKexec('test_kexec_unsigned_kernel'))
+    suite.addTest(OpTestKexec('test_kexec_with_initrd_and_dtb'))
     return suite
