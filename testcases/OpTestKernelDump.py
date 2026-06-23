@@ -2326,6 +2326,7 @@ class OpTestKdumpKernelSwitch(OptestKernelDump):
 
     def runTest(self):
         running_kernel = self.c.run_command("uname -r")[0].strip()
+        kernels = []
         if self.distro == "sles":
             self.skipTest(
                 "skipping the testcase for now.. Need to figure out a way to verify kdump kernel version in sles")
@@ -2858,6 +2859,54 @@ class KernelCrash_CrashkernelOffset(OptestKernelDump):
                                         reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
 
+
+class TestTimezoneKdump(OptestKernelDump):
+
+    def rebuild_kdump(self):
+
+        if self.distro == 'sles':
+            self.c.run_command("mkdumprd -f")
+            self.c.run_command("systemctl restart kdump.service")
+        elif self.distro == 'rhel':
+            self.c.run_command("kdumpctl rebuild")
+            self.c.run_command("kdumpctl restart")
+        else:
+            raise Exception("Unsupported OS")
+
+    def runTest(self):
+
+        original_tz = self.op_test_util.get_timezone()
+        log.info(f"Original timezone: {original_tz}")
+        new_tz = self.op_test_util.set_random_timezone()
+        time.sleep(2)
+        changed_tz = self.op_test_util.get_timezone()
+        log.info(f"Changed timezone: {changed_tz}")
+        if new_tz not in changed_tz:
+            self.fail("Timezone change failed")
+        self.rebuild_kdump()
+        self.kernel_crash()
+        crash_dir = self.op_test_util.get_latest_crash_dir()
+        if not crash_dir:
+            self.fail("No crash directory found")
+        log.info(f"Crash directory: {crash_dir}")
+        timestamps = self.op_test_util.get_file_timestamps(crash_dir)
+        log.info("Crash directory file timestamps:")
+        for line in timestamps:
+            log.info(line)
+        timedatectl_output = self.c.run_command("timedatectl")
+        tz_line = [l for l in timedatectl_output if "Time zone" in l][0]
+        log.info(f"Post-crash timezone:{tz_line}")
+        if not timestamps:
+            self.fail("No files found in crash directory")
+        match = re.search(r'([+-]\d{2}:\d{2})', tz_line)
+        if match:
+            offset = match.group(1)
+            found = any(offset in line for line in timestamps)
+            if not found:
+                raise Exception("Crash files do not reflect timezone offset")
+
+        log.info("Timezone validation on crash dump: SUCCESS")
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestWatchdog())
@@ -2899,5 +2948,5 @@ def crash_suite():
     s.addTest(PstoreCheck())
     s.addTest(MeasureMakedumpTime())
     s.addTest(KernelCrash_CrashkernelOffset())
-
+    s.addTest(TestTimezoneKdump())
     return s
