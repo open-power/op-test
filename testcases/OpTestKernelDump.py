@@ -2308,6 +2308,63 @@ class KernelCrash_FadumpMultiThreadCheck(OptestKernelDump):
         self.c.run_command(f"rm -rf /var/crash/{latest_crashdir}; sync")
 
 
+class OpTestKdumpKernelSwitch(OptestKernelDump):
+    """
+    Testcase passes alternate kdump kernel and checks whether it has been loaded or not
+    """
+    def _get_installed_kernels_rhel(self):
+        cmd = r"ls /boot/vmlinuz-* 2>/dev/null | sed 's#.*/vmlinuz-##' | grep -v '^0-rescue-'"
+        output = self.c.run_command(cmd)
+        kernels = []
+        for line in output:
+            line = line.strip()
+            if line.startswith("vmlinuz-"):
+                line = line.replace("vmlinuz-", "")
+            if line:
+                kernels.append(line)
+        return sorted(list(set(kernels)))
+
+    def runTest(self):
+        running_kernel = self.c.run_command("uname -r")[0].strip()
+        if self.distro == "sles":
+            self.skipTest(
+                "skipping the testcase for now.. Need to figure out a way to verify kdump kernel version in sles")
+        elif ("rhel" in self.distro or
+                "redhat" in self.distro):
+            kernels = self._get_installed_kernels_rhel()
+        else:
+            self.skipTest("Unsupported distro")
+        log.info("Installed kernels: %s", kernels)
+        if len(kernels) < 2:
+            self.skipTest("Need more than one installed kernel")
+        # Pick alternate kernel
+        alternate_kernel = None
+        for kernel in kernels:
+            if kernel != running_kernel:
+                alternate_kernel = kernel
+                break
+        if not alternate_kernel:
+            self.skipTest("No alternate kernel found")
+        log.info("Selected alternate kernel: %s" % alternate_kernel)
+        # configure alternale kernel
+        self.c.run_command("cp /etc/sysconfig/kdump /etc/sysconfig/kdump_bck")
+        self.cv_HOST.host_run_command(
+            f"sed -i 's/^KDUMP_KERNELVER=.*/KDUMP_KERNELVER=\"{alternate_kernel}\"/' /etc/sysconfig/kdump")
+        self.cv_HOST.host_run_command("systemctl restart kdump.service; sync;")
+        self.kernel_crash()
+        crash_dirs = self.c.run_command("ls -1 /var/crash")
+        crash_dirs = [d.strip() for d in crash_dirs if d.strip()]
+        latest_crashdir = sorted(crash_dirs)[-1]
+        log_path = f"/var/crash/{latest_crashdir}/kexec-dmesg.log"
+        dmesg_log = "\n".join(self.c.run_command(f"cat {log_path}"))
+        self.c.run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump")
+        if alternate_kernel in dmesg_log:
+            log.info(
+                "alternale kernel: %s loaded successfully during crash" % alternate_kernel)
+        else:
+            self.fail("fail to load alternate kdump kernel")
+
+
 class OpTestWatchdog(OptestKernelDump):
     '''
     This test verifies "watchdog module" with diffrent scenarios like
@@ -2817,6 +2874,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(KernelCrash_KdumpMultiThreadCheck())
     s.addTest(OpTestMakedump())
+    s.addTest(OpTestKdumpKernelSwitch())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(KernelCrash_KdumpSMT())
     s.addTest(KernelCrash_KdumpSSH())
