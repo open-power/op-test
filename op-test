@@ -105,6 +105,7 @@ from testcases import OpTestExample
 from testcases import OpTestDlparIO
 from testcases import OpTestLPM
 from testcases import OpTestKexec
+from testcases import Crashtool
 from testcases import OpTestGSBStaticKey
 from testcases import GcovSetup
 from testcases import Lcov
@@ -706,6 +707,15 @@ class OSdumpkdumpSuite():
         self.s.addTest(OpTestKernelDump.OpTestMakedump())
         self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
         self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
+        self.s.addTest(OpTestKernelDump.PstoreCheck())
+        self.s.addTest(OpTestKernelDump.KernelCrash_CrashkernelOffset())
+        self.s.addTest(OpTestKernelDump.TestTimezoneKdump())
+        self.s.addTest(OpTestKernelDump.OpTestKdumpKernelSwitch())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpPMEM())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpMultiThreadCheck())
+        self.s.addTest(OpTestKernelDump.KernelCrash_HugepageConfig_16G_16M())
+        self.s.addTest(OpTestKernelDump.MeasureMakedumpTime())
+        self.s.addTest(OpTestKernelDump.OpTestLowCrashkernelKdump())
 
     def suite(self):
         return self.s
@@ -751,6 +761,16 @@ class OSdumpfadumpSuite():
         self.s.addTest(OpTestKernelDump.KernelCrash_FadumpJunkValue())
         self.s.addTest(OpTestKernelDump.KernelCmdlineParamTest())
         self.s.addTest(OpTestKernelDump.KernelCrash_FadumpOffValue())
+        self.s.addTest(OpTestKernelDump.OpTestFadumpCmaCheck())
+        self.s.addTest(OpTestKernelDump.PstoreCheck())
+        self.s.addTest(OpTestKernelDump.KernelCrash_CrashkernelOffset())
+        self.s.addTest(OpTestKernelDump.TestTimezoneKdump())
+        self.s.addTest(OpTestKernelDump.OpTestKdumpKernelSwitch())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpPMEM())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpMultiThreadCheck())
+        self.s.addTest(OpTestKernelDump.KernelCrash_HugepageConfig_16G_16M())
+        self.s.addTest(OpTestKernelDump.MeasureMakedumpTime())
+        self.s.addTest(OpTestKernelDump.OpTestLowCrashkernelKdump())
 
     def suite(self):
         return self.s
@@ -770,6 +790,12 @@ class KexecSuite():
 
     def suite(self):
         return OpTestKexec.kexec_suite()
+
+class CrashtoolSuite():
+    '''Crashtool test suite'''
+
+    def suite(self):
+        return Crashtool.crash_suite()
 
 class DlparIOSuite():
     '''DlparIO Test Suite'''
@@ -1034,6 +1060,7 @@ suites = {
     'osdumpsanitysuite': OSdumpsanitySuite(),
     'osisstkdumpsuite': ISSTkdumpSuite(),
     'osisstfadumpsuite':ISSTfadumpSuite(),
+    'crashtool-suite':CrashtoolSuite(),
     'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
     'GuestSecureBootSuite': GuestSecureBootSuite(),
