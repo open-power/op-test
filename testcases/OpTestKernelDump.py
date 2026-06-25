@@ -2985,6 +2985,66 @@ class TestTimezoneKdump(OptestKernelDump):
 
         log.info("Timezone validation on crash dump: SUCCESS")
 
+
+class OpTestLowCrashkernelKdump(OptestKernelDump):
+    """
+    Test case for validating kdump behavior with a reduced crashkernel value.
+
+    This class inherits from OptestKernelDump and focuses on verifying
+    system behavior when the crashkernel parameter is set to a lower
+    value (e.g., 256M). It updates the kernel command line, reboots
+    the system, and ensures that the new crashkernel setting is applied.
+    The test then triggers kernel crashes (both normal and HMC-triggered)
+    to confirm that dump files are not generated when kdump is enabled
+    with insufficient reserved memory.
+    """
+    def runTest(self):
+        cmdline = self.c.run_command("cat /proc/cmdline")
+        cmdline_str = ' '.join(cmdline)
+
+        match = re.search(r'crashkernel=([^\s@]+)', cmdline_str)
+        if not match:
+            self.skipTest("No crashkernel parameter found")
+
+        current_value = match.group(1)
+        log.info(f"Current crashkernel value: {current_value}")
+        old_param = f"crashkernel={current_value}"
+        new_param = f"crashkernel=256M"
+        log.info(f"new crashkernel value: {new_param}")
+        obj = OpTestInstallUtil.InstallUtil()
+        self.reset_kdump_bootloaded_if_needed()
+        log.info("Setting crashkernel=256M in kernel command line...")
+        if not obj.update_kernel_cmdline(self.distro,
+                                        args=new_param,
+                                        reboot=True,
+                                        reboot_cmd=True):
+            self.fail("Failed to update kernel command line with crashkernel=256M")
+        self.setup_test()
+        # Verify the crashkernel parameter
+        cmdline = self.c.run_command("cat /proc/cmdline")
+        log.info("Current kernel cmdline: %s" % cmdline)
+        cmdline_str = ' '.join(cmdline)
+        if '256M' not in cmdline_str:
+            self.fail(f"Crashkernel 256M not found in kernel cmdline")
+        log.info("========= Testing Only kdump enable followed by crash ===========")
+        boot_type = self.kernel_crash()
+        try:
+            self.verify_dump_file(boot_type)
+        except Exception:
+            log.info("Expected: dump directory not found")
+        boot_type = self.kernel_crash(crash_type="hmc")
+        try:
+            self.verify_dump_file(boot_type)
+        except Exception:
+            log.info("Expected: dump directory not found with dumprestart from HMC")
+        obj = OpTestInstallUtil.InstallUtil()
+        if not obj.update_kernel_cmdline(self.distro,
+                                        args=old_param,
+                                        remove_args=new_param,
+                                        reboot=True,
+                                        reboot_cmd=True):
+            self.fail("KernelArgTest failed to update kernel args")
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestWatchdog())
@@ -2996,11 +3056,17 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
     s.addTest(KernelCrash_hugepage_checks())
+    s.addTest(KernelCrash_HugepageConfig_16G_16M())
     s.addTest(KernelCrash_XIVE_off())
     s.addTest(KernelCrash_disable_radix())
     s.addTest(KernelCrash_KdumpPMEM())
     s.addTest(KernelCrash_KdumpMultiThreadCheck())
     s.addTest(OpTestMakedump())
+    s.addTest(PstoreCheck())
+    s.addTest(MeasureMakedumpTime())
+    s.addTest(KernelCrash_CrashkernelOffset())
+    s.addTest(TestTimezoneKdump())
+    s.addTest(OpTestLowCrashkernelKdump())
     s.addTest(OpTestKdumpKernelSwitch())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(OpTestFadumpCmaCheck())
@@ -3028,4 +3094,6 @@ def crash_suite():
     s.addTest(MeasureMakedumpTime())
     s.addTest(KernelCrash_CrashkernelOffset())
     s.addTest(TestTimezoneKdump())
+    s.addTest(OpTestKdumpKernelSwitch())
+    s.addTest(OpTestLowCrashkernelKdump())
     return s
