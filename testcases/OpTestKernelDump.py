@@ -1595,6 +1595,38 @@ class KernelCrash_KdumpWorkLoad(OptestKernelDump):
         self.verify_dump_file(boot_type)
         self.c.run_command("rm -rf /tmp/ebizzy*")
 
+
+class KernelCrash_PerfTest(OptestKernelDump):
+    '''
+    This test case checks if perf is installed, installs it if not present,
+    runs a perf test in background, and then triggers a kernel crash to test dump functionality.
+    '''
+    def runTest(self):
+        self.setup_test()
+        try:
+            self.c.run_command("which perf", timeout=30)
+            log.info("perf package already installed...")
+        except CommandFailed:
+            log.info("perf not found. Installing...")
+            try:
+                if self.distro == "rhel":
+                    self.c.run_command("yum -y install perf", timeout=300)
+                elif self.distro == "sles":
+                    self.c.run_command("zypper install -y perf", timeout=300)
+                log.info("perf package installed successfully")
+            except CommandFailed as e:
+                log.error(f"Failed to install perf: {e}")
+        log.info("Running perf test in background...")
+        # Run perf test in background
+        self.c.run_command("perf test &")
+        log.info("perf test started in background successfully")
+        time.sleep(5)
+        self.c.run_command("ps -ef|grep perf")
+        log.info("=============== Testing kdump/fadump with perf ======================")
+        boot_type = self.kernel_crash()
+        self.verify_dump_file(boot_type)
+
+
 class KernelCrash_hugepage_checks(OptestKernelDump):
     '''
     This test checks hugepage size set after kdump/fadump
@@ -2995,6 +3027,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpSAN())
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_PerfTest())
     s.addTest(KernelCrash_hugepage_checks())
     s.addTest(KernelCrash_XIVE_off())
     s.addTest(KernelCrash_disable_radix())
@@ -3010,6 +3043,7 @@ def crash_suite():
     s.addTest(KernelCrash_KdumpSAN())
     s.addTest(KernelCrash_KdumpDLPAR())
     s.addTest(KernelCrash_KdumpWorkLoad())
+    s.addTest(KernelCrash_PerfTest())
     s.addTest(KernelCrash_hugepage_checks())
     s.addTest(KernelCrash_HugepageConfig_16G_16M())
     s.addTest(KernelCrash_XIVE_off())
