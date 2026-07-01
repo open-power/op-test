@@ -2753,15 +2753,19 @@ class MeasureMakedumpTime(OptestKernelDump):
     def build_stress_ng_if_needed(self):
         self.stress_binary = "/opt/stress-ng/stress-ng"
         log.info("Checking for stress-ng binary")
-        result = self.c.run_command_ignore_fail(
-            f"test -x {self.stress_binary} && echo FOUND"
-        )
-        if result and "FOUND" in result[0]:
+        try:
+            self.c.run_command(f"test -x {self.stress_binary}")
             log.info("stress-ng already present, skipping build")
             return
-
-        log.info("Building stress-ng from source")
-        self.c.run_command_ignore_fail("zypper install -y gcc make wget tar")
+        except CommandFailed:
+            log.info("stress-ng not found,Building stress-ng from source")
+        try:
+            if self.distro == "sles":
+                self.c.run_command("zypper install -y gcc make wget tar", timeout=600)
+            elif self.distro == "rhel":
+                self.c.run_command("yum -y install gcc make wget tar", timeout=600)
+        except CommandFailed as cf:
+            log.warning("fail to install pre-requisites: %s", cf.output)
         self.c.run_command(
             "mkdir -p /opt/stress-ng && cd /opt/stress-ng && "
             "wget -q https://github.com/ColinIanKing/stress-ng/archive/refs/heads/master.tar.gz && "
