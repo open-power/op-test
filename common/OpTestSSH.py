@@ -132,7 +132,11 @@ class OpTestSSH():
             # Execute command
             log.info(f"Executing direct SSH command: {command}")
             stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
-            
+            background = command.strip().endswith("&")
+            if background:
+                log.info("Background command - not waiting")
+                time.sleep(0.5)
+                return []
             # Get output
             if expect_disconnect:
                 # Don't wait for exit status - system will crash/disconnect
