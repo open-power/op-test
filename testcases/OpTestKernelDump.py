@@ -1580,13 +1580,12 @@ class KernelCrash_KdumpWorkLoad(OptestKernelDump):
         except CommandFailed:
             self.fail("Failed to download ebizzy tar")
         self.c.run_command("tar -xf /tmp/ebizzy*.tar.gz -C /tmp", timeout=120)
-        self.c.run_command("cd /tmp/ebizzy*/")
         try:
-            self.c.run_command("./configure; make", timeout=120)
+            self.c.run_command("cd /tmp/ebizzy-0.3 && ./configure && make", timeout=120)
         except CommandFailed:
             self.fail("Failed to compile ebizzy")
-        self.c.run_command("./ebizzy -S 60&")
-        self.c.run_command("./ebizzy -s 10737418240 -S 60 &")
+        self.c.run_command("cd /tmp/ebizzy-0.3 && ./ebizzy -S 60 &")
+        self.c.run_command("cd /tmp/ebizzy-0.3 && ./ebizzy -s 10737418240 -S 60 &")
         time.sleep(50)
         self.c.run_command("ps -ef|grep ebizzy")
         self.c.run_command("free -h")
