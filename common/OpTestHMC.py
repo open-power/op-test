@@ -193,6 +193,41 @@ class HMCUtil():
             cmd = '%s0"' % cmd
         return self.ssh.run_command(cmd, timeout=300)
 
+    def configure_dynamic_secure_boot(self, enable=True, keystore_kbytes=64):
+        '''
+        Configure Dynamic Key Guest Secure Boot parameters via HMC
+
+        This method configures the keystore parameters required for dynamic secure boot:
+        - keystore_signed_updates_without_verification: Allow signed updates without verification
+        - keystore_signed_updates: Enable signed keystore updates
+        - linux_dynamic_key_secure_boot: Enable dynamic key secure boot for Linux
+        - keystore_kbytes: Size of keystore in kilobytes (default 64KB)
+
+        Args:
+            enable (bool): True to enable dynamic secure boot, False to disable
+            keystore_kbytes (int): Size of keystore in KB (default 64, set to 0 to disable)
+
+        Returns:
+            Command output from HMC
+        '''
+        if enable:
+            config_params = (
+                f"keystore_signed_updates_without_verification=1,"
+                f"keystore_signed_updates=1,"
+                f"linux_dynamic_key_secure_boot=1,"
+                f"keystore_kbytes={keystore_kbytes}"
+            )
+        else:
+            config_params = (
+                "keystore_signed_updates_without_verification=0,"
+                "keystore_signed_updates=0,"
+                "linux_dynamic_key_secure_boot=0,"
+                "keystore_kbytes=0"
+            )
+
+        cmd = f'chsyscfg -r lpar -m {self.mg_system} -i "name={self.lpar_name}, {config_params}"'
+        return self.ssh.run_command(cmd, timeout=300)
+
     def deactivate_lpar_console(self):
         '''
         Deactivate/disconnect the LPAR Console
