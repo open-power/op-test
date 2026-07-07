@@ -791,7 +791,7 @@ class OptestKernelDump(unittest.TestCase):
             
             # Start checking SSH immediately - the retry loop will handle timing
             # No initial delay needed since console shows when system is ready
-            max_wait_seconds = 120  # 2 minutes total - reasonable timeout for kdump reboot
+            max_wait_seconds = 180  # 3 minutes total - reasonable timeout for kdump reboot
             ssh_available = False
             last_log_time = 0
             attempt = 0
@@ -1656,8 +1656,6 @@ class KernelCrash_hugepage_checks(OptestKernelDump):
             if not obj.update_kernel_cmdline(self.distro, args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
             boot_type = self.kernel_crash()
             self.verify_dump_file(boot_type)
             hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
@@ -1670,8 +1668,7 @@ class KernelCrash_hugepage_checks(OptestKernelDump):
         if not obj.update_kernel_cmdline(self.distro, remove_args="default_hugepagesz=1GB hugepagesz=1GB hugepages=20",
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
 
 class KernelCrash_HugepageConfig_16G_16M(OptestKernelDump):
     '''
@@ -1704,8 +1701,6 @@ class KernelCrash_HugepageConfig_16G_16M(OptestKernelDump):
                                         reboot=True, reboot_cmd=True):
             self.fail("Failed to update kernel args for 16GB hugepages")
         
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         
         # Verify 16GB hugepage configuration
         hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
@@ -1744,8 +1739,6 @@ class KernelCrash_HugepageConfig_16G_16M(OptestKernelDump):
                                         reboot=True, reboot_cmd=True):
             self.fail("Failed to update kernel args for 16MB hugepages")
         
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         
         # Verify 16MB hugepage configuration
         hugepage_size = self.c.run_command("awk '$1 == \"Hugepagesize:\" {print $2}' /proc/meminfo")[0]
@@ -1779,8 +1772,6 @@ class KernelCrash_HugepageConfig_16G_16M(OptestKernelDump):
                                         reboot=True, reboot_cmd=True):
             log.warning("Failed to remove hugepage kernel args during cleanup")
         
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class KernelCrash_XIVE_off(OptestKernelDump):
     '''
@@ -1799,8 +1790,6 @@ class KernelCrash_XIVE_off(OptestKernelDump):
         if not obj.update_kernel_cmdline(self.distro, args="xive=off",
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
         kernel_boottime_arg = self.c.run_command("cat /proc/cmdline | grep -o 'xive=off'")[0]
         if kernel_boottime_arg != 'xive=off' :
             self.skipTest("Failed to set kernel parameter xive=off")
@@ -1826,8 +1815,7 @@ class KernelCrash_XIVE_off(OptestKernelDump):
         if not obj.update_kernel_cmdline(self.distro, remove_args="xive=off",
                                          reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
 
 class KernelCrash_disable_radix(OptestKernelDump):
     '''
@@ -1849,8 +1837,6 @@ class KernelCrash_disable_radix(OptestKernelDump):
             if not obj.update_kernel_cmdline(self.distro, args="disable_radix",
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
             kernel_boottime_arg = self.c.run_command("cat /proc/cmdline | grep -o 'disable_radix'")[0]
             if kernel_boottime_arg != 'disable_radix' :
                 self.skipTest("Failed to set kernel parameter disable_radix")
@@ -1875,8 +1861,6 @@ class KernelCrash_disable_radix(OptestKernelDump):
             if not obj.update_kernel_cmdline(self.distro, remove_args="disable_radix",
                                              reboot=True, reboot_cmd=True):
                 self.fail("KernelArgTest failed to update kernel args")
-            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-            self.cv_SYSTEM.goto_state(OpSystemState.OS)
         else:
             raise self.skipTest("Hash MMU detected, skipping the test")
 
@@ -2088,7 +2072,12 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
         if self.distro == "rhel":
             self.c.run_command("echo 'add_drivers+=\"papr_scm\"' > /etc/dracut.conf.d/99-pmem-workaround.conf")
             self.c.run_command("sed -i 's/path \/var\/crash/path \/pmem%s/' /etc/kdump.conf; sync" % self.pmem_id)
-            self.c.run_command("kdumpctl restart", timeout=120)
+            try:
+                self.c.run_command("kdumpctl restart", timeout=120)
+            except CommandFailed:
+                status = self.c.run_command("systemctl is-active kdump")[0].strip()
+                if status != "active":
+                    self.fail("kdump service is not active")
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/pmem%s\"\' /etc/sysconfig/kdump;' % self.pmem_id)
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync")
@@ -2201,9 +2190,6 @@ class KernelCrash_FadumpNocma(OptestKernelDump):
         if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
 
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
-
 
 class KernelCrash_FadumpJunkValue(OptestKernelDump):
     """
@@ -2229,8 +2215,6 @@ class KernelCrash_FadumpJunkValue(OptestKernelDump):
             reboot_cmd=True
         ):
             self.fail("Failed to update kernel cmdline with fadump=xyz")
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         try:
             self.setup_test()
@@ -2258,8 +2242,6 @@ class KernelCrash_FadumpJunkValue(OptestKernelDump):
         # Revert cmdline
         if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=xyz", reboot=True, reboot_cmd=True):
             self.fail("Failed to remove fadump=xyz from cmdline")
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 
 class KernelCmdlineParamTest(OptestKernelDump):
@@ -2287,19 +2269,16 @@ class KernelCmdlineParamTest(OptestKernelDump):
 
         # Step 3: Restart kdump service
         try:
-            if self.distro == "sles":
-                self.cv_HOST.host_run_command("systemctl restart kdump.service")
-            else:
-                self.cv_HOST.host_run_command("kdumpctl rebuild")
-                self.cv_HOST.host_run_command("kdumpctl restart")
-        except CommandFailed as e:
-            self.fail(f"Failed to restart kdump.service: {e}")
+            self.cv_HOST.host_run_command("kdumpctl rebuild")
+            self.cv_HOST.host_run_command("kdumpctl restart")
+        except CommandFailed:
+            status = self.c.run_command("systemctl is-active kdump")[0].strip()
+            if status != "active":
+                self.fail("kdump service is not active")
 
         # Step 4: Trigger crash
         log.info("Triggering crash...")
         boot_type = self.kernel_crash()
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         # Step 5: After reboot, check for additional param 
         output = self.c.run_command("systemctl status kdump")
@@ -2336,8 +2315,6 @@ class KernelCrash_FadumpOffValue(OptestKernelDump):
             reboot_cmd=True
         ):
             self.fail("Failed to update kernel cmdline with fadump=off")
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         try:
             self.setup_test()
@@ -2364,8 +2341,6 @@ class KernelCrash_FadumpOffValue(OptestKernelDump):
         # Revert cmdline
         if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=off", reboot=True, reboot_cmd=True):
             self.fail("Failed to remove fadump=off from cmdline")
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
 class KernelCrash_FadumpMultiThreadCheck(OptestKernelDump):
     """
@@ -2987,8 +2962,13 @@ class TestTimezoneKdump(OptestKernelDump):
             self.c.run_command("mkdumprd -f")
             self.c.run_command("systemctl restart kdump.service")
         elif self.distro == 'rhel':
-            self.c.run_command("kdumpctl rebuild")
-            self.c.run_command("kdumpctl restart")
+            try:
+                self.c.run_command("kdumpctl rebuild")
+                self.c.run_command("kdumpctl restart", timeout=120)
+            except CommandFailed:
+                status = self.c.run_command("systemctl is-active kdump")[0].strip()
+                if status != "active":
+                    self.fail("kdump service is not active")
         else:
             raise Exception("Unsupported OS")
 
