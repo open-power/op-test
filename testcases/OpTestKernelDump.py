@@ -483,7 +483,7 @@ class OptestKernelDump(unittest.TestCase):
                 else:
                     res = self.c.run_command("ls /var/crash/%s/vmcore*" %
                                           self.crash_content[0])
-                    paths = res[0].split()
+                    paths = res
                     file_names = [os.path.basename(path) for path in paths]
                     # Check if vmcore-dmesg-incomplete.txt is present in file_names
                     if "vmcore-dmesg-incomplete.txt" in file_names:
