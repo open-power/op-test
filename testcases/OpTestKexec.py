@@ -518,15 +518,16 @@ class OpTestKexec(unittest.TestCase):
         log.info("Starting kexec test with initrd and DTB for SLES")
         try:
             dtc_check = self.cv_HOST.host_run_command("which dtc", timeout=30)
-            if not dtc_check or "dtc" not in dtc_check[0]:
-                log.info("dtc package not found, installing...")
+            log.info("dtc package is already installed")
+        except CommandFailed:
+            log.info("dtc package not found, installing...")
+            try:
                 install_cmd = "zypper install -y dtc"
                 self.cv_HOST.host_run_command(install_cmd, timeout=300)
+                self.cv_HOST.host_run_command("which dtc", timeout=30)
                 log.info("dtc package installed successfully")
-            else:
-                log.info("dtc package is already installed")
-        except CommandFailed as e:
-            self.fail("Failed to check or install dtc package: %s" % str(e))
+            except CommandFailed as e:
+                self.fail("Failed to check or install dtc package: %s" % str(e))
         try:
             log.info("Generating live.dtb from /proc/device-tree")
             dtb_cmd = "dtc -I fs -O dtb -o /tmp/live.dtb /proc/device-tree"
@@ -554,12 +555,53 @@ class OpTestKexec(unittest.TestCase):
         self.assertTrue(ret, "kexec exec failed with initrd and DTB: %s" % kexec_exec_cmd)
         log.info("Kexec with initrd and DTB completed successfully")
 
+    def test_kexec_file_load_smt_off(self):
+        """
+        Test kexec with file load (kexec -s) with SMT disabled.
+
+        This test performs the following steps:
+        1. Check current SMT state
+        2. Disable SMT (set to off)
+        3. Load the kexec kernel using kexec -l and execute loaded kernel using kexec -e 
+
+        Test passes if kexec kernel boots successfully with SMT off;
+        otherwise, it fails.
+        """
+
+        log.info("Starting kexec test with SMT off")
+        try:
+            smt_state = self.cv_HOST.host_run_command("ppc64_cpu --smt", timeout=30)
+            log.info("Current SMT state: %s" % smt_state[0])
+        except CommandFailed as e:
+            self.fail("Failed to check SMT state: %s" % str(e))
+        try:
+            log.info("Disabling SMT...")
+            self.cv_HOST.host_run_command("ppc64_cpu --smt=off", timeout=30)
+            smt_verify = self.cv_HOST.host_run_command("ppc64_cpu --smt", timeout=30)
+            log.info("SMT state after disabling: %s" % smt_verify[0])
+            if "off" not in smt_verify[0].lower():
+                self.fail("Failed to disable SMT")
+            log.info("SMT disabled successfully")
+        except CommandFailed as e:
+            self.fail("Failed to disable SMT: %s" % str(e))
+
+        try:
+            kexec_load_cmd = self.get_kexec_load_cmd()
+            log.info("getting kexec  command: %s" % kexec_load_cmd)
+            ret = self.load_kexec_kernel(kexec_load_cmd)
+            self.assertTrue(ret, "Kexec load failed")
+            kexec_exec_cmd = self.get_kexec_exec_command(exec_opt=True)
+            ret = self.execute_kexec_cmd(kexec_exec_cmd, raw_pty_console=True)
+            self.assertTrue(ret, "kexec exec failed with SMT off: %s" % kexec_exec_cmd)
+            log.info("Kexec  with SMT off completed successfully")
+        except Exception as e:
+            self.fail("Failed during kexec execution: %s" % str(e))
+
     def tearDown(self):
         # Clean up live.dtb file if it exists
-        try:
-            self.cv_HOST.host_run_command("rm -f /tmp/live.dtb", timeout=30)
-        except:
-            pass
+        dtb_file = "/tmp/live.dtb"
+        if os.path.exists(dtb_file):
+            os.remove(dtb_file)
         unsigned_kernel = "%s.unsigned" % self.kernel_image
         if 'boot' not in unsigned_kernel:
             unsigned_kernel = "/boot/%s" % unsigned_kernel
@@ -583,4 +625,5 @@ def kexec_suite():
     suite.addTest(OpTestKexec('test_kexec_in_loop'))
     suite.addTest(OpTestKexec('test_kexec_unsigned_kernel'))
     suite.addTest(OpTestKexec('test_kexec_with_initrd_and_dtb'))
+    suite.addTest(OpTestKexec('test_kexec_file_load_smt_off'))
     return suite
