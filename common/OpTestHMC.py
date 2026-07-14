@@ -1571,3 +1571,14 @@ class HMCConsole(HMCUtil):
         Wrapper command for run_command from util
         '''
         return self.util.run_command(self, i_cmd, timeout)
+
+    def run_command_ignore_fail(self, command, timeout=60, retry=0):
+        '''
+        Wrapper command for run_command_ignore_fail from util.
+
+        Overrides HMCUtil.run_command_ignore_fail() which incorrectly
+        routes through self.ssh (the HMC SSH session) rather than the
+        LPAR pexpect console.  This override ensures that ignore-fail
+        commands run on the same LPAR console as run_command().
+        '''
+        return self.util.run_command_ignore_fail(self, command, timeout, retry)
