@@ -675,14 +675,13 @@ class OpTestIPMI():
         '''
         Determines the power status of the bmc
 
-        :returns: string: Power status of bmc
-                          "Chassis Power is on" or "Chassis Power is off"
+        :returns: Bool: True if the system is powered on.
         '''
         l_output = self.ipmitool.run('chassis power status')
         if('on' in l_output):
-            return BMC_CONST.CHASSIS_POWER_ON
+            return True
         elif('off' in l_output):
-            return BMC_CONST.CHASSIS_POWER_OFF
+            return False
         else:
             raise OpTestError(
                 "Can't recognize chassis power status: " + str(l_output))
