@@ -1029,6 +1029,9 @@ class OpTestSystem(object):
         '''
         Get the sel elist to dump out
         '''
+        if self.cv_IPMI is None:
+            log.debug("sys_sel_elist: cv_IPMI is None, skipping ESEL gather")
+            return []
         output = self.cv_IPMI.ipmi_sel_elist(dump=dump)
 
         return output
@@ -1455,6 +1458,14 @@ class OpTestLPARSystem(OpTestSystem):
             if r == BMC_CONST.FW_FAILED:
                 raise 'Failed powering on system'
         return OpSystemState.BOOTING
+
+    def sys_sel_elist(self, dump=False):
+        '''
+        IPMI is not available in PHYP/HMC environments.
+        Return an empty list so the ESEL gather in cleanup does not crash.
+        '''
+        log.debug("sys_sel_elist: IPMI not available for LPAR/HMC system, skipping")
+        return []
 
     def skiboot_log_on_console(self):
         return False
