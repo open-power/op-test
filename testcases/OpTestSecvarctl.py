@@ -26,6 +26,7 @@ PK, KEK, db, dbx, and other secure variables in the OpenPOWER platform.
 
 import unittest
 import os
+import re
 import time
 import OpTestConfiguration
 import OpTestLogger
@@ -101,6 +102,36 @@ class SecvarctlTest(unittest.TestCase):
         except Exception as e:
             # Log any errors that occur
             self.fail("An error occurred : {}".format(str(e)))
+
+    def count_secvar_keys(self):
+        """Count the number of ESL entries for each secure variable.
+
+        Runs ``secvarctl read`` on the host and parses the output to build a
+        dict of {variable_name: esl_count}.  Returns the dict and logs it.
+        """
+        secvarctl_bin = os.path.join(self.build_path, "build", "secvarctl")
+        output = self.connection.run_command(f"{secvarctl_bin} read")
+
+        key_counts = {}
+        variable = ""
+        count = 0
+        for line in output:
+            if "READING" in line:
+                m = re.match(r"READING (.*) :", line)
+                if m:
+                    variable = m.group(1)
+                    count = 0
+            if "ERROR" in line:
+                count = 0
+            if "Found" in line and "ESL" in line:
+                m = re.match(r"Found (.*) ESL's", line.strip())
+                if m:
+                    count += int(m.group(1))
+            if variable:
+                key_counts[variable] = count
+
+        log.info(f"Secvar key counts: {key_counts}")
+        return key_counts
 
     def runTest(self):
         try:

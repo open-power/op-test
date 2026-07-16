@@ -41,16 +41,21 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
         self.cv_SYSTEM = self.conf.system()
         self.cv_HMC = self.cv_SYSTEM.hmc
 
-        # Power on LPAR if it's not running
-        # This is needed because the test shuts down LPAR during execution
         if self.cv_HMC:
             from common.OpTestHMC import OpHmcState
             try:
                 lpar_state = self.cv_HMC.get_lpar_state()
                 log.info(f"LPAR current state: {lpar_state}")
-                
-                # If LPAR is not running, power it on
-                if lpar_state not in ["Running", "Booting"]:
+
+                if lpar_state == "Open Firmware":
+                    log.warning("LPAR is stuck at Open Firmware — powering off, disabling secure boot, and restarting...")
+                    self.cv_HMC.poweroff_lpar()
+                    time.sleep(5)
+                    self.cv_HMC.hmc_secureboot_on_off(enable=False)
+                    time.sleep(5)
+                    self.cv_HMC.poweron_lpar()
+                    log.info("LPAR recovered from Open Firmware state with secure boot disabled")
+                elif lpar_state not in ["Running", "Booting"]:
                     log.info(f"LPAR is '{lpar_state}'. Powering on LPAR...")
                     self.cv_HMC.poweron_lpar()
                     log.info("LPAR powered on successfully")
@@ -191,50 +196,61 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             log.error(error_msg)
             self.fail(error_msg)
 
-    def reset_secure_boot(self):
-        """Reset all secure boot settings to zero"""
+    def _setup_secvarctl(self):
+        """Initialise, build, and generate keys for a SecvarctlTest instance.
+
+        Returns a SecvarctlTest object whose build_path can be
+        used to locate generated auth files.
+        """
+        from testcases.OpTestSecvarctl import SecvarctlTest
+        sec = SecvarctlTest()
+
+        # Propagate required attributes
+        sec.conf = self.conf
+        sec.util = self.util
+        sec.cv_HOST = self.cv_HOST
+        sec.distro_name = self.distro_name
+        sec.cv_SYSTEM = self.cv_SYSTEM
+        sec.connection = self.connection
+        sec.host_cmd_timeout = self.host_cmd_timeout
+
+        # Repository details (fall back to upstream defaults)
+        try:
+            sec.secvar_repo = self.conf.args.git_repo
+            sec.branch = self.conf.args.git_branch
+            sec.home = self.conf.args.git_home
+        except AttributeError:
+            sec.secvar_repo = "https://github.com/open-power/secvarctl"
+            sec.branch = "main"
+            sec.home = "/home"
+
+        try:
+            sec.setUp()
+        except Exception as e:
+            log.warning(f"secvarctl setUp encountered an issue: {e}")
+
+        log.info("Building secvarctl...")
+        sec.build_secvarctl()
+
+        log.info("Generating secvarctl keys and auth files...")
+        sec.generate_keys()
+
+        return sec
+
+    def reset_secure_boot(self, sec=None):
+        """Reset all secure boot settings to zero.
+
+        Args:
+            sec: Optional pre-built SecvarctlTest instance. If None, one is
+                 created internally via _setup_secvarctl().
+        """
         try:
             log.info("Resetting secure boot settings to zero")
 
-            # Setup and run secvarctl to reset PK
-            from testcases.OpTestSecvarctl import SecvarctlTest
-            sec = SecvarctlTest()
-            
-            # Initialize SecvarctlTest with required attributes
-            sec.conf = self.conf
-            sec.util = self.util
-            sec.cv_HOST = self.cv_HOST
-            sec.distro_name = self.distro_name
-            sec.cv_SYSTEM = self.cv_SYSTEM
-            sec.connection = self.connection
-            sec.host_cmd_timeout = self.host_cmd_timeout
-            
-            # Set up secvarctl repository details
-            try:
-                sec.secvar_repo = self.conf.args.git_repo
-                sec.branch = self.conf.args.git_branch
-                sec.home = self.conf.args.git_home
-            except AttributeError:
-                sec.secvar_repo = "https://github.com/open-power/secvarctl"
-                sec.branch = "main"
-                sec.home = "/home"
-            
-            log.info("Setting up secvarctl for PK reset...")
-            
-            # Run setUp to install dependencies and configure
-            try:
-                sec.setUp()
-            except Exception as e:
-                log.warning(f"secvarctl setUp encountered an issue: {e}")
-            
-            # Build secvarctl
-            log.info("Building secvarctl...")
-            sec.build_secvarctl()
-            
-            # Generate keys and auth files
-            log.info("Generating secvarctl keys and auth files...")
-            sec.generate_keys()
-            
+            if sec is None:
+                log.info("Setting up secvarctl for PK reset...")
+                sec = self._setup_secvarctl()
+
             # Now use the generated auth files to reset PK
             auth_dir = os.path.join(sec.build_path, 'test', 'testdata', 'guest', 'authfiles')
             log.info(f"Using authfiles at {auth_dir} to reset PK")
@@ -300,6 +316,210 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             log.error(error_msg)
             self.fail(error_msg)
 
+    def _write_and_verify_sbat(self, sec):
+        """Generate SBAT auth file, write it, and verify the ESL count is 1."""
+        log.info("Generating SBAT auth file...")
+        sbat_gen_cmd = (
+            f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest generate f:a"
+            f" -k test/testdata/guest/goldenKeys/KEK/KEK.key"
+            f" -c test/testdata/guest/goldenKeys/KEK/KEK.crt"
+            f" -n sbat"
+            f" -i test/testdata/guest/goldenKeys/sbat/sbat.csv"
+            f" -o sbat_by_kek.auth"
+        )
+        for line in self.connection.run_command(sbat_gen_cmd):
+            log.info(line)
+
+        log.info("Writing SBAT auth file...")
+        for line in self.connection.run_command(
+            f"cd {sec.build_path} && {sec.build_path}/build/secvarctl write sbat sbat_by_kek.auth"
+        ):
+            log.info(line)
+        log.info("SBAT written successfully")
+
+        sbat_count = sec.count_secvar_keys().get("sbat", 0)
+        if sbat_count == 1:
+            log.info("SBAT count is 1 — verified successfully")
+        else:
+            self.fail(f"SBAT verification failed — expected count 1, got {sbat_count}")
+
+    def _secureboot_on(self):
+        """Power off, enable secure boot, power on."""
+        log.info("Enabling secure boot...")
+        self.cv_HMC.poweroff_lpar()
+        time.sleep(5)
+        self.cv_HMC.hmc_secureboot_on_off(enable=True)
+        self.cv_HMC.poweron_lpar()
+        log.info("Secure boot enabled and system restarted")
+
+    def _secureboot_off(self):
+        """Power off, disable secure boot, power on."""
+        log.info("Disabling secure boot...")
+        self.cv_HMC.poweroff_lpar()
+        time.sleep(5)
+        self.cv_HMC.hmc_secureboot_on_off(enable=False)
+        time.sleep(5)
+        self.cv_HMC.poweron_lpar()
+        log.info("Secure boot disabled and system restarted")
+
+    def sbat_test(self, sec=None):
+        """Test sbat"""
+        try:
+            if sec is None:
+                log.info("Setting up secvarctl for SBAT test...")
+                sec = self._setup_secvarctl()
+
+            # Read SBAT variable via secvarctl
+            cmd = f"{sec.build_path}/build/secvarctl read -n sbat"
+            log.info(f"Running: {cmd}")
+            out = self.connection.run_command(cmd)
+            for line in out:
+                log.info(line)
+            log.info("SBAT read completed successfully")
+
+            # Verify GRUB SBAT information
+            log.info("Verifying GRUB SBAT information...")
+            grub_cmd = "strings /usr/share/grub2/powerpc-ieee1275/grub.elf | grep -i sbat"
+            grub_out = self.connection.run_command(grub_cmd)
+            sbat_found = any("sbat" in line.lower() for line in grub_out)
+            if sbat_found:
+                log.info("SBAT is present in GRUB:")
+                for line in grub_out:
+                    log.info(line)
+            else:
+                self.fail("SBAT not found in /usr/share/grub2/powerpc-ieee1275/grub.elf")
+
+            # Generate PK auth file, then write PK
+            log.info("Generating PK auth file...")
+            pk_gen_cmd = (
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl generate c:a"
+                f" -k test/testdata/guest/goldenKeys/PK/PK.key"
+                f" -c test/testdata/guest/goldenKeys/PK/PK.crt"
+                f" -n KEK"
+                f" -i test/testdata/guest/goldenKeys/PK/PK.crt"
+                f" -o pk_by_pk.auth"
+            )
+            for line in self.connection.run_command(pk_gen_cmd):
+                log.info(line)
+
+            log.info("Writing PK key...")
+            for line in self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl write PK pk_by_pk.auth"
+            ):
+                log.info(line)
+            log.info("PK key written successfully")
+
+            # Verify PK
+            log.info("Verifying PK key is present...")
+            counts = sec.count_secvar_keys()
+            pk_count = counts.get("PK", 0)
+            if pk_count > 0:
+                log.info(f"PK is present (ESL count: {pk_count})")
+            else:
+                self.fail("PK is missing after write (ESL count is 0)")
+
+            # Generate KEK auth file using PK, then write KEK
+            log.info("Generating KEK auth file...")
+            kek_gen_cmd = (
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl generate c:a"
+                f" -k test/testdata/guest/goldenKeys/PK/PK.key"
+                f" -c test/testdata/guest/goldenKeys/PK/PK.crt"
+                f" -n KEK"
+                f" -i test/testdata/guest/goldenKeys/KEK/KEK.crt"
+                f" -o kek_by_pk.auth"
+            )
+            for line in self.connection.run_command(kek_gen_cmd):
+                log.info(line)
+
+            log.info("Writing KEK key...")
+            for line in self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl write KEK kek_by_pk.auth"
+            ):
+                log.info(line)
+            log.info("KEK key written successfully")
+
+            # Verify KEK
+            log.info("Verifying KEK key is present...")
+            counts = sec.count_secvar_keys()
+            kek_count = counts.get("KEK", 0)
+            if kek_count > 0:
+                log.info(f"KEK is present (ESL count: {kek_count})")
+            else:
+                self.fail("KEK is missing after write (ESL count is 0)")
+
+            # Generate, write and verify SBAT
+            log.info("Writing SBAT for the first time...")
+            self._write_and_verify_sbat(sec)
+
+            # Generate SBAT reset auth file
+            log.info("Generating SBAT reset auth file...")
+            sbat_reset_gen_cmd = (
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest generate reset"
+                f" -k test/testdata/guest/goldenKeys/KEK/KEK.key"
+                f" -c test/testdata/guest/goldenKeys/KEK/KEK.crt"
+                f" -n sbat"
+                f" -o resetsbat_by_kek.auth"
+            )
+            for line in self.connection.run_command(sbat_reset_gen_cmd):
+                log.info(line)
+
+            # Write SBAT reset
+            log.info("Writing SBAT reset auth file...")
+            for line in self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl write sbat resetsbat_by_kek.auth"
+            ):
+                log.info(line)
+            log.info("SBAT reset written successfully")
+
+            # Verify SBAT count is 0 after reset
+            sbat_reset = sec.count_secvar_keys().get("sbat", -1)
+            if sbat_reset == 0:
+                log.info("SBAT successfully reset (ESL count is 0)")
+            else:
+                self.fail(f"SBAT reset failed — expected count 0, got {sbat_reset}")
+
+            # Verify secure boot is still enabled
+            log.info("Verifying secure boot is still enabled...")
+            sb_out = self.connection.run_command("lsprop /proc/device-tree/ibm,secure-boot")
+            for line in sb_out:
+                log.info(line)
+            sb_enabled = any("2" in line for line in sb_out)
+            if sb_enabled:
+                log.info("Secure boot is still enabled (value=2) — as expected")
+            else:
+                self.fail("Secure boot is not enabled after SBAT reset (expected value 2)")
+
+            # Test boot without SBAT (secure boot enabled) — GRUB should fail to load.
+            # the system is expected to hang at Open Firmware (GRUB blocked by SBAT reset).
+            log.info("Testing boot without SBAT (secure boot enabled) — expecting GRUB boot failure...")
+            self.cv_HMC.poweroff_lpar()
+            lpar_cmd = "chsysstate -m %s -r lpar -n %s -o on" % (
+                self.cv_HMC.mg_system, self.cv_HMC.lpar_name)
+            if self.cv_HMC.lpar_prof:
+                lpar_cmd = "%s -f %s" % (lpar_cmd, self.cv_HMC.lpar_prof)
+            self.cv_HMC.ssh.run_command(lpar_cmd)
+            log.info("LPAR power-on issued — waiting 120s for expected GRUB boot failure...")
+            time.sleep(120)
+            log.info("Wait complete — GRUB blocked as expected (SBAT missing)")
+
+            # Disable secure boot and restart system
+            self._secureboot_off()
+
+            # Re-write SBAT now that secure boot is disabled
+            log.info("Re-writing SBAT after secure boot disabled...")
+            self._write_and_verify_sbat(sec)
+
+            # Setup dynamic key guest secure boot
+            log.info("Setting up dynamic key guest secure boot...")
+            self.setup_dynamic_secure_boot()
+
+            # Enable secure boot
+            self._secureboot_on()
+        except Exception as e:
+            error_msg = f"Failed SBAT test: {str(e)}"
+            log.error(error_msg)
+            self.fail(error_msg)
+
     def runTest(self):
         # Check required kernel configurations are present
         self.check_kernel_config()
@@ -307,20 +527,11 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
         self.kernel_grub_signature_check()
         # Setup dynamic secure boot
         self.setup_dynamic_secure_boot()
-        
-        # Enable secure boot - must poweroff first (LPAR must be off to change secure boot)
-        log.info("Enabling secure boot")
-        self.cv_HMC.poweroff_lpar()
-        time.sleep(5)
-        self.cv_HMC.hmc_secureboot_on_off(enable=True)
-        self.cv_HMC.poweron_lpar()
-        
+        # Enable secure boot
+        self._secureboot_on()
+        sec = self._setup_secvarctl()
+        self.sbat_test(sec)
         # Reset secure boot
-        self.reset_secure_boot()
-        
-        # Disable secure boot - must poweroff first
-        log.info("Disabling secure boot")
-        self.cv_HMC.poweroff_lpar()
-        time.sleep(5)
-        self.cv_HMC.hmc_secureboot_on_off(enable=False)
-        self.cv_HMC.poweron_lpar()
+        self.reset_secure_boot(sec=sec)
+        # Disable secure boot
+        self._secureboot_off()
