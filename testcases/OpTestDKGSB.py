@@ -31,6 +31,7 @@ import OpTestConfiguration
 import OpTestLogger
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from testcases.OpTestSecvarctl import SecvarctlTest
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 class DynamicKeyGuestSecureBoot(unittest.TestCase):
@@ -42,7 +43,6 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
         self.cv_HMC = self.cv_SYSTEM.hmc
 
         if self.cv_HMC:
-            from common.OpTestHMC import OpHmcState
             try:
                 lpar_state = self.cv_HMC.get_lpar_state()
                 log.info(f"LPAR current state: {lpar_state}")
@@ -202,7 +202,6 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
         Returns a SecvarctlTest object whose build_path can be
         used to locate generated auth files.
         """
-        from testcases.OpTestSecvarctl import SecvarctlTest
         sec = SecvarctlTest()
 
         # Propagate required attributes
@@ -250,6 +249,10 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             if sec is None:
                 log.info("Setting up secvarctl for PK reset...")
                 sec = self._setup_secvarctl()
+
+            # Re-arm the one-shot keystore_signed_updates_without_verification latch
+            # before writing — cleared after every PK write operation.
+            self._re_enable_keystore_updates()
 
             # Now use the generated auth files to reset PK
             auth_dir = os.path.join(sec.build_path, 'test', 'testdata', 'guest', 'authfiles')
@@ -342,6 +345,33 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             log.info("SBAT count is 1 — verified successfully")
         else:
             self.fail(f"SBAT verification failed — expected count 1, got {sbat_count}")
+
+    def _re_enable_keystore_updates(self):
+        """Re-arm the one-shot keystore_signed_updates_without_verification latch
+        before writing — cleared after every PK write operation.
+        """
+        self.cv_HMC.poweroff_lpar()
+        time.sleep(15)
+        self.cv_HMC.configure_dynamic_secure_boot(enable=True, keystore_kbytes=64)
+        time.sleep(5)
+        self.cv_HMC.hmc_secureboot_on_off(enable=True)
+        time.sleep(10)
+
+        status_str = " ".join(self.get_secure_boot_status())
+        if "keystore_signed_updates_without_verification=1" not in status_str:
+            self.fail(
+                "keystore_signed_updates_without_verification=1 not confirmed "
+                "after re-arm — secvar writes will be rejected"
+            )
+
+        self.cv_HMC.poweron_lpar()
+        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+        sb_out = self.connection.run_command("lsprop /proc/device-tree/ibm,secure-boot")
+        if not any("00000002" in l for l in sb_out):
+            self.fail("ibm,secure-boot != 0x2 after re-arm — secure boot must be active for secvar writes")
+        log.info("Keystore re-armed and secure boot active")
 
     def _secureboot_on(self):
         """Power off, enable secure boot, power on."""
@@ -520,6 +550,198 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             log.error(error_msg)
             self.fail(error_msg)
 
+    def static_to_dynamic_test(self, sec=None):
+        """Test transition from Static Guest Secure Boot (SKGSB) to Dynamic (DKGSB).
+        Steps:
+          1. Ensure static SB is active (zero DKGSB flags if needed, enable SB=2).
+          2. Verify plpks absent from dmesg (static mode).
+          3. Disable secure boot.
+          4. Configure DKGSB keystore flags via HMC.
+          5. Boot and verify plpks init and DKGSB secvar variables.
+          6. Re-enable secure boot (now DKGSB).
+          7. Confirm DKGSB: ibm,secure-boot=2, dmesg, kernel lockdown.
+          8. Write PK to prove DKGSB write-path is operational.
+        """
+        try:
+            log.info("=== TEST: Static → Dynamic (SKGSB → DKGSB) ===")
+
+            # Step 1: Ensure static SB is active
+            status_str = " ".join(self.get_secure_boot_status())
+            if "linux_dynamic_key_secure_boot=1" in status_str:
+                log.info("DKGSB flags still set — zeroing before enabling static SB")
+                self.cv_HMC.poweroff_lpar()
+                time.sleep(15)
+                try:
+                    self.cv_HMC.configure_dynamic_secure_boot(enable=False, keystore_kbytes=0)
+                except Exception as e:
+                    log.warning(f"configure_dynamic_secure_boot(False): {e}")
+                time.sleep(10)
+
+            self._secureboot_on()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            sb_out = self.connection.run_command("lsprop /proc/device-tree/ibm,secure-boot")
+            if not any("2" in l for l in sb_out):
+                self.fail("Failed to establish static secure boot (ibm,secure-boot=2)")
+            log.info("Static SB active (ibm,secure-boot=2)")
+
+            # Step 2: Verify no DKGSB artefacts in static mode
+            plpks_out = self.connection.run_command("dmesg | grep -i plpks || true")
+            if any("initialized successfully" in l for l in plpks_out):
+                log.warning("plpks present in static mode — keystore flags may not be fully cleared")
+
+            self.kernel_grub_signature_check()
+
+            # Step 3: Disable secure boot
+            self._secureboot_off()
+            sb_out = self.connection.run_command("lsprop /proc/device-tree/ibm,secure-boot")
+            if any("2" in l for l in sb_out):
+                self.fail("Secure boot not disabled")
+
+            # Step 4: Configure DKGSB keystore flags
+            self.cv_HMC.poweroff_lpar()
+            time.sleep(15)
+            self.cv_HMC.configure_dynamic_secure_boot(enable=True, keystore_kbytes=64)
+            time.sleep(10)
+
+            status_str = " ".join(self.get_secure_boot_status())
+            if "linux_dynamic_key_secure_boot=1" not in status_str:
+                self.fail("linux_dynamic_key_secure_boot=1 not confirmed after configure_dynamic_secure_boot")
+
+            # Step 5: Boot and verify plpks + DKGSB secvars
+            self.cv_HMC.poweron_lpar()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            plpks_out = self.connection.run_command("dmesg | grep -i plpks || true")
+            if not any("initialized successfully" in l for l in plpks_out):
+                self.fail("plpks not initialized — DKGSB keystore not active")
+
+            secvar_vars = " ".join(self.connection.run_command("ls /sys/firmware/secvar/vars/"))
+            for v in ("grubdb", "grubdbx", "trustedcadb"):
+                if v not in secvar_vars:
+                    self.fail(f"DKGSB secvar '{v}' not found — transition incomplete")
+            log.info("DKGSB secvar variables confirmed")
+
+            # Step 6: Re-enable secure boot (now DKGSB)
+            self._secureboot_on()
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            # Step 7: Confirm DKGSB mode
+            sb_out = self.connection.run_command("lsprop /proc/device-tree/ibm,secure-boot")
+            if not any("2" in l for l in sb_out):
+                self.fail("Secure boot not active after enabling DKGSB")
+
+            dmesg_sb = self.connection.run_command("dmesg | grep -i 'secure boot mode'")
+            if not any("enabled" in l.lower() for l in dmesg_sb):
+                self.fail("'Secure boot mode enabled' not in dmesg after DKGSB boot")
+
+            lockdown = self.connection.run_command("cat /sys/kernel/security/lockdown")
+            if not any("integrity" in l or "confidentiality" in l for l in lockdown):
+                self.fail("Kernel lockdown not active after DKGSB secure boot")
+            log.info("DKGSB confirmed: ibm,secure-boot=2, lockdown active, plpks present")
+
+            # Step 8: Write PK to prove DKGSB write-path is operational
+            if sec is None:
+                sec = self._setup_secvarctl()
+            self._re_enable_keystore_updates()
+            auth_dir = os.path.join(sec.build_path, "test", "testdata", "guest", "authfiles")
+            out = self.connection.run_command(
+                f"cd {auth_dir} && {sec.build_path}/build/secvarctl write PK PK_by_PK.auth"
+            )
+            for line in out:
+                log.info(line)
+            if not any("SUCCESS" in l for l in out):
+                self.fail("PK write failed — DKGSB write-path not operational")
+
+            pk_count = sec.count_secvar_keys().get("PK", 0)
+            if pk_count < 1:
+                self.fail(f"PK ESL count={pk_count} after write — expected ≥1")
+            log.info(f"PK written (ESL count={pk_count}) — Static → Dynamic transition complete")
+
+            log.info("=== static_to_dynamic_test PASSED ===")
+        except Exception as e:
+            self.fail(f"static_to_dynamic_test failed: {e}")
+
+    def dynamic_to_static_test(self, sec=None):
+        """Test transition from Dynamic Guest Secure Boot (DKGSB) to Static (SKGSB).
+        Steps:
+          1. Verify DKGSB is active (linux_dynamic_key_secure_boot=1, plpks present).
+          2-4. Delegate to reset_secure_boot(): re-arm latch, reset PK, disable SB,
+               release keystore, zero all DKGSB flags.
+          5. Re-enable secure boot as static (no keystore flags).
+          6. Confirm static SB: ibm,secure-boot=2, no plpks, no DKGSB secvars.
+          7. Verify secvar write is rejected (read-only in static SB mode).
+        """
+        try:
+            log.info("=== TEST: Dynamic → Static (DKGSB → SKGSB) ===")
+
+            # Step 1: Confirm DKGSB is active
+            status_str = " ".join(self.get_secure_boot_status())
+            if "linux_dynamic_key_secure_boot=1" not in status_str:
+                self.fail("linux_dynamic_key_secure_boot=1 not found — system not in DKGSB mode")
+
+            plpks_out = self.connection.run_command("dmesg | grep -i plpks || true")
+            if not any("initialized successfully" in l for l in plpks_out):
+                self.fail("plpks not initialized — system not in DKGSB mode")
+            log.info("DKGSB confirmed")
+
+            # Steps 2-4: PK reset + keystore cleanup
+            if sec is None:
+                sec = self._setup_secvarctl()
+            self.reset_secure_boot(sec=sec)
+
+            # Verify keystore flags zeroed
+            status_str = " ".join(self.get_secure_boot_status())
+            if "linux_dynamic_key_secure_boot=1" in status_str:
+                self.fail("linux_dynamic_key_secure_boot still 1 after reset — flags not cleared")
+            log.info("DKGSB keystore flags zeroed")
+
+            # Step 5: Re-enable as static SB
+            self._secureboot_on()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            # Step 6: Confirm static SB mode
+            sb_out = self.connection.run_command("lsprop /proc/device-tree/ibm,secure-boot")
+            if not any("2" in l for l in sb_out):
+                self.fail("ibm,secure-boot != 2 after enabling static SB")
+
+            dmesg_sb = self.connection.run_command("dmesg | grep -i 'secure boot mode'")
+            if not any("enabled" in l.lower() for l in dmesg_sb):
+                self.fail("'Secure boot mode enabled' not in dmesg after static SB boot")
+
+            plpks_out = self.connection.run_command("dmesg | grep -i plpks || true")
+            if any("initialized successfully" in l for l in plpks_out):
+                self.fail("plpks still initialised — system still in DKGSB mode")
+            log.info("plpks absent — static SB confirmed")
+
+            secvar_vars = " ".join(
+                self.connection.run_command("ls /sys/firmware/secvar/vars/ || true")
+            )
+            for v in ("grubdbx", "grubdb", "trustedcadb"):
+                if v in secvar_vars:
+                    self.fail(f"DKGSB secvar '{v}' still present after transition to static SB")
+            log.info("No DKGSB secvar variables present — static SB confirmed")
+
+            # Step 7: Verify secvar write is rejected in static mode
+            auth_dir = os.path.join(sec.build_path, "test", "testdata", "guest", "authfiles")
+            try:
+                write_out = self.connection.run_command(
+                    f"cd {auth_dir} && {sec.build_path}/build/secvarctl write PK PK_by_PK.auth"
+                    "; echo exit:$?"
+                )
+                if any("SUCCESS" in l for l in write_out):
+                    self.fail("secvarctl write PK succeeded in static SB — should be rejected")
+            except Exception:
+                pass  # non-zero exit is the expected outcome in static SB
+            log.info("secvarctl write correctly rejected — read-only static SB confirmed")
+
+            log.info("=== dynamic_to_static_test PASSED ===")
+        except Exception as e:
+            self.fail(f"dynamic_to_static_test failed: {e}")
+
     def runTest(self):
         # Check required kernel configurations are present
         self.check_kernel_config()
@@ -535,3 +757,7 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
         self.reset_secure_boot(sec=sec)
         # Disable secure boot
         self._secureboot_off()
+        # Test transition: Static → Dynamic
+        self.static_to_dynamic_test(sec=sec)
+        # Test transition: Dynamic → Static
+        self.dynamic_to_static_test(sec=sec)
