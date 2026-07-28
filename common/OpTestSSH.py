@@ -172,6 +172,8 @@ class OpTestSSH():
             
             return output_lines
             
+        except CommandFailed:
+            raise
         except Exception as e:
             log.error(f"Direct SSH command failed: {e}")
             raise CommandFailed(command, str(e), -1)
