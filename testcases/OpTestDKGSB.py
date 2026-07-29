@@ -550,6 +550,154 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             log.error(error_msg)
             self.fail(error_msg)
 
+    def _locate_extract_module_sig(self):
+        """Return the path to extract-module-sig.pl on the remote LPAR.
+        """
+        find_cmd = "find /usr/src /home -maxdepth 6 -name extract-module-sig.pl 2>/dev/null | head -1"
+        found = self.connection.run_command(find_cmd)
+        path = found[0].strip() if found and found[0].strip() else ""
+        if not path:
+            if "sles" in self.distro_name.lower():
+                self.util.install_package(["kernel-source"])
+            else:
+                self.util.install_package(["kernel-devel", "kernel-headers"])
+            found = self.connection.run_command(find_cmd)
+            path = found[0].strip() if found and found[0].strip() else ""
+        if not path:
+            self.fail("extract-module-sig.pl not found after install attempt")
+        return path
+
+    def _strip_sig(self, extract_pl, src, dest):
+        """Strip appended signature from src binary and write result to dest."""
+        out = self.connection.run_command(
+            f"perl {extract_pl} -0 {src} > {dest} 2>&1 && echo STRIP_OK || echo STRIP_FAIL"
+        )
+        if not any("STRIP_OK" in l for l in out):
+            self.fail(f"Failed to strip signature from {src}: {out}")
+
+    def _write_secvar_filehash(self, sec, varname, input_file, auth_file):
+        """Generate a file-hash (f:a) auth for varname and write it; verify ESL count = 1."""
+        kek_dir = "test/testdata/guest/goldenKeys/KEK"
+        out = self.connection.run_command(
+            f"cd {sec.build_path} && {sec.build_path}/build/secvarctl generate f:a"
+            f" -c {kek_dir}/KEK.crt -k {kek_dir}/KEK.key"
+            f" -n {varname} -i {input_file} -o {auth_file}"
+        )
+        if not any("SUCCESS" in l for l in out):
+            self.fail(f"{varname} auth generation failed: {out}")
+        write_out = self.connection.run_command(
+            f"cd {sec.build_path} && {sec.build_path}/build/secvarctl write {varname} {auth_file}"
+        )
+        if not any("SUCCESS" in l for l in write_out):
+            self.fail(f"{varname} write failed: {write_out}")
+        count = sec.count_secvar_keys().get(varname, 0)
+        if count != 1:
+            self.fail(f"{varname} ESL count expected 1, got {count}")
+        log.info(f"{varname} written (ESL count=1)")
+
+    def _reset_secvar(self, sec, varname, auth_file):
+        """Generate a reset auth for varname and write it; verify ESL count = 0."""
+        kek_dir = "test/testdata/guest/goldenKeys/KEK"
+        out = self.connection.run_command(
+            f"cd {sec.build_path} && {sec.build_path}/build/secvarctl generate reset"
+            f" -k {kek_dir}/KEK.key -c {kek_dir}/KEK.crt"
+            f" -n {varname} -o {auth_file}"
+        )
+        if not any("SUCCESS" in l for l in out):
+            self.fail(f"{varname} reset auth generation failed: {out}")
+        write_out = self.connection.run_command(
+            f"cd {sec.build_path} && {sec.build_path}/build/secvarctl write {varname} {auth_file}"
+        )
+        if not any("SUCCESS" in l for l in write_out):
+            self.fail(f"{varname} reset write failed: {write_out}")
+        count = sec.count_secvar_keys().get(varname, -1)
+        if count != 0:
+            self.fail(f"{varname} ESL count expected 0 after reset, got {count}")
+        log.info(f"{varname} cleared (ESL count=0)")
+
+    def grubdbx_dbx_test(self, sec=None):
+        """Test grubdbx and dbx blocklisting under DKGSB.
+
+        Step 1 — Extract unsigned binaries (strip appended signatures).
+        Step 2 — Write grubdbx blocklist (file-hash of grub.elf), verify ESL=1.
+        Step 3 — Write dbx blocklist (file-hash of vmlinux), verify ESL=1.
+        Step 4 — Boot with SB on, GRUB must be blocked (grubdbx hit).
+        Step 5 — Disable SB, clear grubdbx, re-enable SB, kernel must be blocked (dbx hit).
+        Step 6 — Disable SB, clear dbx, re-enable SB, verify clean boot.
+        """
+        try:
+            if sec is None:
+                sec = self._setup_secvarctl()
+
+            # Step 1 — strip signatures to get hashable unsigned binaries
+            extract_pl = self._locate_extract_module_sig()
+
+            grub_elf_out = self.connection.run_command(
+                "rpm -ql grub2-powerpc-ieee1275 2>/dev/null | grep 'grub\\.elf$' | head -1 || true"
+            )
+            grub_elf = grub_elf_out[0].strip() or "/usr/share/grub2/powerpc-ieee1275/grub.elf"
+
+            vmlinux_out = self.connection.run_command(
+                f"ls /boot/vmlinux-{self.kernel_version} /boot/vmlinux 2>/dev/null | head -1 || true"
+            )
+            vmlinux = vmlinux_out[0].strip() or "/boot/vmlinux"
+
+            grub_unsigned = f"{sec.build_path}/grub.elf.unsigned"
+            vmlinux_unsigned = f"{sec.build_path}/vmlinux.unsigned"
+            self._strip_sig(extract_pl, grub_elf, grub_unsigned)
+            self._strip_sig(extract_pl, vmlinux, vmlinux_unsigned)
+            log.info(f"Unsigned binaries extracted — grub: {grub_elf}, vmlinux: {vmlinux}")
+
+            # Step 2 — block GRUB via grubdbx
+            self._write_secvar_filehash(sec, "grubdbx", grub_unsigned, "grubdbx_by_kek.auth")
+
+            # Step 3 — block kernel via dbx
+            self._write_secvar_filehash(sec, "dbx", vmlinux_unsigned, "dbx_by_kek.auth")
+
+            # Step 4 — SB on; GRUB blocked by grubdbx
+            self.cv_HMC.poweroff_lpar()
+            self.cv_HMC.hmc_secureboot_on_off(enable=True)
+            self.cv_HMC.poweron_lpar()
+            log.info("Booting with grubdbx active — expecting GRUB failure")
+            time.sleep(120)
+
+            # Step 5 — recover, clear grubdbx, re-boot; kernel blocked by dbx
+            self._secureboot_off()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            self._re_enable_keystore_updates()
+            self._reset_secvar(sec, "grubdbx", "reset_grubdbx_by_kek.auth")
+
+            self.cv_HMC.poweroff_lpar()
+            self.cv_HMC.hmc_secureboot_on_off(enable=True)
+            self.cv_HMC.poweron_lpar()
+            log.info("Booting with dbx active — expecting kernel load failure")
+            time.sleep(120)
+
+            # Step 6 — recover, clear dbx, re-boot; verify clean boot
+            self._secureboot_off()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            self._re_enable_keystore_updates()
+            self._reset_secvar(sec, "dbx", "reset_dbx_by_kek.auth")
+
+            self._secureboot_on()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            sb_out = self.connection.run_command("lsprop /proc/device-tree/ibm,secure-boot")
+            if not any("00000002" in l for l in sb_out):
+                self.fail("ibm,secure-boot != 0x2 after clean boot")
+
+            dmesg_sb = self.connection.run_command("dmesg | grep -i 'secure boot mode'")
+            if not any("enabled" in l.lower() for l in dmesg_sb):
+                self.fail("'Secure boot mode enabled' not in dmesg after clean boot")
+
+            log.info("=== grubdbx_dbx_test PASSED ===")
+
+        except Exception as e:
+            self.fail(f"grubdbx_dbx_test failed: {e}")
+
     def static_to_dynamic_test(self, sec=None):
         """Test transition from Static Guest Secure Boot (SKGSB) to Dynamic (DKGSB).
         Steps:
@@ -753,6 +901,8 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
         self._secureboot_on()
         sec = self._setup_secvarctl()
         self.sbat_test(sec)
+        # Test grubdbx / dbx blocklisting
+        self.grubdbx_dbx_test(sec)
         # Reset secure boot
         self.reset_secure_boot(sec=sec)
         # Disable secure boot

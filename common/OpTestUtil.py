@@ -2577,12 +2577,10 @@ class OpTestUtil():
             raise ValueError(f"Unsupported distribution: {distro_name}")
 
         try:
-            result = host.host_run_command(cmd)
-            status = result[-1].strip().split('\n')
-            if status[0] != 0:
-                raise OpTestError(f"Unable to install package: {packages}")
+            host.host_run_command(cmd)
         except CommandFailed as cf:
             log.debug("Failed to install packages required for the test CommandFailed={}".format(cf))
+            raise OpTestError(f"Unable to install package: {packages}")
 
     def check_package(self, packages):
         '''
