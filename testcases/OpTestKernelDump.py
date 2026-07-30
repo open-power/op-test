@@ -2079,6 +2079,7 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
                 if status != "active":
                     self.fail("kdump service is not active")
         if self.distro == "sles":
+            self.c.run_command("echo 'add_drivers+=\" papr_scm libnvdimm nd_pmem nd_btt \"' > /etc/dracut.conf.d/99-pmem.conf")
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/pmem%s\"\' /etc/sysconfig/kdump;' % self.pmem_id)
             self.c.run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync")
         log.info("=============== Testing kdump/fadump over pmem ===============")
