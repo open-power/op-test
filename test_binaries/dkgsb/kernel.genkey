@@ -1,0 +1,14 @@
+[ req ]
+default_bits = 3072
+distinguished_name = req_distinguished_name
+prompt = no
+string_mask = utf8only
+x509_extensions = myexts
+[ req_distinguished_name ]
+CN = kernel test key
+[ myexts ]
+basicConstraints=critical,CA:FALSE
+keyUsage=digitalSignature
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid
+extendedKeyUsage=codeSigning

@@ -31,6 +31,7 @@ import OpTestConfiguration
 import OpTestLogger
 from common.OpTestUtil import OpTestUtil
 from common.OpTestSystem import OpSystemState
+from common.OpTestHMC import OpHmcState
 from testcases.OpTestSecvarctl import SecvarctlTest
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -86,6 +87,20 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             except Exception as install_error:
                 self.fail(f"Failed to install binutils package: {install_error}. "
                          "The 'strings' command is required for signature verification.")
+
+        # Install evmctl (ima-evm-utils) needed for .ima keyring key import
+        try:
+            self.connection.run_command("which evmctl")
+            log.info("'evmctl' is already available")
+        except Exception:
+            log.info("Installing evmctl (ima-evm-utils)...")
+            if self.distro_name == 'rhel':
+                self.connection.run_command("dnf install -y ima-evm-utils || yum install -y ima-evm-utils")
+            elif self.distro_name == 'sles':
+                self.connection.run_command("zypper install -y evmctl")
+            else:
+                self.connection.run_command("zypper install -y evmctl")
+            log.info("evmctl installed successfully")
     
     def check_kernel_config(self):
         try:
@@ -550,6 +565,20 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
             log.error(error_msg)
             self.fail(error_msg)
 
+    def _write_asset_to_lpar(self, filename, remote_dest):
+        """Read <repo_root>/test_binaries/dkgsb/<filename> on the controller and
+        write it to <remote_dest> on the LPAR."""
+        local_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "test_binaries", "dkgsb", filename,
+        )
+        with open(local_path) as f:
+            content = f.read()
+        self.connection.run_command(
+            f"cat > {remote_dest} <<'__EOF__'\n{content}\n__EOF__"
+        )
+        log.info(f"Transferred {filename} → {remote_dest} on LPAR")
+
     def _locate_extract_module_sig(self):
         """Return the path to extract-module-sig.pl on the remote LPAR.
         """
@@ -697,6 +726,425 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
 
         except Exception as e:
             self.fail(f"grubdbx_dbx_test failed: {e}")
+
+    def third_party_module_test(self, sec=None):
+        """Test third-party kernel module loading under DKGSB with trustedcadb/moduledb.
+
+        Step 1  — Create trustedca CA cert config and generate self-signed 3072-bit CA cert.
+        Step 2  — Verify cert is Version 3, 3072-bit.
+        Step 3  — Generate trustedcadb auth file (signed by KEK) and write trustedcadb.
+        Step 4  — Reboot to apply trustedcadb to the .machine keyring, verify key appears.
+        Step 5  — Create module signing leaf cert config and generate CSR + private key.
+        Step 6  — Sign CSR with trustedca to produce module signing cert, verify EKU = Code Signing.
+        Step 7  — Generate moduledb auth file (signed by KEK) and write moduledb.
+        Step 8  — Reboot to apply moduledb to .secondary_trusted_keys, verify key appears.
+        Step 9  — Build a simple kernel module (hwm.c).
+        Step 10 — Verify unsigned module is rejected by the kernel.
+        Step 11 — Sign module with the module signing key and verify signature is appended.
+        Step 12 — Load signed module; verify Hello, World! in dmesg; unload module.
+        Step 13 — kexec: create kernel signing key, sign vmlinux, load + exec, verify boot.
+        Step 14 — Reset trustedcadb and moduledb; reboot and confirm keyrings are clean.
+        """
+        try:
+            log.info("=== TEST: third_party_module_test ===")
+
+            if sec is None:
+                sec = self._setup_secvarctl()
+
+            kek_dir = f"{sec.build_path}/test/testdata/guest/goldenKeys/KEK"
+
+            # Step 1: Transfer trustedca config; Step 2: Generate self-signed 3072-bit CA cert
+            log.info("Step 1: Transferring trustedca.genkey to LPAR")
+            self._write_asset_to_lpar("trustedca.genkey", "/root/trustedca.genkey")
+            log.info("Step 2: Generating self-signed 3072-bit CA cert")
+            out = self.connection.run_command(
+                "openssl req -new -nodes -utf8 -sha256 -days 36500 -batch -x509"
+                " -config /root/trustedca.genkey"
+                " -outform PEM -out /root/trustedca.pem -keyout /root/trustedca.key"
+            )
+            for line in out:
+                log.info(line)
+
+            verify_out = self.connection.run_command(
+                "openssl x509 -in /root/trustedca.pem -text -noout"
+                r' | grep "Version\|Public-Key"'
+            )
+            if not any("Version: 3" in l for l in verify_out):
+                self.fail(f"trustedca cert is not Version 3: {verify_out}")
+            if not any("3072" in l for l in verify_out):
+                self.fail(f"trustedca cert is not 3072-bit: {verify_out}")
+            log.info("trustedca cert verified: Version 3, 3072-bit")
+
+            # Step 5: Transfer moduledb config; generate CSR + private key
+            log.info("Step 5: Transferring moduledb.genkey to LPAR")
+            self._write_asset_to_lpar("moduledb.genkey", "/root/moduledb.genkey")
+            log.info("Generating CSR + private key for module signing cert")
+            out = self.connection.run_command(
+                "openssl req -new -nodes -utf8 -sha256 -batch"
+                " -config /root/moduledb.genkey"
+                " -outform PEM -out /root/moduledbcsr.pem -keyout /root/moduledbcsr.key"
+            )
+            for line in out:
+                log.info(line)
+
+            # Step 6: Sign CSR with trustedca → module signing cert; verify EKU
+            log.info("Step 6: Signing CSR with trustedca to produce module signing cert")
+            out = self.connection.run_command(
+                "openssl x509 -req -sha256"
+                " -CA /root/trustedca.pem -CAkey /root/trustedca.key -CAcreateserial"
+                " -days 36500"
+                " -extfile /root/moduledb.genkey -extensions myexts"
+                " -in /root/moduledbcsr.pem -out /root/moduledbcert.pem -outform PEM"
+            )
+            for line in out:
+                log.info(line)
+
+            eku_out = self.connection.run_command(
+                'openssl x509 -in /root/moduledbcert.pem -text -noout'
+                ' | grep -A1 "Extended Key Usage"'
+            )
+            if not any("Code Signing" in l for l in eku_out):
+                self.fail(f"moduledbcert EKU does not contain Code Signing: {eku_out}")
+            log.info("moduledbcert EKU verified: Code Signing present")
+
+            # Flush all cert files to disk before the forced shutdowns
+            self.connection.run_command("sync")
+            log.info("All certs generated and synced to disk")
+
+            # Step 3: Write trustedcadb (uses trustedca.pem generated above)
+            self._re_enable_keystore_updates()
+
+            log.info("Step 3: Generating trustedcadb auth file")
+            out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest generate c:a"
+                f" -k {kek_dir}/KEK.key -c {kek_dir}/KEK.crt"
+                " -n trustedcadb -i /root/trustedca.pem -o trusteddb.auth"
+            )
+            if not any("SUCCESS" in l for l in out):
+                self.fail(f"trustedcadb auth generation failed: {out}")
+
+            log.info("Writing trustedcadb")
+            write_out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest"
+                " write trustedcadb trusteddb.auth"
+            )
+            if not any("SUCCESS" in l for l in write_out):
+                self.fail(f"trustedcadb write failed: {write_out}")
+
+            count = sec.count_secvar_keys().get("trustedcadb", 0)
+            if count != 1:
+                self.fail(f"trustedcadb ESL count expected 1, got {count}")
+            log.info("trustedcadb written (ESL count=1)")
+
+            # Step 4: Reboot to apply trustedcadb; verify key in .machine keyring
+            log.info("Step 4: Rebooting to apply trustedcadb to .machine keyring")
+            self.cv_HMC.poweroff_lpar()
+            self.cv_HMC.poweron_lpar()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            machine_keys = self.connection.run_command("keyctl show %:.machine")
+            if not any("Guest Secure Boot Test trustedca" in l for l in machine_keys):
+                self.fail(
+                    f"'Guest Secure Boot Test trustedca' not found in .machine keyring: {machine_keys}"
+                )
+            log.info("trustedca key confirmed in .machine keyring")
+
+            # Step 7: Write moduledb (uses moduledbcert.pem generated above)
+            self._re_enable_keystore_updates()
+
+            log.info("Step 7: Generating moduledb auth file")
+            out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest generate c:a"
+                f" -k {kek_dir}/KEK.key -c {kek_dir}/KEK.crt"
+                " -n moduledb -i /root/moduledbcert.pem -o moduledb.auth"
+            )
+            if not any("SUCCESS" in l for l in out):
+                self.fail(f"moduledb auth generation failed: {out}")
+
+            log.info("Writing moduledb")
+            write_out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest"
+                " write moduledb moduledb.auth"
+            )
+            if not any("SUCCESS" in l for l in write_out):
+                self.fail(f"moduledb write failed: {write_out}")
+
+            count = sec.count_secvar_keys().get("moduledb", 0)
+            if count != 1:
+                self.fail(f"moduledb ESL count expected 1, got {count}")
+            log.info("moduledb written (ESL count=1)")
+
+            # Step 8: Reboot to apply moduledb; verify key in .secondary_trusted_keys
+            log.info("Step 8: Rebooting to apply moduledb to .secondary_trusted_keys")
+            self.cv_HMC.poweroff_lpar()
+            self.cv_HMC.poweron_lpar()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            sec_keys = self.connection.run_command("keyctl show %:.secondary_trusted_keys")
+            if not any("Guest Secure Boot Test module signingkey" in l for l in sec_keys):
+                self.fail(
+                    "Guest Secure Boot Test module signingkey not found in"
+                    f" .secondary_trusted_keys: {sec_keys}"
+                )
+            log.info("module signingkey confirmed in .secondary_trusted_keys")
+
+            # Step 9: Transfer hwm source + Makefile; build on LPAR
+            log.info("Step 9: Transferring hwm.c and Makefile to LPAR")
+            self._write_asset_to_lpar("hwm.c", "/root/hwm.c")
+            self._write_asset_to_lpar("hwm_Makefile", "/root/Makefile")
+            log.info("Building hwm.ko kernel module")
+            build_out = self.connection.run_command(
+                "make -C /root 2>&1",
+                timeout=self.host_cmd_timeout,
+            )
+            for line in build_out:
+                log.info(line)
+
+            ko_check = self.connection.run_command(
+                "test -f /root/hwm.ko && echo EXISTS || echo MISSING"
+            )
+            if not any("EXISTS" in l for l in ko_check):
+                self.fail("/root/hwm.ko does not exist after build")
+            log.info("/root/hwm.ko built successfully")
+
+            # Step 10: Verify unsigned module is rejected
+            log.info("Step 10: Verifying unsigned module is rejected")
+            insmod_out = self.connection.run_command(
+                "insmod /root/hwm.ko 2>&1; echo exit:$?"
+            )
+            if not any("Key was rejected by service" in l for l in insmod_out):
+                self.fail(
+                    f"Unsigned module was not rejected (expected 'Key was rejected by service'): {insmod_out}"
+                )
+            log.info("Unsigned module correctly rejected by kernel")
+
+            # Step 11: Sign module; verify signature appended
+            log.info("Step 11: Signing hwm.ko with module signing key")
+            sign_file_out = self.connection.run_command(
+                f"find /usr/src -name sign-file -path '*/scripts/sign-file' 2>/dev/null | head -1"
+            )
+            sign_file = sign_file_out[0].strip() if sign_file_out and sign_file_out[0].strip() else ""
+            if not sign_file:
+                self.fail("sign-file tool not found under /usr/src")
+
+            self.connection.run_command(
+                f"{sign_file} sha256"
+                " /root/moduledbcsr.key /root/moduledbcert.pem"
+                " /root/hwm.ko /root/hwm.ko.signed"
+            )
+
+            sig_check = self.connection.run_command(
+                "strings /root/hwm.ko.signed | tail -1"
+            )
+            if not any("Module signature appended" in l for l in sig_check):
+                self.fail(
+                    f"Module signature not appended to hwm.ko.signed: {sig_check}"
+                )
+            log.info("Module signature appended confirmed")
+
+            # Step 12: Load signed module; verify Hello, World! in dmesg; unload
+            log.info("Step 12: Loading signed module")
+            self.connection.run_command("insmod /root/hwm.ko.signed")
+
+            dmesg_out = self.connection.run_command("dmesg | tail -20")
+            if not any("Hello, World!" in l for l in dmesg_out):
+                self.fail(f"'Hello, World!' not found in dmesg after loading signed module: {dmesg_out}")
+            log.info("'Hello, World!' confirmed in dmesg — signed module loaded successfully")
+
+            self.connection.run_command("rmmod hwm")
+            log.info("hwm module unloaded")
+
+            # Step 13: kexec with kernel signed by trustedca chain
+            log.info("Step 13: kexec with kernel signed by trustedca chain")
+            # Step 13: Transfer kernel config; generate kernel signing key CSR
+            self._write_asset_to_lpar("kernel.genkey", "/root/kernel.genkey")
+            out = self.connection.run_command(
+                "openssl req -new -nodes -utf8 -sha256 -batch"
+                " -config /root/kernel.genkey"
+                " -out /root/kernel.csr -keyout /root/kernel.key"
+            )
+            for line in out:
+                log.info(line)
+
+            # Sign CSR with trustedca (DER output for sign-file compatibility)
+            out = self.connection.run_command(
+                "openssl x509 -req -sha256"
+                " -CA /root/trustedca.pem -CAkey /root/trustedca.key -CAcreateserial"
+                " -days 36500"
+                " -extfile /root/kernel.genkey -extensions myexts"
+                " -in /root/kernel.csr -out /root/kernel_by_CA.pem -outform DER"
+            )
+            for line in out:
+                log.info(line)
+
+            # Verify EKU = Code Signing on kernel cert
+            eku_out = self.connection.run_command(
+                "openssl x509 -in /root/kernel_by_CA.pem -inform DER -text -noout"
+                ' | grep -A1 "Extended Key Usage"'
+            )
+            if not any("Code Signing" in l for l in eku_out):
+                self.fail(f"kernel_by_CA.pem EKU does not contain Code Signing: {eku_out}")
+            log.info("kernel_by_CA.pem EKU verified: Code Signing present")
+
+            # Locate the running kernel image on /boot.
+            vmlinux_out = self.connection.run_command(
+                f"ls /boot/vmlinux-{self.kernel_version} /boot/vmlinux 2>/dev/null | head -1 || true"
+            )
+            vmlinux = vmlinux_out[0].strip() or "/boot/vmlinux"
+            log.info(f"Using kernel image: {vmlinux}")
+
+            self.connection.run_command(
+                f"{sign_file} sha256"
+                " /root/kernel.key /root/kernel_by_CA.pem"
+                f" {vmlinux} /root/vmlinux.signed_with_new_key"
+            )
+            log.info("Verifying kexec load of newly-signed vmlinux fails before key import")
+            kexec_fail = self.connection.run_command(
+                'kexec -s -l /root/vmlinux.signed_with_new_key'
+                ' --append="$(cat /proc/cmdline)"'
+                f' --initrd /boot/initrd-$(uname -r) 2>&1; echo exit:$?'
+            )
+            if not any("Permission denied" in l for l in kexec_fail):
+                self.fail(
+                    "kexec did not fail with 'Permission denied' before key import"
+                    f" (new-key-signed vmlinux): {kexec_fail}"
+                )
+
+            # Find .ima keyring decimal ID and import the kernel cert
+            ima_id_out = self.connection.run_command(
+                "keyctl show %:.ima | awk '/keyring: \\.ima/{print $1; exit}'"
+            )
+            ima_id = ima_id_out[0].strip() if ima_id_out else ""
+            if not ima_id or not ima_id.isdigit():
+                self.fail(f"Could not determine .ima keyring decimal ID: {ima_id_out}")
+
+            log.info(f"Importing kernel_by_CA.pem into .ima keyring (id={ima_id})")
+            self.connection.run_command(
+                f"evmctl import /root/kernel_by_CA.pem {ima_id}"
+            )
+
+            # Verify key is in .ima keyring
+            ima_keys = self.connection.run_command("keyctl show %:.ima")
+            if not any("kernel test key" in l for l in ima_keys):
+                self.fail(f"'kernel test key' not found in .ima keyring: {ima_keys}")
+            log.info("'kernel test key' confirmed in .ima keyring")
+
+            self.connection.run_command(
+                'kexec -s -l /root/vmlinux.signed_with_new_key'
+                ' --append="$(cat /proc/cmdline)"'
+                f' --initrd /boot/initrd-$(uname -r)'
+            )
+
+            # kexec exec — fires the reboot; SSH connection drops immediately.
+            log.info("Executing kexec -e — connection will drop, waiting for system to reboot")
+            self.connection.run_command_direct("kexec -e", expect_disconnect=True)
+
+            # kexec is a soft reboot — wait for the LPAR to fully come back up.
+            time.sleep(60)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            log.info("System back online after kexec")
+            self._re_enable_keystore_updates()
+
+            # Step 14: Reset trustedcadb and moduledb; reboot and confirm clean
+            log.info("Step 14: Resetting trustedcadb and moduledb")
+
+            # Generate and write trustedcadb reset
+            out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest generate reset"
+                f" -k {kek_dir}/KEK.key -c {kek_dir}/KEK.crt"
+                " -n trustedcadb -i /root/trustedca.pem -o reset_trustedcadb.auth"
+            )
+            if not any("SUCCESS" in l for l in out):
+                self.fail(f"trustedcadb reset auth generation failed: {out}")
+
+            write_out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest"
+                " write trustedcadb reset_trustedcadb.auth"
+            )
+            if not any("SUCCESS" in l for l in write_out):
+                self.fail(f"trustedcadb reset write failed: {write_out}")
+
+            count = sec.count_secvar_keys().get("trustedcadb", -1)
+            if count != 0:
+                self.fail(f"trustedcadb ESL count expected 0 after reset, got {count}")
+            log.info("trustedcadb cleared (ESL count=0)")
+
+            # Generate and write moduledb reset
+            out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest generate reset"
+                f" -k {kek_dir}/KEK.key -c {kek_dir}/KEK.crt"
+                " -n moduledb -o reset_moduledb.auth"
+            )
+            if not any("SUCCESS" in l for l in out):
+                self.fail(f"moduledb reset auth generation failed: {out}")
+
+            write_out = self.connection.run_command(
+                f"cd {sec.build_path} && {sec.build_path}/build/secvarctl -m guest"
+                " write moduledb reset_moduledb.auth"
+            )
+            if not any("SUCCESS" in l for l in write_out):
+                self.fail(f"moduledb reset write failed: {write_out}")
+
+            count = sec.count_secvar_keys().get("moduledb", -1)
+            if count != 0:
+                self.fail(f"moduledb ESL count expected 0 after reset, got {count}")
+            log.info("moduledb cleared (ESL count=0)")
+
+            # Final reboot — confirm keyrings are clean
+            log.info("Final reboot to confirm .machine and .secondary_trusted_keys are clean")
+            self.cv_HMC.poweroff_lpar()
+            self.cv_HMC.poweron_lpar()
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
+            self.connection = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+            machine_keys = self.connection.run_command("keyctl show %:.machine")
+            if any("Guest Secure Boot Test trustedca" in l for l in machine_keys):
+                self.fail(
+                    "'Guest Secure Boot Test trustedca' still present in .machine after reset"
+                )
+            log.info("'.machine' keyring clean — trustedca key absent")
+
+            sec_keys = self.connection.run_command("keyctl show %:.secondary_trusted_keys")
+            if any("Guest Secure Boot Test module signingkey" in l for l in sec_keys):
+                self.fail(
+                    "'Guest Secure Boot Test module signingkey' still present in"
+                    " .secondary_trusted_keys after reset"
+                )
+            log.info("'.secondary_trusted_keys' keyring clean — module signingkey absent")
+
+            log.info("=== third_party_module_test PASSED ===")
+
+        except Exception as e:
+            self.fail(f"third_party_module_test failed: {e}")
+
+        finally:
+            # Remove all files written/generated on the LPAR by this test.
+            cleanup_files = [
+                "/root/trustedca.genkey", "/root/trustedca.pem",
+                "/root/trustedca.key", "/root/trustedca.srl",
+                "/root/moduledb.genkey", "/root/moduledbcsr.pem",
+                "/root/moduledbcsr.key", "/root/moduledbcert.pem",
+                "/root/kernel.genkey", "/root/kernel.csr",
+                "/root/kernel.key", "/root/kernel_by_CA.pem",
+                "/root/hwm.c", "/root/Makefile",
+                "/root/hwm.o", "/root/hwm.ko", "/root/hwm.ko.signed",
+                "/root/hwm.mod", "/root/hwm.mod.c", "/root/hwm.mod.o",
+                "/root/.hwm.ko.cmd", "/root/.hwm.mod.cmd",
+                "/root/.hwm.mod.o.cmd", "/root/.hwm.o.cmd",
+                "/root/.module-common.o", "/root/..module-common.o.cmd",
+                "/root/Module.symvers", "/root/.Module.symvers.cmd",
+                "/root/modules.order", "/root/.modules.order.cmd",
+                "/root/modules.livepatch",
+                "/root/vmlinux.signed_with_new_key",
+            ]
+            try:
+                self.connection.run_command("rm -f " + " ".join(cleanup_files))
+                log.info("third_party_module_test: cleanup complete")
+            except Exception as cleanup_err:
+                log.warning(f"third_party_module_test: cleanup failed (non-fatal): {cleanup_err}")
 
     def static_to_dynamic_test(self, sec=None):
         """Test transition from Static Guest Secure Boot (SKGSB) to Dynamic (DKGSB).
@@ -903,6 +1351,8 @@ class DynamicKeyGuestSecureBoot(unittest.TestCase):
         self.sbat_test(sec)
         # Test grubdbx / dbx blocklisting
         self.grubdbx_dbx_test(sec)
+        # Test third-party module loading via trustedcadb/moduledb
+        self.third_party_module_test(sec)
         # Reset secure boot
         self.reset_secure_boot(sec=sec)
         # Disable secure boot

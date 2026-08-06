@@ -131,7 +131,10 @@ class OpTestSSH():
             
             # Execute command
             log.info(f"Executing direct SSH command: {command}")
-            stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
+            # For commands that reboot the system, use a short exec timeout so
+            # paramiko doesn't block indefinitely waiting for data on a dead channel.
+            exec_timeout = 5 if expect_disconnect else timeout
+            stdin, stdout, stderr = client.exec_command(command, timeout=exec_timeout)
             background = command.strip().endswith("&")
             if background:
                 log.info("Background command - not waiting")
@@ -139,13 +142,15 @@ class OpTestSSH():
                 return []
             # Get output
             if expect_disconnect:
-                # Don't wait for exit status - system will crash/disconnect
+                # Fire-and-forget: give the command a moment to execute before
+                # the connection is torn down, then return without waiting.
                 log.info("Command expected to disconnect - not waiting for exit status")
-                # Give command a moment to execute before connection dies
-                time.sleep(0.5)
-                exit_status = -1
-                output_lines = []
-                error_lines = []
+                time.sleep(1)
+                try:
+                    client.close()
+                except Exception:
+                    pass
+                return []
             else:
                 exit_status = stdout.channel.recv_exit_status()
                 output_lines = stdout.read().decode('utf-8', errors='ignore').splitlines()
@@ -167,12 +172,15 @@ class OpTestSSH():
                 raise CommandFailed(command,
                     '\n'.join(error_lines),
                     exit_status)
-                # For HMC commands, some non-zero exits are acceptable
-                # Return output anyway and let caller decide
             
             return output_lines
             
+        except CommandFailed:
+            raise
         except Exception as e:
+            if expect_disconnect:
+                log.info(f"Expected disconnect for '{command}': {e}")
+                return []
             log.error(f"Direct SSH command failed: {e}")
             raise CommandFailed(command, str(e), -1)
 
