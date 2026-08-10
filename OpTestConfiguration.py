@@ -476,6 +476,21 @@ def get_parser():
     vpmem_group.add_argument("--vpmem-region",
                             help="Region name (default: region0)",
                             default="region0")
+    vnic_group = parser.add_argument_group(
+        "vNIC", "vNIC offline LPAR test configuration")
+    vnic_group.add_argument(
+        "--vnic-sriov-loc-code", dest="vnic_sriov_loc_code", default=None,
+        help="Physical location code of the SRIOV adapter backing the vNIC "
+             "(e.g. U78DA.ND0.WZS0123-P1-C2). "
+             "Find with: lshwres -r sriov --rsubtype adapter "
+             "-F phys_loc:adapter_id")
+    vnic_group.add_argument(
+        "--vnic-phys-port-ids", dest="vnic_phys_port_ids", default="0,1,2",
+        help="Comma-separated physical port indexes on the SRIOV adapter "
+             "(0-based, default: 0,1,2)")
+    vnic_group.add_argument(
+        "--vnic-capacity", dest="vnic_capacity", default=2, type=int,
+        help="Bandwidth capacity percentage reserved per vNIC (1-100, default: 2)")
 
     return parser
 
