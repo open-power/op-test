@@ -87,11 +87,16 @@ class OpTestDlpar(unittest.TestCase):
           #for x in range(res_num):
           res_num = randint(1,res_num)
           log.debug("Random number of resource generated for CPU is %s"%res_num)
-      if (res_type == "mem"):
-          res_mem = int(res_num/1024)
-          #for x in range(res_mem):
-          res_num = (randint(1,res_mem))*1024
-          log.debug("Random number of memory generated for MEM is %s"%res_num)
+      if res_type == "mem":
+          lmb_size = int(self.cv_HMC.get_lmb_size()[0].strip())
+          max_blocks = res_num // lmb_size
+          if max_blocks < 1:
+              self.fail(
+                      "Configured mem_resource (%d MB) is smaller than LMB size (%d MB)"
+                      % (res_num, lmb_size))
+          blocks = randint(1, max_blocks)
+          res_num = blocks * lmb_size
+          log.debug("Selected memory         : %d MB", res_num)
       if(self.extended['loop'] != 1):
           log.debug("Loop is not on")
           self.loop_num = 1
