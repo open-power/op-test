@@ -722,6 +722,22 @@ class OSdumpkdumpSuite():
     def suite(self):
         return self.s
 
+class OSdumpmaxconfigkdumpsuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestKernelDump.KernelCrash_OnlyKdumpEnable())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpDLPAR())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpWorkLoad())
+        self.s.addTest(OpTestKernelDump.KernelCrash_hugepage_checks())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
+        self.s.addTest(OpTestKernelDump.OpTestMakedump())
+        self.s.addTest(OpTestKernelDump.MeasureMakedumpTime())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSMT())
+
+    def suite(self):
+        return self.s
+
 class ISSTkdumpSuite():
     '''Crash Test Suite which Verify operating System Crash Dump Functionality'''
     def __init__(self):
@@ -773,6 +789,26 @@ class OSdumpfadumpSuite():
         self.s.addTest(OpTestKernelDump.OpTestLowCrashkernelKdump())
         self.s.addTest(OpTestKernelDump.KernelCrash_PerfTest())
         self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSMT())
+
+    def suite(self):
+        return self.s
+
+class OSdumpmaxconfigfadumpsuite():
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpEnable())
+        self.s.addTest(OpTestKernelDump.OpTestFadumpCmaCheck())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpDLPAR())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpWorkLoad())
+        self.s.addTest(OpTestKernelDump.KernelCrash_hugepage_checks())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSSH())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpNFS())
+        self.s.addTest(OpTestKernelDump.OpTestMakedump())
+        self.s.addTest(OpTestKernelDump.MeasureMakedumpTime())
+        self.s.addTest(OpTestKernelDump.KernelCrash_KdumpSMT())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpNocma())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpJunkValue())
+        self.s.addTest(OpTestKernelDump.KernelCrash_FadumpOffValue())
 
     def suite(self):
         return self.s
@@ -1058,7 +1094,9 @@ suites = {
     'crash-suite': CrashSuite(),
     'osdump-suite': OSdumpSuite(),
     'osdumpkdumpsuite': OSdumpkdumpSuite(),
+    'osdumpmaxconfigkdumpsuite': OSdumpmaxconfigkdumpsuite(),
     'osdumpfadumpsuite': OSdumpfadumpSuite(),
+    'osdumpmaxconfigfadumpsuite': OSdumpmaxconfigfadumpsuite(),
     'osdumpsanitysuite': OSdumpsanitySuite(),
     'osisstkdumpsuite': ISSTkdumpSuite(),
     'osisstfadumpsuite':ISSTfadumpSuite(),
