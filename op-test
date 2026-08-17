@@ -106,6 +106,7 @@ from testcases import OpTestDlparIO
 from testcases import OpTestLPM
 from testcases import OpTestKexec
 from testcases import OpTestGSBStaticKey
+from testcases import OpTestVtpm
 from testcases import GcovSetup
 from testcases import Lcov
 from testcases import BisectKernel
@@ -803,6 +804,18 @@ class GuestSecureBootSuite():
         return self.s
 
 
+class GuestVtpmSuite():
+    '''Enable vTPM, run host workload, disable vTPM'''
+    def __init__(self):
+        self.s = unittest.TestSuite()
+        self.s.addTest(OpTestVtpm.VtpmEnable())
+        self.s.addTest(RunHostTest.RunHostTest())
+        self.s.addTest(OpTestVtpm.VtpmDisable())
+
+    def suite(self):
+        return self.s
+
+
 class FspOpalSuite():
     def __init__(self):
         self.s = unittest.TestSuite()
@@ -1037,6 +1050,7 @@ suites = {
     'dlpario-suite': DlparIOSuite(),
     'lpm-suite': LPMSuite(),
     'GuestSecureBootSuite': GuestSecureBootSuite(),
+    'GuestVtpmSuite': GuestVtpmSuite(),
     'system-ipl': SystemIPLSuite(),
     'fsp-opal-suite':  FspOpalSuite(),
     'full': FullSuite(),
