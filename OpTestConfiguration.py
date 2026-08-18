@@ -450,6 +450,12 @@ def get_parser():
         "--target-system-name", help="Target managed system/server name in HMC", default=None)
     hmcgroup.add_argument(
         "--target-lpar-name", help="Target lpar name in target managed system", default=None)
+    hmcgroup.add_argument(
+        "--network-loc-code",
+        help="Physical location code of the network adapter to verify in SMS "
+             "(e.g. U780C.ND0.WZS0042-P1-C2-T1). Used by "
+             "testcases.OpTestSMSNetworkAdapter.",
+        default=None)
 
     misc_group = parser.add_argument_group("Misc")
     misc_group.add_argument("--check-ssh-keys", action='store_true', default=False,
