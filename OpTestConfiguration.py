@@ -463,6 +463,23 @@ def get_parser():
     misc_group.add_argument("--bisect-flag",
                             help="Specify if bisection is to be done or not")
 
+    securebootio_group = parser.add_argument_group(
+        "Secure Boot IO", "Common options for all OpTestSecureBootIO device tests")
+    securebootio_group.add_argument(
+        "--disable-secureboot-after-test",
+        action='store_true',
+        default=False,
+        help="After any Secure Boot IO test completes, shutdown the LPAR, "
+             "disable Secure Boot (secure_boot=0), and power the LPAR back on.")
+
+    nvme_group = parser.add_argument_group(
+        "NVMe IO", "NVMe device options for OpTestSecureBootIO")
+    nvme_group.add_argument(
+        "--nvme-devices",
+        help="Comma-separated NVMe controller device paths for Secure Boot IO "
+             "tests (e.g. /dev/nvme0,/dev/nvme1). Auto-discovered if absent.",
+        default=None)
+
     vpmem_group = parser.add_argument_group("VPMEM", "VPMEM/NVDIMM test configuration")
     vpmem_group.add_argument("--vpmem-device",
                             help="Path to vpmem device (default: /dev/pmem0)",
