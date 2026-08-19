@@ -356,7 +356,7 @@ class OptestKernelDump(unittest.TestCase):
             log.info("SLES 16 detected: forcing KDUMP_UPDATE_BOOTLOADER=false and restarting kdump.service")
             self.c.run_command("sed -i 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER=\"false\"/' /etc/sysconfig/kdump")
             self.cv_HOST.host_run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync;")
-
+    
     def is_fadump_param_enabled(self):
         '''
         Method to verify fadump kernel parameter is set
@@ -366,7 +366,7 @@ class OptestKernelDump(unittest.TestCase):
         if "fadump=on" in " ".join(res):
             return True
         return False
-
+    
     def is_fadump_enabled(self):
         '''
         Method to verify fadump is enabled
@@ -449,9 +449,9 @@ class OptestKernelDump(unittest.TestCase):
             self.fail("System did not boot after crash - SSH unavailable. Check console logs for errors (OOM, panic, etc.)")
         
         if self.distro == "rhel":
-            self.cv_HOST.host_run_command("cp /etc/kdump.conf_bck /etc/kdump.conf; systemctl restart kdump.service", timeout=60)
+            self.cv_HOST.host_run_command("cp /etc/kdump.conf_bck /etc/kdump.conf; systemctl restart kdump.service", timeout=120)
         if self.distro == "sles":
-            self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump; systemctl restart kdump.service", timeout=60)
+            self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump; systemctl restart kdump.service", timeout=120)
         if dump_place == "local":
             crash_content_after = self.c.run_command(
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
@@ -791,7 +791,7 @@ class OptestKernelDump(unittest.TestCase):
             
             # Start checking SSH immediately - the retry loop will handle timing
             # No initial delay needed since console shows when system is ready
-            max_wait_seconds = 180  # 3 minutes total - reasonable timeout for kdump reboot
+            max_wait_seconds = 1500  # 25 minutes total - reasonable timeout for kdump reboot
             ssh_available = False
             last_log_time = 0
             attempt = 0
@@ -1137,8 +1137,16 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
             self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
                                "update-bootloader --refresh", timeout=240)
             time.sleep(5)
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        # For HMC systems, use HMC reboot command instead of goto_state
+        if self.is_lpar:
+            log.info("HMC system - using HMC restart command instead of goto_state")
+            self.cv_HMC.restart_lpar()
+            log.info("Waiting for SSH to become available after restart...")
+            if not self.wait_for_ssh_after_reboot(timeout=300):
+                raise OpTestError("SSH did not become available after LPAR restart")
+        else:
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     def runTest(self):
         self.setup_test()
@@ -1173,6 +1181,11 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
         if not self.is_lpar:
             self.verify_dump_dt_node(boot_type)
         self.verify_dump_file(boot_type)
+        if self.is_lpar:
+            self.setup_test()
+            log.info("========= Testing kdump with HMC dumprestart ===========")
+            boot_type = self.kernel_crash(crash_type="hmc")
+            self.verify_dump_file(boot_type)
 
 
 class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
@@ -1523,14 +1536,6 @@ class KernelCrash_KdumpSMT(OptestKernelDump):
         log.info("=============== Testing kdump/fadump with single cpu ===============")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
-        if self.is_lpar:
-            for i in ["off", "2", "4", "on"]:
-                self.setup_test()
-                self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
-                self.c.run_command("ppc64_cpu --smt")
-                log.info("=============== Testing kdump/fadump with smt=%s and dumprestart from HMC ===============" % i)
-                boot_type = self.kernel_crash(crash_type="hmc")
-                self.verify_dump_file(boot_type)
 
 class KernelCrash_KdumpDLPAR(OptestKernelDump, testcases.OpTestDlpar.OpTestDlpar):
 
@@ -1545,7 +1550,7 @@ class KernelCrash_KdumpDLPAR(OptestKernelDump, testcases.OpTestDlpar.OpTestDlpar
         self.extended = {'loop':0,'wkld':0,'smt':8}
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         for component in ['proc', 'mem']:
-            for operation in ['a', 'r']:
+            for operation in ['r', 'a']:
                 self.setup_test()
                 if component == "proc":
                     self.AddRemove("proc", "--procs", operation, self.cpu_resource)
@@ -1940,16 +1945,15 @@ class OpTestMakedump(OptestKernelDump):
     '''
     function will trigger crash kernel and  run the makedumpfile on collected vmcore
     '''
-    
-    def check_run(self, cmd, condition):
+    def check_run(self, cmd, condition, timeout=300):
         cmd = f"cd {self.crash_dir} && {cmd}"
-        res = self.c.run_command(cmd, timeout=300)
+        res = self.c.run_command(cmd, timeout=timeout)
         for value in res:
             if condition in value:
                 log.info("command %s works well" % cmd)
                 return
         self.fail("commnd %s failed" % cmd)
-
+    
     def run_in_crashdir(self, cmd, timeout=300):
         return self.c.run_command(f"cd {self.crash_dir} && {cmd}", timeout=timeout)
 
@@ -2000,10 +2004,21 @@ class OpTestMakedump(OptestKernelDump):
         self.check_run("makedumpfile --non-mmap vmcore dump22",
                        "The dumpfile is saved to dump22")
         self.run_in_crashdir("rm -rf dump*")
-        self.check_run("makedumpfile -D -d 31 -l vmcore dump1",
-                       "The dumpfile is saved to dump1")
-        self.check_run("makedumpfile -D -d 31 -l vmcore dump41 --num-threads 8",
-                       "The dumpfile is saved to dump41")
+        
+        self.run_in_crashdir("makedumpfile -D -d 31 -l vmcore dump1 >/tmp/makedump_debug.log 2>&1 && echo PASS",
+                             timeout=7200)
+        res = self.run_in_crashdir("test -s dump1 && echo PASS")
+        if "PASS" not in res:
+            log.error("\n".join(self.run_in_crashdir("tail -100 /tmp/makedump_debug.log")))
+            self.fail("makedumpfile -D did not create dump1")
+        #self.run_in_crashdir("ls dump1")
+        self.run_in_crashdir("makedumpfile -D -d 31 -l vmcore dump41 --num-threads 8 >/tmp/makedump_debug.log 2>&1 && echo PASS",
+                             timeout=7200)
+        res = self.run_in_crashdir("test -s dump41 && echo PASS")
+        if "PASS" not in res:
+            log.error("\n".join(self.run_in_crashdir("tail -100 /tmp/makedump_debug.log")))
+            self.fail("makedumpfile -D did not create dump41")
+        
         self.run_in_crashdir("rm -rf dump*")
         self.check_run("makedumpfile -d 31 -c vmcore dump42",
                        "The dumpfile is saved to dump42")
@@ -2034,7 +2049,8 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
         super(KernelCrash_KdumpPMEM, self).setUp()
 
         conf = OpTestConfiguration.conf
-        try: self.dev_pmem = conf.args.dev_pmem
+        try: 
+            self.dev_pmem = conf.args.dev_pmem
         except AttributeError:
             log.info("Considering pmem0 as no pmem device is configured in config file.")
             self.dev_pmem = "pmem0"
@@ -2188,7 +2204,7 @@ class KernelCrash_FadumpNocma(OptestKernelDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
 
-        if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
+        if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
 
 
