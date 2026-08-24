@@ -1157,7 +1157,7 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
         if not self.is_fadump_enabled():
             raise self.skipTest("fadump is disabled")
         if self.distro == "ubuntu":
-            self.cv_HOST.host_check_command("kdump")
+            self.cv_HOST.host_check_command("kdump-config")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
         elif self.distro == "sles":
@@ -1214,7 +1214,7 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         if self.distro == "ubuntu":
-            self.cv_HOST.host_check_command("kdump")
+            self.cv_HOST.host_check_command("kdump-config")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
             try:
@@ -1270,7 +1270,7 @@ class KernelCrash_DisableAll(OptestKernelDump):
             raise self.skipTest(
                 "fadump=on added in kernel param, please remove and re-try")
         if self.distro == "ubuntu":
-            self.cv_HOST.host_check_command("kdump")
+            self.cv_HOST.host_check_command("kdump-config")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
         elif self.distro == "sles":
