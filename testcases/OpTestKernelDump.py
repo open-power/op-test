@@ -1215,6 +1215,9 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
 
         if self.distro == "ubuntu":
             self.cv_HOST.host_check_command("kdump-config")
+            self.c.run_command("sed -i 's/USE_KDUMP=0/USE_KDUMP=1/' /etc/default/kdump-tools")
+            self.c.run_command("kdump-config unload", timeout=60)
+            self.c.run_command("kdump-config load", timeout=60)
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
             try:
