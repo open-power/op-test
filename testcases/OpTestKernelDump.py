@@ -462,6 +462,8 @@ class OptestKernelDump(unittest.TestCase):
             set(crash_content_after) - set(self.crash_content))
         if self.distro == "sles":
             self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}-\d{2}', x), self.crash_content))
+        elif self.distro == "ubuntu":
+            self.crash_content = list(filter(lambda x: re.search('\d{12}', x), self.crash_content))
         else:
             self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
         if not self.crash_content:
