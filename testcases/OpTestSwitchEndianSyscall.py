@@ -118,7 +118,7 @@ class OpTestSwitchEndianSyscall(unittest.TestCase):
 
         :param i_dir: linux source directory
         '''
-        l_cmd = "cd %s/tools/testing/selftests/;make;" % i_dir
+        l_cmd = "cd %s/tools/testing/selftests/powerpc/switch_endian/;make;" % i_dir
         try:
             l_res = self.cv_HOST.host_run_command(l_cmd)
         except CommandFailed as c:
