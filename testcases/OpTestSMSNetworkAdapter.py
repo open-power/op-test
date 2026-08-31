@@ -35,7 +35,8 @@ Steps performed:
      depending on what the firmware exposes:
        Path A (some firmware): Main -> 2 (Setup Remote IPL) — adapters listed
                                directly on this screen.
-       Path B (default):       Main -> 3 (I/O Device Information) -> 6 (Network ports).
+       Path B (default):       Main -> 3 (I/O Device Information)
+                               -> 6 (Network ports).
      The test tries Path A first; if no adapter data is visible it falls back
      to Path B automatically.
   5. Verify the user-supplied adapter location code is listed.
@@ -77,7 +78,7 @@ log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 # Timeouts (seconds)
 SMS_BOOT_TIMEOUT = 300   # time to reach SMS after LPAR activation
 SMS_MENU_TIMEOUT = 60    # time between SMS menu interactions
-SMS_NAV_TIMEOUT  = 30    # short wait for sub-menu responses
+SMS_NAV_TIMEOUT = 30    # short wait for sub-menu responses
 
 
 class OpTestSMSNetworkAdapter(unittest.TestCase):
@@ -104,7 +105,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
         self.lpar_prof = conf.args.lpar_prof
         self.logdir = conf.logdir
         self._console_active = False
-        # Populated in runTest (Path A only); used by _reboot_to_os_and_match_macs
+        # Populated in runTest (Path A only); used by
+        #_reboot_to_os_and_match_macs
         self._sms_valid_macs = []
         # Set True by _reboot_to_os_and_match_macs once the LPAR is Running;
         # prevents tearDown from issuing a redundant restart on the success path.
@@ -206,7 +208,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
         :param timeout:         per-attempt wait timeout in seconds
         :returns:               (idx, before+after text) of the confirmed match
         '''
-        patterns = [confirm_pattern, r'Invalid entry', pexpect.TIMEOUT, pexpect.EOF]
+        patterns = [confirm_pattern, r'Invalid entry',
+                    pexpect.TIMEOUT, pexpect.EOF]
         for attempt in range(10):
             log.debug("_sms_send: sending %r (attempt %d)", key, attempt + 1)
             pty.sendline(key)
@@ -224,7 +227,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
                 "SMS did not respond to %r within %ss. Got: %r"
                 % (key, timeout, pty.before))
         raise OpTestError(
-            "SMS kept showing 'Invalid entry!' after 10 attempts sending %r" % key)
+            "SMS kept showing 'Invalid entry!' after 10 attempts "
+            "sending %r" % key)
 
     def _navigate_to_main_menu(self, pty):
         '''
@@ -254,14 +258,16 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
                 log.info("SMS main menu confirmed (attempt %d)", attempt + 1)
                 return
             except OpTestError:
-                # _sms_send timed out — not on a known menu yet, nudge and retry
+                # _sms_send timed out — not on a known menu yet, nudge and
+                # retry
                 log.debug("Main menu not confirmed yet (attempt %d), nudging",
                           attempt + 1)
                 pty.send('\r')
                 time.sleep(1)
 
         raise OpTestError(
-            "SMS main menu did not appear within %s seconds." % SMS_BOOT_TIMEOUT)
+            "SMS main menu did not appear within %s seconds."
+            % SMS_BOOT_TIMEOUT)
 
     def _send_and_wait(self, pty, choice, patterns, timeout=SMS_MENU_TIMEOUT):
         '''
@@ -274,11 +280,13 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
 
         :param pty:      pexpect pty object
         :param choice:   string to send (e.g. "2")
-        :param patterns: list of regex patterns ending with TIMEOUT/EOF sentinels
+        :param patterns: list of regex patterns ending with TIMEOUT/EOF
+                         sentinels
         :param timeout:  wait timeout in seconds
         :returns:        0 on success (first pattern matched)
         '''
-        # Find the success patterns (everything before the TIMEOUT/EOF sentinels)
+        # Find the success patterns (everything before the TIMEOUT/EOF
+        # sentinels)
         success_patterns = [p for p in patterns
                             if p not in (pexpect.TIMEOUT, pexpect.EOF)]
         # Build a combined OR pattern to match any of the success patterns
@@ -319,7 +327,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
 
         The screen format is one row per port::
 
-            N.  <description>    <adapter_loc_code>-T<n>    <12hexMAC or xx:xx:...>
+            N.  <description>    <adapter_loc_code>-T<n>
+                                 <12hexMAC or xx:xx:...>
 
         ``adapter_loc_code`` may be supplied as:
           - the adapter base  (e.g. ``U78CD.001.FZHAE88-P1-C2``) — all ports
@@ -343,10 +352,12 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
             r'|\b[0-9A-Fa-f]{12}\b',                    # raw 12 hex
             re.IGNORECASE)
 
-        # A loc-code token on the same line — must start with adapter_loc_code
-        # (handles both base and specific-port input transparently).
+        # Match the full loc-code on a line, starting with adapter_loc_code and
+        # followed by any additional loc-code segments (e.g. -C0-T0-S2, -T1).
+        # Capture the entire loc-code token so that different ports of the same
+        # adapter each get a unique key in port_mac_map.
         loc_re = re.compile(
-            r'(' + re.escape(adapter_loc_code) + r'(?:-T\d+)?)\b',
+            r'(' + re.escape(adapter_loc_code) + r'(?:-[A-Za-z0-9]+)*)\b',
             re.IGNORECASE)
 
         port_mac_map = {}
@@ -410,7 +421,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
         log.info("Entered Remote IPL sub-menu")
         time.sleep(1)
 
-        remote_ipl_screen = initial + collect_pexpect_screen(pty, timeout=SMS_NAV_TIMEOUT)
+        remote_ipl_screen = (
+            initial + collect_pexpect_screen(pty, timeout=SMS_NAV_TIMEOUT))
 
         nic_pattern = re.compile(
             r'[Ll]ocation\s+[Cc]ode|Available\s+Network|[Mm][Aa][Cc]\s+[Aa]ddress',
@@ -475,15 +487,15 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
 
         # Each line: "<idx>: <iface>: <flags> ... link/ether <mac> ..."
         iface_re = re.compile(r'^\d+:\s+([\w@.-]+):')
-        mac_re   = re.compile(
+        mac_re = re.compile(
             r'link/ether\s+([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})')
 
         for line in lines:
             iface_match = iface_re.match(line)
-            mac_match   = mac_re.search(line)
+            mac_match = mac_re.search(line)
             if iface_match and mac_match:
                 iface = iface_match.group(1).split('@')[0]
-                mac   = mac_match.group(1).lower()
+                mac = mac_match.group(1).lower()
                 mac_map[mac] = iface
 
         return mac_map
@@ -577,7 +589,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
           3. Navigate to "Available Network Ports":
              - Try Main -> 2 (Setup Remote IPL); if adapter listing is already
                visible there, use it.
-             - Otherwise: Main -> 3 (I/O Device Information) -> 6 (Network ports).
+             - Otherwise: Main -> 3 (I/O Device Information)
+               -> 6 (Network ports).
           4. Verify adapter location code and MAC address.
           5. Deactivate console, reboot LPAR into OS, wait for Running state,
              then match SMS MAC addresses to OS network interfaces.
@@ -648,7 +661,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
         # same physical adapter are included regardless of which form was
         # supplied.  The MAC is extracted per-line so no cross-row bleed
         # can occur.
-        port_mac_map = self._extract_port_macs(screen_output, self.network_loc_code)
+        port_mac_map = self._extract_port_macs(
+            screen_output, self.network_loc_code)
 
         if not port_mac_map:
             self.fail(
@@ -669,8 +683,9 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
             log.info("SMS port '%s'  MAC: %s", port_loc, mac)
 
         valid_macs = list(valid_port_mac_map.values())
-        log.info("PASS: adapter '%s' visible in SMS with %d valid port MAC(s): %s",
-                 self.network_loc_code, len(valid_macs), valid_macs)
+        log.info(
+            "PASS: adapter '%s' visible in SMS with %d valid port MAC(s): %s",
+            self.network_loc_code, len(valid_macs), valid_macs)
 
         self._sms_valid_macs = valid_macs
 
@@ -706,7 +721,8 @@ class OpTestSMSNetworkAdapter(unittest.TestCase):
             self.cv_HMC.restart_lpar()
             log.info("tearDown: LPAR is Running")
         except Exception as e:
-            log.warning("tearDown: restart failed (%s); falling back to shutdown", e)
+            log.warning(
+                "tearDown: restart failed (%s); falling back to shutdown", e)
             try:
                 self._shutdown_lpar()
             except Exception as e2:
