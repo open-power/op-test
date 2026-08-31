@@ -462,6 +462,8 @@ class OptestKernelDump(unittest.TestCase):
             set(crash_content_after) - set(self.crash_content))
         if self.distro == "sles":
             self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}-\d{2}', x), self.crash_content))
+        elif self.distro == "ubuntu":
+            self.crash_content = list(filter(lambda x: re.search('\d{12}', x), self.crash_content))
         else:
             self.crash_content = list(filter(lambda x: re.search('\d{4}-\d{2}-\d{2}-\d{2}:\d{2}', x), self.crash_content))
         if not self.crash_content:
@@ -1165,7 +1167,7 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
         if not self.is_fadump_enabled():
             raise self.skipTest("fadump is disabled")
         if self.distro == "ubuntu":
-            self.cv_HOST.host_check_command("kdump")
+            self.cv_HOST.host_check_command("kdump-config")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
         elif self.distro == "sles":
@@ -1227,7 +1229,10 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
                 self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
         if self.distro == "ubuntu":
-            self.cv_HOST.host_check_command("kdump")
+            self.cv_HOST.host_check_command("kdump-config")
+            self.c.run_command("sed -i 's/USE_KDUMP=0/USE_KDUMP=1/' /etc/default/kdump-tools")
+            self.c.run_command("kdump-config unload", timeout=60)
+            self.c.run_command("kdump-config load", timeout=60)
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
             try:
@@ -1283,7 +1288,7 @@ class KernelCrash_DisableAll(OptestKernelDump):
             raise self.skipTest(
                 "fadump=on added in kernel param, please remove and re-try")
         if self.distro == "ubuntu":
-            self.cv_HOST.host_check_command("kdump")
+            self.cv_HOST.host_check_command("kdump-config")
         elif self.distro == "rhel":
             self.cv_HOST.host_check_command("kdumpctl")
         elif self.distro == "sles":
