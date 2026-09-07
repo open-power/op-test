@@ -361,11 +361,11 @@ class OpTestSystem(object):
         # if user overrides from command line and machine not at desired state can lead to exceptions
         self.block_setup_term = 1  # block in case the system is not on/up
         self.target_state = state  # used in WaitForIt
-        if (isinstance(self.console, OpTestQemu.QemuConsole)
-                or isinstance(self.console, OpTestMambo.MamboConsole)) \
-                and (state == OpSystemState.OS):
+        if isinstance(self.console, OpTestQemu.QemuConsole) and state == OpSystemState.OS:
             raise unittest.SkipTest(
-                "OpTestSystem running QEMU/Mambo so skipping OpSystemState.OS test")
+                "OpTestSystem running QEMU so skipping OpSystemState.OS test")
+        if isinstance(self.console, OpTestMambo.MamboConsole) and state == OpSystemState.OS:
+            self.state = OpSystemState.OS
         if isinstance(self.console, OpTestHMC.HMCConsole) \
                 and state in [OpSystemState.IPLing, OpSystemState.PETITBOOT, OpSystemState.PETITBOOT_SHELL]:
             raise unittest.SkipTest(
