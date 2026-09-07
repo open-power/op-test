@@ -438,6 +438,10 @@ def get_parser():
     hmcgroup.add_argument("--hmc-ip", help="HMC address")
     hmcgroup.add_argument("--hmc-username", help="SSH username for HMC")
     hmcgroup.add_argument("--hmc-password", help="SSH password for HMC")
+    hmcgroup.add_argument("--hmc-root-password",
+                          help="Root (su) password on the HMC, required for "
+                               "privileged commands such as resource-group "
+                               "management", default=None)
     hmcgroup.add_argument(
         "--system-name", help="Managed system/server name in HMC", default=None)
     hmcgroup.add_argument(
@@ -876,14 +880,19 @@ class OpTestConfiguration():
                                     lpar_prof=self.args.lpar_prof,
                                     lpar_user=self.args.host_user,
                                     lpar_password=self.args.host_password,
-                                    logfile=self.logfile
+                                    logfile=self.logfile,
+                                    root_password=self.args.hmc_root_password,
                                     )
                 else:
                     raise Exception(
                         "HMC IP, username and password is required")
-                # For FSP_PHYP, use HMC directly as BMC to avoid FSP operations
-                # HMC now has get_ipmi(), get_hmc(), bmc_host() methods
-                bmc = hmc
+                bmc = OpTestFSP(self.args.bmc_ip,
+                                self.args.bmc_username,
+                                self.args.bmc_password,
+                                hmc=hmc,
+                                prompt=self.args.fsp_prompt if hasattr(
+                                    self.args, 'fsp_prompt') else "$",
+                                )
                 self.op_system = common.OpTestSystem.OpTestLPARSystem(
                     state=self.startState,
                     bmc=bmc,
@@ -941,7 +950,8 @@ class OpTestConfiguration():
                                     lpar_prof=self.args.lpar_prof,
                                     lpar_user=self.args.host_user,
                                     lpar_password=self.args.host_password,
-                                    logfile=self.logfile
+                                    logfile=self.logfile,
+                                    root_password=self.args.hmc_root_password,
                                     )
                 rest_api = EBMCHostManagement(conf=self,
                                               ip=self.args.bmc_ip,
