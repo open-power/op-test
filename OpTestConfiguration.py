@@ -463,6 +463,21 @@ def get_parser():
     misc_group.add_argument("--bisect-flag",
                             help="Specify if bisection is to be done or not")
 
+    kernelupgrade_group = parser.add_argument_group(
+        "Kernel Upgrade",
+        "Options for virtual (ibmveth/ibmvnic) kernel upgrade tests")
+    kernelupgrade_group.add_argument(
+        "--target-kernel-version",
+        help="Full kernel version string to install, "
+             "e.g. 5.14.0-427.31.1.el9_4.ppc64le",
+        default=None)
+    kernelupgrade_group.add_argument(
+        "--kernel-install-timeout",
+        help="Seconds to allow for the kernel package install command "
+             "(default: 600)",
+        type=int,
+        default=600)
+
     vpmem_group = parser.add_argument_group("VPMEM", "VPMEM/NVDIMM test configuration")
     vpmem_group.add_argument("--vpmem-device",
                             help="Path to vpmem device (default: /dev/pmem0)",
