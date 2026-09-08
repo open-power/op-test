@@ -3153,3 +3153,47 @@ class Server(object):
 
     def close(self):
         self.session.close()
+
+
+def is_valid_mac(mac):
+    '''
+    Return True if *mac* is a valid unicast, non-zero MAC address.
+
+    A MAC address is considered invalid if:
+      - It does not have exactly 6 colon-separated octets.
+      - All octets are zero ("00:00:00:00:00:00").
+      - The multicast bit (LSB of the first octet) is set.
+
+    :param mac: string, colon-separated MAC address (e.g. "00:11:22:33:44:55")
+    :returns: bool
+    '''
+    parts = mac.split(':')
+    if len(parts) != 6:
+        return False
+    if all(p == '00' for p in parts):
+        return False
+    if int(parts[0], 16) & 0x01:
+        return False
+    return True
+
+
+def collect_pexpect_screen(pty, timeout=30):
+    '''
+    Read from a pexpect pty until the console goes quiet for *timeout* seconds,
+    then return the accumulated text as a string.
+
+    Useful for capturing raw screen output from interactive menus (e.g. SMS,
+    Petitboot) where there is no fixed prompt to match.
+
+    :param pty: pexpect spawn object
+    :param timeout: int, seconds of silence that signal end-of-output
+    :returns: string containing all captured text
+    '''
+    output = ''
+    while True:
+        try:
+            pty.expect(r'.+', timeout=timeout)
+            output += (pty.before or '') + (pty.after or '')
+        except pexpect.TIMEOUT:
+            break
+    return output

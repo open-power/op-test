@@ -132,7 +132,7 @@ class OpTestHtxBootmeIO():
         elif self.host_distro_name == "Ubuntu":
             packages.extend(['libncurses5', 'g++', 'ncurses-dev',
                              'libncurses-dev', 'tar', 'wget'])
-        elif self.host_distro_name == 'SuSE':
+        elif self.host_distro_name == 'sles':
             packages.extend(['libncurses6', 'gcc-c++',
                             'ncurses-devel', 'tar', 'wget'])
         else:
@@ -170,7 +170,6 @@ class OpTestHtxBootmeIO():
         self.htx_bootme_test()
         self.stop_htx_bootme()
         self.htx_stop()
-        self.teardown()
 
     def start_htx_run(self):
         """
@@ -197,58 +196,134 @@ class OpTestHtxBootmeIO():
         Starting bootme on htx.
         """
         log.debug("Running bootme command on htx")
-        self.con.run_command('htxcmdline -bootme on')
+        # htxcmdline -bootme on exits with code 81 when bootme is already on
+        # (normal informational exit) — use run_command_ignore_fail so the
+        # non-zero exit does not raise CommandFailed.
+        res = self.con.run_command_ignore_fail('htxcmdline -bootme on')
+        output = "\n".join(res)
+        if "bootme on is completed successfully" not in output and \
+                "bootme is already on" not in output:
+            self.fail("Failed to enable htx bootme: %s" % output)
+        log.info("HTX bootme is on")
 
-        total_wait_time = 1800
-        for i in itertools.count():
-            if not self.is_system_online():
-                break
+        # HTX bootme reboots the LPAR after its configured interval (~30 min).
+        # Wait for that interval before polling for the host going offline —
+        # polling immediately would hammer pings for up to 30 minutes.
+        bootme_interval = 1810   # seconds — HTX default bootme interval + 10s buffer
+        # Allow a 5-minute grace window beyond the interval for the reboot
+        # to actually start and the host to drop off the network.
+        offline_grace = 300
 
         for i in range(self.boot_count):
+            log.info("Bootme cycle %d/%d: sleeping %ds for bootme interval",
+                     i + 1, self.boot_count, bootme_interval)
+            time.sleep(bootme_interval)
+
+            # --- Poll until host goes offline (reboot started) ---
+            log.info("Bootme cycle %d: waiting for host to go offline",
+                     i + 1)
             start_time = time.time()
-            if not self.wait_for_reboot_completion(self.cv_HOST.ip):
-                log.debug("Failed to confirm system reboot within the timeout period. Check the system manually.")
+            went_offline = False
+            while time.time() - start_time < offline_grace:
+                if not self.is_system_online():
+                    went_offline = True
+                    log.info("Host went offline — reboot in progress "
+                             "(cycle %d)", i + 1)
+                    break
+                time.sleep(10)
+
+            if not went_offline:
+                log.debug("Host did not go offline within %ds after the "
+                          "bootme interval for cycle %d. "
+                          "Check the system manually.",
+                          offline_grace, i + 1)
                 break
+
+            # --- Wait for host to come back online ---
+            if not self.wait_for_reboot_completion(self.cv_HOST.ip):
+                log.debug("Host did not come back online within the timeout "
+                          "for cycle %d. Check the system manually.", i + 1)
+                break
+
             time.sleep(15)
             self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
             time.sleep(10)
+
+            # --- Wait for HTX to resume the MDT on host ---
+            cmd = 'htxcmdline -query  -mdt %s' % self.mdt_file
             for j in range(5):
-                cmd = 'htxcmdline -query  -mdt %s' % self.mdt_file
                 res = self.con.run_command_ignore_fail(cmd, timeout=60)
-                if ("/usr/lpp/htx/mdt/") in res[2]:
+                if any("/usr/lpp/htx/mdt/" in line for line in res):
                     break
-                else:
-                    time.sleep(10)
-                    log.debug("Mdt start is still in progress")
+                time.sleep(10)
+                log.debug("Mdt start is still in progress")
             self.con.run_command(cmd)
-            htxerr_file = self.con.run_command('wc -c {}'.format("/tmp/htx/htxerr"))
+
+            # --- Check error log on host ---
+            htxerr_file = self.con.run_command(
+                'wc -c {}'.format("/tmp/htx/htxerr"))
             if int(htxerr_file[0].split()[0]) != 0:
                 self.fail("check error logs for exact error and failure")
-            log.info("Reboot cycle %s completed successfully" % (i+1))
-            reboot_time = time.time() - start_time
-            remaining_wait_time = total_wait_time - reboot_time
-            if remaining_wait_time > 0 and i < (self.boot_count-1):
-                log.info("Waiting for next reboot cycle")
-                time.sleep(remaining_wait_time)
+
+            # --- NIC-specific: verify peer HTX and network after reboot ---
+            if self.current_test_case == "HtxBootme_NicDevices":
+                # Reconnect SSH to peer in case the connection timed out
+                # during the host reboot window.
+                self.ssh = OpTestSSH(self.peer_ip, self.peer_user,
+                                     self.peer_password)
+                self.ssh.set_system(self.conf.system())
+
+                # Peer HTX should still be running (peer did not reboot).
+                # Verify net.mdt is active on the peer.
+                log.info("Cycle %d: verifying HTX still running on peer",
+                         i + 1)
+                peer_res = self.ssh.run_command_ignore_fail(
+                    cmd, timeout=60)
+                if not any("/usr/lpp/htx/mdt/" in line
+                           for line in peer_res):
+                    self.fail("HTX net.mdt not running on peer after "
+                              "host reboot (cycle %d)" % (i + 1))
+
+                # Verify the HTX 74.x network is still up on both sides.
+                log.info("Cycle %d: verifying pingum on host and peer",
+                         i + 1)
+                host_pingum = self.con.run_command('pingum')
+                if not any("All networks ping Ok" in line
+                           for line in host_pingum):
+                    self.fail("pingum on host failed after reboot "
+                              "(cycle %d)\npingum output:\n%s"
+                              % (i + 1, "\n".join(host_pingum)))
+                log.info("Cycle %d: pingum on host OK", i + 1)
+
+                peer_pingum = self.ssh.run_command('pingum')
+                if not any("All networks ping Ok" in line
+                           for line in peer_pingum):
+                    self.fail("pingum on peer failed after reboot "
+                              "(cycle %d)\npingum output:\n%s"
+                              % (i + 1, "\n".join(peer_pingum)))
+                log.info("Cycle %d: pingum on peer OK", i + 1)
+
+            log.info("Reboot cycle %d completed successfully", i + 1)
+
         log.info("Htx Bootme test is completed")
 
     def is_system_online(self):
         """
         This function pings to the host ip and checks system's availability.
-        
+
         :return: True if the system is pinging.
                  False if system is not pinging.
         """
-        cmd = ["ping", "-c 2", self.cv_HOST.ip]
+        cmd = ["ping", "-c", "2", self.cv_HOST.ip]
         i_try = 3
-        while(i_try != 0):
+        while i_try != 0:
             ping = subprocess.Popen(cmd,
                                     stdin=subprocess.PIPE,
                                     stdout=subprocess.PIPE,
                                     universal_newlines=True,
                                     encoding='utf-8')
             stdout_value, stderr_value = ping.communicate()
-            if(stdout_value.__contains__("2 received")):
+            if "2 received" in stdout_value:
                 return True
             else:
                 time.sleep(2)
@@ -271,12 +346,22 @@ class OpTestHtxBootmeIO():
 
     def stop_htx_bootme(self):
         """
-        Stopping the htx bootme
+        Stopping the htx bootme.
+
+        htxcmdline -bootme off exits with non-zero codes for informational
+        states that are not failures:
+          83 — flag file already absent (bootme already off after reboot)
+          81 — bootme is already off
+        Use run_command_ignore_fail and validate the output instead.
         """
-        res = self.con.run_command('htxcmdline -bootme off')
-        if "bootme off is completed successfully" not in res[4]:
-            if "bootme is already off" not in res[4]:
-                self.fail("Fail to off htx bootme")
+        res = self.con.run_command_ignore_fail('htxcmdline -bootme off')
+        output = "\n".join(res)
+        if ("bootme off is completed successfully" in output or
+                "bootme is already off" in output or
+                "flag file" in output and "missing" in output):
+            log.info("HTX bootme is off")
+            return
+        self.fail("Failed to disable htx bootme: %s" % output)
 
     def htx_stop(self):
         """
@@ -302,7 +387,7 @@ class OpTestHtxBootmeIO():
             self.ip_restore_host()
             self.ip_restore_peer()
 
-    def teardown(self):
+    def tearDown(self):
         """
         close the session to the console
         """
@@ -473,15 +558,14 @@ class HtxBootme_NicDevices(OpTestHtxBootmeIO, unittest.TestCase):
         self.peer_password = self.conf.args.peer_password
         devices = self.conf.args.htx_host_interfaces
         if devices:
-            interfaces = self.ssh_host.run_command('ls /sys/class/net')
-        if interfaces:
-            interfaces = interfaces[0].split()
-        for device in devices.split(" "):
-            if device in interfaces:
-                self.host_intfs.append(device)
-            else:
-                self.fail("Please check the network device")
-        self.peer_intfs = self.conf.args.peer_interfaces.split(" ")
+            raw = self.ssh_host.run_command('ls /sys/class/net')
+            interfaces = [intf for line in raw for intf in line.split()]
+            for device in devices.split():
+                if device in interfaces:
+                    self.host_intfs.append(device)
+                else:
+                    self.fail("Please check the network device: %s" % device)
+        self.peer_intfs = self.conf.args.peer_interfaces.split()
         self.mdt_file = self.conf.args.mdt_file
         self.query_cmd = "htxcmdline -query -mdt %s" % self.mdt_file
 
@@ -500,12 +584,12 @@ class HtxBootme_NicDevices(OpTestHtxBootmeIO, unittest.TestCase):
         """
         Get the distro name that is installed on peer lpar
         """
-        res = self.ssh.run_command("cat /etc/os-release")
-        if "Ubuntu" in res[0] or "Ubuntu" in res[1]:
+        res = "\n".join(self.ssh.run_command("cat /etc/os-release"))
+        if "Ubuntu" in res:
             self.peer_distro = "ubuntu"
-        elif 'Red Hat' in res[0] or 'Red Hat' in res[1]:
+        elif 'Red Hat' in res:
             self.peer_distro = "rhel"
-        elif 'SLES' in res[0] or 'SLES' in res[1]:
+        elif 'SLES' in res:
             self.peer_distro = "sles"
         else:
             self.peer_distro = "unknown"
@@ -519,94 +603,55 @@ class HtxBootme_NicDevices(OpTestHtxBootmeIO, unittest.TestCase):
             if 'VERSION_ID' in line:
                 self.peer_distro_version = line.split('=')[1].strip('"').split('.')[0]
 
-    def update_host_peer_names(self):
-        """
-        Update hostname & IP of both Host & Peer in /etc/hosts on both machines.
-        """
-
-        res = self.ssh_host.run_command("nslookup %s" % self.host_ip)
-        self.host_name = re.search(r'name = (.+)\.', res[0]).group(1)
-        res = self.ssh.run_command("nslookup %s" % self.peer_ip)
-        self.peer_name = re.search(r'name = (.+)\.', res[0]).group(1)
-
-        self.hosts_file = "/etc/hosts"
-
-        log.info("Updating hostname of both Host & Peer in %s file", self.hosts_file)
-
-        self.delete_unwanted_entries()
-
-        # Update for Host
-        existing_entries_host = set(self.ssh_host.run_command(f"cat {self.hosts_file}"))
-        for ip, name in [(self.host_ip, self.host_name)]:
-            line = f"{ip} {name}"
-            if line not in existing_entries_host:
-                log.info("Adding missing entry on Host: %s", line)
-                self.ssh_host.run_command(f'echo "{line}" | sudo tee -a {self.hosts_file}')
-            else:
-                log.info("Entry exists on Host: %s", line)
-        
-        # Update for Peer
-        existing_entries_peer = set(self.ssh.run_command(f"cat {self.hosts_file}"))
-        for ip, name in [(self.peer_ip, self.peer_name)]:
-            line = f"{ip} {name}"
-            if line not in existing_entries_peer:
-                log.info("Adding missing entry on Peer: %s", line)
-                self.ssh.run_command(f'echo "{line}" | sudo tee -a {self.hosts_file}')
-            else:
-                log.info("Entry exists on Peer: %s", line)
-
-    def delete_unwanted_entries(self):
-        """
-        Deletes entries from /etc/hosts that match 'netXX.XX' pattern based on host and peer IPs.
-        """
-        host_last_two = ".".join(self.host_ip.split(".")[-2:])
-        peer_last_two = ".".join(self.peer_ip.split(".")[-2:])
-
-        pattern_host = rf"net{host_last_two}"
-        pattern_peer = rf"net{peer_last_two}"
-
-        sed_command = f"sudo sed -i.bak -E '/{pattern_host}/d; /{pattern_peer}/d' {self.hosts_file}"
-
-        # Run on host
-        log.debug("Running on Host : %s" % sed_command)
-        self.ssh_host.run_command(sed_command)
-
-        # Run on peer
-        log.debug("Running on Peer : %s" % sed_command)
-        self.ssh.run_command(sed_command)
-
-        log.info("Deletion complete.")
-
     def htx_configure_net(self):
         """
-        The function is to setup network topology for htx run
-        on both host and peer.
-        The build_net multisystem <hostname/IP> command
-        configures the netwrok interfaces on both host and peer Lpars with
-        some random net_ids and check pingum and also
-        starts the htx deamon for net.mdt
-        There is no need to explicitly start the htx deamon, create/select
-        and activate for net.mdt
+        Configure network topology for the HTX NIC run on host and peer.
+
+        Runs ``build_net multisystem <peer_ip>`` (up to 3 attempts) then
+        verifies connectivity by running ``pingum`` on both host and peer.
+
+        ``pingum`` names its test networks after the peer IP octets
+        (e.g. "101net35.61"), not after the interface name — so the only
+        reliable pass signal is "All networks ping Ok" appearing in the
+        output.  Both host and peer must report this before net.mdt starts.
         """
         log.debug("Setting up the Network configuration on Host and Peer")
 
-        cmd = "build_net multisystem %s" % self.peer_ip
-
-        # try up to 3 times if the command fails to set the network interfaces
         for i in range(3):
-            output = self.con.run_command(cmd, timeout=900)
-            if "All networks ping Ok" in output:
-                log.debug("Htx configuration was successful on host and peer")
+            output = self.con.run_command(
+                "build_net multisystem %s" % self.peer_ip, timeout=900)
+            if any("All networks ping Ok" in line for line in output):
+                log.debug("build_net reported all networks ping Ok "
+                          "(attempt %d)", i + 1)
                 break
-        output = self.con.run_command('pingum')
-        if "All networks ping Ok" not in output:
-            self.fail("Failed to set htx configuration on host and peer")
+            log.debug("build_net attempt %d did not report all Ok, "
+                      "retrying", i + 1)
+
+        # --- pingum on host ---
+        log.debug("Running pingum on host")
+        host_pingum = self.con.run_command('pingum')
+        if not any("All networks ping Ok" in line for line in host_pingum):
+            self.fail("pingum on host did not report 'All networks ping Ok'\n"
+                      "pingum output:\n%s" % "\n".join(host_pingum))
+        log.info("pingum on host: All networks ping Ok")
+
+        # --- pingum on peer ---
+        log.debug("Running pingum on peer")
+        peer_pingum = self.ssh.run_command('pingum')
+        if not any("All networks ping Ok" in line for line in peer_pingum):
+            self.fail("pingum on peer did not report 'All networks ping Ok'\n"
+                      "pingum output:\n%s" % "\n".join(peer_pingum))
+        log.info("pingum on peer: All networks ping Ok")
+
+        log.info("HTX network configuration verified on host and peer — "
+                 "host interfaces: %s  peer interfaces: %s",
+                 self.host_intfs, self.peer_intfs)
 
     def start_htx_run(self):
         super(HtxBootme_NicDevices, self).start_htx_run()
 
-        self.update_host_peer_names()
         self.htx_configure_net()
+
         log.debug("Running the HTX for %s on Host", self.mdt_file)
         cmd = "htxcmdline -run -mdt %s" % self.mdt_file
         self.con.run_command(cmd)
@@ -614,12 +659,43 @@ class HtxBootme_NicDevices(OpTestHtxBootmeIO, unittest.TestCase):
         log.debug("Running the HTX for %s on Peer", self.mdt_file)
         self.ssh.run_command(cmd)
 
+    def htx_check(self):
+        """
+        Check HTX error logs and query active status for the declared
+        host and peer test interfaces.
+        """
+        log.debug("Checking HTX error logs on host")
+        file_size = self.ssh_host.run_command(
+            'wc -c {}'.format("/tmp/htx/htxerr"))
+        if int(file_size[0].split()[0]) != 0:
+            self.fail("HTX errors on host: check /tmp/htx/htxerr")
+
+        # Query HTX status for each declared host interface
+        log.debug("Querying HTX status for host interfaces: %s",
+                  self.host_intfs)
+        for intf in self.host_intfs:
+            cmd = "htxcmdline -query %s -mdt %s" % (intf, self.mdt_file)
+            res = self.con.run_command(cmd)
+            log.info("HTX status on host for %s: %s", intf,
+                     " ".join(res).strip())
+
+        # Query HTX status for each declared peer interface on the peer
+        log.debug("Querying HTX status for peer interfaces: %s",
+                  self.peer_intfs)
+        for intf in self.peer_intfs:
+            cmd = "htxcmdline -query %s -mdt %s" % (intf, self.mdt_file)
+            res = self.ssh.run_command(cmd)
+            log.info("HTX status on peer for %s: %s", intf,
+                     " ".join(res).strip())
+
+        time.sleep(60)
+
     def install_latest_htx_rpm(self):
         super(HtxBootme_NicDevices, self).install_latest_htx_rpm()
 
         if self.host_distro_name == "SuSE":
             self.host_distro_name = "sles"
-        elif self.peer_distro == "SuSE":
+        if self.peer_distro == "SuSE":
             self.peer_distro = "sles"
         host_distro_pattern = "%s%s" % (
                                         self.host_distro_name,
@@ -629,10 +705,18 @@ class HtxBootme_NicDevices(OpTestHtxBootmeIO, unittest.TestCase):
                                         self.peer_distro_version)
         patterns = [host_distro_pattern, peer_distro_pattern]
         for pattern in patterns:
-            temp_string = subprocess.run(
-                          "curl --silent %s" % (self.htx_rpm_link),
-                          shell=True, stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE, timeout=30)
+            try:
+                temp_string = subprocess.run(
+                              "curl --silent %s" % (self.htx_rpm_link),
+                              shell=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, timeout=30)
+                temp_string = temp_string.stdout.decode('utf-8')
+            except subprocess.TimeoutExpired:
+                print("Command timed out")
+                continue
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                continue
             matching_htx_versions = re.findall(
                 r"(?<=\>)htx\w*[-]\d*[-]\w*[.]\w*[.]\w*", str(temp_string))
             distro_specific_htx_versions = [htx_rpm
@@ -647,24 +731,28 @@ class HtxBootme_NicDevices(OpTestHtxBootmeIO, unittest.TestCase):
                            self.latest_htx_rpm))
             cmd_install = ('rpm -ivh %s --force' % self.latest_htx_rpm)
             if host_distro_pattern == peer_distro_pattern:
-                if ("ERROR:" in self.con.run_command(cmd_wget, timeout=180) or 
-                    "error:" in self.con.run_command(cmd_install, timeout=180)):
+                if any("ERROR:" in l or "error:" in l
+                       for l in self.con.run_command(cmd_wget, timeout=180) +
+                                self.con.run_command(cmd_install, timeout=180)):
                     self.fail("Installion of rpm failed")
-                if ("ERROR:" in self.ssh.run_command(cmd_wget, timeout=180) or 
-                    "error:" in self.ssh.run_command(cmd_install, timeout=180)):
+                if any("ERROR:" in l or "error:" in l
+                       for l in self.ssh.run_command(cmd_wget, timeout=180) +
+                                self.ssh.run_command(cmd_install, timeout=180)):
                     self.fail("Unable to install the package %s %s"
                               " on peer machine" % (self.htx_rpm_link,
                                                     self.latest_htx_rpm))
                 break
 
             if pattern == host_distro_pattern:
-                if ("ERROR:" in self.con.run_command(cmd_wget, timeout=180) or 
-                    "error:" in self.con.run_command(cmd_install, timeout=180)):
+                if any("ERROR:" in l or "error:" in l
+                       for l in self.con.run_command(cmd_wget, timeout=180) +
+                                self.con.run_command(cmd_install, timeout=180)):
                     self.fail("Installion of rpm failed")
 
             if pattern == peer_distro_pattern:
-                if ("ERROR:" in self.ssh.run_command(cmd_wget, timeout=180) or 
-                    "error:" in self.ssh.run_command(cmd_install, timeout=180)):
+                if any("ERROR:" in l or "error:" in l
+                       for l in self.ssh.run_command(cmd_wget, timeout=180) +
+                                self.ssh.run_command(cmd_install, timeout=180)):
                     self.fail("Unable to install the package %s %s"
                               " on peer machine" % (self.htx_rpm_link,
                                                     self.latest_htx_rpm))

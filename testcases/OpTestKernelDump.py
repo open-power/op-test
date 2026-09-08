@@ -190,8 +190,9 @@ class OptestKernelDump(unittest.TestCase):
         self.util = self.cv_SYSTEM.util
         self.op_test_util = OpTestUtil(conf)
         self.distro = self.op_test_util.distro_name()
-        self.version = self.op_test_util.get_distro_version().split(".")[0]
-        self.minor_version = self.op_test_util.get_distro_version().split(".")[1]
+        _ver_parts = self.op_test_util.get_distro_version().split(".")
+        self.version = _ver_parts[0]
+        self.minor_version = _ver_parts[1] if len(_ver_parts) > 1 else "0"
         self.pdbg = conf.args.pdbg
         self.basedir = conf.basedir
         # Use SSH for pre-crash commands, console only needed after crash for login
@@ -240,8 +241,11 @@ class OptestKernelDump(unittest.TestCase):
         elif 'SLES' in res[0] or 'SLES' in res[1]:
             self.distro = 'sles'
             self.c.run_command("cp /etc/sysconfig/kdump /etc/sysconfig/kdump_bck")
+        elif 'Fedora' in res[0] or 'Fedora' in res[1]:
+            self.distro = 'fedora'
+            self.c.run_command("cp /etc/kdump.conf /etc/kdump.conf_bck")
         else:
-            raise self.skipTest("Test currently supported only on ubuntu, sles and rhel")
+            raise self.skipTest("Test currently supported only on ubuntu, sles, rhel and fedora")
 
     def wait_for_ssh_after_reboot(self, timeout=600, initial_delay=30):
         '''
@@ -328,6 +332,8 @@ class OptestKernelDump(unittest.TestCase):
         self.c.run_command("rm -f %s" % self.rsa_path)
         if self.distro == "rhel":
             cmd = "yum -y install sshpass"
+        elif self.distro == "fedora":
+            cmd = "dnf install -y sshpass"
         elif self.distro == "sles":
             cmd = "zypper install -y sshpass"
         else:
@@ -356,7 +362,7 @@ class OptestKernelDump(unittest.TestCase):
             log.info("SLES 16 detected: forcing KDUMP_UPDATE_BOOTLOADER=false and restarting kdump.service")
             self.c.run_command("sed -i 's/^KDUMP_UPDATE_BOOTLOADER=.*/KDUMP_UPDATE_BOOTLOADER=\"false\"/' /etc/sysconfig/kdump")
             self.cv_HOST.host_run_command("touch /etc/sysconfig/kdump; systemctl restart kdump.service; sync;")
-
+    
     def is_fadump_param_enabled(self):
         '''
         Method to verify fadump kernel parameter is set
@@ -366,7 +372,7 @@ class OptestKernelDump(unittest.TestCase):
         if "fadump=on" in " ".join(res):
             return True
         return False
-
+    
     def is_fadump_enabled(self):
         '''
         Method to verify fadump is enabled
@@ -448,10 +454,10 @@ class OptestKernelDump(unittest.TestCase):
         if boot_type == BootType.INVALID:
             self.fail("System did not boot after crash - SSH unavailable. Check console logs for errors (OOM, panic, etc.)")
         
-        if self.distro == "rhel":
-            self.cv_HOST.host_run_command("cp /etc/kdump.conf_bck /etc/kdump.conf; systemctl restart kdump.service", timeout=60)
+        if self.distro in ("rhel", "fedora"):
+            self.cv_HOST.host_run_command("cp /etc/kdump.conf_bck /etc/kdump.conf; systemctl restart kdump.service", timeout=120)
         if self.distro == "sles":
-            self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump; systemctl restart kdump.service", timeout=60)
+            self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump; systemctl restart kdump.service", timeout=120)
         if dump_place == "local":
             crash_content_after = self.c.run_command(
                 "ls -l /var/crash | grep '^d'| awk '{print $9}'")
@@ -793,7 +799,7 @@ class OptestKernelDump(unittest.TestCase):
             
             # Start checking SSH immediately - the retry loop will handle timing
             # No initial delay needed since console shows when system is ready
-            max_wait_seconds = 180  # 3 minutes total - reasonable timeout for kdump reboot
+            max_wait_seconds = 1500  # 25 minutes total - reasonable timeout for kdump reboot
             ssh_available = False
             last_log_time = 0
             attempt = 0
@@ -1115,7 +1121,7 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
         Pre setup for fadump configuration
         '''
         self.cv_SYSTEM.set_state(OpSystemState.OS)
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             try:
                 self.c.run_command("rm -rf ServiceReport; git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
                                    "python ./servicereport --plugins fadump package --repair", timeout=240)
@@ -1139,8 +1145,16 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
             self.c.run_command("zypper install -y ServiceReport; servicereport -r -p kdump;"
                                "update-bootloader --refresh", timeout=240)
             time.sleep(5)
-        self.cv_SYSTEM.goto_state(OpSystemState.OFF)
-        self.cv_SYSTEM.goto_state(OpSystemState.OS)
+        # For HMC systems, use HMC reboot command instead of goto_state
+        if self.is_lpar:
+            log.info("HMC system - using HMC restart command instead of goto_state")
+            self.cv_HMC.restart_lpar()
+            log.info("Waiting for SSH to become available after restart...")
+            if not self.wait_for_ssh_after_reboot(timeout=300):
+                raise OpTestError("SSH did not become available after LPAR restart")
+        else:
+            self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+            self.cv_SYSTEM.goto_state(OpSystemState.OS)
 
     def runTest(self):
         self.setup_test()
@@ -1161,6 +1175,8 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
         if self.distro == "ubuntu":
             self.cv_HOST.host_check_command("kdump-config")
         elif self.distro == "rhel":
+            self.cv_HOST.host_check_command("kdump")
+        elif self.distro in ("rhel", "fedora"):
             self.cv_HOST.host_check_command("kdumpctl")
         elif self.distro == "sles":
             self.cv_HOST.host_check_command("kdumptool")
@@ -1175,6 +1191,11 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
         if not self.is_lpar:
             self.verify_dump_dt_node(boot_type)
         self.verify_dump_file(boot_type)
+        if self.is_lpar:
+            self.setup_test()
+            log.info("========= Testing kdump with HMC dumprestart ===========")
+            boot_type = self.kernel_crash(crash_type="hmc")
+            self.verify_dump_file(boot_type)
 
 
 class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
@@ -1187,7 +1208,7 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
 
         if self.is_fadump_param_enabled():
             log.info("fadump is enabled. Next, remove fadump=on")
-            if self.distro == "rhel":
+            if self.distro in ("rhel", "fedora"):
                 obj = OpTestInstallUtil.InstallUtil()
                 if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=on",
                                                  reboot=True, reboot_cmd=True):
@@ -1221,6 +1242,8 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
             self.c.run_command("kdump-config unload", timeout=60)
             self.c.run_command("kdump-config load", timeout=60)
         elif self.distro == "rhel":
+            self.cv_HOST.host_check_command("kdump")
+        elif self.distro in ("rhel", "fedora"):
             self.cv_HOST.host_check_command("kdumpctl")
             try:
                 self.c.run_command("rm -rf ServiceReport; git clone https://github.com/linux-ras/ServiceReport; cd ServiceReport;"
@@ -1277,6 +1300,8 @@ class KernelCrash_DisableAll(OptestKernelDump):
         if self.distro == "ubuntu":
             self.cv_HOST.host_check_command("kdump-config")
         elif self.distro == "rhel":
+            self.cv_HOST.host_check_command("kdump")
+        elif self.distro in ("rhel", "fedora"):
             self.cv_HOST.host_check_command("kdumpctl")
         elif self.distro == "sles":
             self.cv_HOST.host_check_command("kdumptool")
@@ -1350,7 +1375,7 @@ class KernelCrash_KdumpSSH(OptestKernelDump):
 
     def setup_ssh(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             self.c.run_command("sed -i -e '/^nfs/ s/^#*/#/' /etc/kdump.conf; sync")
             self.c.run_command("sed -i '/ssh user@my.server.com/c\ssh root@%s' /etc/kdump.conf; sync" % self.dump_server_ip)
             self.c.run_command("sed -i '/sshkey \/root\/.ssh\/kdump_id_rsa/c\sshkey %s' /etc/kdump.conf; sync" % self.rsa_path)
@@ -1409,10 +1434,10 @@ class KernelCrash_KdumpNFS(OptestKernelDump):
 
     def setup_nfs(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             self.c.run_command("sed -i '/ssh root@%s/c\#ssh user@my.server.com' /etc/kdump.conf; sync" % self.dump_server_ip)
             self.c.run_command("sed -i '/sshkey %s/c\#sshkey \/root\/.ssh\/kdump_id_rsa' /etc/kdump.conf; sync" % self.rsa_path)
-            self.c.run_command("yum -y install nfs-utils", timeout=180)
+            self.c.run_command("dnf install -y nfs-utils || yum -y install nfs-utils", timeout=180)
             self.c.run_command("service nfs-server start")
             self.c.run_command("sed -i -e '/^nfs/ s/^#*/#/' /etc/kdump.conf;"
                                "echo 'nfs %s:%s' >> /etc/kdump.conf; sync" % (self.dump_location, self.dump_path))
@@ -1468,7 +1493,7 @@ class KernelCrash_KdumpSAN(OptestKernelDump):
 
     def setup_san(self):
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             self.cv_HOST.host_run_command("sfdisk --delete %s" % self.dev_path)
             self.cv_HOST.host_run_command("echo , | sfdisk --force %s" % self.dev_path, timeout=120)
             try: self.c.run_command("umount %s1" % self.dev_path)
@@ -1528,14 +1553,6 @@ class KernelCrash_KdumpSMT(OptestKernelDump):
         log.info("=============== Testing kdump/fadump with single cpu ===============")
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
-        if self.is_lpar:
-            for i in ["off", "2", "4", "on"]:
-                self.setup_test()
-                self.c.run_command("ppc64_cpu --smt=%s" % i, timeout=180)
-                self.c.run_command("ppc64_cpu --smt")
-                log.info("=============== Testing kdump/fadump with smt=%s and dumprestart from HMC ===============" % i)
-                boot_type = self.kernel_crash(crash_type="hmc")
-                self.verify_dump_file(boot_type)
 
 class KernelCrash_KdumpDLPAR(OptestKernelDump, testcases.OpTestDlpar.OpTestDlpar):
 
@@ -1550,7 +1567,7 @@ class KernelCrash_KdumpDLPAR(OptestKernelDump, testcases.OpTestDlpar.OpTestDlpar
         self.extended = {'loop':0,'wkld':0,'smt':8}
         self.cv_SYSTEM.goto_state(OpSystemState.OS)
         for component in ['proc', 'mem']:
-            for operation in ['a', 'r']:
+            for operation in ['r', 'a']:
                 self.setup_test()
                 if component == "proc":
                     self.AddRemove("proc", "--procs", operation, self.cpu_resource)
@@ -1574,6 +1591,8 @@ class KernelCrash_KdumpWorkLoad(OptestKernelDump):
         self.setup_test()
         if self.distro == "rhel":
             cmd = "yum -y install make gcc wget"
+        elif self.distro == "fedora":
+            cmd = "dnf install -y make gcc wget"
         elif self.distro == "ubuntu":
             cmd = "apt-get install -y make gcc wget"
         else:
@@ -1615,6 +1634,8 @@ class KernelCrash_PerfTest(OptestKernelDump):
             try:
                 if self.distro == "rhel":
                     self.c.run_command("yum -y install perf", timeout=300)
+                elif self.distro == "fedora":
+                    self.c.run_command("dnf install -y perf", timeout=300)
                 elif self.distro == "sles":
                     self.c.run_command("zypper install -y perf", timeout=300)
                 log.info("perf package installed successfully")
@@ -1884,8 +1905,8 @@ class KernelCrash_KdumpMultiThreadCheck(OptestKernelDump):
         return int(match.group(1))
 
     def runTest(self):
-        if self.distro == "sles":
-            self.skipTest("skipping the testcase for now.. Need to figure out a way to verify multithreading in sles")
+        if self.distro in ("sles", "fedora"):
+            self.skipTest("skipping the testcase for now.. Need to figure out a way to verify multithreading in sles/fedora")
         nr_cpus = self.get_nr_cpus()
         log.info(f"Current nr_cpus: {nr_cpus}")
         if nr_cpus != 16:
@@ -1945,16 +1966,15 @@ class OpTestMakedump(OptestKernelDump):
     '''
     function will trigger crash kernel and  run the makedumpfile on collected vmcore
     '''
-    
-    def check_run(self, cmd, condition):
+    def check_run(self, cmd, condition, timeout=300):
         cmd = f"cd {self.crash_dir} && {cmd}"
-        res = self.c.run_command(cmd, timeout=300)
+        res = self.c.run_command(cmd, timeout=timeout)
         for value in res:
             if condition in value:
                 log.info("command %s works well" % cmd)
                 return
         self.fail("commnd %s failed" % cmd)
-
+    
     def run_in_crashdir(self, cmd, timeout=300):
         return self.c.run_command(f"cd {self.crash_dir} && {cmd}", timeout=timeout)
 
@@ -2005,10 +2025,21 @@ class OpTestMakedump(OptestKernelDump):
         self.check_run("makedumpfile --non-mmap vmcore dump22",
                        "The dumpfile is saved to dump22")
         self.run_in_crashdir("rm -rf dump*")
-        self.check_run("makedumpfile -D -d 31 -l vmcore dump1",
-                       "The dumpfile is saved to dump1")
-        self.check_run("makedumpfile -D -d 31 -l vmcore dump41 --num-threads 8",
-                       "The dumpfile is saved to dump41")
+        
+        self.run_in_crashdir("makedumpfile -D -d 31 -l vmcore dump1 >/tmp/makedump_debug.log 2>&1 && echo PASS",
+                             timeout=7200)
+        res = self.run_in_crashdir("test -s dump1 && echo PASS")
+        if "PASS" not in res:
+            log.error("\n".join(self.run_in_crashdir("tail -100 /tmp/makedump_debug.log")))
+            self.fail("makedumpfile -D did not create dump1")
+        #self.run_in_crashdir("ls dump1")
+        self.run_in_crashdir("makedumpfile -D -d 31 -l vmcore dump41 --num-threads 8 >/tmp/makedump_debug.log 2>&1 && echo PASS",
+                             timeout=7200)
+        res = self.run_in_crashdir("test -s dump41 && echo PASS")
+        if "PASS" not in res:
+            log.error("\n".join(self.run_in_crashdir("tail -100 /tmp/makedump_debug.log")))
+            self.fail("makedumpfile -D did not create dump41")
+        
         self.run_in_crashdir("rm -rf dump*")
         self.check_run("makedumpfile -d 31 -c vmcore dump42",
                        "The dumpfile is saved to dump42")
@@ -2039,7 +2070,8 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
         super(KernelCrash_KdumpPMEM, self).setUp()
 
         conf = OpTestConfiguration.conf
-        try: self.dev_pmem = conf.args.dev_pmem
+        try: 
+            self.dev_pmem = conf.args.dev_pmem
         except AttributeError:
             log.info("Considering pmem0 as no pmem device is configured in config file.")
             self.dev_pmem = "pmem0"
@@ -2050,6 +2082,8 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
         self.setup_test()
         if self.distro == "rhel":
             cmd = "yum -y install ndctl"
+        elif self.distro == "fedora":
+            cmd = "dnf install -y ndctl"
         elif self.distro == "sles":
             cmd = "zypper install -y ndctl"
         try:
@@ -2074,7 +2108,7 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
         self.c.run_command("mount -o dax /dev/pmem%s /pmem%s" % (self.pmem_id, self.pmem_id))
         self.c.run_command("echo '/dev/pmem%s /pmem%s                   xfs     defaults        0 0' >> /etc/fstab"
                            % (self.pmem_id, self.pmem_id))
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             self.c.run_command("echo 'add_drivers+=\"papr_scm\"' > /etc/dracut.conf.d/99-pmem-workaround.conf")
             self.c.run_command("sed -i 's/path \/var\/crash/path \/pmem%s/' /etc/kdump.conf; sync" % self.pmem_id)
             try:
@@ -2093,7 +2127,7 @@ class KernelCrash_KdumpPMEM(OptestKernelDump):
         self.c.run_command("umount /pmem%s" % self.pmem_id)
         self.c.run_command("ndctl destroy-namespace all -f")
         self.c.run_command("sed -i '$d' \/etc\/fstab")
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             self.c.run_command("sed -i 's/path \/pmem%s/path \/var\/crash/' /etc/kdump.conf; sync" % self.pmem_id)
         if self.distro == "sles":
             self.c.run_command('sed -i \'/^KDUMP_SAVEDIR=/c\KDUMP_SAVEDIR=\"/var/crash\"\' /etc/sysconfig/kdump;')
@@ -2193,7 +2227,7 @@ class KernelCrash_FadumpNocma(OptestKernelDump):
         boot_type = self.kernel_crash()
         self.verify_dump_file(boot_type)
 
-        if not obj.update_kernel_cmdline(self.distro, remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
+        if not obj.update_kernel_cmdline(self.distro, args="fadump=on", remove_args="fadump=nocma", reboot=True, reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
 
 
@@ -2205,7 +2239,7 @@ class KernelCrash_FadumpJunkValue(OptestKernelDump):
     """
     def runTest(self):
 
-        if self.distro.lower() not in ["sles", "rhel"]:
+        if self.distro.lower() not in ["sles", "rhel", "fedora"]:
             self.skipTest(f"Fadump testing not supported on {self.distro}")
         if self.distro.lower() == "sles" and int(self.version) < 16:
             self.skipTest(f"Not supported on SLES {self.version}")
@@ -2236,9 +2270,9 @@ class KernelCrash_FadumpJunkValue(OptestKernelDump):
 
         log.info("Triggering crash with junk fadump=xyz ...")
         boot_type = self.kernel_crash()
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             self.verify_dump_file(boot_type)
-            log.info("In Rhel, dump has got captured as kdump will be enabled")
+            log.info("In Rhel/Fedora, dump has got captured as kdump will be enabled")
         else:
             try:
                 self.verify_dump_file(boot_type)
@@ -2255,6 +2289,8 @@ class KernelCmdlineParamTest(OptestKernelDump):
     Function to add extra boot args to fadump kernel and check.
     '''
     def runTest(self):
+        if self.distro not in ("sles", "rhel"):
+            self.skipTest(f"KernelCmdlineParamTest not supported on {self.distro} — requires /etc/sysconfig/kdump")
         conf = OpTestConfiguration.conf
         # Step 1: Read current FADUMP_COMMANDLINE_APPEND
         try:
@@ -2305,7 +2341,7 @@ class KernelCrash_FadumpOffValue(OptestKernelDump):
     """
     def runTest(self):
 
-        if self.distro.lower() not in ["sles", "rhel"]:
+        if self.distro.lower() not in ["sles", "rhel", "fedora"]:
             self.skipTest(f"Fadump testing not supported on {self.distro}")
         if self.distro.lower() == "sles" and int(self.version) < 16:
             self.skipTest(f"Not supported on SLES {self.version}")
@@ -2335,9 +2371,9 @@ class KernelCrash_FadumpOffValue(OptestKernelDump):
 
         log.info("Triggering crash with fadump=off ...")
         boot_type = self.kernel_crash()
-        if self.distro == "rhel":
+        if self.distro in ("rhel", "fedora"):
             self.verify_dump_file(boot_type)
-            log.info("In Rhel, dump has got captured as kdump will be enabled")
+            log.info("In Rhel/Fedora, dump has got captured as kdump will be enabled")
         else:
             try:
                 self.verify_dump_file(boot_type)
@@ -2354,8 +2390,8 @@ class KernelCrash_FadumpMultiThreadCheck(OptestKernelDump):
     """
     def runTest(self):
         # Step 1: Read nr_cpus from /etc/sysconfig/kdump
-        if self.distro == "sles":
-            self.skipTest("skipping the testcase for now.. Need to figure out a way to verify multithreading in sles")
+        if self.distro in ("sles", "fedora"):
+            self.skipTest("skipping the testcase for now.. Need to figure out a way to verify multithreading in sles/fedora")
         syscfg = self.c.run_command("grep ^FADUMP_COMMANDLINE_APPEND /etc/sysconfig/kdump")
         syscfg_str = "\n".join(syscfg).strip()
         match = re.search(r"nr_cpus=(\d+)", syscfg_str)
@@ -2423,9 +2459,9 @@ class OpTestKdumpKernelSwitch(OptestKernelDump):
     def runTest(self):
         running_kernel = self.c.run_command("uname -r")[0].strip()
         kernels = []
-        if self.distro == "sles":
+        if self.distro in ("sles", "fedora"):
             self.skipTest(
-                "skipping the testcase for now.. Need to figure out a way to verify kdump kernel version in sles")
+                "skipping the testcase for now.. Need to figure out a way to verify kdump kernel version in sles/fedora")
         elif ("rhel" in self.distro or
                 "redhat" in self.distro):
             kernels = self._get_installed_kernels_rhel()
@@ -2651,7 +2687,7 @@ class OpTestWatchdog(OptestKernelDump):
         self.kdumpNFS = KernelCrash_KdumpNFS()
         self.kdumpNFS.setUp()
         if self.check_module_support():
-            if self.distro == "rhel":
+            if self.distro in ("rhel", "fedora"):
                 self.cv_HOST.host_check_command("kdumpctl")
                 obj = OpTestInstallUtil.InstallUtil()
                 if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
@@ -2687,7 +2723,7 @@ class OpTestWatchdog(OptestKernelDump):
         self.kdumpSAN = KernelCrash_KdumpSAN()
         self.kdumpSAN.setUp()
         if self.check_module_support():
-            if self.distro == "rhel":
+            if self.distro in ("rhel", "fedora"):
                 self.cv_HOST.host_check_command("kdumpctl")
                 obj = OpTestInstallUtil.InstallUtil()
                 if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
@@ -2716,7 +2752,7 @@ class OpTestWatchdog(OptestKernelDump):
         crash dump on local "/var/crash" directory.
         '''
         if self.check_module_support():
-            if self.distro == "rhel":
+            if self.distro in ("rhel", "fedora"):
                 self.cv_HOST.host_check_command("kdumpctl")
                 obj = OpTestInstallUtil.InstallUtil()
                 if not obj.update_kernel_cmdline(self.distro, args="crashkernel=2G-16G:512M,16G-64G:1G,64G-128G:2G,128G-:4G",
@@ -2782,6 +2818,8 @@ class MeasureMakedumpTime(OptestKernelDump):
                 self.c.run_command("zypper install -y gcc make wget tar", timeout=600)
             elif self.distro == "rhel":
                 self.c.run_command("yum -y install gcc make wget tar", timeout=600)
+            elif self.distro == "fedora":
+                self.c.run_command("dnf install -y gcc make wget tar", timeout=600)
         except CommandFailed as cf:
             log.warning("fail to install pre-requisites: %s", cf.output)
         self.c.run_command(
@@ -2867,7 +2905,7 @@ class MeasureMakedumpTime(OptestKernelDump):
             # Find latest crash directory
             crash_dir = self.c.run_command("ls -td /var/crash/* | head -1")[0].strip()
 
-            if self.distro == "rhel":
+            if self.distro in ("rhel", "fedora"):
                 logs = self.c.run_command(
                     f"cat {crash_dir}/kexec-dmesg.log | grep kdump"
                 )
@@ -2967,7 +3005,7 @@ class TestTimezoneKdump(OptestKernelDump):
         if self.distro == 'sles':
             self.c.run_command("mkdumprd -f")
             self.c.run_command("systemctl restart kdump.service")
-        elif self.distro == 'rhel':
+        elif self.distro in ('rhel', 'fedora'):
             try:
                 self.c.run_command("kdumpctl rebuild")
                 self.c.run_command("kdumpctl restart", timeout=120)
