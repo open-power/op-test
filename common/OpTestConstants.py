@@ -157,8 +157,6 @@ class OpTestConstants():
     ERROR_SELENIUM_HEADLESS = "Host doesn't have selenium installed"
     POWER_ACTIVATE_SUCCESS = "Power limit successfully activated"
     POWER_DEACTIVATE_SUCCESS = "Power limit successfully deactivated"
-    CHASSIS_POWER_ON = 'Chassis Power is on'
-    CHASSIS_POWER_OFF = 'Chassis Power is off'
     GARD_CLEAR_SUCCESSFUL = 'Clearing the entire gard partition...done'
     NO_GARD_RECORDS = 'No GARD entries to display'
     CMD_NOT_FOUND = 'command not found'
