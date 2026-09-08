@@ -253,6 +253,24 @@ class OpTestPrdDriver(unittest.TestCase):
             # TP.TPCHIP.PIB.PCBMS.COMP.INTR_COMP.HOST_MASK_REG
             self.IPOLL_MASK_REGISTER = "0xF0033"
             self.IPOLL_MASK_REGISTER_CONTENT = "a400000000000000"
+            L2_FAULT_ISOLATION_REGISTER = "0x10010800"
+            L2_FAULT_ISOLATION_MASK_REGISTER = "0x10010803"
+            L2FIR_CE_STUCKBIT_ERR = '0040000000000000'
+            L2FIR_RC_POWERBUS_TIMEOUT = '0008000000000000'
+            L2FIR_HARDWARE_CNTRL_ERR = '0002000000000000'
+            faults_to_inject = [
+                ErrorToInject("PRD: Test for L2FIR_CE_STUCKBIT_ERR-->L2 directory stuck bit CE repair",
+                               L2_FAULT_ISOLATION_REGISTER,
+                               L2_FAULT_ISOLATION_MASK_REGISTER,
+                               L2FIR_CE_STUCKBIT_ERR),
+                ErrorToInject("PRD: Test for L2FIR_RC_POWERBUS_TIMEOUT-->RC Powerbus data timeout",
+                               L2_FAULT_ISOLATION_REGISTER,
+                               L2_FAULT_ISOLATION_MASK_REGISTER,
+                               L2FIR_RC_POWERBUS_TIMEOUT),
+                ErrorToInject("PRD: Test for L2FIR_HARDWARE_CNTRL_ERR-->Hardware control error",
+                               L2_FAULT_ISOLATION_REGISTER,
+                               L2_FAULT_ISOLATION_MASK_REGISTER,
+                               L2FIR_HARDWARE_CNTRL_ERR)]
 
         try:
             l_con.run_command("opal-prd --debug --stdio")
