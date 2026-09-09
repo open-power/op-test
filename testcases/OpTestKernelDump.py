@@ -440,7 +440,7 @@ class OptestKernelDump(unittest.TestCase):
         if boot_type == BootType.MPIPL:
             self.c.run_command("lsprop %s/mpipl-boot" % BMC_CONST.OPAL_DUMP_NODE)
 
-    def verify_dump_file(self, boot_type=BootType.NORMAL, dump_place="local"):
+    def verify_dump_file(self, boot_type=BootType.NORMAL, dump_place="local", skip_cleanup=False):
         '''
         Verify if dump file present
         '''
@@ -498,7 +498,7 @@ class OptestKernelDump(unittest.TestCase):
                 self.c.run_command("ls /var/crash/%s/opalcore*" %
                                    self.crash_content[0])
         finally:
-            if self.dump_server_user == 'root':
+            if not skip_cleanup and self.dump_server_user == 'root':
                 log.info("Cleaning up crash directory /var/crash/%s" % self.crash_content[0])
                 self.c.run_command("rm -rf /var/crash/%s; sync" % self.crash_content[0])
 
@@ -3083,6 +3083,115 @@ class OpTestLowCrashkernelKdump(OptestKernelDump):
                                         reboot_cmd=True):
             self.fail("KernelArgTest failed to update kernel args")
 
+class KernelCrash_SupportReport(OptestKernelDump):
+    '''
+    Trigger a kernel crash and, after the system reboots, run the distro
+    support-report tool to verify it completes successfully.
+
+    - SLES : runs ``supportconfig`` and checks that a tarball is produced.
+    - RHEL : runs ``sos report`` (falling back to ``sosreport``) and checks
+             that the report archive is produced.
+
+    The report archive is removed after verification to reclaim disk space.
+    '''
+
+    def _run_support_report(self):
+        '''
+        Install (if necessary) and run the distro support-report tool.
+        Fails the test if no archive is produced.
+        '''
+        if self.distro == "sles":
+            log.info("Installing supportconfig if not already present...")
+            try:
+                self.c.run_command("which supportconfig", timeout=15)
+            except CommandFailed:
+                self.c.run_command(
+                    "zypper --non-interactive install -y supportutils",
+                    timeout=180)
+            log.info("Running supportconfig...")
+            output = []
+            try:
+                output = self.c.run_command(
+                    "echo '' | supportconfig", timeout=1800)
+            except CommandFailed as exc:
+                # supportconfig exits non-zero for warnings; treat as pass
+                log.warning("supportconfig returned non-zero: %s", exc)
+                output = exc.output if hasattr(exc, "output") else []
+            # Parse archive path from "Log file tar ball: <path>" in output
+            logfile = None
+            for line in output:
+                m = re.search(r"Log file tar ball:\s+(\S+)", line)
+                if m:
+                    logfile = m.group(1)
+                    break
+            if logfile is None:
+                self.fail("supportconfig did not generate a report archive")
+            log.info("supportconfig archive: %s", logfile)
+            self.c.run_command("rm -f %s" % logfile)
+
+
+        elif self.distro == "rhel":
+            log.info("Installing sos package if not already present...")
+            try:
+                self.c.run_command("which sos || which sosreport", timeout=15)
+            except CommandFailed:
+                self.c.run_command("yum -y install sos", timeout=300)
+
+            # Prefer the newer ``sos report`` sub-command; fall back to ``sosreport``.
+            # --batch          : skip the interactive "Press ENTER" prompt
+            # --tmp-dir        : write archive into our controlled directory
+            report_dir = "/var/log/sos-optest"
+            try:
+                self.c.run_command("sos report --help", timeout=15)
+                sos_cmd = "sos report --batch --tmp-dir %s" % report_dir
+            except CommandFailed:
+                sos_cmd = "sosreport --batch --tmp-dir %s" % report_dir
+
+            self.c.run_command("rm -rf %s; mkdir -p %s" % (report_dir, report_dir))
+            log.info("Running: %s", sos_cmd)
+            try:
+                self.c.run_command(sos_cmd, timeout=600)
+            except CommandFailed as exc:
+                # sos exits non-zero for plugin warnings; treat as pass
+                log.warning("sos report returned non-zero (may be warnings): %s", exc)
+
+            # Archive is named sosreport-<hostname>-<date>-<random>.tar.xz
+            archives = self.c.run_command(
+                "ls %s/sosreport-*.tar.xz 2>/dev/null || true" % report_dir)
+            archives = [a.strip() for a in archives if a.strip()]
+            if not archives:
+                self.fail("sos report did not produce an archive in %s" % report_dir)
+            log.info("sos report archive: %s", archives[0])
+            self.c.run_command("rm -rf %s" % report_dir)
+
+        else:
+            raise self.skipTest(
+                "KernelCrash_SupportReport: distro '%s' not supported "
+                "(requires sles or rhel)" % self.distro)
+
+    def runTest(self):
+        if self.distro not in ("sles", "rhel"):
+            raise self.skipTest(
+                "KernelCrash_SupportReport requires sles or rhel distro")
+
+        self.setup_test()
+        os_level = self.cv_HOST.host_get_OS_Level()
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+        self.cv_HOST.host_enable_kdump_service(os_level)
+
+        log.info("======= KernelCrash_SupportReport: triggering kernel crash =======")
+        boot_type = self.kernel_crash()
+        # Preserve vmcore on disk so the support-report tool can reference it;
+        # we clean up the crash directory ourselves after the report is done.
+        self.verify_dump_file(boot_type, skip_cleanup=True)
+
+        log.info("Kernel crash collected; running support-report tool...")
+        self._run_support_report()
+        log.info("PASS: support-report completed successfully after kernel crash")
+        log.info("Removing crash directory after support report...")
+        self.c.run_command(
+            "rm -rf /var/crash/%s; sync" % self.crash_content[0])
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestWatchdog())
@@ -3107,6 +3216,7 @@ def crash_suite():
     s.addTest(TestTimezoneKdump())
     s.addTest(OpTestLowCrashkernelKdump())
     s.addTest(OpTestKdumpKernelSwitch())
+    s.addTest(KernelCrash_SupportReport())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(OpTestFadumpCmaCheck())
     s.addTest(KernelCrash_KdumpSMT())
@@ -3136,4 +3246,5 @@ def crash_suite():
     s.addTest(TestTimezoneKdump())
     s.addTest(OpTestKdumpKernelSwitch())
     s.addTest(OpTestLowCrashkernelKdump())
+    s.addTest(KernelCrash_SupportReport())
     return s
