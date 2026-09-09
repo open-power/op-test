@@ -2609,7 +2609,7 @@ class OpTestWatchdog(OptestKernelDump):
         to the count as per user input
         '''
         conf = OpTestConfiguration.conf
-        self.count = conf.args.count or "10"
+        self.count = conf.args.count or "50"
         if self.check_module_support:
             for _ in range(int(self.count)):
                 try:
