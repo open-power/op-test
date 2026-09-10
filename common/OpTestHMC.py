@@ -631,6 +631,14 @@ class HMCUtil():
         self.run_command("mksyscfg -r prof -m %s -o save -p %s -n %s_bck --force" %
                          (self.mg_system, self.lpar_name, self.lpar_prof))
 
+    def profile_restore(self):
+        '''
+        Restores lpar profile from backup and boots with it
+        '''
+        self.poweroff_lpar()
+        self.lpar_prof = "%s_bck" % self.lpar_prof
+        self.poweron_lpar()
+
     def configure_lmb(self, lmb_size):
         '''
         Configures managed system with LMB size passed as argument
