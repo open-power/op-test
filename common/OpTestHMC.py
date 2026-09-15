@@ -765,6 +765,52 @@ class HMCUtil():
                 return 'Booting'
         return state
 
+    def get_current_lpar_name(self):
+        '''
+        Query the HMC for the current name of this LPAR.
+
+        :returns: string, the LPAR name as reported by ``lssyscfg``
+        '''
+        out = self.ssh.run_command(
+            'lssyscfg -r lpar -m %s --filter lpar_names=%s -F name'
+            % (self.mg_system, self.lpar_name))
+        return out[0].strip()
+
+    def rename_lpar(self, current_name, target_name):
+        '''
+        Rename an LPAR on the HMC and keep the in-memory ``lpar_name``
+        attributes of both this object and its console in sync.
+
+        :param current_name: string, the current LPAR name on the HMC
+        :param target_name:  string, the desired new LPAR name
+        '''
+        self.ssh.run_command(
+            'chsyscfg -r lpar -m %s -i "name=%s,new_name=%s"'
+            % (self.mg_system, current_name, target_name))
+        # Keep both HMCUtil and HMCConsole lpar_name in sync so that any
+        # future call that uses the LPAR name (e.g. rmvterm) still works.
+        self.lpar_name = target_name
+        if hasattr(self, 'console') and self.console is not None:
+            self.console.lpar_name = target_name
+
+    def reboot_lpar_and_wait(self, ssh_wait=30, ssh_retries=20):
+        '''
+        Reboot the LPAR via HMC and block until the OS is reachable over SSH.
+
+        Issues a hard shutdown + restart via ``chsysstate``, waits for the
+        HMC to report ``Running``, then polls SSH until it responds.
+
+        :param ssh_wait:    seconds to sleep before the first SSH probe
+        :param ssh_retries: number of SSH retry attempts before giving up
+        '''
+        log.info("Rebooting LPAR '%s' via HMC ...", self.lpar_name)
+        self.ssh.run_command(
+            'chsysstate -m %s -r lpar -n %s -o shutdown --immed --restart'
+            % (self.mg_system, self.lpar_name))
+        self.wait_lpar_state(OpHmcState.RUNNING)
+        time.sleep(ssh_wait)
+        log.info("SSH is up — OS is ready after reboot")
+
     def get_system_state(self):
         '''
         Get current state of managed system
