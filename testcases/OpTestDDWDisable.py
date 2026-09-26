@@ -6,7 +6,7 @@
 # Contributors Listed Below - COPYRIGHT 2026
 # [+] International Business Machines Corp.
 # Author: Pavaman Subramaniyam <pavsubra@linux.vnet.ibm.com>
-#
+#         Maram Srimannarayana Murthy <msmurthy@linux.vnet.ibm.com>
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -882,3 +882,466 @@ class OpTestDDWDisable(unittest.TestCase):
         for intf in self.peer_intfs:
             self.ssh.run_command("ip addr flush %s" % intf)
             self.ssh.run_command("ip link set dev %s up" % intf)
+
+
+class OpTestDDWDisable_BlockDevice(OpTestDDWDisable):
+    """
+    DDW validation with HTX block-device stress test.
+
+    Inherits all DDW cmdline manipulation, reboot, ping, and dmesg
+    verification helpers from ``OpTestDDWDisable`` (PR #1007, NIC variant).
+    Only the HTX execution layer and the setUp/tearDown are specific to
+    block devices.
+
+    Test flow
+    ---------
+    Step 1 — Verify DDW TCE page-size on the booted kernel:
+        Parse ``dmesg`` for the ``ibm,create-pe-dma-window`` firmware call.
+        The call must succeed (return code 0) and report the expected TCE
+        page-size token:
+          * ``15`` → 2 MB TCE  (expected from FW1030 onwards, P10+)
+          * ``10`` → 64 KB TCE (older firmware, also acceptable)
+
+    Step 2 — Disable DDW and run HTX block-device stress:
+        a. Add ``disable_ddw`` to the kernel command line (RHEL: ``grubby``;
+           SLES: ``/etc/default/grub`` + ``grub2-mkconfig``) and reboot.
+           Verify ``disable_ddw`` is present in ``/proc/cmdline`` and that
+           ``dmesg | grep create-pe`` returns no output.
+        b. Install HTX via ``OpTestHTXUtil``, clear OS dmesg for a clean
+           error baseline, then run HTX on **all** block devices using
+           ``mdt.hd`` for ``time_limit`` seconds.
+           ``OpTestHTXUtil.wait_and_check()`` polls ``htxerr`` and ``dmesg``
+           throughout the run.
+
+    Step 3 — Restore DDW:
+        Remove ``disable_ddw`` from the kernel command line and reboot.
+        Verify ``disable_ddw`` is gone from ``/proc/cmdline`` and that
+        ``dmesg | grep create-pe`` returns at least one line confirming
+        DMA windows were recreated.
+
+    Configuration (.cfg file, [op-test] section)
+    ---------------------------------------------
+    All parameters are passed via the op-test ``.cfg`` file.  No
+    command-line flags are registered for this class.  Example snippet::
+
+        [op-test]
+        host_ip          = 192.168.1.10
+        host_user        = root
+        host_password    = passw0rd
+        htx_rpm_link     = http://myserver/htx-rpms/
+        time_limit       = 3600
+        fw_version       = FW1030
+
+    Parameter reference
+    ~~~~~~~~~~~~~~~~~~~~
+    ``htx_rpm_link``
+        URL (with trailing slash) of the directory that hosts HTX RPM
+        packages.  The latest distro-matching RPM is resolved and installed
+        automatically by ``OpTestHTXUtil.install()``.
+        Example: ``http://myftpserver/htx/``
+
+    ``time_limit``
+        Duration in **seconds** for which HTX runs in Step 2b.
+        Default: ``3600`` (1 hour).
+
+    ``fw_version``
+        Firmware version string of the managed system, e.g. ``FW1030``.
+        Used to determine the expected TCE page-size token in Step 1:
+          * Numeric part >= 1030 → expect token ``15`` (2 MB TCE, P10 FW1030+)
+          * Numeric part <  1030 → expect token ``10`` (64 KB TCE, older FW)
+        Default: ``FW1030`` (assumes 2 MB TCE).
+
+    MDT and device scope are fixed:
+        * MDT      : ``mdt.hd``  (HTX hard-disk MDT)
+        * Devices  : ``all``     (HTX activates every eligible block device)
+
+    Reused from OpTestDDWDisable (no duplication)
+    ----------------------------------------------
+    * ``_is_rhel()``, ``_is_sles()``
+    * ``_add_disable_ddw_rhel()``, ``_remove_disable_ddw_rhel()``
+    * ``_add_disable_ddw_sles()``, ``_remove_disable_ddw_sles()``
+    * ``_reboot_and_wait()``, ``_ping_ok()``
+    * ``_grep_create_pe()``
+    * ``_disable_ddw_host()``, ``_enable_ddw_host()``
+    * ``_verify_ddw_disabled_host()``, ``_verify_ddw_enabled_host()``
+    """
+
+    from common.OpTestHTXUtil import OpTestHTXUtil as _HTXUtil
+
+    # Expected TCE page-size tokens in the ibm,create-pe-dma-window dmesg line
+    _TCE_2MB_TOKEN = '15'     # FW1030+: 2 MB TCE
+    _TCE_64KB_TOKEN = '10'    # Older FW: 64 KB TCE
+    _FW_2MB_THRESHOLD = 1030  # First FW level that mandates 2 MB TCE
+
+    # Regex for the ibm,create-pe-dma-window dmesg line.
+    # Example line (wrapped for readability):
+    #   nvme 0131:50:00.0: ibm,create-pe-dma-window(54) 500000 8000000
+    #       20000131 15 1f returned 0 (liobn = 0x70000131 ...)
+    # Capture group 1: TCE page-size token
+    # Capture group 2: return code
+    _DDW_RE = re.compile(
+        r'ibm,create-pe-dma-window\([^)]+\)'   # function + arg count
+        r'(?:\s+\S+){3}'                        # skip 3 hex tokens
+        r'\s+(\S+)'                             # group 1: TCE page-size token
+        r'\s+\S+'                               # skip one more token
+        r'\s+returned\s+(\d+)'                  # group 2: return code
+    )
+
+    # Dmesg I/O and block device error indicators to fail on post-HTX run
+    _IO_ERROR_PATTERNS = [
+        re.compile(r'blk_update_request:\s+I/O\s+error', re.IGNORECASE),
+        re.compile(r'Buffer\s+I/O\s+error', re.IGNORECASE),
+        re.compile(r'rejecting\s+I/O', re.IGNORECASE),
+        re.compile(r'sense\s+key:\s+(?:Medium\s+Error|Hardware\s+Error)', re.IGNORECASE),
+        re.compile(r'critical\s+medium\s+error', re.IGNORECASE),
+        re.compile(r'critical\s+target\s+error', re.IGNORECASE),
+        re.compile(r'NVME.*I/O\s+Cmd.*error', re.IGNORECASE),
+        re.compile(r'TCE\s+(?:error|fault|invalid)', re.IGNORECASE),
+    ]
+
+    # Patterns to ignore when inspecting dmesg (e.g. non-filesystem block dev probes)
+    _IGNORED_DMESG_PATTERNS = [
+        re.compile(r"EXT4-fs\s+\([^)]+\):\s+VFS:\s+Can't\s+find\s+ext4\s+filesystem"),
+    ]
+
+    # ------------------------------------------------------------------ #
+    # setUp                                                                #
+    # ------------------------------------------------------------------ #
+
+    def setUp(self):
+        """
+        Initialise connections and read block-device-specific configuration.
+
+        Does NOT call super().setUp() — block device tests are single-LPAR
+        only (no peer) so the peer SSH setup, interface validation, and peer
+        distro detection from OpTestDDWDisable.setUp() are intentionally
+        skipped.
+        """
+        self.conf = OpTestConfiguration.conf
+        self.util = OpTestUtil(OpTestConfiguration.conf)
+        self.cv_HOST = self.conf.host()
+        self.cv_SYSTEM = self.conf.system()
+        self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+        res = self.con.run_command('uname -a')
+        if 'ppc64' not in res[-1]:
+            self.fail(
+                "Platform does not support DDW/HTX tests (requires ppc64le)")
+
+        self.host_ip = self.conf.args.host_ip
+        self.host_user = self.conf.args.host_user
+        self.host_password = self.conf.args.host_password
+        self.time_limit = int(
+            getattr(self.conf.args, 'time_limit', 3600))
+        self.htx_rpm_link = getattr(self.conf.args, 'htx_rpm_link', '')
+
+        # fw_version: determines expected TCE page-size token (default FW1030)
+        fw_str = getattr(self.conf.args, 'fw_version', 'FW1030')
+        self._fw_level = self._parse_fw_level(fw_str)
+
+        self.ssh_host = OpTestSSH(
+            self.host_ip, self.host_user, self.host_password)
+        self.ssh_host.set_system(self.cv_SYSTEM)
+
+        self.host_distro_name = self.util.distro_name()
+        self.host_distro_version = self.util.get_distro_version().split('.')[0]
+
+        self.htx = OpTestDDWDisable_BlockDevice._HTXUtil(
+            console=self.con,
+            ssh_host=self.ssh_host,
+            distro_name=self.host_distro_name,
+            distro_version=self.host_distro_version,
+            rpm_link=self.htx_rpm_link,
+            run_time=self.time_limit,
+        )
+
+        # State flags — allow tearDown to clean up safely on early failure
+        self._ddw_disabled = False
+        self._htx_started = False
+
+        log.info("Host distro: %s%s  fw_level: %d",
+                 self.host_distro_name, self.host_distro_version,
+                 self._fw_level)
+
+    # ------------------------------------------------------------------ #
+    # Orchestration                                                        #
+    # ------------------------------------------------------------------ #
+
+    def runTest(self):
+        """
+        Execute the DDW verification → disable → HTX stress → restore
+        sequence in order.
+        """
+        # Step 1: verify DDW is active and reports the expected TCE page size
+        self._verify_ddw_tce()
+
+        # Step 2a: add disable_ddw to cmdline and reboot
+        # Reuses _disable_ddw_host() from OpTestDDWDisable unchanged.
+        self._disable_ddw_host()
+        self._ddw_disabled = True
+
+        log.info("Reconnecting SSH after disable_ddw reboot")
+        self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+        self.htx._console = self.con
+
+        # Verify disable_ddw active, create-pe absent
+        # Reuses _verify_ddw_disabled_host() from OpTestDDWDisable unchanged.
+        self._verify_ddw_disabled_host()
+
+        # Step 2b: install HTX, clear dmesg, run stress on all block devices
+        self._run_htx_block_stress()
+
+        # Step 3: restore DDW — remove disable_ddw and reboot
+        # Reuses _enable_ddw_host() from OpTestDDWDisable unchanged.
+        self._enable_ddw_host()
+
+        log.info("Reconnecting SSH after DDW re-enable reboot")
+        self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+        # Verify DDW restored, create-pe present
+        # Reuses _verify_ddw_enabled_host() from OpTestDDWDisable unchanged.
+        self._verify_ddw_enabled_host()
+
+    # ------------------------------------------------------------------ #
+    # Step 1 — DDW TCE page-size verification                             #
+    # ------------------------------------------------------------------ #
+
+    def _verify_ddw_tce(self):
+        """
+        Parse ``dmesg`` for ``ibm,create-pe-dma-window`` and assert:
+
+        1. The firmware call returned 0 (success).
+        2. The TCE page-size token matches the expectation for the
+           configured firmware level:
+             * FW >= FW1030 → ``'15'`` (2 MB TCE)
+             * FW <  FW1030 → ``'10'`` (64 KB TCE)
+
+        Fails the test immediately on any mismatch.
+        """
+        log.info("Step 1: verifying ibm,create-pe-dma-window in dmesg")
+        lines = self.con.run_command(
+            "dmesg | grep 'ibm,create-pe-dma-window'", timeout=30)
+
+        if not lines:
+            self.fail(
+                "Step 1: ibm,create-pe-dma-window not found in dmesg. "
+                "DDW may not be active or firmware did not attempt to "
+                "create a PE DMA window.")
+
+        matched = False
+        for line in lines:
+            m = self._DDW_RE.search(line)
+            if not m:
+                continue
+            matched = True
+            tce_token = m.group(1)
+            return_code = m.group(2)
+
+            log.info(
+                "DDW: create-pe-dma-window — return_code=%s tce_token=%s "
+                "(fw_level=%d)", return_code, tce_token, self._fw_level)
+
+            if return_code != '0':
+                self.fail(
+                    "Step 1: ibm,create-pe-dma-window returned %s "
+                    "(expected 0). Firmware failed to create PE DMA window."
+                    " Line: %s" % (return_code, line.strip()))
+
+            expected = (self._TCE_2MB_TOKEN
+                        if self._fw_level >= self._FW_2MB_THRESHOLD
+                        else self._TCE_64KB_TOKEN)
+
+            if tce_token != expected:
+                self.fail(
+                    "Step 1: TCE page-size token mismatch. "
+                    "Got '%s', expected '%s' for fw_level=%d. "
+                    "Token '15'=2MB TCE (FW1030+), '10'=64KB TCE (older FW)."
+                    " Line: %s"
+                    % (tce_token, expected, self._fw_level, line.strip()))
+
+            log.info(
+                "Step 1: PASS — return_code=0, tce_token=%s (%s TCE)",
+                tce_token,
+                '2MB' if tce_token == self._TCE_2MB_TOKEN else '64KB')
+            # First matching line is sufficient — one window per PE adapter.
+            break
+
+        if not matched:
+            self.fail(
+                "Step 1: dmesg contained ibm,create-pe-dma-window lines "
+                "but none matched the expected format.\n"
+                "Lines found:\n%s" % '\n'.join(lines))
+
+    # ------------------------------------------------------------------ #
+    # Step 2b — HTX block-device stress                                   #
+    # ------------------------------------------------------------------ #
+
+    def _run_htx_block_stress(self):
+        """
+        Install HTX, clear OS dmesg for a clean error baseline, then run
+        HTX on all block devices using ``mdt.hd`` for ``time_limit`` seconds.
+
+        Polls ``htxerr`` and runs until completion time limit, then verifies
+        both ``htxerr`` and ``dmesg`` for any genuine I/O errors.
+
+        Fails the test if ``htxerr`` is non-empty or if real I/O errors
+        are detected in ``dmesg``; otherwise passes.
+        """
+        log.info("Step 2b: installing HTX via OpTestHTXUtil")
+        self.htx.install()
+
+        # Clear dmesg — only errors from this HTX run will be visible
+        log.info(
+            "Step 2b: clearing dmesg before HTX start (clean baseline)")
+        self.con.run_command('dmesg -c > /dev/null', timeout=30)
+
+        log.info(
+            "Step 2b: starting HTX on all block devices with mdt.hd "
+            "(run_time=%ds)", self.time_limit)
+        # Passing ['all'] produces: htxcmdline -activate all -mdt mdt.hd
+        # which instructs HTX to activate every eligible block device.
+        self.htx.start(['all'], mdt='mdt.hd')
+        self._htx_started = True
+
+        failures = self._poll_htx_and_check_io_errors()
+        if failures:
+            self.fail(
+                "Step 2b: HTX block-device stress failures:\n"
+                + '\n'.join(failures))
+
+        log.info("Step 2b: PASS — HTX completed with no errors")
+        self.htx.stop()
+        self._htx_started = False
+
+    def _poll_htx_and_check_io_errors(self):
+        """
+        Wait for ``time_limit`` seconds while monitoring ``htxerr``.
+        After completion, check dmesg for genuine I/O errors (filtering out
+        benign VFS filesystem detection messages on raw block devices).
+
+        :return: List of failure messages (empty on success).
+        :rtype: list[str]
+        """
+        htx_err_file = '/tmp/htx/htxerr'
+        poll_interval = 60
+        elapsed = 0
+        failures = []
+
+        log.info("HTX: running for %d seconds (%d min)",
+                 self.time_limit, self.time_limit // 60)
+
+        while elapsed < self.time_limit:
+            sleep_for = min(poll_interval, self.time_limit - elapsed)
+            time.sleep(sleep_for)
+            elapsed += sleep_for
+
+            # Poll htxerr
+            try:
+                err_size_out = self.ssh_host.run_command(
+                    'wc -c %s 2>/dev/null' % htx_err_file)
+                if err_size_out and err_size_out[0].split():
+                    err_bytes = int(err_size_out[0].split()[0])
+                else:
+                    err_bytes = 0
+            except Exception as exc:
+                log.warning(
+                    "HTX: could not read htxerr size at t+%ds: %s",
+                    elapsed, exc)
+                continue
+
+            if err_bytes != 0:
+                failures.append(
+                    "HTX htxerr non-empty (%d bytes) at t+%ds — "
+                    "inspect %s on the host for details"
+                    % (err_bytes, elapsed, htx_err_file))
+                log.error("HTX: htxerr non-empty (%d bytes) at t+%ds",
+                          err_bytes, elapsed)
+                return failures
+
+            log.info("HTX: t+%ds / %ds — htxerr clean",
+                     elapsed, self.time_limit)
+
+        # Post-stress: check dmesg specifically for I/O errors
+        log.info("Step 2b: checking dmesg for I/O errors post-stress")
+        try:
+            dmesg_lines = self.ssh_host.run_command(
+                'dmesg --level=err,crit,alert,emerg 2>/dev/null')
+            io_errors = []
+            for line in dmesg_lines:
+                line_clean = line.strip()
+                if not line_clean:
+                    continue
+                # Ignore benign messages (e.g. missing ext4 on raw devices)
+                if any(pat.search(line_clean) for pat in self._IGNORED_DMESG_PATTERNS):
+                    continue
+                # Check for explicit I/O error patterns
+                if any(pat.search(line_clean) for pat in self._IO_ERROR_PATTERNS):
+                    io_errors.append(line_clean)
+
+            if io_errors:
+                failures.append(
+                    "HTX: I/O errors found in dmesg post-stress:\n    %s"
+                    % '\n    '.join(io_errors))
+                log.error("HTX: dmesg I/O errors: %s", io_errors)
+        except Exception as exc:
+            log.warning("Step 2b: dmesg check failed post-stress: %s", exc)
+
+        return failures
+
+    # ------------------------------------------------------------------ #
+    # Helper                                                               #
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _parse_fw_level(fw_version_str):
+        """
+        Extract the numeric firmware level from a version string.
+
+        Accepts formats such as ``'FW1030'``, ``'FW1030.00'``, ``'1030'``,
+        ``'NH1030_120'``.  Returns the first contiguous run of digits as an
+        integer, or 0 if none are found (causing the test to assume 64 KB
+        TCE).
+
+        :param fw_version_str: Firmware version string from the cfg file.
+        :rtype: int
+        """
+        m = re.search(r'\d+', str(fw_version_str))
+        return int(m.group()) if m else 0
+
+    # ------------------------------------------------------------------ #
+    # tearDown                                                             #
+    # ------------------------------------------------------------------ #
+
+    def tearDown(self):
+        """
+        Unconditional cleanup — runs regardless of pass or fail.
+
+        1. Stop HTX if it was started and not yet stopped.
+        2. Remove ``disable_ddw`` from the kernel command line and reboot
+           if it was added and not yet removed, restoring the system to
+           its default DDW-enabled state.
+
+        Each step is best-effort: failures are logged but do not suppress
+        subsequent cleanup steps or mask the original test failure.
+        """
+        if self._htx_started:
+            log.info("tearDown: stopping HTX (safety net)")
+            try:
+                self.htx.stop()
+            except Exception as exc:
+                log.warning("tearDown: HTX stop failed: %s", exc)
+            self._htx_started = False
+
+        if self._ddw_disabled:
+            log.info(
+                "tearDown: restoring kernel cmdline — removing disable_ddw")
+            try:
+                # Reuses _enable_ddw_host() from OpTestDDWDisable which
+                # calls the correct distro-specific remove helper and reboots.
+                self._enable_ddw_host()
+                self._ddw_disabled = False
+                log.info("tearDown: DDW restored successfully")
+            except Exception as exc:
+                log.warning(
+                    "tearDown: failed to restore DDW cmdline: %s — "
+                    "manual removal of 'disable_ddw' may be required", exc)
