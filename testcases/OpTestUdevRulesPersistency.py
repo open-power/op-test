@@ -25,44 +25,64 @@ persistent across reboot
 This test verifies that the network interface names set using Udev rules
 persist across system reboots.
 
-Test Steps:
-1. Create a Udev rules file /etc/udev/rules.d/70-persistent-net.rules in the
-   Host OS with the following format:
+The test supports two modes, controlled by the conf file parameter
+``persistant_for_virtual_device``:
 
-   SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{dev_id}=="0x0",
-   ATTR{type}=="1", KERNEL=="?*", ATTR{dev_port}=="0",
-   KERNELS=="<pci_bus_id>", NAME="net1"
+  False (default) — Physical / direct-attached interface mode
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Two rules are written to the udev rules file:
 
-   SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",
-   ATTR{address}=="<mac_address>", KERNEL=="?*", NAME="net2"
+    Rule 1 (net1) — matched by PCI bus ID:
+      SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{dev_id}=="0x0",
+      ATTR{type}=="1", KERNEL=="?*", ATTR{dev_port}=="0",
+      KERNELS=="<pci_bus_id>", NAME="net1"
 
-   where KERNELS and ATTR{address} are supplied via test_interface_pcibusid and
-   test_interface_mac conf file parameters.
+    Rule 2 (net2) — matched by MAC address:
+      SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",
+      ATTR{address}=="<mac_address>", KERNEL=="?*", NAME="net2"
 
-2. Reboot the system (power off/on cycle).
+  Both test_interface_pcibusid and test_interface_mac must be supplied and
+  must refer to two *different* interfaces.
 
-3. Verify that the interface names declared in the Udev rules file (NAME="net1"
-   and NAME="net2") exist as network interfaces on the rebooted system.
+  Post-reboot validation:
+    - net1 exists; ethtool -i net1 bus-info matches test_interface_pcibusid.
+    - net2 exists; ip addr show net2 MAC matches test_interface_mac.
 
-4. Validate that:
-   - The PCI bus ID set in KERNELS matches the bus-info reported by
-     ethtool -i net1.
-   - The MAC address set in ATTR{address} matches the link/ether address
-     reported by ip addr show net2.
+  True — Virtual device mode
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Only the MAC-address rule is written (PCI bus ID is irrelevant for vNICs):
+
+    SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",
+    ATTR{address}=="<mac_address>", KERNEL=="?*", NAME="net2"
+
+  Only test_interface_mac needs to be supplied.
+  test_interface_pcibusid is ignored even if present.
+
+  Post-reboot validation:
+    - net2 exists; ip addr show net2 MAC matches test_interface_mac.
+    - The PCI bus ID step is skipped entirely.
 
 Configuration Parameters:
 ---------------------------
 The following parameters can be passed via the conf file:
 
-test_interface_pcibusid   : PCI bus information for the first rule
-                            (e.g. 0014:01:00.0)
-test_interface_mac        : MAC address of the adapter for the second rule
-                            (e.g. 04:3f:72:a9:37:29)
+persistant_for_virtual_device : True  → virtual-device mode (MAC rule only)
+                                False → physical mode (PCI + MAC rules)
+                                Default: False
+test_interface_pcibusid       : PCI bus ID for the KERNELS rule (physical mode)
+                                (e.g. 0014:01:00.0)
+test_interface_mac            : MAC address for the ATTR{address} rule
+                                (e.g. 04:3f:72:a9:37:29)
 
 Usage Examples:
 --------------
-# Run with required parameters:
+# Physical / direct-attached mode (default):
 ./op-test --config-file persistent_udev_rules_io_RHEL.conf \\
+--run testcases.OpTestUdevRulesPersistency.UdevRulesPersistencyTest
+
+# Virtual device mode:
+# Add to conf file:  persistant_for_virtual_device = True
+./op-test --config-file persistent_udev_rules_vnic.conf \\
 --run testcases.OpTestUdevRulesPersistency.UdevRulesPersistencyTest
 
 '''
@@ -93,8 +113,8 @@ class OpTestUdevRulesPersistency(unittest.TestCase):
         Read configuration and resolve required CLI parameters.
 
         Raises:
-            unittest.SkipTest: if either test_interface_pcibusid
-                               or test_interface_mac is not provided.
+            unittest.SkipTest: if required parameters for the selected mode
+                               are not provided.
         """
         conf = OpTestConfiguration.conf
         cls.cv_SYSTEM = conf.system()
@@ -114,15 +134,34 @@ class OpTestUdevRulesPersistency(unittest.TestCase):
         cls.pci_bus_id = conf.args.test_interface_pcibusid
         cls.mac_address = conf.args.test_interface_mac
 
-        if not cls.pci_bus_id:
-            raise unittest.SkipTest(
-                "Required parameter --KERNELS not provided. "
-                "Pass the PCI bus ID via test_interface_pcibusid."
-            )
+        # Determine mode: virtual device (MAC-only) vs physical (PCI + MAC).
+        raw = getattr(conf.args, 'persistant_for_virtual_device', None)
+        if isinstance(raw, str):
+            cls.virtual_device_mode = raw.strip().lower() == 'true'
+        else:
+            cls.virtual_device_mode = bool(raw)
+
+        log.info(
+            "persistant_for_virtual_device=%s → %s mode",
+            raw,
+            "virtual-device (MAC only)" if cls.virtual_device_mode
+            else "physical (PCI + MAC)",
+        )
+
+        # MAC address is always required.
         if not cls.mac_address:
             raise unittest.SkipTest(
-                "Required parameter --ATTR-address not provided. "
+                "Required parameter test_interface_mac not provided. "
                 "Pass the MAC address via test_interface_mac."
+            )
+
+        # PCI bus ID is only required in physical mode.
+        if not cls.virtual_device_mode and not cls.pci_bus_id:
+            raise unittest.SkipTest(
+                "Required parameter test_interface_pcibusid not provided "
+                "for physical mode. Pass the PCI bus ID via "
+                "test_interface_pcibusid, or set "
+                "persistant_for_virtual_device = True for virtual-device mode."
             )
 
     def setUp(self):
@@ -138,31 +177,50 @@ class OpTestUdevRulesPersistency(unittest.TestCase):
 
     def create_udev_rules_file(self):
         """
-        Step 1: Write /etc/udev/rules.d/70-persistent-net.rules with two
-        rules — one matched by PCI bus ID (KERNELS) and one matched by MAC
-        address (ATTR{address}).
+        Step 1: Write /etc/udev/rules.d/70-persistent-net.rules.
+
+        Physical mode  (persistant_for_virtual_device=False):
+            Two rules — Rule 1 matched by PCI bus ID (→ net1),
+                        Rule 2 matched by MAC address (→ net2).
+
+        Virtual-device mode (persistant_for_virtual_device=True):
+            One rule  — matched by MAC address only (→ net2).
+            PCI bus ID rule is skipped entirely.
         """
         log.info("Step 1: Creating udev rules file %s", UDEV_RULES_FILE)
-
-        rule_kernels = (
-            'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", '
-            'ATTR{{dev_id}}=="0x0", ATTR{{type}}=="1", KERNEL=="?*", '
-            'ATTR{{dev_port}}=="0", KERNELS=="{pci}", NAME="{iface}"'
-        ).format(pci=self.pci_bus_id, iface=IFACE_KERNELS)
 
         rule_mac = (
             'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", '
             'ATTR{{address}}=="{mac}", KERNEL=="?*", NAME="{iface}"'
         ).format(mac=self.mac_address, iface=IFACE_MAC)
 
-        # Write both rules atomically via a here-doc so that special
-        # characters in the rule strings are preserved correctly.
-        write_cmd = (
-            "printf '%s\\n%s\\n' "
-            "'{rule1}' "
-            "'{rule2}' "
-            "> {path}"
-        ).format(rule1=rule_kernels, rule2=rule_mac, path=UDEV_RULES_FILE)
+        if self.virtual_device_mode:
+            # Virtual-device mode: MAC-address rule only.
+            log.info(
+                "Virtual-device mode: writing MAC-address rule only (→ %s)",
+                IFACE_MAC,
+            )
+            write_cmd = (
+                "printf '%s\\n' '{rule}' > {path}"
+            ).format(rule=rule_mac, path=UDEV_RULES_FILE)
+        else:
+            # Physical mode: PCI bus ID rule + MAC-address rule.
+            log.info(
+                "Physical mode: writing PCI rule (→ %s) and MAC rule (→ %s)",
+                IFACE_KERNELS, IFACE_MAC,
+            )
+            rule_kernels = (
+                'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", '
+                'ATTR{{dev_id}}=="0x0", ATTR{{type}}=="1", KERNEL=="?*", '
+                'ATTR{{dev_port}}=="0", KERNELS=="{pci}", NAME="{iface}"'
+            ).format(pci=self.pci_bus_id, iface=IFACE_KERNELS)
+            write_cmd = (
+                "printf '%s\\n%s\\n' "
+                "'{rule1}' "
+                "'{rule2}' "
+                "> {path}"
+            ).format(rule1=rule_kernels, rule2=rule_mac, path=UDEV_RULES_FILE)
+
         self.console.run_command(write_cmd, timeout=30)
 
         # Verify the file was written correctly.
@@ -171,7 +229,7 @@ class OpTestUdevRulesPersistency(unittest.TestCase):
         )
         log.info("Udev rules file content:\n%s", "\n".join(output))
 
-        if self.pci_bus_id not in str(output):
+        if not self.virtual_device_mode and self.pci_bus_id not in str(output):
             self.fail(
                 "PCI bus ID '{}' not found in written udev rules file".format(
                     self.pci_bus_id
@@ -207,18 +265,24 @@ class OpTestUdevRulesPersistency(unittest.TestCase):
 
     def verify_interface_existence(self):
         """
-        Step 3: Confirm that both eth0 and eth1 appear in the system's
-        network interface list after the reboot.
+        Step 3: Confirm that the expected interfaces appear after reboot.
+
+        Physical mode       : verifies both net1 and net2.
+        Virtual-device mode : verifies net2 only (net1 is never created).
         """
+        ifaces_to_check = (
+            (IFACE_MAC,) if self.virtual_device_mode
+            else (IFACE_KERNELS, IFACE_MAC)
+        )
         log.info(
-            "Step 3: Verifying that interfaces '%s' and '%s' exist",
-            IFACE_KERNELS, IFACE_MAC
+            "Step 3: Verifying that interface(s) %s exist",
+            ", ".join("'{}'".format(i) for i in ifaces_to_check),
         )
         output = self.console.run_command("ip link show", timeout=30)
         iface_list = "\n".join(output)
         log.info("Network interfaces present:\n%s", iface_list)
 
-        for iface in (IFACE_KERNELS, IFACE_MAC):
+        for iface in ifaces_to_check:
             if iface not in iface_list:
                 self.fail(
                     "Interface '{}' not found after reboot. "
@@ -288,9 +352,6 @@ class OpTestUdevRulesPersistency(unittest.TestCase):
         self.console.run_command(
             "rm -f {}".format(UDEV_RULES_FILE), timeout=30
         )
-        self.cv_HOST.host_run_command('reboot')
-        self.cv_HOST.host_run_command('uname -a')
-        self.console = self.cv_SYSTEM.console
         log.info("Cleanup completed")
 
 
@@ -298,29 +359,54 @@ class UdevRulesPersistencyTest(OpTestUdevRulesPersistency, unittest.TestCase):
     '''
     End-to-end test for udev-based network interface name persistency.
 
-    Creates a udev rules file, reboots the system, then verifies that:
-      - Both interface names (eth0, eth1) are active after reboot.
-      - The PCI bus ID in KERNELS matches ethtool -i net1 bus-info.
-      - The MAC address in ATTR{address} matches ip addr show net2.
+    Physical mode  (persistant_for_virtual_device=False, default):
+      - Creates both a PCI bus ID rule (→ net1) and a MAC rule (→ net2).
+      - Verifies net1 and net2 exist after reboot.
+      - Validates ethtool -i net1 bus-info matches test_interface_pcibusid.
+      - Validates ip addr show net2 MAC matches test_interface_mac.
+
+    Virtual-device mode (persistant_for_virtual_device=True):
+      - Creates only the MAC-address rule (→ net2); PCI rule is skipped.
+      - Verifies net2 exists after reboot.
+      - Validates ip addr show net2 MAC matches test_interface_mac.
+      - PCI bus ID validation step is skipped entirely.
 
     Usage:
+        # Physical mode (default):
         ./op-test --config-file
           persistent_udev_rules_io_RHEL10_2_dedicated.conf \\
+          --run testcases.OpTestUdevRulesPersistency.UdevRulesPersistencyTest
+
+        # Virtual-device mode (add to conf: persistant_for_virtual_device=True):
+        ./op-test --config-file persistent_udev_rules_vnic.conf \\
           --run testcases.OpTestUdevRulesPersistency.UdevRulesPersistencyTest
     '''
 
     def runTest(self):
         """
         Execute the complete udev rules persistency test sequence.
+
+        Physical mode  : create (PCI + MAC rules) → reboot → verify both
+                         interfaces → validate PCI → validate MAC → cleanup.
+        Virtual mode   : create (MAC rule only)    → reboot → verify net2
+                         only → validate MAC → cleanup.
+                         (validate_pci_bus_match is skipped)
         """
         log.info("Starting udev rules persistency test")
-        log.info("  KERNELS (PCI bus ID) : %s", self.pci_bus_id)
+        log.info(
+            "  Mode                 : %s",
+            "virtual-device (MAC only)" if self.virtual_device_mode
+            else "physical (PCI + MAC)",
+        )
+        if not self.virtual_device_mode:
+            log.info("  KERNELS (PCI bus ID) : %s", self.pci_bus_id)
         log.info("  ATTR{address} (MAC)  : %s", self.mac_address)
 
         self.create_udev_rules_file()
         self.reboot_system()
         self.verify_interface_existence()
-        self.validate_pci_bus_match()
+        if not self.virtual_device_mode:
+            self.validate_pci_bus_match()
         self.validate_mac_address_match()
         self.cleanup()
 
