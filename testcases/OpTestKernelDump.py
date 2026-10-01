@@ -481,8 +481,23 @@ class OptestKernelDump(unittest.TestCase):
                     res = self.c.run_command("ssh %s@%s -i %s ls %s/%s/vmcore*" %
                             (self.dump_server_user, self.dump_server_ip, self.rsa_path, self.dump_path, self.crash_content[0]))
                 else:
-                    res = self.c.run_command("ls /var/crash/%s/vmcore*" %
-                                          self.crash_content[0])
+                    # Use direct SSH (no console fallback) so that a missing
+                    # vmcore raises a clean OpTestError instead of triggering
+                    # a console SSH-expect session that times out with a
+                    # garbled connection-reset error.
+                    try:
+                        res = self.cv_HOST.host_run_command(
+                            "ls /var/crash/%s/vmcore*" % self.crash_content[0])
+                    except Exception:
+                        # On SLES, read README.txt NOW — before the finally
+                        # block deletes the crash directory — and embed its
+                        # content in the exception so the caller can check for
+                        # disk-full indicators without touching the filesystem.
+                        if self.distro == "sles":
+                            readme_text = self._read_sles_readme_in_place()
+                            raise OpTestError(
+                                "kdump failed to create vmcore file\n%s" % readme_text)
+                        raise OpTestError("kdump failed to create vmcore file")
                     paths = res
                     file_names = [os.path.basename(path) for path in paths]
                     # Check if vmcore-dmesg-incomplete.txt is present in file_names
@@ -3192,6 +3207,149 @@ class KernelCrash_SupportReport(OptestKernelDump):
         self.c.run_command(
             "rm -rf /var/crash/%s; sync" % self.crash_content[0])
 
+class KernelCrash_MakedumpfileOptions(OptestKernelDump):
+    '''
+    Tests kdump with different makedumpfile options by setting them in the
+    kdump configuration, triggering a kernel crash for each option and
+    verifying that a valid vmcore is produced.
+
+    RHEL: sets core_collector line in /etc/kdump.conf
+    SLES: sets KDUMP_DUMPFORMAT and KDUMP_DUMPLEVEL in /etc/sysconfig/kdump
+
+    makedumpfile options tested:
+      -c -d 0    : zlib compression, no page filtering
+      -c -d 1    : zlib compression, dump level 1
+      -c -d 11   : zlib compression, dump level 11
+      -E -d 31   : ELF format, dump level 31
+      -f -d 31   : lzo compression, dump level 31
+    '''
+
+    # Each entry: (label, rhel_core_collector, sles_format, sles_level)
+    MAKEDUMP_SCENARIOS = [
+        ("-c -d 0",  "makedumpfile -c -d 0",  "compressed", "0"),
+        ("-c -d 1",  "makedumpfile -c -d 1",  "compressed", "1"),
+        ("-c -d 11", "makedumpfile -c -d 11", "compressed", "11"),
+        ("-E -d 31", "makedumpfile -E -d 31", "ELF",        "31"),
+        ("-f -d 31", "makedumpfile -f -d 31", "lzo",        "31")
+    ]
+
+
+    def _set_makedump_option_rhel(self, core_collector):
+        '''Set core_collector in /etc/kdump.conf and restart kdump.'''
+        self.c.run_command(
+            "sed -i '/^core_collector/d' /etc/kdump.conf")
+        self.c.run_command(
+            "echo 'core_collector %s' >> /etc/kdump.conf" % core_collector)
+        self.cv_HOST.host_run_command(
+            "systemctl restart kdump.service", timeout=120)
+        self.cv_HOST.host_run_command(
+            "systemctl is-active kdump.service", timeout=30)
+
+    def _set_makedump_option_sles(self, fmt, level):
+        '''Set KDUMP_DUMPFORMAT, KDUMP_DUMPLEVEL'''
+        self.c.run_command(
+            "sed -i 's/^KDUMP_DUMPFORMAT=.*/KDUMP_DUMPFORMAT=\"%s\"/' "
+            "/etc/sysconfig/kdump" % fmt)
+        self.c.run_command(
+            "sed -i 's/^KDUMP_DUMPLEVEL=.*/KDUMP_DUMPLEVEL=%s/' "
+            "/etc/sysconfig/kdump" % level)
+        self.cv_HOST.host_run_command(
+            "systemctl restart kdump.service", timeout=120)
+        self.cv_HOST.host_run_command(
+            "systemctl is-active kdump.service", timeout=30)
+
+    def _read_sles_readme_in_place(self):
+        '''
+        Read README.txt from the current SLES crash directory while it still
+        exists (i.e. before verify_dump_file's finally block deletes it).
+        Called directly from within verify_dump_file when vmcore is missing,
+        so self.crash_content[0] is guaranteed to be set.
+
+        Returns the README.txt text, or an empty string if unreadable (the
+        caller embeds this in the OpTestError message).
+        '''
+        readme = "/var/crash/%s/README.txt" % self.crash_content[0]
+        try:
+            lines = self.cv_HOST.host_run_command(
+                "cat %s" % readme, timeout=30)
+            log.info("README.txt from %s:\n%s", readme, "\n".join(lines))
+            return "\n".join(lines)
+        except Exception as ex:
+            log.warning("Could not read %s: %s", readme, ex)
+            return ""
+
+    def runTest(self):
+        os_level = self.cv_HOST.host_get_OS_Level()
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+        self.cv_HOST.host_enable_kdump_service(os_level)
+
+        passed = []
+        failed = []
+        skipped = []
+
+        for label, rhel_cc, sles_fmt, sles_level in self.MAKEDUMP_SCENARIOS:
+            log.info("=" * 60)
+            log.info("Testing makedumpfile option: %s", label)
+            log.info("=" * 60)
+
+            try:
+                self.setup_test()
+                # Apply the makedumpfile option to kdump config
+                if self.distro == "rhel":
+                    self._set_makedump_option_rhel(rhel_cc)
+                elif self.distro == "sles":
+                    self._set_makedump_option_sles(sles_fmt, sles_level)
+                else:
+                    log.warning("Distro '%s' not supported, skipping",
+                                self.distro)
+                    continue
+
+                boot_type = self.kernel_crash()
+                self.verify_dump_file(boot_type)
+                log.info("PASSED: makedumpfile option '%s'", label)
+                passed.append(label)
+
+            except Exception as e:
+                err_str = str(e)
+                # Detect expected disk-space failures — not a bug in makedumpfile
+                # or kdump, just insufficient disk for this dump level.
+                disk_full_indicators = [
+                    "No space left on device",
+                    "less than KDUMP_FREE_DISK_SIZE",
+                    "< KDUMP_FREE_DISK_SIZE",   # SLES README.txt: "deleted (1 < KDUMP_FREE_DISK_SIZE 64)"
+                    "Remaining space",
+                    "Deleting vmcore",
+                    "deleted (",                # SLES README.txt: "vmcore status: deleted (...)"
+                ]
+                # On SLES, when vmcore is missing due to disk-full the README.txt
+                # content is already embedded in err_str by verify_dump_file
+                # (read before cleanup).  No extra filesystem access needed.
+
+                if any(ind in err_str for ind in disk_full_indicators):
+                    log.warning(
+                        "Skipping '%s': insufficient disk space for this "
+                        "dump level — %s", label, err_str.splitlines()[0])
+                    skipped.append(label)
+                else:
+                    log.error("FAILED: makedumpfile option '%s': %s",
+                              label, str(e))
+                    failed.append((label, str(e)))
+
+        # Final summary
+        log.info("=" * 60)
+        log.info("makedumpfile options test summary")
+        log.info("  Passed  (%d): %s", len(passed), ", ".join(passed))
+        if skipped:
+            log.info("  Skipped (%d): %s", len(skipped), ", ".join(skipped))
+        if failed:
+            log.error("  Failed  (%d): %s", len(failed),
+                      ", ".join("%s (%s)" % (l, e) for l, e in failed))
+        log.info("=" * 60)
+
+        if failed:
+            self.fail("makedumpfile option(s) failed: %s"
+                      % ", ".join(l for l, _ in failed))
+
 def crash_suite():
     s = unittest.TestSuite()
     s.addTest(OpTestWatchdog())
@@ -3217,6 +3375,7 @@ def crash_suite():
     s.addTest(OpTestLowCrashkernelKdump())
     s.addTest(OpTestKdumpKernelSwitch())
     s.addTest(KernelCrash_SupportReport())
+    s.addTest(KernelCrash_MakedumpfileOptions())
     s.addTest(KernelCrash_FadumpEnable())
     s.addTest(OpTestFadumpCmaCheck())
     s.addTest(KernelCrash_KdumpSMT())
@@ -3247,4 +3406,5 @@ def crash_suite():
     s.addTest(OpTestKdumpKernelSwitch())
     s.addTest(OpTestLowCrashkernelKdump())
     s.addTest(KernelCrash_SupportReport())
+    s.addTest(KernelCrash_MakedumpfileOptions())
     return s
