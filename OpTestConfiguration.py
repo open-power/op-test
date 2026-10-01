@@ -476,6 +476,14 @@ def get_parser():
     vpmem_group.add_argument("--vpmem-region",
                             help="Region name (default: region0)",
                             default="region0")
+    vpmem_group.add_argument("--vpmem-size",
+                            help="vpmem volume size in MB, must be a multiple "
+                                 "of the system LMB size (default: 8192)",
+                            default="8192")
+    vpmem_group.add_argument("--vpmem-name",
+                            help="vpmem volume name to use during provisioning "
+                                 "(default: vpmem_vol0)",
+                            default="vpmem_vol0")
 
     return parser
 
