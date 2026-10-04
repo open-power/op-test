@@ -118,10 +118,11 @@ class HMCUtil():
                  block_setup_term=None, delaybeforesend=None, timeout_factor=None,
                  lpar_prof=None, lpar_vios=None, lpar_user=None, lpar_password=None,
                  check_ssh_keys=False, known_hosts_file=None, tgt_managed_system=None,
-                 tgt_lpar=None):
+                 tgt_lpar=None, root_password=None):
         self.hmc_ip = hmc_ip
         self.user = user_name
         self.passwd = password
+        self.root_password = root_password
         self.logfile = logfile
         self.mg_system = managed_system
         self.tgt_mg_system = tgt_managed_system
@@ -1113,6 +1114,165 @@ class HMCUtil():
         except CommandFailed as cmd_failed:
             raise cmd_failed
 
+    def run_command_as_root(self, cmd, timeout=120):
+        '''
+        Run a privileged command on the HMC.
+
+        Two login styles are supported:
+
+        * **hscroot / privileged HMC accounts** — SSH lands directly in the
+          HMC restricted shell where ``chhwres``/``lshwres`` are available
+          without any privilege escalation.  The command is issued as-is;
+          ``root_password`` is not used.
+
+        * **hscpe / non-root Linux account** — SSH lands in a Linux shell.
+          ``root_password`` must be set; the command is wrapped as
+          ``echo '<pw>' | su -c '<cmd>' root``.
+
+        :param cmd: string, the HMC command to run
+        :param timeout: number, timeout in seconds (default 120)
+        :returns: command output from HMC
+        :raises: :class:`common.OpTestError` when su is needed but
+                 root_password is not set
+        '''
+        if self.root_password:
+            # Non-root Linux account (e.g. hscpe) — escalate via su
+            safe_cmd = cmd.replace("'", "'\\''")
+            safe_pw = self.root_password.replace("'", "'\\''")
+            cmd = "echo '%s' | su -c '%s' root" % (safe_pw, safe_cmd)
+        # Privileged HMC account (e.g. hscroot) — run directly
+        return self.ssh.run_command(cmd, timeout=timeout)
+
+    def create_resource_group(self, rg_name, gid, procs=None, mem=None,
+                              affinity_priority=None):
+        '''
+        Create a Resource Group on the managed system.
+
+        Equivalent to::
+
+            chhwres -r resgroup -m <system> -o a -g <rg_name> --gid <gid> \\
+                    -a "procs=<n>,affinity_priority=<p>"
+
+        :param rg_name: string, name for the new resource group
+        :param gid: int/string, numeric group ID (``--gid``)
+        :param procs: int/string, number of processors to assign (optional)
+        :param mem: int/string, amount of memory in MB to assign (optional)
+        :param affinity_priority: int/string, affinity scheduling priority
+                                  0-255 (optional)
+        :returns: command output from HMC
+        :raises: :class:`common.OpTestError` when rg_name or gid is missing
+        '''
+        if not rg_name or gid is None:
+            raise OpTestError("rg_name and gid are required to create a "
+                              "resource group")
+        attrs = []
+        if procs is not None:
+            attrs.append("procs=%s" % procs)
+        if mem is not None:
+            attrs.append("mem=%s" % mem)
+        if affinity_priority is not None:
+            attrs.append("affinity_priority=%s" % affinity_priority)
+
+        cmd = ("chhwres -r resgroup -m %s -o a -g %s --gid %s"
+               % (self.mg_system, rg_name, gid))
+        if attrs:
+            cmd = '%s -a "%s"' % (cmd, ",".join(attrs))
+        return self.run_command_as_root(cmd)
+
+    def delete_resource_group(self, rg_name):
+        '''
+        Delete a Resource Group from the managed system.
+
+        Equivalent to::
+
+            chhwres -r resgroup -m <system> -o r -g <rg_name>
+
+        :param rg_name: string, name of the resource group to delete
+        :returns: command output from HMC
+        '''
+        cmd = ("chhwres -r resgroup -m %s -o r -g %s"
+               % (self.mg_system, rg_name))
+        return self.run_command_as_root(cmd)
+
+    def list_resource_groups(self):
+        '''
+        List all Resource Groups on the managed system.
+
+        Equivalent to::
+
+            lshwres -r resgroup -m <system>
+
+        :returns: list of strings, one line per resource group
+        '''
+        cmd = "lshwres -r resgroup -m %s" % self.mg_system
+        return self.run_command_as_root(cmd, timeout=60)
+
+    def modify_resource_group(self, rg_name, procs=None, mem=None,
+                              affinity_priority=None):
+        '''
+        Modify attributes of an existing Resource Group.
+
+        Equivalent to::
+
+            chhwres -r resgroup -m <system> -o s -g <rg_name> \\
+                    -a "procs=<n>,affinity_priority=<p>"
+
+        :param rg_name: string, name of the resource group to modify
+        :param procs: int/string, new processor count (optional)
+        :param mem: int/string, new memory amount in MB (optional)
+        :param affinity_priority: int/string, new affinity priority (optional)
+        :returns: command output from HMC
+        :raises: :class:`common.OpTestError` when no attribute is provided
+        '''
+        attrs = []
+        if procs is not None:
+            attrs.append("procs=%s" % procs)
+        if mem is not None:
+            attrs.append("mem=%s" % mem)
+        if affinity_priority is not None:
+            attrs.append("affinity_priority=%s" % affinity_priority)
+        if not attrs:
+            raise OpTestError("At least one attribute (procs, mem, or "
+                              "affinity_priority) must be specified to "
+                              "modify a resource group")
+        cmd = ('chhwres -r resgroup -m %s -o s -g %s -a "%s"'
+               % (self.mg_system, rg_name, ",".join(attrs)))
+        return self.run_command_as_root(cmd)
+
+    def assign_lpar_to_resource_group(self, rg_name, lpar_name=None):
+        '''
+        Assign an LPAR to a Resource Group.
+
+        Equivalent to::
+
+            chhwres -r resgroup -m <system> -o a -g <rg_name> -p <lpar>
+
+        :param rg_name: string, name of the resource group
+        :param lpar_name: string, LPAR name; defaults to ``self.lpar_name``
+        :returns: command output from HMC
+        '''
+        lpar_name = lpar_name if lpar_name else self.lpar_name
+        cmd = ("chhwres -r resgroup -m %s -o a -g %s -p %s"
+               % (self.mg_system, rg_name, lpar_name))
+        return self.run_command_as_root(cmd)
+
+    def remove_lpar_from_resource_group(self, rg_name, lpar_name=None):
+        '''
+        Remove an LPAR from a Resource Group.
+
+        Equivalent to::
+
+            chhwres -r resgroup -m <system> -o r -g <rg_name> -p <lpar>
+
+        :param rg_name: string, name of the resource group
+        :param lpar_name: string, LPAR name; defaults to ``self.lpar_name``
+        :returns: command output from HMC
+        '''
+        lpar_name = lpar_name if lpar_name else self.lpar_name
+        cmd = ("chhwres -r resgroup -m %s -o r -g %s -p %s"
+               % (self.mg_system, rg_name, lpar_name))
+        return self.run_command_as_root(cmd)
+
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
         '''
         Wrapper function for `ssh.run_command_ignore_fail`
@@ -1145,13 +1305,13 @@ class OpTestHMC(HMCUtil):
                  block_setup_term=None, delaybeforesend=None, timeout_factor=1,
                  lpar_prof=None, lpar_vios=None, lpar_user=None, lpar_password=None,
                  check_ssh_keys=False, known_hosts_file=None, tgt_managed_system=None,
-                 tgt_lpar=None):
+                 tgt_lpar=None, root_password=None):
         super(OpTestHMC, self).__init__(hmc_ip, user_name, password, scratch_disk,
                                         proxy, logfile, managed_system, lpar_name, prompt,
                                         block_setup_term, delaybeforesend, timeout_factor,
                                         lpar_prof, lpar_vios, lpar_user, lpar_password,
                                         check_ssh_keys, known_hosts_file, tgt_managed_system,
-                                        tgt_lpar)
+                                        tgt_lpar, root_password)
 
         self.console = HMCConsole(hmc_ip, user_name, password, managed_system, lpar_name,
                                   lpar_vios, lpar_prof, lpar_user, lpar_password)
@@ -1163,33 +1323,6 @@ class OpTestHMC(HMCUtil):
 
     def get_rest_api(self):
         return None
-
-    def get_ipmi(self):
-        '''
-        Get IPMI interface (not available in PHYP).
-        
-        Returns:
-            None: PHYP does not support IPMI
-        '''
-        return None
-
-    def get_hmc(self):
-        '''
-        Get HMC interface (returns self for PHYP).
-        
-        Returns:
-            OpTestHMC: self
-        '''
-        return self
-
-    def bmc_host(self):
-        '''
-        Return HMC IP as BMC host.
-        
-        Returns:
-            str: HMC IP address
-        '''
-        return self.hmc_ip
 
     def has_os_boot_sensor(self):
         return False
