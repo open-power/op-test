@@ -1602,7 +1602,13 @@ class OpTestUtil():
             # may have lost prompt
             log.warning(
                 'OpTestSystem recovered from a temporary issue, continuing')
-            try_list = res.splitlines()  # give back what we do have for triage
+            # Strip ANSI/VT escape sequences (incl. HMC bracketed-paste toggles
+            # \x1b[?2004h/l) from the raw PTY buffer before returning it so
+            # that CommandFailed.output contains only clean text.
+            raw_lines = res.splitlines() if isinstance(res, str) else \
+                res.decode('utf-8', errors='ignore').splitlines()
+            try_list = [self._ANSI_RE.sub('', l).strip() for l in raw_lines]
+            try_list = [l for l in try_list if l]
             echo_rc = 1
         return try_list, echo_rc
 
@@ -2205,6 +2211,7 @@ class OpTestUtil():
             output_list = handle_output_list
         elif rc == 2:  # timeout
             # original raw buffer if it holds any clues
+            # try_sendcontrol already strips ANSI from its return value
             output_list, echo_rc = self.try_sendcontrol(term_obj, command)
         else:
             term_obj.close()

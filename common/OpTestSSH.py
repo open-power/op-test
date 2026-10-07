@@ -23,6 +23,10 @@ from .Exceptions import CommandFailed, SSHSessionDisconnected
 import re
 import sys
 import os
+
+# Compiled once at module level — strips all VT/ANSI escape sequences
+# including HMC bracketed-paste mode toggles (\x1b[?2004h/l).
+_ANSI_RE = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-9;?]*[ -/]*[@-~])')
 import time
 import pexpect
 
@@ -155,24 +159,41 @@ class OpTestSSH():
                 exit_status = stdout.channel.recv_exit_status()
                 output_lines = stdout.read().decode('utf-8', errors='ignore').splitlines()
                 error_lines = stderr.read().decode('utf-8', errors='ignore').splitlines()
-            
+
             # Close connection
             client.close()
-            
-            # Log output consolidated for readability
+
+            # Strip ANSI/VT escape sequences from all output lines so callers
+            # always receive clean text regardless of HMC shell PTY decoration.
+            output_lines = [_ANSI_RE.sub('', l).strip() for l in output_lines]
+            output_lines = [l for l in output_lines if l]
+            error_lines  = [_ANSI_RE.sub('', l).strip() for l in error_lines]
+            error_lines  = [l for l in error_lines if l]
+
+            # Log output
             if output_lines:
-                output_text = '\n'.join(output_lines)
-                log.info(output_text)
+                log.info('\n'.join(output_lines))
             if error_lines:
-                error_text = '\n'.join(error_lines)
-                log.warning(f"Command stderr:\n{error_text}")
-            
-            # Check exit status
+                log.warning("Command stderr:\n" + '\n'.join(error_lines))
+
+            # Treat rc=-1 as success for HMC commands that close the channel
+            # before the exit-status frame arrives (e.g. rmvterm).
+            # Reuse _HMC_SUCCESS_MARKERS defined once in OpTestUtil.OpTestUtil
+            # so there is a single source of truth for all success markers.
+            combined = '\n'.join(output_lines + error_lines)
+            for cmd_key, marker in self.util._HMC_SUCCESS_MARKERS.items():
+                if cmd_key in command and marker in combined:
+                    log.info(
+                        "run_command_direct: '{}' confirmed success "
+                        "via output marker '{}'".format(command, marker)
+                    )
+                    return output_lines
+
             if exit_status != 0:
                 raise CommandFailed(command,
-                    '\n'.join(error_lines),
+                    '\n'.join(error_lines) or '\n'.join(output_lines),
                     exit_status)
-            
+
             return output_lines
             
         except CommandFailed:
@@ -240,7 +261,8 @@ class OpTestSSH():
                + " ssh"
                + " -p %s" % str(self.port)
                + " -l %s %s" % (self.username, self.host)
-               + " -o PubkeyAuthentication=no -o afstokenpassing=no"
+               + " -o PubkeyAuthentication=no"
+               + " -o IgnoreUnknown=afstokenpassing"
                )
 
         if not self.check_ssh_keys:
