@@ -2155,6 +2155,12 @@ class OpTestUtil():
             del output_list[:1]  # remove command from the list
         except Exception as e:
             pass  # nothing there
+        # Strip ANSI/VT escape sequences (including HMC bracketed-paste toggles
+        # \x1b[?2004h/l) from every output line.  The HMC shell glues the
+        # prompt onto the last escape sequence — e.g. '\x1b[?2004h[ssh-expect]#'
+        # — which corrupts output_list and causes echo $? to be misread.
+        output_list = [self._ANSI_RE.sub('', l).strip() for l in output_list]
+        output_list = [l for l in output_list if l]  # drop blank lines
         # if we are running 'sudo -s' as root then catch on generic # prompt, restore env
         if running_sudo_s and (rc == 0):
             extra_sudo_output = True
