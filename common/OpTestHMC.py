@@ -756,14 +756,19 @@ class HMCUtil():
             lpar_name = hmc.lpar_vios
         state = hmc.ssh.run_command(
             'lssyscfg -m %s -r lpar --filter lpar_names=%s -F state' % (hmc.mg_system, lpar_name))[-1]
+        # lsrefcode requires an active partition — the FSP firmware command
+        # GET_PARTITION_CURR_SRC_AND_SEQUENCE_NUMBER hangs (HSCL2522/0x3ec)
+        # when the LPAR is Not Activated or Not Available because there is no
+        # running firmware in the partition to respond.  Skip it entirely for
+        # any state other than Running.
+        if state != 'Running':
+            return state
         ref_code = hmc.ssh.run_command(
-            'lsrefcode -m %s -r lpar --filter lpar_names=%s -F refcode' % (hmc.mg_system, lpar_name))[-1]
-        if state == 'Running':
-            if 'Linux' in ref_code or not ref_code:
-                return 'Running'
-            else:
-                return 'Booting'
-        return state
+            'lsrefcode -m %s -r lpar --filter lpar_names=%s -F refcode' % (hmc.mg_system, lpar_name),
+            timeout=300)[-1]
+        if 'Linux' in ref_code or not ref_code:
+            return 'Running'
+        return 'Booting'
 
     def get_system_state(self):
         '''
