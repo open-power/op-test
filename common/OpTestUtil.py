@@ -2057,6 +2057,19 @@ class OpTestUtil():
                 raise CommandFailed(command, ''.join(failure_list_output), -1)
         return list_output, echo_rc
 
+    # Compiled once at class level — strips all VT/ANSI escape sequences
+    # including bracketed-paste mode toggles (\x1b[?2004h/l) that the HMC
+    # shell emits around every command's output.
+    _ANSI_RE = __import__('re').compile(r'\x1b(?:[@-Z\\-_]|\[[0-9;?]*[ -/]*[@-~])')
+
+    # HMC commands whose output confirms success even when the SSH channel
+    # closes before the exit-status frame arrives (paramiko returns rc=-1).
+    # Key   = substring matched against the command string
+    # Value = substring that must appear somewhere in the output
+    _HMC_SUCCESS_MARKERS = {
+        "rmvterm":  "Close command sent",
+    }
+
     def run_command(self, term_obj, command, timeout=600, retry=5):
         # retry=0 will perform one pass
         counter = 0
@@ -2066,6 +2079,24 @@ class OpTestUtil():
                 return output
             except CommandFailed as cf:
                 log.debug("CommandFailed cf={}".format(cf))
+
+                # --------------------------------------------------------
+                # Some HMC commands succeed but close the PTY channel before
+                # the exit-status frame arrives, so paramiko returns rc=-1.
+                # Detect these via known success strings in the output and
+                # treat them as success — do NOT retry.
+                # --------------------------------------------------------
+                cf_output = str(cf.output) if hasattr(cf, 'output') else str(cf)
+                for cmd_key, success_str in self._HMC_SUCCESS_MARKERS.items():
+                    if cmd_key in command and success_str in cf_output:
+                        log.info(
+                            "run_command: command '{}' reported CommandFailed but "
+                            "output confirms success ('{}') — "
+                            "treating as success, skipping retries.".format(
+                                command, success_str)
+                        )
+                        return cf.output if hasattr(cf, 'output') else []
+
                 if counter == retry:
                     raise cf
                 else:
@@ -2142,10 +2173,17 @@ class OpTestUtil():
                 except Exception as e:
                     pass  # nothing there
                 try:
-                    # Filter out ANSI escape sequences and empty lines before parsing exit code
-                    filtered_output = [line for line in echo_output if line and not line.startswith('\x1b[')]
-                    if filtered_output:
-                        echo_rc = int(filtered_output[-1])
+                    # Strip ALL ANSI/VT escape sequences (including HMC bracketed-paste
+                    # mode toggles \x1b[?2004h/l) before parsing the exit code.
+                    # The old startswith('\x1b[') check missed multi-char sequences
+                    # and left dirty lines that int() could not parse.
+                    clean_echo = [
+                        self._ANSI_RE.sub('', line).strip()
+                        for line in echo_output
+                    ]
+                    clean_echo = [l for l in clean_echo if l]  # drop blanks
+                    if clean_echo:
+                        echo_rc = int(clean_echo[-1])
                     else:
                         echo_rc = -1
                 except Exception as e:
