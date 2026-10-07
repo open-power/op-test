@@ -356,16 +356,21 @@ class OpTestSSH():
         Returns:
             Command output
         """
-        # Force console-based execution if requested (for tests that need persistent sessions)
-        
-        # Try direct SSH execution first (non-interactive, more reliable)
-        # Skip if use_direct_ssh=False (for tests that need persistent session state)
+        # Try direct SSH execution first (non-interactive, more reliable).
+        # Only fall back to the pexpect console on SSH-layer failures
+        # (connection refused, auth error, socket timeout, etc.).
+        # A CommandFailed means the remote command actually ran and returned
+        # a non-zero exit code — re-raise immediately, do NOT retry via
+        # console, which would execute the command a second time and could
+        # hit a different (pexpect) timeout.
         if use_direct_ssh and HAS_PARAMIKO:
             try:
                 return self.run_command_direct(command, timeout)
+            except CommandFailed:
+                raise   # real command failure — propagate as-is
             except Exception as e:
                 log.warning(f"Direct SSH execution failed, falling back to console: {e}")
-        
+
         # Use console-based execution (maintains persistent session)
         return self.util.run_command(self, command, timeout, retry)
 
