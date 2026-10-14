@@ -217,7 +217,7 @@ class OpTestUtil():
 
                     out = self.conf.host().host_run_command("dd if=%s of=%s; echo $?" % 
                                              (self.grub_filename, self.prepDisk))
-                    if "0" not in out[3]:
+                    if not out or out[-1].strip() != "0":
                         # Restore the PRep partition back to its original state
                         self.backup_restore_PRepDisk(action="restore")
                         self.fail("RHEL: Failed to copy to PReP partition")
