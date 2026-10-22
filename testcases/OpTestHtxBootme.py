@@ -26,10 +26,10 @@ After every reboot the HTX workload must continue without any error.
 The cycle continues until the bootme is set to off.
 """
 
+import re
 import socket
 import subprocess
 import os
-import re
 import sys
 import time
 import unittest
@@ -58,6 +58,23 @@ from common.OpTestHTXUtil import (
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
 
+# SSH settle time (seconds) after port 22 opens before declaring the
+# system ready.  This LPAR has ibmvfc SAN scan + LVM assembly in dracut
+# which adds significant latency beyond when ping/sshd first respond.
+_SSH_SETTLE_SECS = 60
+
+# Matches the received-packet count in ping summary lines on both Linux
+# ("2 received") and macOS ("2 packets received").  A non-zero count means
+# the host is reachable.
+_PING_RECEIVED_RE = re.compile(r',\s*(\d+)(?:\s+packets)?\s+received')
+
+# Extra SSH deadline (seconds) beyond the initial 300 s window.
+# Accommodates LPARs with dense device trees (many NVMe namespaces,
+# multiple FC paths) where dracut SAN scan pushes sshd readiness past
+# the 5-minute mark.
+_SSH_DEADLINE_SECS = 600
+
+
 class OpTestHtxBootmeIO():
     def setUp(self):
         """
@@ -72,7 +89,7 @@ class OpTestHtxBootmeIO():
         self.console_thread.start()
         self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
         res = self.con.run_command('uname -a')
-        if 'ppc64' not in res[-1]:
+        if 'ppc64' not in ' '.join(res):
             self.fail("Platform does not support HTX tests")
 
         self.host_ip = self.conf.args.host_ip
@@ -104,6 +121,56 @@ class OpTestHtxBootmeIO():
             run_time=self.time_limit,
         )
 
+    def _guard_against_framework_reboot(self):
+        """
+        Detect and absorb a framework-injected reboot that can occur when
+        OpTestSystem.goto_state() issues 'reboot' via the console as part of
+        its state-detection fallback path (triggered by the HMCConsole API
+        signature mismatch in OpTestHMC).
+
+        Symptom: the LPAR goes offline within ~90 seconds of setUp completing,
+        before htxcmdline -bootme on has been issued.  If we detect that the
+        system is already offline (or comes back online within a short window),
+        we wait for it to fully boot, then re-establish self.con so the test
+        proceeds cleanly against a live system.
+
+        This does NOT fix the underlying framework bug — it makes the test
+        resilient to it without masking real failures.
+        """
+        # Only act if the system dropped offline very quickly after setUp.
+        # Poll for up to 120 s; if it's still up the framework did not reboot.
+        went_offline = False
+        deadline = time.time() + 120
+        while time.time() < deadline:
+            if not self.is_system_online():
+                went_offline = True
+                log.warning(
+                    "LPAR went offline within 120 s of setUp — framework "
+                    "reboot detected (likely OpTestSystem goto_state fallback). "
+                    "Waiting for system to recover before starting HTX."
+                )
+                break
+            time.sleep(5)
+
+        if went_offline:
+            if not self.wait_for_reboot_completion(self.cv_HOST.ip):
+                self.fail(
+                    "LPAR did not recover from framework-injected reboot "
+                    "within the timeout. Check OpTestHMC / goto_state logs."
+                )
+            # Re-establish the SSH connection that was invalidated by the reboot.
+            self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+            self.htx = self.htx.__class__(
+                console=self.con,
+                ssh_host=self.ssh_host,
+                distro_name=self.host_distro_name,
+                distro_version=self.host_distro_version,
+                rpm_link=self.htx_rpm_link,
+                run_time=self.time_limit,
+            )
+            log.info("SSH connection and HTX handle refreshed after "
+                     "framework-injected reboot.")
+
     def setup_htx(self):
         """
         Install HTX via OpTestHTXUtil.
@@ -115,6 +182,8 @@ class OpTestHtxBootmeIO():
         """
         Execute 'HTX' with appropriate parameters.
         """
+        # Absorb any framework-injected reboot before touching HTX.
+        self._guard_against_framework_reboot()
         self.setup_htx()
         self.start_htx_run()
         self.htx_check()
@@ -133,13 +202,29 @@ class OpTestHtxBootmeIO():
     def htx_check(self):
         """
         Checks if HTX is running, and if no errors.
+
+        Verifies that HTX is actually executing workload against the MDT
+        before bootme is enabled — catching the case where install succeeded
+        but no -run was issued, which would result in bootme cycling an
+        idle daemon.
         """
-        log.debug("HTX Error logs")
+        log.debug("Checking HTX error file")
         file_size = self.ssh_host.run_command('wc -c %s' % HTX_ERR_FILE)
         if int(file_size[0].split()[0]) != 0:
-            self.fail("check errorlogs for exact error and failure")
+            self.fail("HTX error file is non-empty before bootme. "
+                      "Check %s for details." % HTX_ERR_FILE)
+
+        # Confirm at least one device is in ACTIVE state in the MDT so
+        # bootme has a live workload to preserve across reboots.
         cmd = 'htxcmdline -query  -mdt %s' % self.mdt_file
         res = self.con.run_command(cmd)
+        if not any("ACTIVE" in line for line in res):
+            self.fail(
+                "No ACTIVE devices found in '%s' output before enabling "
+                "bootme. Ensure htxcmdline -run was issued successfully."
+                % cmd
+            )
+        log.info("HTX workload confirmed ACTIVE on mdt %s", self.mdt_file)
         time.sleep(60)
 
     def htx_bootme_test(self):
@@ -186,20 +271,30 @@ class OpTestHtxBootmeIO():
                  self.bootme_mode, self.bootme_period)
 
         # Wait for the system to go offline.  The deadline is the configured
-        # period (total_wait_time) plus a 5-minute grace buffer so that minor
-        # HTX scheduling delays do not cause a false failure.
-        offline_deadline = time.time() + total_wait_time + 300
+        # period (total_wait_time) plus a 10-minute grace buffer.  The system
+        # may remain pingable for up to ~90 s during a graceful soft shutdown
+        # so we must not treat that as "still online" prematurely — hence the
+        # poll uses consecutive offline confirmations before setting the flag.
+        offline_grace = 600
+        offline_deadline = time.time() + total_wait_time + offline_grace
         log.info(
             "Waiting up to %d min for LPAR to go offline "
-            "(period:%s = %d s + 300 s grace)",
-            (total_wait_time + 300) // 60,
-            self.bootme_period, total_wait_time
+            "(period:%s = %d s + %d s grace)",
+            (total_wait_time + offline_grace) // 60,
+            self.bootme_period, total_wait_time, offline_grace
         )
         went_offline = False
+        consecutive_offline = 0
         while time.time() < offline_deadline:
             if not self.is_system_online():
-                went_offline = True
-                break
+                consecutive_offline += 1
+                # Require two consecutive offline polls (20 s apart) to
+                # confirm the LPAR is genuinely down and not mid-ARP-cache.
+                if consecutive_offline >= 2:
+                    went_offline = True
+                    break
+            else:
+                consecutive_offline = 0
             time.sleep(10)
         if not went_offline:
             self.fail(
@@ -207,7 +302,7 @@ class OpTestHtxBootmeIO():
                 "'htxcmdline -bootme on mode:%s period:%s' — "
                 "bootme status was confirmed ON but no reboot occurred. "
                 "Expected %d reboot cycle(s), completed 0."
-                % ((total_wait_time + 600) // 60,
+                % ((total_wait_time + offline_grace) // 60,
                    self.bootme_mode, self.bootme_period, self.boot_count)
             )
 
@@ -222,18 +317,28 @@ class OpTestHtxBootmeIO():
                     % (i + 1, self.boot_count, self.boot_count,
                        completed_reboots)
                 )
-            time.sleep(15)
+            # Re-establish SSH — wait_for_reboot_completion already applied
+            # settle time; get_ssh_connection is safe to call now.
             self.con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-            time.sleep(10)
 
             # --- Wait for HTX to resume the MDT on host ---
             cmd = 'htxcmdline -query  -mdt %s' % self.mdt_file
-            for j in range(5):
+            # Use a wider window (30 attempts × 20 s = 10 min) to allow
+            # the HTX autostart service time to activate after a slow boot.
+            for j in range(30):
                 res = self.con.run_command_ignore_fail(cmd, timeout=60)
                 if any(HTX_MDT_DIR in line for line in res):
+                    log.debug("HTX MDT active after %d poll(s)", j + 1)
                     break
-                time.sleep(10)
-                log.debug("Mdt start is still in progress")
+                time.sleep(20)
+                log.debug("HTX MDT start still in progress (poll %d/30)",
+                          j + 1)
+            else:
+                self.fail(
+                    "HTX MDT '%s' did not become active within 10 minutes "
+                    "after reboot cycle %d. HTX autostart may have failed."
+                    % (self.mdt_file, i + 1)
+                )
             self.con.run_command(cmd)
 
             # --- Check error log on host ---
@@ -299,6 +404,10 @@ class OpTestHtxBootmeIO():
         """
         This function pings to the host ip and checks system's availability.
 
+        Uses a platform-portable success check: any line containing both
+        "2" and "received" (covers Linux "2 received", macOS
+        "2 packets received") is treated as a successful ping round.
+
         :return: True if the system is pinging.
                  False if system is not pinging.
         """
@@ -311,54 +420,96 @@ class OpTestHtxBootmeIO():
                                     universal_newlines=True,
                                     encoding='utf-8')
             stdout_value, stderr_value = ping.communicate()
-            if "2 received" in stdout_value:
+            # Match both Linux ("2 received") and macOS ("2 packets received").
+            # A non-zero received count means the host is reachable.
+            m = _PING_RECEIVED_RE.search(stdout_value)
+            if m and int(m.group(1)) > 0:
                 return True
-            else:
-                time.sleep(2)
-                i_try -= 1
+            time.sleep(2)
+            i_try -= 1
         return False
 
-    def wait_for_reboot_completion(self, ip_addr, timeout=1800):
+    def wait_for_reboot_completion(self, ip_addr, timeout=2700):
         """
         Wait for the system to become available after reboot.
 
-        Two-phase check:
-          1. Ping: confirms the network stack is up.
-          2. SSH probe: confirms sshd is accepting connections and the
-             system is fully booted. This is necessary because ping
-             responds ~30–60 s before sshd is ready on this LPAR due
-             to the slow ibmvfc SAN scan during dracut initramfs.
+        Three-phase check:
+          1. Offline confirmation: wait until ping stops responding so we
+             do not poll a still-running system and mistake stale ARP for
+             a completed reboot.
+          2. Ping: confirms the network stack is back up after boot.
+             The Phase 2 deadline is anchored to the LPAR going offline, not
+             to when this method is called, so time spent in Phase 1 is counted
+             against the overall budget.  If the system comes back before Phase 1
+             exhausts its 180 s window the ping loop exits immediately — no
+             unnecessary waiting.
+          3. SSH probe: confirms sshd is accepting connections.  This is
+             necessary because on this LPAR ping responds 30–60 s before
+             sshd is ready due to the ibmvfc SAN scan + LVM assembly in
+             dracut initramfs.  _SSH_DEADLINE_SECS (600 s) accommodates
+             LPARs with dense device trees (many FC paths, NVMe namespaces).
         """
         interval = 30
-        # Initial wait — give the LPAR time to go offline before we
-        # start polling, so we do not declare it "online" on stale ARP.
-        time.sleep(interval)
-        start_time = time.time()
 
-        # Phase 1: wait for ping to succeed.
-        while time.time() - start_time < timeout:
+        # Phase 1: confirm the LPAR has actually gone offline first.
+        # Without this, a slow graceful shutdown can fool the ping loop
+        # into thinking the system is already back up on stale ARP entries.
+        #
+        # The overall deadline is started HERE so Phase 1 time counts
+        # against the total budget.  This prevents the Phase 2 window from
+        # silently expanding when the caller already knows the LPAR is down.
+        overall_deadline = time.time() + timeout
+
+        offline_confirmed = False
+        offline_wait = time.time() + 180
+        while time.time() < offline_wait:
+            if not self.is_system_online():
+                offline_confirmed = True
+                log.info("LPAR confirmed offline — starting boot poll")
+                break
+            time.sleep(10)
+        if not offline_confirmed:
+            # System never went offline — treat as already up (e.g. very
+            # fast reboot or bootme fired earlier than expected).
+            log.warning("LPAR did not go offline within 180 s — "
+                        "assuming already rebooting; skipping offline phase")
+
+        # Phase 2: wait for ping to succeed.
+        # Poll until the LPAR responds or the overall deadline expires.
+        # Break out immediately on the first successful ping so the test
+        # does not wait unnecessarily when the LPAR recovers quickly.
+        ping_ok = False
+        while time.time() < overall_deadline:
             if self.is_system_online():
-                log.info("System is pinging — waiting for SSH to become ready")
+                log.info("System is pinging after %.0f s — "
+                         "waiting for SSH to become ready",
+                         timeout - (overall_deadline - time.time()))
+                ping_ok = True
                 break
             time.sleep(interval)
-        else:
+        if not ping_ok:
+            log.warning("System did not respond to ping within %d s", timeout)
             return False
 
-        # Phase 2: wait for SSH port 22 to accept connections.
-        ssh_deadline = time.time() + 300
+        # Phase 3: wait for SSH port 22 to accept connections.
+        # Use _SSH_DEADLINE_SECS instead of the original hard-coded 300 s
+        # to handle dense-device-tree LPARs with slow dracut SAN scan.
+        ssh_deadline = time.time() + _SSH_DEADLINE_SECS
         while time.time() < ssh_deadline:
             try:
                 s = socket.create_connection((ip_addr, 22), timeout=10)
                 s.close()
-                log.info("SSH port is open — system is ready")
-                # Extra settle time so sshd auth and services finish
-                # starting before the caller attempts get_ssh_connection.
-                time.sleep(30)
+                log.info("SSH port is open — applying %d s settle delay",
+                         _SSH_SETTLE_SECS)
+                # Allow sshd auth subsystem and HTX autostart service to
+                # finish initialising before the caller calls get_ssh_connection.
+                time.sleep(_SSH_SETTLE_SECS)
                 return True
             except (socket.timeout, ConnectionRefusedError, OSError):
                 time.sleep(10)
 
-        log.warning("SSH port did not open within 300 s after ping")
+        log.warning("SSH port did not open within %d s after ping",
+                    _SSH_DEADLINE_SECS)
         return False
 
     def stop_htx_bootme(self):
@@ -495,21 +646,29 @@ class HtxBootme_BlockDevice(OpTestHtxBootmeIO, unittest.TestCase):
 
     def is_block_device_in_mdt(self):
         """
-        verifies the presence of given block devices in selected mdt file
+        Verify that all requested block devices appear in the MDT query output.
+
+        Returns True if every device is present, False if any are missing.
+        The caller is responsible for acting on a False return value.
         """
         log.debug(
-            f"checking if the given block_devices are present in {self.mdt_file}")
-        cmd = f"htxcmdline -query -mdt {self.mdt_file}"
+            "Checking if block devices are present in %s", self.mdt_file)
+        cmd = "htxcmdline -query -mdt %s" % self.mdt_file
         output = self.con.run_command(cmd)
-        device = []
-        for dev in self.block_device.split(" "):
-            if dev not in output:
-                device.append(dev)
-        if device:
-            log.debug(
-                f"block_devices {device} are not avalable in {self.mdt_file} ")
-        log.debug(
-            f"BLOCK DEVICES {self.block_device} ARE AVAILABLE {self.mdt_file}")
+        # Flatten list output to a single string for substring search.
+        output_text = ' '.join(output)
+        missing = []
+        for dev in self.block_device.split():
+            if dev not in output_text:
+                missing.append(dev)
+        if missing:
+            log.warning(
+                "Block device(s) %s not found in '%s' output",
+                missing, self.mdt_file
+            )
+            return False
+        log.debug("All block devices %s present in %s",
+                  self.block_device, self.mdt_file)
         return True
 
     def suspend_all_block_device(self):
