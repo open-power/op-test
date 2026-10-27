@@ -28,7 +28,7 @@ import threading
 import socketserver
 import http.server
 import http.server
-import cgi
+import html
 import subprocess
 import time
 from .Exceptions import CommandFailed, UnexpectedCase
