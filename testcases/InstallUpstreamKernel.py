@@ -20,12 +20,7 @@
 
 import unittest
 import os
-import re
 import time
-
-from common.OpTestSSHConnection import OpTestSSHConnection, OpTestCommandResult
-from common.OpTestCommandExecutor import OpTestCommandExecutor
-from common.Exceptions import SSHCommandFailed, SSHSessionDisconnected
 
 try:
     from urllib.parse import urlparse
@@ -37,7 +32,6 @@ import OpTestLogger
 from common.OpTestSystem import OpSystemState
 from common.OpTestSOL import OpSOLMonitorThread
 from common.OpTestInstallUtil import InstallUtil
-from common.OpTestUtil import OpTestUtil
 
 log = OpTestLogger.optest_logger_glob.get_logger(__name__)
 
@@ -57,9 +51,6 @@ class InstallUpstreamKernel(unittest.TestCase):
         self.patch = self.conf.args.git_patch
         self.use_kexec = self.conf.args.use_kexec
         self.append_kernel_cmdline = self.conf.args.append_kernel_cmdline
-        self.util = OpTestUtil(OpTestConfiguration.conf)
-        self.host_distro_name = self.util.distro_name()
-        self.host_distro_version = self.util.get_distro_version()
         if self.config_path:
             self.config = "olddefconfig"
         if not self.repo:
@@ -100,7 +91,7 @@ class InstallUpstreamKernel(unittest.TestCase):
             con.run_command("[ -d %s ] || mkdir -p %s" %
                             (self.home, self.home))
             con.run_command("if [ -d %s ];then rm -rf %s;fi" %
-                            (linux_path, linux_path), timeout=600)
+                            (linux_path, linux_path), timeout=120)
             con.run_command("cd %s && git clone --depth 1  %s -b %s linux" %
                             (self.home, self.repo, self.branch), timeout=self.host_cmd_timeout)
             con.run_command("cd %s" % linux_path)
@@ -120,102 +111,125 @@ class InstallUpstreamKernel(unittest.TestCase):
                     con.run_command("wget %s -O .config" % self.config_path)
                 else:
                     self.cv_HOST.copy_test_file_to_host(
-                        self.config_path, sourcedir="", dstdir=os.path.join(linux_path, ".config"))
+                        self.config_path, dstdir=os.path.join(linux_path, ".config"))
             con.run_command("make %s" % self.config)
-            # Capture kernel version & release
-            ker_ver = con.run_command("make kernelrelease")[-1]
-            sha = con.run_command("git rev-parse HEAD")
-            tcommit = con.run_command("export 'TERM=xterm-256color';git show -s --format=%ci")
-            tcommit = re.sub(r"\x1b\[[0-9;]*[mGKHF]", "", tcommit[1])
-            log.info("Upstream kernel version: %s", ker_ver)
-            log.info("Upstream kernel commit-id: %s", sha[-1])
-            log.info("Upstream kernel commit-time: %s", tcommit)
             log.debug("Compile and install linux kernel")
-            con.run_command("make -j %d -s && make modules_install && make install" %
-                            onlinecpus, timeout=self.host_cmd_timeout)
-            time.sleep(10)
-            if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
-                gruby_cmd = 'grubby --set-default'
-            elif self.host_distro_name in ['sles', 'SLES']:
-                gruby_cmd = 'grub2-set-default'
-            else:
-                raise self.skipTest("Unsupported OS")
-            con.run_command("%s  /boot/vmlinu*-%s" % (gruby_cmd, ker_ver))
+            
+            con.run_command("cd %s && make -j %d -s && make modules && make modules_install && make install" % (linux_path, onlinecpus), timeout=self.host_cmd_timeout)
+
+            expected_kernel = con.run_command("cat %s/include/config/kernel.release" % linux_path)[-1].strip()
+
+            log.info("Expected upstream kernel version: %s", expected_kernel)
+            
             if not self.use_kexec:
                 # FIXME: Handle distributions which do not support grub
+                con.run_command(
+                    'grubby --set-default /boot/vmlinuz-%s'
+                    % expected_kernel
+                )
+
+                con.run_command(
+                    "grub2-mkconfig --output=/boot/grub2/grub.cfg"
+                )
+
                 log.debug("Rebooting after kernel install...")
-                boot_cmd = 'reboot'
+
+                self.console_thread.console_terminate()
+                con.close()
+
+                self.cv_SYSTEM.goto_state(OpSystemState.OFF)
+                self.cv_SYSTEM.goto_state(OpSystemState.OS)
+
             else:
+                self.console_thread.console_terminate()
+
                 cmdline = con.run_command("cat /proc/cmdline")[-1]
+
                 if self.append_kernel_cmdline:
                     cmdline += " %s" % self.append_kernel_cmdline
-                try:
-                    initrd_file = con.run_command(
-                        "ls -l /boot/initr*-%s.img" % ker_ver)[-1].split(" ")[-1]
-                except Exception:
-                    initrd_file = con.run_command(
-                        "ls -l /boot/initr*-%s" % ker_ver)[-1].split(" ")[-1]
-                kexec_cmdline = "kexec --initrd %s --command-line=\"%s\" /boot/vmlinu*-%s -l" % (
-                    initrd_file, cmdline, ker_ver)
-                # Let's makesure we set the default boot index to current kernel
-                # to avoid leaving host in unstable state incase boot failure
-                if self.host_distro_name in ['rhel', 'Red Hat', 'ubuntu', 'Ubuntu']:
-                    con.run_command(
-                        '%s /boot/vmlinu*-`uname -r`' % gruby_cmd)
-                elif self.host_distro_name in ['sles', 'SLES']:
-                    con.run_command('%s /boot/vmlinu*-`uname -r`' % gruby_cmd)
-                if self.host_distro_name in ['rhel', 'Red Hat']:
-                    if self.host_distro_version.split()[0] <= "9.4":
-                        con.run_command(
-                            "grub2-mkconfig  --output=/boot/grub2/grub.cfg")
-                    else:
-                        con.run_command(
-                            "grub2-mkconfig  --output=/boot/grub2/grub.cfg --update-bls-cmdline")
+
+                initrd_file = con.run_command(
+                    "ls -l /boot/initr*-%s.img" % expected_kernel
+                )[-1].split(" ")[-1]
+
+                kexec_cmdline = (
+                    'kexec --initrd %s --command-line="%s" '
+                    '/boot/vmlinuz-%s -l'
+                    % (initrd_file, cmdline, expected_kernel)
+                )
+
+                # Preserve the currently working kernel as the default.
+                con.run_command(
+                    'grubby --set-default /boot/vmlinuz-$(uname -r)'
+                )
+
                 con.run_command(kexec_cmdline)
-                boot_cmd = 'kexec -e'
-            self.console_thread.console_terminate()
-            self.cv_SYSTEM.util.build_prompt()
-            self.console_thread.console_terminate()
-            con.close()
-            for i in range(5):
-                raw_pty = self.wait_for(self.cv_SYSTEM.console.get_console, timeout=20)
-                time.sleep(10)
-                if raw_pty is not None:
-                    raw_pty.sendline("uname -r")
-                    break
-            raw_pty.sendline(boot_cmd)
-            raw_pty.expect("login:", timeout=600)
-            raw_pty.close()
-            con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
-            res = con.run_command("uname -r")[-1]
-            log.info("Installed upstream kernel version: %s", res)
-            if ker_ver != res:
-                self.fail("Upstream kernel did not boot")
+                con.close()
+
+                raw_pty = self.cv_SYSTEM.console.get_console()
+                raw_pty.sendline("kexec -e")
+
+            # Wait for SSH and verify the expected kernel.
+            # A console login prompt alone does not guarantee SSH readiness.
+            deadline = time.monotonic() + 600
+            last_error = "SSH did not become ready"
+            con = None
+
+            while time.monotonic() < deadline:
+                con = None
+
+                try:
+                    con = self.cv_SYSTEM.cv_HOST.get_ssh_connection()
+
+                    res = con.run_command("uname -r", timeout=30)
+                    running_kernel = res[-1].strip()
+
+                    if running_kernel == expected_kernel:
+                        log.info(
+                            "Installed upstream kernel version: %s",
+                            running_kernel,
+                        )
+                        break
+
+                    last_error = (
+                        "Expected kernel %s, but running kernel is %s"
+                        % (expected_kernel, running_kernel)
+                    )
+
+                    log.info("%s; retrying in 5 seconds", last_error)
+
+                except Exception as e:
+                    last_error = str(e)
+
+                    log.info(
+                        "SSH/kernel verification not ready: %s; "
+                        "retrying in 5 seconds",
+                        last_error,
+                    )
+
+                    if con is not None:
+                        try:
+                            con.close()
+                        except Exception:
+                            pass
+
+                time.sleep(5)
+
+            else:
+                raise RuntimeError(
+                    "Guest did not boot the expected kernel within "
+                    "600 seconds. %s" % last_error
+                )
+
             if self.conf.args.host_cmd:
-                con.run_command(self.conf.args.host_cmd,
-                                timeout=self.host_cmd_timeout)
+                con.run_command(
+                    self.conf.args.host_cmd,
+                    timeout=self.host_cmd_timeout,
+                )
+
             self.cv_HOST.host_gather_opal_msg_log()
             self.cv_HOST.host_gather_kernel_log()
+
         finally:
-            self.console_thread.console_terminate()
-
-    def wait_for(self, func, timeout, first=0.0, step=1.0, text=None, args=None, kwargs=None):
-        args = args or []
-        kwargs = kwargs or {}
-
-        start_time = time.monotonic()
-        end_time = start_time + timeout
-
-        time.sleep(first)
-
-        while time.monotonic() < end_time:
-            if text:
-                LOG.debug("%s (%.9f secs)", text, (time.monotonic() - start_time))
-
-            output = func(*args, **kwargs)
-            if output:
-                return output
-
-            time.sleep(step)
-
-        return None
+            if self.console_thread.is_alive():
+                self.console_thread.console_terminate()
