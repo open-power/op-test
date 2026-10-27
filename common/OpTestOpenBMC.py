@@ -25,7 +25,7 @@ import pexpect
 import subprocess
 import json
 import requests
-import cgi
+import html
 import os
 
 from .OpTestSSH import OpTestSSH
