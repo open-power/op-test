@@ -97,114 +97,6 @@ class OpTestSSH():
     def set_system(self, system):
         self.system = system
 
-    def run_command_direct(self, command, timeout=60, expect_disconnect=False):
-        """
-        Execute command directly via SSH exec_command (non-interactive).
-        This is used for HMC commands that should not go through console/terminal.
-        
-        Args:
-            command: Command string to execute
-            timeout: Command timeout in seconds
-            expect_disconnect: If True, don't wait for exit status (for commands that crash the system)
-            
-        Returns:
-            List of output lines
-            
-        Raises:
-            CommandFailed: If command execution fails
-        """
-        if not HAS_PARAMIKO:
-            log.warning("paramiko not available, falling back to console execution")
-            return self.run_command(command, timeout)
-        
-        try:
-            # Create SSH client
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            
-            # Connect
-            client.connect(
-                hostname=self.host,
-                port=self.port,
-                username=self.username,
-                password=self.password,
-                timeout=30,
-                allow_agent=False,
-                look_for_keys=False
-            )
-            
-            # Execute command
-            log.info(f"Executing direct SSH command: {command}")
-            # For commands that reboot the system, use a short exec timeout so
-            # paramiko doesn't block indefinitely waiting for data on a dead channel.
-            exec_timeout = 5 if expect_disconnect else timeout
-            stdin, stdout, stderr = client.exec_command(command, timeout=exec_timeout)
-            background = command.strip().endswith("&")
-            if background:
-                log.info("Background command - not waiting")
-                time.sleep(0.5)
-                return []
-            # Get output
-            if expect_disconnect:
-                # Fire-and-forget: give the command a moment to execute before
-                # the connection is torn down, then return without waiting.
-                log.info("Command expected to disconnect - not waiting for exit status")
-                time.sleep(1)
-                try:
-                    client.close()
-                except Exception:
-                    pass
-                return []
-            else:
-                exit_status = stdout.channel.recv_exit_status()
-                output_lines = stdout.read().decode('utf-8', errors='ignore').splitlines()
-                error_lines = stderr.read().decode('utf-8', errors='ignore').splitlines()
-
-            # Close connection
-            client.close()
-
-            # Strip ANSI/VT escape sequences from all output lines so callers
-            # always receive clean text regardless of HMC shell PTY decoration.
-            output_lines = [_ANSI_RE.sub('', l).strip() for l in output_lines]
-            output_lines = [l for l in output_lines if l]
-            error_lines  = [_ANSI_RE.sub('', l).strip() for l in error_lines]
-            error_lines  = [l for l in error_lines if l]
-
-            # Log output
-            if output_lines:
-                log.info('\n'.join(output_lines))
-            if error_lines:
-                log.warning("Command stderr:\n" + '\n'.join(error_lines))
-
-            # Treat rc=-1 as success for HMC commands that close the channel
-            # before the exit-status frame arrives (e.g. rmvterm).
-            # Reuse _HMC_SUCCESS_MARKERS defined once in OpTestUtil.OpTestUtil
-            # so there is a single source of truth for all success markers.
-            combined = '\n'.join(output_lines + error_lines)
-            for cmd_key, marker in self.util._HMC_SUCCESS_MARKERS.items():
-                if cmd_key in command and marker in combined:
-                    log.info(
-                        "run_command_direct: '{}' confirmed success "
-                        "via output marker '{}'".format(command, marker)
-                    )
-                    return output_lines
-
-            if exit_status != 0:
-                raise CommandFailed(command,
-                    '\n'.join(error_lines) or '\n'.join(output_lines),
-                    exit_status)
-
-            return output_lines
-            
-        except CommandFailed:
-            raise
-        except Exception as e:
-            if expect_disconnect:
-                log.info(f"Expected disconnect for '{command}': {e}")
-                return []
-            log.error(f"Direct SSH command failed: {e}")
-            raise CommandFailed(command, str(e), -1)
-
     def set_system_setup_term(self, flag):
         self.system.block_setup_term = flag
 
@@ -301,7 +193,7 @@ class OpTestSSH():
             self.pty.delaybeforesend = self.delaybeforesend
         self.pty.logfile_read = OpTestLogger.FileLikeLogger(self.log)
         # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
-        time.sleep(5)
+        time.sleep(2)
         self.check_set_term()
         log.debug("CONNECT starts Expect Buffer ID={}".format(hex(id(self.pty))))
         return self.pty
@@ -342,36 +234,6 @@ class OpTestSSH():
         return self.pty
 
     def run_command(self, command, timeout=60, retry=0, use_direct_ssh=True):
-        """
-        Execute command via SSH.
-        Uses direct SSH execution (non-interactive) by default for better reliability.
-        Falls back to console-based execution if direct method fails.
-        
-        Args:
-            command: Command string to execute
-            timeout: Command timeout in seconds
-            retry: Number of retries (used by console method)
-            use_direct_ssh: If False, skip direct SSH and use console-based execution (default: True)
-            
-        Returns:
-            Command output
-        """
-        # Try direct SSH execution first (non-interactive, more reliable).
-        # Only fall back to the pexpect console on SSH-layer failures
-        # (connection refused, auth error, socket timeout, etc.).
-        # A CommandFailed means the remote command actually ran and returned
-        # a non-zero exit code — re-raise immediately, do NOT retry via
-        # console, which would execute the command a second time and could
-        # hit a different (pexpect) timeout.
-        if use_direct_ssh and HAS_PARAMIKO:
-            try:
-                return self.run_command_direct(command, timeout)
-            except CommandFailed:
-                raise   # real command failure — propagate as-is
-            except Exception as e:
-                log.warning(f"Direct SSH execution failed, falling back to console: {e}")
-
-        # Use console-based execution (maintains persistent session)
         return self.util.run_command(self, command, timeout, retry)
 
     def run_command_ignore_fail(self, command, timeout=60, retry=0):
