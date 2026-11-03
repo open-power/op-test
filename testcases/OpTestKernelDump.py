@@ -447,14 +447,34 @@ class OptestKernelDump(unittest.TestCase):
         # If boot_type is INVALID, system never came back up - fail immediately
         if boot_type == BootType.INVALID:
             self.fail("System did not boot after crash - SSH unavailable. Check console logs for errors (OOM, panic, etc.)")
-        
+
         if self.distro == "rhel":
             self.cv_HOST.host_run_command("cp /etc/kdump.conf_bck /etc/kdump.conf; systemctl restart kdump.service", timeout=120)
         if self.distro == "sles":
             self.cv_HOST.host_run_command("cp /etc/sysconfig/kdump_bck /etc/sysconfig/kdump; systemctl restart kdump.service", timeout=120)
+
+        # Race condition: SSH comes up while kdump is still writing the dump or
+        # the crash directory has not yet been synced to the filesystem visible
+        # to the freshly-booted normal kernel.  Poll until a new crash directory
+        # appears (or we give up after 5 minutes).
         if dump_place == "local":
-            crash_content_after = self.c.run_command(
-                "ls -l /var/crash | grep '^d'| awk '{print $9}'")
+            crash_dir_poll_timeout = 300  # seconds
+            crash_dir_poll_interval = 10
+            poll_start = time.time()
+            crash_content_after = []
+            while True:
+                crash_content_after = self.c.run_command(
+                    "ls -l /var/crash | grep '^d'| awk '{print $9}'")
+                new_dirs = list(set(crash_content_after) - set(self.crash_content))
+                if new_dirs:
+                    log.info("New crash directory detected: %s" % new_dirs)
+                    break
+                elapsed = int(time.time() - poll_start)
+                if elapsed >= crash_dir_poll_timeout:
+                    log.warning("No new crash directory appeared after %ds - proceeding anyway" % elapsed)
+                    break
+                log.info("Waiting for crash directory to appear (%ds elapsed)..." % elapsed)
+                time.sleep(crash_dir_poll_interval)
         if dump_place == "net":
             crash_content_after = self.c.run_command(
                 "ssh %s@%s -i %s \"ls -l %s | grep '^d'\" | awk '{print $9}'" % (self.dump_server_user, self.dump_server_ip, self.rsa_path, self.dump_path))
@@ -838,9 +858,12 @@ class OptestKernelDump(unittest.TestCase):
                         console_thread.join(timeout=5)
                         log.info("Console monitoring thread stopped")
                     
-                    # Add brief stabilization delay to ensure system is fully ready
-                    log.info("Waiting 2s for system services to stabilize...")
-                    time.sleep(2)
+                    # Brief stabilization delay: sshd starts early in boot;
+                    # give the OS a moment before running kdump-related checks.
+                    # The real race (crash dir visibility) is handled by the
+                    # polling loop in verify_dump_file().
+                    log.info("Waiting 10s for system services to stabilize after SSH up...")
+                    time.sleep(10)
                     break
                 except Exception as e:
                     # After 5 failed attempts, print console logs to help diagnose the issue
