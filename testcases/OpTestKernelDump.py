@@ -1190,7 +1190,7 @@ class KernelCrash_FadumpEnable(OptestKernelDump):
         os_level = self.cv_HOST.host_get_OS_Level()
         self.verify_fadump_unreg()
         self.verify_fadump_reg()
-        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
         self.cv_HOST.host_enable_kdump_service(os_level)
         log.debug("======================fadump is supported=======================")
         log.info("========== Testing Fadump enable followed by crash ==============")
@@ -1280,7 +1280,7 @@ class KernelCrash_OnlyKdumpEnable(OptestKernelDump):
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
         os_level = self.cv_HOST.host_get_OS_Level()
-        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
         self.cv_HOST.host_enable_kdump_service(os_level)
         log.info("========= Testing Only kdump enable followed by crash ===========")
         boot_type = self.kernel_crash()
@@ -1309,7 +1309,7 @@ class KernelCrash_DisableAll(OptestKernelDump):
         elif self.distro == "sles":
             self.cv_HOST.host_check_command("kdumptool")
         os_level = self.cv_HOST.host_get_OS_Level()
-        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
         self.cv_HOST.host_disable_kdump_service(os_level)
         boot_type = self.kernel_crash()
         if boot_type != BootType.NORMAL:
@@ -2692,7 +2692,7 @@ class OpTestWatchdog(OptestKernelDump):
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             os_level = self.cv_HOST.host_get_OS_Level()
-            self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+            self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
             self.cv_HOST.host_enable_kdump_service(os_level)
             self.module_unload("pseries_wdt")
             self.module_load_with_parameters("pseries_wdt", 60, 2)
@@ -2728,7 +2728,7 @@ class OpTestWatchdog(OptestKernelDump):
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             os_level = self.cv_HOST.host_get_OS_Level()
-            self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+            self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
             self.cv_HOST.host_enable_kdump_service(os_level)
             self.module_unload("pseries_wdt")
             self.module_load_with_parameters("pseries_wdt", 60, 2)
@@ -2757,7 +2757,7 @@ class OpTestWatchdog(OptestKernelDump):
             self.cv_SYSTEM.goto_state(OpSystemState.OFF)
             self.cv_SYSTEM.goto_state(OpSystemState.OS)
             os_level = self.cv_HOST.host_get_OS_Level()
-            self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+            self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
             self.cv_HOST.host_enable_kdump_service(os_level)
             self.module_unload("pseries_wdt")
             self.module_load_with_parameters("pseries_wdt", 60, 2)
@@ -3196,7 +3196,7 @@ class KernelCrash_SupportReport(OptestKernelDump):
 
         self.setup_test()
         os_level = self.cv_HOST.host_get_OS_Level()
-        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
         self.cv_HOST.host_enable_kdump_service(os_level)
 
         log.info("======= KernelCrash_SupportReport: triggering kernel crash =======")
@@ -3285,7 +3285,7 @@ class KernelCrash_MakedumpfileOptions(OptestKernelDump):
 
     def runTest(self):
         os_level = self.cv_HOST.host_get_OS_Level()
-        self.cv_HOST.host_run_command("stty cols 300;stty rows 30")
+        self.cv_HOST.host_run_command("stty cols 300;stty rows 30 || true")
         self.cv_HOST.host_enable_kdump_service(os_level)
 
         passed = []
