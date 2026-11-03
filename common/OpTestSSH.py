@@ -302,6 +302,18 @@ class OpTestSSH():
         self.pty.logfile_read = OpTestLogger.FileLikeLogger(self.log)
         # delay here in case messages like afstokenpassing unsupported show up which mess up setup_term
         time.sleep(5)
+        # Disable bracketed paste mode (\e[?2004l).  Modern bash/readline
+        # enables it automatically on any PTY, emitting \x1b[?2004h on every
+        # prompt.  That escape sequence leaks into pexpect's output buffer,
+        # corrupts command output, and causes stty / prompt-detection failures
+        # (visible as "^[[?2004h[ssh-expect]#" in Jenkins logs).
+        # Sending the disable sequence immediately after login flushes it
+        # before check_set_term() begins matching prompts.
+        try:
+            self.pty.send("printf '\\e[?2004l'\r")
+            self.pty.expect([r'\$', r'#', pexpect.TIMEOUT], timeout=5)
+        except Exception:
+            pass  # non-fatal — best-effort suppression
         self.check_set_term()
         log.debug("CONNECT starts Expect Buffer ID={}".format(hex(id(self.pty))))
         return self.pty
