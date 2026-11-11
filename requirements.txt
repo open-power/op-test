@@ -8,6 +8,9 @@ ptyprocess
 # Telnet support - telnetlib3 for Python 3.13+
 telnetlib3; python_version >= '3.13'
 
+# cgi support - legacy-cgi for Python 3.13+
+legacy-cgi; python_version >= '3.13'
+
 # Testing and utilities
 unittest-xml-reporting
 unittest2
